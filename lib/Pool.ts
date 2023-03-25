@@ -3,6 +3,7 @@ import {Relay} from "./Relay"
 const normalizeUrl = url => url.replace(/\/+$/, "").toLowerCase().trim()
 
 export class Pool {
+  relays: Map<string, Relay>
   constructor() {
     this.relays = new Map()
   }

@@ -1,4 +1,5 @@
-import {WebSocket} from "ws"
+import WebSocket from "isomorphic-ws"
+import {EventBus} from "./EventBus"
 import {Deferred, defer} from "./Deferred"
 
 export class Relay {
@@ -8,7 +9,7 @@ export class Relay {
   queue: string[]
   error: string
   status: string
-  timeout?: number
+  timeout?: NodeJS.Timeout
   bus: EventBus
   static STATUS = {
     NEW: "new",
@@ -23,10 +24,6 @@ export class Relay {
     FORBIDDEN: "forbidden",
   }
   constructor(url) {
-    if (connections[url]) {
-      error(`Connection to ${url} already exists`)
-    }
-
     this.ws = null
     this.url = url
     this.ready = null
@@ -39,7 +36,7 @@ export class Relay {
   async connect() {
     if (this.status === Relay.STATUS.NEW) {
       if (this.ws) {
-        error("Attempted to connect when already connected", this)
+        console.error("Attempted to connect when already connected", this)
       }
 
       this.ready = defer()
@@ -47,7 +44,7 @@ export class Relay {
       this.status = Relay.STATUS.PENDING
 
       this.ws.addEventListener("open", () => {
-        log(`Opened connection to ${this.url}`)
+        console.log(`Opened connection to ${this.url}`)
 
         this.status = Relay.STATUS.READY
         this.ready.resolve()
@@ -57,12 +54,12 @@ export class Relay {
         this.queue.push(e.data)
 
         if (!this.timeout) {
-          this.timeout = global.setTimeout(() => this.handleMessages(), 10)
+          this.timeout = setTimeout(() => this.handleMessages(), 10)
         }
       })
 
       this.ws.addEventListener("error", e => {
-        log(`Error on connection to ${this.url}`)
+        console.log(`Error on connection to ${this.url}`)
 
         this.disconnect()
         this.ready.reject()
@@ -71,7 +68,7 @@ export class Relay {
       })
 
       this.ws.addEventListener("close", () => {
-        log(`Closed connection to ${this.url}`)
+        console.log(`Closed connection to ${this.url}`)
 
         this.disconnect()
         this.ready.reject()
@@ -83,7 +80,7 @@ export class Relay {
   }
   disconnect() {
     if (this.ws) {
-      log(`Disconnecting from ${this.url}`)
+      console.log(`Disconnecting from ${this.url}`)
 
       this.ws.close()
       this.ws = null
@@ -98,10 +95,12 @@ export class Relay {
         continue
       }
 
-      this.bus.handle(...message)
+      const [verb, ...args] = message
+
+      this.bus.handle(verb, ...args)
     }
 
-    this.timeout = this.queue.length > 0 ? global.setTimeout(() => this.handleMessages(), 10) : null
+    this.timeout = this.queue.length > 0 ? setTimeout(() => this.handleMessages(), 10) : null
   }
   send(...payload) {
     if (this.ws?.readyState !== 1) {
@@ -112,8 +111,8 @@ export class Relay {
   }
   subscribe(filters, id, {onEvent, onEose}) {
     const [eventChannel, eoseChannel] = [
-      this.bus.on("EVENT", (subid, e) => subid === id && onEvent(e)),
-      this.bus.on("EOSE", subid => subid === id && onEose()),
+      this.bus.on("EVENT", (subid, e) => subid === id && onEvent?.(e)),
+      this.bus.on("EOSE", subid => subid === id && onEose?.()),
     ]
 
     this.send("REQ", id, ...filters)
