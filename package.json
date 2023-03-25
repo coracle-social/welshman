@@ -1,0 +1,39 @@
+{
+  "name": "paravel",
+  "version": "1.0.0",
+  "description": "Yet another toolkit for nostr",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/paravel.umd.js",
+  "module": "./dist/paravel.es.js",
+  "exports": {
+    ".": {
+      "import": "./dist/paravel.es.js",
+      "require": "./dist/paravel.umd.js"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check:ts": "tsc --lib esnext lib/*.ts --noEmit",
+    "check:fmt": "prettier --check lib/*",
+    "check": "run-p check:*",
+    "format": "prettier --write lib/*"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@tsconfig/recommended": "^1.0.2",
+    "prettier": "^2.8.7",
+    "vite": "^4.2.1",
+    "vite-plugin-eslint": "^1.8.1"
+  },
+  "dependencies": {
+    "husky": "^8.0.3",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.0.2"
+  }
+}

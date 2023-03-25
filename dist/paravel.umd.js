@@ -1,0 +1,1 @@
+(function(e,t){typeof exports=="object"&&typeof module<"u"?t(exports):typeof define=="function"&&define.amd?define(["exports"],t):(e=typeof globalThis<"u"?globalThis:e||self,t(e.paravel={}))})(this,function(e){"use strict";e.stuff=1,Object.defineProperty(e,Symbol.toStringTag,{value:"Module"})});
