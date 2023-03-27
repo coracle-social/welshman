@@ -1,6 +1,6 @@
 import WebSocket from "isomorphic-ws"
-import {EventBus} from "./EventBus"
-import {Deferred, defer} from "./Deferred"
+import {EventBus} from "./util/EventBus"
+import {Deferred, defer} from "./util/Deferred"
 
 export class Relay {
   ws?: WebSocket
@@ -78,6 +78,12 @@ export class Relay {
 
     await this.ready.catch(() => null)
   }
+  reconnect() {
+    if (this.status === Relay.STATUS.ERROR) {
+      this.status = Relay.STATUS.NEW
+      this.connect()
+    }
+  }
   disconnect() {
     if (this.ws) {
       console.log(`Disconnecting from ${this.url}`)
@@ -108,52 +114,5 @@ export class Relay {
     }
 
     this.ws.send(JSON.stringify(payload))
-  }
-  subscribe(filters, id, {onEvent, onEose}) {
-    const [eventChannel, eoseChannel] = [
-      this.bus.on("EVENT", (subid, e) => subid === id && onEvent?.(e)),
-      this.bus.on("EOSE", subid => subid === id && onEose?.()),
-    ]
-
-    this.send("REQ", id, ...filters)
-
-    return {
-      conn: this,
-      unsub: () => {
-        if (this.status === Relay.STATUS.READY) {
-          this.send("CLOSE", id)
-        }
-
-        this.bus.off("EVENT", eventChannel)
-        this.bus.off("EOSE", eoseChannel)
-      },
-    }
-  }
-  publish(event, {onOk, onError}) {
-    const withCleanup = cb => k => {
-      if (k === event.id) {
-        cb()
-        this.bus.off("OK", okChannel)
-        this.bus.off("ERROR", errorChannel)
-      }
-    }
-
-    const [okChannel, errorChannel] = [
-      this.bus.on("OK", withCleanup(onOk)),
-      this.bus.on("ERROR", withCleanup(onError)),
-    ]
-
-    this.send("EVENT", event)
-  }
-  count(filter, id, {onCount}) {
-    const channel = this.bus.on("COUNT", (subid, ...payload) => {
-      if (subid === id) {
-        onCount(...payload)
-
-        this.bus.off("COUNT", channel)
-      }
-    })
-
-    this.send("COUNT", id, ...filter)
   }
 }

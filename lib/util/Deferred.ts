@@ -10,5 +10,5 @@ export const defer = (): Deferred<any> => {
     reject = reject_
   })
 
-  return Object.assign(p, {resolve, reject})
+  return Object.assign(p, {resolve, reject}) as any
 }

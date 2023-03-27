@@ -15,7 +15,7 @@
   "scripts": {
     "build": "node build.js",
     "pub": "npm i && node build.js && npm publish",
-    "check:ts": "tsc --noEmit --esModuleInterop lib/*",
+    "check:ts": "tsc --noEmit --esModuleInterop --strict lib/**/*",
     "check:es": "eslint lib/*",
     "check": "run-p check:*"
   },
