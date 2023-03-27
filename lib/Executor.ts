@@ -1,12 +1,12 @@
 import type {EventBus} from './util/EventBus.ts'
 
-type ExecutorTarget = {
+type Executable = {
   bus: EventBus
   send: (verb: string, ...args) => void
 }
 
 export class Executor {
-  target: ExecutorTarget
+  target: Executable
   constructor(target) {
     this.target = target
   }

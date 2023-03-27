@@ -1,32 +1,24 @@
 export type EventBusHandler = (...args: any[]) => void
-export type EventBusListener = {
-  id: string
-  handler: EventBusHandler
-}
 
 export class EventBus {
   static ANY = Math.random().toString().slice(2)
-  listeners: Record<string, Array<EventBusListener>> = {}
+  listeners: Record<string, Array<EventBusHandler>> = {}
   on(name: string, handler: EventBusHandler) {
-    const id = Math.random().toString().slice(2)
-
-    this.listeners[name] = this.listeners[name] || ([] as Array<EventBusListener>)
-    this.listeners[name].push({id, handler})
-
-    return id
+    this.listeners[name] = this.listeners[name] || ([] as Array<EventBusHandler>)
+    this.listeners[name].push(handler)
   }
-  off(name: string, id: string) {
-    this.listeners[name] = this.listeners[name].filter(l => l.id !== id)
+  off(name: string, handler: EventBusHandler) {
+    this.listeners[name] = this.listeners[name].filter(h => h !== handler)
   }
   clear() {
     this.listeners = {}
   }
   handle(k: string, ...payload: any) {
-    for (const {handler} of this.listeners[k] || []) {
+    for (const handler of this.listeners[k] || []) {
       handler(...payload)
     }
 
-    for (const {handler} of this.listeners[EventBus.ANY] || []) {
+    for (const handler of this.listeners[EventBus.ANY] || []) {
       handler(k, ...payload)
     }
   }
