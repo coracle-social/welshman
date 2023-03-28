@@ -31,6 +31,7 @@ export class Socket {
     this._onOpen = e => {
       this.status = Socket.STATUS.READY
       this.ready?.resolve()
+      this.bus.emit('open')
     }
 
     this._onMessage = e => {
@@ -45,6 +46,7 @@ export class Socket {
       this.disconnect()
       this.ready?.reject()
       this.status = Socket.STATUS.CLOSED
+      this.bus.emit('close')
     }
   }
   async connect() {
@@ -65,14 +67,15 @@ export class Socket {
     await this.ready?.catch(() => null)
   }
   disconnect() {
-    if (this.ws) {
-      this.ws.close()
-      this.ws.removeEventListener("open", this._onOpen)
-      this.ws.removeEventListener("message", this._onMessage)
-      this.ws.removeEventListener("error", this._onClose)
-      this.ws.removeEventListener("close", this._onClose)
-      this.ws = undefined
-    }
+    this.ws?.close()
+    this.ws?.removeEventListener("open", this._onOpen)
+    this.ws?.removeEventListener("message", this._onMessage)
+    this.ws?.removeEventListener("close", this._onClose)
+    this.ws = undefined
+  }
+  cleanup() {
+    this.disconnect()
+    this.bus.clear()
   }
   handleMessages() {
     for (const json of this.queue.splice(0, 10)) {
