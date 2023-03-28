@@ -4,7 +4,7 @@ const {build} = require('esbuild')
 
 const common = {
   bundle: true,
-  entryPoints: ['lib/main.ts'],
+  entryPoints: ['src/main.ts'],
   sourcemap: 'external'
 }
 

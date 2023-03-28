@@ -5,7 +5,7 @@ export default defineConfig({
   build: {
     lib: {
       name: 'paravel',
-      entry: path.resolve(__dirname, 'lib/main.ts'),
+      entry: path.resolve(__dirname, 'src/main.ts'),
       fileName: (format) => `paravel.${format}.js`
     }
   }

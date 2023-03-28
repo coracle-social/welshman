@@ -10,6 +10,9 @@ export class Socket {
   queue: string[]
   bus: EventBus
   status: string
+  _onOpen: (e: any) => void
+  _onMessage: (e: any) => void
+  _onClose: (e: any) => void
   static STATUS = {
     NEW: "new",
     PENDING: "pending",
@@ -24,6 +27,25 @@ export class Socket {
     this.queue = []
     this.bus = new EventBus()
     this.status = Socket.STATUS.NEW
+
+    this._onOpen = e => {
+      this.status = Socket.STATUS.READY
+      this.ready?.resolve()
+    }
+
+    this._onMessage = e => {
+      this.queue.push(e.data as string)
+
+      if (!this.timeout) {
+        this.handleMessagesAsync()
+      }
+    }
+
+    this._onClose = e => {
+      this.disconnect()
+      this.ready?.reject()
+      this.status = Socket.STATUS.CLOSED
+    }
   }
   async connect() {
     if ([Socket.STATUS.NEW, Socket.STATUS.CLOSED].includes(this.status)) {
@@ -35,45 +57,20 @@ export class Socket {
       this.ws = new WebSocket(this.url)
       this.status = Socket.STATUS.PENDING
 
-      this.ws.addEventListener("open", () => {
-        console.log(`Opened connection to ${this.url}`)
-
-        this.status = Socket.STATUS.READY
-        this.ready?.resolve()
-      })
-
-      this.ws.addEventListener("message", e => {
-        this.queue.push(e.data as string)
-
-        if (!this.timeout) {
-          this.timeout = this.handleMessagesAsync()
-        }
-      })
-
-      this.ws.addEventListener("error", e => {
-        console.log(`Error on connection to ${this.url}`)
-
-        this.disconnect()
-        this.ready?.reject()
-        this.status = Socket.STATUS.CLOSED
-      })
-
-      this.ws.addEventListener("close", () => {
-        console.log(`Closed connection to ${this.url}`)
-
-        this.disconnect()
-        this.ready?.reject()
-        this.status = Socket.STATUS.CLOSED
-      })
+      this.ws.addEventListener("open", this._onOpen)
+      this.ws.addEventListener("message", this._onMessage)
+      this.ws.addEventListener("close", this._onClose)
     }
 
     await this.ready?.catch(() => null)
   }
   disconnect() {
     if (this.ws) {
-      console.log(`Disconnecting from ${this.url}`)
-
       this.ws.close()
+      this.ws.removeEventListener("open", this._onOpen)
+      this.ws.removeEventListener("message", this._onMessage)
+      this.ws.removeEventListener("error", this._onClose)
+      this.ws.removeEventListener("close", this._onClose)
       this.ws = undefined
     }
   }
@@ -86,13 +83,17 @@ export class Socket {
         continue
       }
 
-      this.bus.handle('message', message)
+      this.bus.emit('message', this.url, message)
     }
 
-    this.timeout = this.queue.length > 0 ? this.handleMessagesAsync() : undefined
+    if (this.queue.length > 0) {
+      this.handleMessagesAsync()
+    } else {
+      this.timeout = undefined
+    }
   }
   handleMessagesAsync() {
-    return setTimeout(() => this.handleMessages(), 10) as NodeJS.Timeout
+    this.timeout = setTimeout(() => this.handleMessages(), 10) as NodeJS.Timeout
   }
   send(message: any) {
     if (this.status === Socket.STATUS.READY) {

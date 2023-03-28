@@ -1,25 +1,25 @@
 # Paravel
 
-Another nostr toolkit, focused on creating highly a configurable client system.
+Another nostr toolkit, focused on creating highly a configurable client system. What paravel provides is less a library of code than a library of abstractions. Odds are you will end up creating a custom implementation of every component to suit your needs, but if you start with paravel that will be much easier than if you pile on parameters over time.
 
 # Utilities
 
-- [Deferred](./lib/Deferred.ts') is just a promise with `resolve` and `reject` methods.
-- [EventBus](./lib/EventBus.ts') is an implementation of an event bus.
-- [Socket](./lib/Socket.ts') is a wrapper around isomorphic-ws that handles connection status and json parsing/serialization.
+- [Deferred](./src/Deferred.ts') is just a promise with `resolve` and `reject` methods.
+- [EventBus](./src/EventBus.ts') is an implementation of an event bus.
+- [Socket](./src/Socket.ts') is a wrapper around isomorphic-ws that handles connection status and json parsing/serialization.
 
 # Components
 
-- [Pool](./lib/Pool.ts') is a thin wrapper around `Map` for use with `Relay`s.
-- [Executor](./lib/Executor.ts') implements common nostr flows on `target`
+- [Pool](./src/Pool.ts') is a thin wrapper around `Map` for use with `Relay`s.
+- [Executor](./src/Executor.ts') implements common nostr flows on `target`
 
-# Executables
+# Executor targets
 
-Executables have an event `bus` and a `send` method and are passed to an `Executor` for use.
+Executor targets have an event `bus`, a `send` method, a `cleanup` method, and are passed to an `Executor` for use.
 
-- [Relay](./lib/Relay.ts') takes a `Socket` and provides listeners for different verbs.
-- [Relays](./lib/Relays.ts') takes an array of `Socket`s and provides listeners for different verbs, merging all events into a single stream.
-- [Plex](./lib/Plex.ts') takes an array of urls and a `Socket` and sends and receives wrapped nostr messages over that connection.
+- [Relay](./src/Relay.ts') takes a `Socket` and provides listeners for different verbs.
+- [Relays](./src/Relays.ts') takes an array of `Socket`s and provides listeners for different verbs, merging all events into a single stream.
+- [Plex](./src/Plex.ts') takes an array of urls and a `Socket` and sends and receives wrapped nostr messages over that connection.
 
 # Example
 
@@ -33,9 +33,8 @@ class Agent {
   }
   getTarget(urls) {
     return this.multiplexerUrl
-      ? new Plex(urls, this.pool.add(this.multiplexerUrl))
-      : new Relays(urls.map(url => this.pool.add(url)))
-    }
+      ? new Plex(urls, this.pool.get(this.multiplexerUrl))
+      : new Relays(urls.map(url => this.pool.get(url)))
   }
   subscribe(urls, filters, id, {onEvent, onEose}) {
     const executor = new Executor(this.getTarget(urls))

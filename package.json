@@ -1,6 +1,6 @@
 {
   "name": "paravel",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Yet another toolkit for nostr",
   "repository": {
     "type": "git",
@@ -15,8 +15,8 @@
   "scripts": {
     "build": "node build.js",
     "pub": "npm i && node build.js && npm publish",
-    "check:ts": "tsc --noEmit --esModuleInterop --strict lib/**/*",
-    "check:es": "eslint lib/*",
+    "check:ts": "tsc --noEmit --esModuleInterop --strict src/**/*",
+    "check:es": "eslint src/*",
     "check": "run-p check:*"
   },
   "keywords": [
