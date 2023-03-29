@@ -77,7 +77,7 @@ export class Socket {
       const ws = this.ws
 
       // Avoid "WebSocket was closed before the connection was established"
-      this.ready.then(() => ws.close())
+      this.ready.then(() => ws.close(), () => null)
 
       this.ws.removeEventListener("open", this._onOpen)
       this.ws.removeEventListener("message", this._onMessage)
