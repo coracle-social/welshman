@@ -4,7 +4,7 @@
   "description": "Yet another toolkit for nostr",
   "repository": {
     "type": "git",
-    "url": "https://github.com/staab/paravel.git"
+    "url": "https://github.com/coracle-social/paravel.git"
   },
   "main": "./dist/paravel.cjs",
   "module": "./dist/paravel.esm.js",
