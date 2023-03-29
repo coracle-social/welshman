@@ -48,8 +48,8 @@ export class Executor {
   }
   publish(event, {onOk, onError}) {
     const unsubscribe = this.target.bus.addListeners({
-      OK: (url, id, ...payload) => id === event.id && onOk(url, ...payload),
-      ERROR: (url, id, ...payload) => id === event.id && onError(url, ...payload),
+      OK: (url, id, ...payload) => id === event.id && onOk(url, id, ...payload),
+      ERROR: (url, id, ...payload) => id === event.id && onError(url, id, ...payload),
     })
 
     this.target.send("EVENT", event)
