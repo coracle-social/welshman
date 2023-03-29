@@ -5,10 +5,10 @@ export class Plex {
     this.urls = urls
     this.socket = socket
     this.bus = new EventBus()
-    this.listeners = sockets.map(socket => {
-      return socket.bus.addListener('message', (url, [verb, ...payload]) => {
-        this.bus.emit(verb, url, ...payload)
-      })
+    this.unsubscribe = socket.bus.addListeners({
+      message: (websocketUrl, [{relays}, [verb, ...payload]]) => {
+        this.bus.emit(verb, relays[0], ...payload)
+      },
     })
   }
   async send(...payload) {
@@ -18,6 +18,6 @@ export class Plex {
   }
   cleanup() {
     this.bus.clear()
-    this.listeners.map(unsubscribe => unsubscribe())
+    this.unsubscribe()
   }
 }
