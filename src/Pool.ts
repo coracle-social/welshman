@@ -15,6 +15,7 @@ export class Pool {
       const socket = new Socket(url)
 
       this.data.set(url, socket)
+      this.bus.emit('init', {url})
 
       socket.bus.addListeners({
         open: () => this.bus.emit('open', {url}),
