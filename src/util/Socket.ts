@@ -10,6 +10,7 @@ export class Socket {
   queue: string[]
   bus: EventBus
   status: string
+  error?: Error
   _onOpen: (e: any) => void
   _onMessage: (e: any) => void
   _onError: (e: any) => void
@@ -21,15 +22,14 @@ export class Socket {
     READY: "ready",
   }
   constructor(url: string) {
-    this.ws = undefined
     this.url = url
     this.ready = defer()
-    this.timeout = undefined
     this.queue = []
     this.bus = new EventBus()
     this.status = Socket.STATUS.NEW
 
     this._onOpen = () => {
+      this.error = undefined
       this.status = Socket.STATUS.READY
       this.ready.resolve()
       this.bus.emit('open')
@@ -43,8 +43,9 @@ export class Socket {
       }
     }
 
-    this._onError = (err: Error) => {
-      this.bus.emit('error', err)
+    this._onError = (error: Error) => {
+      this.error = error
+      this.bus.emit('error', error)
     }
 
     this._onClose = () => {
