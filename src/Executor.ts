@@ -1,23 +1,6 @@
 import type {EventBus} from './util/EventBus.ts'
 
-const createFilterId = filters =>
-  [Math.random().toString().slice(2, 6), filters.map(describeFilter).join(":")].join("-")
-
-const describeFilter = ({kinds = [], ...filter}) => {
-  const parts = []
-
-  parts.push(kinds.join(","))
-
-  for (const [key, value] of Object.entries(filter)) {
-    if (value instanceof Array) {
-      parts.push(`${key}[${value.length}]`)
-    } else {
-      parts.push(key)
-    }
-  }
-
-  return "(" + parts.join(",") + ")"
-}
+const createSubId = prefix => [prefix, Math.random().toString().slice(2, 10)].join('-')
 
 type Executable = {
   bus: EventBus
@@ -30,7 +13,7 @@ export class Executor {
     this.target = target
   }
   subscribe(filters, {onEvent, onEose}) {
-    const id = createFilterId(filters)
+    const id = createSubId('REQ')
     const unsubscribe = this.target.bus.addListeners({
       EVENT: (url, subid, e) => subid === id && onEvent?.(url, e),
       EOSE: (url, subid) => subid === id && onEose?.(url),
@@ -46,18 +29,18 @@ export class Executor {
       },
     }
   }
-  publish(event, {onOk, onError}) {
+  publish(event, {verb = 'EVENT', onOk, onError}) {
     const unsubscribe = this.target.bus.addListeners({
       OK: (url, id, ...payload) => id === event.id && onOk(url, id, ...payload),
       ERROR: (url, id, ...payload) => id === event.id && onError(url, id, ...payload),
     })
 
-    this.target.send("EVENT", event)
+    this.target.send(verb, event)
 
     return {unsubscribe}
   }
   count(filters, {onCount}) {
-    const id = createFilterId(filters)
+    const id = createSubId('COUNT')
     const unsubscribe = this.target.bus.addListeners({
       COUNT: (url, subid, ...payload) => {
         if (subid === id) {
