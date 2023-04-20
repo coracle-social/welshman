@@ -55,19 +55,7 @@ export class Executor {
     return {unsubscribe}
   }
   handleAuth({onAuth, onOk}) {
-    let event
-
-    const unsubscribe = this.target.bus.addListeners({
-      AUTH: async (url, challenge) => {
-        event = await onAuth(url, challenge)
-      },
-      OK: (url, id, ok, message) => {
-        if (id === event?.id) {
-          event = null
-          onOk(url, id, ok, message)
-        }
-      }
-    })
+    const unsubscribe = this.target.bus.addListeners({AUTH: onAuth, OK: onOk})
 
     return {unsubscribe}
   }
