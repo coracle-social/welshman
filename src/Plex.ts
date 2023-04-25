@@ -11,6 +11,9 @@ export class Plex {
       },
     })
   }
+  get sockets() {
+    return [this.socket]
+  }
   async send(...payload) {
     await this.socket.connect()
 
