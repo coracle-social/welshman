@@ -14,10 +14,10 @@
   },
   "scripts": {
     "build": "node build.js",
-    "pub": "npm i && npm run check && node build.js && npm publish",
-    "check:ts": "tsc --noEmit --esModuleInterop --strict src/**/*",
-    "check:es": "eslint src/*",
-    "check": "run-p check:*"
+    "pub": "npm i && npm run lint && node build.js && npm publish",
+    "lint:ts": "tsc --noEmit --esModuleInterop --strict src/**/*",
+    "lint:es": "eslint src/*",
+    "lint": "run-p lint:*"
   },
   "keywords": [
     "nostr"

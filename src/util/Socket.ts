@@ -27,33 +27,29 @@ export class Socket {
     this.queue = []
     this.bus = new EventBus()
     this.status = Socket.STATUS.NEW
+  }
+  onOpen() {
+    this.error = undefined
+    this.status = Socket.STATUS.READY
+    this.ready.resolve()
+    this.bus.emit('open')
+  }
+  onMessage(event) {
+    this.queue.push(event.data as string)
 
-    this._onOpen = () => {
-      this.error = undefined
-      this.status = Socket.STATUS.READY
-      this.ready.resolve()
-      this.bus.emit('open')
+    if (!this.timeout) {
+      this.handleMessagesAsync()
     }
-
-    this._onMessage = event => {
-      this.queue.push(event.data as string)
-
-      if (!this.timeout) {
-        this.handleMessagesAsync()
-      }
-    }
-
-    this._onError = (error: Error) => {
-      this.error = error
-      this.bus.emit('error', error)
-    }
-
-    this._onClose = () => {
-      this.disconnect()
-      this.ready.reject()
-      this.status = Socket.STATUS.CLOSED
-      this.bus.emit('close')
-    }
+  }
+  onError(error: Error) {
+    this.error = error
+    this.bus.emit('error', error)
+  }
+  onClose() {
+    this.disconnect()
+    this.ready.reject()
+    this.status = Socket.STATUS.CLOSED
+    this.bus.emit('close')
   }
   async connect() {
     if ([Socket.STATUS.NEW, Socket.STATUS.CLOSED].includes(this.status)) {

@@ -4,11 +4,11 @@ export class Relay {
   constructor(socket) {
     this.socket = socket
     this.bus = new EventBus()
-    this.listeners = sockets.map(socket => {
-      return socket.bus.addListener('message', (url, [verb, ...payload]) => {
+    this.listeners = [
+      socket.bus.addListener('message', (url, [verb, ...payload]) => {
         this.bus.emit(verb, url, ...payload)
       })
-    })
+    ]
   }
   get sockets() {
     return [this.socket]
