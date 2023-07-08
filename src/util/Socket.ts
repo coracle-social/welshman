@@ -1,20 +1,15 @@
 import WebSocket from "isomorphic-ws"
-import {EventBus} from "./EventBus"
+import {EventEmitter} from 'events'
 import {Deferred, defer} from "./Deferred"
 
-export class Socket {
+export class Socket extends EventEmitter {
   ws?: WebSocket
   url: string
   ready: Deferred<void>
   timeout?: NodeJS.Timeout
-  queue: string[]
-  bus: EventBus
+  queue: [string, any][]
   status: string
   error?: Error
-  _onOpen: (e: any) => void
-  _onMessage: (e: any) => void
-  _onError: (e: any) => void
-  _onClose: (e: any) => void
   static STATUS = {
     NEW: "new",
     PENDING: "pending",
@@ -22,99 +17,101 @@ export class Socket {
     READY: "ready",
   }
   constructor(url: string) {
+    super()
+
     this.url = url
     this.ready = defer()
     this.queue = []
-    this.bus = new EventBus()
     this.status = Socket.STATUS.NEW
+
+    this.setMaxListeners(100)
   }
-  onOpen() {
+  send = (message: any) => {
+    this.connect()
+    this.queue.push(['send', message])
+    this.enqueueWork()
+  }
+  onMessage = (event: {data: string}) => {
+    this.queue.push(['receive', event.data])
+    this.enqueueWork()
+  }
+  onOpen = () => {
     this.error = undefined
     this.status = Socket.STATUS.READY
     this.ready.resolve()
-    this.bus.emit('open')
+    this.emit('open')
   }
-  onMessage(event) {
-    this.queue.push(event.data as string)
-
-    if (!this.timeout) {
-      this.handleMessagesAsync()
-    }
-  }
-  onError(error: Error) {
+  onError = (error: Error) => {
     this.error = error
-    this.bus.emit('error', error)
+    this.emit('fault', error)
   }
-  onClose() {
+  onClose = () => {
     this.disconnect()
     this.ready.reject()
     this.status = Socket.STATUS.CLOSED
-    this.bus.emit('close')
+    this.emit('close')
   }
-  async connect() {
-    if ([Socket.STATUS.NEW, Socket.STATUS.CLOSED].includes(this.status)) {
-      if (this.ws) {
-        console.error("Attempted to connect when already connected", this)
-      }
+  connect = () => {
+    const {NEW, CLOSED, PENDING} = Socket.STATUS
 
+    if ([NEW, CLOSED].includes(this.status)) {
       this.ready = defer()
+      this.status = PENDING
       this.ws = new WebSocket(this.url)
-      this.status = Socket.STATUS.PENDING
-
-      this.ws.addEventListener("open", this._onOpen)
-      this.ws.addEventListener("message", this._onMessage)
-      this.ws.addEventListener("error", this._onError)
-      this.ws.addEventListener("close", this._onClose)
+      this.ws.addEventListener("open", this.onOpen)
+      this.ws.addEventListener("close", this.onClose)
+      // @ts-ignore
+      this.ws.addEventListener("error", this.onError)
+      // @ts-ignore
+      this.ws.addEventListener("message", this.onMessage)
     }
-
-    await this.ready.catch(() => null)
   }
-  disconnect() {
+  disconnect = () => {
     if (this.ws) {
       const ws = this.ws
 
       // Avoid "WebSocket was closed before the connection was established"
       this.ready.then(() => ws.close(), () => null)
-
-      this.ws.removeEventListener("open", this._onOpen)
-      this.ws.removeEventListener("message", this._onMessage)
-      this.ws.removeEventListener("error", this._onError)
-      this.ws.removeEventListener("close", this._onClose)
       this.ws = undefined
     }
   }
-  cleanup() {
-    this.disconnect()
-    this.bus.clear()
-  }
-  handleMessages() {
-    for (const json of this.queue.splice(0, 10)) {
-      let message
-      try {
-        message = JSON.parse(json)
-      } catch (e) {
-        continue
-      }
-
-      this.bus.emit('message', this.url, message)
-    }
-
-    if (this.queue.length > 0) {
-      this.handleMessagesAsync()
-    } else {
-      this.timeout = undefined
+  receiveMessage = (json: string) => {
+    try {
+      this.emit('message', this.url, JSON.parse(json))
+    } catch (e) {
+      // pass
     }
   }
-  handleMessagesAsync() {
-    this.timeout = setTimeout(() => this.handleMessages(), 10) as NodeJS.Timeout
+  sendMessage = (message: any) => {
+    // @ts-ignore
+    this.ws.send(JSON.stringify(message))
   }
-  send(message: any) {
-    if (this.status === Socket.STATUS.READY) {
-      if (this.ws?.readyState !== 1) {
-        console.warn("Send attempted before socket was ready", this)
+  shouldDeferWork = () => {
+    // These sometimes get out of sync
+    return this.status !== Socket.STATUS.READY || this.ws?.readyState !== 1
+  }
+  doWork = () => {
+    this.timeout = undefined
+
+    for (const [action, payload] of this.queue.splice(0, 50)) {
+      if (action === 'receive') {
+        this.receiveMessage(payload)
       }
 
-      this.ws?.send(JSON.stringify(message))
+      if (action === 'send') {
+        if (this.shouldDeferWork()) {
+          this.queue.push(['send', payload])
+        } else {
+          this.sendMessage(payload)
+        }
+      }
+    }
+
+    this.enqueueWork()
+  }
+  enqueueWork = () => {
+    if (!this.timeout && this.queue.length > 0) {
+      this.timeout = setTimeout(() => this.doWork(), 50) as NodeJS.Timeout
     }
   }
 }

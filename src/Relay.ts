@@ -1,25 +1,22 @@
-import {EventBus} from "./util/EventBus"
+import {EventEmitter} from 'events'
 
-export class Relay {
+export class Relay extends EventEmitter {
   constructor(socket) {
+    super()
+
     this.socket = socket
-    this.bus = new EventBus()
-    this.listeners = [
-      socket.bus.addListener('message', (url, [verb, ...payload]) => {
-        this.bus.emit(verb, url, ...payload)
-      })
-    ]
+    this.socket.on('message', this.onMessage)
   }
   get sockets() {
     return [this.socket]
   }
-  async send(...payload) {
-    await this.socket.connect()
-
+  send(...payload) {
     this.socket.send(payload)
   }
-  cleanup() {
-    this.bus.clear()
-    this.listeners.map(unsubscribe => unsubscribe())
+  onMessage = (url, [verb, ...payload]) => {
+    this.emit(verb, url, ...payload)
+  }
+  cleanup = () => {
+    this.socket.off('message', this.onMessage)
   }
 }

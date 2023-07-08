@@ -20,5 +20,8 @@ module.exports = {
       "@typescript-eslint/no-unused-vars": ["error", {args: "none"}],
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/ban-ts-comment": "off",
+      "object-curly-spacing": ["error", "never"],
+      "array-bracket-spacing": ["error", "never"],
+      "semi": ["error", "never"],
     }
 }

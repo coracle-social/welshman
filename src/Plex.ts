@@ -1,26 +1,23 @@
-import {EventBus} from "./util/EventBus"
+import {EventEmitter} from 'events'
 
-export class Plex {
+export class Plex extends EventEmitter {
   constructor(urls, socket) {
+    super()
+
     this.urls = urls
     this.socket = socket
-    this.bus = new EventBus()
-    this.unsubscribe = socket.bus.addListeners({
-      message: (websocketUrl, [{relays}, [verb, ...payload]]) => {
-        this.bus.emit(verb, relays[0], ...payload)
-      },
-    })
+    this.socket.on('message', this.onMessage)
   }
   get sockets() {
     return [this.socket]
   }
-  async send(...payload) {
-    await this.socket.connect()
-
+  send = (...payload) => {
     this.socket.send([{relays: this.urls}, payload])
   }
-  cleanup() {
-    this.bus.clear()
-    this.unsubscribe()
+  onMessage = (websocketUrl, [{relays}, [verb, ...payload]]) => {
+    this.emit(verb, relays[0], ...payload)
+  }
+  cleanup = () => {
+    this.socket.off('message', this.onMessage)
   }
 }

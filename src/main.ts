@@ -1,4 +1,3 @@
-export * from "./util/EventBus"
 export * from "./util/Deferred"
 export * from "./util/Socket"
 export * from "./Executor"
