@@ -8,7 +8,8 @@ export class Executor {
     this.target = target
   }
   subscribe(filters, {onEvent, onEose}) {
-    const closed = false
+    let closed = false
+
     const id = createSubId('REQ')
     const eventListener = (url, subid, e) => subid === id && onEvent?.(url, e)
     const eoseListener = (url, subid) => subid === id && onEose?.(url)
