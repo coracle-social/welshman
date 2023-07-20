@@ -8,6 +8,7 @@ export class Executor {
     this.target = target
   }
   subscribe(filters, {onEvent, onEose}) {
+    const closed = false
     const id = createSubId('REQ')
     const eventListener = (url, subid, e) => subid === id && onEvent?.(url, e)
     const eoseListener = (url, subid) => subid === id && onEose?.(url)
@@ -18,9 +19,13 @@ export class Executor {
 
     return {
       unsubscribe: () => {
-        this.target.send("CLOSE", id)
-        this.target.off('EVENT', eventListener)
-        this.target.off('EOSE', eoseListener)
+        if (!closed) {
+          this.target.send("CLOSE", id)
+          this.target.off('EVENT', eventListener)
+          this.target.off('EOSE', eoseListener)
+        }
+
+        closed = true
       },
     }
   }
