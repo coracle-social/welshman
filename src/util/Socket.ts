@@ -93,7 +93,7 @@ export class Socket extends EventEmitter {
   doWork = () => {
     this.timeout = undefined
 
-    for (const [action, payload] of this.queue.splice(0, 50)) {
+    for (const [action, payload] of this.queue.splice(0, 10)) {
       if (action === 'receive') {
         this.receiveMessage(payload)
       }
@@ -111,7 +111,7 @@ export class Socket extends EventEmitter {
   }
   enqueueWork = () => {
     if (!this.timeout && this.queue.length > 0) {
-      this.timeout = setTimeout(() => this.doWork(), 50) as NodeJS.Timeout
+      this.timeout = setTimeout(() => this.doWork(), 100) as NodeJS.Timeout
     }
   }
 }
