@@ -6,7 +6,7 @@ export class Relays extends EventEmitter {
 
     this.sockets = sockets
     this.sockets.forEach(socket => {
-      socket.on('message', this.onMessage)
+      socket.on('receive', this.onMessage)
     })
   }
   send = (...payload) => {
@@ -14,12 +14,13 @@ export class Relays extends EventEmitter {
       socket.send(payload)
     })
   }
-  onMessage = (url, [verb, ...payload]) => {
-    this.emit(verb, url, ...payload)
+  onMessage = (socket, [verb, ...payload]) => {
+    this.emit(verb, socket.url, ...payload)
   }
   cleanup = () => {
+    this.removeAllListeners()
     this.sockets.forEach(socket => {
-      socket.off('message', this.onMessage)
+      socket.off('receive', this.onMessage)
     })
   }
 }

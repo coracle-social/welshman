@@ -9,11 +9,11 @@ export class Socket extends EventEmitter {
   timeout?: NodeJS.Timeout
   queue: [string, any][]
   status: string
-  error?: Error
   static STATUS = {
     NEW: "new",
     PENDING: "pending",
     CLOSED: "closed",
+    ERROR: "error",
     READY: "ready",
   }
   constructor(url: string) {
@@ -36,20 +36,24 @@ export class Socket extends EventEmitter {
     this.enqueueWork()
   }
   onOpen = () => {
-    this.error = undefined
     this.status = Socket.STATUS.READY
     this.ready.resolve()
-    this.emit('open')
+    this.emit('open', this)
   }
-  onError = (error: Error) => {
-    this.error = error
-    this.emit('fault', error)
-  }
-  onClose = () => {
+  onError = () => {
     this.disconnect()
     this.ready.reject()
-    this.status = Socket.STATUS.CLOSED
-    this.emit('close')
+    this.status = Socket.STATUS.ERROR
+    this.emit('fault', this)
+  }
+  onClose = () => {
+    if (this.status !== Socket.STATUS.ERROR) {
+      this.disconnect()
+      this.ready.reject()
+      this.status = Socket.STATUS.CLOSED
+    }
+
+    this.emit('close', this)
   }
   connect = () => {
     const {NEW, CLOSED, PENDING} = Socket.STATUS
@@ -60,7 +64,6 @@ export class Socket extends EventEmitter {
       this.ws = new WebSocket(this.url)
       this.ws.addEventListener("open", this.onOpen)
       this.ws.addEventListener("close", this.onClose)
-      // @ts-ignore
       this.ws.addEventListener("error", this.onError)
       // @ts-ignore
       this.ws.addEventListener("message", this.onMessage)
@@ -77,12 +80,14 @@ export class Socket extends EventEmitter {
   }
   receiveMessage = (json: string) => {
     try {
-      this.emit('message', this.url, JSON.parse(json))
+      this.emit('receive', this, JSON.parse(json))
     } catch (e) {
       // pass
     }
   }
   sendMessage = (message: any) => {
+    this.emit('send', this, message)
+
     // @ts-ignore
     this.ws.send(JSON.stringify(message))
   }

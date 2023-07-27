@@ -6,7 +6,7 @@ export class Plex extends EventEmitter {
 
     this.urls = urls
     this.socket = socket
-    this.socket.on('message', this.onMessage)
+    this.socket.on('receive', this.onMessage)
   }
   get sockets() {
     return [this.socket]
@@ -14,10 +14,11 @@ export class Plex extends EventEmitter {
   send = (...payload) => {
     this.socket.send([{relays: this.urls}, payload])
   }
-  onMessage = (websocketUrl, [{relays}, [verb, ...payload]]) => {
+  onMessage = (socket, [{relays}, [verb, ...payload]]) => {
     this.emit(verb, relays[0], ...payload)
   }
   cleanup = () => {
-    this.socket.off('message', this.onMessage)
+    this.removeAllListeners()
+    this.socket.off('receive', this.onMessage)
   }
 }

@@ -16,10 +16,10 @@ export class Pool extends EventEmitter {
       const socket = new Socket(url)
 
       this.data.set(url, socket)
-      this.emit('init', {url})
+      this.emit('init', socket)
 
-      socket.on('open', () => this.emit('open', {url}))
-      socket.on('close', () => this.emit('close', {url}))
+      socket.on('open', () => this.emit('open', socket))
+      socket.on('close', () => this.emit('close', socket))
     }
 
     return this.data.get(url)
@@ -28,7 +28,9 @@ export class Pool extends EventEmitter {
     const socket = this.data.get(url)
 
     if (socket) {
+      socket.disconnect()
       socket.removeAllListeners()
+
       this.data.delete(url)
     }
   }
