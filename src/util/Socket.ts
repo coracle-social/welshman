@@ -75,6 +75,7 @@ export class Socket extends EventEmitter {
 
       // Avoid "WebSocket was closed before the connection was established"
       this.ready.then(() => ws.close(), () => null)
+      this.ws.removeAllListeners()
       this.ws = undefined
     }
   }

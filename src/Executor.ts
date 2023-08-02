@@ -30,7 +30,7 @@ export class Executor {
       },
     }
   }
-  publish(event, {verb = 'EVENT', onOk, onError}) {
+  publish(event, {verb = 'EVENT', onOk, onError} = {}) {
     const okListener = (url, id, ...payload) => id === event.id && onOk(url, id, ...payload)
     const errorListener = (url, id, ...payload) => id === event.id && onError(url, id, ...payload)
 
