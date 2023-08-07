@@ -48,12 +48,24 @@ export class Socket extends EventEmitter {
     this.emit('fault', this)
   }
   onClose = () => {
+    if (this.ws) {
+      const ws = this.ws
+
+      // Avoid "WebSocket was closed before the connection was established"
+      this.ready.then(() => ws.close(), () => null)
+      this.ws.removeEventListener("open", this.onOpen)
+      this.ws.removeEventListener("close", this.onClose)
+      this.ws.removeEventListener("error", this.onError)
+      // @ts-ignore
+      this.ws.removeEventListener("message", this.onMessage)
+      this.ws = undefined
+    }
+
     if (this.status !== Socket.STATUS.ERROR) {
-      this.disconnect()
-      this.ready.reject()
       this.status = Socket.STATUS.CLOSED
     }
 
+    this.ready.reject()
     this.emit('close', this)
   }
   connect = () => {
@@ -71,18 +83,7 @@ export class Socket extends EventEmitter {
     }
   }
   disconnect = () => {
-    if (this.ws) {
-      const ws = this.ws
-
-      // Avoid "WebSocket was closed before the connection was established"
-      this.ready.then(() => ws.close(), () => null)
-      this.ws.removeEventListener("open", this.onOpen)
-      this.ws.removeEventListener("close", this.onClose)
-      this.ws.removeEventListener("error", this.onError)
-      // @ts-ignore
-      this.ws.removeEventListener("message", this.onMessage)
-      this.ws = undefined
-    }
+    this.onClose()
   }
   receiveMessage = (json: string) => {
     try {
