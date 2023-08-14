@@ -1,35 +1,42 @@
-import {Socket} from "./util/Socket"
+import {Connection} from "./Connection"
 import {EventEmitter} from 'events'
 
 export class Pool extends EventEmitter {
-  data: Map<string, Socket>
+  data: Map<string, Connection>
   constructor() {
     super()
 
     this.data = new Map()
   }
-  has(url) {
+  has(url: string) {
     return this.data.has(url)
   }
-  get(url, {autoConnect = true} = {}) {
-    if (!this.data.has(url) && autoConnect) {
-      const socket = new Socket(url)
+  get(url: string, {autoConnect = true} = {}) {
+    let connection = this.data.get(url)
 
-      this.data.set(url, socket)
-      this.emit('init', socket)
+    if (autoConnect) {
+      if (!connection) {
+        connection = new Connection(url)
 
-      socket.on('open', () => this.emit('open', socket))
-      socket.on('close', () => this.emit('close', socket))
+        this.data.set(url, connection)
+        this.emit('init', connection)
+
+        connection.on('open', () => this.emit('open', connection))
+        connection.on('close', () => this.emit('close', connection))
+      }
+
+      connection.ensureConnected({
+        shouldReconnect: connection.meta.lastClose < Date.now() - 30_000,
+      })
     }
 
-    return this.data.get(url)
+    return connection
   }
-  remove(url) {
-    const socket = this.data.get(url)
+  remove(url: string) {
+    const connection = this.data.get(url)
 
-    if (socket) {
-      socket.disconnect()
-      socket.removeAllListeners()
+    if (connection) {
+      connection.destroy()
 
       this.data.delete(url)
     }

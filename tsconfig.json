@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "module": "esnext",
-    "target": "esnext",
+    "target": "es2015",
     "lib": ["dom", "dom.iterable", "esnext"],
     "declaration": true,
     "strict": true,
@@ -16,6 +16,7 @@
     "resolveJsonModule": true,
     "isolatedModules": false,
     "importsNotUsedAsValues": "preserve"
-  }
+  },
+  "include": ["src/**/*.ts"]
 }
 
