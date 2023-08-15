@@ -20,7 +20,14 @@ export class Queue {
   }
 
   doWork() {
-    for (const message of this.messages.splice(0, 10)) {
+    for (let i = 0; i < 10; i++) {
+      if (this.messages.length === 0) {
+        break
+      }
+
+      // Pop the messages one at a time so handle can modify the queue
+      const [message] = this.messages.splice(0, 1)
+
       if (this.shouldSend(message)) {
         this.handle(message)
       } else {

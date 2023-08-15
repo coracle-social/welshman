@@ -44,7 +44,7 @@ export class ConnectionMeta {
   responseCount = 0
   responseTimer = 0
 
-  constructor(cxn: Connection) {
+  constructor(readonly cxn: Connection) {
     cxn.on('open', () => {
       this.lastOpen = Date.now()
     })
@@ -77,6 +77,8 @@ export class ConnectionMeta {
       if (verb === 'EVENT') this.onReceiveEvent(...payload)
       // @ts-ignore
       if (verb === 'EOSE') this.onReceiveEose(...payload)
+      // @ts-ignore
+      if (verb === 'NOTICE') this.onReceiveNotice(...payload)
     })
   }
 
@@ -131,6 +133,10 @@ export class ConnectionMeta {
       this.responseCount++
       this.responseTimer += Date.now() - request.sent
     }
+  }
+
+  onReceiveNotice(message: string) {
+    console.warn('NOTICE', this.cxn.url, message)
   }
 
   clearPending = () => {

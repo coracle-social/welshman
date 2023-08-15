@@ -26,13 +26,18 @@ class SendQueue extends Queue {
     }
 
     if (verb === 'REQ') {
-      return this.cxn.meta.pendingRequests.size < 10
+      return this.cxn.meta.pendingRequests.size < 8
     }
 
     return true
   }
 
   handle(message: SocketMessage) {
+    // If we ended up handling a CLOSE before we handled the REQ, don't send the REQ
+    if (message[0] === 'CLOSE') {
+      this.messages = this.messages.filter(m => !(m[0] === 'REQ' && m[1] === message[1]))
+    }
+
     this.cxn.onSend(message)
   }
 }
