@@ -11,7 +11,7 @@ export class Pool extends EventEmitter {
   has(url: string) {
     return this.data.has(url)
   }
-  get(url: string, {autoConnect = true} = {}) {
+  get(url: string, {autoConnect = true, reconnectAfter = 3000} = {}) {
     let connection = this.data.get(url)
 
     if (autoConnect) {
@@ -26,7 +26,7 @@ export class Pool extends EventEmitter {
       }
 
       connection.ensureConnected({
-        shouldReconnect: connection.meta.lastClose < Date.now() - 30_000,
+        shouldReconnect: connection.meta.lastClose < Date.now() - reconnectAfter,
       })
     }
 
