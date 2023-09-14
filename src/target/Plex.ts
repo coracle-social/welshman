@@ -1,8 +1,8 @@
-import {EventEmitter} from 'events'
 import {Connection} from '../Connection'
+import {Emitter} from '../util/Emitter'
 import type {PlexMessage, Message} from '../util/Socket'
 
-export class Plex extends EventEmitter {
+export class Plex extends Emitter {
   constructor(readonly urls: string[], readonly connection: Connection) {
     super()
 

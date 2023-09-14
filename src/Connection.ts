@@ -1,6 +1,6 @@
-import {EventEmitter} from 'events'
 import {Socket, isMessage, asMessage} from './util/Socket'
 import type {SocketMessage} from './util/Socket'
+import {Emitter} from './util/Emitter'
 import {Queue} from './util/Queue'
 import {AuthStatus, ConnectionMeta} from './ConnectionMeta'
 
@@ -52,7 +52,7 @@ class ReceiveQueue extends Queue {
   }
 }
 
-export class Connection extends EventEmitter {
+export class Connection extends Emitter {
   url: string
   socket: Socket
   sendQueue: SendQueue

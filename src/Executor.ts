@@ -1,9 +1,12 @@
-import {EventEmitter} from 'events'
 import type {Event, Filter} from './types'
+import type {Connection} from './Connection'
+import type {Emitter} from './util/Emitter'
 import type {Message} from './util/Socket'
 
-type Target = EventEmitter & {
+export type Target = Emitter & {
+  connections: Connection[]
   send: (...args: Message) => void
+  cleanup: () => void
 }
 
 type EventCallback = (url: string, event: Event) => void
@@ -46,6 +49,7 @@ export class Executor {
       },
     }
   }
+
   publish(event: Event, {verb = 'EVENT', onOk, onError}: PublishOpts) {
     const okListener = (url: string, id: string, ...payload: any[]) => id === event.id && onOk(url, id, ...payload)
     const errorListener = (url: string, id: string, ...payload: any[]) => id === event.id && onError(url, id, ...payload)
@@ -61,6 +65,7 @@ export class Executor {
       }
     }
   }
+
   count(filters: Filter[], {onCount}: CountOpts) {
     const id = createSubId('COUNT')
     const countListener = (url: string, subid: string, ...payload: any[]) => {
@@ -77,6 +82,7 @@ export class Executor {
       unsubscribe: () => this.target.off('COUNT', countListener)
     }
   }
+
   handleAuth({onAuth, onOk}: AuthOpts) {
     this.target.on('AUTH', onAuth)
     this.target.on('OK', onOk)

@@ -1,8 +1,8 @@
-import {EventEmitter} from 'events'
 import type {Connection} from '../Connection'
 import type {Message} from '../util/Socket'
+import {Emitter} from '../util/Emitter'
 
-export class Relays extends EventEmitter {
+export class Relays extends Emitter {
   constructor(readonly connections: Connection[]) {
     super()
 

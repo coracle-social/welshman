@@ -1,7 +1,7 @@
 import {Connection} from "./Connection"
-import {EventEmitter} from 'events'
+import {Emitter} from './util/Emitter'
 
-export class Pool extends EventEmitter {
+export class Pool extends Emitter {
   data: Map<string, Connection>
   constructor() {
     super()

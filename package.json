@@ -1,6 +1,6 @@
 {
   "name": "paravel",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Yet another toolkit for nostr",
   "repository": {
     "type": "git",
