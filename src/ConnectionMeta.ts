@@ -102,10 +102,12 @@ export class ConnectionMeta {
     this.pendingPublishes.set(event.id, {sent: Date.now(), event})
   }
 
-  onReceiveOk(eventId: string) {
+  onReceiveOk(eventId: string, ok: boolean) {
     const publish = this.pendingPublishes.get(eventId)
 
-    this.authStatus = AuthStatus.Ok
+    if (ok) {
+      this.authStatus = AuthStatus.Ok
+    }
 
     if (publish) {
       this.responseCount++
