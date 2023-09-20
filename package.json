@@ -7,6 +7,7 @@
     "url": "https://github.com/coracle-social/paravel.git"
   },
   "main": "./dist/paravel.cjs",
+  "types": "./dist/src/main.d.ts",
   "module": "./dist/paravel.esm.js",
   "exports": {
     "import": "./dist/paravel.esm.js",
