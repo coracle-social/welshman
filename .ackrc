@@ -1,2 +1,2 @@
---ignore-dir=dist
+--ignore-dir=build
 --ignore-file=match:yarn.lock

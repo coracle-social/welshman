@@ -1,5 +1,4 @@
-import type {Event} from 'nostr-tools/lib/event'
-import type {Filter} from 'nostr-tools/lib/filter'
+import type {Event, Filter} from 'nostr-tools'
 import type {Connection} from './Connection'
 import type {Emitter} from './util/Emitter'
 import type {Message} from './util/Socket'
