@@ -1,4 +1,4 @@
-# Paravel
+# Paravel [![version](https://badgen.net/npm/v/paravel)](https://npmjs.com/package/paravel)
 
 Another nostr toolkit, focused on creating highly a configurable client system. What paravel provides is less a library of code than a library of abstractions. Odds are you will end up creating a custom implementation of every component to suit your needs, but if you start with paravel that will be much easier than if you pile on parameters over time.
 
