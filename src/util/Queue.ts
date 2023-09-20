@@ -50,4 +50,8 @@ export class Queue {
 
     this.timeout = setTimeout(() => this.doWork(), 100) as NodeJS.Timeout
   }
+
+  stop() {
+    clearTimeout(this.timeout)
+  }
 }

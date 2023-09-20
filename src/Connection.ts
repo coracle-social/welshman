@@ -108,5 +108,7 @@ export class Connection extends Emitter {
   destroy() {
     this.socket.disconnect()
     this.removeAllListeners()
+    this.sendQueue.stop()
+    this.receiveQueue.stop()
   }
 }

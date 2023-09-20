@@ -12,11 +12,13 @@ export type Target = Emitter & {
 
 type EventCallback = (url: string, event: Event) => void
 type EoseCallback = (url: string) => void
+type CloseCallback = () => void
 type AuthCallback = (url: string, challenge: string) => void
 type OkCallback = (url: string, id: string, ...extra: any[]) => void
 type ErrorCallback = (url: string, id: string, ...extra: any[]) => void
 type CountCallback = (url: string, ...extra: any[]) => void
 type SubscribeOpts = {onEvent?: EventCallback, onEose?: EoseCallback}
+type LoadOpts = SubscribeOpts & {timeout?: number, onClose?: CloseCallback}
 type PublishOpts = {verb: string, onOk: OkCallback, onError: ErrorCallback}
 type CountOpts = {onCount: CountCallback}
 type AuthOpts = {onAuth: AuthCallback, onOk: OkCallback}
@@ -95,4 +97,29 @@ export class Executor {
       }
     }
   }
+
+  load(filters: Filter[], {timeout = 30_000, onEvent, onEose, onClose}: LoadOpts) {
+    const eose = new Set()
+
+    const close = () => {
+      onClose?.()
+      sub.unsubscribe()
+      clearTimeout(handle)
+    }
+
+    const handle = setTimeout(close, timeout)
+
+    const sub = this.subscribe(filters, {
+      onEvent,
+      onEose: (url: string) => {
+        onEose?.(url)
+        eose.add(url)
+
+        if (eose.size === this.target.connections.length) {
+          close()
+        }
+      },
+    })
+  }
 }
+

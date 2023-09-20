@@ -23,6 +23,7 @@ export class Socket {
   url: string
   ws?: WebSocket
   ready: Deferred<void>
+  failedToConnect = false
 
   constructor(url: string, readonly opts: SocketOpts) {
     this.url = url
@@ -39,7 +40,7 @@ export class Socket {
   }
 
   isPending() {
-    return !this.ws
+    return !this.ws && !this.failedToConnect
   }
 
   isConnecting() {
@@ -70,7 +71,10 @@ export class Socket {
   onClose = () => {
     this.ready.reject()
     this.opts.onClose()
-    this._close()
+
+    if (this.ws) {
+      this._close()
+    }
   }
 
   onError = () => {
@@ -100,11 +104,15 @@ export class Socket {
       throw new Error(`Already attempted connection for ${this.url}`)
     }
 
-    this.ws = new WebSocket(this.url)
-    this.ws.onopen = this.onOpen
-    this.ws.onclose = this.onClose
-    this.ws.onerror = this.onError
-    this.ws.onmessage = this.onMessage
+    try {
+      this.ws = new WebSocket(this.url)
+      this.ws.onopen = this.onOpen
+      this.ws.onclose = this.onClose
+      this.ws.onerror = this.onError
+      this.ws.onmessage = this.onMessage
+    } catch (e) {
+      this.failedToConnect = true
+    }
   }
 
   disconnect() {
