@@ -1,6 +1,6 @@
 {
   "name": "paravel",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Yet another toolkit for nostr",
   "author": "hodlbod",
   "license": "MIT",
@@ -20,6 +20,9 @@
     },
     "./types": "./build/src/main.d.ts"
   },
+  "files": [
+    "build"
+  ],
   "scripts": {
     "pub": "npm i && npm run lint && tsc-multi && npm publish",
     "build": "tsc-multi",
