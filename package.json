@@ -14,11 +14,9 @@
     "require": "./dist/paravel.cjs"
   },
   "scripts": {
-    "build": "node build.js",
+    "build": "tsc && node build.js",
     "pub": "npm i && npm run lint && node build.js && npm publish",
-    "lint:ts": "tsc",
-    "lint:es": "eslint src/* --fix",
-    "lint": "run-p lint:*"
+    "lint": "eslint src/* --fix"
   },
   "keywords": [
     "nostr"
@@ -39,6 +37,7 @@
     "eslint-plugin-babel": "^5.3.1",
     "esm-loader-import-relative-extension": "^1.0.8",
     "esm-loader-typescript": "^1.0.3",
+    "gts": "^5.0.1",
     "node-esm-loader": "^0.0.3",
     "prettier": "2.8.3",
     "tsd": "^0.22.0",
@@ -48,6 +47,7 @@
     "events": "^3.3.0",
     "husky": "^8.0.3",
     "isomorphic-ws": "^5.0.0",
+    "nostr-tools": "^1.15.0",
     "npm-run-all": "^4.1.5"
   }
 }

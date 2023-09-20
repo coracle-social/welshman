@@ -1,4 +1,5 @@
-import type {Event, Filter} from './types'
+import type {Event} from 'nostr-tools/lib/event'
+import type {Filter} from 'nostr-tools/lib/filter'
 import type {Connection} from './Connection'
 import type {Emitter} from './util/Emitter'
 import type {Message} from './util/Socket'
@@ -15,7 +16,7 @@ type AuthCallback = (url: string, challenge: string) => void
 type OkCallback = (url: string, id: string, ...extra: any[]) => void
 type ErrorCallback = (url: string, id: string, ...extra: any[]) => void
 type CountCallback = (url: string, ...extra: any[]) => void
-type SubscribeOpts = {onEvent: EventCallback, onEose: EoseCallback}
+type SubscribeOpts = {onEvent?: EventCallback, onEose?: EoseCallback}
 type PublishOpts = {verb: string, onOk: OkCallback, onError: ErrorCallback}
 type CountOpts = {onCount: CountCallback}
 type AuthOpts = {onAuth: AuthCallback, onOk: OkCallback}
@@ -26,7 +27,7 @@ export class Executor {
 
   constructor(readonly target: Target) {}
 
-  subscribe(filters: Filter[], {onEvent, onEose}: SubscribeOpts) {
+  subscribe(filters: Filter[], {onEvent, onEose}: SubscribeOpts = {}) {
     let closed = false
 
     const id = createSubId('REQ')

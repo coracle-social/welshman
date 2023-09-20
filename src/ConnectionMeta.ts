@@ -1,4 +1,5 @@
-import type {Event, Filter} from './types'
+import type {Event} from 'nostr-tools/lib/event'
+import type {Filter} from 'nostr-tools/lib/filter'
 import type {Connection} from './Connection'
 
 export type PublishMeta = {

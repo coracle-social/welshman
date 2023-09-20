@@ -11,7 +11,7 @@ export class Pool extends Emitter {
   has(url: string) {
     return this.data.has(url)
   }
-  get(url: string, {autoConnect = true, reconnectAfter = 3000} = {}) {
+  get(url: string, {autoConnect = true, reconnectAfter = 3000} = {}): Connection {
     let connection = this.data.get(url)
 
     if (autoConnect) {
@@ -30,7 +30,7 @@ export class Pool extends Emitter {
       })
     }
 
-    return connection
+    return connection!
   }
   remove(url: string) {
     const connection = this.data.get(url)
