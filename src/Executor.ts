@@ -100,13 +100,13 @@ export class Executor {
   load(filters: Filter[], {timeout = 30_000, onEvent, onEose, onClose}: LoadOpts) {
     const eose = new Set()
 
-    const close = () => {
+    const unsubscribe = () => {
       onClose?.()
       sub.unsubscribe()
       clearTimeout(handle)
     }
 
-    const handle = setTimeout(close, timeout)
+    const handle = setTimeout(unsubscribe, timeout)
 
     const sub = this.subscribe(filters, {
       onEvent,
@@ -115,10 +115,12 @@ export class Executor {
         eose.add(url)
 
         if (eose.size === this.target.connections.length) {
-          close()
+          unsubscribe()
         }
       },
     })
+
+    return {unsubscribe}
   }
 }
 
