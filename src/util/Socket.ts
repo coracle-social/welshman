@@ -85,7 +85,13 @@ export class Socket {
 
   onMessage = (event: MessageEvent) => {
     try {
-      this.opts.onMessage(JSON.parse(event.data as string))
+      const message = JSON.parse(event.data as string)
+
+      if (Array.isArray(message)) {
+        this.opts.onMessage(message as Message)
+      } else {
+        console.warn("Invalid messages received:", message)
+      }
     } catch (e) {
       // pass
     }
