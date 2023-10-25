@@ -1,3 +1,10 @@
+import type {Event} from 'nostr-tools'
+import {verifySignature, getEventHash, matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
+import {cached} from "./LRUCache"
+
+// ===========================================================================
+// Relays
+
 export const stripProto = (url: string) => url.replace(/.*:\/\//, "")
 
 export const isShareableRelay = (url: string) =>
@@ -27,6 +34,71 @@ export const normalizeRelayUrl = (url: string) => {
   }
 }
 
+// ===========================================================================
+// Nostr URIs
+
 export const fromNostrURI = (s: string) => s.replace(/^[\w+]+:\/?\/?/, "")
 
 export const toNostrURI = (s: string) => `nostr:${s}`
+
+// ===========================================================================
+// Events
+
+export const hasValidSignature = cached({
+  maxSize: 10000,
+  getKey: ([e]: any[]) => [getEventHash(e), e.sig].join(":"),
+  getValue: ([e]: any[]) => {
+    try {
+      verifySignature(e)
+    } catch (e) {
+      return false
+    }
+
+    return true
+  },
+})
+
+// ===========================================================================
+// Filters
+
+export type Filter = {
+  ids?: string[]
+  kinds?: number[]
+  authors?: string[]
+  since?: number
+  until?: number
+  limit?: number
+  search?: string
+  [key: `#${string}`]: string[]
+}
+
+export const matchFilter = (filter: Filter, event: Event) => {
+  if (!nostrToolsMatchFilter(filter, event)) {
+    return false
+  }
+
+  if (filter.search) {
+    const content = event.content.toLowerCase()
+    const terms = filter.search.toLowerCase().split(/\s+/g)
+
+    for (const term of terms) {
+      if (content.includes(term)) {
+        return true
+      }
+
+      return false
+    }
+  }
+
+  return true
+}
+
+export const matchFilters = (filters: Filter[], event: Event) => {
+  for (const filter of filters) {
+    if (matchFilter(filter, event)) {
+      return true
+    }
+  }
+
+  return false
+}

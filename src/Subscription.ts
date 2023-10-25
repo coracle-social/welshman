@@ -1,0 +1,89 @@
+import EventEmitter from "events"
+import type {Event} from 'nostr-tools'
+import type {Executor} from "./Executor"
+import type {Filter} from './util/nostr'
+import {matchFilters, hasValidSignature} from "./util/nostr"
+
+export type SubscriptionOpts = {
+  executor: Executor
+  filters: Filter[]
+  timeout?: number
+  hasSeen?: (e: Event) => boolean
+}
+
+export class Subscription extends EventEmitter {
+  unsubscribe: () => void
+  seen = new Set<string>()
+  opened = Date.now()
+  closed?: number
+
+  constructor(readonly opts: SubscriptionOpts) {
+    super()
+
+    const {executor, timeout, filters} = this.opts
+
+    // If we have a timeout, close the subscription automatically
+    if (timeout) {
+      setTimeout(this.close, timeout)
+    }
+
+    // If one of our connections gets closed make sure to kill our sub
+    executor.target.connections.forEach(con => con.on("close", this.close))
+
+    // Start our subscription
+    const sub = executor.subscribe(filters, {
+      onEvent: this.onEvent,
+      onEose: this.onEose,
+    })
+
+    this.unsubscribe = sub.unsubscribe
+  }
+
+  hasSeen = (event: Event) => {
+    if (this.opts.hasSeen) {
+      return this.opts.hasSeen(event)
+    }
+
+    if (this.seen.has(event.id)) {
+      return true
+    }
+
+    this.seen.add(event.id)
+
+    return false
+  }
+
+  onEvent = (url: string, event: Event) => {
+    // If we've seen this event, don't re-validate
+    // Otherwise, check the signature and filters
+    if (this.hasSeen(event)) {
+      this.emit("duplicate", event, url)
+    } else {
+      if (!hasValidSignature(event)) {
+        this.emit("invalid-signature", event, url)
+      } else if (!matchFilters(this.opts.filters, event)) {
+        this.emit("failed-filter", event, url)
+      } else {
+        this.emit("event", event, url)
+      }
+    }
+  }
+
+  onEose = (url: string) => {
+    this.emit("eose", url)
+  }
+
+  close = () => {
+    if (!this.closed) {
+      const {target} = this.opts.executor
+
+      this.closed = Date.now()
+      this.unsubscribe()
+      this.emit("close")
+      this.removeAllListeners()
+
+      target.connections.forEach(con => con.off("close", this.close))
+      target.cleanup()
+    }
+  }
+}
