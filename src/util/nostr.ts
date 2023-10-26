@@ -5,7 +5,7 @@ import {cached} from "./LRUCache"
 // ===========================================================================
 // General-purpose
 
-const now = () => Math.round(Date.now() / 1000)
+export const now = () => Math.round(Date.now() / 1000)
 
 // ===========================================================================
 // Relays
