@@ -11,15 +11,11 @@ export type Target = Emitter & {
 
 type EventCallback = (url: string, event: Event) => void
 type EoseCallback = (url: string) => void
-type CloseCallback = () => void
 type AuthCallback = (url: string, challenge: string) => void
 type OkCallback = (url: string, id: string, ...extra: any[]) => void
 type ErrorCallback = (url: string, id: string, ...extra: any[]) => void
-type CountCallback = (url: string, ...extra: any[]) => void
 type SubscribeOpts = {onEvent?: EventCallback, onEose?: EoseCallback}
-type LoadOpts = SubscribeOpts & {timeout?: number, onClose?: CloseCallback}
 type PublishOpts = {verb: string, onOk: OkCallback, onError: ErrorCallback}
-type CountOpts = {onCount: CountCallback}
 type AuthOpts = {onAuth: AuthCallback, onOk: OkCallback}
 
 const createSubId = (prefix: string) => [prefix, Math.random().toString().slice(2, 10)].join('-')
@@ -68,23 +64,6 @@ export class Executor {
     }
   }
 
-  count(filters: Filter[], {onCount}: CountOpts) {
-    const id = createSubId('COUNT')
-    const countListener = (url: string, subid: string, ...payload: any[]) => {
-      if (subid === id) {
-        onCount(url, ...payload)
-        this.target.off('COUNT', countListener)
-      }
-    }
-
-    this.target.on('COUNT', countListener)
-    this.target.send("COUNT", id, ...filters)
-
-    return {
-      unsubscribe: () => this.target.off('COUNT', countListener)
-    }
-  }
-
   handleAuth({onAuth, onOk}: AuthOpts) {
     this.target.on('AUTH', onAuth)
     this.target.on('OK', onOk)
@@ -95,32 +74,6 @@ export class Executor {
         this.target.off('OK', onOk)
       }
     }
-  }
-
-  load(filters: Filter[], {timeout = 30_000, onEvent, onEose, onClose}: LoadOpts) {
-    const eose = new Set()
-
-    const unsubscribe = () => {
-      onClose?.()
-      sub.unsubscribe()
-      clearTimeout(handle)
-    }
-
-    const handle = setTimeout(unsubscribe, timeout)
-
-    const sub = this.subscribe(filters, {
-      onEvent,
-      onEose: (url: string) => {
-        onEose?.(url)
-        eose.add(url)
-
-        if (eose.size === this.target.connections.length) {
-          unsubscribe()
-        }
-      },
-    })
-
-    return {unsubscribe}
   }
 }
 

@@ -8,12 +8,14 @@ export type SubscriptionOpts = {
   executor: Executor
   filters: Filter[]
   timeout?: number
-  hasSeen?: (e: Event) => boolean
+  closeOnEose?: boolean
+  hasSeen?: (e: Event, url: string) => boolean
 }
 
 export class Subscription extends EventEmitter {
   unsubscribe: () => void
   seen = new Set<string>()
+  eose = new Set<string>()
   opened = Date.now()
   closed?: number
 
@@ -39,9 +41,9 @@ export class Subscription extends EventEmitter {
     this.unsubscribe = sub.unsubscribe
   }
 
-  hasSeen = (event: Event) => {
+  hasSeen = (event: Event, url: string) => {
     if (this.opts.hasSeen) {
-      return this.opts.hasSeen(event)
+      return this.opts.hasSeen(event, url)
     }
 
     if (this.seen.has(event.id)) {
@@ -56,7 +58,7 @@ export class Subscription extends EventEmitter {
   onEvent = (url: string, event: Event) => {
     // If we've seen this event, don't re-validate
     // Otherwise, check the signature and filters
-    if (this.hasSeen(event)) {
+    if (this.hasSeen(event, url)) {
       this.emit("duplicate", event, url)
     } else {
       if (!hasValidSignature(event)) {
@@ -70,7 +72,15 @@ export class Subscription extends EventEmitter {
   }
 
   onEose = (url: string) => {
+    const {executor, closeOnEose} = this.opts
+
     this.emit("eose", url)
+
+    this.eose.add(url)
+
+    if (closeOnEose && this.eose.size === executor.target.connections.length) {
+      this.close()
+    }
   }
 
   close = () => {
