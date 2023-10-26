@@ -3,6 +3,11 @@ import {verifySignature, getEventHash, matchFilter as nostrToolsMatchFilter} fro
 import {cached} from "./LRUCache"
 
 // ===========================================================================
+// General-purpose
+
+const now = () => Math.round(Date.now() / 1000)
+
+// ===========================================================================
 // Relays
 
 export const stripProto = (url: string) => url.replace(/.*:\/\//, "")
@@ -43,6 +48,9 @@ export const toNostrURI = (s: string) => `nostr:${s}`
 
 // ===========================================================================
 // Events
+
+export const createEvent = (kind: number, {content = "", tags = [], created_at = now()}) =>
+  ({kind, content, tags, created_at})
 
 export const hasValidSignature = cached({
   maxSize: 10000,
