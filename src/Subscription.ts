@@ -14,8 +14,10 @@ export type SubscriptionOpts = {
 
 export class Subscription extends EventEmitter {
   unsubscribe: () => void
+  dead = new Set<string>()
   seen = new Set<string>()
   eose = new Set<string>()
+  closeHandlers = new Map()
   opened = Date.now()
   closed?: number
 
@@ -30,7 +32,19 @@ export class Subscription extends EventEmitter {
     }
 
     // If one of our connections gets closed make sure to kill our sub
-    executor.target.connections.forEach(con => con.on("close", this.close))
+    executor.target.connections.forEach(con => {
+      const handler = () => {
+        this.dead.add(con.url)
+
+        if (this.dead.size === executor.target.connections.length) {
+          this.close()
+        }
+      }
+
+      this.closeHandlers.set(con.url, handler)
+
+      con.on("close", handler)
+    })
 
     // Start our subscription
     const sub = executor.subscribe(filters, {
@@ -92,7 +106,7 @@ export class Subscription extends EventEmitter {
       this.emit("close")
       this.removeAllListeners()
 
-      target.connections.forEach(con => con.off("close", this.close))
+      target.connections.forEach(con => con.off("close", this.closeHandlers.get(con.url)))
       target.cleanup()
     }
   }
