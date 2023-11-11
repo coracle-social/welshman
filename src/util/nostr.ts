@@ -180,26 +180,33 @@ export class Tags extends Fluent<string[]> {
 
   // Support the deprecated version where tags are not marked as replies
   normalize() {
-    const tags = this.type(["a", "e"]).filter(t => last(t) !== "mention")
-    const legacy = tags.any(t => !["reply", "root"].includes(last(t)))
+    const tags = this.type(["a", "e"])
 
-    if (!legacy) {
+    // If we have a mark, we're not using the legacy format
+    if (tags.any(t => ["reply", "root"].includes(last(t)))) {
       return this
     }
 
-    const reply = tags.last()
-    const root = tags.count() > 1 ? tags.first() : null
-    const newTags = tags.reject(t => [reply?.[1], root?.[1]].includes(t[1])).all()
+    const reply = tags.values().last()
+    const root = tags.count() > 1 ? tags.values().first() : null
 
-    if (reply) {
-      newTags.push(reply.slice(0, 3).concat("reply"))
-    }
+    return new Tags(tags.all().map(t => {
+      t = t.slice(0, 3)
 
-    if (root) {
-      newTags.push(root.slice(0, 3).concat("root"))
-    }
+      if (t.length === 2) {
+        t.push("")
+      }
 
-    return new Tags(newTags)
+      let mark = 'mention'
+
+      if (t[1] === reply) {
+        mark = 'reply'
+      } else if (t[1] === root) {
+        mark = 'root'
+      }
+
+      return [...t, mark]
+    }))
   }
 
   getReply = () => {
