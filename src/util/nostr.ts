@@ -183,7 +183,7 @@ export class Tags extends Fluent<string[]> {
     const tags = this.type(["a", "e"])
 
     // If we have a mark, we're not using the legacy format
-    if (tags.any(t => ["reply", "root"].includes(last(t)))) {
+    if (tags.any(t => t.length === 4 && ["reply", "root"].includes(last(t)))) {
       return this
     }
 
