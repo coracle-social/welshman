@@ -140,7 +140,7 @@ export class Tags extends Fluent<string[]> {
     return new Tags(events.flatMap(e => e.tags))
   }
 
-  valueEquals = (v: string) => new Tags(this.xs.filter(t => t[1] === v))
+  nthEq = (i: number, v: string) => new Tags(this.xs.filter(t => t[i] === v))
 
   values = (k?: string) => this.filter(t => !k || t[0] === k).pluck(1)
 
