@@ -180,12 +180,15 @@ export class Tags extends Fluent<string[]> {
 
   // Support the deprecated version where tags are not marked as replies
   normalize() {
-    const tags = this.type(["a", "e"])
+    let tags = this.type(["a", "e"])
 
     // If we have a mark, we're not using the legacy format
     if (tags.any(t => t.length === 4 && ["reply", "root", "mention"].includes(last(t)))) {
       return this
     }
+
+    // Legacy only supports e tags
+    tags = tags.type("e")
 
     const reply = tags.values().last()
     const root = tags.count() > 1 ? tags.values().first() : null
