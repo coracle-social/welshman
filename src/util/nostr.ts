@@ -222,7 +222,7 @@ export class Tags extends Fluent<string[]> {
 
   getRoot = () => this.normalize().mark('root').values().first()
 
-  getCommunity = () => this.type("a").values().filter(a => a.startsWith('34550:')).first()
+  communities = () => this.type("a").values().filter(a => a.startsWith('34550:'))
 }
 
 // ===========================================================================
