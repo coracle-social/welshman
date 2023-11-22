@@ -28,18 +28,18 @@ export class LRUCache<T, U> {
   }
 }
 
-export function cached<T, V>({
+export function cached<T, V, Args extends any[]>({
   maxSize,
   getKey,
   getValue,
 }: {
   maxSize: number
-  getKey: (args: any[]) => T
-  getValue: (args: any[]) => V
+  getKey: (args: Args) => T
+  getValue: (args: Args) => V
 }) {
   const cache = new LRUCache<T, V>(maxSize)
 
-  const get = (...args: any[]) => {
+  const get = (...args: Args) => {
     const k = getKey(args)
 
     let v = cache.get(k)

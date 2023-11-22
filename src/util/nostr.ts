@@ -72,10 +72,10 @@ export type CreateEventOpts = {
 export const createEvent = (kind: number, {content = "", tags = [], created_at = now()}: CreateEventOpts) =>
   ({kind, content, tags, created_at})
 
-export const hasValidSignature = cached({
+export const hasValidSignature = cached<string, boolean, [Event]>({
   maxSize: 10000,
-  getKey: ([e]: any[]) => [getEventHash(e), e.sig].join(":"),
-  getValue: ([e]: any[]) => {
+  getKey: ([e]: [Event]) => [getEventHash(e), e.sig].join(":"),
+  getValue: ([e]: [Event]) => {
     try {
       verifySignature(e)
     } catch (e) {
@@ -180,7 +180,7 @@ export class Tags extends Fluent<string[]> {
 
   // Support the deprecated version where tags are not marked as replies
   normalize() {
-    let tags = this.type(["a", "e"])
+    const tags = this.type(["a", "e"])
 
     // If we have a mark, we're not using the legacy format
     if (tags.any(t => t.length === 4 && ["reply", "root", "mention"].includes(last(t)))) {
@@ -188,28 +188,30 @@ export class Tags extends Fluent<string[]> {
     }
 
     // Legacy only supports e tags
-    tags = tags.type("e")
+    const replyTags = tags.type("e")
+    const reply = replyTags.values().last()
+    const root = replyTags.count() > 1 ? replyTags.values().first() : null
 
-    const reply = tags.values().last()
-    const root = tags.count() > 1 ? tags.values().first() : null
+    return new Tags([
+      ...tags.reject(t => t[0] === "e").all(),
+      ...replyTags.all().map(t => {
+        t = t.slice(0, 3)
 
-    return new Tags(tags.all().map(t => {
-      t = t.slice(0, 3)
+        if (t.length === 2) {
+          t.push("")
+        }
 
-      if (t.length === 2) {
-        t.push("")
-      }
+        let mark = 'mention'
 
-      let mark = 'mention'
+        if (t[1] === reply) {
+          mark = 'reply'
+        } else if (t[1] === root) {
+          mark = 'root'
+        }
 
-      if (t[1] === reply) {
-        mark = 'reply'
-      } else if (t[1] === root) {
-        mark = 'root'
-      }
-
-      return [...t, mark]
-    }))
+        return [...t, mark]
+      })
+    ])
   }
 
   getReply = () => {
@@ -219,6 +221,8 @@ export class Tags extends Fluent<string[]> {
   }
 
   getRoot = () => this.normalize().mark('root').values().first()
+
+  getCommunity = () => this.type("a").values().filter(a => a.startsWith('34550:')).first()
 }
 
 // ===========================================================================
