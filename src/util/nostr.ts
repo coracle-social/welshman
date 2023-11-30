@@ -193,7 +193,7 @@ export class Tags extends Fluent<string[]> {
     const root = replyTags.count() > 1 ? replyTags.values().first() : null
 
     return new Tags([
-      ...tags.reject(t => t[0] === "e").all(),
+      ...this.reject(t => t[0] === "e").all(),
       ...replyTags.all().map(t => {
         t = t.slice(0, 3)
 
