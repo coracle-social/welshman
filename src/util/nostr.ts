@@ -120,6 +120,8 @@ export class Fluent<T> {
 
   map = <U>(f: (t: T) => U) => new Fluent(this.xs.map(f))
 
+  flatMap = <U>(f: (t: T) => U) => new Fluent(this.xs.flatMap(f))
+
   pluck = (k: number | string) => new Fluent(this.xs.map(x => x[k]))
 
   filter = (f: (t: T) => boolean) => new Fluent(this.xs.filter(f))
