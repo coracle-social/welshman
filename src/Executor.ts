@@ -15,7 +15,7 @@ type AuthCallback = (url: string, challenge: string) => void
 type OkCallback = (url: string, id: string, ...extra: any[]) => void
 type ErrorCallback = (url: string, id: string, ...extra: any[]) => void
 type SubscribeOpts = {onEvent?: EventCallback, onEose?: EoseCallback}
-type PublishOpts = {verb: string, onOk: OkCallback, onError: ErrorCallback}
+type PublishOpts = {verb?: string, onOk?: OkCallback, onError?: ErrorCallback}
 type AuthOpts = {onAuth: AuthCallback, onOk: OkCallback}
 
 const createSubId = (prefix: string) => [prefix, Math.random().toString().slice(2, 10)].join('-')
@@ -48,9 +48,9 @@ export class Executor {
     }
   }
 
-  publish(event: Event, {verb = 'EVENT', onOk, onError}: PublishOpts) {
-    const okListener = (url: string, id: string, ...payload: any[]) => id === event.id && onOk(url, id, ...payload)
-    const errorListener = (url: string, id: string, ...payload: any[]) => id === event.id && onError(url, id, ...payload)
+  publish(event: Event, {verb = 'EVENT', onOk, onError}: PublishOpts = {}) {
+    const okListener = (url: string, id: string, ...payload: any[]) => id === event.id && onOk?.(url, id, ...payload)
+    const errorListener = (url: string, id: string, ...payload: any[]) => id === event.id && onError?.(url, id, ...payload)
 
     this.target.on('OK', okListener)
     this.target.on('ERROR', errorListener)
