@@ -19,6 +19,7 @@ export const stripProto = (url: string) => url.replace(/.*:\/\//, "")
 
 export const isShareableRelay = (url: string) =>
   Boolean(
+    typeof url === 'string' &&
     // Is it actually a websocket url and has a dot
     url.match(/^wss?:\/\/.+\..+/) &&
     // Sometimes bugs cause multiple relays to get concatenated
@@ -180,49 +181,49 @@ export class Tags extends Fluent<string[]> {
     return meta
   }
 
-  // Support the deprecated version where tags are not marked as replies
-  normalize() {
-    const tags = this.type(["a", "e"])
+  getAncestorsLegacy() {
+    // Legacy only supports e tags. Normalize their length to 3
+    const eTags = this.type("e").map(t => {
+      while (t.length < 3) {
+        t.push("")
+      }
 
+      return t.slice(0, 3)
+    })
+
+    return {
+      roots: eTags.count() > 1 ? new Tags([eTags.first()]) : new Tags([]),
+      replies: new Tags([eTags.last()]),
+      mentions: new Tags(eTags.all().slice(1, -1)),
+    }
+  }
+
+  getAncestors(type = null) {
     // If we have a mark, we're not using the legacy format
-    if (tags.any(t => t.length === 4 && ["reply", "root", "mention"].includes(last(t)))) {
-      return this
+    if (!this.any(t => t.length === 4 && ["reply", "root", "mention"].includes(last(t)))) {
+      return this.getAncestorsLegacy()
     }
 
-    // Legacy only supports e tags
-    const replyTags = tags.type("e")
-    const reply = replyTags.values().last()
-    const root = replyTags.count() > 1 ? replyTags.values().first() : null
+    const tags = new Tags(this.type(type || ["a", "e"]).all().filter(t => !String(t[1]).startsWith('34550:')))
 
-    return new Tags([
-      ...this.reject(t => t[0] === "e").all(),
-      ...replyTags.all().map(t => {
-        t = t.slice(0, 3)
-
-        if (t.length === 2) {
-          t.push("")
-        }
-
-        let mark = 'mention'
-
-        if (t[1] === reply) {
-          mark = 'reply'
-        } else if (t[1] === root) {
-          mark = 'root'
-        }
-
-        return [...t, mark]
-      })
-    ])
+    return {
+      roots: new Tags(tags.mark('root').take(3).all()),
+      replies: new Tags(tags.mark('reply').take(3).all()),
+      mentions: new Tags(tags.mark('mention').take(3).all()),
+    }
   }
 
-  getReply = () => {
-    const tags = this.normalize()
+  roots = (type = null) => this.getAncestors(type).roots
 
-    return tags.mark('reply').values().first() || tags.mark('root').values().first()
-  }
+  replies = (type = null) => this.getAncestors(type).replies
 
-  getRoot = () => this.normalize().mark('root').values().first()
+  getReply = (type = null) => this.replies(type).values().first()
+
+  getRoot = (type = null) => this.roots(type).values().first()
+
+  getReplyHints = (type = null) => this.replies(type).relays().all()
+
+  getRootHints = (type = null) => this.roots(type).relays().all()
 
   communities = () => this.type("a").values().filter(a => a.startsWith('34550:'))
 }
