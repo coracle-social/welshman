@@ -10,6 +10,7 @@ export type SubscriptionOpts = {
   timeout?: number
   closeOnEose?: boolean
   hasSeen?: (e: Event, url: string) => boolean
+  shouldValidate?: (e: Event, url: string) => boolean
 }
 
 export class Subscription extends EventEmitter {
@@ -69,13 +70,21 @@ export class Subscription extends EventEmitter {
     return false
   }
 
+  hasValidSignature = (event: Event, url: string) => {
+    if (this.opts.shouldValidate && !this.opts.shouldValidate(event, url)) {
+      return true
+    }
+
+    return hasValidSignature(event)
+  }
+
   onEvent = (url: string, event: Event) => {
     // If we've seen this event, don't re-validate
     // Otherwise, check the signature and filters
     if (this.hasSeen(event, url)) {
       this.emit("duplicate", event, url)
     } else {
-      if (!hasValidSignature(event)) {
+      if (!this.hasValidSignature(event, url)) {
         this.emit("invalid-signature", event, url)
       } else if (!matchFilters(this.opts.filters, event)) {
         this.emit("failed-filter", event, url)

@@ -217,6 +217,8 @@ export class Tags extends Fluent<string[]> {
 
   replies = (type = null) => this.getAncestors(type).replies
 
+  communities = () => this.type("a").values().filter(a => a.startsWith('34550:'))
+
   getReply = (type = null) => this.replies(type).values().first()
 
   getRoot = (type = null) => this.roots(type).values().first()
@@ -224,8 +226,6 @@ export class Tags extends Fluent<string[]> {
   getReplyHints = (type = null) => this.replies(type).relays().all()
 
   getRootHints = (type = null) => this.roots(type).relays().all()
-
-  communities = () => this.type("a").values().filter(a => a.startsWith('34550:'))
 }
 
 // ===========================================================================
