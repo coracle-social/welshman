@@ -12,7 +12,11 @@ export class LRUCache<T, U> {
     const v = this.map.get(k)
 
     if (v !== undefined) {
-      this.keys.push(this.keys.shift() as T)
+      this.keys.push(k as T)
+
+      if (this.keys.length > this.maxSize) {
+        this.keys.splice(-this.maxSize)
+      }
     }
 
     return v
