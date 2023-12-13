@@ -24,14 +24,14 @@
     "build"
   ],
   "scripts": {
-    "pub": "npm i && npm run lint && tsc-multi && npm publish",
+    "pub": "pnpm install && npm run lint && tsc-multi && pnpm publish",
     "build": "tsc-multi",
     "clean": "gts clean",
     "lint": "gts lint",
     "fix": "gts fix",
-    "prepare": "yarn run build",
-    "pretest": "yarn run build",
-    "posttest": "yarn run lint"
+    "prepare": "pnpm build",
+    "pretest": "pnpm build",
+    "posttest": "pnpm lint"
   },
   "dependencies": {
     "isomorphic-ws": "^5.0.0",
