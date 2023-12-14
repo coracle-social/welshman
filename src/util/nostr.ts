@@ -12,6 +12,10 @@ export const last = <T>(xs: T[]) => xs[xs.length - 1]
 
 export const identity = <T>(x: T) => x
 
+export const flatten = <T>(xs: T[]) => xs.flatMap(identity)
+
+export const uniq = <T>(xs: T[]) => Array.from(new Set(xs))
+
 // ===========================================================================
 // Relays
 
@@ -90,151 +94,6 @@ export const hasValidSignature = cached<string, boolean, [Event]>({
     }
   },
 })
-
-// ==========================================================================
-// Tags
-
-export class Fluent<T> {
-  xs: any[]
-
-  constructor(xs: T[]) {
-    this.xs = xs.filter(identity)
-  }
-
-  as = <U>(f: (xs: T[]) => U) => f(this.xs)
-
-  all = () => this.xs
-
-  count = () => this.xs.length
-
-  exists = () => this.xs.length > 0
-
-  first = () => this.xs[0]
-
-  nth = (i: number) => this.xs[i]
-
-  last = () => last(this.xs)
-
-  flat = () => new Fluent(this.xs.flatMap(identity))
-
-  uniq = () => new Fluent(Array.from(new Set(this.xs)))
-
-  drop = (n: number) => new Fluent(this.xs.map(t => t.slice(n)))
-
-  take = (n: number) => new Fluent(this.xs.map(t => t.slice(0, n)))
-
-  map = <U>(f: (t: T) => U) => new Fluent(this.xs.map(f))
-
-  flatMap = <U>(f: (t: T) => U) => new Fluent(this.xs.flatMap(f))
-
-  pluck = (k: number | string) => new Fluent(this.xs.map(x => x[k]))
-
-  filter = (f: (t: T) => boolean) => new Fluent(this.xs.filter(f))
-
-  reject = (f: (t: T) => boolean) => new Fluent(this.xs.filter(t => !f(t)))
-
-  any = (f: (t: T) => boolean) => this.filter(f).exists()
-
-  find = (f: (t: T) => boolean) => this.xs.find(f)
-
-  has = (x: any) => this.xs.includes(x)
-}
-
-export class Tags extends Fluent<string[]> {
-  static from (e: Event | Event[]) {
-    const events = Array.isArray(e) ? e : [e]
-
-    return new Tags(events.flatMap(e => e.tags))
-  }
-
-  nthEq = (i: number, v: string) => new Tags(this.xs.filter(t => t[i] === v))
-
-  values = (k?: string) => this.filter(t => !k || t[0] === k).pluck(1)
-
-  type(t: string | string[]) {
-    const types = Array.isArray(t) ? t : [t]
-
-    return new Tags(this.xs.filter(t => types.includes(t[0])))
-  }
-
-  mark(m: string | string[]) {
-    const marks = Array.isArray(m) ? m : [m]
-
-    return new Tags(this.xs.filter(t => marks.includes(last(t))))
-  }
-
-  relays = () => this.flat().filter(isShareableRelay).uniq()
-
-  topics = () => this.type("t").values().map((t: string) => t.replace(/^#/, ""))
-
-  pubkeys = () => this.type("p").values()
-
-  urls = () => this.type("r").values()
-
-  getValue = (k?: string) => this.values(k).first()
-
-  getDict() {
-    const meta: Record<string, string> = {}
-
-    for (const [k, v] of this.xs) {
-      if (!meta[k]) {
-        meta[k] = v
-      }
-    }
-
-    return meta
-  }
-
-  getAncestorsLegacy() {
-    // Legacy only supports e tags. Normalize their length to 3
-    const eTags = this.type("e").map(t => {
-      while (t.length < 3) {
-        t.push("")
-      }
-
-      return t.slice(0, 3)
-    })
-
-    return {
-      roots: eTags.count() > 1 ? new Tags([eTags.first()]) : new Tags([]),
-      replies: new Tags([eTags.last()]),
-      mentions: new Tags(eTags.all().slice(1, -1)),
-    }
-  }
-
-  getAncestors(type = null) {
-    // If we have a mark, we're not using the legacy format
-    if (!this.any(t => t.length === 4 && ["reply", "root", "mention"].includes(last(t)))) {
-      return this.getAncestorsLegacy()
-    }
-
-    const tags = new Tags(this.type(type || ["a", "e"]).all().filter(t => !String(t[1]).startsWith('34550:')))
-
-    return {
-      roots: new Tags(tags.mark('root').take(3).all()),
-      replies: new Tags(tags.mark('reply').take(3).all()),
-      mentions: new Tags(tags.mark('mention').take(3).all()),
-    }
-  }
-
-  roots = (type = null) => this.getAncestors(type).roots
-
-  replies = (type = null) => this.getAncestors(type).replies
-
-  groups = () => this.type("a").values().filter(a => a.startsWith('35834:'))
-
-  communities = () => this.type("a").values().filter(a => a.startsWith('34550:'))
-
-  circles = () => this.type("a").values().filter(a => a.match(/^(34550|35834):/))
-
-  getReply = (type = null) => this.replies(type).values().first()
-
-  getRoot = (type = null) => this.roots(type).values().first()
-
-  getReplyHints = (type = null) => this.replies(type).relays().all()
-
-  getRootHints = (type = null) => this.roots(type).relays().all()
-}
 
 // ===========================================================================
 // Filters
