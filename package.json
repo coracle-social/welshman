@@ -1,6 +1,6 @@
 {
   "name": "paravel",
-  "version": "0.4.16",
+  "version": "0.4.17",
   "description": "Yet another toolkit for nostr",
   "author": "hodlbod",
   "license": "MIT",
@@ -24,7 +24,7 @@
     "build"
   ],
   "scripts": {
-    "pub": "pnpm install && npm run lint && tsc-multi && pnpm publish",
+    "pub": "pnpm install && pnpm run lint && tsc-multi && pnpm publish",
     "build": "tsc-multi",
     "clean": "gts clean",
     "lint": "gts lint",

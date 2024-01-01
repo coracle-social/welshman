@@ -75,7 +75,13 @@ export const createEvent = (kind: number, {content = "", tags = [], created_at =
 
 export const hasValidSignature = cached<string, boolean, [Event]>({
   maxSize: 10000,
-  getKey: ([e]: [Event]) => [getEventHash(e), e.sig].join(":"),
+  getKey: ([e]: [Event]) => {
+    try {
+      return [getEventHash(e), e.sig].join(":")
+    } catch (err) {
+      return 'invalid'
+    }
+  },
   getValue: ([e]: [Event]) => verifySignature(e),
 })
 
