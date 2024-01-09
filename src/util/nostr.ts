@@ -1,6 +1,6 @@
 import type {Event} from 'nostr-tools'
 import normalizeUrl from "normalize-url"
-import {verifySignature, getEventHash, matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
+import {verifyEvent, getEventHash, matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
 import {cached} from "./LRUCache"
 
 // ===========================================================================
@@ -82,7 +82,7 @@ export const hasValidSignature = cached<string, boolean, [Event]>({
       return 'invalid'
     }
   },
-  getValue: ([e]: [Event]) => verifySignature(e),
+  getValue: ([e]: [Event]) => verifyEvent(e),
 })
 
 // ==========================================================================
@@ -215,7 +215,11 @@ export class Tags extends Fluent<string[]> {
 
   replies = (type = null) => this.getAncestors(type).replies
 
+  groups = () => this.type("a").values().filter(a => a.startsWith('35834:'))
+
   communities = () => this.type("a").values().filter(a => a.startsWith('34550:'))
+
+  circles = () => this.type("a").values().filter(a => a.match(/^(34550|35834):/))
 
   getReply = (type = null) => this.replies(type).values().first()
 
