@@ -2,19 +2,7 @@ import type {Event} from 'nostr-tools'
 import normalizeUrl from "normalize-url"
 import {verifyEvent, getEventHash, matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
 import {cached} from "./LRUCache"
-
-// ===========================================================================
-// General-purpose
-
-export const now = () => Math.round(Date.now() / 1000)
-
-export const last = <T>(xs: T[]) => xs[xs.length - 1]
-
-export const identity = <T>(x: T) => x
-
-export const flatten = <T>(xs: T[]) => xs.flatMap(identity)
-
-export const uniq = <T>(xs: T[]) => Array.from(new Set(xs))
+import {now} from './misc'
 
 // ===========================================================================
 // Relays

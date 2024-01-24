@@ -1,25 +1,19 @@
-export class Tag {
-  constructor(readonly parts: string[]) {}
+import type {OmitStatics} from './misc'
+import {last} from './misc'
+import {Fluent} from './Fluent'
 
-  key() {
-    return this.parts[0]
+export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, 'from'>) {
+  static from(parts: Iterable<string>) {
+    return new Tag(Array.from(parts))
   }
 
-  val() {
-    return this.parts[1]
-  }
+  key = () => this.parts[0]
 
-  mark() {
-    return this.parts.slice(0, 2).slice(-1)[0]
-  }
+  value = () => this.parts[1]
 
-  nth(n: number) {
-    return this.parts[n]
-  }
+  mark = () => last(this.parts.slice(2))
 
-  *[Symbol.iterator]() {
-    for (const x of this.parts) {
-      yield x
-    }
-  }
+  entry = () => this.parts.slice(0, 2)
+
+  append = (s: string) => Tag.from(this.parts.concat(s))
 }

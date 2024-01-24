@@ -1,161 +1,146 @@
-export class Fluent<T> {
-  ItemClass?: Fluent<T>
+import type {Event} from 'nostr-tools'
+import {Tag} from './Tag'
+import {Fluent} from './Fluent'
+import type {OmitStatics} from './misc'
+import {isIterable, uniq} from './misc'
+import {isShareableRelay} from './nostr'
+import {isCommunityAddress, isGroupAddress, isCommunityOrGroupAddress} from './kinds'
 
-  constructor(value: T[]) {
-    this.value = value.filter(identity)
+export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'>) {
+  static from(p: Iterable<Tag | string[]>) {
+    return new Tags(Array.from(p).map(Tag.from))
   }
 
-  static create(value: T[]) {
-    this.value = value.filter(identity)
+  static fromEvent(event: Event) {
+    return Tags.from(event.tags)
   }
 
-  item(item: T) {
-    const {ItemClass} = this.constructor
-
-    return ItemClass ? ItemClass.create(item) : item
+  static fromEvents(events: Event[]) {
+    return Tags.from(events.flatMap((e: Event) => e?.tags))
   }
 
-  valueOf = () => this.value
+  // General purpose filters
 
-  count = () => this.value.length
+  whereKey = (key: string) => this.filter(t => t.key() === key)
 
-  exists = () => this.value.length > 0
+  whereValue = (value: string) => this.filter(t => t.value() === value)
 
-  f = <U>(f: (t: T) => U) => f(this.value)
+  whereMark = (mark: string) => this.filter(t => t.mark() === mark)
 
-  any = (f: (t: T) => boolean) => this.value.any(f)
+  // General purpose methods that return a list of values
 
-  every = (f: (t: T) => boolean) => this.value.every(f)
+  keys = () => new Fluent(this.parts.map(t => t.key()))
 
-  some = (f: (t: T) => boolean) => this.value.some(f)
+  values = () => new Fluent(this.parts.map(t => t.value()))
 
-  first = () => this.item(this.values[0])
+  marks = () => new Fluent(this.parts.map(t => t.mark()))
 
-  nth = (i: number) => this.item(this.values[i])
-
-  last = () => this.item(last(this.values))
-
-  find = (f: (t: T) => boolean) => this.item(this.value.find(f))
-
-  filter = (f: (t: T) => boolean) => this.constructor.create(this.value.filter(f))
-
-  reject = (f: (t: T) => boolean) => this.constructor.create(this.value.filter(t => !f(t)))
+  entries = () => new Fluent(this.parts.map(t => t.entry()))
 }
 
-export class Tag extends Fluent<string[]> {
-  type = () => this.value[0]
+export type CoercibleToTags = Event | Iterable<Event> | Tags | Tag | Tag[] | string[] | Iterable<string[]>
 
-  value = () => this.value[1]
+export const coerceToTags = (x: CoercibleToTags) => {
+  const xs = isIterable(x) ? Array.from(x as Iterable<any>) : [x]
 
-  mark = () => last(this.value)
+  if (xs.length === 0) {
+    return new Tags(xs)
+  }
+
+  if (xs[0] instanceof Event) {
+    return Tags.fromEvents(xs)
+  }
+
+  if (xs[0] instanceof Array) {
+    return Tags.from(xs)
+  }
+
+  if (typeof xs[0] === 'string') {
+    return Tags.from([xs])
+  }
+
+  throw new Error('Received invalid value to coerceToTags: ${x}')
 }
 
-export class Tags extends Fluent<string[][]> {
-  ItemClass: Tag
+export const getRelays = (x: CoercibleToTags) =>
+  uniq(Array.from(coerceToTags(x)).flatMap((t: Tag) => Array.from(t)).filter(isShareableRelay))
 
-  static from (e: Event | Event[]) {
-    const events = Array.isArray(e) ? e : [e]
+export const getTopics = (x: CoercibleToTags) =>
+  Array.from(coerceToTags(x).whereKey("t").values()).map((t: string) => t.replace(/^#/, ""))
 
-    return new Tags(events.flatMap(e => e?.tags))
-  }
+export const getPubkeys = (x: CoercibleToTags) =>
+  Array.from(coerceToTags(x).whereKey("p").values())
 
-  where(conditions: Record<string, (x: any) => boolean>) {
-    return this.filter(t => {
-      const tag = new Tag(t)
+export const getUrls = (x: CoercibleToTags) =>
+  Array.from(coerceToTags(x).whereKey("r").values())
 
-      for ([k, f] of Object.entries(conditions)) {
-        if (!f(tag[k]())) {
-          return false
-        }
-      }
-
-      return true
-    })
-  }
-
-  whereEq(conditions: Record<string, any>) {
-    return this.filter(t => {
-      const tag = new Tag(t)
-
-      for ([k, v] of Object.entries(conditions)) {
-        v = Array.isArray(v) ? v : [v]
-
-        if (!v.includes(tag[k]())) {
-          return false
-        }
-      }
-
-      return true
-    })
-  }
-
-  value = () => this.value.find(t => t[1])
-
-  values = () => this.value.map(t => t[1])
-
-  relays = () => uniq(flatten(this.value).filter(isShareableRelay))
-
-  topics = () => this.whereEq({type: "t"}).values().map((t: string) => t.replace(/^#/, ""))
-
-  pubkeys = () => this.whereEq({type: "p"}).values()
-
-  urls = () => this.whereEq({type: "r"}).values()
-
-  getDict() {
-    const meta: Record<string, string> = {}
-
-    for (const [k, v] of this.value) {
-      if (!meta[k]) {
-        meta[k] = v
-      }
-    }
-
-    return meta
-  }
-
-  getAncestorsLegacy() {
-    // Legacy only supports e tags. Normalize their length to 3
-    const eTags = this.whereEq({type: "e"}).map(t => {
-      while (t.length < 3) {
-        t.push("")
+export const getAncestorsLegacy = (x: CoercibleToTags) => {
+  // Legacy only supports e tags. Normalize their length to 3
+  const eTags = Tags.from(
+    coerceToTags(x).whereKey("e").map((t: Tag) => {
+      while (t.count() < 3) {
+        t.append("")
       }
 
       return t.slice(0, 3)
     })
+  )
 
-    return {
-      roots: eTags.count() > 1 ? new Tags([eTags.first()]) : new Tags([]),
-      replies: new Tags([eTags.last()]),
-      mentions: new Tags(eTags.all().slice(1, -1)),
-    }
+  return {
+    roots: eTags.slice(0, 1),
+    replies: eTags.slice(-1),
+    mentions: eTags.slice(1, -1),
   }
-
-  getAncestors(type = null) {
-    // If we have a mark, we're not using the legacy format
-    if (!this.any(t => t.length === 4 && ["reply", "root", "mention"].includes(last(t)))) {
-      return this.getAncestorsLegacy()
-    }
-
-    const tags = new Tags(this.whereEq({type: type || ["}a", "e"]).all().filter(t => !String(t[1]).startsWith('34550:')))
-
-    return {
-      roots: new Tags(tags.mark('root').take(3).all()),
-      replies: new Tags(tags.mark('reply').take(3).all()),
-      mentions: new Tags(tags.mark('mention').take(3).all()),
-    }
-  }
-
-  roots = (type = null) => this.getAncestors(type).roots
-
-  replies = (type = null) => this.getAncestors(type).replies
-
-  communities = () => this.whereEq({type: "a"}).values().filter(a => a.startsWith('34550:'))
-
-  getReply = (type = null) => this.replies(type).values().first()
-
-  getRoot = (type = null) => this.roots(type).values().first()
-
-  getReplyHints = (type = null) => this.replies(type).relays().all()
-
-  getRootHints = (type = null) => this.roots(type).relays().all()
 }
+
+type GetAncestorsReturn = {
+  roots: Tags
+  replies: Tags
+  mentions: Tags
+}
+
+export const getAncestors = (x: CoercibleToTags, key?: string): GetAncestorsReturn => {
+  const tags = coerceToTags(x)
+
+  // If we have a mark, we're not using the legacy format
+  if (!tags.some((t: Tag) => t.count() === 4 && ["reply", "root", "mention"].includes(t.mark()))) {
+    return getAncestorsLegacy(tags)
+  }
+
+  const eTags = tags.whereKey("e")
+  const aTags = tags.whereKey("a").reject((t: Tag) => isCommunityOrGroupAddress(t.value()))
+  const allTags = coerceToTags([...eTags, ...aTags])
+
+  return {
+    roots: allTags.whereMark('root').take(3),
+    replies: allTags.whereMark('reply').take(3),
+    mentions: allTags.whereMark('mention').take(3),
+  }
+}
+
+export const getRoots = (x: CoercibleToTags, key?: string) =>
+  getAncestors(x, key).roots
+
+export const getReplies = (x: CoercibleToTags, key?: string) =>
+  getAncestors(x, key).replies
+
+export const getGroups = (x: CoercibleToTags) =>
+  coerceToTags(x).whereKey("a").values().filter(isGroupAddress)
+
+export const getCommunities = (x: CoercibleToTags) =>
+  coerceToTags(x).whereKey("a").values().filter(isCommunityAddress)
+
+export const getCommunitiesAndGroups = (x: CoercibleToTags) =>
+  coerceToTags(x).whereKey("a").values().filter(isCommunityOrGroupAddress)
+
+export const getRoot = (x: CoercibleToTags, key?: string) =>
+  getRoots(x, key).values().first()
+
+export const getReply = (x: CoercibleToTags, key?: string) =>
+  getReplies(x, key).values().first()
+
+export const getRootHints = (x: CoercibleToTags, key?: string) =>
+  getRelays(getRoots(x, key))
+
+export const getReplyHints = (x: CoercibleToTags, key?: string) =>
+  getRelays(getReplies(x, key))
