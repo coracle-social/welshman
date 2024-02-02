@@ -1,8 +1,8 @@
-import {Socket, isMessage, asMessage} from './util/Socket'
-import type {SocketMessage} from './util/Socket'
 import {Emitter} from './util/Emitter'
 import {Queue} from './util/Queue'
 import {AuthStatus, ConnectionMeta} from './ConnectionMeta'
+import {Socket, isMessage, asMessage} from './Socket'
+import type {SocketMessage} from './Socket'
 
 class SendQueue extends Queue {
   constructor(readonly cxn: Connection) {

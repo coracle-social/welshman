@@ -1,6 +1,6 @@
-import {Connection} from '../Connection'
 import {Emitter} from '../util/Emitter'
-import type {PlexMessage, Message} from '../util/Socket'
+import type {PlexMessage, Message} from '../connect/Socket'
+import {Connection} from '../connect/Connection'
 
 export class Plex extends Emitter {
   constructor(readonly urls: string[], readonly connection: Connection) {

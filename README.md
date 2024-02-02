@@ -1,27 +1,41 @@
 # Paravel [![version](https://badgen.net/npm/v/paravel)](https://npmjs.com/package/paravel)
 
-Another nostr toolkit, focused on creating highly a configurable client system. What paravel provides is less a library of code than a library of abstractions. Odds are you will end up creating a custom implementation of every component to suit your needs, but if you start with paravel that will be much easier than if you pile on parameters over time.
+A nostr toolkit focused on creating highly a configurable client system. What paravel provides is less a library of code than a library of abstractions. Odds are you will end up creating a custom implementation of every component to suit your needs, but if you start with paravel that will be much easier than if you pile on parameters over time.
 
-# Utilities
+## /util
 
-- [Deferred](./src/utils/Deferred.ts') is just a promise with `resolve` and `reject` methods.
-- [Socket](./src/utils/Socket.ts') is a wrapper around isomorphic-ws that handles json parsing/serialization.
-- [Queue](./src/utils/Queue.ts') is an implementation of an asynchronous queue.
+Some general-purpose utilities used in paravel.
 
-# Components
+- `Deferred` is just a promise with `resolve` and `reject` methods.
+- `Queue` is an implementation of an asynchronous queue.
+- `LRUCache` is an implementation of an LRU cache.
+- `Emitter` extends EventEmitter to support `emitter.on('*', ...)`.
 
-- [Connection](./src/Connection.ts') is a wrapper for `Socket` with send and receive queues, and a `ConnectionMeta` instance.
-- [ConnectionMeta](./src/ConnectionMeta.ts') tracks stats for a given `Connection`.
-- [Executor](./src/Executor.ts') implements common nostr flows on `target`
-- [Pool](./src/Pool.ts') is a thin wrapper around `Map` for use with `Relay`s.
+## /nostr
 
-# Executor targets
+Some nostr-specific utilities.
 
-Executor targets have an event `bus`, a `send` method, a `cleanup` method, and are passed to an `Executor` for use.
+- `Router` is a utility for selecting relay urls based on user preferences and protocol hints.
 
-- [Relay](./src/Relay.ts') takes a `Connection` and provides listeners for different verbs.
-- [Relays](./src/Relays.ts') takes an array of `Connection`s and provides listeners for different verbs, merging all events into a single stream.
-- [Plex](./src/Plex.ts') takes an array of urls and a `Connection` and sends and receives wrapped nostr messages over that connection.
+## /connect
+
+Utilities having to do with connection management and nostr messages.
+
+- `Socket` is a wrapper around isomorphic-ws that handles json parsing/serialization.
+- `Connection` is a wrapper for `Socket` with send and receive queues, and a `ConnectionMeta` instance.
+- `ConnectionMeta` tracks stats for a given `Connection`.
+- `Executor` implements common nostr flows on `target`
+- `Pool` is a thin wrapper around `Map` for use with `Relay`s.
+- `Subscription` is a higher-level utility for making requests against multiple nostr relays.
+
+## /connect/target
+
+Executor targets extend `Emitter`, and have a `send` method, a `cleanup` method, and a `connections` getter. They are intended to be passed to an `Executor` for use.
+
+- `Relay` takes a `Connection` and provides listeners for different verbs.
+- `Relays` takes an array of `Connection`s and provides listeners for different verbs, merging all events into a single stream.
+- `Plex` takes an array of urls and a `Connection` and sends and receives wrapped nostr messages over that connection.
+- `Multi` allows you to compose multiple targets together.
 
 # Example
 
@@ -29,15 +43,16 @@ Functionality is split into small chunks to allow for changing out implementatio
 
 ```javascript
 class Agent {
-  constructor(multiplexerUrl) {
-    this.multiplexerUrl = multiplexerUrl
-    this.pool = new Pool()
-  }
+  pool = new Pool()
+
+  constructor(readonly multiplexerUrl: string) {}
+
   getTarget(urls) {
     return this.multiplexerUrl
       ? new Plex(urls, this.pool.get(this.multiplexerUrl))
       : new Relays(urls.map(url => this.pool.get(url)))
   }
+
   subscribe(urls, filters, id, {onEvent, onEose}) {
     const executor = new Executor(this.getTarget(urls))
 

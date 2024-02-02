@@ -1,5 +1,5 @@
 import type {Target} from '../Executor'
-import type {Message} from '../util/Socket'
+import type {Message} from '../connect/Socket'
 import {Emitter} from '../util/Emitter'
 
 export class Multi extends Emitter {
