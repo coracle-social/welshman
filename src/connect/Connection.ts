@@ -1,5 +1,5 @@
-import {Emitter} from './util/Emitter'
-import {Queue} from './util/Queue'
+import {Emitter} from '../util/Emitter'
+import {Queue} from '../util/Queue'
 import {AuthStatus, ConnectionMeta} from './ConnectionMeta'
 import {Socket, isMessage, asMessage} from './Socket'
 import type {SocketMessage} from './Socket'

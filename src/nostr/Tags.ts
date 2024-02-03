@@ -1,10 +1,10 @@
 import type {Event} from 'nostr-tools'
-import {Tag} from './Tag'
-import {Fluent} from './Fluent'
-import type {OmitStatics} from './misc'
-import {isIterable, uniq} from './misc'
-import {isShareableRelay} from './nostr'
+import {Fluent} from '../util/Fluent'
+import type {OmitStatics} from '../util/misc'
+import {isIterable, uniq} from '../util/misc'
+import {isShareableRelay} from '../util/nostr'
 import {isCommunityAddress, isGroupAddress, isCommunityOrGroupAddress} from './kinds'
+import {Tag} from './Tag'
 
 export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'>) {
   static from(p: Iterable<Tag | string[]>) {
@@ -61,6 +61,8 @@ export const coerceToTags = (x: CoercibleToTags) => {
 
   throw new Error('Received invalid value to coerceToTags: ${x}')
 }
+
+export const fromTags = (tags: Tags) => Array.from(tags).map(tag => Array.from(tag))
 
 export const getRelays = (x: CoercibleToTags) =>
   uniq(Array.from(coerceToTags(x)).flatMap((t: Tag) => Array.from(t)).filter(isShareableRelay))

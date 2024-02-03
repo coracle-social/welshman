@@ -1,5 +1,5 @@
 import {Connection} from "./Connection"
-import {Emitter} from './util/Emitter'
+import {Emitter} from '../util/Emitter'
 
 export class Pool extends Emitter {
   data: Map<string, Connection>

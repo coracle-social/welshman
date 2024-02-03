@@ -1,6 +1,6 @@
 import type {MessageEvent} from 'isomorphic-ws'
 import WebSocket from "isomorphic-ws"
-import {Deferred, defer} from "./Deferred"
+import {Deferred, defer} from "../util/Deferred"
 
 export type Message = [string, ...any[]]
 

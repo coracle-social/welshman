@@ -1,6 +1,6 @@
-import {Emitter} from '../util/Emitter'
-import type {Message} from '../connect/Socket'
-import type {Connection} from '../connect/Connection'
+import {Emitter} from '../../util/Emitter'
+import type {Message} from '../Socket'
+import type {Connection} from '../Connection'
 
 export class Relay extends Emitter {
   constructor(readonly connection: Connection) {

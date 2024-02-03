@@ -1,6 +1,6 @@
-import type {OmitStatics} from './misc'
-import {last} from './misc'
-import {Fluent} from './Fluent'
+import type {OmitStatics} from '../util/misc'
+import {last} from '../util/misc'
+import {Fluent} from '../util/Fluent'
 
 export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, 'from'>) {
   static from(parts: Iterable<string>) {

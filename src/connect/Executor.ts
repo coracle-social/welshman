@@ -1,7 +1,7 @@
 import type {Event, Filter} from 'nostr-tools'
+import type {Emitter} from '../util/Emitter'
 import type {Connection} from './Connection'
-import type {Emitter} from './util/Emitter'
-import type {Message} from './connect/Socket'
+import type {Message} from './Socket'
 
 export type Target = Emitter & {
   connections: Connection[]
