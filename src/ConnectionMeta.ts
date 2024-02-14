@@ -1,5 +1,6 @@
 import type {Event, Filter} from 'nostr-tools'
 import type {Connection} from './Connection'
+import type {Message} from './util/Socket'
 
 export type PublishMeta = {
   sent: number
@@ -57,32 +58,23 @@ export class ConnectionMeta {
       this.lastFault = Date.now()
     })
 
-    // @ts-ignore
-    cxn.on('send', (cxn, [verb, ...payload]) => {
-      // @ts-ignore
-      if (verb === 'REQ') this.onSendRequest(...payload)
-      // @ts-ignore
-      if (verb === 'CLOSE') this.onSendClose(...payload)
-      // @ts-ignore
-      if (verb === 'EVENT') this.onSendEvent(...payload)
+    cxn.on('send', (cxn: Connection, message: Message) => {
+      if (message[0] === 'REQ') this.onSendRequest(message)
+      if (message[0] === 'CLOSE') this.onSendClose(message)
+      if (message[0] === 'EVENT') this.onSendEvent(message)
     })
 
-    // @ts-ignore
-    cxn.on('receive', (cxn, [verb, ...payload]) => {
-      // @ts-ignore
-      if (verb === 'OK') this.onReceiveOk(...payload)
-      // @ts-ignore
-      if (verb === 'AUTH') this.onReceiveAuth(...payload)
-      // @ts-ignore
-      if (verb === 'EVENT') this.onReceiveEvent(...payload)
-      // @ts-ignore
-      if (verb === 'EOSE') this.onReceiveEose(...payload)
-      // @ts-ignore
-      if (verb === 'NOTICE') this.onReceiveNotice(...payload)
+    cxn.on('receive', (cxn: Connection, message: Message) => {
+      if (message[0] === 'OK') this.onReceiveOk(message)
+      if (message[0] === 'AUTH') this.onReceiveAuth(message)
+      if (message[0] === 'EVENT') this.onReceiveEvent(message)
+      if (message[0] === 'EOSE') this.onReceiveEose(message)
+      if (message[0] === 'CLOSED') this.onReceiveClosed(message)
+      if (message[0] === 'NOTICE') this.onReceiveNotice(message)
     })
   }
 
-  onSendRequest(subId: string, ...filters: Filter[]) {
+  onSendRequest([verb, subId, ...filters]: Message) {
     this.requestCount++
     this.lastRequest = Date.now()
     this.pendingRequests.set(subId, {
@@ -92,17 +84,17 @@ export class ConnectionMeta {
     })
   }
 
-  onSendClose(subId: string) {
+  onSendClose([verb, subId]: Message) {
     this.pendingRequests.delete(subId)
   }
 
-  onSendEvent(event: Event) {
+  onSendEvent([verb, event]: Message) {
     this.publishCount++
     this.lastPublish = Date.now()
     this.pendingPublishes.set(event.id, {sent: Date.now(), event})
   }
 
-  onReceiveOk(eventId: string, ok: boolean) {
+  onReceiveOk([verb, eventId, ok]: Message) {
     const publish = this.pendingPublishes.get(eventId)
 
     if (ok) {
@@ -116,16 +108,16 @@ export class ConnectionMeta {
     }
   }
 
-  onReceiveAuth(eventId: string) {
+  onReceiveAuth([verb, eventId]: Message) {
     this.authStatus = AuthStatus.Unauthorized
   }
 
-  onReceiveEvent(event: Event) {
+  onReceiveEvent([verb, event]: Message) {
     this.eventCount++
     this.lastEvent = Date.now()
   }
 
-  onReceiveEose(subId: string) {
+  onReceiveEose([verb, subId]: Message) {
     const request = this.pendingRequests.get(subId)
 
     // Only count the first eose
@@ -137,8 +129,25 @@ export class ConnectionMeta {
     }
   }
 
-  onReceiveNotice(message: string) {
-    console.warn('NOTICE', this.cxn.url, message)
+  onReceiveClosed([verb, id, notice]: Message) {
+    // Re-enqueue pending reqs/events when auth challenge is received
+    if (notice.startsWith('auth-required:')) {
+      const pub = this.pendingPublishes.get(id)
+
+      if (pub) {
+        this.cxn.send(['EVENT', pub.event])
+      }
+
+      const req = this.pendingRequests.get(id)
+
+      if (req) {
+        this.cxn.send(['REQ', id, ...req.filters])
+      }
+    }
+  }
+
+  onReceiveNotice([verb, notice]: Message) {
+    console.warn('NOTICE', this.cxn.url, notice)
   }
 
   clearPending = () => {
