@@ -94,11 +94,18 @@ export class ConnectionMeta {
     this.pendingPublishes.set(event.id, {sent: Date.now(), event})
   }
 
-  onReceiveOk([verb, eventId, ok]: Message) {
+  onReceiveOk([verb, eventId, ok, notice]: Message) {
     const publish = this.pendingPublishes.get(eventId)
 
     if (ok) {
       this.authStatus = AuthStatus.Ok
+    } else if (notice.startsWith('auth-required:')) {
+      // Re-enqueue pending reqs when auth challenge is received
+      const pub = this.pendingPublishes.get(eventId)
+
+      if (pub) {
+        this.cxn.send(['EVENT', pub.event])
+      }
     }
 
     if (publish) {
@@ -130,14 +137,8 @@ export class ConnectionMeta {
   }
 
   onReceiveClosed([verb, id, notice]: Message) {
-    // Re-enqueue pending reqs/events when auth challenge is received
     if (notice.startsWith('auth-required:')) {
-      const pub = this.pendingPublishes.get(id)
-
-      if (pub) {
-        this.cxn.send(['EVENT', pub.event])
-      }
-
+      // Re-enqueue pending reqs when auth challenge is received
       const req = this.pendingRequests.get(id)
 
       if (req) {
