@@ -101,7 +101,7 @@ export class Subscription extends EventEmitter {
 
     this.eose.add(url)
 
-    if (closeOnEose && this.eose.size === executor.target.connections.length) {
+    if (closeOnEose && this.eose.size >= executor.target.connections.length) {
       this.close()
     }
   }
