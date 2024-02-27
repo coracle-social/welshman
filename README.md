@@ -7,35 +7,35 @@ A nostr toolkit focused on creating highly a configurable client system. What pa
 Some general-purpose utilities used in paravel.
 
 - `Deferred` is just a promise with `resolve` and `reject` methods.
-- `Queue` is an implementation of an asynchronous queue.
-- `LRUCache` is an implementation of an LRU cache.
 - `Emitter` extends EventEmitter to support `emitter.on('*', ...)`.
-
-## /nostr
-
-Some nostr-specific utilities.
-
+- `Fluent` is a wrapper around arrays with chained methods that modify and copy the underlying array.
+- `Kinds` contains kind constants and related utility functions.
+- `LRUCache` is an implementation of an LRU cache.
+- `Queue` is an implementation of an asynchronous queue.
+- `Relays` contains utilities related to relays.
 - `Router` is a utility for selecting relay urls based on user preferences and protocol hints.
+- `Tags` and `Tag` extend `Fluent` to provide a convenient way to access and modify tags.
+- `Tools` is a collection of general-purpose utility functions.
 
 ## /connect
 
 Utilities having to do with connection management and nostr messages.
 
-- `Socket` is a wrapper around isomorphic-ws that handles json parsing/serialization.
-- `Connection` is a wrapper for `Socket` with send and receive queues, and a `ConnectionMeta` instance.
 - `ConnectionMeta` tracks stats for a given `Connection`.
+- `Connection` is a wrapper for `Socket` with send and receive queues, and a `ConnectionMeta` instance.
 - `Executor` implements common nostr flows on `target`
 - `Pool` is a thin wrapper around `Map` for use with `Relay`s.
+- `Socket` is a wrapper around isomorphic-ws that handles json parsing/serialization.
 - `Subscription` is a higher-level utility for making requests against multiple nostr relays.
 
 ## /connect/target
 
 Executor targets extend `Emitter`, and have a `send` method, a `cleanup` method, and a `connections` getter. They are intended to be passed to an `Executor` for use.
 
+- `Multi` allows you to compose multiple targets together.
+- `Plex` takes an array of urls and a `Connection` and sends and receives wrapped nostr messages over that connection.
 - `Relay` takes a `Connection` and provides listeners for different verbs.
 - `Relays` takes an array of `Connection`s and provides listeners for different verbs, merging all events into a single stream.
-- `Plex` takes an array of urls and a `Connection` and sends and receives wrapped nostr messages over that connection.
-- `Multi` allows you to compose multiple targets together.
 
 # Example
 

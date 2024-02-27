@@ -1,6 +1,6 @@
 import type {Event, Filter} from 'nostr-tools'
 import type {Connection} from './Connection'
-import type {Message} from './util/Socket'
+import type {Message} from './Socket'
 
 export type PublishMeta = {
   sent: number

@@ -1,6 +1,6 @@
 import type {Event} from 'nostr-tools'
-import {Tags, fromTags, getPubkeys, getGroups, getCommunities, getCommunitiesAndGroups, getReplyHints, getRootHints} from './Tags'
-import {nth, first} from '../util/misc'
+import {Tags} from './Tags'
+import {nth, first} from '../util/Tools'
 
 export type RouterOptions = {
   getUserPubkey: () => string | null
@@ -28,7 +28,7 @@ export class Router {
   getPubkeyRelayTags = (pubkey: string, mode?: string) => {
     const tags = this.options.getPubkeyRelayTags(pubkey)
 
-    return mode ? fromTags(Tags.from(tags).whereMark(mode)) : tags
+    return mode ? Tags.from(tags).whereMark(mode).valueOf() : tags
   }
 
   getPubkeyRelayUrls = (pubkey: string, mode?: string) =>
@@ -47,14 +47,14 @@ export class Router {
   }
 
   getEventGroupOrCommunityRelayUrlGroups = (event: Event, otherGroups: string[][]) => {
-    const groupAddresses = getGroups(event)
+    const groupAddresses = Tags.fromEvent(event).groups().valueOf()
 
-    if (groupAddresses.count() > 0) {
-      return Array.from(groupAddresses.map(this.getGroupRelayUrls))
+    if (groupAddresses.length > 0) {
+      return groupAddresses.map(this.getGroupRelayUrls)
     }
 
     return [
-      ...getCommunities(event).map(this.getCommunityRelayUrls),
+      ...Tags.fromEvent(event).communities().valueOf().map(this.getCommunityRelayUrls),
       ...otherGroups,
     ]
   }
@@ -138,7 +138,7 @@ export class Router {
     fallbackPolicy: useMaximalFallbacks("read"),
     getGroups: () =>
       this.getEventGroupOrCommunityRelayUrlGroups(event, [
-        getReplyHints(event),
+        Tags.fromEvent(event).replies().relays().valueOf(),
         this.getPubkeyRelayUrls(event.pubkey, "read"),
       ]),
   })
@@ -147,7 +147,7 @@ export class Router {
     fallbackPolicy: useMaximalFallbacks("read"),
     getGroups: () =>
       this.getEventGroupOrCommunityRelayUrlGroups(event, [
-        getRootHints(event),
+        Tags.fromEvent(event).roots().relays().valueOf(),
         this.getPubkeyRelayUrls(event.pubkey, "read"),
       ]),
   })
@@ -157,7 +157,7 @@ export class Router {
     getGroups: () =>
       this.getEventGroupOrCommunityRelayUrlGroups(event, [
         this.getPubkeyRelayUrls(event.pubkey, "write"),
-        ...getPubkeys(event).map(pubkey => this.getPubkeyRelayUrls(pubkey, "read")),
+        ...Tags.fromEvent(event).whereKey("p").values().valueOf().map((pk: string) => this.getPubkeyRelayUrls(pk, "read")),
       ]),
   })
 
@@ -198,7 +198,7 @@ export class RouterScenario {
     if (urls.length < limit) {
       const {mode, getLimit} = this.options.fallbackPolicy
       const fallbackRelayTags = this.router.options.getFallbackRelayTags()
-      const fallbackUrls = Tags.from(fallbackRelayTags).whereMark(mode).values()
+      const fallbackUrls = Tags.from(fallbackRelayTags).whereMark(mode).values().valueOf()
       const fallbackLimit = getLimit(limit, urls)
 
       return [...urls, ...fallbackUrls.slice(0, fallbackLimit)]

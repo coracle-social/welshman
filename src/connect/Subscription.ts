@@ -1,8 +1,9 @@
 import EventEmitter from "events"
 import type {Event} from 'nostr-tools'
 import type {Executor} from "./Executor"
-import type {Filter} from '../util/nostr'
-import {matchFilters, hasValidSignature} from "../util/nostr"
+import type {Filter} from '../util/Filters'
+import {matchFilters} from "../util/Filters"
+import {hasValidSignature} from "../util/Events"
 
 export type SubscriptionOpts = {
   executor: Executor
