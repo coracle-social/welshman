@@ -3,6 +3,10 @@ import {last} from './Tools'
 export class Fluent<T> {
   constructor(readonly xs: T[]) {}
 
+  static create() {
+    return this.from([])
+  }
+
   static from<T>(xs: Iterable<T>) {
     return new Fluent<T>(Array.from(xs))
   }
@@ -22,6 +26,8 @@ export class Fluent<T> {
   count = () => this.xs.length
 
   exists = () => this.xs.length > 0
+
+  has = (v: T) => this.xs.includes(v)
 
   every = (f: (t: T) => boolean) => this.xs.every(f)
 
@@ -43,11 +49,17 @@ export class Fluent<T> {
 
   map = (f: (t: T) => T) => this.clone(this.xs.map(f))
 
-  mapTo = <U>(f: (t: T) => U) => new Fluent(this.xs.map(f))
+  mapTo = <U>(f: (t: T) => U) => Fluent.from(this.xs.map(f))
 
-  flatMap = <U>(f: (t: T) => U[]) => new Fluent(this.xs.flatMap(f))
+  flatMap = <U>(f: (t: T) => U[]) => Fluent.from(this.xs.flatMap(f))
+
+  forEach = (f: (t: T, i: number) => void) => this.xs.forEach(f)
+
+  set = (i: number, x: T) => this.clone([...this.xs.slice(0, i), x, ...this.xs.slice(i + 1)])
 
   concat = (xs: T[]) => this.clone(this.xs.concat(xs))
 
   append = (x: T) => this.concat([x])
+
+  prepend = (x: T) => this.clone([x].concat(this.xs))
 }

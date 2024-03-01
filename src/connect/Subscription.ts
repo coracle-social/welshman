@@ -1,6 +1,7 @@
 import EventEmitter from "events"
 import type {Event} from 'nostr-tools'
 import type {Executor} from "./Executor"
+import type {Connection} from './Connection'
 import type {Filter} from '../util/Filters'
 import {matchFilters} from "../util/Filters"
 import {hasValidSignature} from "../util/Events"
@@ -116,7 +117,7 @@ export class Subscription extends EventEmitter {
       this.emit("close")
       this.removeAllListeners()
 
-      target.connections.forEach(con => con.off("close", this.closeHandlers.get(con.url)))
+      target.connections.forEach((con: Connection) => con.off("close", this.closeHandlers.get(con.url)))
       target.cleanup()
     }
   }

@@ -1,14 +1,26 @@
-import type {Event} from 'nostr-tools'
-import {Tags} from './Tags'
-import {nth, first} from '../util/Tools'
+import type {EventTemplate, UnsignedEvent} from 'nostr-tools'
+import type {Rumor} from './Events'
+import {nip19} from 'nostr-tools'
+import {getAddress, isReplaceable} from './Events'
+import {Tag, Tags} from './Tags'
+import {first, uniq, shuffle} from './Tools'
+import {isGroupAddress, isCommunityAddress} from './Address'
+
+export enum RelayMode {
+  Inbox = "inbox",
+  Outbox = "outbox",
+}
 
 export type RouterOptions = {
   getUserPubkey: () => string | null
-  getGroupRelayTags: (address: string) => string[][]
-  getCommunityRelayTags: (address: string) => string[][]
-  getPubkeyRelayTags: (pubkey: string) => string[][]
-  getFallbackRelayTags: () => string[][]
+  getGroupRelays: (address: string) => string[]
+  getCommunityRelays: (address: string) => string[]
+  getPubkeyInboxRelays: (pubkey: string) => string[]
+  getPubkeyOutboxRelays: (pubkey: string) => string[]
+  getFallbackInboxRelays: () => string[]
+  getFallbackOutboxRelays: () => string[]
   getRelayQuality?: (url: string) => number
+  getDefaultLimit: () => number
 }
 
 // - Fetch from and publish to non-shareable relays, but don't use them for hints
@@ -19,43 +31,36 @@ export class Router {
 
   // Utilities derived from options
 
-  getGroupRelayUrls = (address: string) =>
-    this.options.getGroupRelayTags(address).map(nth(1))
+  getAllPubkeyRelays = (pubkey: string) =>
+    [
+      ...this.options.getPubkeyInboxRelays(pubkey),
+      ...this.options.getPubkeyOutboxRelays(pubkey),
+    ]
 
-  getCommunityRelayUrls = (address: string) =>
-    this.options.getCommunityRelayTags(address).map(nth(1))
-
-  getPubkeyRelayTags = (pubkey: string, mode?: string) => {
-    const tags = this.options.getPubkeyRelayTags(pubkey)
-
-    return mode ? Tags.from(tags).whereMark(mode).valueOf() : tags
-  }
-
-  getPubkeyRelayUrls = (pubkey: string, mode?: string) =>
-    this.getPubkeyRelayTags(pubkey, mode).map(nth(1))
-
-  getUserRelayTags = (mode?: string) => {
+  getUserInboxRelays = () => {
     const pubkey = this.options.getUserPubkey()
 
-    return pubkey ? this.getPubkeyRelayTags(pubkey, mode) : []
+    return pubkey ? this.options.getPubkeyInboxRelays(pubkey) : []
   }
 
-  getUserRelayUrls = (mode?: string) => {
+  getUserOutboxRelays = () => {
     const pubkey = this.options.getUserPubkey()
 
-    return pubkey ? this.getPubkeyRelayUrls(pubkey, mode) : []
+    return pubkey ? this.options.getPubkeyOutboxRelays(pubkey) : []
   }
 
-  getEventGroupOrCommunityRelayUrlGroups = (event: Event, otherGroups: string[][]) => {
-    const groupAddresses = Tags.fromEvent(event).groups().valueOf()
+  getAllUserRelays = () => {
+    const pubkey = this.options.getUserPubkey()
 
-    if (groupAddresses.length > 0) {
-      return groupAddresses.map(this.getGroupRelayUrls)
-    }
+    return pubkey ? this.getAllPubkeyRelays(pubkey) : []
+  }
+
+  getEventContextRelayGroups = (event: EventTemplate) => {
+    const addresses = Tags.fromEvent(event).context().values().valueOf()
 
     return [
-      ...Tags.fromEvent(event).communities().valueOf().map(this.getCommunityRelayUrls),
-      ...otherGroups,
+      ...addresses.filter(isCommunityAddress).map(this.options.getCommunityRelays),
+      ...addresses.filter(isGroupAddress).map(this.options.getGroupRelays),
     ]
   }
 
@@ -64,19 +69,16 @@ export class Router {
   getGroupScores = (groups: string[][]) => {
     const scores: RouteScenarioScores = {}
 
-    // TODO: see if weighting earlier groups slightly heavier improves things
-    for (const urls of groups) {
-      urls.forEach((url, i) => {
-        const score = 1 / (i + 1) / urls.length
-
+    groups.forEach((urls, i) => {
+      for (const url of shuffle(uniq(urls))) {
         if (!scores[url]) {
           scores[url] = {score: 0, count: 0}
         }
 
-        scores[url].score += score
+        scores[url].score += 1 / (i + 1)
         scores[url].count += 1
-      })
-    }
+      }
+    })
 
     // Use log-sum-exp to get a a weighted sum
     for (const [url, score] of Object.entries(scores)) {
@@ -91,95 +93,210 @@ export class Router {
   }
 
   urlsFromScores = (limit: number, scores: RouteScenarioScores) =>
-    Object.entries(scores).sort((a, b) => a[1].score > b[1].score ? 1 : -1).map(pair => pair[0] as string).slice(0, limit)
+    Object.entries(scores).sort((a, b) => a[1].score > b[1].score ? -1 : 1).map(pair => pair[0] as string).slice(0, limit)
 
-  groupsToUrls = (limit: number, groups: string[][]) =>
-    this.urlsFromScores(limit, this.getGroupScores(groups))
+  groupsToUrls = (limit: number, groups: string[][]) => this.urlsFromScores(limit, this.getGroupScores(groups))
+
+  scenario = (options: RouterScenarioOptions) => new RouterScenario(this, options)
+
+  merge = ({fallbackPolicy, scenarios}: {fallbackPolicy: FallbackPolicy, scenarios: RouterScenario[]}) =>
+    this.scenario({fallbackPolicy, getGroups: () => scenarios.map(s => s.getRawUrls())})
 
   // Routing scenarios
 
-  FetchAllDirectMessage = () => new RouterScenario(this, {
-    fallbackPolicy: useMinimalFallbacks("read"),
-    getGroups: () => [this.getUserRelayUrls()],
+  Broadcast = () => this.scenario({
+    fallbackPolicy: useMinimalFallbacks(RelayMode.Outbox),
+    getGroups: () => [this.getAllUserRelays()],
   })
 
-  FetchDirectMessages = (pubkey: string) => new RouterScenario(this, {
-    fallbackPolicy: useMinimalFallbacks("read"),
-    getGroups: () => [this.getUserRelayUrls(), this.getPubkeyRelayUrls(pubkey)],
+  Aggregate = () => this.scenario({
+    fallbackPolicy: useMinimalFallbacks(RelayMode.Inbox),
+    getGroups: () => [this.getAllUserRelays()],
   })
 
-  PublishDirectMessage = (pubkey: string) => new RouterScenario(this, {
-    fallbackPolicy: useMinimalFallbacks("write"),
-    getGroups: () => [this.getUserRelayUrls("write"), this.getPubkeyRelayUrls(pubkey, "read")],
+  NoteToSelf = () => this.scenario({
+    fallbackPolicy: useMaximalFallbacks(RelayMode.Inbox),
+    getGroups: () => [this.getUserInboxRelays()],
   })
 
-  FetchPubkeyEvents = (pubkey: string) => new RouterScenario(this, {
-    fallbackPolicy: useMaximalFallbacks("read"),
-    getGroups: () => [this.getPubkeyRelayUrls(pubkey, "write")],
+  FetchAllMessages = () => this.scenario({
+    fallbackPolicy: useMinimalFallbacks(RelayMode.Inbox),
+    getGroups: () => [this.getAllUserRelays()],
   })
 
-  FetchEvent = (event: Event) => new RouterScenario(this, {
-    fallbackPolicy: useMaximalFallbacks("read"),
-    getGroups: () =>
-      this.getEventGroupOrCommunityRelayUrlGroups(event, [
-        this.getPubkeyRelayUrls(event.pubkey, "write"),
-      ]),
+  FetchMessages = (pubkeys: string[]) => this.scenario({
+    fallbackPolicy: useMinimalFallbacks(RelayMode.Inbox),
+    getGroups: () => [
+      this.getAllUserRelays(),
+      ...pubkeys.map(this.getAllPubkeyRelays)
+    ],
   })
 
-  FetchEventChildren = (event: Event) => new RouterScenario(this, {
-    fallbackPolicy: useMaximalFallbacks("read"),
-    getGroups: () =>
-      this.getEventGroupOrCommunityRelayUrlGroups(event, [
-        this.getPubkeyRelayUrls(event.pubkey, "read"),
-      ]),
+  PublishMessage = (pubkeys: string[]) => this.scenario({
+    fallbackPolicy: useMinimalFallbacks(RelayMode.Outbox),
+    getGroups: () => [
+      this.getUserOutboxRelays(),
+      ...pubkeys.map(this.options.getPubkeyInboxRelays)
+    ],
   })
 
-  FetchEventParent = (event: Event) => new RouterScenario(this, {
-    fallbackPolicy: useMaximalFallbacks("read"),
-    getGroups: () =>
-      this.getEventGroupOrCommunityRelayUrlGroups(event, [
-        Tags.fromEvent(event).replies().relays().valueOf(),
-        this.getPubkeyRelayUrls(event.pubkey, "read"),
-      ]),
+  FetchEvent = (event: UnsignedEvent) => this.scenario({
+    fallbackPolicy: useMaximalFallbacks(RelayMode.Inbox),
+    getGroups: () => [
+      this.options.getPubkeyOutboxRelays(event.pubkey),
+      ...this.getEventContextRelayGroups(event),
+    ],
   })
 
-  FetchEventRoot = (event: Event) => new RouterScenario(this, {
-    fallbackPolicy: useMaximalFallbacks("read"),
-    getGroups: () =>
-      this.getEventGroupOrCommunityRelayUrlGroups(event, [
-        Tags.fromEvent(event).roots().relays().valueOf(),
-        this.getPubkeyRelayUrls(event.pubkey, "read"),
-      ]),
+  FetchEventChildren = (event: UnsignedEvent) => this.scenario({
+    fallbackPolicy: useMaximalFallbacks(RelayMode.Inbox),
+    getGroups: () => [
+      this.options.getPubkeyInboxRelays(event.pubkey),
+      ...this.getEventContextRelayGroups(event),
+    ],
   })
 
-  PublishEvent = (event: Event) => new RouterScenario(this, {
-    fallbackPolicy: useMinimalFallbacks("write"),
-    getGroups: () =>
-      this.getEventGroupOrCommunityRelayUrlGroups(event, [
-        this.getPubkeyRelayUrls(event.pubkey, "write"),
-        ...Tags.fromEvent(event).whereKey("p").values().valueOf().map((pk: string) => this.getPubkeyRelayUrls(pk, "read")),
-      ]),
+  FetchEventParent = (event: UnsignedEvent) => this.scenario({
+    fallbackPolicy: useMaximalFallbacks(RelayMode.Inbox),
+    getGroups: () => [
+      Tags.fromEvent(event).replies().relays().valueOf(),
+      this.options.getPubkeyInboxRelays(event.pubkey),
+      ...this.getEventContextRelayGroups(event),
+    ],
   })
 
-  FetchFromGroup = (address: string) => new RouterScenario(this, {
+  FetchEventRoot = (event: UnsignedEvent) => this.scenario({
+    fallbackPolicy: useMaximalFallbacks(RelayMode.Inbox),
+    getGroups: () => [
+      Tags.fromEvent(event).roots().relays().valueOf(),
+      this.options.getPubkeyInboxRelays(event.pubkey),
+      ...this.getEventContextRelayGroups(event),
+    ],
+  })
+
+  PublishEvent = (event: UnsignedEvent) => this.scenario({
+    fallbackPolicy: useMinimalFallbacks(RelayMode.Outbox),
+    getGroups: () => {
+      const tags = Tags.fromEvent(event)
+      const mentions = tags.values("p").valueOf()
+      const addresses = tags.context().values().valueOf()
+      const groupAddresses = addresses.filter(isGroupAddress)
+      const communityAddresses = addresses.filter(isCommunityAddress)
+
+      // If we're publishing only to private groups, only publish to those groups' relays.
+      // Otherwise, publish to all relays, because it's essentially public.
+      if (groupAddresses.length > 0 && communityAddresses.length === 0) {
+        return groupAddresses.map(this.options.getGroupRelays)
+      }
+
+      return  [
+        this.options.getPubkeyOutboxRelays(event.pubkey),
+        ...groupAddresses.map(this.options.getGroupRelays),
+        ...communityAddresses.map(this.options.getCommunityRelays),
+        ...mentions.map((pk: string) => this.options.getPubkeyInboxRelays(pk)),
+      ]
+    },
+  })
+
+  FetchFromHints = (...groups: string[][]) => this.scenario({
+    fallbackPolicy: useMaximalFallbacks(RelayMode.Inbox),
+    getGroups: () => [...groups, this.getAllUserRelays()],
+  })
+
+  FetchFromPubkey = (pubkey: string) => this.scenario({
+    fallbackPolicy: useMaximalFallbacks(RelayMode.Outbox),
+    getGroups: () => [this.options.getPubkeyOutboxRelays(pubkey)],
+  })
+
+  FetchFromPubkeys = (pubkeys: string[]) => this.scenario({
+    fallbackPolicy: useMaximalFallbacks(RelayMode.Outbox),
+    getGroups: () => pubkeys.map(this.options.getPubkeyOutboxRelays),
+  })
+
+  FetchFromGroup = (address: string) => this.scenario({
     fallbackPolicy: useNoFallbacks(),
-    getGroups: () => [this.getGroupRelayUrls(address)],
+    getGroups: () => [this.options.getGroupRelays(address)],
   })
 
-  PublishToGroup = (address: string) => new RouterScenario(this, {
+  PublishToGroup = (address: string) => this.scenario({
     fallbackPolicy: useNoFallbacks(),
-    getGroups: () => [this.getGroupRelayUrls(address)],
+    getGroups: () => [this.options.getGroupRelays(address)],
   })
 
-  FetchFromCommunity = (address: string) => new RouterScenario(this, {
-    fallbackPolicy: useMaximalFallbacks("read"),
-    getGroups: () => [this.getCommunityRelayUrls(address)],
+  FetchFromCommunity = (address: string) => this.scenario({
+    fallbackPolicy: useMaximalFallbacks(RelayMode.Inbox),
+    getGroups: () => [this.options.getCommunityRelays(address)],
   })
 
-  PublishToCommunity = (address: string) => new RouterScenario(this, {
-    fallbackPolicy: useMaximalFallbacks("write"),
-    getGroups: () => [this.getCommunityRelayUrls(address)],
+  PublishToCommunity = (address: string) => this.scenario({
+    fallbackPolicy: useMaximalFallbacks(RelayMode.Outbox),
+    getGroups: () => [this.options.getCommunityRelays(address)],
   })
+
+  FetchFromContext = (address: string) => {
+    if (isGroupAddress(address)) {
+      return this.FetchFromGroup(address)
+    }
+
+    if (isCommunityAddress(address)) {
+      return this.FetchFromCommunity(address)
+    }
+
+    throw new Error(`Unknown context ${address}`)
+  }
+
+  FetchFromContexts = (addresses: string[]) =>
+    this.merge({
+      fallbackPolicy: useMinimalFallbacks(RelayMode.Outbox),
+      scenarios: addresses.map(this.FetchFromContext),
+    })
+
+  PublishToContext = (address: string) => {
+    if (isGroupAddress(address)) {
+      return this.PublishToGroup(address)
+    }
+
+    if (isCommunityAddress(address)) {
+      return this.PublishToCommunity(address)
+    }
+
+    throw new Error(`Unknown context ${address}`)
+  }
+
+  PublishToContexts = (addresses: string[]) =>
+    this.merge({
+      fallbackPolicy: useMinimalFallbacks(RelayMode.Outbox),
+      scenarios: addresses.map(this.PublishToContext),
+    })
+
+  // Higher level utils that use hints
+
+  tagPubkey = (pubkey: string) =>
+    Tag.from(["p", pubkey, this.FetchFromPubkey(pubkey).getUrl()])
+
+  tagEventId = (event: Rumor, ...extra: string[]) =>
+    Tag.from(["e", event.id, this.FetchEvent(event).getUrl(), ...extra])
+
+  tagEventAddress = (event: UnsignedEvent, ...extra: string[]) =>
+    Tag.from(["a", getAddress(event), this.FetchEvent(event).getUrl(), ...extra])
+
+  tagEvent = (event: Rumor, ...extra: string[]) => {
+    const tags = [this.tagEventId(event, ...extra)]
+
+    if (isReplaceable(event)) {
+      tags.push(this.tagEventAddress(event, ...extra))
+    }
+
+    return new Tags(tags)
+  }
+
+  getNaddr = (event: UnsignedEvent) =>
+    nip19.naddrEncode({
+      kind: event.kind,
+      pubkey: event.pubkey,
+      identifier: Tags.fromEvent(event).get("d")?.value() || "",
+      relays: this.FetchEvent(event).getUrls(3),
+    })
 }
 
 // Router Scenario
@@ -194,24 +311,41 @@ export type RouteScenarioScores = Record<string, {score: number, count: number}>
 export class RouterScenario {
   constructor(readonly router: Router, readonly options: RouterScenarioOptions) {}
 
-  addFallbackUrls = (limit: number, urls: string[]) => {
-    if (urls.length < limit) {
-      const {mode, getLimit} = this.options.fallbackPolicy
-      const fallbackRelayTags = this.router.options.getFallbackRelayTags()
-      const fallbackUrls = Tags.from(fallbackRelayTags).whereMark(mode).values().valueOf()
-      const fallbackLimit = getLimit(limit, urls)
+  getFallbackRelays = () => {
+    switch (this.options.fallbackPolicy.mode) {
+      case RelayMode.Inbox:
+        return this.router.options.getFallbackInboxRelays()
+      case RelayMode.Outbox:
+        return this.router.options.getFallbackOutboxRelays()
+      default:
+        throw new Error(`Invalid relay mode ${this.options.fallbackPolicy.mode}`)
+    }
+  }
 
-      return [...urls, ...fallbackUrls.slice(0, fallbackLimit)]
+  addFallbacks = (limit: number, urls: string[]) => {
+    if (urls.length < limit) {
+      const fallbackRelays = this.getFallbackRelays()
+      const fallbackLimit = this.options.fallbackPolicy.getLimit(limit, urls)
+
+      return [...urls, ...fallbackRelays.slice(0, fallbackLimit)]
     }
 
     return urls
   }
 
-  getUrls = (limit: number, extra: string[] = []) => {
+  getRawUrls = (limit?: number, extra: string[] = []) => {
+    const maxRelays = limit || this.router.options.getDefaultLimit()
     const urlGroups = this.options.getGroups().concat([extra])
-    const urls = this.router.groupsToUrls(limit, urlGroups)
 
-    return this.addFallbackUrls(limit, urls)
+    return this.router.groupsToUrls(maxRelays, urlGroups)
+  }
+
+  getUrls = (limit?: number, extra: string[] = []) => {
+    const maxRelays = limit || this.router.options.getDefaultLimit()
+    const urlGroups = [extra].concat(this.options.getGroups())
+    const urls = this.router.groupsToUrls(maxRelays, urlGroups)
+
+    return this.addFallbacks(maxRelays, urls)
   }
 
   getUrl = () => first(this.getUrls(1))
@@ -219,12 +353,12 @@ export class RouterScenario {
 
 // Fallback Policy
 
-class FallbackPolicy {
+export class FallbackPolicy {
   constructor(readonly mode: string, readonly getLimit: (limit: number, urls: string[]) => number) {}
 }
 
-const useNoFallbacks = () => new FallbackPolicy("read", (limit: number, urls: string[]) => 0)
+export const useNoFallbacks = () => new FallbackPolicy(RelayMode.Inbox, (limit: number, urls: string[]) => 0)
 
-const useMinimalFallbacks = (mode: string) => new FallbackPolicy(mode, (limit: number, urls: string[]) => urls.length === 0 ? 1 : 0)
+export const useMinimalFallbacks = (mode: string) => new FallbackPolicy(mode, (limit: number, urls: string[]) => urls.length === 0 ? 1 : 0)
 
-const useMaximalFallbacks = (mode: string) => new FallbackPolicy(mode, (limit: number, urls: string[]) => Math.max(0, limit - urls.length))
+export const useMaximalFallbacks = (mode: string) => new FallbackPolicy(mode, (limit: number, urls: string[]) => Math.max(0, limit - urls.length))

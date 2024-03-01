@@ -14,11 +14,19 @@ export const flatten = <T>(xs: T[]) => xs.flatMap(identity)
 
 export const uniq = <T>(xs: T[]) => Array.from(new Set(xs))
 
+export const shuffle = <T>(xs: T[]): T[] => xs.sort(() => Math.random() > 0.5 ? 1 : -1)
+
 export const isIterable = (x: any) => Symbol.iterator in Object(x)
 
 export const toIterable = (x: any) => isIterable(x) ? x : [x]
 
 export const stripProtocol = (url: string) => url.replace(/.*:\/\//, "")
+
+// https://github.com/microsoft/TypeScript/issues/4628#issuecomment-1147905253
+export type OmitStatics<T, S extends string> =
+    T extends {new(...args: infer A): infer R} ?
+        {new(...args: A): R}&Omit<T, S> :
+        Omit<T, S>;
 
 // https://github.com/microsoft/TypeScript/issues/4628#issuecomment-1147905253
 export type OmitAllStatics<T extends {new(...args: any[]): any, prototype: any}> =

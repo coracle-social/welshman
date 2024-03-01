@@ -7,7 +7,7 @@ export const isGroupAddress = (a: string) => a.startsWith(`${GROUP_DEFINITION}:`
 
 export const isCommunityAddress = (a: string) => a.startsWith(`${COMMUNITY_DEFINITION}:`)
 
-export const isCommunityOrGroupAddress = (a: string) => isCommunityAddress(a) || isGroupAddress(a)
+export const isContextAddress = (a: string) => isCommunityAddress(a) || isGroupAddress(a)
 
 export class Address {
   readonly kind: number
@@ -23,22 +23,12 @@ export class Address {
   }
 
   static fromEvent = (e: UnsignedEvent, relays: string[] = []) =>
-    new Address(e.kind, e.pubkey, Tags.fromEvent(e).whereKey("d").values().first(), relays)
+    new Address(e.kind, e.pubkey, Tags.fromEvent(e).get("d")?.value() || "", relays)
 
-  static fromTagValue = (a: string, relays: string[] = []) => {
+  static fromRaw = (a: string, relays: string[] = []) => {
     const [kind, pubkey, identifier] = a.split(":")
 
     return new Address(kind, pubkey, identifier, relays)
-  }
-
-  static fromTag = (tag: string[], relays: string[] = []) => {
-    const [a, hint] = tag.slice(1)
-
-    if (hint) {
-      relays = relays.concat(hint)
-    }
-
-    return this.fromTagValue(a, relays)
   }
 
   static fromNaddr = (naddr: string) => {
@@ -60,10 +50,10 @@ export class Address {
     return new Address(data.kind, data.pubkey, data.identifier, data.relays)
   }
 
-  asTagValue = () => [this.kind, this.pubkey, this.identifier].join(":")
+  asRaw = () => [this.kind, this.pubkey, this.identifier].join(":")
 
   asTag = (mark?: string) => {
-    const tag = ["a", this.asTagValue(), this.relays[0] || ""]
+    const tag = ["a", this.asRaw(), this.relays[0] || ""]
 
     if (mark) {
       tag.push(mark)

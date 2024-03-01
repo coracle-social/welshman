@@ -15,10 +15,10 @@
   "types": "./build/src/main.d.ts",
   "exports": {
     ".": {
+      "types": "./build/src/main.d.ts",
       "import": "./build/src/main.mjs",
       "require": "./build/src/main.cjs"
-    },
-    "./types": "./build/src/main.d.ts"
+    }
   },
   "files": [
     "build"
