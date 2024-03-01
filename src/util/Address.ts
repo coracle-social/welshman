@@ -22,13 +22,26 @@ export class Address {
     this.identifier = identifier || ""
   }
 
-  static fromEvent = (e: UnsignedEvent, relays: string[] = []) =>
+  static getKind = (a: string) => Address.fromRaw(a, []).kind
+
+  static getPubkey = (a: string) => Address.fromRaw(a, []).pubkey
+
+  static getIdentifier = (a: string) => Address.fromRaw(a, []).identifier
+
+  static fromEvent = (e: UnsignedEvent, relays: string[]) =>
     new Address(e.kind, e.pubkey, Tags.fromEvent(e).get("d")?.value() || "", relays)
 
-  static fromRaw = (a: string, relays: string[] = []) => {
+  static fromRaw = (a: string, relays: string[]) => {
     const [kind, pubkey, identifier] = a.split(":")
 
     return new Address(kind, pubkey, identifier, relays)
+  }
+
+  static fromTag = (tag: string[]) => {
+    const [a, hint] = tag.slice(1)
+    const relays = hint ? [hint] : []
+
+    return this.fromRaw(a, relays)
   }
 
   static fromNaddr = (naddr: string) => {

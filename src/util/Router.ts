@@ -1,10 +1,9 @@
 import type {EventTemplate, UnsignedEvent} from 'nostr-tools'
 import type {Rumor} from './Events'
-import {nip19} from 'nostr-tools'
 import {getAddress, isReplaceable} from './Events'
 import {Tag, Tags} from './Tags'
 import {first, uniq, shuffle} from './Tools'
-import {isGroupAddress, isCommunityAddress} from './Address'
+import {Address, isGroupAddress, isCommunityAddress} from './Address'
 
 export enum RelayMode {
   Inbox = "inbox",
@@ -208,13 +207,8 @@ export class Router {
     return new Tags(tags)
   }
 
-  getNaddr = (event: UnsignedEvent) =>
-    nip19.naddrEncode({
-      kind: event.kind,
-      pubkey: event.pubkey,
-      identifier: Tags.fromEvent(event).get("d")?.value() || "",
-      relays: this.Event(event).limit(3).getUrls(),
-    })
+  address = (event: UnsignedEvent) =>
+    Address.fromEvent(event, this.Event(event).limit(3).getUrls())
 }
 
 // Router Scenario

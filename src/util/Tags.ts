@@ -1,5 +1,4 @@
 import {EventTemplate} from 'nostr-tools'
-import {nip19} from 'nostr-tools'
 import {Fluent} from './Fluent'
 import type {OmitStatics} from './Tools'
 import {last} from './Tools'
@@ -9,21 +8,6 @@ import {isCommunityAddress, isGroupAddress, isContextAddress} from './Address'
 export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, 'from'>) {
   static from(xs: Iterable<string>) {
     return new Tag(Array.from(xs))
-  }
-
-  static fromNaddr(naddr: string) {
-    const {type, data} = nip19.decode(naddr) as {
-      type: "naddr"
-      data: nip19.AddressPointer
-    }
-
-    if (type !== "naddr") {
-      throw new Error(`Invalid naddr ${naddr}`)
-    }
-
-    const {kind, pubkey, identifier, relays = []} = data
-
-    return Tag.from(["a", [kind, pubkey, identifier].join(':'), ...relays.slice(0, 1)])
   }
 
   valueOf = () => this.xs

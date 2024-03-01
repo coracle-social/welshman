@@ -43,7 +43,7 @@ export const hasValidSignature = cached<string, boolean, [Event]>({
   },
 })
 
-export const getAddress = (e: UnsignedEvent) => Address.fromEvent(e).asRaw()
+export const getAddress = (e: UnsignedEvent) => Address.fromEvent(e, []).asRaw()
 
 export const getIdOrAddress = (e: Rumor) => isReplaceable(e) ? getAddress(e) : e.id
 
