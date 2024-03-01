@@ -23,6 +23,8 @@ export type RouterOptions = {
 
 export type RouteScores = Record<string, {score: number, count: number}>
 
+export type FallbackPolicy = (limit: number) => number
+
 export class Router {
   constructor(readonly options: RouterOptions) {}
 
@@ -79,7 +81,7 @@ export class Router {
   scenario = (groups: string[][]) => new RouterScenario(this, groups)
 
   merge = (scenarios: RouterScenario[]) =>
-    this.scenario(scenarios.map(scenario => scenario.policy(addNoFallbacks).getUrls()))
+    this.scenario(scenarios.map(scenario => scenario.policy(this.addNoFallbacks).getUrls()))
 
   // Routing scenarios
 
@@ -101,7 +103,7 @@ export class Router {
     this.scenario([
       this.getUserRelays(RelayMode.Outbox),
       this.options.getPubkeyRelays(pubkey, RelayMode.Inbox)
-    ]).policy(addMinimalFallbacks)
+    ]).policy(this.addMinimalFallbacks)
 
   Event = (event: UnsignedEvent) =>
     this.scenario([
@@ -157,7 +159,7 @@ export class Router {
     this.scenario(pubkeys.map(pk => this.options.getPubkeyRelays(pk, RelayMode.Inbox)))
 
   WithinGroup = (address: string) =>
-    this.scenario([this.options.getGroupRelays(address)]).policy(addNoFallbacks)
+    this.scenario([this.options.getGroupRelays(address)]).policy(this.addNoFallbacks)
 
   WithinCommunity = (address: string) =>
     this.scenario([this.options.getCommunityRelays(address)])
@@ -176,6 +178,14 @@ export class Router {
 
   WithinMultipleContexts = (addresses: string[]) =>
     this.merge(addresses.map(this.WithinContext))
+
+  // Fallback policies
+
+  addNoFallbacks = (limit: number) => 0
+
+  addMinimalFallbacks = (limit: number) => 1
+
+  addMaximalFallbacks = (limit: number) => limit
 
   // Higher level utils that use hints
 
@@ -229,7 +239,7 @@ export class RouterScenario {
 
   getLimit = () => this.options.limit || this.router.options.getDefaultLimit()
 
-  getPolicy = () => this.options.policy || addMaximalFallbacks
+  getPolicy = () => this.options.policy || this.router.addMaximalFallbacks
 
   getFallbackRelays = () => {
     const userRelays = shuffle(this.router.getUserRelays(this.options.mode))
@@ -260,11 +270,3 @@ export class RouterScenario {
 }
 
 // Fallback Policy
-
-export type FallbackPolicy = (limit: number) => number
-
-export const addNoFallbacks = (limit: number) => 0
-
-export const addMinimalFallbacks = (limit: number) => 1
-
-export const addMaximalFallbacks = (limit: number) => limit
