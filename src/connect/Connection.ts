@@ -91,7 +91,7 @@ export class Connection extends Emitter {
 
   ensureConnected = ({shouldReconnect = true}) => {
     if (shouldReconnect && !this.socket.isHealthy()) {
-      this.reset()
+      this.disconnect()
     }
 
     if (this.socket.isPending()) {
@@ -99,14 +99,15 @@ export class Connection extends Emitter {
     }
   }
 
-  reset() {
-    this.socket.reset()
+  disconnect() {
+    this.socket.disconnect()
     this.sendQueue.clear()
+    this.receiveQueue.clear()
     this.meta.clearPending()
   }
 
   destroy() {
-    this.socket.disconnect()
+    this.disconnect()
     this.removeAllListeners()
     this.sendQueue.stop()
     this.receiveQueue.stop()

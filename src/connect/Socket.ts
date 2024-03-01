@@ -22,21 +22,12 @@ export type SocketOpts = {
 export class Socket {
   url: string
   ws?: WebSocket
-  ready: Deferred<void>
+  ready: Deferred<boolean>
   failedToConnect = false
 
   constructor(url: string, readonly opts: SocketOpts) {
     this.url = url
     this.ready = defer()
-  }
-
-  _close() {
-    if (!this.ws) {
-      throw new Error('Socket was closed before it was opened')
-    }
-
-    // Avoid "WebSocket was closed before the connection was established"
-    this.ready.then(() => this.ws?.close()).catch(() => null)
   }
 
   isPending() {
@@ -64,23 +55,13 @@ export class Socket {
   }
 
   onOpen = () => {
-    this.ready.resolve()
+    this.ready.resolve(true)
     this.opts.onOpen()
   }
 
-  onClose = () => {
-    this.ready.reject()
-    this.opts.onClose()
-
-    if (this.ws) {
-      this._close()
-    }
-  }
-
   onError = () => {
-    this.ready.reject()
     this.opts.onError()
-    this._close()
+    this.disconnect()
   }
 
   onMessage = (event: MessageEvent) => {
@@ -113,24 +94,22 @@ export class Socket {
     try {
       this.ws = new WebSocket(this.url)
       this.ws.onopen = this.onOpen
-      this.ws.onclose = this.onClose
       this.ws.onerror = this.onError
       this.ws.onmessage = this.onMessage
+      this.ws.onclose = this.disconnect
     } catch (e) {
       this.failedToConnect = true
     }
   }
 
-  disconnect() {
-    this.onClose()
-  }
-
-  reset() {
+  disconnect = () => {
     if (this.ws) {
-      this._close()
-    }
+      const currentWs = this.ws
 
-    this.ws = undefined
-    this.ready = defer()
+      this.ready.then(() => currentWs.close())
+      this.ready.resolve(false)
+      this.opts.onClose()
+      this.ws = undefined
+    }
   }
 }
