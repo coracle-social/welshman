@@ -70,7 +70,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
   topics = () => this.whereKey("t").values().map((t: string) => t.replace(/^#/, ""))
 
   ancestors = () => {
-    const tags = this.filter(t => ["a", "e"].includes(t.key()) && !isContextAddress(t.value()))
+    const tags = this.filter(t => ["a", "e", "q"].includes(t.key()) && !isContextAddress(t.value()))
     const roots: string[][] = []
     const replies: string[][] = []
     const mentions: string[][] = []
