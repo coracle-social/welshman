@@ -46,10 +46,10 @@ export class Router {
 
   // Utilities for processing hints
 
-  getGroupScores = (groups: string[][]) => {
+  scoreGroups = (groups: string[][]) => {
     const scores: RouteScores = {}
 
-    groups.forEach((urls, i) => {
+    groups.filter(g => g?.length > 0).forEach((urls, i) => {
       for (const url of shuffle(uniq(urls))) {
         if (!scores[url]) {
           scores[url] = {score: 0, count: 0}
@@ -62,20 +62,17 @@ export class Router {
 
     // Use log-sum-exp to get a a weighted sum
     for (const [url, score] of Object.entries(scores)) {
-      const weight = Math.log(groups.length / score.count)
-      const thisScore = Math.log1p(Math.exp(score.score - score.count))
-      const thatScore = this.options.getRelayQuality?.(url) || 1
+      const quality = this.options.getRelayQuality?.(url) || 1
 
-      score.score = (weight + thisScore) * thatScore
+      score.score = score.score * Math.cbrt(score.count) * quality
     }
 
-    return scores
+    const items = Object.entries(scores)
+      .sort((a, b) => a[1].score > b[1].score ? -1 : 1)
+      .map(([url, {score, count}]) => ({url, score, count}))
+
+    return items
   }
-
-  urlsFromScores = (scores: RouteScores) =>
-    Object.entries(scores).sort((a, b) => a[1].score > b[1].score ? -1 : 1).map(p => p[0] as string)
-
-  groupsToUrls = (groups: string[][]) => this.urlsFromScores(this.getGroupScores(groups))
 
   scenario = (groups: string[][]) => new RouterScenario(this, groups)
 
@@ -235,17 +232,13 @@ export class RouterScenario {
 
   getPolicy = () => this.options.policy || this.router.addMaximalFallbacks
 
-  getFallbackRelays = () => {
-    const userRelays = shuffle(this.router.getUserRelays(this.options.mode))
-    const defaultRelays = shuffle(this.router.options.getDefaultRelays(this.options.mode))
-
-    return uniq([...userRelays, ...defaultRelays])
-  }
+  getFallbackRelays = () =>
+    shuffle(this.router.options.getDefaultRelays(this.options.mode))
 
   getUrls = () => {
     const fallbackPolicy = this.getPolicy()
     const limit = fallbackPolicy(this.getLimit())
-    const urls = this.router.groupsToUrls(this.groups)
+    const urls = this.router.scoreGroups(this.groups).map(s => s.url)
 
     for (const url of this.getFallbackRelays()) {
       if (urls.length >= limit) {
@@ -262,5 +255,3 @@ export class RouterScenario {
 
   getUrl = () => first(this.limit(1).getUrls())
 }
-
-// Fallback Policy
