@@ -2,7 +2,7 @@ import type {Event, EventTemplate, UnsignedEvent} from 'nostr-tools'
 import {verifyEvent, getEventHash} from 'nostr-tools'
 import {cached} from "./LRUCache"
 import {now} from './Tools'
-import {Address} from './Address'
+import {addressFromEvent, encodeAddress} from './Address'
 import {isEphemeralKind, isReplaceableKind, isPlainReplaceableKind, isParameterizedReplaceableKind} from './Kinds'
 
 export type Rumor = Pick<Event, 'kind' | 'tags' | 'content' | 'created_at' | 'pubkey' | 'id'>
@@ -43,7 +43,7 @@ export const hasValidSignature = cached<string, boolean, [Event]>({
   },
 })
 
-export const getAddress = (e: UnsignedEvent) => Address.fromEvent(e, []).asRaw()
+export const getAddress = (e: UnsignedEvent) => encodeAddress(addressFromEvent(e))
 
 export const getIdOrAddress = (e: Rumor) => isReplaceable(e) ? getAddress(e) : e.id
 

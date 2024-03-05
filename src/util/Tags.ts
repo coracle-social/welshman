@@ -3,12 +3,16 @@ import {Fluent} from './Fluent'
 import type {OmitStatics} from './Tools'
 import {last} from './Tools'
 import {isShareableRelayUrl} from './Relays'
-import {isCommunityAddress, isGroupAddress, isContextAddress} from './Address'
+import type {Address} from './Address'
+import {encodeAddress, decodeAddress} from './Address'
+import {GROUP_DEFINITION, COMMUNITY_DEFINITION} from './Kinds'
 
 export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, 'from'>) {
   static from(xs: Iterable<string>) {
     return new Tag(Array.from(xs))
   }
+
+  static fromAddress = (a: Address) => new Tag(["a", encodeAddress(a), a.relays[0] || ""])
 
   valueOf = () => this.xs
 
@@ -25,6 +29,16 @@ export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, '
   setValue = (v: string) => this.set(1, v)
 
   setMark = (m: string) => this.xs.length > 2 ? this.set(this.xs.length - 2, m) : this.append(m)
+
+  asAddress = () => decodeAddress(this.value())
+
+  isAddress = (kind?: number) => this.key() === "a" && this.value()?.startsWith(`${kind}:`)
+
+  isGroup = () => this.isAddress(GROUP_DEFINITION)
+
+  isCommunity = () => this.isAddress(COMMUNITY_DEFINITION)
+
+  isContext = () => this.isAddress(GROUP_DEFINITION) || this.isAddress(COMMUNITY_DEFINITION)
 }
 
 export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'>) {
@@ -70,7 +84,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
   topics = () => this.whereKey("t").values().map((t: string) => t.replace(/^#/, ""))
 
   ancestors = () => {
-    const tags = this.filter(t => ["a", "e", "q"].includes(t.key()) && !isContextAddress(t.value()))
+    const tags = this.filter(t => ["a", "e", "q"].includes(t.key()) && !t.isContext())
     const roots: string[][] = []
     const replies: string[][] = []
     const mentions: string[][] = []
@@ -129,11 +143,11 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
     return parents.get("e") || parents.get("a")
   }
 
-  groups = () => this.whereKey("a").filter(t => isGroupAddress(t.value()))
+  groups = () => this.whereKey("a").filter(t => t.isGroup())
 
-  communities = () => this.whereKey("a").filter(t => isCommunityAddress(t.value()))
+  communities = () => this.whereKey("a").filter(t => t.isCommunity())
 
-  context = () => this.whereKey("a").filter(t => isContextAddress(t.value()))
+  context = () => this.whereKey("a").filter(t => t.isContext())
 
   asObject = () => {
     const result: Record<string, string> = {}
@@ -167,7 +181,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   addContext = (addresses: string[]) => this.concat(addresses.map(a => Tag.from(["a", a])))
 
-  removeContext = () => this.reject(t => t.key() === "a" && isContextAddress(t.value()))
+  removeContext = () => this.reject(t => t.isContext())
 
   setContext = (addresses: string[]) => this.removeContext().addContext(addresses)
 

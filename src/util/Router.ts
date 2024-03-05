@@ -3,7 +3,12 @@ import type {Rumor} from './Events'
 import {getAddress, isReplaceable} from './Events'
 import {Tag, Tags} from './Tags'
 import {first, uniq, shuffle} from './Tools'
-import {Address, isGroupAddress, isCommunityAddress} from './Address'
+import {GROUP_DEFINITION, COMMUNITY_DEFINITION} from './Kinds'
+import {addressFromEvent, decodeAddress} from './Address'
+
+const isGroupAddress = (a: string) => decodeAddress(a).kind === GROUP_DEFINITION
+
+const isCommunityAddress = (a: string) => decodeAddress(a).kind === COMMUNITY_DEFINITION
 
 export enum RelayMode {
   Inbox = "inbox",
@@ -205,7 +210,7 @@ export class Router {
   }
 
   address = (event: UnsignedEvent) =>
-    Address.fromEvent(event, this.Event(event).limit(3).getUrls())
+    addressFromEvent(event, this.Event(event).limit(3).getUrls())
 }
 
 // Router Scenario
