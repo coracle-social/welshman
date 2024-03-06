@@ -117,19 +117,31 @@ export class Router {
       ...this.getContextRelayGroups(event),
     ])
 
-  EventParent = (event: UnsignedEvent) =>
-    this.scenario([
-      Tags.fromEvent(event).replies().relays().valueOf(),
-      this.options.getPubkeyRelays(event.pubkey, RelayMode.Inbox),
-      ...this.getContextRelayGroups(event),
-    ])
+  EventParent = (event: UnsignedEvent) => {
+    const tags = Tags.fromEvent(event)
 
-  EventRoot = (event: UnsignedEvent) =>
-    this.scenario([
-      Tags.fromEvent(event).roots().relays().valueOf(),
-      this.options.getPubkeyRelays(event.pubkey, RelayMode.Inbox),
+    return this.scenario([
+      tags.replies().relays().valueOf(),
       ...this.getContextRelayGroups(event),
+      ...tags.whereKey("p").values().valueOf()
+        .map(pk => this.options.getPubkeyRelays(pk, RelayMode.Outbox)),
+      tags.whereKey("p").relays().valueOf(),
+      this.options.getPubkeyRelays(event.pubkey, RelayMode.Inbox),
     ])
+  }
+
+  EventRoot = (event: UnsignedEvent) => {
+    const tags = Tags.fromEvent(event)
+
+    return this.scenario([
+      tags.roots().relays().valueOf(),
+      ...this.getContextRelayGroups(event),
+      ...tags.whereKey("p").values().valueOf()
+        .map(pk => this.options.getPubkeyRelays(pk, RelayMode.Outbox)),
+      tags.whereKey("p").relays().valueOf(),
+      this.options.getPubkeyRelays(event.pubkey, RelayMode.Inbox),
+    ])
+  }
 
   PublishEvent = (event: UnsignedEvent) => {
     const tags = Tags.fromEvent(event)
