@@ -2,7 +2,7 @@ import {EventTemplate} from 'nostr-tools'
 import {Fluent} from './Fluent'
 import type {OmitStatics} from './Tools'
 import {last} from './Tools'
-import {isShareableRelayUrl} from './Relays'
+import {isShareableRelayUrl, normalizeRelayUrl} from './Relays'
 import type {Address} from './Address'
 import {encodeAddress, decodeAddress} from './Address'
 import {GROUP_DEFINITION, COMMUNITY_DEFINITION} from './Kinds'
@@ -79,7 +79,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   entries = () => this.mapTo(t => t.entry())
 
-  relays = () => this.flatMap((t: Tag) => t.valueOf().filter(isShareableRelayUrl)).uniq()
+  relays = () => this.flatMap((t: Tag) => t.valueOf().filter(isShareableRelayUrl).map(normalizeRelayUrl)).uniq()
 
   topics = () => this.whereKey("t").values().map((t: string) => t.replace(/^#/, ""))
 

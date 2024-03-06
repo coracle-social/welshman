@@ -122,6 +122,7 @@ export class Router {
 
     return this.scenario([
       tags.replies().relays().valueOf(),
+      tags.roots().relays().valueOf(),
       ...this.getContextRelayGroups(event),
       ...tags.whereKey("p").values().valueOf()
         .map(pk => this.options.getPubkeyRelays(pk, RelayMode.Outbox)),
@@ -135,6 +136,7 @@ export class Router {
 
     return this.scenario([
       tags.roots().relays().valueOf(),
+      tags.replies().relays().valueOf(),
       ...this.getContextRelayGroups(event),
       ...tags.whereKey("p").values().valueOf()
         .map(pk => this.options.getPubkeyRelays(pk, RelayMode.Outbox)),

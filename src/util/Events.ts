@@ -25,6 +25,9 @@ export const asUnsignedEvent = ({kind, tags, content, created_at, pubkey}: Unsig
 export const asRumor = ({kind, tags, content, created_at, pubkey, id}: Rumor): Rumor =>
   ({kind, tags, content, created_at, pubkey, id})
 
+export const asEvent = ({kind, tags, content, created_at, pubkey, id, sig}: Event): Event =>
+  ({kind, tags, content, created_at, pubkey, id, sig})
+
 export const hasValidSignature = cached<string, boolean, [Event]>({
   maxSize: 10000,
   getKey: ([e]: [Event]) => {
