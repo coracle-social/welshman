@@ -2,6 +2,7 @@ import type {Event, EventTemplate, UnsignedEvent} from 'nostr-tools'
 import {verifyEvent, getEventHash} from 'nostr-tools'
 import {cached} from "./LRUCache"
 import {now} from './Tools'
+import {Tags} from './Tags'
 import {addressFromEvent, encodeAddress} from './Address'
 import {isEphemeralKind, isReplaceableKind, isPlainReplaceableKind, isParameterizedReplaceableKind} from './Kinds'
 
@@ -59,4 +60,11 @@ export const isReplaceable = (e: EventTemplate) => isReplaceableKind(e.kind)
 export const isPlainReplaceable = (e: EventTemplate) => isPlainReplaceableKind(e.kind)
 
 export const isParameterizedReplaceable = (e: EventTemplate) => isParameterizedReplaceableKind(e.kind)
+
+export const isChildOf = (child: EventTemplate, parent: Rumor) => {
+  const {roots, replies} = Tags.fromEvent(child).ancestors()
+  const parentIds = (replies.exists() ? replies : roots).values().valueOf()
+
+  return getIdAndAddress(parent).some(x => parentIds.includes(x))
+}
 

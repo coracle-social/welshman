@@ -11,8 +11,8 @@ const isGroupAddress = (a: string) => decodeAddress(a).kind === GROUP_DEFINITION
 const isCommunityAddress = (a: string) => decodeAddress(a).kind === COMMUNITY_DEFINITION
 
 export enum RelayMode {
-  Inbox = "inbox",
-  Outbox = "outbox",
+  Read = "read",
+  Write = "write",
 }
 
 export type RouterOptions = {
@@ -87,9 +87,9 @@ export class Router {
 
   User = () => this.scenario([])
 
-  Inbox = () => this.scenario([]).mode(RelayMode.Inbox)
+  ReadRelays = () => this.scenario([]).mode(RelayMode.Read)
 
-  Outbox = () => this.scenario([]).mode(RelayMode.Outbox)
+  WriteRelays = () => this.scenario([]).mode(RelayMode.Write)
 
   AllMessages = () => this.scenario([this.getUserRelays()])
 
@@ -101,19 +101,19 @@ export class Router {
 
   PublishMessage = (pubkey: string) =>
     this.scenario([
-      this.getUserRelays(RelayMode.Outbox),
-      this.options.getPubkeyRelays(pubkey, RelayMode.Inbox)
+      this.getUserRelays(RelayMode.Write),
+      this.options.getPubkeyRelays(pubkey, RelayMode.Read)
     ]).policy(this.addMinimalFallbacks)
 
   Event = (event: UnsignedEvent) =>
     this.scenario([
-      this.options.getPubkeyRelays(event.pubkey, RelayMode.Outbox),
+      this.options.getPubkeyRelays(event.pubkey, RelayMode.Write),
       ...this.getContextRelayGroups(event),
     ])
 
   EventChildren = (event: UnsignedEvent) =>
     this.scenario([
-      this.options.getPubkeyRelays(event.pubkey, RelayMode.Inbox),
+      this.options.getPubkeyRelays(event.pubkey, RelayMode.Read),
       ...this.getContextRelayGroups(event),
     ])
 
@@ -125,9 +125,9 @@ export class Router {
       tags.roots().relays().valueOf(),
       ...this.getContextRelayGroups(event),
       ...tags.whereKey("p").values().valueOf()
-        .map(pk => this.options.getPubkeyRelays(pk, RelayMode.Outbox)),
+        .map(pk => this.options.getPubkeyRelays(pk, RelayMode.Write)),
       tags.whereKey("p").relays().valueOf(),
-      this.options.getPubkeyRelays(event.pubkey, RelayMode.Inbox),
+      this.options.getPubkeyRelays(event.pubkey, RelayMode.Read),
     ])
   }
 
@@ -139,9 +139,9 @@ export class Router {
       tags.replies().relays().valueOf(),
       ...this.getContextRelayGroups(event),
       ...tags.whereKey("p").values().valueOf()
-        .map(pk => this.options.getPubkeyRelays(pk, RelayMode.Outbox)),
+        .map(pk => this.options.getPubkeyRelays(pk, RelayMode.Write)),
       tags.whereKey("p").relays().valueOf(),
-      this.options.getPubkeyRelays(event.pubkey, RelayMode.Inbox),
+      this.options.getPubkeyRelays(event.pubkey, RelayMode.Read),
     ])
   }
 
@@ -159,18 +159,18 @@ export class Router {
     }
 
     return this.scenario([
-      this.options.getPubkeyRelays(event.pubkey, RelayMode.Outbox),
+      this.options.getPubkeyRelays(event.pubkey, RelayMode.Write),
       ...groupAddresses.map(this.options.getGroupRelays),
       ...communityAddresses.map(this.options.getCommunityRelays),
-      ...mentions.map((pk: string) => this.options.getPubkeyRelays(pk, RelayMode.Inbox)),
+      ...mentions.map((pk: string) => this.options.getPubkeyRelays(pk, RelayMode.Read)),
     ])
   }
 
   FromPubkeys = (pubkeys: string[]) =>
-    this.scenario(pubkeys.map(pk => this.options.getPubkeyRelays(pk, RelayMode.Outbox)))
+    this.scenario(pubkeys.map(pk => this.options.getPubkeyRelays(pk, RelayMode.Write)))
 
   ForPubkeys = (pubkeys: string[]) =>
-    this.scenario(pubkeys.map(pk => this.options.getPubkeyRelays(pk, RelayMode.Inbox)))
+    this.scenario(pubkeys.map(pk => this.options.getPubkeyRelays(pk, RelayMode.Read)))
 
   WithinGroup = (address: string) =>
     this.scenario([this.options.getGroupRelays(address)]).policy(this.addNoFallbacks)
