@@ -107,9 +107,12 @@ export class Socket {
       const currentWs = this.ws
 
       this.ready.then(() => currentWs.close())
-      this.ready.resolve(false)
+      this.ready = defer()
       this.opts.onClose()
       this.ws = undefined
+
+      // Resolve a different instance of the promise
+      this.ready.resolve(false)
     }
   }
 }

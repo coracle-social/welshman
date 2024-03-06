@@ -27,7 +27,7 @@ export type RouterOptions = {
 
 export type RouteScores = Record<string, {score: number, count: number}>
 
-export type FallbackPolicy = (limit: number) => number
+export type FallbackPolicy = (urls: string[], limit: number) => number
 
 export class Router {
   constructor(readonly options: RouterOptions) {}
@@ -65,7 +65,6 @@ export class Router {
       }
     })
 
-    // Use log-sum-exp to get a a weighted sum
     for (const [url, score] of Object.entries(scores)) {
       const quality = this.options.getRelayQuality?.(url) || 1
 
@@ -182,11 +181,11 @@ export class Router {
 
   // Fallback policies
 
-  addNoFallbacks = (limit: number) => 0
+  addNoFallbacks = (urls: string[], limit: number) => 0
 
-  addMinimalFallbacks = (limit: number) => 1
+  addMinimalFallbacks = (urls: string[], limit: number) => Math.max(0, 1 - urls.length)
 
-  addMaximalFallbacks = (limit: number) => limit
+  addMaximalFallbacks = (urls: string[], limit: number) => Math.max(0, limit - urls.length)
 
   // Higher level utils that use hints
 
@@ -242,11 +241,12 @@ export class RouterScenario {
 
   getUrls = () => {
     const fallbackPolicy = this.getPolicy()
-    const limit = fallbackPolicy(this.getLimit())
     const urls = this.router.scoreGroups(this.groups).map(s => s.url)
+    const limit = this.getLimit()
+    const limitWithFallbacks = limit + fallbackPolicy(urls, limit)
 
     for (const url of this.getFallbackRelays()) {
-      if (urls.length >= limit) {
+      if (urls.length >= limitWithFallbacks) {
         break
       }
 
@@ -255,7 +255,7 @@ export class RouterScenario {
       }
     }
 
-    return urls.slice(0, limit)
+    return urls.slice(0, limitWithFallbacks)
   }
 
   getUrl = () => first(this.limit(1).getUrls())
