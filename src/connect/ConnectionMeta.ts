@@ -163,7 +163,7 @@ export class ConnectionMeta {
     if (this.authStatus === AuthStatus.Forbidden)    return ConnectionStatus.Forbidden
     if (this.lastFault > this.lastOpen)              return ConnectionStatus.Error
     if (this.lastClose > this.lastOpen)              return ConnectionStatus.Closed
-    if (this.getSpeed() > 500)                       return ConnectionStatus.Slow
+    if (this.getSpeed() > 1000)                       return ConnectionStatus.Slow
 
     return ConnectionStatus.Ok
   }
