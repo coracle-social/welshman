@@ -91,7 +91,9 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
     tags
       .forEach((t: Tag, i: number) => {
-        if (t.mark() === 'root') {
+        if (t.key() === "q") {
+          mentions.push(t.valueOf())
+        } else if (t.mark() === 'root') {
           roots.push(t.valueOf())
         } else if (t.mark() === 'reply') {
           replies.push(t.valueOf())
