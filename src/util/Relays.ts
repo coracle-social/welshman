@@ -1,4 +1,4 @@
-import normalizeUrl from "normalize-url"
+import normalizeUrl from "./normalize-url"
 import {stripProtocol} from './Tools'
 
 export const isShareableRelayUrl = (url: string) =>

@@ -8,9 +8,6 @@ dependencies:
   isomorphic-ws:
     specifier: ^5.0.0
     version: 5.0.0(ws@8.15.1)
-  normalize-url:
-    specifier: ^8.0.0
-    version: 8.0.0
   nostr-tools:
     specifier: ^2.1.2
     version: 2.1.2(typescript@5.1.6)
@@ -1445,11 +1442,6 @@ packages:
       semver: 7.5.4
       validate-npm-package-license: 3.0.4
     dev: true
-
-  /normalize-url@8.0.0:
-    resolution: {integrity: sha512-uVFpKhj5MheNBJRTiMZ9pE/7hD1QTeEvugSJW/OmLzAp78PB5O6adfMNTvmfKhXBkvCzC+rqifWcVYpGFwTjnw==}
-    engines: {node: '>=14.16'}
-    dev: false
 
   /nostr-tools@2.1.2(typescript@5.1.6):
     resolution: {integrity: sha512-7a30ipG5N3pMeRT5tjNodFbYy8JO37Ndh54yshkGjSRa08umLDmEcmVzdIoSI7yxdac24WbFz4OBoJhR7kHFkw==}
