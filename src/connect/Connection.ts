@@ -14,9 +14,14 @@ class SendQueue extends Queue {
       return false
     }
 
-    const [verb] = asMessage(message)
+    const [verb, ...extra] = asMessage(message)
 
     if (['AUTH', 'CLOSE'].includes(verb)) {
+      return true
+    }
+
+    // Allow relay requests through
+    if (verb === 'EVENT' && extra[0].kind === 28934) {
       return true
     }
 
