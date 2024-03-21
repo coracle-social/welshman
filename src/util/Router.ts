@@ -85,11 +85,11 @@ export class Router {
 
   // Routing scenarios
 
-  User = () => this.scenario([])
+  User = () => this.scenario([this.getUserRelays()])
 
-  ReadRelays = () => this.scenario([]).mode(RelayMode.Read)
+  ReadRelays = () => this.scenario([this.getUserRelays()]).mode(RelayMode.Read)
 
-  WriteRelays = () => this.scenario([]).mode(RelayMode.Write)
+  WriteRelays = () => this.scenario([this.getUserRelays()]).mode(RelayMode.Write)
 
   AllMessages = () => this.scenario([this.getUserRelays()])
 
@@ -257,7 +257,7 @@ export class RouterScenario {
     const fallbackPolicy = this.getPolicy()
     const urls = this.router.scoreGroups(this.groups).map(s => s.url)
     const limit = this.getLimit()
-    const limitWithFallbacks = limit + fallbackPolicy(urls, limit)
+    const limitWithFallbacks = Math.min(limit, urls.length) + fallbackPolicy(urls, limit)
 
     for (const url of this.getFallbackRelays()) {
       if (urls.length >= limitWithFallbacks) {
