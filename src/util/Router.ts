@@ -72,7 +72,8 @@ export class Router {
     }
 
     const items = Object.entries(scores)
-      .sort((a, b) => a[1].score > b[1].score ? -1 : 1)
+      .filter(([url, {score}]) => score > 0)
+      .sort((a, b) => b[1].score - a[1].score)
       .map(([url, {score, count}]) => ({url, score, count}))
 
     return items
