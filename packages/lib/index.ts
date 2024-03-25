@@ -1,3 +1,4 @@
+export * from './Context'
 export * from './Deferred'
 export * from './Emitter'
 export * from './Fluent'
