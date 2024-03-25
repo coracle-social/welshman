@@ -20,10 +20,8 @@
     }
   },
   "scripts": {
-    "pub": "npm run lint && npm run rebuild && npm publish",
-    "rebuild": "npm run clean && npm run build",
-    "build": "tsc-multi",
-    "clean": "gts clean",
+    "pub": "npm run lint && npm run build && npm publish",
+    "build": "gts clean && tsc-multi",
     "lint": "gts lint",
     "fix": "gts fix"
   },

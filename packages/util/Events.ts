@@ -5,7 +5,9 @@ import {Tags} from './Tags'
 import {addressFromEvent, encodeAddress} from './Address'
 import {isEphemeralKind, isReplaceableKind, isPlainReplaceableKind, isParameterizedReplaceableKind} from './Kinds'
 
-export type Rumor = Pick<Event, 'kind' | 'tags' | 'content' | 'created_at' | 'pubkey' | 'id'>
+export type Rumor = Pick<Event, 'kind' | 'tags' | 'content' | 'created_at' | 'pubkey' | 'id'> & {
+  wrap?: Event
+}
 
 export type CreateEventOpts = {
   content?: string

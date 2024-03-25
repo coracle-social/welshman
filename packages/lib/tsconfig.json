@@ -5,7 +5,7 @@
     "outDir": "build",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "lib": ["es2019", "dom", "dom.iterable"]
+    "lib": ["esnext", "dom", "dom.iterable"]
   },
   "include": ["**/*.ts"]
 }

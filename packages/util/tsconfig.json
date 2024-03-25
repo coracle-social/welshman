@@ -5,7 +5,7 @@
     "outDir": "build",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "lib": ["es2019"]
+    "lib": ["esnext"]
   },
   "include": ["**/*.ts"]
 }

@@ -49,9 +49,6 @@ export const getIdentifier = (e: UnsignedEvent) => e.tags.find(t => t[0] === "d"
 export const addressFromEvent = (e: UnsignedEvent, relays: string[] = []) =>
   ({kind: e.kind, pubkey: e.pubkey, identifier: getIdentifier(e), relays})
 
-export const addressToFilter = (a: Address) =>
-  ({kinds: [a.kind], authors: [a.pubkey], "#d": [a.identifier]})
-
 // Utils
 
 export const isGroupAddress = (a: Address) => a.kind === GROUP_DEFINITION
