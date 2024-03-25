@@ -12,12 +12,12 @@
     "type": "git",
     "url": "https://github.com/coracle-social/paravel.git"
   },
-  "types": "./build/src/main.d.ts",
+  "types": "./build/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./build/src/main.d.ts",
-      "import": "./build/src/main.mjs",
-      "require": "./build/src/main.cjs"
+      "types": "./build/src/index.d.ts",
+      "import": "./build/src/index.mjs",
+      "require": "./build/src/index.cjs"
     }
   },
   "files": [
