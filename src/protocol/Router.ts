@@ -1,8 +1,8 @@
 import type {EventTemplate, UnsignedEvent} from 'nostr-tools'
+import {first, uniq, shuffle} from '../util'
 import type {Rumor} from './Events'
 import {getAddress, isReplaceable} from './Events'
 import {Tag, Tags} from './Tags'
-import {first, uniq, shuffle} from './Tools'
 import {GROUP_DEFINITION, COMMUNITY_DEFINITION} from './Kinds'
 import {addressFromEvent, decodeAddress} from './Address'
 

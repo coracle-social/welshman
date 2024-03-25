@@ -1,4 +1,4 @@
-import {between} from './Tools'
+import {between} from '../util'
 
 export const isEphemeralKind = (kind: number) => between(19999, 29999, kind)
 

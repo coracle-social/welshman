@@ -1,7 +1,6 @@
 import type {Event, EventTemplate, UnsignedEvent} from 'nostr-tools'
 import {verifyEvent, getEventHash} from 'nostr-tools'
-import {cached} from "./LRUCache"
-import {now} from './Tools'
+import {cached, now} from "../util"
 import {Tags} from './Tags'
 import {addressFromEvent, encodeAddress} from './Address'
 import {isEphemeralKind, isReplaceableKind, isPlainReplaceableKind, isParameterizedReplaceableKind} from './Kinds'

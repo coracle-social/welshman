@@ -1,5 +1,4 @@
-import normalizeUrl from "./normalize-url"
-import {stripProtocol} from './Tools'
+import {normalizeUrl, stripProtocol} from "../util"
 
 export const isShareableRelayUrl = (url: string) =>
   Boolean(
