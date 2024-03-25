@@ -1,0 +1,36 @@
+{
+  "name": "@coracle.social/lib",
+  "version": "0.0.1",
+  "author": "hodlbod",
+  "license": "MIT",
+  "description": "A collection of utilities.",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "files": [
+    "build"
+  ],
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.mjs",
+      "require": "./build/index.cjs"
+    }
+  },
+  "scripts": {
+    "pub": "npm run lint && npm run rebuild && npm publish",
+    "rebuild": "npm run clean && npm run build",
+    "build": "tsc-multi",
+    "clean": "gts clean",
+    "lint": "gts lint",
+    "fix": "gts fix"
+  },
+  "devDependencies": {
+    "@types/events": "^3.0.3",
+    "gts": "^5.0.1",
+    "tsc-multi": "^1.1.0",
+    "typescript": "~5.1.6"
+  }
+}

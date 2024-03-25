@@ -1,48 +1,10 @@
 {
-  "name": "paravel",
-  "version": "0.5.7",
-  "description": "Yet another toolkit for nostr",
-  "author": "hodlbod",
-  "license": "MIT",
-  "keywords": [
-    "nostr"
+  "private": true,
+  "workspaces": [
+    "packages/*"
   ],
-  "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/coracle-social/paravel.git"
-  },
-  "types": "./build/src/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./build/src/index.d.ts",
-      "import": "./build/src/index.mjs",
-      "require": "./build/src/index.cjs"
-    }
-  },
-  "files": [
-    "build"
-  ],
-  "scripts": {
-    "pub": "pnpm install && pnpm run lint && tsc-multi && pnpm publish",
-    "build": "tsc-multi",
-    "clean": "gts clean",
-    "lint": "gts lint",
-    "fix": "gts fix",
-    "prepare": "pnpm build",
-    "pretest": "pnpm build",
-    "posttest": "pnpm lint"
-  },
-  "dependencies": {
-    "isomorphic-ws": "^5.0.0",
-    "nostr-tools": "^2.1.2",
-    "ws": "^8.14.2"
-  },
-  "devDependencies": {
-    "@types/node": "20.4.6",
-    "@types/ws": "^8.5.5",
-    "gts": "^5.0.1",
-    "tsc-multi": "^1.1.0",
-    "typescript": "~5.1.6"
+    "url": "https://github.com/coracle-social/skiff.git"
   }
 }
