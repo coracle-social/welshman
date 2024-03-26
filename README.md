@@ -12,7 +12,7 @@ Some general-purpose utilities used elsewhere in paravel.
 - `Emitter` extends EventEmitter to support `emitter.on('*', ...)`.
 - `Fluent` is a wrapper around arrays with chained methods that modify and copy the underlying array.
 - `LRUCache` is an implementation of an LRU cache.
-- `Queue` is an implementation of an asynchronous queue.
+- `Worker` is an implementation of an asynchronous queue.
 - `Tools` is a collection of general-purpose utility functions.
 
 ## @coracle.social/util

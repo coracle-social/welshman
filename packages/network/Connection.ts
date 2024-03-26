@@ -1,66 +1,13 @@
-import {Emitter, Queue} from '@coracle.social/lib'
+import {Emitter, Worker} from '@coracle.social/lib'
 import {AuthStatus, ConnectionMeta} from './ConnectionMeta'
 import {Socket, isMessage, asMessage} from './Socket'
 import type {SocketMessage} from './Socket'
 
-class SendQueue extends Queue {
-  constructor(readonly cxn: Connection) {
-    super()
-  }
-
-  shouldSend(message: SocketMessage) {
-    if (!this.cxn.socket.isReady()) {
-      return false
-    }
-
-    const [verb, ...extra] = asMessage(message)
-
-    if (['AUTH', 'CLOSE'].includes(verb)) {
-      return true
-    }
-
-    // Allow relay requests through
-    if (verb === 'EVENT' && extra[0].kind === 28934) {
-      return true
-    }
-
-    // Only defer for auth if we're not multiplexing
-    if (isMessage(message) && ![AuthStatus.Ok, AuthStatus.Pending].includes(this.cxn.meta.authStatus)) {
-      return false
-    }
-
-    if (verb === 'REQ') {
-      return this.cxn.meta.pendingRequests.size < 8
-    }
-
-    return true
-  }
-
-  handle(message: SocketMessage) {
-    // If we ended up handling a CLOSE before we handled the REQ, don't send the REQ
-    if (message[0] === 'CLOSE') {
-      this.messages = this.messages.filter(m => !(m[0] === 'REQ' && m[1] === message[1]))
-    }
-
-    this.cxn.onSend(message)
-  }
-}
-
-class ReceiveQueue extends Queue {
-  constructor(readonly cxn: Connection) {
-    super()
-  }
-
-  handle(message: SocketMessage) {
-    this.cxn.onReceive(message)
-  }
-}
-
 export class Connection extends Emitter {
   url: string
   socket: Socket
-  sendQueue: SendQueue
-  receiveQueue: ReceiveQueue
+  sender: Worker<SocketMessage>
+  receiver: Worker<SocketMessage>
   meta: ConnectionMeta
 
   constructor(url: string) {
@@ -68,13 +15,64 @@ export class Connection extends Emitter {
 
     this.url = url
     this.socket = new Socket(url, this)
-    this.sendQueue = new SendQueue(this)
-    this.receiveQueue = new ReceiveQueue(this)
+    this.sender = this.createSender()
+    this.receiver = this.createReceiver()
     this.meta = new ConnectionMeta(this)
     this.setMaxListeners(100)
   }
 
-  send = (m: SocketMessage) => this.sendQueue.push(m)
+  createSender = () => {
+    const worker = new Worker<SocketMessage>({
+      shouldDefer: (message: SocketMessage) => {
+        if (!this.socket.isReady()) {
+          return true
+        }
+
+        const [verb, ...extra] = asMessage(message)
+
+        if (['AUTH', 'CLOSE'].includes(verb)) {
+          return false
+        }
+
+        // Allow relay requests through
+        if (verb === 'EVENT' && extra[0].kind === 28934) {
+          return false
+        }
+
+        // Only defer for auth if we're not multiplexing
+        if (isMessage(message) && ![AuthStatus.Ok, AuthStatus.Pending].includes(this.meta.authStatus)) {
+          return true
+        }
+
+        if (verb === 'REQ') {
+          return this.meta.pendingRequests.size >= 8
+        }
+
+        return false
+      }
+    })
+
+    worker.addGlobalHandler((message: SocketMessage) => {
+      // If we ended up handling a CLOSE before we handled the REQ, don't send the REQ
+      if (message[0] === 'CLOSE') {
+        worker.buffer = worker.buffer.filter(m => !(m[0] === 'REQ' && m[1] === message[1]))
+      }
+
+      this.onSend(message)
+    })
+
+    return worker
+  }
+
+  createReceiver = () => {
+    const worker = new Worker<SocketMessage>()
+
+    worker.addGlobalHandler(this.onReceive)
+
+    return worker
+  }
+
+  send = (m: SocketMessage) => this.sender.push(m)
 
   onOpen = () => this.emit('open', this)
 
@@ -82,7 +80,7 @@ export class Connection extends Emitter {
 
   onError = () => this.emit('fault', this)
 
-  onMessage = (m: SocketMessage) => this.receiveQueue.push(m)
+  onMessage = (m: SocketMessage) => this.receiver.push(m)
 
   onSend = (message: SocketMessage) => {
     this.emit('send', this, message)
@@ -105,15 +103,15 @@ export class Connection extends Emitter {
 
   disconnect() {
     this.socket.disconnect()
-    this.sendQueue.clear()
-    this.receiveQueue.clear()
+    this.sender.clear()
+    this.receiver.clear()
     this.meta.clearPending()
   }
 
   destroy() {
     this.disconnect()
     this.removeAllListeners()
-    this.sendQueue.stop()
-    this.receiveQueue.stop()
+    this.sender.stop()
+    this.receiver.stop()
   }
 }

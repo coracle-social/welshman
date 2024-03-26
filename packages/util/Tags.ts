@@ -78,7 +78,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   entries = () => this.mapTo(t => t.entry())
 
-  relays = () => this.flatMap((t: Tag) => t.valueOf().filter(isShareableRelayUrl).map(normalizeRelayUrl)).uniq()
+  relays = () => this.flatMap((t: Tag) => t.valueOf().filter(isShareableRelayUrl).map(url => normalizeRelayUrl(url))).uniq()
 
   topics = () => this.whereKey("t").values().map((t: string) => t.replace(/^#/, ""))
 

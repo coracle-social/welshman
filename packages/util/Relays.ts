@@ -17,7 +17,13 @@ export const isShareableRelayUrl = (url: string) =>
     !url.slice(6).match(/\/npub/)
   )
 
-export const normalizeRelayUrl = (url: string) => {
+type NormalizeRelayUrlOpts = {
+  allowInsecure?: boolean
+}
+
+export const normalizeRelayUrl = (url: string, {allowInsecure = false}: NormalizeRelayUrlOpts = {}) => {
+  const prefix = allowInsecure ? url.match(/^wss?:\/\//)?.[0] || "wss://" : "wss://"
+
   // Use our library to normalize
   url = normalizeUrl(url, {stripHash: true, stripAuthentication: false})
 
@@ -29,5 +35,5 @@ export const normalizeRelayUrl = (url: string) => {
     url += "/"
   }
 
-  return "wss://" + url
+  return prefix + url
 }
