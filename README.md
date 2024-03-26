@@ -14,6 +14,7 @@ Some general-purpose utilities used elsewhere in paravel.
 - `LRUCache` is an implementation of an LRU cache.
 - `Worker` is an implementation of an asynchronous queue.
 - `Tools` is a collection of general-purpose utility functions.
+- `Store` is an implementation of svelte-like subscribable stores with extra features.
 
 ## @coracle.social/util
 

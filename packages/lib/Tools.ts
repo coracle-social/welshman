@@ -28,6 +28,8 @@ export const toIterable = (x: any) => isIterable(x) ? x : [x]
 
 export const stripProtocol = (url: string) => url.replace(/.*:\/\//, "")
 
+export const ensurePlural = <T>(x: T | T[]) => (x instanceof Array ? x : [x])
+
 export const groupBy = <T>(f: (x: T) => string, xs: T[]) => {
   const r: Record<string, T[]> = {}
 

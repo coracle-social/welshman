@@ -55,6 +55,8 @@ export class Fluent<T> {
 
   forEach = (f: (t: T, i: number) => void) => this.xs.forEach(f)
 
+  join = (s: string) => this.valueOf().join(s)
+
   set = (i: number, x: T) => this.clone([...this.xs.slice(0, i), x, ...this.xs.slice(i + 1)])
 
   concat = (xs: T[]) => this.clone(this.xs.concat(xs))

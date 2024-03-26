@@ -68,4 +68,3 @@ export const isChildOf = (child: EventTemplate, parent: Rumor) => {
 
   return getIdAndAddress(parent).some(x => parentIds.includes(x))
 }
-

@@ -27,11 +27,13 @@
   },
   "devDependencies": {
     "@types/events": "^3.0.3",
+    "@types/throttle-debounce": "^5.0.2",
     "gts": "^5.0.1",
     "tsc-multi": "^1.1.0",
     "typescript": "~5.1.6"
   },
   "dependencies": {
-    "@scure/base": "^1.1.6"
+    "@scure/base": "^1.1.6",
+    "throttle-debounce": "^5.0.0"
   }
 }
