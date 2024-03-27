@@ -18,6 +18,8 @@ export const flatten = <T>(xs: T[]) => xs.flatMap(identity)
 
 export const uniq = <T>(xs: T[]) => Array.from(new Set(xs))
 
+export const choice = <T>(xs: T[]): T => xs[Math.floor(xs.length * Math.random())]
+
 export const shuffle = <T>(xs: T[]): T[] => xs.sort(() => Math.random() > 0.5 ? 1 : -1)
 
 export const randomId = (): string => Math.random().toString().slice(2)

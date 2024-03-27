@@ -92,8 +92,6 @@ export class Router {
 
   WriteRelays = () => this.scenario([this.getUserRelays()]).mode(RelayMode.Write)
 
-  AllMessages = () => this.scenario([this.getUserRelays()])
-
   Messages = (pubkeys: string[]) =>
     this.scenario([
       this.getUserRelays(),
