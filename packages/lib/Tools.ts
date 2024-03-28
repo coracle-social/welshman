@@ -1,3 +1,4 @@
+import {throttle} from 'throttle-debounce'
 import {bech32, utf8} from "@scure/base"
 
 export const now = () => Math.round(Date.now() / 1000)
@@ -11,6 +12,14 @@ export const last = <T>(xs: T[]) => xs[xs.length - 1]
 export const prop = (k: string) => <T>(x: Record<string, T>) => x[k]
 
 export const identity = <T>(x: T) => x
+
+export const max = (xs: number[]) => xs.reduce((a, b) => Math.max(a, b), 0)
+
+export const min = (xs: number[]) => xs.reduce((a, b) => Math.min(a, b), 0)
+
+export const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0)
+
+export const avg = (xs: number[]) => sum(xs) / xs.length
 
 export const between = (low: number, high: number, n: number) => n > low && n < high
 
@@ -60,6 +69,16 @@ export const pushToKey = <T>(m: Record<string, T[]> | Map<string, T[]>, k: strin
   }
 
   return m
+}
+
+export const batch = <T>(t: number, f: (xs: T[]) => void) => {
+  const xs: T[] = []
+  const cb = throttle(t, () => xs.length > 0 && f(xs.splice(0)))
+
+  return (x: T) => {
+    xs.push(x)
+    cb()
+  }
 }
 
 export const hexToBech32 = (prefix: string, url: string) =>
