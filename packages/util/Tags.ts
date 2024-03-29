@@ -45,11 +45,11 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
     return new Tags(Array.from(p).map(Tag.from))
   }
 
-  static fromEvent(event: EventTemplate) {
+  static fromEvent(event: Pick<EventTemplate, "tags">) {
     return Tags.from(event.tags || [])
   }
 
-  static fromEvents(events: EventTemplate[]) {
+  static fromEvents(events: Pick<EventTemplate, "tags">[]) {
     return Tags.from(events.flatMap(e => e.tags || []))
   }
 

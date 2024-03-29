@@ -5,9 +5,9 @@ export const now = () => Math.round(Date.now() / 1000)
 
 export const nth = (i: number) => <T>(xs: T[]) => xs[i]
 
-export const first = <T>(xs: T[]) => xs[0]
+export const first = <T>(xs: T[], ...args: unknown[]) => xs[0]
 
-export const last = <T>(xs: T[]) => xs[xs.length - 1]
+export const last = <T>(xs: T[], ...args: unknown[]) => xs[xs.length - 1]
 
 export const prop = (k: string) => <T>(x: Record<string, T>) => x[k]
 
@@ -29,7 +29,7 @@ export const uniq = <T>(xs: T[]) => Array.from(new Set(xs))
 
 export const choice = <T>(xs: T[]): T => xs[Math.floor(xs.length * Math.random())]
 
-export const shuffle = <T>(xs: T[]): T[] => xs.sort(() => Math.random() > 0.5 ? 1 : -1)
+export const shuffle = <T>(xs: Iterable<T>): T[] => Array.from(xs).sort(() => Math.random() > 0.5 ? 1 : -1)
 
 export const randomId = (): string => Math.random().toString().slice(2)
 
@@ -69,6 +69,55 @@ export const pushToKey = <T>(m: Record<string, T[]> | Map<string, T[]>, k: strin
   }
 
   return m
+}
+
+export const sample = <T>(n: number, xs: T[]) => {
+  const result: T[] = []
+
+  for (let i = 0; i < n; i++) {
+    result.push(xs.splice(Math.floor(xs.length * Math.random()), 1)[0])
+  }
+
+  return result
+}
+
+export const initArray = <T>(n: number, f: () => T) => {
+  const result = []
+
+  for (let i = 0; i < n; i++) {
+    result.push(f())
+  }
+
+  return result
+}
+
+export const chunk = <T>(chunkLength: number, coll: T[]) => {
+  const result: T[][] = []
+  const current: T[] = []
+
+  for (const item of coll) {
+    if (current.length < chunkLength) {
+      current.push(item)
+    } else {
+      result.push(current.splice(0))
+    }
+  }
+
+  if (current.length > 0) {
+    result.push(current)
+  }
+
+  return result
+}
+
+export const chunks = <T>(n: number, coll: T[]) => {
+  const result: T[][] = initArray(n, () => [])
+
+  for (let i = 0; i < coll.length; i++) {
+    result[i % n].push(coll[i])
+  }
+
+  return result
 }
 
 export const batch = <T>(t: number, f: (xs: T[]) => void) => {
