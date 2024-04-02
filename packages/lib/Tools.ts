@@ -41,6 +41,9 @@ export const stripProtocol = (url: string) => url.replace(/.*:\/\//, "")
 
 export const ensurePlural = <T>(x: T | T[]) => (x instanceof Array ? x : [x])
 
+export const sortBy = <T>(f: (x: T) => number, xs: T[]) =>
+  xs.sort((a: T, b: T) => f(a) - f(b))
+
 export const groupBy = <T>(f: (x: T) => string, xs: T[]) => {
   const r: Record<string, T[]> = {}
 

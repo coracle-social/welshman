@@ -57,6 +57,8 @@ export const makeSubscription = (request: SubscribeRequest) => {
   const result = defer<Event[]>()
   const close = () => emitter.emit('abort')
 
+  emitter.setMaxListeners(100)
+
   return {id, request, emitter, tracker, result, close}
 }
 
@@ -137,6 +139,8 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
             sub.emitter.emit(SubscriptionEvent.Complete)
           }
         }
+
+        mergedSub.emitter.removeAllListeners()
       })
 
       // Propagate promise resolution

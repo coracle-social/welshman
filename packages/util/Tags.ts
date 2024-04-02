@@ -7,13 +7,15 @@ import {encodeAddress, decodeAddress} from './Address'
 import {GROUP_DEFINITION, COMMUNITY_DEFINITION} from './Kinds'
 
 export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, 'from'>) {
-  static from(xs: Iterable<string>) {
-    return new Tag(Array.from(xs))
-  }
+  static from = (xs: Iterable<string>) => new Tag(Array.from(xs))
 
-  static fromAddress = (a: Address) => new Tag(["a", encodeAddress(a), a.relays[0] || ""])
+  static fromId = (id: string) => new Tag(["e", id])
 
-  valueOf = () => this.xs
+  static fromTopic = (topic: string) => new Tag(["t", topic])
+
+  static fromPubkey = (pubkey: string) => new Tag(["p", pubkey])
+
+  static fromAddress = (address: Address) => new Tag(["a", encodeAddress(address), address.relays[0] || ""])
 
   key = () => this.xs[0]
 
@@ -41,20 +43,15 @@ export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, '
 }
 
 export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'>) {
-  static from(p: Iterable<string[]>) {
-    return new Tags(Array.from(p).map(Tag.from))
-  }
+  static from = (p: Iterable<Tag>) => new Tags(Array.from(p))
 
-  static fromEvent(event: Pick<EventTemplate, "tags">) {
-    return Tags.from(event.tags || [])
-  }
+  static wrap = (p: Iterable<string[]>) => new Tags(Array.from(p).map(Tag.from))
 
-  static fromEvents(events: Pick<EventTemplate, "tags">[]) {
-    return Tags.from(events.flatMap(e => e.tags || []))
-  }
+  static fromEvent = (event: Pick<EventTemplate, "tags">) => Tags.wrap(event.tags || [])
 
-  // @ts-ignore
-  valueOf = () => this.xs.map(tag => tag.valueOf())
+  static fromEvents = (events: Pick<EventTemplate, "tags">[]) => Tags.wrap(events.flatMap(e => e.tags || []))
+
+  unwrap = () => this.xs.map(tag => tag.valueOf())
 
   whereKey = (key: string) => this.filter(t => t.key() === key)
 
@@ -111,9 +108,9 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
     mentionTags.forEach((t: Tag) => mentions.push(t.valueOf()))
 
     return {
-      roots: Tags.from(roots),
-      replies: Tags.from(replies),
-      mentions: Tags.from(mentions),
+      roots: Tags.wrap(roots),
+      replies: Tags.wrap(replies),
+      mentions: Tags.wrap(mentions),
     }
   }
 
@@ -165,7 +162,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   imeta = (url: string) => {
     for (const tag of this.whereKey("imeta").xs) {
-      const tags = Tags.from(tag.drop(1).valueOf().map((m: string) => m.split(" ")))
+      const tags = Tags.wrap(tag.drop(1).valueOf().map((m: string) => m.split(" ")))
 
       if (tags.get("url")?.value() === url) {
         return tags

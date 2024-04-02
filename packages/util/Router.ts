@@ -1,14 +1,11 @@
 import type {EventTemplate, UnsignedEvent} from 'nostr-tools'
-import {first, uniq, shuffle} from '@coracle.social/lib'
+import {first, identity, sortBy, uniq, shuffle} from '@coracle.social/lib'
 import type {Rumor} from './Events'
 import {getAddress, isReplaceable} from './Events'
 import {Tag, Tags} from './Tags'
+import {isShareableRelayUrl} from './Relays'
 import {GROUP_DEFINITION, COMMUNITY_DEFINITION} from './Kinds'
-import {addressFromEvent, decodeAddress} from './Address'
-
-const isGroupAddress = (a: string) => decodeAddress(a).kind === GROUP_DEFINITION
-
-const isCommunityAddress = (a: string) => decodeAddress(a).kind === COMMUNITY_DEFINITION
+import {addressFromEvent, decodeAddress, isCommunityAddress, isGroupAddress} from './Address'
 
 export enum RelayMode {
   Read = "read",
@@ -20,169 +17,184 @@ export type RouterOptions = {
   getGroupRelays: (address: string) => string[]
   getCommunityRelays: (address: string) => string[]
   getPubkeyRelays: (pubkey: string, mode?: RelayMode) => string[]
-  getDefaultRelays: (mode?: RelayMode) => string[]
-  getRelayQuality?: (url: string) => number
-  getDefaultLimit: () => number
+  getStaticRelays: () => string[]
+  getIndexerRelays: () => string[]
+  getRelayQuality: (url: string) => number
+  getRedundancy: () => number
 }
 
-export type RouteScores = Record<string, {score: number, count: number}>
+export type TagsByRelay = Map<string, Tags>
 
-export type FallbackPolicy = (urls: string[], limit: number) => number
+export type RelayTags = {
+  relay: string
+  tags: Tags
+}
+
+export type TagRelays = {
+  tag: Tag
+  relays: string[]
+}
+
+export type FallbackPolicy = (count: number, limit: number) => number
 
 export class Router {
   constructor(readonly options: RouterOptions) {}
 
   // Utilities derived from options
 
-  getUserRelays = (mode?: RelayMode) => {
-    const pubkey = this.options.getUserPubkey()
+  getTagSelections = (tags: Tags) =>
+    tags
+      .filter(t => isShareableRelayUrl(t.nth(2)))
+      .mapTo(t => this.selection(t.take(2), [t.nth(2)]))
+      .valueOf()
 
-    return pubkey ? this.options.getPubkeyRelays(pubkey, mode) : []
-  }
+  getPubkeySelection = (pubkey: string, mode?: RelayMode) =>
+    this.pubkeySelection(pubkey, this.options.getPubkeyRelays(pubkey, mode))
 
-  getContextRelayGroups = (event: EventTemplate) => {
-    const addresses = Tags.fromEvent(event).context().values().valueOf()
+  getPubkeySelections = (pubkeys: string[], mode?: RelayMode) =>
+    pubkeys.map(pubkey => this.getPubkeySelection(pubkey, mode))
 
+  getUserSelections = (mode?: RelayMode) =>
+    this.getPubkeySelections([this.options.getUserPubkey()].filter(identity) as string[], mode)
+
+  getContextSelections = (tags: Tags) => {
     return [
-      ...addresses.filter(isCommunityAddress).map(this.options.getCommunityRelays),
-      ...addresses.filter(isGroupAddress).map(this.options.getGroupRelays),
+      ...tags.communities().mapTo(t => this.selection(t, this.options.getCommunityRelays(t.value()))).valueOf(),
+      ...tags.groups().mapTo(t => this.selection(t, this.options.getGroupRelays(t.value()))).valueOf(),
     ]
   }
 
+  // Utilities for creating ItemSelections
+
+  selection = (tag: Tag, relays: string[]) => ({tag, relays})
+
+  pubkeySelection = (pubkey: string, relays: string[]) =>
+    this.selection(Tag.fromPubkey(pubkey), relays)
+
   // Utilities for processing hints
 
-  scoreGroups = (groups: string[][]) => {
-    const scores: RouteScores = {}
+  relaySelectionsFromMap = (tagsByRelay: TagsByRelay) =>
+    Array.from(tagsByRelay).map(([relay, tags]: [string, Tags]) => ({relay, tags}))
 
-    groups.filter(g => g?.length > 0).forEach((urls, i) => {
-      for (const url of shuffle(uniq(urls))) {
-        if (!scores[url]) {
-          scores[url] = {score: 0, count: 0}
-        }
+  scoreRelaySelection = ({tags, relay}: RelayTags) =>
+    tags.count() * this.options.getRelayQuality(relay)
 
-        scores[url].score += 1 / (i + 1)
-        scores[url].count += 1
-      }
-    })
+  sortRelaySelections = (relaySelections: RelayTags[]) => {
+    const scores = new Map<string, number>()
+    const getScore = (relayTags: RelayTags) => scores.get(relayTags.relay) || 0
 
-    for (const [url, score] of Object.entries(scores)) {
-      const quality = this.options.getRelayQuality?.(url) || 1
-
-      score.score = score.score * Math.cbrt(score.count) * quality
+    for (const relayTags of relaySelections) {
+      scores.set(relayTags.relay, this.scoreRelaySelection(relayTags))
     }
 
-    const items = Object.entries(scores)
-      .filter(([url, {score}]) => score > 0)
-      .sort((a, b) => b[1].score - a[1].score)
-      .map(([url, {score, count}]) => ({url, score, count}))
-
-    return items
+    return sortBy(getScore, relaySelections.filter(getScore))
   }
 
-  scenario = (groups: string[][]) => new RouterScenario(this, groups)
+  // Utilities for creating scenarios
+
+  scenario = (selections: TagRelays[]) => new RouterScenario(this, selections)
 
   merge = (scenarios: RouterScenario[]) =>
-    this.scenario(scenarios.map(scenario => scenario.policy(this.addNoFallbacks).getUrls()))
+    this.scenario(scenarios.flatMap((scenario: RouterScenario) => scenario.selections))
+
+  tagScenario = (tags: Tags, relays: string[]) =>
+    this.scenario(tags.mapTo(tag => this.selection(tag, relays)).valueOf())
+
+  idScenario = (ids: string[], relays: string[]) =>
+    this.tagScenario(Tags.wrap(ids.map(id => ["e", id])), relays)
+
+  pubkeyScenario = (pubkeys: string[], relays: string[]) =>
+    this.tagScenario(Tags.wrap(pubkeys.map(pubkey => ["p", pubkey])), relays)
+
+  addressScenario = (addresses: string[], relays: string[]) =>
+    this.tagScenario(Tags.wrap(addresses.map(address => ["a", address])), relays)
 
   // Routing scenarios
 
-  User = () => this.scenario([this.getUserRelays()])
+  User = () => this.scenario(this.getUserSelections())
 
-  ReadRelays = () => this.scenario([this.getUserRelays()]).mode(RelayMode.Read)
+  ReadRelays = () => this.scenario(this.getUserSelections(RelayMode.Read))
 
-  WriteRelays = () => this.scenario([this.getUserRelays()]).mode(RelayMode.Write)
+  WriteRelays = () => this.scenario(this.getUserSelections(RelayMode.Write))
 
   Messages = (pubkeys: string[]) =>
     this.scenario([
-      this.getUserRelays(),
-      ...pubkeys.map(pubkey => this.options.getPubkeyRelays(pubkey))
+      ...this.getUserSelections(),
+      ...this.getPubkeySelections(pubkeys),
     ])
 
   PublishMessage = (pubkey: string) =>
     this.scenario([
-      this.getUserRelays(RelayMode.Write),
-      this.options.getPubkeyRelays(pubkey, RelayMode.Read)
+      ...this.getUserSelections(RelayMode.Write),
+      this.getPubkeySelection(pubkey, RelayMode.Read),
     ]).policy(this.addMinimalFallbacks)
 
   Event = (event: UnsignedEvent) =>
     this.scenario([
-      this.options.getPubkeyRelays(event.pubkey, RelayMode.Write),
-      ...this.getContextRelayGroups(event),
+      this.getPubkeySelection(event.pubkey, RelayMode.Write),
+      ...this.getContextSelections(Tags.fromEvent(event).context()),
     ])
 
   EventChildren = (event: UnsignedEvent) =>
     this.scenario([
-      this.options.getPubkeyRelays(event.pubkey, RelayMode.Read),
-      ...this.getContextRelayGroups(event),
+      this.getPubkeySelection(event.pubkey, RelayMode.Read),
+      ...this.getContextSelections(Tags.fromEvent(event).context()),
     ])
 
-  EventParent = (event: UnsignedEvent) => {
+  EventAncestors = (event: UnsignedEvent) => {
     const tags = Tags.fromEvent(event)
+    const ptags = tags.whereKey("p")
+    const atags = tags.context()
+    const {replies, roots} = tags.ancestors()
 
     return this.scenario([
-      tags.replies().relays().valueOf(),
-      tags.roots().relays().valueOf(),
-      ...this.getContextRelayGroups(event),
-      ...tags.whereKey("p").values().valueOf()
-        .map(pk => this.options.getPubkeyRelays(pk, RelayMode.Write)),
-      tags.whereKey("p").relays().valueOf(),
-      this.options.getPubkeyRelays(event.pubkey, RelayMode.Read),
-    ])
-  }
-
-  EventRoot = (event: UnsignedEvent) => {
-    const tags = Tags.fromEvent(event)
-
-    return this.scenario([
-      tags.roots().relays().valueOf(),
-      tags.replies().relays().valueOf(),
-      ...this.getContextRelayGroups(event),
-      ...tags.whereKey("p").values().valueOf()
-        .map(pk => this.options.getPubkeyRelays(pk, RelayMode.Write)),
-      tags.whereKey("p").relays().valueOf(),
-      this.options.getPubkeyRelays(event.pubkey, RelayMode.Read),
+      ...this.getTagSelections(replies),
+      ...this.getTagSelections(roots),
+      ...this.getTagSelections(ptags),
+      ...this.getContextSelections(atags),
+      ...this.getPubkeySelections(ptags.values().valueOf(), RelayMode.Write),
+      this.getPubkeySelection(event.pubkey, RelayMode.Read),
     ])
   }
 
   PublishEvent = (event: UnsignedEvent) => {
     const tags = Tags.fromEvent(event)
     const mentions = tags.values("p").valueOf()
-    const addresses = tags.context().values().valueOf()
-    const groupAddresses = addresses.filter(isGroupAddress)
-    const communityAddresses = addresses.filter(isCommunityAddress)
 
-    // If we're publishing only to private groups, only publish to those groups' relays.
-    // Otherwise, publish to all relays, because it's essentially public.
-    if (groupAddresses.length > 0 && communityAddresses.length === 0) {
-      return this.scenario(groupAddresses.map(this.options.getGroupRelays))
+    // If we're publishing to private groups, only publish to those groups' relays
+    if (tags.groups().exists()) {
+      return this
+        .scenario(this.getContextSelections(tags.groups()))
+        .policy(this.addNoFallbacks)
     }
 
     return this.scenario([
-      this.options.getPubkeyRelays(event.pubkey, RelayMode.Write),
-      ...groupAddresses.map(this.options.getGroupRelays),
-      ...communityAddresses.map(this.options.getCommunityRelays),
-      ...mentions.map((pk: string) => this.options.getPubkeyRelays(pk, RelayMode.Read)),
+      this.getPubkeySelection(event.pubkey, RelayMode.Write),
+      ...this.getContextSelections(tags.context()),
+      ...this.getPubkeySelections(mentions, RelayMode.Read),
     ])
   }
 
   FromPubkeys = (pubkeys: string[]) =>
-    this.scenario(pubkeys.map(pk => this.options.getPubkeyRelays(pk, RelayMode.Write)))
+    this.scenario(this.getPubkeySelections(pubkeys, RelayMode.Write))
 
   ForPubkeys = (pubkeys: string[]) =>
-    this.scenario(pubkeys.map(pk => this.options.getPubkeyRelays(pk, RelayMode.Read)))
+    this.scenario(this.getPubkeySelections(pubkeys, RelayMode.Read))
 
-  WithinGroup = (address: string) =>
-    this.scenario([this.options.getGroupRelays(address)]).policy(this.addNoFallbacks)
+  WithinGroup = (address: string, relays?: string) =>
+    this
+      .scenario(this.getContextSelections(Tags.wrap([["a", address]])))
+      .policy(this.addNoFallbacks)
 
   WithinCommunity = (address: string) =>
-    this.scenario([this.options.getCommunityRelays(address)])
+    this.scenario(this.getContextSelections(Tags.wrap([["a", address]])))
 
   WithinContext = (address: string) => {
-    if (isGroupAddress(address)) {
+    if (isGroupAddress(decodeAddress(address))) {
       return this.WithinGroup(address)
     }
 
-    if (isCommunityAddress(address)) {
+    if (isCommunityAddress(decodeAddress(address))) {
       return this.WithinCommunity(address)
     }
 
@@ -194,11 +206,11 @@ export class Router {
 
   // Fallback policies
 
-  addNoFallbacks = (urls: string[], limit: number) => 0
+  addNoFallbacks = (count: number, redundancy: number) => count
 
-  addMinimalFallbacks = (urls: string[], limit: number) => Math.max(0, 1 - urls.length)
+  addMinimalFallbacks = (count: number, redundancy: number) => Math.max(count, 1)
 
-  addMaximalFallbacks = (urls: string[], limit: number) => Math.max(0, limit - urls.length)
+  addMaximalFallbacks = (count: number, redundancy: number) => redundancy - count
 
   // Higher level utils that use hints
 
@@ -222,54 +234,90 @@ export class Router {
   }
 
   address = (event: UnsignedEvent) =>
-    addressFromEvent(event, this.Event(event).limit(3).getUrls())
+    addressFromEvent(event, this.Event(event).redundancy(3).getUrls())
 }
 
 // Router Scenario
 
 export type RouterScenarioOptions = {
-  mode?: RelayMode
-  limit?: number
+  redundancy?: number
   policy?: FallbackPolicy
+  limit?: number
 }
 
 export class RouterScenario {
-  constructor(readonly router: Router, readonly groups: string[][], readonly options: RouterScenarioOptions = {}) {}
+  constructor(readonly router: Router, readonly selections: TagRelays[], readonly options: RouterScenarioOptions = {}) {}
 
   clone = (options: RouterScenarioOptions) =>
-    new RouterScenario(this.router, this.groups, {...this.options, ...options})
+    new RouterScenario(this.router, this.selections, {...this.options, ...options})
 
-  limit = (limit: number) => this.clone({limit})
+  select = (f: (selection: Tag) => boolean) =>
+    new RouterScenario(this.router, this.selections.filter(({tag}) => f(tag)), this.options)
 
-  mode = (mode: RelayMode) => this.clone({mode})
+  redundancy = (redundancy: number) => this.clone({redundancy})
 
   policy = (policy: FallbackPolicy) => this.clone({policy})
 
-  getLimit = () => this.options.limit || this.router.options.getDefaultLimit()
+  limit = (limit: number) => this.clone({limit})
+
+  getRedundancy = () => this.options.redundancy || this.router.options.getRedundancy()
 
   getPolicy = () => this.options.policy || this.router.addMaximalFallbacks
 
-  getFallbackRelays = () =>
-    shuffle(this.router.options.getDefaultRelays(this.options.mode))
+  getLimit = () => this.options.limit
 
-  getUrls = () => {
-    const fallbackPolicy = this.getPolicy()
-    const urls = this.router.scoreGroups(this.groups).map(s => s.url)
-    const limit = this.getLimit()
-    const limitWithFallbacks = Math.min(limit, urls.length) + fallbackPolicy(urls, limit)
-
-    for (const url of this.getFallbackRelays()) {
-      if (urls.length >= limitWithFallbacks) {
-        break
-      }
-
-      if (!urls.includes(url)) {
-        urls.push(url)
+  getSelections = () => {
+    const tagsByRelay: TagsByRelay = new Map()
+    for (const {tag, relays} of this.selections) {
+      for (const relay of relays) {
+        addTagToMap(tagsByRelay, relay, tag)
       }
     }
 
-    return urls.slice(0, limitWithFallbacks)
+    const redundancy = this.getRedundancy()
+    const seen = new Map<string, number>()
+    const result: TagsByRelay = new Map()
+    const relaySelections = this.router.relaySelectionsFromMap(tagsByRelay)
+    for (const {relay} of this.router.sortRelaySelections(relaySelections)) {
+      const tags = []
+      for (const tag of tagsByRelay.get(relay)?.valueOf() || []) {
+        const timesSeen = seen.get(tag.value()) || 0
+
+        if (timesSeen < redundancy) {
+          seen.set(tag.value(), timesSeen + 1)
+          tags.push(tag)
+        }
+      }
+
+      if (tags.length > 0) {
+        result.set(relay, Tags.from(tags))
+      }
+    }
+
+    const fallbacks = shuffle(this.router.options.getStaticRelays())
+    const fallbackPolicy = this.getPolicy()
+    for (const {tag} of this.selections) {
+      const timesSeen = seen.get(tag.value()) || 0
+      const fallbacksNeeded = fallbackPolicy(timesSeen, redundancy)
+
+      if (fallbacksNeeded > 0) {
+        for (const relay of fallbacks.slice(0, fallbacksNeeded)) {
+          addTagToMap(result, relay, tag)
+        }
+      }
+    }
+
+    const limit = this.getLimit()
+
+    return limit
+      ? this.router.relaySelectionsFromMap(result).slice(0, limit)
+      : this.router.relaySelectionsFromMap(result)
   }
 
-  getUrl = () => first(this.limit(1).getUrls())
+  getUrls = () => this.getSelections().map((selection: RelayTags) => selection.relay)
+
+  getUrl = () => first(this.getUrls())
 }
+
+const addTagToMap = (m: Map<string, Tags>, k: string, v: Tag) =>
+  m.set(k, (m.get(k) || Tags.from([])).append(v))
