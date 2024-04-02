@@ -60,20 +60,6 @@ export const groupBy = <T>(f: (x: T) => string, xs: T[]) => {
   return r
 }
 
-export const pushToKey = <T>(m: Record<string, T[]> | Map<string, T[]>, k: string, v: T) => {
-  if (m instanceof Map) {
-    const a = m.get(k) || []
-
-    a.push(v)
-    m.set(k, a)
-  } else {
-    m[k] = m[k] || []
-    m[k].push(v)
-  }
-
-  return m
-}
-
 export const sample = <T>(n: number, xs: T[]) => {
   const result: T[] = []
 

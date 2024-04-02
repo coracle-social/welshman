@@ -79,7 +79,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   topics = () => this.whereKey("t").values().map((t: string) => t.replace(/^#/, ""))
 
-  ancestors = () => {
+  ancestors = (x?: boolean) => {
     const tags = this.filter(t => ["a", "e", "q"].includes(t.key()) && !t.isContext())
     const parentTags = tags.filter(t => ["a", "e"].includes(t.key()))
     const mentionTags = tags.whereKey("q")
@@ -95,10 +95,10 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
           replies.push(t.valueOf())
         } else if (t.mark() === 'mention') {
           mentions.push(t.valueOf())
-        } else if (i === 0) {
-          roots.push(t.valueOf())
         } else if (i === parentTags.count() - 1) {
           replies.push(t.valueOf())
+        } else if (i === 0) {
+          roots.push(t.valueOf())
         } else {
           mentions.push(t.valueOf())
         }

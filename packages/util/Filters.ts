@@ -78,7 +78,7 @@ export const combineFilters = (filters: Filter[]) => {
   return result
 }
 
-export const getIdFilters = (idsOrAddresses: string[]) => {
+export const getIdFilters = (idsOrAddresses: Iterable<string>) => {
   const ids = []
   const aFilters = []
 

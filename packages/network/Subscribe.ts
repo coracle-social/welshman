@@ -237,7 +237,7 @@ export const executeSubscription = (sub: Subscription) => {
 export const executeSubscriptions = (subs: Subscription[]) =>
   mergeSubscriptions(subs).forEach(executeSubscription)
 
-export const executeSubscriptionBatched = batch(500, executeSubscriptions)
+export const executeSubscriptionBatched = batch(300, executeSubscriptions)
 
 export const subscribe = (request: SubscribeRequest) => {
   const subscription: Subscription = makeSubscription(request)
