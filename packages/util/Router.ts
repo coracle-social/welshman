@@ -22,6 +22,7 @@ export type RouterOptions = {
   getSearchRelays: () => string[]
   getRelayQuality: (url: string) => number
   getRedundancy: () => number
+  getLimit: () => number
 }
 
 export type ValuesByRelay = Map<string, string[]>
@@ -78,7 +79,11 @@ export class Router {
   // Utilities for processing hints
 
   relaySelectionsFromMap = (valuesByRelay: ValuesByRelay) =>
-    Array.from(valuesByRelay).map(([relay, values]: [string, string[]]) => ({relay, values: uniq(values)}))
+    sortBy(
+      ({values}) => -values.length,
+      Array.from(valuesByRelay)
+        .map(([relay, values]: [string, string[]]) => ({relay, values: uniq(values)}))
+    )
 
   scoreRelaySelection = ({values, relay}: RelayValues) =>
     values.length * this.options.getRelayQuality(relay)
@@ -208,8 +213,11 @@ export class Router {
   WithinMultipleContexts = (addresses: string[]) =>
     this.merge(addresses.map(this.WithinContext))
 
-  Search = (term: string) =>
-    this.product([term], this.options.getSearchRelays())
+  Search = (term: string, relays: string[] = []) =>
+    this.product([term], uniq(this.options.getSearchRelays().concat(relays)))
+
+  Indexers = (relays: string[] = []) =>
+    this.fromRelays(uniq(this.options.getIndexerRelays().concat(relays)))
 
   // Fallback policies
 
@@ -271,17 +279,25 @@ export class RouterScenario {
 
   getPolicy = () => this.options.policy || this.router.addMaximalFallbacks
 
-  getLimit = () => this.options.limit || Infinity
+  getLimit = () => this.options.limit || this.router.options.getLimit()
 
   getSelections = () => {
+    const allValues = new Set()
     const valuesByRelay: ValuesByRelay = new Map()
     for (const {value, relays} of this.selections) {
+      allValues.add(value)
+
       for (const relay of relays) {
         pushToMapKey(valuesByRelay, relay, value)
       }
     }
 
+    // Adjust redundancy by limit, since if we're looking for very specific values odds
+    // are wee're less tolerant of failure. Add more redundancy to fill our relay limit.
+    const limit = this.getLimit()
     const redundancy = this.getRedundancy()
+    const adjustedRedundancy = redundancy * (limit / (allValues.size * redundancy))
+
     const seen = new Map<string, number>()
     const result: ValuesByRelay = new Map()
     const relaySelections = this.router.relaySelectionsFromMap(valuesByRelay)
@@ -290,7 +306,7 @@ export class RouterScenario {
       for (const value of valuesByRelay.get(relay) || []) {
         const timesSeen = seen.get(value) || 0
 
-        if (timesSeen < redundancy) {
+        if (timesSeen < adjustedRedundancy) {
           seen.set(value, timesSeen + 1)
           values.add(value)
         }
@@ -305,7 +321,7 @@ export class RouterScenario {
     const fallbackPolicy = this.getPolicy()
     for (const {value} of this.selections) {
       const timesSeen = seen.get(value) || 0
-      const fallbacksNeeded = fallbackPolicy(timesSeen, redundancy)
+      const fallbacksNeeded = fallbackPolicy(timesSeen, adjustedRedundancy)
 
       if (fallbacksNeeded > 0) {
         for (const relay of fallbacks.slice(0, fallbacksNeeded)) {
@@ -314,11 +330,9 @@ export class RouterScenario {
       }
     }
 
-    const limit = this.getLimit()
+    const selections = this.router.relaySelectionsFromMap(result)
 
-    return limit
-      ? this.router.relaySelectionsFromMap(result).slice(0, limit)
-      : this.router.relaySelectionsFromMap(result)
+    return limit ? selections.slice(0, limit) : selections
   }
 
   getUrls = () => this.getSelections().map((selection: RelayValues) => selection.relay)

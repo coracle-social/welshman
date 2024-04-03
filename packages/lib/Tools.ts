@@ -47,6 +47,8 @@ export const stripProtocol = (url: string) => url.replace(/.*:\/\//, "")
 
 export const ensurePlural = <T>(x: T | T[]) => (x instanceof Array ? x : [x])
 
+export const splitAt = <T>(n: number, xs: T[]) => [xs.slice(0, n), xs.slice(n)]
+
 export const hash = (s: string) =>
   Math.abs(s.split("").reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0)).toString()
 
@@ -90,11 +92,11 @@ export const initArray = <T>(n: number, f: () => T) => {
   return result
 }
 
-export const chunk = <T>(chunkLength: number, coll: T[]) => {
+export const chunk = <T>(chunkLength: number, xs: T[]) => {
   const result: T[][] = []
   const current: T[] = []
 
-  for (const item of coll) {
+  for (const item of xs) {
     if (current.length < chunkLength) {
       current.push(item)
     } else {
@@ -109,11 +111,11 @@ export const chunk = <T>(chunkLength: number, coll: T[]) => {
   return result
 }
 
-export const chunks = <T>(n: number, coll: T[]) => {
+export const chunks = <T>(n: number, xs: T[]) => {
   const result: T[][] = initArray(n, () => [])
 
-  for (let i = 0; i < coll.length; i++) {
-    result[i % n].push(coll[i])
+  for (let i = 0; i < xs.length; i++) {
+    result[i % n].push(xs[i])
   }
 
   return result

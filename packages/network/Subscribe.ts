@@ -1,7 +1,7 @@
 import type {Event} from 'nostr-tools'
 import {Emitter, randomId, groupBy, batch, defer, uniq} from '@coracle.social/lib'
 import type {Deferred} from '@coracle.social/lib'
-import {matchFilters, calculateFilterGroup, combineFilters} from '@coracle.social/util'
+import {matchFilters, calculateFilterGroup, mergeFilters} from '@coracle.social/util'
 import type {Filter} from '@coracle.social/util'
 import {Tracker} from "./Tracker"
 import {Connection} from './Connection'
@@ -82,7 +82,7 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
       const mergedSub = makeSubscription({
         relays: [relay],
         timeout: callerSubs[0].request.timeout,
-        filters: combineFilters(callerSubs.flatMap((sub: Subscription) => sub.request.filters)),
+        filters: mergeFilters(callerSubs.flatMap((sub: Subscription) => sub.request.filters)),
       })
 
       for (const {id, emitter, tracker} of callerSubs) {
@@ -153,6 +153,12 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
       mergedSubscriptions.push(mergedSub)
     }
   }
+
+  // console.log(
+  //   `Starting ${mergedSubscriptions.length} subscriptions on ${uniq(mergedSubscriptions.flatMap(s => s.request.relays)).length} relays`,
+  //   uniq(mergedSubscriptions.flatMap(s => s.request.relays)),
+  //   ...mergeFilters(mergedSubscriptions.flatMap(s => s.request.filters)),
+  // )
 
   return mergedSubscriptions
 }

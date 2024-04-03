@@ -74,7 +74,7 @@ export const calculateFilterGroup = ({since, until, limit, search, ...filter}: F
   return group.sort().join("-")
 }
 
-export const combineFilters = (filters: Filter[]) => {
+export const mergeFilters = (filters: Filter[]) => {
   const result = []
 
   for (const group of Object.values(groupBy(calculateFilterGroup, filters))) {
@@ -112,7 +112,7 @@ export const getIdFilters = (idsOrAddresses: Iterable<string>) => {
     }
   }
 
-  const filters = combineFilters(aFilters)
+  const filters = mergeFilters(aFilters)
 
   if (ids.length > 0) {
     filters.push({ids})
