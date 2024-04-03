@@ -1,6 +1,8 @@
 import {throttle} from 'throttle-debounce'
 import {bech32, utf8} from "@scure/base"
 
+export type Nil = null | undefined
+
 export const now = () => Math.round(Date.now() / 1000)
 
 export const nth = (i: number) => <T>(xs: T[]) => xs[i]
@@ -12,6 +14,10 @@ export const last = <T>(xs: T[], ...args: unknown[]) => xs[xs.length - 1]
 export const prop = (k: string) => <T>(x: Record<string, T>) => x[k]
 
 export const identity = <T>(x: T) => x
+
+export const inc = (x: number | Nil) => (x || 0) + 1
+
+export const dec = (x: number | Nil) => (x || 0) - 1
 
 export const max = (xs: number[]) => xs.reduce((a, b) => Math.max(a, b), 0)
 
@@ -41,6 +47,9 @@ export const stripProtocol = (url: string) => url.replace(/.*:\/\//, "")
 
 export const ensurePlural = <T>(x: T | T[]) => (x instanceof Array ? x : [x])
 
+export const hash = (s: string) =>
+  Math.abs(s.split("").reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0)).toString()
+
 export const sortBy = <T>(f: (x: T) => number, xs: T[]) =>
   xs.sort((a: T, b: T) => f(a) - f(b))
 
@@ -62,8 +71,9 @@ export const groupBy = <T>(f: (x: T) => string, xs: T[]) => {
 
 export const sample = <T>(n: number, xs: T[]) => {
   const result: T[] = []
+  const limit = Math.min(n, xs.length)
 
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < limit; i++) {
     result.push(xs.splice(Math.floor(xs.length * Math.random()), 1)[0])
   }
 
@@ -117,6 +127,20 @@ export const batch = <T>(t: number, f: (xs: T[]) => void) => {
     xs.push(x)
     cb()
   }
+}
+
+export const addToMapKey = <T>(m: Map<string, Set<T>>, k: string, v: T) => {
+  const a = m.get(k) || new Set<T>()
+
+  a.add(v)
+  m.set(k, a)
+}
+
+export const pushToMapKey = <T>(m: Map<string, T[]>, k: string, v: T) => {
+  const a = m.get(k) || []
+
+  a.push(v)
+  m.set(k, a)
 }
 
 export const hexToBech32 = (prefix: string, url: string) =>

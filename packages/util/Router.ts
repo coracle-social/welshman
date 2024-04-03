@@ -1,11 +1,11 @@
 import type {EventTemplate} from 'nostr-tools'
-import {first, identity, sortBy, uniq, shuffle} from '@coracle.social/lib'
+import {first, identity, sortBy, uniq, shuffle, pushToMapKey} from '@coracle.social/lib'
 import {Tags, Tag} from '@coracle.social/util'
 import type {Rumor} from './Events'
 import {getAddress, isReplaceable} from './Events'
 import {isShareableRelayUrl} from './Relays'
 import {GROUP_DEFINITION, COMMUNITY_DEFINITION} from './Kinds'
-import {addressFromEvent, decodeAddress, isCommunityAddress, isGroupAddress} from './Address'
+import {addressFromEvent, decodeAddress, isContextAddress, isCommunityAddress, isGroupAddress} from './Address'
 
 export enum RelayMode {
   Read = "read",
@@ -19,20 +19,21 @@ export type RouterOptions = {
   getPubkeyRelays: (pubkey: string, mode?: RelayMode) => string[]
   getStaticRelays: () => string[]
   getIndexerRelays: () => string[]
+  getSearchRelays: () => string[]
   getRelayQuality: (url: string) => number
   getRedundancy: () => number
 }
 
-export type ValuesByRelay = Map<string, Set<string>>
+export type ValuesByRelay = Map<string, string[]>
 
 export type RelayValues = {
   relay: string
-  values: Set<string>
+  values: string[]
 }
 
 export type ValueRelays = {
   value: string
-  relays: Set<string>
+  relays: string[]
 }
 
 export type FallbackPolicy = (count: number, limit: number) => number
@@ -66,7 +67,7 @@ export class Router {
 
   // Utilities for creating ValueRelays
 
-  selection = (value: string, relays: Iterable<string>) => ({value, relays: new Set(relays)})
+  selection = (value: string, relays: Iterable<string>) => ({value, relays: Array.from(relays)})
 
   selections = (values: string[], relays: string[]) =>
     values.map(value => this.selection(value, relays))
@@ -77,10 +78,10 @@ export class Router {
   // Utilities for processing hints
 
   relaySelectionsFromMap = (valuesByRelay: ValuesByRelay) =>
-    Array.from(valuesByRelay).map(([relay, values]: [string, Set<string>]) => ({relay, values}))
+    Array.from(valuesByRelay).map(([relay, values]: [string, string[]]) => ({relay, values: uniq(values)}))
 
   scoreRelaySelection = ({values, relay}: RelayValues) =>
-    values.size * this.options.getRelayQuality(relay)
+    values.length * this.options.getRelayQuality(relay)
 
   sortRelaySelections = (relaySelections: RelayValues[]) => {
     const scores = new Map<string, number>()
@@ -207,6 +208,9 @@ export class Router {
   WithinMultipleContexts = (addresses: string[]) =>
     this.merge(addresses.map(this.WithinContext))
 
+  Search = (term: string) =>
+    this.product([term], this.options.getSearchRelays())
+
   // Fallback policies
 
   addNoFallbacks = (count: number, redundancy: number) => count
@@ -267,13 +271,13 @@ export class RouterScenario {
 
   getPolicy = () => this.options.policy || this.router.addMaximalFallbacks
 
-  getLimit = () => this.options.limit
+  getLimit = () => this.options.limit || Infinity
 
   getSelections = () => {
     const valuesByRelay: ValuesByRelay = new Map()
     for (const {value, relays} of this.selections) {
       for (const relay of relays) {
-        addToKey(valuesByRelay, relay, value)
+        pushToMapKey(valuesByRelay, relay, value)
       }
     }
 
@@ -293,7 +297,7 @@ export class RouterScenario {
       }
 
       if (values.size > 0) {
-        result.set(relay, values)
+        result.set(relay, Array.from(values))
       }
     }
 
@@ -305,7 +309,7 @@ export class RouterScenario {
 
       if (fallbacksNeeded > 0) {
         for (const relay of fallbacks.slice(0, fallbacksNeeded)) {
-          addToKey(result, relay, value)
+          pushToMapKey(result, relay, value)
         }
       }
     }
@@ -320,11 +324,4 @@ export class RouterScenario {
   getUrls = () => this.getSelections().map((selection: RelayValues) => selection.relay)
 
   getUrl = () => first(this.getUrls())
-}
-
-const addToKey = <T>(m: Map<string, Set<T>>, k: string, v: T) => {
-  const a = m.get(k) || new Set<T>()
-
-  a.add(v)
-  m.set(k, a)
 }

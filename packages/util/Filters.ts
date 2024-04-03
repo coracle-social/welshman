@@ -1,6 +1,6 @@
 import type {Event} from 'nostr-tools'
 import {matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
-import {prop, groupBy, randomId, uniq} from '@coracle.social/lib'
+import {prop, hash, identity, groupBy, randomId, uniq} from '@coracle.social/lib'
 import type {Rumor} from './Events'
 import {decodeAddress, addressFromEvent, encodeAddress} from './Address'
 import {isReplaceableKind} from './Kinds'
@@ -45,6 +45,22 @@ export const matchFilters = (filters: Filter[], event: Event) => {
   }
 
   return false
+}
+
+export const getFilterId = (filter: Filter) => {
+  const keys = Object.keys(filter)
+
+  keys.sort()
+
+  const parts = []
+  for (const k of keys) {
+    const v = filter[k as keyof Filter]
+    const s = Array.isArray(v) ? v.join(',') : v
+
+    parts.push([k, v].join(':'))
+  }
+
+  return hash(parts.join('|'))
 }
 
 export const calculateFilterGroup = ({since, until, limit, search, ...filter}: Filter) => {
