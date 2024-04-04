@@ -1,6 +1,6 @@
 import type {Event} from 'nostr-tools'
 import {matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
-import {prop, hash, identity, groupBy, randomId, uniq} from '@coracle.social/lib'
+import {prop, avg, hash, identity, groupBy, randomId, uniq} from '@coracle.social/lib'
 import type {Rumor} from './Events'
 import {decodeAddress, addressFromEvent, encodeAddress} from './Address'
 import {isReplaceableKind} from './Kinds'
@@ -168,5 +168,5 @@ export const getFilterGenerality = (filter: Filter) => {
   return 1
 }
 
-export const guessFilterDelta = (filters: Filter[], max = 60 * 60 * 24) =>
-  Math.round(max * Math.max(0.005, 1 - filters.map(getFilterGenerality).reduce((a, b) => a + b) / filters.length))
+export const guessFilterDelta = (filters: Filter[], max = 60 * 60 * 24 * 7) =>
+  Math.round(max * Math.max(0.005, 1 - avg(filters.map(getFilterGenerality))))

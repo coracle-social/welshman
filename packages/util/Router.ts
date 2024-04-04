@@ -1,5 +1,5 @@
 import type {EventTemplate} from 'nostr-tools'
-import {first, identity, sortBy, uniq, shuffle, pushToMapKey} from '@coracle.social/lib'
+import {first, splitAt, identity, sortBy, uniq, shuffle, pushToMapKey} from '@coracle.social/lib'
 import {Tags, Tag} from '@coracle.social/util'
 import type {Rumor} from './Events'
 import {getAddress, isReplaceable} from './Events'
@@ -43,12 +43,6 @@ export class Router {
   constructor(readonly options: RouterOptions) {}
 
   // Utilities derived from options
-
-  getTagSelections = (tags: Tags) =>
-    tags
-      .filter(t => isShareableRelayUrl(t.nth(2)))
-      .mapTo(t => this.selection(t.nth(1), [t.nth(2)]))
-      .valueOf()
 
   getPubkeySelection = (pubkey: string, mode?: RelayMode) =>
     this.selection(pubkey, this.options.getPubkeyRelays(pubkey, mode))
@@ -288,7 +282,9 @@ export class RouterScenario {
       allValues.add(value)
 
       for (const relay of relays) {
-        pushToMapKey(valuesByRelay, relay, value)
+        if (isShareableRelayUrl(relay)) {
+          pushToMapKey(valuesByRelay, relay, value)
+        }
       }
     }
 
@@ -296,7 +292,7 @@ export class RouterScenario {
     // are wee're less tolerant of failure. Add more redundancy to fill our relay limit.
     const limit = this.getLimit()
     const redundancy = this.getRedundancy()
-    const adjustedRedundancy = redundancy * (limit / (allValues.size * redundancy))
+    const adjustedRedundancy = Math.max(redundancy, redundancy * (limit / (allValues.size * redundancy)))
 
     const seen = new Map<string, number>()
     const result: ValuesByRelay = new Map()
@@ -330,9 +326,13 @@ export class RouterScenario {
       }
     }
 
-    const selections = this.router.relaySelectionsFromMap(result)
+    const [keep, discard] = splitAt(limit, this.router.relaySelectionsFromMap(result))
 
-    return limit ? selections.slice(0, limit) : selections
+    for (const target of keep.slice(0, redundancy)) {
+      target.values = uniq(discard.concat(target).flatMap((selection: RelayValues) => selection.values))
+    }
+
+    return keep
   }
 
   getUrls = () => this.getSelections().map((selection: RelayValues) => selection.relay)
