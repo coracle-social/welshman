@@ -27,11 +27,33 @@ export const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0)
 
 export const avg = (xs: number[]) => sum(xs) / xs.length
 
+export const drop = <T>(n: number, xs: T[]) => xs.slice(n)
+
+export const take = <T>(n: number, xs: T[]) => xs.slice(0, n)
+
 export const between = (low: number, high: number, n: number) => n > low && n < high
 
 export const flatten = <T>(xs: T[]) => xs.flatMap(identity)
 
 export const uniq = <T>(xs: T[]) => Array.from(new Set(xs))
+
+export const uniqBy = <T>(f: (x: T) => any, xs: T[]) => {
+  const s = new Set<any>()
+  const r = []
+
+  for (const x of xs) {
+    const k = f(x)
+
+    if (s.has(k)) {
+      continue
+    }
+
+    s.add(k)
+    r.push(x)
+  }
+
+  return r
+}
 
 export const choice = <T>(xs: T[]): T => xs[Math.floor(xs.length * Math.random())]
 

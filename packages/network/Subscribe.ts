@@ -1,5 +1,5 @@
 import type {Event} from 'nostr-tools'
-import {Emitter, randomId, groupBy, batch, defer, uniq} from '@coracle.social/lib'
+import {Emitter, randomId, groupBy, batch, defer, uniq, uniqBy} from '@coracle.social/lib'
 import type {Deferred} from '@coracle.social/lib'
 import {matchFilters, calculateFilterGroup, mergeFilters} from '@coracle.social/util'
 import type {Filter} from '@coracle.social/util'
@@ -85,10 +85,7 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
         filters: mergeFilters(callerSubs.flatMap((sub: Subscription) => sub.request.filters)),
       })
 
-      for (const {id, emitter, tracker} of callerSubs) {
-        // Propagate links to the caller
-        tracker.link(mergedSub.tracker)
-
+      for (const {id, emitter} of callerSubs) {
         // Propagate abort event from the caller to the merged subscription
         emitter.on(SubscriptionEvent.Abort, () => {
           abortedSubs.add(id)
@@ -98,6 +95,20 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
           }
         })
       }
+
+      mergedSub.emitter.on(SubscriptionEvent.Event, (url: string, event: Event) => {
+        for (const sub of callerSubs) {
+          if (sub.tracker.track(event.id, url)) {
+            continue
+          }
+
+          if (!matchFilters(sub.request.filters, event)) {
+            continue
+          }
+
+          sub.emitter.emit(SubscriptionEvent.Event, url, event)
+        }
+      })
 
       // Pass events back to caller
       const propagateEvent = (type: SubscriptionEvent, checkFilter: boolean) =>
@@ -109,7 +120,6 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
           }
         })
 
-      propagateEvent(SubscriptionEvent.Event, true)
       propagateEvent(SubscriptionEvent.Duplicate, true)
       propagateEvent(SubscriptionEvent.DeletedEvent, false)
       propagateEvent(SubscriptionEvent.FailedFilter, false)
@@ -145,6 +155,8 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
 
       // Propagate promise resolution
       mergedSub.result.then((events: Event[]) => {
+        events = uniqBy((event: Event) => event.id, events)
+
         for (const sub of callerSubs) {
           sub.result.resolve(events.filter((e: Event) => matchFilters(sub.request.filters, e)))
         }

@@ -1,7 +1,6 @@
 import {writable} from '@coracle.social/lib'
 
 export class Tracker {
-  links: Tracker[] = []
   data = writable(new Map<string, Set<string>>())
 
   getRelays = (eventId: string) => {
@@ -9,12 +8,6 @@ export class Tracker {
 
     for (const relay of this.data.get().get(eventId) || []) {
       relays.add(relay)
-    }
-
-    for (const link of this.links) {
-      for (const relay of link.getRelays(eventId)) {
-        relays.add(relay)
-      }
     }
 
     return relays
@@ -37,14 +30,12 @@ export class Tracker {
   }
 
   track = (eventId: string, relay: string) => {
-    if (this.hasRelay(eventId, relay)) return true
+    const seen = this.data.get().has(eventId)
 
     this.addRelay(eventId, relay)
 
-    return false
+    return seen
   }
-
-  link = (tracker: Tracker) => this.links.push(tracker)
 
   copy = (eventId1: string, eventId2: string) => {
     for (const relay of this.getRelays(eventId1)) {
