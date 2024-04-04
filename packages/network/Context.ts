@@ -4,7 +4,6 @@ import type {Filter} from '@coracle.social/util'
 import {Pool} from "./Pool"
 import {Executor} from "./Executor"
 import {Relays} from "./target/Relays"
-import type {Subscription} from "./Subscribe"
 
 export const defaultPool = new Pool()
 

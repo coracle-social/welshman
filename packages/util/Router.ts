@@ -1,11 +1,9 @@
-import type {EventTemplate} from 'nostr-tools'
 import {first, splitAt, identity, sortBy, uniq, shuffle, pushToMapKey} from '@coracle.social/lib'
 import {Tags, Tag} from '@coracle.social/util'
 import type {Rumor} from './Events'
 import {getAddress, isReplaceable} from './Events'
 import {isShareableRelayUrl} from './Relays'
-import {GROUP_DEFINITION, COMMUNITY_DEFINITION} from './Kinds'
-import {addressFromEvent, decodeAddress, isContextAddress, isCommunityAddress, isGroupAddress} from './Address'
+import {addressFromEvent, decodeAddress, isCommunityAddress, isGroupAddress} from './Address'
 
 export enum RelayMode {
   Read = "read",
