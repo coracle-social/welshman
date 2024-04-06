@@ -1,5 +1,5 @@
 import type {Event} from 'nostr-tools'
-import {Emitter, randomId, groupBy, batch, defer, uniq, uniqBy} from '@coracle.social/lib'
+import {Emitter, now, randomId, groupBy, batch, defer, uniq, uniqBy} from '@coracle.social/lib'
 import type {Deferred} from '@coracle.social/lib'
 import {asEvent,} from '@coracle.social/util'
 import {Tracker} from "./Tracker"
@@ -24,6 +24,7 @@ export type PublishRequest = {
 
 export type Publish = {
   id: string
+  created_at: number
   emitter: Emitter
   request: PublishRequest
   status: PublishStatusMap
@@ -32,11 +33,12 @@ export type Publish = {
 
 export const makePublish = (request: PublishRequest) => {
   const id = randomId()
+  const created_at = now()
   const emitter = new Emitter()
   const result: Publish['result'] = defer()
   const status: Publish['status'] = new Map()
 
-  return {id, request, emitter, result, status}
+  return {id, created_at, request, emitter, result, status}
 }
 
 export const publish = (request: PublishRequest) => {
@@ -58,9 +60,11 @@ export const publish = (request: PublishRequest) => {
   })
 
   // Start everything off as pending
-  for (const relay of request.relays) {
-    pub.emitter.emit(PublishStatus.Pending, relay)
-  }
+  requestAnimationFrame(() => {
+    for (const relay of request.relays) {
+      pub.emitter.emit(PublishStatus.Pending, relay)
+    }
+  })
 
   // Set a timeout
   const timeout = setTimeout(() => {

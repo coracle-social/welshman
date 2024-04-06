@@ -63,7 +63,7 @@ export const makeSubscription = (request: SubscribeRequest) => {
 }
 
 export const calculateSubscriptionGroup = (sub: Subscription) => {
-  const parts: string[] = sub.request.filters.map(calculateFilterGroup)
+  const parts: string[] = []
 
   if (sub.request.timeout) parts.push(`timeout:${sub.request.timeout}`)
   if (sub.request.closeOnEose) parts.push('closeOnEose')
@@ -166,11 +166,11 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
     }
   }
 
-  console.log(
-    `Starting ${mergedSubscriptions.length} subscriptions on ${uniq(mergedSubscriptions.flatMap(s => s.request.relays)).length} relays`,
-    uniq(mergedSubscriptions.flatMap(s => s.request.relays)),
-    ...mergeFilters(mergedSubscriptions.flatMap(s => s.request.filters)),
-  )
+  // console.log(
+  //   `Starting ${mergedSubscriptions.length} subscriptions on ${uniq(mergedSubscriptions.flatMap(s => s.request.relays)).length} relays`,
+  //   uniq(mergedSubscriptions.flatMap(s => s.request.relays)),
+  //   ...mergeFilters(mergedSubscriptions.flatMap(s => s.request.filters)),
+  // )
 
   return mergedSubscriptions
 }
@@ -255,7 +255,7 @@ export const executeSubscription = (sub: Subscription) => {
 export const executeSubscriptions = (subs: Subscription[]) =>
   mergeSubscriptions(subs).forEach(executeSubscription)
 
-export const executeSubscriptionBatched = batch(300, executeSubscriptions)
+export const executeSubscriptionBatched = batch(800, executeSubscriptions)
 
 export const subscribe = (request: SubscribeRequest) => {
   const subscription: Subscription = makeSubscription(request)
@@ -265,11 +265,11 @@ export const subscribe = (request: SubscribeRequest) => {
   }
 
   if (request.immediate) {
-    console.log(
-      `Starting 1 subscriptions on ${request.relays.length} relays`,
-      request.relays,
-      ...mergeFilters(request.filters)
-    )
+    // console.log(
+    //   `Starting 1 subscriptions on ${request.relays.length} relays`,
+    //   request.relays,
+    //   ...mergeFilters(request.filters)
+    // )
 
     executeSubscription(subscription)
   } else {
