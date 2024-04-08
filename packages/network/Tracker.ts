@@ -42,4 +42,12 @@ export class Tracker {
       this.addRelay(eventId2, relay)
     }
   }
+
+  clear = () => {
+    this.data.update(m => {
+      m.clear()
+
+      return m
+    })
+  }
 }
