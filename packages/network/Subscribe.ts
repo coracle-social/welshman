@@ -1,7 +1,7 @@
 import type {Event} from 'nostr-tools'
 import {Emitter, randomId, groupBy, batch, defer, uniq, uniqBy} from '@coracle.social/lib'
 import type {Deferred} from '@coracle.social/lib'
-import {matchFilters, calculateFilterGroup, mergeFilters} from '@coracle.social/util'
+import {matchFilters, mergeFilters} from '@coracle.social/util'
 import type {Filter} from '@coracle.social/util'
 import {Tracker} from "./Tracker"
 import {Connection} from './Connection'
