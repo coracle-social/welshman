@@ -1,6 +1,6 @@
 {
   "name": "@coracle.social/util",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of utilities.",
@@ -32,7 +32,7 @@
     "typescript": "~5.1.6"
   },
   "dependencies": {
-    "@coracle.social/lib": "^0.0.3",
+    "@coracle.social/lib": "^0.0.4",
     "nostr-tools": "^2.3.2"
   }
 }
