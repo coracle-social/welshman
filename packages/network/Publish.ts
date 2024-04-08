@@ -58,7 +58,7 @@ export const publish = (request: PublishRequest) => {
   })
 
   // Start everything off as pending
-  requestAnimationFrame(() => {
+  setTimeout(() => {
     for (const relay of request.relays) {
       pub.emitter.emit(PublishStatus.Pending, relay)
     }
