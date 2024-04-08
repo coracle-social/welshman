@@ -2,7 +2,6 @@ import type {Event} from 'nostr-tools'
 import {Emitter, now, randomId, defer} from '@coracle.social/lib'
 import type {Deferred} from '@coracle.social/lib'
 import {asEvent,} from '@coracle.social/util'
-import {Tracker} from "./Tracker"
 import {NetworkContext} from './Context'
 
 export enum PublishStatus {
