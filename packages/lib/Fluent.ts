@@ -47,6 +47,10 @@ export class Fluent<T> {
 
   reject = (f: (t: T) => boolean) => this.clone(this.xs.filter(t => !f(t)))
 
+  keep = (xs: T[]) => this.filter(x => xs.includes(x))
+
+  without = (xs: T[]) => this.reject(x => xs.includes(x))
+
   map = (f: (t: T) => T) => this.clone(this.xs.map(f))
 
   mapTo = <U>(f: (t: T) => U) => Fluent.from(this.xs.map(f))

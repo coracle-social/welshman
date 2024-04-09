@@ -1,6 +1,6 @@
 import {EventTemplate} from 'nostr-tools'
 import type {OmitStatics} from '@coracle.social/lib'
-import {Fluent, last} from '@coracle.social/lib'
+import {Fluent, ensurePlural, last} from '@coracle.social/lib'
 import {isShareableRelayUrl, normalizeRelayUrl} from './Relays'
 import type {Address} from './Address'
 import {encodeAddress, decodeAddress} from './Address'
@@ -51,6 +51,8 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   static fromEvents = (events: Pick<EventTemplate, "tags">[]) => Tags.wrap(events.flatMap(e => e.tags || []))
 
+  static fromIMeta = (imeta: string[]) => Tags.wrap(imeta.map((m: string) => m.split(" ")))
+
   unwrap = () => this.xs.map(tag => tag.valueOf())
 
   whereKey = (key: string) => this.filter(t => t.key() === key)
@@ -59,17 +61,24 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   whereMark = (mark: string) => this.filter(t => t.mark() === mark)
 
-  removeKey = (key: string) => this.reject(t => t.key() === key)
+  filterByKey = (keys: string[]) => this.filter(t => keys.includes(t.key()))
 
-  removeValue = (value: string) => this.reject(t => t.value() === value)
+  filterByValue = (values: string[]) => this.filter(t => values.includes(t.value()))
 
-  removeMark = (mark: string) => this.reject(t => t.mark() === mark)
+  filterByMark = (marks: string[]) => this.filter(t => marks.includes(t.mark()))
+
+  rejectByKey = (keys: string[]) => this.reject(t => keys.includes(t.key()))
+
+  rejectByValue = (values: string[]) => this.reject(t => values.includes(t.value()))
+
+  rejectByMark = (marks: string[]) => this.reject(t => marks.includes(t.mark()))
 
   get = (key: string) => this.whereKey(key).first()
 
   keys = () => this.mapTo(t => t.key())
 
-  values = (key?: string) => (key ? this.whereKey(key) : this).mapTo(t => t.value())
+  values = (key?: string | string[]) =>
+    (key ? this.filterByKey(ensurePlural(key)) : this).mapTo(t => t.value())
 
   marks = () => this.mapTo(t => t.mark())
 
@@ -80,8 +89,8 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
   topics = () => this.whereKey("t").values().map((t: string) => t.replace(/^#/, ""))
 
   ancestors = (x?: boolean) => {
-    const tags = this.filter(t => ["a", "e", "q"].includes(t.key()) && !t.isContext())
-    const parentTags = tags.filter(t => ["a", "e"].includes(t.key()))
+    const tags = this.filterByKey(["a", "e", "q"]).reject(t => t.isContext())
+    const parentTags = tags.filterByKey(["a", "e"])
     const mentionTags = tags.whereKey("q")
     const roots: string[][] = []
     const replies: string[][] = []
@@ -162,7 +171,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   imeta = (url: string) => {
     for (const tag of this.whereKey("imeta").xs) {
-      const tags = Tags.wrap(tag.drop(1).valueOf().map((m: string) => m.split(" ")))
+      const tags = Tags.fromIMeta(tag.drop(1).valueOf())
 
       if (tags.get("url")?.value() === url) {
         return tags
@@ -176,7 +185,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   addTag = (...args: string[]) => this.append(Tag.from(args))
 
-  setTag = (k: string, ...args: string[]) => this.removeKey(k).addTag(k, ...args)
+  setTag = (k: string, ...args: string[]) => this.rejectByKey([k]).addTag(k, ...args)
 
   // Context
 
@@ -191,7 +200,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
   addImages = (imeta: Tags[]) =>
     this.concat(imeta.map(tags => Tag.from(["image", tags.get("url").value()])))
 
-  removeImages = () => this.removeKey('image')
+  removeImages = () => this.rejectByKey(['image'])
 
   setImages = (imeta: Tags[]) => this.removeImages().addImages(imeta)
 
@@ -200,7 +209,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
   addIMeta = (imeta: Tags[]) =>
     this.concat(imeta.map(tags => Tag.from(["imeta", ...tags.valueOf().map(xs => xs.join(" "))])))
 
-  removeIMeta = () => this.removeKey('imeta')
+  removeIMeta = () => this.rejectByKey(['imeta'])
 
   setIMeta = (imeta: Tags[]) => this.removeIMeta().addIMeta(imeta)
 }

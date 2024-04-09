@@ -287,7 +287,7 @@ export class RouterScenario {
     }
 
     // Adjust redundancy by limit, since if we're looking for very specific values odds
-    // are wee're less tolerant of failure. Add more redundancy to fill our relay limit.
+    // are we're less tolerant of failure. Add more redundancy to fill our relay limit.
     const limit = this.getLimit()
     const redundancy = this.getRedundancy()
     const adjustedRedundancy = Math.max(redundancy, redundancy * (limit / (allValues.size * redundancy)))
