@@ -8,15 +8,11 @@ import {Tags, getIdFilters} from '@coracle.social/util'
 // - if multiple feeds in a composite are or result in filters (like lists, lols),
 //   merge them before executing the request
 
-export enum Operator {
+export enum FeedType {
   Difference = "\\",
   Intersection = "∩",
   SymmetricDifference = "Δ",
   Union = "∪",
-}
-
-export enum FeedType {
-  Composite = "composite",
   Filter = "filter",
   List = "list",
   LOL = "lol",
@@ -39,62 +35,41 @@ export type DynamicFilter = Filter & {
   since_ago?: number
 }
 
-export type CompositeFeed = {
-  type: FeedType.Composite
-  operator: Operator
-  feeds: Feed[]
-}
-
-export type FilterFeed = {
-  type: FeedType.Filter
-  filter: DynamicFilter
-}
-
-export type ListFeed = {
-  type: FeedType.List
-  address: string
-}
-
-export type LOLFeed = {
-  type: FeedType.LOL
-  address: string
-}
-
-export type DVMFeed = {
-  type: FeedType.DVM
+export type DVMRequest = {
   kind: number
   input?: string
   pubkey?: string
 }
 
-export type Feed = CompositeFeed | FilterFeed | ListFeed | LOLFeed | DVMFeed
+export type DifferenceFeed = [FeedType.Difference, ...Feed[]]
+export type IntersectionFeed = [FeedType.Intersection, ...Feed[]]
+export type SymmetricDifferenceFeed = [FeedType.SymmetricDifference, ...Feed[]]
+export type UnionFeed = [FeedType.Union, ...Feed[]]
+export type FilterFeed = [FeedType.Filter, ...DynamicFilter[]]
+export type DVMFeed = [FeedType.DVM, ...DVMRequest[]]
+export type ListFeed = [FeedType.List, ...string[]]
+export type LOLFeed = [FeedType.LOL, ...string[]]
 
-export const difference = (feeds: Feed[]) =>
-  ({type: FeedType.Composite as FeedType.Composite, operator: Operator.Difference, feeds})
+export type Feed = DifferenceFeed | IntersectionFeed | SymmetricDifferenceFeed | UnionFeed | FilterFeed | ListFeed | LOLFeed | DVMFeed
 
-export const intersection = (feeds: Feed[]) =>
-  ({type: FeedType.Composite as FeedType.Composite, operator: Operator.Intersection, feeds})
+export const difference = (...feeds: Feed[]) => [FeedType.Difference, ...feeds]
 
-export const symmetricDifference = (feeds: Feed[]) =>
-  ({type: FeedType.Composite as FeedType.Composite, operator: Operator.SymmetricDifference, feeds})
+export const intersection = (...feeds: Feed[]) => [FeedType.Intersection, ...feeds]
 
-export const union = (feeds: Feed[]) =>
-  ({type: FeedType.Composite as FeedType.Composite, operator: Operator.Union, feeds})
+export const symmetricDifference = (...feeds: Feed[]) => [FeedType.SymmetricDifference, ...feeds]
 
-export const filter = (filter: DynamicFilter) =>
-  ({type: FeedType.Filter as FeedType.Filter, filter})
+export const union = (...feeds: Feed[]) => [FeedType.Union, ...feeds]
 
-export const list = (address: string) =>
-  ({type: FeedType.List as FeedType.List, address})
+export const filter = (...filters: DynamicFilter[]) => [FeedType.Filter, ...filters]
 
-export const lol = (address: string) =>
-  ({type: FeedType.LOL as FeedType.LOL, address})
+export const list = (...addresses: string[]) => [FeedType.List, ...addresses]
 
-export const dvm = (kind: number, input?: string, pubkey?: string) =>
-  ({type: FeedType.DVM as FeedType.DVM, kind, input, pubkey})
+export const lol = (...addresses: string[]) => [FeedType.LOL, ...addresses]
+
+export const dvm = (...requests: DVMRequest[]) => [FeedType.DVM, ...requests]
 
 export type InterpreterOpts = {
-  reqDvm: (feed: DVMFeed, opts: ExecuteOpts) => void
+  reqDvm: (request: DVMRequest, opts: ExecuteOpts) => void
   reqFilters: (filters: Filter[], opts: ExecuteOpts) => void
   getPubkeysForScope: (scope: Scope) => string[]
   getPubkeysForWotRange: (minWot: number, maxWot: number) => string[]
@@ -108,27 +83,32 @@ export type ExecuteOpts = {
 export class Interpreter {
   constructor(readonly opts: InterpreterOpts) {}
 
-  execute(feed: Feed, opts: ExecuteOpts) {
-    switch (feed.type) {
-      case FeedType.Composite:
-        switch (feed.operator) {
-          case Operator.Difference: return this.executeDifference(feed, opts)
-          case Operator.Intersection: return this.executeIntersection(feed, opts)
-          case Operator.SymmetricDifference: return this.executeSymmetricDifference(feed, opts)
-          case Operator.Union: return this.executeUnion(feed, opts)
-        }
-      case FeedType.Filter: return this.executeFilter(feed, opts)
-      case FeedType.List: return this.executeList(feed, opts)
-      case FeedType.LOL: return this.executeLOL(feed, opts)
-      case FeedType.DVM: return this.executeDVM(feed, opts)
+  execute([type, ...feed]: Feed, opts: ExecuteOpts) {
+    switch (type) {
+      case FeedType.Difference:
+        return this.executeDifference(feed as Feed[], opts)
+      case FeedType.Intersection:
+        return this.executeIntersection(feed as Feed[], opts)
+      case FeedType.SymmetricDifference:
+        return this.executeSymmetricDifference(feed as Feed[], opts)
+      case FeedType.Union:
+        return this.executeUnion(feed as Feed[], opts)
+      case FeedType.Filter:
+        return this.executeFilter(feed as DynamicFilter[], opts)
+      case FeedType.List:
+        return this.executeList(feed as string[], opts)
+      case FeedType.LOL:
+        return this.executeLOL(feed as string[], opts)
+      case FeedType.DVM:
+        return this.executeDVM(feed as DVMRequest[], opts)
     }
   }
 
-  executeDifference(feed: CompositeFeed, {onEvent, onComplete}: ExecuteOpts) {
+  executeDifference(feeds: Feed[], {onEvent, onComplete}: ExecuteOpts) {
     const skip = new Set<string>()
     const events: Rumor[] = []
 
-    feed.feeds.forEach((subFeed: Feed, i: number) => {
+    feeds.forEach((subFeed: Feed, i: number) => {
       this.execute(subFeed, {
         onEvent: (event: Rumor) => {
           if (i === 0) {
@@ -150,11 +130,11 @@ export class Interpreter {
     })
   }
 
-  executeIntersection(feed: CompositeFeed, {onEvent, onComplete}: ExecuteOpts) {
+  executeIntersection(feeds: Feed[], {onEvent, onComplete}: ExecuteOpts) {
     const counts = new Map<string, number>()
     const events = new Map<string, Rumor>()
 
-    feed.feeds.forEach((subFeed: Feed, i: number) => {
+    feeds.forEach((subFeed: Feed, i: number) => {
       this.execute(subFeed, {
         onEvent: (event: Rumor) => {
           events.set(event.id, event)
@@ -162,7 +142,7 @@ export class Interpreter {
         },
         onComplete: () => {
           for (const event of events.values()) {
-            if (counts.get(event.id) === feed.feeds.length) {
+            if (counts.get(event.id) === feeds.length) {
               onEvent(event)
             }
 
@@ -173,11 +153,11 @@ export class Interpreter {
     })
   }
 
-  executeSymmetricDifference(feed: CompositeFeed, {onEvent, onComplete}: ExecuteOpts) {
+  executeSymmetricDifference(feeds: Feed[], {onEvent, onComplete}: ExecuteOpts) {
     const counts = new Map<string, number>()
     const events = new Map<string, Rumor>()
 
-    feed.feeds.forEach((subFeed: Feed, i: number) => {
+    feeds.forEach((subFeed: Feed, i: number) => {
       this.execute(subFeed, {
         onEvent: (event: Rumor) => {
           events.set(event.id, event)
@@ -196,22 +176,22 @@ export class Interpreter {
     })
   }
 
-  executeUnion(feed: CompositeFeed, {onEvent, onComplete}: ExecuteOpts) {
+  executeUnion(feeds: Feed[], {onEvent, onComplete}: ExecuteOpts) {
     const getOnComplete = this.#getCompletionTracker(onComplete)
 
-    for (const subFeed of feed.feeds) {
+    for (const subFeed of feeds) {
       this.execute(subFeed, {onEvent, onComplete: getOnComplete})
     }
   }
 
-  executeFilter(feed: FilterFeed, opts: ExecuteOpts) {
-    this.opts.reqFilters([this.#compileFilter(feed.filter)], opts)
+  executeFilter(filters: DynamicFilter[], opts: ExecuteOpts) {
+    this.opts.reqFilters(filters.map(this.#compileFilter), opts)
   }
 
-  executeList(feed: ListFeed, {onEvent, onComplete}: ExecuteOpts) {
+  executeList(addresses: string[], {onEvent, onComplete}: ExecuteOpts) {
     const getOnComplete = this.#getCompletionTracker(onComplete)
 
-    this.opts.reqFilters(getIdFilters([feed.address]), {
+    this.opts.reqFilters(getIdFilters(addresses), {
       onComplete: getOnComplete(),
       onEvent: (event: Rumor) => {
         this.opts.reqFilters(this.#getFiltersFromTags(Tags.fromEvent(event)), {
@@ -222,10 +202,10 @@ export class Interpreter {
     })
   }
 
-  executeLOL(feed: LOLFeed, {onEvent, onComplete}: ExecuteOpts) {
+  executeLOL(addresses: string[], {onEvent, onComplete}: ExecuteOpts) {
     const getOnComplete = this.#getCompletionTracker(onComplete)
 
-    this.opts.reqFilters(getIdFilters([feed.address]), {
+    this.opts.reqFilters(getIdFilters(addresses), {
       onComplete: getOnComplete(),
       onEvent: (event: Rumor) => {
         const addresses = Tags.fromEvent(event).values("a").valueOf()
@@ -243,18 +223,20 @@ export class Interpreter {
     })
   }
 
-  executeDVM(feed: DVMFeed, {onEvent, onComplete}: ExecuteOpts) {
+  executeDVM(requests: DVMRequest[], {onEvent, onComplete}: ExecuteOpts) {
     const getOnComplete = this.#getCompletionTracker(onComplete)
 
-    this.opts.reqDvm(feed, {
-      onComplete: getOnComplete(),
-      onEvent: (event: Rumor) => {
-        this.opts.reqFilters(this.#getFiltersFromTags(Tags.fromEvent(event)), {
-          onEvent,
-          onComplete: getOnComplete(),
-        })
-      },
-    })
+    for (const request of requests) {
+      this.opts.reqDvm(request, {
+        onComplete: getOnComplete(),
+        onEvent: (event: Rumor) => {
+          this.opts.reqFilters(this.#getFiltersFromTags(Tags.fromEvent(event)), {
+            onEvent,
+            onComplete: getOnComplete(),
+          })
+        },
+      })
+    }
   }
 
   #getCompletionTracker(onComplete?: () => void) {
