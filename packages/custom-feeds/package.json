@@ -1,9 +1,9 @@
 {
-  "name": "@coracle.social/lib",
-  "version": "0.0.5",
+  "name": "@coracle.social/custom-feeds",
+  "version": "0.0.1",
   "author": "hodlbod",
   "license": "MIT",
-  "description": "A collection of utilities.",
+  "description": "Utilities for building dynamic nostr feeds.",
   "publishConfig": {
     "access": "public"
   },
@@ -26,15 +26,11 @@
     "fix": "gts fix"
   },
   "devDependencies": {
-    "@types/events": "^3.0.3",
-    "@types/throttle-debounce": "^5.0.2",
     "gts": "^5.0.1",
     "tsc-multi": "^1.1.0",
     "typescript": "~5.1.6"
   },
   "dependencies": {
-    "@scure/base": "^1.1.6",
-    "events": "^3.3.0",
-    "throttle-debounce": "^5.0.0"
+    "@coracle.social/util": "*"
   }
 }

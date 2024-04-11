@@ -5,6 +5,8 @@ import {bech32, utf8} from "@scure/base"
 
 export type Nil = null | undefined
 
+export const isNil = (x: any) => [null, undefined].includes(x)
+
 // Regular old utils
 
 export const now = () => Math.round(Date.now() / 1000)
