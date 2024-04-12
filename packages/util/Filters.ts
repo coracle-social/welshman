@@ -5,6 +5,8 @@ import type {Rumor} from './Events'
 import {decodeAddress, addressFromEvent, encodeAddress} from './Address'
 import {isReplaceableKind} from './Kinds'
 
+export const EPOCH = 1609459200
+
 export type Filter = {
   ids?: string[]
   kinds?: number[]
