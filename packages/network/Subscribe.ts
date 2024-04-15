@@ -166,12 +166,6 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
     }
   }
 
-  // console.log(
-  //   `Starting ${mergedSubscriptions.length} subscriptions on ${uniq(mergedSubscriptions.flatMap(s => s.request.relays)).length} relays`,
-  //   uniq(mergedSubscriptions.flatMap(s => s.request.relays)),
-  //   ...mergeFilters(mergedSubscriptions.flatMap(s => s.request.filters)),
-  // )
-
   return mergedSubscriptions
 }
 
@@ -265,12 +259,6 @@ export const subscribe = (request: SubscribeRequest) => {
   }
 
   if (request.immediate) {
-    // console.log(
-    //   `Starting 1 subscriptions on ${request.relays.length} relays`,
-    //   request.relays,
-    //   ...mergeFilters(request.filters)
-    // )
-
     executeSubscription(subscription)
   } else {
     executeSubscriptionBatched(subscription)

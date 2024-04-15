@@ -1,11 +1,11 @@
 import {inc, uniq, now, isNil} from '@coracle.social/lib'
 import type {Rumor, Filter} from '@coracle.social/util'
 import {Tags, getIdFilters, mergeFilters} from '@coracle.social/util'
-import type {RequestItem, DVMItem, Scope, Feed, DynamicFilter, FeedContext} from './core'
+import type {RequestItem, DVMItem, Scope, Feed, DynamicFilter, FeedOptions} from './core'
 import {FeedType} from './core'
 
 export class FeedCompiler<E extends Rumor> {
-  constructor(readonly context: FeedContext<E>) {}
+  constructor(readonly options: FeedOptions<E>) {}
 
   walk([type, ...feed]: Feed, visit: (feed: Feed) => void) {
     visit([type, ...feed] as Feed)
@@ -88,7 +88,7 @@ export class FeedCompiler<E extends Rumor> {
   async _compileLists(addresses: string[]): Promise<RequestItem> {
     const events: E[] = []
 
-    await this.context.request({
+    await this.options.request({
       relays: [],
       filters: getIdFilters(addresses),
       onEvent: events.push,
@@ -103,7 +103,7 @@ export class FeedCompiler<E extends Rumor> {
   async _compileLols(addresses: string[]): Promise<RequestItem> {
     const events: E[] = []
 
-    await this.context.request({
+    await this.options.request({
       relays: [],
       filters: getIdFilters(addresses),
       onEvent: events.push,
@@ -117,7 +117,7 @@ export class FeedCompiler<E extends Rumor> {
 
     await Promise.all(
       requests.map(request =>
-        this.context.requestDvm({
+        this.options.requestDvm({
           tags: [],
           ...request,
           onEvent: events.push,
@@ -135,11 +135,11 @@ export class FeedCompiler<E extends Rumor> {
 
   _compileFilter({scopes, min_wot, max_wot, until_ago, since_ago, ...filter}: DynamicFilter) {
     if (scopes && !filter.authors) {
-      filter.authors = scopes.flatMap((scope: Scope) => this.context.getPubkeysForScope(scope))
+      filter.authors = scopes.flatMap((scope: Scope) => this.options.getPubkeysForScope(scope))
     }
 
     if ((!isNil(min_wot) || !isNil(max_wot))) {
-      const authors = this.context.getPubkeysForWotRange(min_wot || 0, max_wot || 1)
+      const authors = this.options.getPubkeysForWotRange(min_wot || 0, max_wot || 1)
 
       if (filter.authors) {
         const authorsSet = new Set(authors)

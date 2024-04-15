@@ -1,13 +1,13 @@
 import {inc, max, min, now, isNil} from '@coracle.social/lib'
 import type {Rumor, Filter} from '@coracle.social/util'
 import {Tags, EPOCH, getIdFilters, guessFilterDelta, mergeFilters} from '@coracle.social/util'
-import type {Scope, Feed, DynamicFilter, RequestOpts, RequestItem, FeedContext} from './core'
+import type {Scope, Feed, DynamicFilter, RequestOpts, RequestItem, FeedOptions} from './core'
 import {FeedType} from './core'
 import {FeedCompiler} from './compiler'
 
 export type LoadOpts<E> = {
-  onEvent: (event: E) => void
-  onExhausted: () => void
+  onEvent?: (event: E) => void
+  onExhausted?: () => void
 }
 
 export type Loader = (limit: number) => Promise<void>
@@ -15,8 +15,8 @@ export type Loader = (limit: number) => Promise<void>
 export class FeedLoader<E extends Rumor> {
   compiler: FeedCompiler<E>
 
-  constructor(readonly context: FeedContext<E>) {
-    this.compiler = new FeedCompiler(context)
+  constructor(readonly options: FeedOptions<E>) {
+    this.compiler = new FeedCompiler(options)
   }
 
   async getLoader([type, ...feed]: Feed, loadOpts: LoadOpts<E>) {
@@ -63,15 +63,17 @@ export class FeedLoader<E extends Rumor> {
 
       let count = 0
 
-      await this.context.request({
-        relays,
-        filters: requestFilters,
-        onEvent: (event: E) => {
-          count += 1
-          since = Math.min(since, event.created_at)
-          onEvent(event)
-        },
-      })
+      if (requestFilters.length > 0) {
+        await this.options.request({
+          relays,
+          filters: requestFilters,
+          onEvent: (event: E) => {
+            count += 1
+            until = Math.min(until, event.created_at)
+            onEvent?.(event)
+          },
+        })
+      }
 
       // Relays can't be relied upon to return events in descending order, do exponential
       // windowing to ensure we get the most recent stuff on first load, but eventually find it all
@@ -82,7 +84,7 @@ export class FeedLoader<E extends Rumor> {
       since = Math.max(minSince, since - delta)
 
       if (since === minSince) {
-        onExhausted()
+        onExhausted?.()
       }
     }
   }
@@ -121,13 +123,13 @@ export class FeedLoader<E extends Rumor> {
 
       for (const event of events.splice(0)) {
         if (!skip.has(event.id) && !seen.has(event.id)) {
-          onEvent(event)
+          onEvent?.(event)
           seen.add(event.id)
         }
       }
 
       if (exhausted.size === loaders.length) {
-        onExhausted()
+        onExhausted?.()
       }
     }
   }
@@ -163,13 +165,13 @@ export class FeedLoader<E extends Rumor> {
 
       for (const event of events.splice(0)) {
         if (counts.get(event.id) === loaders.length && !seen.has(event.id)) {
-          onEvent(event)
+          onEvent?.(event)
           seen.add(event.id)
         }
       }
 
       if (exhausted.size === loaders.length) {
-        onExhausted()
+        onExhausted?.()
       }
     }
   }
@@ -205,13 +207,13 @@ export class FeedLoader<E extends Rumor> {
 
       for (const event of events.values()) {
         if (counts.get(event.id) === 1 && !seen.has(event.id)) {
-          onEvent(event)
+          onEvent?.(event)
           seen.add(event.id)
         }
       }
 
       if (exhausted.size === loaders.length) {
-        onExhausted()
+        onExhausted?.()
       }
     }
   }
@@ -226,7 +228,7 @@ export class FeedLoader<E extends Rumor> {
           onExhausted: () => exhausted.add(i),
           onEvent: (event: E) => {
             if (!seen.has(event.id)) {
-              onEvent(event)
+              onEvent?.(event)
               seen.add(event.id)
             }
           },
@@ -246,7 +248,7 @@ export class FeedLoader<E extends Rumor> {
       )
 
       if (exhausted.size === loaders.length) {
-        onExhausted()
+        onExhausted?.()
       }
     }
   }

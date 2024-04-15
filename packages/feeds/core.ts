@@ -52,15 +52,15 @@ export type Feed =
   LOLFeed |
   DVMFeed
 
-export const usingRelays = (relays: string[], ...feeds: Feed[]) => [FeedType.Relay, relays, ...feeds] as Feed
-export const difference = (...feeds: Feed[]) => [FeedType.Difference, ...feeds] as Feed
-export const intersection = (...feeds: Feed[]) => [FeedType.Intersection, ...feeds] as Feed
-export const symmetricDifference = (...feeds: Feed[]) => [FeedType.SymmetricDifference, ...feeds] as Feed
-export const union = (...feeds: Feed[]) => [FeedType.Union, ...feeds] as Feed
-export const filter = (...filters: DynamicFilter[]) => [FeedType.Filter, ...filters] as Feed
-export const list = (...addresses: string[]) => [FeedType.List, ...addresses] as Feed
-export const lol = (...addresses: string[]) => [FeedType.LOL, ...addresses] as Feed
-export const dvm = (...requests: DVMItem[]) => [FeedType.DVM, ...requests] as Feed
+export const relayFeed = (relays: string[], ...feeds: Feed[]) => [FeedType.Relay, relays, ...feeds] as Feed
+export const differenceFeed = (...feeds: Feed[]) => [FeedType.Difference, ...feeds] as Feed
+export const intersectionFeed = (...feeds: Feed[]) => [FeedType.Intersection, ...feeds] as Feed
+export const symmetricDifferenceFeed = (...feeds: Feed[]) => [FeedType.SymmetricDifference, ...feeds] as Feed
+export const unionFeed = (...feeds: Feed[]) => [FeedType.Union, ...feeds] as Feed
+export const filterFeed = (...filters: DynamicFilter[]) => [FeedType.Filter, ...filters] as Feed
+export const listFeed = (...addresses: string[]) => [FeedType.List, ...addresses] as Feed
+export const lolFeed = (...addresses: string[]) => [FeedType.LOL, ...addresses] as Feed
+export const dvmFeed = (...requests: DVMItem[]) => [FeedType.DVM, ...requests] as Feed
 
 export type RequestItem = {
   relays: string[]
@@ -80,7 +80,7 @@ export type DVMOpts<E> = DVMItem & {
   onEvent: (event: E) => void
 }
 
-export type FeedContext<E> = {
+export type FeedOptions<E> = {
   request: (opts: RequestOpts<E>) => Promise<void>
   requestDvm: (opts: DVMOpts<E>) => Promise<void>
   getPubkeysForScope: (scope: Scope) => string[]

@@ -1,4 +1,5 @@
 import type {Event, EventTemplate, UnsignedEvent} from 'nostr-tools'
+export type {Event, EventTemplate, UnsignedEvent} from 'nostr-tools'
 import {verifyEvent, getEventHash} from 'nostr-tools'
 import {cached, now} from '@coracle.social/lib'
 import {Tags} from './Tags'
