@@ -17,6 +17,7 @@ export enum FeedType {
 
 export enum Scope {
   Self = "self",
+  Global = "global",
   Follows = "follows",
   Followers = "followers",
 }
