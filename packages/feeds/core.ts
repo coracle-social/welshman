@@ -1,7 +1,4 @@
-
-import {inc, now, isNil} from '@coracle.social/lib'
-import type {Rumor, Filter} from '@coracle.social/util'
-import {Tags, getIdFilters, mergeFilters} from '@coracle.social/util'
+import type {Filter} from '@coracle.social/util'
 
 export enum FeedType {
   Difference = "\\",

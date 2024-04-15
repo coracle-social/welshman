@@ -31,6 +31,6 @@
     "typescript": "~5.1.6"
   },
   "dependencies": {
-    "@coracle.social/util": "0.0.7"
+    "@coracle.social/util": "0.0.8"
   }
 }

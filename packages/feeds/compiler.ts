@@ -1,4 +1,4 @@
-import {inc, uniq, now, isNil} from '@coracle.social/lib'
+import {uniq, now, isNil} from '@coracle.social/lib'
 import type {Rumor, Filter} from '@coracle.social/util'
 import {Tags, getIdFilters, mergeFilters} from '@coracle.social/util'
 import type {RequestItem, DVMItem, Scope, Feed, DynamicFilter, FeedOptions} from './core'
@@ -42,6 +42,7 @@ export class FeedCompiler<E extends Rumor> {
       case FeedType.Union:
         return await this._compileUnion(feed as Feed[])
       case FeedType.Relay:
+        /* eslint no-case-declarations: 0 */
         const {relays, filters} = await this._compileUnion(feed.slice(1) as Feed[])
 
         return {relays: relays.concat(feed[0] as string[]), filters}

@@ -17,3 +17,5 @@ for upstream in $(ls packages); do
     fi
   done
 done
+
+npm i

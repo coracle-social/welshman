@@ -1,7 +1,7 @@
-import {inc, max, min, now, isNil} from '@coracle.social/lib'
+import {inc, max, min, now} from '@coracle.social/lib'
 import type {Rumor, Filter} from '@coracle.social/util'
-import {Tags, EPOCH, getIdFilters, guessFilterDelta, mergeFilters} from '@coracle.social/util'
-import type {Scope, Feed, DynamicFilter, RequestOpts, RequestItem, FeedOptions} from './core'
+import {EPOCH, guessFilterDelta} from '@coracle.social/util'
+import type {Feed, RequestItem, FeedOptions} from './core'
 import {FeedType} from './core'
 import {FeedCompiler} from './compiler'
 
