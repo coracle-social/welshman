@@ -1,11 +1,11 @@
 import {inc, max, min, now, isNil} from '@coracle.social/lib'
 import type {Rumor, Filter} from '@coracle.social/util'
 import {Tags, EPOCH, getIdFilters, guessFilterDelta, mergeFilters} from '@coracle.social/util'
-import type {DVMRequest, Scope, Feed, DynamicFilter} from './core'
+import type {Scope, Feed, DynamicFilter, RequestOpts, RequestItem, FeedContext} from './core'
 import {FeedType} from './core'
-import type {FeedCompiler} from './compiler'
+import {FeedCompiler} from './compiler'
 
-export type LoaderOpts<E> = {
+export type LoadOpts<E> = {
   onEvent: (event: E) => void
   onExhausted: () => void
 }
@@ -13,38 +13,32 @@ export type LoaderOpts<E> = {
 export type Loader = (limit: number) => Promise<void>
 
 export class FeedLoader<E extends Rumor> {
-  _loader: Promise<Loader>
+  compiler: FeedCompiler<E>
 
-  constructor(readonly compiler: FeedCompiler<E>, feed: Feed, opts: LoaderOpts<E>) {
-    this._loader = this.getLoader(feed, opts)
+  constructor(readonly context: FeedContext<E>) {
+    this.compiler = new FeedCompiler(context)
   }
 
-  loadMore(limit: number) {
-    this._loader.then(loader => loader(limit))
-  }
-
-  async getLoader([type, ...feed]: Feed, opts: LoaderOpts<E>) {
+  async getLoader([type, ...feed]: Feed, loadOpts: LoadOpts<E>) {
     if (this.compiler.canCompile([type, ...feed] as Feed)) {
-      const filters = await this.compiler.compile([type, ...feed] as Feed)
-
-      return this._getFilterLoader(filters, opts)
+      return this._getRequestLoader(await this.compiler.compile([type, ...feed] as Feed), loadOpts)
     }
 
     switch(type) {
       case FeedType.Difference:
-        return this._getDifferenceLoader(feed as Feed[], opts)
+        return this._getDifferenceLoader(feed as Feed[], loadOpts)
       case FeedType.Intersection:
-        return this._getIntersectionLoader(feed as Feed[], opts)
+        return this._getIntersectionLoader(feed as Feed[], loadOpts)
       case FeedType.SymmetricDifference:
-        return this._getSymmetricDifferenceLoader(feed as Feed[], opts)
+        return this._getSymmetricDifferenceLoader(feed as Feed[], loadOpts)
       case FeedType.Union:
-        return this._getUnionLoader(feed as Feed[], opts)
+        return this._getUnionLoader(feed as Feed[], loadOpts)
       default:
         throw new Error(`Unable to convert feed of type ${type} to loader`)
     }
   }
 
-  async _getFilterLoader(filters: Filter[], {onEvent, onExhausted}: LoaderOpts<E>) {
+  async _getRequestLoader({relays, filters}: RequestItem, {onEvent, onExhausted}: LoadOpts<E>) {
     const untils = filters.flatMap((filter: Filter) => filter.until ? [filter.until] : [])
     const sinces = filters.flatMap((filter: Filter) => filter.since ? [filter.since] : [])
     const maxUntil = untils.length === filters.length ? max(untils) : now()
@@ -56,7 +50,7 @@ export class FeedLoader<E extends Rumor> {
     let until = maxUntil
 
     return async (limit: number) => {
-      const reqFilters = filters
+      const requestFilters = filters
         // Remove filters that don't fit our window
         .filter((filter: Filter) => {
           const filterSince = filter.since || EPOCH
@@ -69,7 +63,9 @@ export class FeedLoader<E extends Rumor> {
 
       let count = 0
 
-      await this.compiler.opts.reqFilters(filters, {
+      await this.context.request({
+        relays,
+        filters: requestFilters,
         onEvent: (event: E) => {
           count += 1
           since = Math.min(since, event.created_at)
@@ -91,7 +87,7 @@ export class FeedLoader<E extends Rumor> {
     }
   }
 
-  async _getDifferenceLoader(feeds: Feed[], {onEvent, onExhausted}: LoaderOpts<E>) {
+  async _getDifferenceLoader(feeds: Feed[], {onEvent, onExhausted}: LoadOpts<E>) {
     const exhausted = new Set<number>()
     const skip = new Set<string>()
     const events: E[] = []
@@ -136,7 +132,7 @@ export class FeedLoader<E extends Rumor> {
     }
   }
 
-  async _getIntersectionLoader(feeds: Feed[], {onEvent, onExhausted}: LoaderOpts<E>) {
+  async _getIntersectionLoader(feeds: Feed[], {onEvent, onExhausted}: LoadOpts<E>) {
     const exhausted = new Set<number>()
     const counts = new Map<string, number>()
     const events: E[] = []
@@ -178,7 +174,7 @@ export class FeedLoader<E extends Rumor> {
     }
   }
 
-  async _getSymmetricDifferenceLoader(feeds: Feed[], {onEvent, onExhausted}: LoaderOpts<E>) {
+  async _getSymmetricDifferenceLoader(feeds: Feed[], {onEvent, onExhausted}: LoadOpts<E>) {
     const exhausted = new Set<number>()
     const counts = new Map<string, number>()
     const events: E[] = []
@@ -220,7 +216,7 @@ export class FeedLoader<E extends Rumor> {
     }
   }
 
-  async _getUnionLoader(feeds: Feed[], {onEvent, onExhausted}: LoaderOpts<E>) {
+  async _getUnionLoader(feeds: Feed[], {onEvent, onExhausted}: LoadOpts<E>) {
     const exhausted = new Set<number>()
     const seen = new Set()
 
