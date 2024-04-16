@@ -13,10 +13,11 @@ export enum FeedType {
 }
 
 export enum Scope {
-  Self = "self",
-  Global = "global",
-  Follows = "follows",
   Followers = "followers",
+  Follows = "follows",
+  Global = "global",
+  Network = "network",
+  Self = "self",
 }
 
 export type DynamicFilter = Filter & {
@@ -58,6 +59,20 @@ export const filterFeed = (...filters: DynamicFilter[]) => [FeedType.Filter, ...
 export const listFeed = (...addresses: string[]) => [FeedType.List, ...addresses] as Feed
 export const lolFeed = (...addresses: string[]) => [FeedType.LOL, ...addresses] as Feed
 export const dvmFeed = (...requests: DVMItem[]) => [FeedType.DVM, ...requests] as Feed
+
+export const getSubFeeds = ([type, ...feed]: Feed): Feed[] => {
+  switch (type) {
+    case FeedType.Relay:
+      return feed.slice(1) as Feed[]
+    case FeedType.Difference:
+    case FeedType.Intersection:
+    case FeedType.SymmetricDifference:
+    case FeedType.Union:
+      return feed as Feed[]
+    default:
+      return []
+  }
+}
 
 export type RequestItem = {
   relays: string[]

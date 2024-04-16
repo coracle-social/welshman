@@ -2,31 +2,24 @@ import {uniq, now, isNil} from '@coracle.social/lib'
 import type {Rumor, Filter} from '@coracle.social/util'
 import {Tags, getIdFilters, mergeFilters} from '@coracle.social/util'
 import type {RequestItem, DVMItem, Scope, Feed, DynamicFilter, FeedOptions} from './core'
-import {FeedType} from './core'
+import {FeedType, getSubFeeds} from './core'
 
 export class FeedCompiler<E extends Rumor> {
   constructor(readonly options: FeedOptions<E>) {}
 
-  walk([type, ...feed]: Feed, visit: (feed: Feed) => void) {
-    visit([type, ...feed] as Feed)
+  walk(feed: Feed, visit: (feed: Feed) => void) {
+    visit(feed)
 
-    switch(type) {
-      case FeedType.Difference:
-      case FeedType.Intersection:
-      case FeedType.SymmetricDifference:
-      case FeedType.Union:
-        for (const subFeed of feed) {
-          this.walk(subFeed as Feed, visit)
-        }
+    for (const subFeed of getSubFeeds(feed)) {
+      this.walk(subFeed, visit)
     }
   }
 
   canCompile([type, ...feed]: Feed): boolean {
     switch(type) {
       case FeedType.Relay:
-        return (feed.slice(1) as Feed[]).every(this.canCompile)
       case FeedType.Union:
-        return (feed as Feed[]).every(this.canCompile)
+        return getSubFeeds([type, ...feed] as Feed).every(this.canCompile)
       case FeedType.Filter:
       case FeedType.List:
       case FeedType.LOL:

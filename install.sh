@@ -1,7 +1,5 @@
 #!/bin/bash
 
-npm i
-
 for upstream in $(ls packages); do
   version=$(sed -nr 's/ +"version": "(.+)",/\1/p' packages/$upstream/package.json)
 
