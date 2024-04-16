@@ -1,6 +1,6 @@
 {
   "name": "@coracle.social/feeds",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "author": "hodlbod",
   "license": "MIT",
   "description": "Utilities for building dynamic nostr feeds.",
@@ -31,6 +31,6 @@
     "typescript": "~5.1.6"
   },
   "dependencies": {
-    "@coracle.social/util": "0.0.8"
+    "@coracle.social/util": "0.0.9"
   }
 }
