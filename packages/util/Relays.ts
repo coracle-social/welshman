@@ -27,8 +27,8 @@ export const normalizeRelayUrl = (url: string, {allowInsecure = false}: Normaliz
   // Use our library to normalize
   url = normalizeUrl(url, {stripHash: true, stripAuthentication: false})
 
-  // Strip the protocol since only wss works
-  url = stripProtocol(url)
+  // Strip the protocol since only wss works, lowercase
+  url = stripProtocol(url).toLowerCase()
 
   // Urls without pathnames are supposed to have a trailing slash
   if (!url.includes("/")) {

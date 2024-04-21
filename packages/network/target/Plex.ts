@@ -1,5 +1,6 @@
 import {Emitter} from '@coracle.social/lib'
-import type {PlexMessage, Message} from '../Socket'
+import type {Message} from '@coracle.social/util'
+import type {PlexMessage} from '../Socket'
 import type {Connection} from '../Connection'
 
 export class Plex extends Emitter {

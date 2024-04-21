@@ -1,6 +1,6 @@
 import {Emitter} from '@coracle.social/lib'
+import type {Message} from '@coracle.social/util'
 import type {Target} from '../Executor'
-import type {Message} from '../Socket'
 
 export class Multi extends Emitter {
   constructor(readonly targets: Target[]) {

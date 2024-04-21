@@ -1,12 +1,12 @@
+import {kinds} from 'nostr-tools'
 import {between} from '@coracle.social/lib'
 
-export const isEphemeralKind = (kind: number) => between(19999, 29999, kind)
-
-export const isPlainReplaceableKind = (kind: number) => between(9999, 20000, kind)
-
-export const isParameterizedReplaceableKind = (kind: number) => between(29999, 40000, kind)
-
-export const isReplaceableKind = (kind: number) => isPlainReplaceableKind(kind) || isParameterizedReplaceableKind(kind)
+export const isRegularKind = kinds.isRegularKind
+export const isEphemeralKind = kinds.isEphemeralKind
+export const isPlainReplaceableKind = kinds.isReplaceableKind
+export const isParameterizedReplaceableKind = kinds.isParameterizedReplaceableKind
+export const isReplaceableKind = (kind: number) =>
+  isPlainReplaceableKind(kind) || isParameterizedReplaceableKind(kind)
 
 export const PROFILE = 0
 export const NOTE = 1

@@ -1,7 +1,7 @@
 import type {Event, Filter} from 'nostr-tools'
 import type {Emitter} from '@coracle.social/lib'
+import type {Message} from '@coracle.social/util'
 import type {Connection} from './Connection'
-import type {Message} from './Socket'
 import {NetworkContext} from './Context'
 
 export type Target = Emitter & {

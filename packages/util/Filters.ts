@@ -18,8 +18,8 @@ export type Filter = {
   [key: `#${string}`]: string[]
 }
 
-export const matchFilter = (filter: Filter, event: Event) => {
-  if (!nostrToolsMatchFilter(filter, event)) {
+export const matchFilter = <E extends Rumor>(filter: Filter, event: E) => {
+  if (!nostrToolsMatchFilter(filter, event as unknown as Event)) {
     return false
   }
 
@@ -39,7 +39,7 @@ export const matchFilter = (filter: Filter, event: Event) => {
   return true
 }
 
-export const matchFilters = (filters: Filter[], event: Event) => {
+export const matchFilters = <E extends Rumor>(filters: Filter[], event: E) => {
   for (const filter of filters) {
     if (matchFilter(filter, event)) {
       return true

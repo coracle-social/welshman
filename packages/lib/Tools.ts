@@ -33,6 +33,34 @@ export const drop = <T>(n: number, xs: T[]) => xs.slice(n)
 
 export const take = <T>(n: number, xs: T[]) => xs.slice(0, n)
 
+export const omit = <T extends Record<string, any>>(ks: string[], x: T) => {
+  const r: T = {...x}
+
+  for (const k of ks) {
+    delete r[k]
+  }
+
+  return r
+}
+
+export const pick = <T extends Record<string, any>>(ks: string[], x: T) => {
+  const r: T = {...x}
+
+  for (const k of Object.keys(x)) {
+    if (!ks.includes(k)) {
+      delete r[k]
+    }
+  }
+
+  return r
+}
+
+export function* range(a: number, b: number, step = 1) {
+  for (let i = a; i < b; i += step) {
+    yield i
+  }
+}
+
 export const between = (low: number, high: number, n: number) => n > low && n < high
 
 export const randomId = (): string => Math.random().toString().slice(2)
@@ -169,14 +197,14 @@ export const batch = <T>(t: number, f: (xs: T[]) => void) => {
   }
 }
 
-export const addToMapKey = <T>(m: Map<string, Set<T>>, k: string, v: T) => {
+export const addToMapKey = <K, T>(m: Map<K, Set<T>>, k: K, v: T) => {
   const a = m.get(k) || new Set<T>()
 
   a.add(v)
   m.set(k, a)
 }
 
-export const pushToMapKey = <T>(m: Map<string, T[]>, k: string, v: T) => {
+export const pushToMapKey = <K, T>(m: Map<K, T[]>, k: K, v: T) => {
   const a = m.get(k) || []
 
   a.push(v)

@@ -1,5 +1,5 @@
 import {Emitter} from '@coracle.social/lib'
-import type {Message} from '../Socket'
+import type {Message} from '@coracle.social/util'
 import type {Connection} from '../Connection'
 
 export class Relay extends Emitter {

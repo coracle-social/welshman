@@ -1,10 +1,10 @@
 import type {Filter} from '@coracle.social/util'
 
 export enum FeedType {
-  Difference = "\\",
-  Intersection = "∩",
-  SymmetricDifference = "Δ",
-  Union = "∪",
+  Difference = "difference",
+  Intersection = "intersection",
+  SymmetricDifference = "symdiff",
+  Union = "union",
   Filter = "filter",
   Relay = "relay",
   List = "list",
@@ -15,7 +15,6 @@ export enum FeedType {
 export enum Scope {
   Followers = "followers",
   Follows = "follows",
-  Global = "global",
   Network = "network",
   Self = "self",
 }
@@ -59,6 +58,15 @@ export const filterFeed = (...filters: DynamicFilter[]) => [FeedType.Filter, ...
 export const listFeed = (...addresses: string[]) => [FeedType.List, ...addresses] as Feed
 export const lolFeed = (...addresses: string[]) => [FeedType.LOL, ...addresses] as Feed
 export const dvmFeed = (...requests: DVMItem[]) => [FeedType.DVM, ...requests] as Feed
+
+export const hasSubFeeds = ([type]: Feed) =>
+  [
+    FeedType.Union,
+    FeedType.Intersection,
+    FeedType.Difference,
+    FeedType.SymmetricDifference,
+    FeedType.Relay,
+  ].includes(type)
 
 export const getSubFeeds = ([type, ...feed]: Feed): Feed[] => {
   switch (type) {
