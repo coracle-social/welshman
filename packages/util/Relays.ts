@@ -1,4 +1,4 @@
-import {normalizeUrl, stripProtocol} from '@coracle.social/lib'
+import {normalizeUrl, stripProtocol} from '@welshman/lib'
 
 export const isShareableRelayUrl = (url: string) =>
   Boolean(

@@ -1,4 +1,4 @@
-import type {Filter} from '@coracle.social/util'
+import type {Filter} from '@welshman/util'
 
 export enum FeedType {
   Difference = "difference",

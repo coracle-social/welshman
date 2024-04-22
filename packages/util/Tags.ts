@@ -1,6 +1,6 @@
 import {EventTemplate} from 'nostr-tools'
-import type {OmitStatics} from '@coracle.social/lib'
-import {Fluent, ensurePlural, last} from '@coracle.social/lib'
+import type {OmitStatics} from '@welshman/lib'
+import {Fluent, ensurePlural, last} from '@welshman/lib'
 import {isShareableRelayUrl, normalizeRelayUrl} from './Relays'
 import type {Address} from './Address'
 import {encodeAddress, decodeAddress} from './Address'

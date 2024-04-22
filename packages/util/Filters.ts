@@ -1,6 +1,6 @@
 import type {Event} from 'nostr-tools'
 import {matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
-import {prop, avg, hash, groupBy, randomId, uniq} from '@coracle.social/lib'
+import {prop, avg, hash, groupBy, randomId, uniq} from '@welshman/lib'
 import type {Rumor} from './Events'
 import {decodeAddress, addressFromEvent, encodeAddress} from './Address'
 import {isReplaceableKind} from './Kinds'

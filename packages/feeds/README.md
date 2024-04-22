@@ -1,4 +1,4 @@
-# @coracle.social/feeds
+# @welshman/feeds [![version](https://badgen.feeds/npm/v/@welshman/feeds)](https://npmjs.com/package/@welshman/feeds)
 
 A custom feed compiler and loader for nostr.
 

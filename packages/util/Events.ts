@@ -1,7 +1,7 @@
 import type {Event, EventTemplate, UnsignedEvent} from 'nostr-tools'
 export type {Event, EventTemplate, UnsignedEvent} from 'nostr-tools'
 import {verifyEvent, getEventHash} from 'nostr-tools'
-import {cached, now} from '@coracle.social/lib'
+import {cached, now} from '@welshman/lib'
 import {Tags} from './Tags'
 import {addressFromEvent, encodeAddress} from './Address'
 import {isEphemeralKind, isReplaceableKind, isPlainReplaceableKind, isParameterizedReplaceableKind} from './Kinds'

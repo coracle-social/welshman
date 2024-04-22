@@ -1,6 +1,6 @@
-import {uniq, now, isNil} from '@coracle.social/lib'
-import type {Rumor, Filter} from '@coracle.social/util'
-import {Tags, getIdFilters, mergeFilters} from '@coracle.social/util'
+import {uniq, now, isNil} from '@welshman/lib'
+import type {Rumor, Filter} from '@welshman/util'
+import {Tags, getIdFilters, mergeFilters} from '@welshman/util'
 import type {RequestItem, DVMItem, Scope, Feed, DynamicFilter, FeedOptions} from './core'
 import {FeedType, getSubFeeds} from './core'
 

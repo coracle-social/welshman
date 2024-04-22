@@ -1,8 +1,8 @@
 import type {Event} from 'nostr-tools'
-import {Emitter, randomId, groupBy, batch, defer, uniq, uniqBy} from '@coracle.social/lib'
-import type {Deferred} from '@coracle.social/lib'
-import {matchFilters, mergeFilters} from '@coracle.social/util'
-import type {Filter} from '@coracle.social/util'
+import {Emitter, randomId, groupBy, batch, defer, uniq, uniqBy} from '@welshman/lib'
+import type {Deferred} from '@welshman/lib'
+import {matchFilters, mergeFilters} from '@welshman/util'
+import type {Filter} from '@welshman/util'
 import {Tracker} from "./Tracker"
 import {Connection} from './Connection'
 import {NetworkContext} from './Context'

@@ -1,4 +1,4 @@
-import {Emitter} from '@coracle.social/lib'
+import {Emitter} from '@welshman/lib'
 import {Connection} from "./Connection"
 
 export class Pool extends Emitter {

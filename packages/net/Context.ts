@@ -1,6 +1,6 @@
 import type {Event} from 'nostr-tools'
-import {matchFilters, hasValidSignature} from '@coracle.social/util'
-import type {Filter} from '@coracle.social/util'
+import {matchFilters, hasValidSignature} from '@welshman/util'
+import type {Filter} from '@welshman/util'
 import {Pool} from "./Pool"
 import {Executor} from "./Executor"
 import {Relays} from "./target/Relays"

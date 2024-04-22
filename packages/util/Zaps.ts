@@ -1,5 +1,5 @@
 import type {Event} from 'nostr-tools'
-import {hexToBech32} from '@coracle.social/lib'
+import {hexToBech32} from '@welshman/lib'
 import {Tags} from "./Tags"
 
 const DIVISORS = {

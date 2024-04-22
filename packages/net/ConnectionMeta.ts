@@ -1,5 +1,5 @@
 import type {Event, Filter} from 'nostr-tools'
-import type {Message} from '@coracle.social/util'
+import type {Message} from '@welshman/util'
 import type {Connection} from './Connection'
 
 export type PublishMeta = {

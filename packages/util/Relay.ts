@@ -1,4 +1,4 @@
-import {Emitter, uniq, omit, now, range, identity, pushToMapKey} from '@coracle.social/lib'
+import {Emitter, uniq, omit, now, range, identity} from '@welshman/lib'
 import {matchFilters, matchFilter} from './Filters'
 import {encodeAddress, addressFromEvent} from './Address'
 import {isReplaceable} from './Events'

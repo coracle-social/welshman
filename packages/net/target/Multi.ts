@@ -1,5 +1,5 @@
-import {Emitter} from '@coracle.social/lib'
-import type {Message} from '@coracle.social/util'
+import {Emitter} from '@welshman/lib'
+import type {Message} from '@welshman/util'
 import type {Target} from '../Executor'
 
 export class Multi extends Emitter {

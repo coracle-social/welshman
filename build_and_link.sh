@@ -2,16 +2,16 @@
 
 upstream=$1
 
-npm run build -w @coracle.social/$upstream
+npm run build -w @welshman/$upstream
 
 for downstream in $(ls packages); do
-  n=@coracle.social/$upstream
+  n=@welshman/$upstream
   f=packages/$downstream/package.json
   v=$(jq '.dependencies["'$n'"] // empty' $f)
 
   if [[ ! -z $v ]]; then
-    mkdir -p packages/$downstream/node_modules/@coracle.social
-    cp -r packages/$upstream/build packages/$downstream/node_modules/@coracle.social/build
-    cp -r packages/$upstream/build node_modules/@coracle.social/build
+    mkdir -p packages/$downstream/node_modules/@welshman
+    cp -r packages/$upstream/build packages/$downstream/node_modules/@welshman/build
+    cp -r packages/$upstream/build node_modules/@welshman/build
   fi
 done

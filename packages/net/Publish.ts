@@ -1,7 +1,7 @@
 import type {Event} from 'nostr-tools'
-import {Emitter, now, randomId, defer} from '@coracle.social/lib'
-import type {Deferred} from '@coracle.social/lib'
-import {asEvent,} from '@coracle.social/util'
+import {Emitter, now, randomId, defer} from '@welshman/lib'
+import type {Deferred} from '@welshman/lib'
+import {asEvent,} from '@welshman/util'
 import {NetworkContext} from './Context'
 
 export enum PublishStatus {

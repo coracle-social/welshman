@@ -1,5 +1,5 @@
-import {first, splitAt, identity, sortBy, uniq, shuffle, pushToMapKey} from '@coracle.social/lib'
-import {Tags, Tag} from '@coracle.social/util'
+import {first, splitAt, identity, sortBy, uniq, shuffle, pushToMapKey} from '@welshman/lib'
+import {Tags, Tag} from '@welshman/util'
 import type {Rumor} from './Events'
 import {getAddress, isReplaceable} from './Events'
 import {isShareableRelayUrl} from './Relays'

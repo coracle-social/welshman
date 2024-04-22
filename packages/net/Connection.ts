@@ -1,4 +1,4 @@
-import {Emitter, Worker} from '@coracle.social/lib'
+import {Emitter, Worker} from '@welshman/lib'
 import {AuthStatus, ConnectionMeta} from './ConnectionMeta'
 import {Socket, isMessage, asMessage} from './Socket'
 import type {SocketMessage} from './Socket'

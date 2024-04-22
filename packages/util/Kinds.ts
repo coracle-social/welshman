@@ -1,5 +1,4 @@
 import {kinds} from 'nostr-tools'
-import {between} from '@coracle.social/lib'
 
 export const isRegularKind = kinds.isRegularKind
 export const isEphemeralKind = kinds.isEphemeralKind

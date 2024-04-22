@@ -1,6 +1,6 @@
 {
-  "name": "@coracle.social/network",
-  "version": "0.0.9",
+  "name": "@welshman/net",
+  "version": "0.0.1",
   "author": "hodlbod",
   "license": "MIT",
   "description": "Utilities for connecting with nostr relays.",
@@ -32,8 +32,8 @@
     "typescript": "~5.1.6"
   },
   "dependencies": {
-    "@coracle.social/lib": "0.0.6",
-    "@coracle.social/util": "0.0.9",
+    "@welshman/lib": "0.0.1",
+    "@welshman/util": "0.0.1",
     "isomorphic-ws": "^5.0.0",
     "ws": "^8.16.0"
   }

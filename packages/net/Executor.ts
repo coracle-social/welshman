@@ -1,6 +1,6 @@
 import type {Event, Filter} from 'nostr-tools'
-import type {Emitter} from '@coracle.social/lib'
-import type {Message} from '@coracle.social/util'
+import type {Emitter} from '@welshman/lib'
+import type {Message} from '@welshman/util'
 import type {Connection} from './Connection'
 import {NetworkContext} from './Context'
 
