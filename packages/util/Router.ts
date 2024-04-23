@@ -224,17 +224,17 @@ export class Router {
   tagPubkey = (pubkey: string) =>
     Tag.from(["p", pubkey, this.FromPubkeys([pubkey]).getUrl()])
 
-  tagEventId = (event: Rumor, ...extra: string[]) =>
-    Tag.from(["e", event.id, this.Event(event).getUrl(), ...extra])
+  tagEventId = (event: Rumor, mark: string) =>
+    Tag.from(["e", event.id, this.Event(event).getUrl(), mark, event.pubkey])
 
-  tagEventAddress = (event: Rumor, ...extra: string[]) =>
-    Tag.from(["a", getAddress(event), this.Event(event).getUrl(), ...extra])
+  tagEventAddress = (event: Rumor, mark: string) =>
+    Tag.from(["a", getAddress(event), this.Event(event).getUrl(), mark, event.pubkey])
 
-  tagEvent = (event: Rumor, ...extra: string[]) => {
-    const tags = [this.tagEventId(event, ...extra)]
+  tagEvent = (event: Rumor, mark: string) => {
+    const tags = [this.tagEventId(event, mark)]
 
     if (isReplaceable(event)) {
-      tags.push(this.tagEventAddress(event, ...extra))
+      tags.push(this.tagEventAddress(event, mark))
     }
 
     return new Tags(tags)
