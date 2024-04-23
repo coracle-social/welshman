@@ -4,7 +4,7 @@ A nostr toolkit focused on creating highly a configurable client system, extract
 
 This is a monorepo which is split into several different packages:
 
-- [@welshman/lib](./tree/master/packages/lib) - generic utility functions.
-- [@welshman/util](./tree/master/packages/util) - various nostr-specific utilities.
-- [@welshman/net](./tree/master/packages/net) - framework for interacting with relays.
-- [@welshman/feeds](./tree/master/packages/feeds) - an interpreter for custom nostr feeds.
+- [@welshman/lib](./packages/lib) - generic utility functions.
+- [@welshman/util](./packages/util) - various nostr-specific utilities.
+- [@welshman/net](./packages/net) - framework for interacting with relays.
+- [@welshman/feeds](./packages/feeds) - an interpreter for custom nostr feeds.
