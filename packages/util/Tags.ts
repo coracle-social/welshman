@@ -90,21 +90,20 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   ancestors = (x?: boolean) => {
     const tags = this.filterByKey(["a", "e", "q"]).reject(t => t.isContext())
-    const parentTags = tags.filterByKey(["a", "e"])
     const mentionTags = tags.whereKey("q")
     const roots: string[][] = []
     const replies: string[][] = []
     const mentions: string[][] = []
 
-    parentTags
-      .forEach((t: Tag, i: number) => {
+    const dispatchTags = (thisTags: Tags) =>
+      thisTags.forEach((t: Tag, i: number) => {
         if (t.mark() === 'root') {
           roots.push(t.valueOf())
         } else if (t.mark() === 'reply') {
           replies.push(t.valueOf())
         } else if (t.mark() === 'mention') {
           mentions.push(t.valueOf())
-        } else if (i === parentTags.count() - 1) {
+        } else if (i === thisTags.count() - 1) {
           replies.push(t.valueOf())
         } else if (i === 0) {
           roots.push(t.valueOf())
@@ -113,7 +112,9 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
         }
       })
 
-    // Add quotes as mentions separately so positional logic above works
+    // Add different types separately so positional logic works
+    dispatchTags(tags.whereKey("e"))
+    dispatchTags(tags.whereKey("a"))
     mentionTags.forEach((t: Tag) => mentions.push(t.valueOf()))
 
     return {
@@ -144,7 +145,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
   parents = () => {
     const {roots, replies} = this.ancestors()
 
-    return replies.exists() ? replies: roots
+    return replies.exists() ? replies : roots
   }
 
   parent = () => {
