@@ -8,7 +8,6 @@ export enum FeedType {
   Filter = "filter",
   Relay = "relay",
   List = "list",
-  LOL = "lol",
   DVM = "dvm",
 }
 
@@ -34,7 +33,6 @@ export type SymmetricDifferenceFeed = [FeedType.SymmetricDifference, ...Feed[]]
 export type UnionFeed = [FeedType.Union, ...Feed[]]
 export type FilterFeed = [FeedType.Filter, ...DynamicFilter[]]
 export type ListFeed = [FeedType.List, ...string[]]
-export type LOLFeed = [FeedType.LOL, ...string[]]
 export type DVMFeed = [FeedType.DVM, ...DVMItem[]]
 
 export type Feed =
@@ -46,7 +44,6 @@ export type Feed =
   FilterFeed |
   RelayFeed |
   ListFeed |
-  LOLFeed |
   DVMFeed
 
 export const relayFeed = (relays: string[], ...feeds: Feed[]) => [FeedType.Relay, relays, ...feeds] as Feed
@@ -56,7 +53,6 @@ export const symmetricDifferenceFeed = (...feeds: Feed[]) => [FeedType.Symmetric
 export const unionFeed = (...feeds: Feed[]) => [FeedType.Union, ...feeds] as Feed
 export const filterFeed = (...filters: DynamicFilter[]) => [FeedType.Filter, ...filters] as Feed
 export const listFeed = (...addresses: string[]) => [FeedType.List, ...addresses] as Feed
-export const lolFeed = (...addresses: string[]) => [FeedType.LOL, ...addresses] as Feed
 export const dvmFeed = (...requests: DVMItem[]) => [FeedType.DVM, ...requests] as Feed
 
 export const hasSubFeeds = ([type]: Feed) =>

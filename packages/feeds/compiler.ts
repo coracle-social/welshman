@@ -22,7 +22,6 @@ export class FeedCompiler<E extends Rumor> {
         return getSubFeeds([type, ...feed] as Feed).every(this.canCompile)
       case FeedType.Filter:
       case FeedType.List:
-      case FeedType.LOL:
       case FeedType.DVM:
         return true
       default:
@@ -46,8 +45,6 @@ export class FeedCompiler<E extends Rumor> {
         }
       case FeedType.List:
         return await this._compileLists(feed as string[])
-      case FeedType.LOL:
-        return await this._compileLols(feed as string[])
       case FeedType.DVM:
         return await this._compileDvms(feed as DVMItem[])
       default:
@@ -92,18 +89,6 @@ export class FeedCompiler<E extends Rumor> {
       relays: [],
       filters: this._getFiltersFromTags(Tags.fromEvents(events)),
     }
-  }
-
-  async _compileLols(addresses: string[]): Promise<RequestItem> {
-    const events: E[] = []
-
-    await this.options.request({
-      relays: [],
-      filters: getIdFilters(addresses),
-      onEvent: events.push,
-    })
-
-    return this._compileLists(Tags.fromEvents(events).values("a").valueOf())
   }
 
   async _compileDvms(requests: DVMItem[]): Promise<RequestItem> {
