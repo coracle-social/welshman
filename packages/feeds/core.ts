@@ -90,6 +90,7 @@ export type RequestOpts<E> = RequestItem & {
 export type DVMItem = {
   kind: number
   tags?: string[][]
+  relays?: string[]
 }
 
 export type DVMOpts<E> = DVMItem & {

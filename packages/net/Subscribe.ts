@@ -37,6 +37,7 @@ export type SubscribeRequest = {
   relays: string[]
   filters: Filter[]
   timeout?: number
+  tracker?: Tracker
   immediate?: boolean
   closeOnEose?: boolean
 }
@@ -53,8 +54,8 @@ export type Subscription = {
 export const makeSubscription = (request: SubscribeRequest) => {
   const id = randomId()
   const emitter = new Emitter()
-  const tracker = new Tracker()
   const result = defer<Event[]>()
+  const tracker = request.tracker || new Tracker()
   const close = () => emitter.emit('abort')
 
   emitter.setMaxListeners(100)

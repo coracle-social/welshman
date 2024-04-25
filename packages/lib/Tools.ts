@@ -67,6 +67,24 @@ export const randomId = (): string => Math.random().toString().slice(2)
 
 export const stripProtocol = (url: string) => url.replace(/.*:\/\//, "")
 
+export const sleep = (t: number) => new Promise(resolve => setTimeout(resolve, t))
+
+export const concat = <T>(...xs: (T | Nil)[][]) => xs.flatMap(x => x || [])
+
+export const append = <T>(xs: (T | Nil)[], x: T) => concat(xs, [x])
+
+export const clamp = ([min, max]: [number, number], n: number) => Math.min(max, Math.max(min, n))
+
+export const tryCatch = async <T>(f: () => Promise<T | void> | T | void, onError?: (e: Error) => void): Promise<T | void> => {
+  try {
+    return await f()
+  } catch (e) {
+    onError?.(e as Error)
+  }
+
+  return undefined
+}
+
 // Curried utils
 
 export const nth = (i: number) => <T>(xs: T[], ...args: unknown[]) => xs[i]

@@ -39,6 +39,11 @@ export class FeedLoader<E extends Rumor> {
   }
 
   async _getRequestLoader({relays, filters}: RequestItem, {onEvent, onExhausted}: LoadOpts<E>) {
+    // Make sure we have some kind of filter to send if we've been given an empty one, as happens with relay feeds
+    if (filters.length === 0) {
+      filters = [{}]
+    }
+
     const untils = filters.flatMap((filter: Filter) => filter.until ? [filter.until] : [])
     const sinces = filters.flatMap((filter: Filter) => filter.since ? [filter.since] : [])
     const maxUntil = untils.length === filters.length ? max(untils) : now()

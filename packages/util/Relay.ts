@@ -1,4 +1,4 @@
-import {Emitter, uniq, omit, now, range, identity} from '@welshman/lib'
+import {Emitter, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
 import {matchFilters, matchFilter} from './Filters'
 import {encodeAddress, addressFromEvent} from './Address'
 import {isReplaceable} from './Events'
@@ -24,9 +24,15 @@ export class Relay<E extends Rumor> extends Emitter {
     return Array.from(this.eventsById.values())
   }
 
-  load(events: E[]) {
-    for (const event of events) {
-      this._addEvent(event)
+  async load(events: E[], chunkSize = 1000) {
+    for (const eventsChunk of chunk(chunkSize, events)) {
+      for (const event of eventsChunk) {
+        this._addEvent(event)
+      }
+
+      if (eventsChunk.length === chunkSize) {
+        await sleep(1)
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-import {uniq, now, isNil} from '@welshman/lib'
+import {uniq, tryCatch, now, isNil} from '@welshman/lib'
 import type {Rumor, Filter} from '@welshman/util'
 import {Tags, getIdFilters, mergeFilters} from '@welshman/util'
 import type {RequestItem, DVMItem, Scope, Feed, DynamicFilter, FeedOptions} from './core'
@@ -82,8 +82,9 @@ export class FeedCompiler<E extends Rumor> {
     await this.options.request({
       relays: [],
       filters: getIdFilters(addresses),
-      onEvent: events.push,
+      onEvent: (e: E) => events.push(e),
     })
+
 
     return {
       relays: [],
@@ -92,21 +93,27 @@ export class FeedCompiler<E extends Rumor> {
   }
 
   async _compileDvms(requests: DVMItem[]): Promise<RequestItem> {
-    const events: E[] = []
+    const responseTags: Tags[] = []
 
     await Promise.all(
       requests.map(request =>
         this.options.requestDvm({
-          tags: [],
           ...request,
-          onEvent: events.push,
+          onEvent: async (e: E) => {
+            const tags = Tags.fromEvent(e)
+            const {id, pubkey} = await tryCatch(() => JSON.parse(tags.get("request")?.value())) || {}
+
+            responseTags.push(tags.filterByKey(["t", "p", "e", "a"]).rejectByValue([id, pubkey]))
+          },
         })
       )
     )
 
+    const mergedTags = Tags.from(responseTags.flatMap(tags => tags.valueOf()))
+
     return {
-      relays: [],
-      filters: this._getFiltersFromTags(Tags.fromEvents(events)),
+      relays: mergedTags.relays().valueOf(),
+      filters: this._getFiltersFromTags(mergedTags),
     }
   }
 
@@ -158,6 +165,11 @@ export class FeedCompiler<E extends Rumor> {
       for (const filter of getIdFilters(eatags.valueOf())) {
         filters.push(filter)
       }
+    }
+
+    // If we don't have any filters, return nothing instead of everything
+    if (filters.length === 0) {
+      filters.push({authors: []})
     }
 
     return filters
