@@ -76,7 +76,7 @@ export const calculateFilterGroup = ({since, until, limit, search, ...filter}: F
   return group.sort().join("-")
 }
 
-export const mergeFilters = (filters: Filter[]) => {
+export const unionFilters = (filters: Filter[]) => {
   const result = []
 
   for (const group of Object.values(groupBy(calculateFilterGroup, filters))) {
@@ -94,6 +94,38 @@ export const mergeFilters = (filters: Filter[]) => {
   }
 
   return result
+}
+
+export const intersectFilters = (groups: Filter[][]) => {
+  let result = groups[0]
+
+  for (const filters of groups.slice(1)) {
+    result = result.flatMap(f1 => {
+      return filters.map(f2 => {
+        const f3: Filter = {}
+
+        for (const k of uniq([...Object.keys(f1), ...Object.keys(f2)]) as (keyof Filter)[]) {
+          if (k === 'since' || k === 'limit') {
+            f3[k] = Math.max(f1[k] || 0, f2[k] || 0)
+          } else if (k === 'until') {
+            f3[k] = Math.min(f1[k] || f2[k] || 0, f2[k] || f1[k] || 0)
+          } else if (k === 'search') {
+            if (f1[k] && f2[k] && f1[k] !== f2[k]) {
+              f3[k] = [f1[k], f2[k]].join(' ')
+            } else {
+              f3[k] = f1[k] || f2[k]
+            }
+          } else {
+            f3[k] = uniq([...(f1[k] || []), ...(f2[k] || [])]) as any[]
+          }
+        }
+
+        return f3
+      })
+    })
+  }
+
+  return unionFilters(result)
 }
 
 export const getIdFilters = (idsOrAddresses: Iterable<string>) => {
@@ -114,7 +146,7 @@ export const getIdFilters = (idsOrAddresses: Iterable<string>) => {
     }
   }
 
-  const filters = mergeFilters(aFilters)
+  const filters = unionFilters(aFilters)
 
   if (ids.length > 0) {
     filters.push({ids})

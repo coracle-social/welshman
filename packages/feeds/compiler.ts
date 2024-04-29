@@ -1,6 +1,6 @@
 import {uniq, tryCatch, now, isNil} from '@welshman/lib'
 import type {Rumor, Filter} from '@welshman/util'
-import {Tags, getIdFilters, mergeFilters} from '@welshman/util'
+import {Tags, intersectFilters, BOGUS_RELAY_URL, getIdFilters, unionFilters} from '@welshman/util'
 import type {RequestItem, DVMItem, Scope, Feed, DynamicFilter, FeedOptions} from './core'
 import {FeedType, getSubFeeds} from './core'
 
@@ -19,6 +19,7 @@ export class FeedCompiler<E extends Rumor> {
     switch(type) {
       case FeedType.Relay:
       case FeedType.Union:
+      case FeedType.Intersection:
         return getSubFeeds([type, ...feed] as Feed).every(this.canCompile)
       case FeedType.Filter:
       case FeedType.List:
@@ -33,6 +34,8 @@ export class FeedCompiler<E extends Rumor> {
     switch(type) {
       case FeedType.Union:
         return await this._compileUnion(feed as Feed[])
+      case FeedType.Intersection:
+        return await this._compileIntersection(feed as Feed[])
       case FeedType.Relay:
         /* eslint no-case-declarations: 0 */
         const {relays, filters} = await this._compileUnion(feed.slice(1) as Feed[])
@@ -72,8 +75,28 @@ export class FeedCompiler<E extends Rumor> {
 
     return {
       relays: uniq(relays),
-      filters: mergeFilters(filters),
+      filters: unionFilters(filters),
     }
+  }
+
+  async _compileIntersection(feeds: Feed[]): Promise<RequestItem> {
+    const items = await Promise.all(feeds.map(this.compile))
+    const filters = intersectFilters(items.map(item => item.filters))
+
+    let relays = uniq(items.flatMap(item => item.relays))
+    let hasRelays = relays.length > 0
+
+    items.forEach((item, i) => {
+      if (item.relays.length > 0) {
+        relays = relays.filter(relay => item.relays.includes(relay))
+      }
+    })
+
+    if (hasRelays && relays.length === 0) {
+      relays.push(BOGUS_RELAY_URL)
+    }
+
+    return {relays, filters}
   }
 
   async _compileLists(addresses: string[]): Promise<RequestItem> {

@@ -1,7 +1,7 @@
 import type {Event} from 'nostr-tools'
 import {Emitter, randomId, groupBy, batch, defer, uniq, uniqBy} from '@welshman/lib'
 import type {Deferred} from '@welshman/lib'
-import {matchFilters, mergeFilters} from '@welshman/util'
+import {matchFilters, unionFilters} from '@welshman/util'
 import type {Filter} from '@welshman/util'
 import {Tracker} from "./Tracker"
 import {Connection} from './Connection'
@@ -83,7 +83,7 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
       const mergedSub = makeSubscription({
         relays: [relay],
         timeout: callerSubs[0].request.timeout,
-        filters: mergeFilters(callerSubs.flatMap((sub: Subscription) => sub.request.filters)),
+        filters: unionFilters(callerSubs.flatMap((sub: Subscription) => sub.request.filters)),
       })
 
       for (const {id, emitter} of callerSubs) {

@@ -1,5 +1,9 @@
 import {normalizeUrl, stripProtocol} from '@welshman/lib'
 
+export const LOCAL_RELAY_URL = "local://welshman.relay"
+
+export const BOGUS_RELAY_URL = "bogus://welshman.relay"
+
 export const isShareableRelayUrl = (url: string) =>
   Boolean(
     typeof url === 'string' &&
