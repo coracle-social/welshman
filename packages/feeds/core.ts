@@ -15,10 +15,7 @@ export enum FeedType {
   Since = "since",
   SinceAgo = "since_ago",
   SymmetricDifference = "symmetric_difference",
-  ATag = "#a",
-  ETag = "#e",
-  PTag = "#p",
-  TTag = "#t",
+  Tag = "tag",
   Union = "union",
   Until = "until",
   UntilAgo = "until_ago",
@@ -31,20 +28,13 @@ export enum Scope {
   Self = "self",
 }
 
-export type TagFeedType =
-  FeedType.ATag |
-  FeedType.ETag |
-  FeedType.PTag |
-  FeedType.TTag
-
-
 export type FilterFeedType =
   FeedType.ID |
   FeedType.Address |
   FeedType.Author |
   FeedType.Kind |
   FeedType.Relay |
-  TagFeedType
+  FeedType.Tag
 
 export type TagFilterMapping = [string, FilterFeedType]
 
@@ -61,8 +51,8 @@ export type ListItem = {
 }
 
 export type WOTItem = {
-  min: number,
-  max: number,
+  min?: number,
+  max?: number,
 }
 
 export type AddressFeed = [type: FeedType.Address, ...addresses: string[]]
@@ -79,10 +69,7 @@ export type ScopeFeed = [type: FeedType.Scope, ...scopes: Scope[]]
 export type SinceAgoFeed = [type: FeedType.SinceAgo, since_ago: number]
 export type SinceFeed = [type: FeedType.Since, since: number]
 export type SymmetricDifferenceFeed = [type: FeedType.SymmetricDifference, ...feeds: Feed[]]
-export type ATagFeed = [type: FeedType.ATag, ...addresses: string[]]
-export type ETagFeed = [type: FeedType.ETag, ...ids: string[]]
-export type PTagFeed = [type: FeedType.PTag, ...pubkeys: string[]]
-export type TTagFeed = [type: FeedType.TTag, ...topics: string[]]
+export type TagFeed = [type: FeedType.Tag, key: string, ...values: string[]]
 export type UnionFeed = [type: FeedType.Union, ...feeds: Feed[]]
 export type UntilAgoFeed = [type: FeedType.UntilAgo, until_ago: number]
 export type UntilFeed = [type: FeedType.Until, until: number]
@@ -102,10 +89,7 @@ export type Feed =
   SinceAgoFeed |
   SinceFeed |
   SymmetricDifferenceFeed |
-  ATagFeed |
-  ETagFeed |
-  PTagFeed |
-  TTagFeed |
+  TagFeed |
   UnionFeed |
   UntilAgoFeed |
   UntilFeed
@@ -124,10 +108,7 @@ export const scopeFeed = (...scopes: Scope[]): ScopeFeed => [FeedType.Scope, ...
 export const sinceAgoFeed = (since_ago: number): SinceAgoFeed => [FeedType.SinceAgo, since_ago]
 export const sinceFeed = (since: number): SinceFeed => [FeedType.Since, since]
 export const symmetricDifferenceFeed = (...feeds: Feed[]): SymmetricDifferenceFeed => [FeedType.SymmetricDifference, ...feeds]
-export const aTagFeed = (...values: string[]): ATagFeed => [FeedType.ATag, ...values]
-export const eTagFeed = (...values: string[]): ETagFeed => [FeedType.ETag, ...values]
-export const pTagFeed = (...values: string[]): PTagFeed => [FeedType.PTag, ...values]
-export const tTagFeed = (...values: string[]): TTagFeed => [FeedType.TTag, ...values]
+export const tagFeed = (key: string, ...values: string[]): TagFeed => [FeedType.Tag, key, ...values]
 export const unionFeed = (...feeds: Feed[]): UnionFeed => [FeedType.Union, ...feeds]
 export const untilAgoFeed = (until_ago: number): UntilAgoFeed => [FeedType.UntilAgo, until_ago]
 export const untilFeed = (until: number): UntilFeed => [FeedType.Until, until]
@@ -141,10 +122,7 @@ export const feedsFromFilter = (filter: Filter) => {
     else if (k === 'authors') feeds.push(authorFeed(...v as string[]))
     else if (k === 'since') feeds.push(sinceFeed(v as number))
     else if (k === 'until') feeds.push(untilFeed(v as number))
-    else if (k === "#a") feeds.push(aTagFeed(...v as string[]))
-    else if (k === "#e") feeds.push(eTagFeed(...v as string[]))
-    else if (k === "#p") feeds.push(pTagFeed(...v as string[]))
-    else if (k === "#t") feeds.push(tTagFeed(...v as string[]))
+    else if (k.startsWith('#')) feeds.push(tagFeed(k as string, ...v as string[]))
     else throw new Error(`Unable to create feed from filter ${k}: ${v}`)
   }
 

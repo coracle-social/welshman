@@ -1,7 +1,7 @@
 import {uniq, flatten, pushToMapKey, intersection, ensureNumber, tryCatch, now} from '@welshman/lib'
 import type {Rumor, Filter} from '@welshman/util'
 import {Tags, intersectFilters, getAddress, getIdFilters, unionFilters} from '@welshman/util'
-import type {RequestItem, TagFilterMapping, ListItem, DVMItem, Scope, Feed, FeedOptions} from './core'
+import type {WOTItem, RequestItem, TagFilterMapping, ListItem, DVMItem, Scope, Feed, FeedOptions} from './core'
 import {FeedType, getSubFeeds} from './core'
 
 export class FeedCompiler<E extends Rumor> {
@@ -19,7 +19,7 @@ export class FeedCompiler<E extends Rumor> {
     switch(type) {
       case FeedType.Union:
       case FeedType.Intersection:
-        return getSubFeeds([type, ...feed] as Feed).every(this.canCompile)
+        return getSubFeeds([type, ...feed] as Feed).every(f => this.canCompile(f))
       case FeedType.Address:
       case FeedType.Author:
       case FeedType.DVM:
@@ -30,10 +30,7 @@ export class FeedCompiler<E extends Rumor> {
       case FeedType.Scope:
       case FeedType.Since:
       case FeedType.SinceAgo:
-      case FeedType.ATag:
-      case FeedType.ETag:
-      case FeedType.PTag:
-      case FeedType.TTag:
+      case FeedType.Tag:
       case FeedType.Until:
       case FeedType.UntilAgo:
       case FeedType.WOT:
@@ -56,14 +53,11 @@ export class FeedCompiler<E extends Rumor> {
       case FeedType.Scope:        return this._compileScopes(feed as Scope[])
       case FeedType.Since:        return this._compileFilter("since", feed[0] as number)
       case FeedType.SinceAgo:     return this._compileFilter("since", now() - (feed[0] as number))
-      case FeedType.ATag:         return this._compileFilter("#a", feed as string[])
-      case FeedType.ETag:         return this._compileFilter("#e", feed as string[])
-      case FeedType.PTag:         return this._compileFilter("#p", feed as string[])
-      case FeedType.TTag:         return this._compileFilter("#t", feed as string[])
+      case FeedType.Tag:          return this._compileFilter(feed[0] as string, feed.slice(1) as string[])
       case FeedType.Until:        return this._compileFilter("until", feed[0] as number)
       case FeedType.UntilAgo:     return this._compileFilter("until", now() - (feed[0] as number))
       case FeedType.Union:        return await this._compileUnion(feed as Feed[])
-      case FeedType.WOT:          return this._compileWot(feed[0] as number, feed[1] as number)
+      case FeedType.WOT:          return this._compileWot(feed as WOTItem)
       default:
         throw new Error(`Unable to convert feed of type ${type} to filters`)
     }
@@ -81,8 +75,8 @@ export class FeedCompiler<E extends Rumor> {
     return [{filters: [{authors: uniq(scopes.flatMap(this.options.getPubkeysForScope))}]}]
   }
 
-  _compileWot(min_wot: number, max_wot: number) {
-    return [{filters: [{authors: this.options.getPubkeysForWotRange(min_wot, max_wot)}]}]
+  _compileWot({min = 0, max = 1}) {
+    return [{filters: [{authors: this.options.getPubkeysForWotRange(min, max)}]}]
   }
 
   async _compileDvms(items: DVMItem[]): Promise<RequestItem[]> {
@@ -109,7 +103,7 @@ export class FeedCompiler<E extends Rumor> {
   }
 
   async _compileIntersection(feeds: Feed[]): Promise<RequestItem[]> {
-    const [head, ...tail] = await Promise.all(feeds.map(this.compile))
+    const [head, ...tail] = await Promise.all(feeds.map(f => this.compile(f)))
 
     const result = []
 

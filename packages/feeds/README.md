@@ -14,7 +14,7 @@ const loader = new FeedLoader({
 })
 
 // Define a feed using set operations
-const feed = intersectFeed(
+const feed = intersectionFeed(
   unionFeed(
     dvmFeed({
       kind: 5300,
@@ -22,10 +22,8 @@ const feed = intersectFeed(
     }),
     listFeed("10003:19ba654f26afd4930fd3d51baf4e26f1413b7aeec7190cd6c0cdf4d2f14cec6b:"),
   )
-  filterFeed({
-    min_wot: 0.1,
-    scopes: ["global"],
-  }),
+  wotFeed({min: 0.1}),
+  scopeFeed("global"),
 )
 
 // Load notes using the feed
