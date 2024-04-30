@@ -3,6 +3,7 @@
 upstream=$1
 
 npm run build -w @welshman/$upstream
+npm run lint -w @welshman/$upstream
 
 for downstream in $(ls packages); do
   n=@welshman/$upstream

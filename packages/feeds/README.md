@@ -14,7 +14,7 @@ const loader = new FeedLoader({
 })
 
 // Define a feed using set operations
-const feed = intersectionFeed(
+const feed = intersectFeed(
   unionFeed(
     dvmFeed({
       kind: 5300,

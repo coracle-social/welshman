@@ -73,6 +73,20 @@ export const concat = <T>(...xs: (T | Nil)[][]) => xs.flatMap(x => x || [])
 
 export const append = <T>(xs: (T | Nil)[], x: T) => concat(xs, [x])
 
+export const union = <T>(a: T[], b: T[]) => uniq([...a, ...b])
+
+export const intersection = <T>(a: T[], b: T[]) => {
+  const s = new Set(b)
+
+  return a.filter(x => s.has(x))
+}
+
+export const difference = <T>(a: T[], b: T[]) => {
+  const s = new Set(b)
+
+  return a.filter(x => !s.has(x))
+}
+
 export const clamp = ([min, max]: [number, number], n: number) => Math.min(max, Math.max(min, n))
 
 export const tryCatch = async <T>(f: () => Promise<T | void> | T | void, onError?: (e: Error) => void): Promise<T | void> => {
@@ -114,7 +128,9 @@ export const toIterable = (x: any) => isIterable(x) ? x : [x]
 
 export const ensurePlural = <T>(x: T | T[]) => (x instanceof Array ? x : [x])
 
-export const flatten = <T>(xs: T[]) => xs.flatMap(identity)
+export const ensureNumber = (x: number | string) => parseFloat(x as string)
+
+export const flatten = <T>(xs: T[][]) => xs.flatMap(identity)
 
 export const uniq = <T>(xs: T[]) => Array.from(new Set(xs))
 
