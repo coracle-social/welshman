@@ -82,7 +82,7 @@ export class Router {
 
   sortRelaySelections = (relaySelections: RelayValues[]) => {
     const scores = new Map<string, number>()
-    const getScore = (relayValues: RelayValues) => scores.get(relayValues.relay) || 0
+    const getScore = (relayValues: RelayValues) => -(scores.get(relayValues.relay) || 0)
 
     for (const relayValues of relaySelections) {
       scores.set(relayValues.relay, this.scoreRelaySelection(relayValues))

@@ -98,7 +98,11 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
     const dispatchTags = (thisTags: Tags) =>
       thisTags.forEach((t: Tag, i: number) => {
         if (t.mark() === 'root') {
-          roots.push(t.valueOf())
+          if (thisTags.whereMark("reply").count() === 0) {
+            replies.push(t.valueOf())
+          } else {
+            roots.push(t.valueOf())
+          }
         } else if (t.mark() === 'reply') {
           replies.push(t.valueOf())
         } else if (t.mark() === 'mention') {
