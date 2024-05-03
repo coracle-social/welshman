@@ -1,8 +1,9 @@
-import {uniq, identity, flatten, pushToMapKey, intersection, ensureNumber, tryCatch, now} from '@welshman/lib'
+import {uniq, identity, flatten, pushToMapKey, intersection, tryCatch, now} from '@welshman/lib'
 import type {Rumor, Filter} from '@welshman/util'
 import {Tags, intersectFilters, getAddress, getIdFilters, unionFilters} from '@welshman/util'
-import type {WOTItem, CreatedAtItem, RequestItem, TagFilterMapping, ListItem, DVMItem, Scope, Feed, FeedOptions} from './core'
-import {FeedType, getSubFeeds} from './core'
+import type {CreatedAtItem, RequestItem, ListItem, WOTItem, DVMItem, Scope, Feed, FeedOptions} from './core'
+import {hasSubFeeds, getFeedArgs, feedsFromTags} from './utils'
+import {FeedType} from './core'
 
 export class FeedCompiler<E extends Rumor> {
   constructor(readonly options: FeedOptions<E>) {}
@@ -10,16 +11,18 @@ export class FeedCompiler<E extends Rumor> {
   walk(feed: Feed, visit: (feed: Feed) => void) {
     visit(feed)
 
-    for (const subFeed of getSubFeeds(feed)) {
-      this.walk(subFeed, visit)
+    if (hasSubFeeds(feed)) {
+      for (const subFeed of getFeedArgs(feed)) {
+        this.walk(subFeed, visit)
+      }
     }
   }
 
-  canCompile([type, ...feed]: Feed): boolean {
-    switch(type) {
+  canCompile(feed: Feed): boolean {
+    switch(feed[0]) {
       case FeedType.Union:
       case FeedType.Intersection:
-        return getSubFeeds([type, ...feed] as Feed).every(f => this.canCompile(f))
+        return getFeedArgs(feed).every(f => this.canCompile(f))
       case FeedType.Address:
       case FeedType.Author:
       case FeedType.CreatedAt:
@@ -38,24 +41,28 @@ export class FeedCompiler<E extends Rumor> {
     }
   }
 
-  async compile([type, ...feed]: Feed): Promise<RequestItem[]> {
-    switch(type) {
-      case FeedType.Address:      return this._compileAddresses(feed as string[])
-      case FeedType.CreatedAt:    return this._compileCreatedAt(feed as CreatedAtItem[])
-      case FeedType.Author:       return this._compileFilter("authors", feed as string[])
-      case FeedType.DVM:          return await this._compileDvms(feed as DVMItem[])
-      case FeedType.ID:           return this._compileFilter("ids", feed as string[])
-      case FeedType.Intersection: return await this._compileIntersection(feed as Feed[])
-      case FeedType.Kind:         return this._compileFilter("kinds", feed as number[])
-      case FeedType.List:         return await this._compileLists(feed as ListItem[])
-      case FeedType.Relay:        return [{relays: feed as string[]}]
-      case FeedType.Scope:        return this._compileScopes(feed as Scope[])
-      case FeedType.Search:       return this._compileSearches(feed as string[])
-      case FeedType.Tag:          return this._compileFilter(feed[0] as string, feed.slice(1) as string[])
-      case FeedType.Union:        return await this._compileUnion(feed as Feed[])
-      case FeedType.WOT:          return this._compileWot(feed as WOTItem)
+  async compile(feed: Feed): Promise<RequestItem[]> {
+    switch(feed[0]) {
+      case FeedType.ID:           return this._compileFilter('ids', getFeedArgs(feed))
+      case FeedType.Kind:         return this._compileFilter('kinds', getFeedArgs(feed))
+      case FeedType.Author:       return this._compileFilter('authors', getFeedArgs(feed))
+      case FeedType.DVM:          return await this._compileDvms(getFeedArgs(feed))
+      case FeedType.Intersection: return await this._compileIntersection(getFeedArgs(feed))
+      case FeedType.List:         return await this._compileLists(getFeedArgs(feed))
+      case FeedType.Union:        return await this._compileUnion(getFeedArgs(feed))
+      case FeedType.Address:      return this._compileAddresses(getFeedArgs(feed))
+      case FeedType.CreatedAt:    return this._compileCreatedAt(getFeedArgs(feed))
+      case FeedType.Scope:        return this._compileScopes(getFeedArgs(feed))
+      case FeedType.Search:       return this._compileSearches(getFeedArgs(feed))
+      case FeedType.WOT:          return this._compileWot(getFeedArgs(feed))
+      case FeedType.Relay:        return [{relays: getFeedArgs(feed)}]
+      case FeedType.Tag: {
+        const [key, ...value] = getFeedArgs(feed)
+
+        return this._compileFilter(key, value)
+      }
       default:
-        throw new Error(`Unable to convert feed of type ${type} to filters`)
+        throw new Error(`Unable to convert feed of type ${feed[0]} to filters`)
     }
   }
 
@@ -99,31 +106,31 @@ export class FeedCompiler<E extends Rumor> {
     return [{filters: searches.map(search => ({search}))}]
   }
 
-  _compileWot({min = 0, max = 1}) {
-    return [{filters: [{authors: this.options.getPubkeysForWotRange(min, max)}]}]
+  _compileWot(wotItems: WOTItem[]) {
+    return [{filters: wotItems.map(({min = 0, max = 1}) => ({authors: this.options.getPubkeysForWOTRange(min, max)}))}]
   }
 
   async _compileDvms(items: DVMItem[]): Promise<RequestItem[]> {
-    const filters: Filter[] = []
+    const feeds: Feed[] = []
 
     await Promise.all(
       items.map(({mappings, ...request}) =>
-        this.options.requestDvm({
+        this.options.requestDVM({
           ...request,
           onEvent: async (e: E) => {
             const tags = Tags.fromEvent(e)
             const request = await tryCatch(() => JSON.parse(tags.get("request")?.value()))
             const responseTags = tags.rejectByValue([request?.id, request?.pubkey])
 
-            for (const filter of await this._getFiltersFromTags(responseTags, mappings)) {
-              filters.push(filter)
+            for (const feed of feedsFromTags(responseTags, mappings)) {
+              feeds.push(feed)
             }
           },
         })
       )
     )
 
-    return [{filters: unionFilters(filters)}]
+    return this._compileUnion(feeds)
   }
 
   async _compileIntersection(feeds: Feed[]): Promise<RequestItem[]> {
@@ -131,7 +138,7 @@ export class FeedCompiler<E extends Rumor> {
 
     const result = []
 
-    for (let {filters, relays} of head) {
+    for (let {filters, relays} of head || []) {
       const matchingGroups = tail.map(
         items => items.filter(
           it => (
@@ -225,42 +232,16 @@ export class FeedCompiler<E extends Rumor> {
       onEvent: (e: E) => eventsByAddress.set(getAddress(e), e),
     })
 
-    const filters = flatten(
+    const feeds = flatten(
       await Promise.all(
         listItems.map(({address, mappings}) => {
           const event = eventsByAddress.get(address)
 
-          return event ? this._getFiltersFromTags(Tags.fromEvent(event), mappings) : []
+          return event ? feedsFromTags(Tags.fromEvent(event), mappings) : []
         })
       )
     )
 
-    return [{filters: unionFilters(filters)}]
-  }
-
-  // Utilities
-
-  async _getFiltersFromTags(tags: Tags, mappings: TagFilterMapping[]) {
-    const filters = []
-
-    for (const [tagName, feedType] of mappings) {
-      const filterTags = tags.whereKey(tagName)
-
-      if (filterTags.exists()) {
-        let values: string[] | number[] = filterTags.values().valueOf()
-
-        if (feedType === FeedType.Kind) {
-          values = values.map(ensureNumber) as number[]
-        }
-
-        for (const item of await this.compile([feedType, ...values] as Feed)) {
-          for (const filter of item.filters || []) {
-            filters.push(filter)
-          }
-        }
-      }
-    }
-
-    return unionFilters(filters)
+    return this._compileUnion(feeds)
   }
 }

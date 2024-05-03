@@ -72,6 +72,7 @@ export const USER_STATUSES = 30315
 export const CLASSIFIED_LISTING = 30402
 export const DRAFT_CLASSIFIED_LISTING = 30403
 export const AUDIO = 31337
+export const FEED = 31890
 export const CALENDAR = 31924
 export const CALENDAR_EVENT_DATE = 31922
 export const CALENDAR_EVENT_TIME = 31923

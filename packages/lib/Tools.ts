@@ -15,7 +15,7 @@ export const first = <T>(xs: T[], ...args: unknown[]) => xs[0]
 
 export const last = <T>(xs: T[], ...args: unknown[]) => xs[xs.length - 1]
 
-export const identity = <T>(x: T) => x
+export const identity = <T>(x: T, ...args: unknown[]) => x
 
 export const inc = (x: number | Nil) => (x || 0) + 1
 
@@ -131,6 +131,21 @@ export const ensurePlural = <T>(x: T | T[]) => (x instanceof Array ? x : [x])
 export const ensureNumber = (x: number | string) => parseFloat(x as string)
 
 export const flatten = <T>(xs: T[][]) => xs.flatMap(identity)
+
+export const partition = <T>(f: (x: T) => boolean, xs: T[]) => {
+  const a: T[] = []
+  const b: T[] = []
+
+  for (const x of xs) {
+    if (f(x)) {
+      a.push(x)
+    } else {
+      b.push(x)
+    }
+  }
+
+  return [a, b]
+}
 
 export const uniq = <T>(xs: T[]) => Array.from(new Set(xs))
 

@@ -34,18 +34,18 @@ export type FilterFeedType =
   FeedType.Relay |
   FeedType.Tag
 
-export type TagFilterMapping = [string, FilterFeedType]
+export type TagFeedMapping = [string, Feed]
 
 export type DVMItem = {
   kind: number,
-  mappings: TagFilterMapping[],
   tags?: string[][],
   relays?: string[],
+  mappings?: TagFeedMapping[],
 }
 
 export type ListItem = {
   address: string,
-  mappings: TagFilterMapping[],
+  mappings: TagFeedMapping[],
 }
 
 export type WOTItem = {
@@ -94,74 +94,6 @@ export type Feed =
   TagFeed |
   UnionFeed
 
-export const addressFeed = (...addresses: string[]): AddressFeed => [FeedType.Address, ...addresses]
-export const authorFeed = (...pubkeys: string[]): AuthorFeed => [FeedType.Author, ...pubkeys]
-export const createdAtFeed = (...items: CreatedAtItem[]): CreatedAtFeed => [FeedType.CreatedAt, ...items]
-export const dvmFeed = (...items: DVMItem[]): DVMFeed => [FeedType.DVM, ...items]
-export const differenceFeed = (...feeds: Feed[]): DifferenceFeed => [FeedType.Difference, ...feeds]
-export const idFeed = (...ids: string[]): IDFeed => [FeedType.ID, ...ids]
-export const intersectionFeed = (...feeds: Feed[]): IntersectionFeed => [FeedType.Intersection, ...feeds]
-export const kindFeed = (...kinds: number[]): KindFeed => [FeedType.Kind, ...kinds]
-export const listFeed = (...items: ListItem[]): ListFeed => [FeedType.List, ...items]
-export const wotFeed = (...items: WOTItem[]): WOTFeed => [FeedType.WOT, ...items]
-export const relayFeed = (...urls: string[]): RelayFeed => [FeedType.Relay, ...urls]
-export const scopeFeed = (...scopes: Scope[]): ScopeFeed => [FeedType.Scope, ...scopes]
-export const searchFeed = (...searches: string[]): SearchFeed => [FeedType.Search, ...searches]
-export const symmetricDifferenceFeed = (...feeds: Feed[]): SymmetricDifferenceFeed => [FeedType.SymmetricDifference, ...feeds]
-export const tagFeed = (key: string, ...values: string[]): TagFeed => [FeedType.Tag, key, ...values]
-export const unionFeed = (...feeds: Feed[]): UnionFeed => [FeedType.Union, ...feeds]
-
-export const feedsFromFilter = ({since, until, ...filter}: Filter) => {
-  const feeds = []
-
-  if (since && until) {
-    feeds.push(createdAtFeed({since, until}))
-  } else if (since) {
-    feeds.push(createdAtFeed({since}))
-  } else if (until) {
-    feeds.push(createdAtFeed({until}))
-  }
-
-  for (const [k, v] of Object.entries(filter)) {
-    if (k === 'ids') feeds.push(idFeed(...v as string[]))
-    else if (k === 'kinds') feeds.push(kindFeed(...v as number[]))
-    else if (k === 'authors') feeds.push(authorFeed(...v as string[]))
-    else if (k.startsWith('#')) feeds.push(tagFeed(k as string, ...v as string[]))
-    else throw new Error(`Unable to create feed from filter ${k}: ${v}`)
-  }
-
-  return feeds
-}
-
-export const feedFromFilter = (filter: Filter) => intersectionFeed(...feedsFromFilter(filter))
-
-export const isAddressFeed = (feed: Feed) => feed[0] === FeedType.Address
-export const isAuthorFeed = (feed: Feed) => feed[0] === FeedType.Author
-export const isCreatedAtFeed = (feed: Feed) => feed[0] === FeedType.CreatedAt
-export const isDvmFeed = (feed: Feed) => feed[0] === FeedType.DVM
-export const isDifferenceFeed = (feed: Feed) => feed[0] === FeedType.Difference
-export const isIdFeed = (feed: Feed) => feed[0] === FeedType.ID
-export const isIntersectionFeed = (feed: Feed) => feed[0] === FeedType.Intersection
-export const isKindFeed = (feed: Feed) => feed[0] === FeedType.Kind
-export const isListFeed = (feed: Feed) => feed[0] === FeedType.List
-export const isWotFeed = (feed: Feed) => feed[0] === FeedType.WOT
-export const isRelayFeed = (feed: Feed) => feed[0] === FeedType.Relay
-export const isScopeFeed = (feed: Feed) => feed[0] === FeedType.Scope
-export const isSearchFeed = (feed: Feed) => feed[0] === FeedType.Search
-export const isSymmetricDifferenceFeed = (feed: Feed) => feed[0] === FeedType.SymmetricDifference
-export const isTagFeed = (feed: Feed) => feed[0] === FeedType.Tag
-export const isUnionFeed = (feed: Feed) => feed[0] === FeedType.Union
-
-export const hasSubFeeds = ([type]: [FeedType, ...any[]]) =>
-  [
-    FeedType.Union,
-    FeedType.Intersection,
-    FeedType.Difference,
-    FeedType.SymmetricDifference,
-  ].includes(type)
-
-export const getSubFeeds = ([type, ...feeds]: Feed): Feed[] => hasSubFeeds([type]) ? feeds as Feed[] : []
-
 export type RequestItem = {
   relays?: string[]
   filters?: Filter[]
@@ -183,7 +115,7 @@ export type DVMOpts<E> = DVMRequest & {
 
 export type FeedOptions<E> = {
   request: (opts: RequestOpts<E>) => Promise<void>
-  requestDvm: (opts: DVMOpts<E>) => Promise<void>
+  requestDVM: (opts: DVMOpts<E>) => Promise<void>
   getPubkeysForScope: (scope: Scope) => string[]
-  getPubkeysForWotRange: (minWot: number, maxWot: number) => string[]
+  getPubkeysForWOTRange: (minWOT: number, maxWOT: number) => string[]
 }

@@ -44,14 +44,15 @@ export class Relay<E extends Rumor> extends Emitter {
     }
   }
 
-  _onEVENT([json]: [string]) {
-    let event: E
-    try {
-      event = JSON.parse(json)
-    } catch (e) {
-      return
-    }
+  has(id: string) {
+    return this.eventsById.has(id)
+  }
 
+  get(id: string) {
+    return this.eventsById.get(id)
+  }
+
+  put(event: E) {
     const duplicateById = this.eventsById.get(event.id)
 
     if (duplicateById) {
@@ -67,7 +68,17 @@ export class Relay<E extends Rumor> extends Emitter {
     }
 
     this._addEvent(event, duplicateByAddress)
+  }
 
+  _onEVENT([json]: [string]) {
+    let event: E
+    try {
+      event = JSON.parse(json)
+    } catch (e) {
+      return
+    }
+
+    this.put(event)
     this.emit('OK', event.id, true, "")
 
     if (!this._isDeleted(event)) {
