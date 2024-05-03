@@ -1,9 +1,10 @@
 import {throttle} from "throttle-debounce"
 import {ensurePlural, identity} from "./Tools"
 
-type Invalidator<T> = (value?: T) => void
+export type Invalidator<T> = (value?: T) => void
+export type Subscriber<T> = (value: T) => void
+
 type Derivable = Readable<any> | Readable<any>[]
-type Subscriber<T> = (value: T) => void
 type Unsubscriber = () => void
 type R = Record<string, any>
 type M<T> = Map<string, T>
