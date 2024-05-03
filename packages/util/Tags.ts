@@ -4,12 +4,14 @@ import {Fluent, ensurePlural, last} from '@welshman/lib'
 import {isShareableRelayUrl, normalizeRelayUrl} from './Relays'
 import type {Address} from './Address'
 import {encodeAddress, decodeAddress} from './Address'
-import {GROUP_DEFINITION, COMMUNITY_DEFINITION} from './Kinds'
+import {Kind} from './Kinds'
 
 export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, 'from'>) {
   static from = (xs: Iterable<string>) => new Tag(Array.from(xs))
 
   static fromId = (id: string) => new Tag(["e", id])
+
+  static fromIdentifier = (identifier: string) => new Tag(["d", identifier])
 
   static fromTopic = (topic: string) => new Tag(["t", topic])
 
@@ -35,11 +37,11 @@ export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, '
 
   isAddress = (kind?: number) => this.key() === "a" && this.value()?.startsWith(`${kind}:`)
 
-  isGroup = () => this.isAddress(GROUP_DEFINITION)
+  isGroup = () => this.isAddress(Kind.GroupDefinition)
 
-  isCommunity = () => this.isAddress(COMMUNITY_DEFINITION)
+  isCommunity = () => this.isAddress(Kind.CommunityDefinition)
 
-  isContext = () => this.isAddress(GROUP_DEFINITION) || this.isAddress(COMMUNITY_DEFINITION)
+  isContext = () => this.isAddress(Kind.GroupDefinition) || this.isAddress(Kind.CommunityDefinition)
 }
 
 export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'>) {
