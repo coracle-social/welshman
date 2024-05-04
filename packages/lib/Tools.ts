@@ -130,6 +130,18 @@ export const ensurePlural = <T>(x: T | T[]) => (x instanceof Array ? x : [x])
 
 export const ensureNumber = (x: number | string) => parseFloat(x as string)
 
+export const fromPairs = <T>(pairs: [k?: string, v?: T, ...args: unknown[]][]) => {
+  const r: Record<string, T> = {}
+
+  for (const [k, v] of pairs) {
+    if (k && v) {
+      r[k] = v
+    }
+  }
+
+  return r
+}
+
 export const flatten = <T>(xs: T[][]) => xs.flatMap(identity)
 
 export const partition = <T>(f: (x: T) => boolean, xs: T[]) => {
