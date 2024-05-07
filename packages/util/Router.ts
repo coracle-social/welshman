@@ -11,15 +11,70 @@ export enum RelayMode {
 }
 
 export type RouterOptions = {
+  /**
+   * Retrieves the user's public key.
+   * @returns The user's public key as a string, or null if not available.
+   */
   getUserPubkey: () => string | null
+
+  /**
+   * Retrieves the group relays for the specified address.
+   * @param address - The address to retrieve group relays for.
+   * @returns An array of group relay URLs as strings.
+   */
   getGroupRelays: (address: string) => string[]
+
+  /**
+   * Retrieves the community relays for the specified address.
+   * @param address - The address to retrieve community relays for.
+   * @returns An array of community relay URLs as strings.
+   */
   getCommunityRelays: (address: string) => string[]
+
+  /**
+   * Retrieves the relays for the specified public key and mode.
+   * @param pubkey - The public key to retrieve relays for.
+   * @param mode - The relay mode (optional).
+   * @returns An array of relay URLs as strings.
+   */
   getPubkeyRelays: (pubkey: string, mode?: RelayMode) => string[]
+
+  /**
+   * Retrieves the static relays. These are used as fallbacks.
+   * @returns An array of relay URLs as strings.
+   */
   getStaticRelays: () => string[]
+
+  /**
+   * Retrieves relays likely to return results for kind 0, 3, and 10002.
+   * @returns An array of relay URLs as strings.
+   */
   getIndexerRelays: () => string[]
+
+  /**
+   * Retrieves relays likely to support NIP-50 search.
+   * @returns An array of relay URLs as strings.
+   */
   getSearchRelays: () => string[]
+
+  /**
+   * Retrieves the quality of the specified relay.
+   * @param url - The URL of the relay to retrieve quality for.
+   * @returns The quality of the relay as a number between 0 and 1 inclusive.
+   */
   getRelayQuality: (url: string) => number
+
+  /**
+   * Retrieves the redundancy setting, which is how many relays to use per selection value.
+   * @returns The redundancy setting as a number.
+   */
   getRedundancy: () => number
+
+  /**
+   * Retrieves the limit setting, which is the maximum number of relays that should be
+   * returned from getUrls and getSelections.
+   * @returns The limit setting as a number.
+   */
   getLimit: () => number
 }
 
