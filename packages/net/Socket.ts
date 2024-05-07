@@ -1,6 +1,7 @@
 import WebSocket from "isomorphic-ws"
 import {Deferred, defer} from '@welshman/lib'
-import type {Message} from '@welshman/util'
+
+export type Message = [string, ...any[]]
 
 export type PlexMessage = [{relays: string[]}, Message]
 

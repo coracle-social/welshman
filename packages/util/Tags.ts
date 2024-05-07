@@ -1,6 +1,6 @@
 import {EventTemplate} from 'nostr-tools'
 import type {OmitStatics} from '@welshman/lib'
-import {Fluent, ensurePlural, last} from '@welshman/lib'
+import {Fluent, ensurePlural} from '@welshman/lib'
 import {isShareableRelayUrl, normalizeRelayUrl} from './Relays'
 import type {Address} from './Address'
 import {encodeAddress, decodeAddress} from './Address'
@@ -23,15 +23,11 @@ export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, '
 
   value = () => this.xs[1]
 
-  mark = () => last(this.xs.slice(2))
-
   entry = () => this.xs.slice(0, 2)
 
   setKey = (k: string) => this.set(0, k)
 
   setValue = (v: string) => this.set(1, v)
-
-  setMark = (m: string) => this.xs.length > 2 ? this.set(this.xs.length - 2, m) : this.append(m)
 
   asAddress = () => decodeAddress(this.value())
 
@@ -61,19 +57,13 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   whereValue = (value: string) => this.filter(t => t.value() === value)
 
-  whereMark = (mark: string) => this.filter(t => t.mark() === mark)
-
   filterByKey = (keys: string[]) => this.filter(t => keys.includes(t.key()))
 
   filterByValue = (values: string[]) => this.filter(t => values.includes(t.value()))
 
-  filterByMark = (marks: string[]) => this.filter(t => marks.includes(t.mark()))
-
   rejectByKey = (keys: string[]) => this.reject(t => keys.includes(t.key()))
 
   rejectByValue = (values: string[]) => this.reject(t => values.includes(t.value()))
-
-  rejectByMark = (marks: string[]) => this.reject(t => marks.includes(t.mark()))
 
   get = (key: string) => this.whereKey(key).first()
 
@@ -81,8 +71,6 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   values = (key?: string | string[]) =>
     (key ? this.filterByKey(ensurePlural(key)) : this).mapTo(t => t.value())
-
-  marks = () => this.mapTo(t => t.mark())
 
   entries = () => this.mapTo(t => t.entry())
 
@@ -99,15 +87,15 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
     const dispatchTags = (thisTags: Tags) =>
       thisTags.forEach((t: Tag, i: number) => {
-        if (t.mark() === 'root') {
-          if (thisTags.whereMark("reply").count() === 0) {
+        if (t.nth(3) === 'root') {
+          if (thisTags.filter(t => t.nth(3) === "reply").count() === 0) {
             replies.push(t.valueOf())
           } else {
             roots.push(t.valueOf())
           }
-        } else if (t.mark() === 'reply') {
+        } else if (t.nth(3) === 'reply') {
           replies.push(t.valueOf())
-        } else if (t.mark() === 'mention') {
+        } else if (t.nth(3) === 'mention') {
           mentions.push(t.valueOf())
         } else if (i === thisTags.count() - 1) {
           replies.push(t.valueOf())
@@ -220,4 +208,3 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   setIMeta = (imeta: Tags[]) => this.removeIMeta().addIMeta(imeta)
 }
-

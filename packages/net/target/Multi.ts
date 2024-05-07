@@ -1,5 +1,5 @@
 import {Emitter} from '@welshman/lib'
-import type {Message} from '@welshman/util'
+import type {Message} from '../Socket'
 import type {Target} from '../Executor'
 
 export class Multi extends Emitter {

@@ -1,6 +1,5 @@
 import {Emitter} from '@welshman/lib'
-import type {Message} from '@welshman/util'
-import type {PlexMessage} from '../Socket'
+import type {PlexMessage, Message} from '../Socket'
 import type {Connection} from '../Connection'
 
 export class Plex extends Emitter {

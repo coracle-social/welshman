@@ -128,6 +128,9 @@ export const feedsFromTags = (tags: Tags, mappings?: TagFeedMapping[]) => {
   return feeds
 }
 
+export const feedFromTags = (tags: Tags, mappings?: TagFeedMapping[]) =>
+  makeIntersectionFeed(...feedsFromTags(tags, mappings))
+
 export const feedsFromFilter = ({since, until, ...filter}: Filter) => {
   const feeds = []
 
@@ -150,4 +153,5 @@ export const feedsFromFilter = ({since, until, ...filter}: Filter) => {
   return feeds
 }
 
-export const feedFromFilter = (filter: Filter) => makeIntersectionFeed(...feedsFromFilter(filter))
+export const feedFromFilter = (filter: Filter) =>
+  makeIntersectionFeed(...feedsFromFilter(filter))
