@@ -17,8 +17,8 @@ export interface Readable<T> {
 }
 
 export class Writable<T> implements Readable<T> {
-  private value: T
-  private subs: Subscriber<T>[] = []
+  value: T
+  subs: Subscriber<T>[] = []
 
   constructor(defaultValue: T, t?: number) {
     this.value = defaultValue
@@ -71,11 +71,11 @@ export class Writable<T> implements Readable<T> {
 }
 
 export class Derived<T> implements Readable<T> {
-  private callerSubs: Subscriber<T>[] = []
-  private mySubs: Unsubscriber[] = []
-  private stores: Derivable
-  private getValue: (values: any) => T
-  private latestValue: T | undefined
+  callerSubs: Subscriber<T>[] = []
+  mySubs: Unsubscriber[] = []
+  stores: Derivable
+  getValue: (values: any) => T
+  latestValue: T | undefined
 
   constructor(stores: Derivable, getValue: (values: any) => T, t = 0) {
     this.stores = stores
@@ -142,8 +142,8 @@ export class Derived<T> implements Readable<T> {
 export class Key<T extends R> implements Readable<T> {
   readonly pk: string
   readonly key: string
-  private base: Writable<M<T>>
-  private store: Readable<T>
+  base: Writable<M<T>>
+  store: Readable<T>
 
   constructor(base: Writable<M<T>>, pk: string, key: string) {
     if (!(base.get() instanceof Map)) {
@@ -205,8 +205,8 @@ export class Key<T extends R> implements Readable<T> {
 export class DerivedKey<T extends R> implements Readable<T> {
   readonly pk: string
   readonly key: string
-  private base: Readable<M<T>>
-  private store: Readable<T>
+  base: Readable<M<T>>
+  store: Readable<T>
 
   constructor(base: Readable<M<T>>, pk: string, key: string) {
     if (!(base.get() instanceof Map)) {

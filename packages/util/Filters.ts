@@ -128,7 +128,7 @@ export const intersectFilters = (groups: Filter[][]) => {
   return unionFilters(result)
 }
 
-export const getIdFilters = (idsOrAddresses: Iterable<string>) => {
+export const getIdFilters = (idsOrAddresses: string[]) => {
   const ids = []
   const aFilters = []
 

@@ -17,6 +17,8 @@ export const last = <T>(xs: T[], ...args: unknown[]) => xs[xs.length - 1]
 
 export const identity = <T>(x: T, ...args: unknown[]) => x
 
+export const always = <T>(x: T, ...args: unknown[]) => () => x
+
 export const inc = (x: number | Nil) => (x || 0) + 1
 
 export const dec = (x: number | Nil) => (x || 0) - 1

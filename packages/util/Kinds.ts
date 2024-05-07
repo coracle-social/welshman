@@ -12,7 +12,7 @@ export enum Kind {
   Note = 1,
   Relay = 2,
   DM = 4,
-  EventDeletion = 5,
+  Delete = 5,
   Repost = 6,
   Reaction = 7,
   BadgeAward = 8,
