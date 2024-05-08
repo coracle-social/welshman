@@ -15,67 +15,67 @@ export type RouterOptions = {
    * Retrieves the user's public key.
    * @returns The user's public key as a string, or null if not available.
    */
-  getUserPubkey: () => string | null
+  getUserPubkey?: () => string | null
 
   /**
-   * Retrieves the group relays for the specified address.
+   * Retrieves group relays for the specified community.
    * @param address - The address to retrieve group relays for.
    * @returns An array of group relay URLs as strings.
    */
-  getGroupRelays: (address: string) => string[]
+  getGroupRelays?: (address: string) => string[]
 
   /**
-   * Retrieves the community relays for the specified address.
+   * Retrieves relays for the specified community.
    * @param address - The address to retrieve community relays for.
    * @returns An array of community relay URLs as strings.
    */
-  getCommunityRelays: (address: string) => string[]
+  getCommunityRelays?: (address: string) => string[]
 
   /**
-   * Retrieves the relays for the specified public key and mode.
+   * Retrieves relays for the specified public key and mode.
    * @param pubkey - The public key to retrieve relays for.
    * @param mode - The relay mode (optional).
    * @returns An array of relay URLs as strings.
    */
-  getPubkeyRelays: (pubkey: string, mode?: RelayMode) => string[]
+  getPubkeyRelays?: (pubkey: string, mode?: RelayMode) => string[]
 
   /**
-   * Retrieves the static relays. These are used as fallbacks.
+   * Retrieves fallback relays, for use when no other relays can be selected.
    * @returns An array of relay URLs as strings.
    */
-  getStaticRelays: () => string[]
+  getFallbackRelays: () => string[]
 
   /**
    * Retrieves relays likely to return results for kind 0, 3, and 10002.
    * @returns An array of relay URLs as strings.
    */
-  getIndexerRelays: () => string[]
+  getIndexerRelays?: () => string[]
 
   /**
    * Retrieves relays likely to support NIP-50 search.
    * @returns An array of relay URLs as strings.
    */
-  getSearchRelays: () => string[]
+  getSearchRelays?: () => string[]
 
   /**
    * Retrieves the quality of the specified relay.
    * @param url - The URL of the relay to retrieve quality for.
    * @returns The quality of the relay as a number between 0 and 1 inclusive.
    */
-  getRelayQuality: (url: string) => number
+  getRelayQuality?: (url: string) => number
 
   /**
    * Retrieves the redundancy setting, which is how many relays to use per selection value.
    * @returns The redundancy setting as a number.
    */
-  getRedundancy: () => number
+  getRedundancy?: () => number
 
   /**
    * Retrieves the limit setting, which is the maximum number of relays that should be
    * returned from getUrls and getSelections.
    * @returns The limit setting as a number.
    */
-  getLimit: () => number
+  getLimit?: () => number
 }
 
 export type ValuesByRelay = Map<string, string[]>
@@ -98,18 +98,18 @@ export class Router {
   // Utilities derived from options
 
   getPubkeySelection = (pubkey: string, mode?: RelayMode) =>
-    this.selection(pubkey, this.options.getPubkeyRelays(pubkey, mode))
+    this.selection(pubkey, this.options.getPubkeyRelays?.(pubkey, mode) || [])
 
   getPubkeySelections = (pubkeys: string[], mode?: RelayMode) =>
     pubkeys.map(pubkey => this.getPubkeySelection(pubkey, mode))
 
   getUserSelections = (mode?: RelayMode) =>
-    this.getPubkeySelections([this.options.getUserPubkey()].filter(identity) as string[], mode)
+    this.getPubkeySelections([this.options.getUserPubkey?.()].filter(identity) as string[], mode)
 
   getContextSelections = (tags: Tags) => {
     return [
-      ...tags.communities().mapTo(t => this.selection(t.value(), this.options.getCommunityRelays(t.value()))).valueOf(),
-      ...tags.groups().mapTo(t => this.selection(t.value(), this.options.getGroupRelays(t.value()))).valueOf(),
+      ...tags.communities().mapTo(t => this.selection(t.value(), this.options.getCommunityRelays?.(t.value()) || [])).valueOf(),
+      ...tags.groups().mapTo(t => this.selection(t.value(), this.options.getGroupRelays?.(t.value()) || [])).valueOf(),
     ]
   }
 
@@ -133,7 +133,7 @@ export class Router {
     )
 
   scoreRelaySelection = ({values, relay}: RelayValues) =>
-    values.length * this.options.getRelayQuality(relay)
+    values.length * (this.options.getRelayQuality?.(relay) || 1)
 
   sortRelaySelections = (relaySelections: RelayValues[]) => {
     const scores = new Map<string, number>()
@@ -197,10 +197,10 @@ export class Router {
     const communities = tags.communities().values().valueOf()
     const groups = tags.groups().values().valueOf()
     const relays = uniq([
-      ...this.options.getPubkeyRelays(event.pubkey, RelayMode.Read),
-      ...pubkeys.flatMap((k: string) => this.options.getPubkeyRelays(k, RelayMode.Write)),
-      ...communities.flatMap((a: string) => this.options.getCommunityRelays(a)),
-      ...groups.flatMap((a: string) => this.options.getGroupRelays(a)),
+      ...this.options.getPubkeyRelays?.(event.pubkey, RelayMode.Read) || [],
+      ...pubkeys.flatMap((k: string) => this.options.getPubkeyRelays?.(k, RelayMode.Write) || []),
+      ...communities.flatMap((a: string) => this.options.getCommunityRelays?.(a) || []),
+      ...groups.flatMap((a: string) => this.options.getGroupRelays?.(a) || []),
       ...ancestors.relays().valueOf(),
     ])
 
@@ -261,10 +261,10 @@ export class Router {
     this.merge(addresses.map(this.WithinContext))
 
   Search = (term: string, relays: string[] = []) =>
-    this.product([term], uniq(this.options.getSearchRelays().concat(relays)))
+    this.product([term], uniq(relays.concat(this.options.getSearchRelays?.() || [])))
 
   Indexers = (relays: string[] = []) =>
-    this.fromRelays(uniq(this.options.getIndexerRelays().concat(relays)))
+    this.fromRelays(uniq(relays.concat(this.options.getIndexerRelays?.() || [])))
 
   // Fallback policies
 
@@ -322,11 +322,11 @@ export class RouterScenario {
 
   limit = (limit: number) => this.clone({limit})
 
-  getRedundancy = () => this.options.redundancy || this.router.options.getRedundancy()
+  getRedundancy = () => this.options.redundancy || this.router.options.getRedundancy?.() || 3
 
   getPolicy = () => this.options.policy || this.router.addMaximalFallbacks
 
-  getLimit = () => this.options.limit || this.router.options.getLimit()
+  getLimit = () => this.options.limit || this.router.options.getLimit?.() || 10
 
   getSelections = () => {
     const allValues = new Set()
@@ -366,7 +366,7 @@ export class RouterScenario {
       }
     }
 
-    const fallbacks = shuffle(this.router.options.getStaticRelays())
+    const fallbacks = shuffle(this.router.options.getFallbackRelays())
     const fallbackPolicy = this.getPolicy()
     for (const {value} of this.selections) {
       const timesSeen = seen.get(value) || 0
