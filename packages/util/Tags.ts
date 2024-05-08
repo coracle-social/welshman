@@ -88,7 +88,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
     const dispatchTags = (thisTags: Tags) =>
       thisTags.forEach((t: Tag, i: number) => {
         if (t.nth(3) === 'root') {
-          if (thisTags.filter(t => t.nth(3) === "reply").count() === 0) {
+          if (tags.filter(t => t.nth(3) === "reply").count() === 0) {
             replies.push(t.valueOf())
           } else {
             roots.push(t.valueOf())
