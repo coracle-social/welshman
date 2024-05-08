@@ -9,6 +9,7 @@ export enum PublishStatus {
   Success = "success",
   Failure = "failure",
   Timeout = "timeout",
+  Aborted = "aborted",
 }
 
 export type PublishStatusMap = Map<string, PublishStatus>
@@ -16,6 +17,7 @@ export type PublishStatusMap = Map<string, PublishStatus>
 export type PublishRequest = {
   event: Event
   relays: string[]
+  signal?: AbortSignal
   timeout?: number
   verb?: "EVENT" | "AUTH"
 }
@@ -44,8 +46,16 @@ export const publish = (request: PublishRequest) => {
   const event = asEvent(request.event)
   const executor = NetworkContext.getExecutor(request.relays)
 
+  const abort = (reason: PublishStatus) => () => {
+    for (const [url, status] of pub.status.entries()) {
+      if (status === PublishStatus.Pending) {
+        pub.emitter.emit(reason, url)
+      }
+    }
+  }
+
   // Listen to updates and keep status up to date. Every time there's an update, check to
-  // see if we're done. If we are, clear our timeout, executor, etc.
+  // see if we're done. If we are, clean everything up
   pub.emitter.on("*", (status: PublishStatus, url: string) => {
     pub.status.set(url, status)
 
@@ -57,21 +67,18 @@ export const publish = (request: PublishRequest) => {
     }
   })
 
-  // Start everything off as pending
+  // Start everything off as pending. Do it asynchronously to avoid breaking caller assumptions
   setTimeout(() => {
     for (const relay of request.relays) {
       pub.emitter.emit(PublishStatus.Pending, relay)
     }
   })
 
-  // Set a timeout
-  const timeout = setTimeout(() => {
-    for (const [url, status] of pub.status.entries()) {
-      if (status === PublishStatus.Pending) {
-        pub.emitter.emit(PublishStatus.Timeout, url)
-      }
-    }
-  }, request.timeout || 10_000)
+  // Give up after a specified time
+  const timeout = setTimeout(abort(PublishStatus.Timeout), request.timeout || 10_000)
+
+  // If we have a signal, use it
+  request.signal?.addEventListener('abort', abort(PublishStatus.Aborted))
 
   // Delegate to our executor
   const executorSub = executor.publish(event, {

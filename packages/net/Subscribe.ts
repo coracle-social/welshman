@@ -25,7 +25,6 @@ export enum SubscriptionEvent {
   Eose = "eose",
   Close = "close",
   Event = "event",
-  Abort = "abort",
   Complete = "complete",
   Duplicate = "duplicate",
   DeletedEvent = "deleted-event",
@@ -46,6 +45,7 @@ export type Subscription = {
   id: string
   emitter: Emitter
   tracker: Tracker
+  controller: AbortController
   result: Deferred<Event[]>
   request: SubscribeRequest
   close: () => void
@@ -54,13 +54,14 @@ export type Subscription = {
 export const makeSubscription = (request: SubscribeRequest) => {
   const id = randomId()
   const emitter = new Emitter()
+  const controller = new AbortController()
   const result = defer<Event[]>()
   const tracker = request.tracker || new Tracker()
-  const close = () => emitter.emit('abort')
+  const close = () => controller.abort()
 
   emitter.setMaxListeners(100)
 
-  return {id, request, emitter, tracker, result, close}
+  return {id, request, emitter, tracker, controller, result, close}
 }
 
 export const calculateSubscriptionGroup = (sub: Subscription) => {
@@ -86,9 +87,8 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
         filters: unionFilters(callerSubs.flatMap((sub: Subscription) => sub.request.filters)),
       })
 
-      for (const {id, emitter} of callerSubs) {
-        // Propagate abort event from the caller to the merged subscription
-        emitter.on(SubscriptionEvent.Abort, () => {
+      for (const {id, controller} of callerSubs) {
+        controller.signal.addEventListener('abort', () => {
           abortedSubs.add(id)
 
           if (abortedSubs.size === callerSubs.length) {
@@ -171,7 +171,7 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
 }
 
 export const executeSubscription = (sub: Subscription) => {
-  const {result, request, emitter, tracker} = sub
+  const {result, request, emitter, tracker, controller} = sub
   const {timeout, filters, closeOnEose, relays} = request
   const executor = NetworkContext.getExecutor(relays)
   const events: Event[] = []
@@ -234,8 +234,8 @@ export const executeSubscription = (sub: Subscription) => {
     }
   }
 
-  // Allow the caller to cancel the subscription
-  emitter.on(SubscriptionEvent.Abort, complete)
+  // Listen for abort via signal
+  controller.signal.addEventListener('abort', complete)
 
   // If we have a timeout, complete the subscription automatically
   if (timeout) setTimeout(complete, timeout)
