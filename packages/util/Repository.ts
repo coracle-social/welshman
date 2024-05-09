@@ -1,5 +1,5 @@
 import {throttle} from 'throttle-debounce'
-import type {Readable, Subscriber, Invalidator} from '@welshman/lib'
+import type {IReadable, Subscriber, Invalidator} from '@welshman/lib'
 import {Derived, Emitter, writable, first, always, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
 import {Kind} from './Kinds'
 import {matchFilter, getIdFilters, matchFilters} from './Filters'
@@ -16,7 +16,7 @@ export type RepositoryOptions = {
   throttle?: number
 }
 
-export class Repository<E extends Rumor> extends Emitter implements Readable<Repository<E>> {
+export class Repository<E extends Rumor> extends Emitter implements IReadable<Repository<E>> {
   eventsById = new Map<string, E>()
   eventsByAddress = new Map<string, E>()
   eventsByTag = new Map<string, E[]>()

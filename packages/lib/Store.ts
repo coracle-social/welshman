@@ -4,19 +4,23 @@ import {ensurePlural, identity} from "./Tools"
 export type Invalidator<T> = (value?: T) => void
 export type Subscriber<T> = (value: T) => void
 
-type Derivable = Readable<any> | Readable<any>[]
+type Derivable = IReadable<any> | IReadable<any>[]
 type Unsubscriber = () => void
 type R = Record<string, any>
 type M<T> = Map<string, T>
 
-export interface Readable<T> {
+export interface IReadable<T> {
   get: () => T
   subscribe(this: void, run: Subscriber<T>, invalidate?: Invalidator<T>): Unsubscriber
-  derived: <U>(f: (v: T) => U) => Readable<U>
-  throttle(t: number): Readable<T>
+  derived: <U>(f: (v: T) => U) => IReadable<U>
+  throttle(t: number): IReadable<T>
 }
 
-export class Writable<T> implements Readable<T> {
+export interface IWritable<T> extends IReadable<T> {
+  set: (xs: T) => void
+}
+
+export class Writable<T> implements IWritable<T> {
   value: T
   subs: Subscriber<T>[] = []
 
@@ -70,7 +74,7 @@ export class Writable<T> implements Readable<T> {
   }
 }
 
-export class Derived<T> implements Readable<T> {
+export class Derived<T> implements IReadable<T> {
   callerSubs: Subscriber<T>[] = []
   mySubs: Unsubscriber[] = []
   stores: Derivable
@@ -130,20 +134,20 @@ export class Derived<T> implements Readable<T> {
     }
   }
 
-  derived<U>(f: (v: T) => U): Readable<U> {
-    return new Derived(this, f) as Readable<U>
+  derived<U>(f: (v: T) => U): IReadable<U> {
+    return new Derived(this, f) as IReadable<U>
   }
 
-  throttle = (t: number): Readable<T> => {
+  throttle = (t: number): IReadable<T> => {
     return new Derived<T>(this, identity, t)
   }
 }
 
-export class Key<T extends R> implements Readable<T> {
+export class Key<T extends R> implements IReadable<T> {
   readonly pk: string
   readonly key: string
   base: Writable<M<T>>
-  store: Readable<T>
+  store: IReadable<T>
 
   constructor(base: Writable<M<T>>, pk: string, key: string) {
     if (!(base.get() instanceof Map)) {
@@ -202,13 +206,13 @@ export class Key<T extends R> implements Readable<T> {
   }
 }
 
-export class DerivedKey<T extends R> implements Readable<T> {
+export class DerivedKey<T extends R> implements IReadable<T> {
   readonly pk: string
   readonly key: string
-  base: Readable<M<T>>
-  store: Readable<T>
+  base: IReadable<M<T>>
+  store: IReadable<T>
 
-  constructor(base: Readable<M<T>>, pk: string, key: string) {
+  constructor(base: IReadable<M<T>>, pk: string, key: string) {
     if (!(base.get() instanceof Map)) {
       throw new Error("`key` can only be used on map collections")
     }
@@ -230,10 +234,10 @@ export class DerivedKey<T extends R> implements Readable<T> {
   exists = () => this.base.get().has(this.key)
 }
 
-export class Collection<T extends R> implements Readable<T[]> {
+export class Collection<T extends R> implements IReadable<T[]> {
   readonly pk: string
   readonly mapStore: Writable<M<T>>
-  readonly listStore: Readable<T[]>
+  readonly listStore: IReadable<T[]>
 
   constructor(pk: string, t?: number) {
     this.pk = pk
@@ -284,9 +288,9 @@ export class Collection<T extends R> implements Readable<T[]> {
   map = (f: (v: T) => T) => this.update((xs: T[]) => xs.map(f))
 }
 
-export class DerivedCollection<T extends R> implements Readable<T[]> {
+export class DerivedCollection<T extends R> implements IReadable<T[]> {
   readonly listStore: Derived<T[]>
-  readonly mapStore: Readable<M<T>>
+  readonly mapStore: IReadable<M<T>>
 
   constructor(
     readonly pk: string,
@@ -316,7 +320,7 @@ export const writable = <T>(v: T) => new Writable(v)
 export const derived = <T>(stores: Derivable, getValue: (values: any) => T) =>
   new Derived(stores, getValue)
 
-export const readable = <T>(v: T) => derived(new Writable(v), identity) as Readable<T>
+export const readable = <T>(v: T) => derived(new Writable(v), identity) as IReadable<T>
 
 export const derivedCollection = <T extends R>(
   pk: string,

@@ -46,7 +46,7 @@ export const publish = (request: PublishRequest) => {
   const event = asEvent(request.event)
   const executor = NetworkContext.getExecutor(request.relays)
 
-  const abort = (reason: PublishStatus) => () => {
+  const abort = (reason: PublishStatus) => {
     for (const [url, status] of pub.status.entries()) {
       if (status === PublishStatus.Pending) {
         pub.emitter.emit(reason, url)
@@ -75,10 +75,10 @@ export const publish = (request: PublishRequest) => {
   })
 
   // Give up after a specified time
-  const timeout = setTimeout(abort(PublishStatus.Timeout), request.timeout || 10_000)
+  const timeout = setTimeout(() => abort(PublishStatus.Timeout), request.timeout || 10_000)
 
   // If we have a signal, use it
-  request.signal?.addEventListener('abort', abort(PublishStatus.Aborted))
+  request.signal?.addEventListener('abort', () => abort(PublishStatus.Aborted))
 
   // Delegate to our executor
   const executorSub = executor.publish(event, {

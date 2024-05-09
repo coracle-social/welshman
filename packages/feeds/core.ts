@@ -44,8 +44,8 @@ export type DVMItem = {
 }
 
 export type ListItem = {
-  address: string,
-  mappings: TagFeedMapping[],
+  addresses: string,
+  mappings?: TagFeedMapping[],
 }
 
 export type WOTItem = {
@@ -56,7 +56,7 @@ export type WOTItem = {
 export type CreatedAtItem = {
   since?: number,
   until?: number,
-  relative?: boolean,
+  relative?: string[],
 }
 
 export type AddressFeed = [type: FeedType.Address, ...addresses: string[]]

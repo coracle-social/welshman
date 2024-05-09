@@ -108,7 +108,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
     // Add different types separately so positional logic works
     dispatchTags(tags.whereKey("e"))
-    dispatchTags(tags.whereKey("a"))
+    dispatchTags(tags.whereKey("a").filter(t => Boolean(t.nth(3))))
     mentionTags.forEach((t: Tag) => mentions.push(t.valueOf()))
 
     return {

@@ -35,6 +35,7 @@ export enum SubscriptionEvent {
 export type SubscribeRequest = {
   relays: string[]
   filters: Filter[]
+  signal?: AbortSignal
   timeout?: number
   tracker?: Tracker
   immediate?: boolean
@@ -87,14 +88,17 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
         filters: unionFilters(callerSubs.flatMap((sub: Subscription) => sub.request.filters)),
       })
 
-      for (const {id, controller} of callerSubs) {
-        controller.signal.addEventListener('abort', () => {
+      for (const {id, controller, request} of callerSubs) {
+        const onAbort = () => {
           abortedSubs.add(id)
 
           if (abortedSubs.size === callerSubs.length) {
             mergedSub.close()
           }
-        })
+        }
+
+        request.signal?.addEventListener('abort', onAbort)
+        controller.signal.addEventListener('abort', onAbort)
       }
 
       mergedSub.emitter.on(SubscriptionEvent.Event, (url: string, event: Event) => {
@@ -172,7 +176,7 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
 
 export const executeSubscription = (sub: Subscription) => {
   const {result, request, emitter, tracker, controller} = sub
-  const {timeout, filters, closeOnEose, relays} = request
+  const {timeout, filters, closeOnEose, relays, signal} = request
   const executor = NetworkContext.getExecutor(relays)
   const events: Event[] = []
 
@@ -234,7 +238,11 @@ export const executeSubscription = (sub: Subscription) => {
     }
   }
 
-  // Listen for abort via signal
+  // Listen for abort via caller signal
+  signal?.addEventListener('abort', complete)
+  signal?.addEventListener('abort', () => console.log('aborted'))
+
+  // Listen for abort via our own internal signal
   controller.signal.addEventListener('abort', complete)
 
   // If we have a timeout, complete the subscription automatically

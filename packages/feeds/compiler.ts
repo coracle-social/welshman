@@ -76,15 +76,13 @@ export class FeedCompiler<E extends Rumor> {
 
   _compileCreatedAt(items: CreatedAtItem[]) {
     const filters = items
-      .map(({since, until, relative}) => {
-        if (relative) {
-          if (typeof since === 'number') {
-            since = now() - since
-          }
+      .map(({since, until, relative = []}) => {
+        if (since && relative.includes("since")) {
+          since = now() - since
+        }
 
-          if (typeof until === 'number') {
-            until = now() - until
-          }
+        if (until && relative.includes("until")) {
+          until = now() - until
         }
 
         if (since && until) return {since, until}
@@ -224,7 +222,7 @@ export class FeedCompiler<E extends Rumor> {
   }
 
   async _compileLists(listItems: ListItem[]): Promise<RequestItem[]> {
-    const addresses = uniq(listItems.map(({address}) => address))
+    const addresses = uniq(listItems.flatMap(({addresses}) => addresses))
     const eventsByAddress = new Map<string, E>()
 
     await this.options.request({
@@ -234,10 +232,20 @@ export class FeedCompiler<E extends Rumor> {
 
     const feeds = flatten(
       await Promise.all(
-        listItems.map(({address, mappings}) => {
-          const event = eventsByAddress.get(address)
+        listItems.map(({addresses, mappings}) => {
+          const feeds: Feed[] = []
 
-          return event ? feedsFromTags(Tags.fromEvent(event), mappings) : []
+          for (const address of addresses) {
+            const event = eventsByAddress.get(address)
+
+            if (event) {
+              for (const feed of feedsFromTags(Tags.fromEvent(event), mappings)) {
+                feeds.push(feed)
+              }
+            }
+          }
+
+          return feeds
         })
       )
     )
