@@ -1,7 +1,7 @@
 import type {Event} from 'nostr-tools'
 import {Emitter, now, randomId, defer} from '@welshman/lib'
 import type {Deferred} from '@welshman/lib'
-import {asEvent,} from '@welshman/util'
+import {asSignedEvent} from '@welshman/util'
 import {NetworkContext} from './Context'
 
 export enum PublishStatus {
@@ -43,7 +43,7 @@ export const makePublish = (request: PublishRequest) => {
 
 export const publish = (request: PublishRequest) => {
   const pub = makePublish(request)
-  const event = asEvent(request.event)
+  const event = asSignedEvent(request.event)
   const executor = NetworkContext.getExecutor(request.relays)
 
   const abort = (reason: PublishStatus) => {

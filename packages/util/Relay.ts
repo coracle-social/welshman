@@ -2,9 +2,9 @@ import {Emitter} from '@welshman/lib'
 import {matchFilters} from './Filters'
 import type {Repository} from './Repository'
 import type {Filter} from './Filters'
-import type {Rumor} from './Events'
+import type {TrustedEvent} from './Events'
 
-export class Relay<E extends Rumor> extends Emitter {
+export class Relay<E extends TrustedEvent> extends Emitter {
   subs = new Map<string, Filter[]>()
 
   constructor(readonly repository: Repository<E>) {

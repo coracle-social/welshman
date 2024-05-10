@@ -1,12 +1,12 @@
 import {throttle} from 'throttle-debounce'
 import type {IReadable, Subscriber, Invalidator} from '@welshman/lib'
 import {Derived, Emitter, writable, first, always, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
-import {Kind} from './Kinds'
+import {DELETE} from './Kinds'
 import {matchFilter, getIdFilters, matchFilters} from './Filters'
 import {encodeAddress, addressFromEvent} from './Address'
 import {isReplaceable} from './Events'
 import type {Filter} from './Filters'
-import type {Rumor} from './Events'
+import type {TrustedEvent} from './Events'
 
 export const DAY = 86400
 
@@ -16,7 +16,7 @@ export type RepositoryOptions = {
   throttle?: number
 }
 
-export class Repository<E extends Rumor> extends Emitter implements IReadable<Repository<E>> {
+export class Repository<E extends TrustedEvent> extends Emitter implements IReadable<Repository<E>> {
   eventsById = new Map<string, E>()
   eventsByAddress = new Map<string, E>()
   eventsByTag = new Map<string, E[]>()
@@ -225,7 +225,7 @@ export class Repository<E extends Rumor> extends Emitter implements IReadable<Re
       if (tag[0].length === 1) {
         this._updateIndex(this.eventsByTag, tag.slice(0, 2).join(':'), event, duplicate)
 
-        if (event.kind === Kind.Delete) {
+        if (event.kind === DELETE) {
           const id = tag[1]
           const ts = Math.max(event.created_at, this.deletes.get(tag[1]) || 0)
 
@@ -236,7 +236,7 @@ export class Repository<E extends Rumor> extends Emitter implements IReadable<Re
 
     if (!this.isDeleted(event)) {
       // Deletes are tricky, re-evaluate all subscriptions if that's what we're dealing with
-      if (event.kind === Kind.Delete) {
+      if (event.kind === DELETE) {
         this.notify()
       } else {
         this.notify(event)

@@ -1,7 +1,7 @@
-import type {Event} from 'nostr-tools'
+import {Event} from 'nostr-tools'
 import {matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
 import {prop, avg, hash, groupBy, randomId, uniq} from '@welshman/lib'
-import type {Rumor} from './Events'
+import type {HashedEvent, TrustedEvent} from './Events'
 import {decodeAddress, addressFromEvent, encodeAddress} from './Address'
 import {isReplaceableKind} from './Kinds'
 
@@ -18,7 +18,7 @@ export type Filter = {
   [key: `#${string}`]: string[]
 }
 
-export const matchFilter = <E extends Rumor>(filter: Filter, event: E) => {
+export const matchFilter = <E extends HashedEvent>(filter: Filter, event: E) => {
   if (!nostrToolsMatchFilter(filter, event as unknown as Event)) {
     return false
   }
@@ -39,7 +39,7 @@ export const matchFilter = <E extends Rumor>(filter: Filter, event: E) => {
   return true
 }
 
-export const matchFilters = <E extends Rumor>(filters: Filter[], event: E) => {
+export const matchFilters = <E extends HashedEvent>(filters: Filter[], event: E) => {
   for (const filter of filters) {
     if (matchFilter(filter, event)) {
       return true
@@ -155,7 +155,7 @@ export const getIdFilters = (idsOrAddresses: string[]) => {
   return filters
 }
 
-export const getReplyFilters = (events: Rumor[], filter: Filter) => {
+export const getReplyFilters = (events: TrustedEvent[], filter: Filter) => {
   const a = []
   const e = []
 

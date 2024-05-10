@@ -1,6 +1,6 @@
 import type {UnsignedEvent} from 'nostr-tools'
 import {nip19} from 'nostr-tools'
-import {Kind} from './Kinds'
+import {GROUP, COMMUNITY} from './Kinds'
 
 export type Address = {
   kind: number,
@@ -51,8 +51,8 @@ export const addressFromEvent = (e: UnsignedEvent, relays: string[] = []) =>
 
 // Utils
 
-export const isGroupAddress = (a: Address) => a.kind === Kind.GroupDefinition
+export const isGroupAddress = (a: Address) => a.kind === GROUP
 
-export const isCommunityAddress = (a: Address) => a.kind === Kind.CommunityDefinition
+export const isCommunityAddress = (a: Address) => a.kind === COMMUNITY
 
-export const isContextAddress = (a: Address) => [Kind.GroupDefinition, Kind.CommunityDefinition].includes(a.kind)
+export const isContextAddress = (a: Address) => [GROUP, COMMUNITY].includes(a.kind)

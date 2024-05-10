@@ -1,6 +1,6 @@
 import {first, splitAt, identity, sortBy, uniq, shuffle, pushToMapKey} from '@welshman/lib'
 import {Tags, Tag} from '@welshman/util'
-import type {Rumor} from './Events'
+import type {TrustedEvent} from './Events'
 import {getAddress, isReplaceable} from './Events'
 import {isShareableRelayUrl} from './Relays'
 import {addressFromEvent, decodeAddress, isCommunityAddress, isGroupAddress} from './Address'
@@ -178,19 +178,19 @@ export class Router {
       this.getPubkeySelection(pubkey, RelayMode.Read),
     ]).policy(this.addMinimalFallbacks)
 
-  Event = (event: Rumor) =>
+  Event = (event: TrustedEvent) =>
     this.scenario(this.forceValue(event.id, [
       this.getPubkeySelection(event.pubkey, RelayMode.Write),
       ...this.getContextSelections(Tags.fromEvent(event).context()),
     ]))
 
-  EventChildren = (event: Rumor) =>
+  EventChildren = (event: TrustedEvent) =>
     this.scenario(this.forceValue(event.id, [
       this.getPubkeySelection(event.pubkey, RelayMode.Read),
       ...this.getContextSelections(Tags.fromEvent(event).context()),
     ]))
 
-  EventAncestors = (event: Rumor, type: "mentions" | "replies" | "roots") => {
+  EventAncestors = (event: TrustedEvent, type: "mentions" | "replies" | "roots") => {
     const tags = Tags.fromEvent(event)
     const ancestors = tags.ancestors()[type]
     const pubkeys = tags.whereKey("p").values().valueOf()
@@ -207,13 +207,13 @@ export class Router {
     return this.product(ancestors.values().valueOf(), relays)
   }
 
-  EventMentions = (event: Rumor) => this.EventAncestors(event, "mentions")
+  EventMentions = (event: TrustedEvent) => this.EventAncestors(event, "mentions")
 
-  EventParents = (event: Rumor) => this.EventAncestors(event, "replies")
+  EventParents = (event: TrustedEvent) => this.EventAncestors(event, "replies")
 
-  EventRoots = (event: Rumor) => this.EventAncestors(event, "roots")
+  EventRoots = (event: TrustedEvent) => this.EventAncestors(event, "roots")
 
-  PublishEvent = (event: Rumor) => {
+  PublishEvent = (event: TrustedEvent) => {
     const tags = Tags.fromEvent(event)
     const mentions = tags.values("p").valueOf()
 
@@ -279,13 +279,13 @@ export class Router {
   tagPubkey = (pubkey: string) =>
     Tag.from(["p", pubkey, this.FromPubkeys([pubkey]).getUrl()])
 
-  tagEventId = (event: Rumor, mark = "") =>
+  tagEventId = (event: TrustedEvent, mark = "") =>
     Tag.from(["e", event.id, this.Event(event).getUrl(), mark, event.pubkey])
 
-  tagEventAddress = (event: Rumor, mark = "") =>
+  tagEventAddress = (event: TrustedEvent, mark = "") =>
     Tag.from(["a", getAddress(event), this.Event(event).getUrl(), mark, event.pubkey])
 
-  tagEvent = (event: Rumor, mark = "") => {
+  tagEvent = (event: TrustedEvent, mark = "") => {
     const tags = [this.tagEventId(event, mark)]
 
     if (isReplaceable(event)) {
@@ -295,7 +295,7 @@ export class Router {
     return new Tags(tags)
   }
 
-  address = (event: Rumor) =>
+  address = (event: TrustedEvent) =>
     addressFromEvent(event, this.Event(event).redundancy(3).getUrls())
 }
 

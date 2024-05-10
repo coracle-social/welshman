@@ -44,7 +44,7 @@ export type DVMItem = {
 }
 
 export type ListItem = {
-  addresses: string,
+  addresses: string[],
   mappings?: TagFeedMapping[],
 }
 
