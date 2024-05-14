@@ -2,7 +2,7 @@ import {first, splitAt, identity, sortBy, uniq, shuffle, pushToMapKey} from '@we
 import {Tags, Tag} from '@welshman/util'
 import type {TrustedEvent} from './Events'
 import {getAddress, isReplaceable} from './Events'
-import {isShareableRelayUrl} from './Relays'
+import {isShareableRelayUrl} from './Relay'
 import {addressFromEvent, decodeAddress, isCommunityAddress, isGroupAddress} from './Address'
 
 export enum RelayMode {

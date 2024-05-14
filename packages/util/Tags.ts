@@ -1,7 +1,7 @@
 import {EventTemplate} from 'nostr-tools'
 import type {OmitStatics} from '@welshman/lib'
 import {Fluent, ensurePlural} from '@welshman/lib'
-import {isShareableRelayUrl, normalizeRelayUrl} from './Relays'
+import {isShareableRelayUrl, normalizeRelayUrl} from './Relay'
 import type {Address} from './Address'
 import {encodeAddress, decodeAddress} from './Address'
 import {GROUP, COMMUNITY} from './Kinds'

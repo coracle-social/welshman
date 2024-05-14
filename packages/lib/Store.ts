@@ -4,14 +4,17 @@ import {ensurePlural, identity} from "./Tools"
 export type Invalidator<T> = (value?: T) => void
 export type Subscriber<T> = (value: T) => void
 
-type Derivable = IReadable<any> | IReadable<any>[]
+type Derivable = IDerivable<any> | IDerivable<any>[]
 type Unsubscriber = () => void
 type R = Record<string, any>
 type M<T> = Map<string, T>
 
-export interface IReadable<T> {
+export interface IDerivable<T> {
   get: () => T
   subscribe(this: void, run: Subscriber<T>, invalidate?: Invalidator<T>): Unsubscriber
+}
+
+export interface IReadable<T> extends IDerivable<T> {
   derived: <U>(f: (v: T) => U) => IReadable<U>
   throttle(t: number): IReadable<T>
 }
@@ -49,10 +52,6 @@ export class Writable<T> implements IWritable<T> {
 
   update(f: (v: T) => T) {
     this.set(f(this.value))
-  }
-
-  async updateAsync(f: (v: T) => Promise<T>) {
-    this.set(await f(this.value))
   }
 
   subscribe(f: Subscriber<T>) {
@@ -332,3 +331,48 @@ export const key = <T extends R>(base: Writable<M<T>>, pk: string, key: string) 
   new Key<T>(base, pk, key)
 
 export const collection = <T extends R>(pk: string) => new Collection<T>(pk)
+
+export const asReadable = <T>(store: IDerivable<T>) => {
+  return {
+    ...store,
+    derived: <U>(f: (v: T) => U) => new Derived<U>(store, f),
+    throttle: (t: number) => new Derived<T>(store, identity, t),
+  }
+}
+
+export type ICustomStore<T> = {
+  get: () => T
+  start: (set: (x: T) => void) => () => void
+}
+
+export const customStore = <T>({get, start}: ICustomStore<T>) => {
+  const subs: Subscriber<T>[] = []
+
+  const set = (newValue: T) => {
+    value = newValue
+  }
+
+  let stop: () => void
+  let value = get()
+
+  return asReadable({
+    get: () => subs.length === 0 ? get() : value,
+    subscribe: (subscriber: Subscriber<T>) => {
+      if (subs.length === 0) {
+        stop = start(set)
+        value = get()
+      }
+
+      subs.push(subscriber)
+
+      return () => {
+        subs.splice(subs.findIndex(sub => sub === subscriber), 1)
+
+        if (subs.length === 0) {
+          stop()
+        }
+      }
+    },
+  })
+}
+

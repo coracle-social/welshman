@@ -1,10 +1,9 @@
 import {throttle} from 'throttle-debounce'
 import type {IReadable, Subscriber, Invalidator} from '@welshman/lib'
-import {Derived, Emitter, writable, first, always, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
+import {Derived, Emitter, sortBy, customStore, inc, first, always, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
 import {DELETE} from './Kinds'
 import {matchFilter, getIdFilters, matchFilters} from './Filters'
-import {encodeAddress, addressFromEvent} from './Address'
-import {isReplaceable} from './Events'
+import {isReplaceable, isTrustedEvent, getAddress} from './Events'
 import type {Filter} from './Filters'
 import type {TrustedEvent} from './Events'
 
@@ -16,14 +15,14 @@ export type RepositoryOptions = {
   throttle?: number
 }
 
-export class Repository<E extends TrustedEvent> extends Emitter implements IReadable<Repository<E>> {
-  eventsById = new Map<string, E>()
-  eventsByAddress = new Map<string, E>()
-  eventsByTag = new Map<string, E[]>()
-  eventsByDay = new Map<number, E[]>()
-  eventsByAuthor = new Map<string, E[]>()
+export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
+  eventsById = new Map<string, TrustedEvent>()
+  eventsByAddress = new Map<string, TrustedEvent>()
+  eventsByTag = new Map<string, TrustedEvent[]>()
+  eventsByDay = new Map<number, TrustedEvent[]>()
+  eventsByAuthor = new Map<string, TrustedEvent[]>()
   deletes = new Map<string, number>()
-  subs: Subscriber<typeof this>[] = []
+  subs: Subscriber<TrustedEvent[]>[] = []
 
   constructor(private options: RepositoryOptions) {
     super()
@@ -36,76 +35,13 @@ export class Repository<E extends TrustedEvent> extends Emitter implements IRead
   // Methods for implementing store interface
 
   get() {
-    return this
-  }
-
-  subscribe(f: Subscriber<Repository<E>>, invalidate?: Invalidator<Repository<E>>) {
-    this.subs.push(f)
-
-    return () => {
-      this.subs = this.subs.filter(sub => sub !== f)
-    }
-  }
-
-  derived<U>(f: (v: Repository<E>) => U): Derived<U> {
-    return new Derived<U>(this, f)
-  }
-
-  throttle(t: number): Derived<Repository<E>> {
-    return new Derived<Repository<E>>(this, identity, t)
-  }
-
-  filter(getFilters: () => Filter[]) {
-    const store = writable<E[]>([])
-
-    const onNotify = (event?: E) => {
-      const filters = getFilters()
-
-      if (!event || matchFilters(filters, event)) {
-        store.set(Array.from(this.query(filters)))
-      }
-    }
-
-    const subscribe = store.subscribe.bind(store)
-
-    store.subscribe = (f: Subscriber<E[]>) => {
-      if (store.subs.length === 0) {
-        this.on('notify', onNotify)
-        onNotify()
-      }
-
-      const unsubscribe = subscribe(f)
-
-      return () => {
-        unsubscribe()
-
-        if (store.subs.length === 0) {
-          this.off('notify', onNotify)
-        }
-      }
-    }
-
-    return store
-  }
-
-  notify(event?: E) {
-    for (const sub of this.subs) {
-      sub(this)
-    }
-
-    this.emit('notify', event)
-  }
-
-  // Load/dump
-
-  dump() {
     return Array.from(this.eventsById.values())
   }
 
-  async load(events: E[], chunkSize = 1000) {
+  async set(events: TrustedEvent[], chunkSize = 1000) {
     for (const eventsChunk of chunk(chunkSize, events)) {
       for (const event of eventsChunk) {
-        this._addEvent(event)
+        this.publish(event, {notify: false})
       }
 
       if (eventsChunk.length === chunkSize) {
@@ -114,6 +50,52 @@ export class Repository<E extends TrustedEvent> extends Emitter implements IRead
     }
 
     this.notify()
+  }
+
+
+  subscribe(f: Subscriber<TrustedEvent[]>, invalidate?: Invalidator<TrustedEvent[]>) {
+    this.subs.push(f)
+
+    return () => {
+      this.subs = this.subs.filter(sub => sub !== f)
+    }
+  }
+
+  derived<U>(f: (v: TrustedEvent[]) => U): Derived<U> {
+    return new Derived<U>(this, f)
+  }
+
+  throttle(t: number): Derived<TrustedEvent[]> {
+    return new Derived<TrustedEvent[]>(this, identity, t)
+  }
+
+  filter(getFilters: () => Filter[]) {
+    const getValue = () => Array.from(this.query(getFilters()))
+
+    return customStore<TrustedEvent[]>({
+      get: getValue,
+      start: setValue => {
+        const onNotify = (event?: TrustedEvent) => {
+          if (!event || matchFilters(getFilters(), event)) {
+            setValue(getValue())
+          }
+        }
+
+        this.on('notify', onNotify)
+
+        return () => this.off('notify', onNotify)
+      },
+    })
+  }
+
+  notify(event?: TrustedEvent) {
+    const events = this.get()
+
+    for (const sub of this.subs) {
+      sub(events)
+    }
+
+    this.emit('notify', event)
   }
 
   // API
@@ -130,21 +112,20 @@ export class Repository<E extends TrustedEvent> extends Emitter implements IRead
 
   *query(filters: Filter[]) {
     for (let filter of filters) {
-      let events: Iterable<E> = this.eventsById.values()
+      let events: TrustedEvent[] = Array.from(this.eventsById.values())
 
       if (filter.ids) {
-        events = filter.ids!.map(id => this.eventsById.get(id)).filter(identity) as E[]
+        events = filter.ids!.map(id => this.eventsById.get(id)).filter(identity) as TrustedEvent[]
         filter = omit(['ids'], filter)
       } else if (filter.authors) {
         events = uniq(filter.authors!.flatMap(pubkey => this.eventsByAuthor.get(pubkey) || []))
         filter = omit(['authors'], filter)
       } else if (filter.since || filter.until) {
         const sinceDay = getDay(filter.since || 0)
-        const untilDay = getDay(filter.since || now())
+        const untilDay = getDay(filter.until || now())
 
-        filter = omit(['since', 'until'], filter)
         events = uniq(
-          Array.from(range(sinceDay, untilDay))
+          Array.from(range(sinceDay, inc(untilDay)))
             .flatMap((day: number) => this.eventsByDay.get(day) || [])
         )
       } else {
@@ -162,79 +143,67 @@ export class Repository<E extends TrustedEvent> extends Emitter implements IRead
         }
       }
 
-      for (const event of events) {
+      let i = 0
+
+      for (const event of sortBy((e: TrustedEvent) => -e.created_at, events)) {
+        if (filter.limit && i > filter.limit) {
+          break
+        }
+
         if (!this.isDeleted(event) && matchFilter(filter, event)) {
           yield event
+          i += 1
         }
       }
     }
   }
 
-  publish(event: E) {
-    const duplicateById = this.eventsById.get(event.id)
-
-    if (duplicateById) {
-      return false
+  publish(event: TrustedEvent, {notify = false} = {}) {
+    if (!isTrustedEvent(event)) {
+      throw new Error("Invalid event published to Repository", event)
     }
 
-    const hasAddress = isReplaceable(event)
-    const address = encodeAddress(addressFromEvent(event))
-    const duplicateByAddress = hasAddress ? this.eventsByAddress.get(address) : undefined
+    const address = getAddress(event)
+    const duplicate = (
+      this.eventsById.get(event.id) ||
+      this.eventsByAddress.get(address)
+    )
 
-    if (duplicateByAddress && duplicateByAddress.created_at >= event.created_at) {
-      return false
-    }
+    // If our duplicate is newer than the event we're adding, we're done
+    if (!duplicate || duplicate.created_at < event.created_at) {
+      this.eventsById.set(event.id, event)
 
-    this._addEvent(event, duplicateByAddress)
-
-    return true
-  }
-
-  isDeleted(event: E) {
-    const idDeletedAt = this.deletes.get(event.id) || 0
-
-    if (idDeletedAt > event.created_at) {
-      return true
-    }
-
-    if (isReplaceable(event)) {
-      const address = encodeAddress(addressFromEvent(event))
-      const addressDeletedAt = this.deletes.get(address) || 0
-
-      if (addressDeletedAt > event.created_at) {
-        return true
+      if (isReplaceable(event)) {
+        this.eventsByAddress.set(address, event)
       }
-    }
 
-    return false
-  }
+      if (duplicate) {
+        this.eventsById.delete(duplicate.id)
 
-  // Implementation
+        if (isReplaceable(duplicate)) {
+          this.eventsByAddress.delete(address)
+        }
+      }
 
-  _addEvent(event: E, duplicate?: E) {
-    this.eventsById.set(event.id, event)
+      this._updateIndex(this.eventsByDay, getDay(event.created_at), event, duplicate)
+      this._updateIndex(this.eventsByAuthor, event.pubkey, event, duplicate)
 
-    if (isReplaceable(event)) {
-      this.eventsByAddress.set(encodeAddress(addressFromEvent(event)), event)
-    }
+      // Store our event by tags
+      for (const tag of event.tags) {
+        if (tag[0].length === 1) {
+          this._updateIndex(this.eventsByTag, tag.slice(0, 2).join(':'), event, duplicate)
 
-    this._updateIndex(this.eventsByDay, getDay(event.created_at), event, duplicate)
-    this._updateIndex(this.eventsByAuthor, event.pubkey, event, duplicate)
+          if (event.kind === DELETE) {
+            const id = tag[1]
+            const ts = Math.max(event.created_at, this.deletes.get(tag[1]) || 0)
 
-    for (const tag of event.tags) {
-      if (tag[0].length === 1) {
-        this._updateIndex(this.eventsByTag, tag.slice(0, 2).join(':'), event, duplicate)
-
-        if (event.kind === DELETE) {
-          const id = tag[1]
-          const ts = Math.max(event.created_at, this.deletes.get(tag[1]) || 0)
-
-          this.deletes.set(id, ts)
+            this.deletes.set(id, ts)
+          }
         }
       }
     }
 
-    if (!this.isDeleted(event)) {
+    if (notify && !this.isDeleted(event)) {
       // Deletes are tricky, re-evaluate all subscriptions if that's what we're dealing with
       if (event.kind === DELETE) {
         this.notify()
@@ -244,11 +213,31 @@ export class Repository<E extends TrustedEvent> extends Emitter implements IRead
     }
   }
 
-  _updateIndex<K>(m: Map<K, E[]>, k: K, e: E, duplicate?: E) {
+  isDeleted(event: TrustedEvent) {
+    const idDeletedAt = this.deletes.get(event.id) || 0
+
+    if (idDeletedAt > event.created_at) {
+      return true
+    }
+
+    if (isReplaceable(event)) {
+      const addressDeletedAt = this.deletes.get(getAddress(event)) || 0
+
+      if (addressDeletedAt > event.created_at) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  // Utilities
+
+  _updateIndex<K>(m: Map<K, TrustedEvent[]>, k: K, e: TrustedEvent, duplicate?: TrustedEvent) {
     let a = m.get(k) || []
 
     if (duplicate) {
-      a = a.filter((x: E) => x !== duplicate)
+      a = a.filter((x: TrustedEvent) => x !== duplicate)
     }
 
     a.push(e)

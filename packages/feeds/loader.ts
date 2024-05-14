@@ -1,5 +1,5 @@
 import {inc, max, min, now} from '@welshman/lib'
-import type {Rumor, Filter} from '@welshman/util'
+import type {TrustedEvent, Filter} from '@welshman/util'
 import {EPOCH, guessFilterDelta} from '@welshman/util'
 import type {Feed, RequestItem, FeedOptions} from './core'
 import {FeedType} from './core'
@@ -12,7 +12,7 @@ export type LoadOpts<E> = {
 
 export type Loader = (limit: number) => Promise<void>
 
-export class FeedLoader<E extends Rumor> {
+export class FeedLoader<E extends TrustedEvent> {
   compiler: FeedCompiler<E>
 
   constructor(readonly options: FeedOptions<E>) {

@@ -1,11 +1,11 @@
 import {uniq, identity, flatten, pushToMapKey, intersection, tryCatch, now} from '@welshman/lib'
-import type {Rumor, Filter} from '@welshman/util'
+import type {TrustedEvent, Filter} from '@welshman/util'
 import {Tags, intersectFilters, getAddress, getIdFilters, unionFilters} from '@welshman/util'
 import type {CreatedAtItem, RequestItem, ListItem, WOTItem, DVMItem, Scope, Feed, FeedOptions} from './core'
 import {hasSubFeeds, getFeedArgs, feedsFromTags} from './utils'
 import {FeedType} from './core'
 
-export class FeedCompiler<E extends Rumor> {
+export class FeedCompiler<E extends TrustedEvent> {
   constructor(readonly options: FeedOptions<E>) {}
 
   walk(feed: Feed, visit: (feed: Feed) => void) {
