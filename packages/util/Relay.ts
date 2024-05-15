@@ -1,4 +1,4 @@
-import {Emitter, normalizeUrl, stripProtocol} from '@welshman/lib'
+import {Emitter, normalizeUrl, sleep, stripProtocol} from '@welshman/lib'
 import {matchFilters} from './Filters'
 import type {Repository} from './Repository'
 import type {Filter} from './Filters'
@@ -64,15 +64,18 @@ export class Relay extends Emitter {
   handleEVENT([event]: [TrustedEvent]) {
     this.repository.publish(event)
 
-    this.emit('OK', event.id, true, "")
+    // Callers generally expect async relays
+    sleep(1).then(() => {
+      this.emit('OK', event.id, true, "")
 
-    if (!this.repository.isDeleted(event)) {
-      for (const [subId, filters] of this.subs.entries()) {
-        if (matchFilters(filters, event)) {
-          this.emit('EVENT', subId, event)
+      if (!this.repository.isDeleted(event)) {
+        for (const [subId, filters] of this.subs.entries()) {
+          if (matchFilters(filters, event)) {
+            this.emit('EVENT', subId, event)
+          }
         }
       }
-    }
+    })
   }
 
   handleCLOSE([subId]: [string]) {
@@ -82,10 +85,13 @@ export class Relay extends Emitter {
   handleREQ([subId, ...filters]: [string, ...Filter[]]) {
     this.subs.set(subId, filters)
 
-    for (const event of this.repository.query(filters)) {
-      this.emit('EVENT', subId, event)
-    }
+    // Callers generally expect async relays
+    sleep(1).then(() => {
+      for (const event of this.repository.query(filters)) {
+        this.emit('EVENT', subId, event)
+      }
 
-    this.emit('EOSE', subId)
+      this.emit('EOSE', subId)
+    })
   }
 }

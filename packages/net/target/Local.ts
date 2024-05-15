@@ -1,14 +1,12 @@
 import {Emitter} from '@welshman/lib'
-import {Repository, LOCAL_RELAY_URL, Relay} from '@welshman/util'
+import {Relay, LOCAL_RELAY_URL} from '@welshman/util'
 import type {Message} from '../Socket'
 
 export class Local extends Emitter {
-  relay: Relay
-  constructor(readonly repository: Repository) {
+  constructor(readonly relay: Relay) {
     super()
 
-    this.relay = new Relay(repository)
-    this.relay.on('*', this.onMessage)
+    relay.on('*', this.onMessage)
   }
 
   get connections() {

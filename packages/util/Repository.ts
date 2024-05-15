@@ -2,7 +2,7 @@ import {throttle} from 'throttle-debounce'
 import type {IReadable, Subscriber, Invalidator} from '@welshman/lib'
 import {Derived, Emitter, sortBy, customStore, inc, first, always, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
 import {DELETE} from './Kinds'
-import {matchFilter, getIdFilters, matchFilters} from './Filters'
+import {EPOCH, matchFilter, getIdFilters, matchFilters} from './Filters'
 import {isReplaceable, isTrustedEvent, getAddress} from './Events'
 import type {Filter} from './Filters'
 import type {TrustedEvent} from './Events'
@@ -10,6 +10,8 @@ import type {TrustedEvent} from './Events'
 export const DAY = 86400
 
 const getDay = (ts: number) => Math.floor(ts / DAY)
+
+const maybeThrottle = (t: number | undefined, f: () => void) => t ? throttle(t, f) : f
 
 export type RepositoryOptions = {
   throttle?: number
@@ -26,10 +28,6 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
 
   constructor(private options: RepositoryOptions) {
     super()
-
-    if (options.throttle) {
-      this.notify = throttle(options.throttle, this.notify.bind(this))
-    }
   }
 
   // Methods for implementing store interface
@@ -41,15 +39,13 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
   async set(events: TrustedEvent[], chunkSize = 1000) {
     for (const eventsChunk of chunk(chunkSize, events)) {
       for (const event of eventsChunk) {
-        this.publish(event, {notify: false})
+        this.publish(event)
       }
 
       if (eventsChunk.length === chunkSize) {
         await sleep(1)
       }
     }
-
-    this.notify()
   }
 
 
@@ -75,27 +71,43 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
     return customStore<TrustedEvent[]>({
       get: getValue,
       start: setValue => {
-        const onNotify = (event?: TrustedEvent) => {
-          if (!event || matchFilters(getFilters(), event)) {
+        const onEvent = (event: TrustedEvent) => {
+          if (matchFilters(getFilters(), event)) {
             setValue(getValue())
           }
         }
 
-        this.on('notify', onNotify)
+        const onDelete = () => {
+          setValue(getValue())
+        }
 
-        return () => this.off('notify', onNotify)
+        this.on('event', onEvent)
+        this.on('delete', onDelete)
+
+        return () => {
+          this.off('event', onEvent)
+          this.off('delete', onDelete)
+        }
       },
     })
   }
 
-  notify(event?: TrustedEvent) {
+  notifyUpdate = maybeThrottle(this.options.throttle, () => {
     const events = this.get()
 
     for (const sub of this.subs) {
       sub(events)
     }
 
-    this.emit('notify', event)
+    this.emit('update')
+  })
+
+  notifyEvent = (event: TrustedEvent) => {
+    this.emit('event', event)
+  }
+
+  notifyDelete = (event: TrustedEvent) => {
+    this.emit('delete', event)
   }
 
   // API
@@ -104,6 +116,15 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
     return idOrAddress.includes(':')
       ? this.eventsByAddress.get(idOrAddress)
       : this.eventsById.get(idOrAddress)
+  }
+
+  hasEvent(event: TrustedEvent) {
+    const duplicate = (
+      this.eventsById.get(event.id) ||
+      this.eventsByAddress.get(getAddress(event))
+    )
+
+    return duplicate && duplicate.created_at >= event.created_at
   }
 
   watchEvent(idOrAddress: string) {
@@ -121,7 +142,7 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
         events = uniq(filter.authors!.flatMap(pubkey => this.eventsByAuthor.get(pubkey) || []))
         filter = omit(['authors'], filter)
       } else if (filter.since || filter.until) {
-        const sinceDay = getDay(filter.since || 0)
+        const sinceDay = getDay(filter.since || EPOCH)
         const untilDay = getDay(filter.until || now())
 
         events = uniq(
@@ -158,7 +179,7 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
     }
   }
 
-  publish(event: TrustedEvent, {notify = false} = {}) {
+  publish(event: TrustedEvent) {
     if (!isTrustedEvent(event)) {
       throw new Error("Invalid event published to Repository", event)
     }
@@ -170,45 +191,48 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
     )
 
     // If our duplicate is newer than the event we're adding, we're done
-    if (!duplicate || duplicate.created_at < event.created_at) {
-      this.eventsById.set(event.id, event)
+    if (duplicate && duplicate.created_at >= event.created_at) {
+      return
+    }
 
-      if (isReplaceable(event)) {
-        this.eventsByAddress.set(address, event)
+    this.eventsById.set(event.id, event)
+
+    if (isReplaceable(event)) {
+      this.eventsByAddress.set(address, event)
+    }
+
+    if (duplicate) {
+      this.eventsById.delete(duplicate.id)
+
+      if (isReplaceable(duplicate)) {
+        this.eventsByAddress.delete(address)
       }
+    }
 
-      if (duplicate) {
-        this.eventsById.delete(duplicate.id)
+    this._updateIndex(this.eventsByDay, getDay(event.created_at), event, duplicate)
+    this._updateIndex(this.eventsByAuthor, event.pubkey, event, duplicate)
 
-        if (isReplaceable(duplicate)) {
-          this.eventsByAddress.delete(address)
-        }
-      }
+    // Store our event by tags
+    for (const tag of event.tags) {
+      if (tag[0].length === 1) {
+        this._updateIndex(this.eventsByTag, tag.slice(0, 2).join(':'), event, duplicate)
 
-      this._updateIndex(this.eventsByDay, getDay(event.created_at), event, duplicate)
-      this._updateIndex(this.eventsByAuthor, event.pubkey, event, duplicate)
+        if (event.kind === DELETE) {
+          const id = tag[1]
+          const ts = Math.max(event.created_at, this.deletes.get(tag[1]) || 0)
 
-      // Store our event by tags
-      for (const tag of event.tags) {
-        if (tag[0].length === 1) {
-          this._updateIndex(this.eventsByTag, tag.slice(0, 2).join(':'), event, duplicate)
-
-          if (event.kind === DELETE) {
-            const id = tag[1]
-            const ts = Math.max(event.created_at, this.deletes.get(tag[1]) || 0)
-
-            this.deletes.set(id, ts)
-          }
+          this.deletes.set(id, ts)
         }
       }
     }
 
-    if (notify && !this.isDeleted(event)) {
+    if (!this.isDeleted(event)) {
+      this.notifyUpdate()
+      this.notifyEvent(event)
+
       // Deletes are tricky, re-evaluate all subscriptions if that's what we're dealing with
       if (event.kind === DELETE) {
-        this.notify()
-      } else {
-        this.notify(event)
+        this.notifyDelete(event)
       }
     }
   }

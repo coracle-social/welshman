@@ -268,9 +268,9 @@ export class Router {
 
   // Fallback policies
 
-  addNoFallbacks = (count: number, redundancy: number) => count
+  addNoFallbacks = (count: number, redundancy: number) => 0
 
-  addMinimalFallbacks = (count: number, redundancy: number) => Math.max(count, 1)
+  addMinimalFallbacks = (count: number, redundancy: number) => count > 0 ? 0 : 1
 
   addMaximalFallbacks = (count: number, redundancy: number) => redundancy - count
 

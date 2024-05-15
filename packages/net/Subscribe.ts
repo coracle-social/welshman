@@ -240,7 +240,6 @@ export const executeSubscription = (sub: Subscription) => {
 
   // Listen for abort via caller signal
   signal?.addEventListener('abort', complete)
-  signal?.addEventListener('abort', () => console.log('aborted'))
 
   // Listen for abort via our own internal signal
   controller.signal.addEventListener('abort', complete)

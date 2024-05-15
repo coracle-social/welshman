@@ -89,35 +89,38 @@ export class FeedLoader<E extends TrustedEvent> {
       const requestFilters = filters!
         // Remove filters that don't fit our window
         .filter((filter: Filter) => {
-          const filterSince = filter.since || EPOCH
-          const filterUntil = filter.until || now()
+          const filterSince = filter.since || minSince
+          const filterUntil = filter.until || maxUntil
 
           return filterSince < until && filterUntil > since
         })
         // Modify the filters to define our window
         .map((filter: Filter) => ({...filter, until, limit, since}))
 
+      if (requestFilters.length === 0) {
+        return onExhausted?.()
+      }
+
       let count = 0
 
-      if (requestFilters.length > 0) {
-        await this.options.request({
-          relays,
-          filters: requestFilters,
-          onEvent: (event: E) => {
-            count += 1
-            until = Math.min(until, event.created_at)
-            onEvent?.(event)
-          },
-        })
-      }
+      await this.options.request({
+        relays,
+        filters: requestFilters,
+        onEvent: (event: E) => {
+          count += 1
+          until = Math.min(until, event.created_at)
+          onEvent?.(event)
+        },
+      })
 
       // Relays can't be relied upon to return events in descending order, do exponential
       // windowing to ensure we get the most recent stuff on first load, but eventually find it all
       if (count === 0) {
         delta *= 10
+        until = since
       }
 
-      since = Math.max(minSince, since - delta)
+      since = Math.max(minSince, until - delta)
 
       if (since === minSince) {
         onExhausted?.()
