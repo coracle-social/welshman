@@ -1,6 +1,6 @@
 import {throttle} from 'throttle-debounce'
 import type {IReadable, Subscriber, Invalidator} from '@welshman/lib'
-import {Derived, Emitter, sortBy, customStore, inc, first, always, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
+import {Derived, Emitter, sortBy, customStore, inc, first, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
 import {DELETE} from './Kinds'
 import {EPOCH, matchFilter, getIdFilters, matchFilters} from './Filters'
 import {isReplaceable, isTrustedEvent, getAddress} from './Events'
@@ -65,28 +65,30 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
     return new Derived<TrustedEvent[]>(this, identity, t)
   }
 
-  filter(getFilters: () => Filter[]) {
-    const getValue = () => Array.from(this.query(getFilters()))
+  filter(filters: Filter[], {includeDeleted = false} = {}) {
+    const getValue = () => Array.from(this.query(filters, {includeDeleted}))
 
     return customStore<TrustedEvent[]>({
       get: getValue,
       start: setValue => {
         const onEvent = (event: TrustedEvent) => {
-          if (matchFilters(getFilters(), event)) {
+          if (matchFilters(filters, event)) {
             setValue(getValue())
           }
         }
 
-        const onDelete = () => {
+        const onRefresh = () => {
           setValue(getValue())
         }
 
+        onRefresh()
+
         this.on('event', onEvent)
-        this.on('delete', onDelete)
+        this.on('delete', onRefresh)
 
         return () => {
           this.off('event', onEvent)
-          this.off('delete', onDelete)
+          this.off('delete', onRefresh)
         }
       },
     })
@@ -128,10 +130,10 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
   }
 
   watchEvent(idOrAddress: string) {
-    return this.filter(always(getIdFilters([idOrAddress]))).derived(first)
+    return this.filter(getIdFilters([idOrAddress]), {includeDeleted: true}).derived(first)
   }
 
-  *query(filters: Filter[]) {
+  *query(filters: Filter[], {includeDeleted = false} = {}) {
     for (let filter of filters) {
       let events: TrustedEvent[] = Array.from(this.eventsById.values())
 
@@ -171,7 +173,11 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
           break
         }
 
-        if (!this.isDeleted(event) && matchFilter(filter, event)) {
+        if (!includeDeleted && this.isDeleted(event)) {
+          continue
+        }
+
+        if (matchFilter(filter, event)) {
           yield event
           i += 1
         }
@@ -195,12 +201,7 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
       return
     }
 
-    this.eventsById.set(event.id, event)
-
-    if (isReplaceable(event)) {
-      this.eventsByAddress.set(address, event)
-    }
-
+    // Delete our duplicate first
     if (duplicate) {
       this.eventsById.delete(duplicate.id)
 
@@ -209,19 +210,26 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
       }
     }
 
+    // Now add our new event
+    this.eventsById.set(event.id, event)
+
+    if (isReplaceable(event)) {
+      this.eventsByAddress.set(address, event)
+    }
+
+    // Update our timestamp and author indexes
     this._updateIndex(this.eventsByDay, getDay(event.created_at), event, duplicate)
     this._updateIndex(this.eventsByAuthor, event.pubkey, event, duplicate)
 
-    // Store our event by tags
+    // Update our tag indexes
     for (const tag of event.tags) {
       if (tag[0].length === 1) {
         this._updateIndex(this.eventsByTag, tag.slice(0, 2).join(':'), event, duplicate)
 
+        // If this is a delete event, the tag value is an id or address. Track when it was
+        // deleted so that replaceables can be restored.
         if (event.kind === DELETE) {
-          const id = tag[1]
-          const ts = Math.max(event.created_at, this.deletes.get(tag[1]) || 0)
-
-          this.deletes.set(id, ts)
+          this.deletes.set(tag[1], Math.max(event.created_at, this.deletes.get(tag[1]) || 0))
         }
       }
     }
@@ -238,21 +246,13 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
   }
 
   isDeleted(event: TrustedEvent) {
-    const idDeletedAt = this.deletes.get(event.id) || 0
+    const deletedAt = (
+      this.deletes.get(event.id) ||
+      this.deletes.get(getAddress(event)) ||
+      0
+    )
 
-    if (idDeletedAt > event.created_at) {
-      return true
-    }
-
-    if (isReplaceable(event)) {
-      const addressDeletedAt = this.deletes.get(getAddress(event)) || 0
-
-      if (addressDeletedAt > event.created_at) {
-        return true
-      }
-    }
-
-    return false
+    return deletedAt > event.created_at
   }
 
   // Utilities
