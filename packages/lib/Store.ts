@@ -350,6 +350,10 @@ export const customStore = <T>({get, start}: ICustomStore<T>) => {
 
   const set = (newValue: T) => {
     value = newValue
+
+    for (const sub of subs) {
+      sub(value)
+    }
   }
 
   let stop: () => void
@@ -357,16 +361,16 @@ export const customStore = <T>({get, start}: ICustomStore<T>) => {
 
   return asReadable({
     get: () => subs.length === 0 ? get() : value,
-    subscribe: (subscriber: Subscriber<T>) => {
-      if (subs.length === 0) {
+    subscribe: (sub: Subscriber<T>) => {
+      subs.push(sub)
+
+      if (subs.length === 1) {
         stop = start(set)
-        value = get()
+        set(get())
       }
 
-      subs.push(subscriber)
-
       return () => {
-        subs.splice(subs.findIndex(sub => sub === subscriber), 1)
+        subs.splice(subs.findIndex(s => s === sub), 1)
 
         if (subs.length === 0) {
           stop()

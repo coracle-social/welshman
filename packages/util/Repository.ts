@@ -81,8 +81,6 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
           setValue(getValue())
         }
 
-        onRefresh()
-
         this.on('event', onEvent)
         this.on('delete', onRefresh)
 
