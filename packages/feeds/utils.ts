@@ -155,3 +155,14 @@ export const feedsFromFilter = ({since, until, ...filter}: Filter) => {
 
 export const feedFromFilter = (filter: Filter) =>
   makeIntersectionFeed(...feedsFromFilter(filter))
+
+
+export const walkFeed = (feed: Feed, visit: (feed: Feed) => void) => {
+  visit(feed)
+
+  if (hasSubFeeds(feed)) {
+    for (const subFeed of getFeedArgs(feed)) {
+      walkFeed(subFeed, visit)
+    }
+  }
+}

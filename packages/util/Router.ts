@@ -1,9 +1,9 @@
 import {first, splitAt, identity, sortBy, uniq, shuffle, pushToMapKey} from '@welshman/lib'
 import {Tags, Tag} from '@welshman/util'
 import type {TrustedEvent} from './Events'
-import {getAddress, isReplaceable} from './Events'
+import {isReplaceable} from './Events'
 import {isShareableRelayUrl} from './Relay'
-import {addressFromEvent, decodeAddress, isCommunityAddress, isGroupAddress} from './Address'
+import {getAddress, isCommunityAddress, isGroupAddress} from './Address'
 
 export enum RelayMode {
   Read = "read",
@@ -246,11 +246,11 @@ export class Router {
     this.scenario(this.getContextSelections(Tags.wrap([["a", address]])))
 
   WithinContext = (address: string) => {
-    if (isGroupAddress(decodeAddress(address))) {
+    if (isGroupAddress(address)) {
       return this.WithinGroup(address)
     }
 
-    if (isCommunityAddress(decodeAddress(address))) {
+    if (isCommunityAddress(address)) {
       return this.WithinCommunity(address)
     }
 
@@ -294,9 +294,6 @@ export class Router {
 
     return new Tags(tags)
   }
-
-  address = (event: TrustedEvent) =>
-    addressFromEvent(event, this.Event(event).redundancy(3).getUrls())
 }
 
 // Router Scenario
@@ -352,7 +349,7 @@ export class RouterScenario {
     const relaySelections = this.router.relaySelectionsFromMap(valuesByRelay)
     for (const {relay} of this.router.sortRelaySelections(relaySelections)) {
       const values = new Set<string>()
-      for (const value of valuesByRelay.get(relay) || []) {
+      for (const value of uniq(valuesByRelay.get(relay) || [])) {
         const timesSeen = seen.get(value) || 0
 
         if (timesSeen < adjustedRedundancy) {

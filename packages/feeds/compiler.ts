@@ -2,21 +2,11 @@ import {uniq, identity, flatten, pushToMapKey, intersection, tryCatch, now} from
 import type {TrustedEvent, Filter} from '@welshman/util'
 import {Tags, intersectFilters, getAddress, getIdFilters, unionFilters} from '@welshman/util'
 import type {CreatedAtItem, RequestItem, ListItem, WOTItem, DVMItem, Scope, Feed, FeedOptions} from './core'
-import {hasSubFeeds, getFeedArgs, feedsFromTags} from './utils'
+import {getFeedArgs, feedsFromTags} from './utils'
 import {FeedType} from './core'
 
 export class FeedCompiler<E extends TrustedEvent> {
   constructor(readonly options: FeedOptions<E>) {}
-
-  walk(feed: Feed, visit: (feed: Feed) => void) {
-    visit(feed)
-
-    if (hasSubFeeds(feed)) {
-      for (const subFeed of getFeedArgs(feed)) {
-        this.walk(subFeed, visit)
-      }
-    }
-  }
 
   canCompile(feed: Feed): boolean {
     switch(feed[0]) {
@@ -240,6 +230,7 @@ export class FeedCompiler<E extends TrustedEvent> {
 
             if (event) {
               for (const feed of feedsFromTags(Tags.fromEvent(event), mappings)) {
+
                 feeds.push(feed)
               }
             }

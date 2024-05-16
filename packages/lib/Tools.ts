@@ -89,6 +89,8 @@ export const difference = <T>(a: T[], b: T[]) => {
   return a.filter(x => !s.has(x))
 }
 
+export const remove = <T>(a: T, b: T[]) => b.filter(x => x !== a)
+
 export const clamp = ([min, max]: [number, number], n: number) => Math.min(max, Math.max(min, n))
 
 export const tryCatch = async <T>(f: () => Promise<T | void> | T | void, onError?: (e: Error) => void): Promise<T | void> => {

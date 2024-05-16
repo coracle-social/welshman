@@ -2,7 +2,7 @@ import {verifiedSymbol} from 'nostr-tools'
 import {verifyEvent, getEventHash} from 'nostr-tools'
 import {cached, pick, now} from '@welshman/lib'
 import {Tags} from './Tags'
-import {addressFromEvent, encodeAddress} from './Address'
+import {getAddress} from './Address'
 import {isEphemeralKind, isReplaceableKind, isPlainReplaceableKind, isParameterizedReplaceableKind} from './Kinds'
 
 export type EventTemplate = {
@@ -97,8 +97,6 @@ export const hasValidSignature = cached<string, boolean, [SignedEvent]>({
     }
   },
 })
-
-export const getAddress = (e: HashedEvent) => encodeAddress(addressFromEvent(e))
 
 export const getIdOrAddress = (e: HashedEvent) => isReplaceable(e) ? getAddress(e) : e.id
 

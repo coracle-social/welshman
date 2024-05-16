@@ -2,8 +2,8 @@ import {Event} from 'nostr-tools'
 import {matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
 import {prop, avg, hash, groupBy, randomId, uniq} from '@welshman/lib'
 import type {HashedEvent, TrustedEvent} from './Events'
-import {decodeAddress, addressFromEvent, encodeAddress} from './Address'
 import {isReplaceableKind} from './Kinds'
+import {Address, getAddress} from './Address'
 
 export const EPOCH = 1609459200
 
@@ -133,8 +133,8 @@ export const getIdFilters = (idsOrAddresses: string[]) => {
   const aFilters = []
 
   for (const idOrAddress of idsOrAddresses) {
-    if (idOrAddress.includes(":")) {
-      const {kind, pubkey, identifier} = decodeAddress(idOrAddress)
+    if (Address.isAddress(idOrAddress)) {
+      const {kind, pubkey, identifier} = Address.from(idOrAddress)
 
       if (identifier) {
         aFilters.push({kinds: [kind], authors: [pubkey], "#d": [identifier]})
@@ -163,7 +163,7 @@ export const getReplyFilters = (events: TrustedEvent[], filter: Filter) => {
     e.push(event.id)
 
     if (isReplaceableKind(event.kind)) {
-      a.push(encodeAddress(addressFromEvent(event)))
+      a.push(getAddress(event))
     }
 
     if (event.wrap) {

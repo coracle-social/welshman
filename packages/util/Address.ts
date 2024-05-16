@@ -1,58 +1,67 @@
-import type {UnsignedEvent} from 'nostr-tools'
 import {nip19} from 'nostr-tools'
 import {GROUP, COMMUNITY} from './Kinds'
 
-export type Address = {
-  kind: number,
+// Define this locally to avoid circular dependencies
+type AddressableEvent = {
+  kind: number
   pubkey: string
-  identifier: string
-  relays: string[]
+  tags: string[][]
 }
 
-// Plain text format
+export class Address {
+  constructor(
+    readonly kind: number,
+    readonly pubkey: string,
+    readonly identifier: string,
+    readonly relays: string[] = []
+  ) {}
 
-export const decodeAddress = (a: string, relays: string[] = []): Address => {
-  const [kind, pubkey, identifier = ""] = a.split(":")
-
-  return {kind: parseInt(kind), pubkey, identifier, relays}
-}
-
-export const encodeAddress = (a: Address) => [a.kind, a.pubkey, a.identifier].join(":")
-
-// Naddr encoding
-
-export const addressFromNaddr = (naddr: string): Address => {
-  let type
-  let data = {} as any
-  try {
-    ({type, data} = nip19.decode(naddr) as {
-      type: "naddr"
-      data: any
-    })
-  } catch (e) {
-    // pass
+  static isAddress(address: string) {
+    return Boolean(address.match(/^\d+:\w+:.*$/))
   }
 
-  if (type !== "naddr") {
-    throw new Error(`Invalid naddr ${naddr}`)
+  static from(address: string, relays: string[] = []) {
+    const [kind, pubkey, identifier = ""] = address.match(/^(\d+):(\w+):(.*)$/)!.slice(1)
+
+    return new Address(parseInt(kind), pubkey, identifier, relays)
   }
 
-  return data
+  static fromNaddr(naddr: string) {
+    let type
+    let data = {} as any
+    try {
+      ({type, data} = nip19.decode(naddr) as {
+        type: "naddr"
+        data: any
+      })
+    } catch (e) {
+      // pass
+    }
+
+    if (type !== "naddr") {
+      throw new Error(`Invalid naddr ${naddr}`)
+    }
+
+    return new Address(data.kind, data.pubkey, data.identifier, data.relays)
+  }
+
+  static fromEvent(event: AddressableEvent, relays: string[] = []) {
+    const identifier = event.tags.find(t => t[0] === "d")?.[1] || ""
+
+    return new Address(event.kind, event.pubkey, identifier, relays)
+  }
+
+  toString = () => [this.kind, this.pubkey, this.identifier].join(":")
+
+  toNaddr = () => nip19.naddrEncode(this)
 }
-
-export const addressToNaddr = (a: Address): string => nip19.naddrEncode(a)
-
-// Get from event, encode to filter
-
-export const getIdentifier = (e: UnsignedEvent) => e.tags.find(t => t[0] === "d")?.[1] || ""
-
-export const addressFromEvent = (e: UnsignedEvent, relays: string[] = []) =>
-  ({kind: e.kind, pubkey: e.pubkey, identifier: getIdentifier(e), relays})
 
 // Utils
 
-export const isGroupAddress = (a: Address) => a.kind === GROUP
+export const getAddress = (e: AddressableEvent) => Address.fromEvent(e).toString()
 
-export const isCommunityAddress = (a: Address) => a.kind === COMMUNITY
+export const isGroupAddress = (a: string, ...args: unknown[]) => Address.from(a).kind === GROUP
 
-export const isContextAddress = (a: Address) => [GROUP, COMMUNITY].includes(a.kind)
+export const isCommunityAddress = (a: string, ...args: unknown[]) => Address.from(a).kind === COMMUNITY
+
+export const isContextAddress = (a: string, ...args: unknown[]) => [GROUP, COMMUNITY].includes(Address.from(a).kind)

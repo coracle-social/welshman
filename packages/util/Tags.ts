@@ -2,8 +2,6 @@ import {EventTemplate} from 'nostr-tools'
 import type {OmitStatics} from '@welshman/lib'
 import {Fluent, ensurePlural} from '@welshman/lib'
 import {isShareableRelayUrl, normalizeRelayUrl} from './Relay'
-import type {Address} from './Address'
-import {encodeAddress, decodeAddress} from './Address'
 import {GROUP, COMMUNITY} from './Kinds'
 
 export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, 'from'>) {
@@ -17,7 +15,7 @@ export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, '
 
   static fromPubkey = (pubkey: string) => new Tag(["p", pubkey])
 
-  static fromAddress = (address: Address) => new Tag(["a", encodeAddress(address), address.relays[0] || ""])
+  static fromAddress = (address: string, relay = "") => new Tag(["a", address, relay])
 
   key = () => this.xs[0]
 
@@ -28,8 +26,6 @@ export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, '
   setKey = (k: string) => this.set(0, k)
 
   setValue = (v: string) => this.set(1, v)
-
-  asAddress = () => decodeAddress(this.value())
 
   isAddress = (kind?: number) => this.key() === "a" && this.value()?.startsWith(`${kind}:`)
 
