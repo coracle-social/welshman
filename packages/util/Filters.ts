@@ -79,7 +79,7 @@ export const calculateFilterGroup = ({since, until, limit, search, ...filter}: F
 export const unionFilters = (filters: Filter[]) => {
   const result = []
 
-  for (const group of Object.values(groupBy(calculateFilterGroup, filters))) {
+  for (const group of groupBy(calculateFilterGroup, filters).values()) {
     const newFilter: Record<string, any> = {}
 
     for (const k of Object.keys(group[0])) {

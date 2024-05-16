@@ -186,17 +186,19 @@ export const uniqBy = <T>(f: (x: T) => any, xs: T[]) => {
 export const sortBy = <T>(f: (x: T) => number, xs: T[]) =>
   xs.sort((a: T, b: T) => f(a) - f(b))
 
-export const groupBy = <T>(f: (x: T) => string, xs: T[]) => {
-  const r: Record<string, T[]> = {}
+export const groupBy = <T, K>(f: (x: T) => K, xs: T[]) => {
+  const r = new Map<K, T[]>()
 
   for (const x of xs) {
     const k = f(x)
+    let v = r.get(k)
 
-    if (!r[k]) {
-      r[k] = []
+    if (!v) {
+      v = []
+      r.set(k, v)
     }
 
-    r[k].push(x)
+    v.push(x)
   }
 
   return r

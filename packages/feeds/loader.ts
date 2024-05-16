@@ -39,11 +39,6 @@ export class FeedLoader<E extends TrustedEvent> {
   }
 
   async _getRequestsLoader(requests: RequestItem[], {onEvent, onExhausted}: LoadOpts<E>) {
-    // Empty requests are not a no-op, they're a global feed
-    if (requests.length === 0) {
-      requests = [{}]
-    }
-
     const seen = new Set()
     const exhausted = new Set()
     const loaders = await Promise.all(

@@ -1,6 +1,6 @@
 import {throttle} from 'throttle-debounce'
 import type {IReadable, Subscriber, Invalidator} from '@welshman/lib'
-import {Derived, Emitter, sortBy, customStore, inc, first, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
+import {Derived, flatten, Emitter, sortBy, customStore, inc, first, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
 import {DELETE} from './Kinds'
 import {EPOCH, matchFilter, getIdFilters, matchFilters} from './Filters'
 import {isReplaceable, isTrustedEvent} from './Events'
@@ -67,7 +67,7 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
   }
 
   filter(filters: Filter[], {includeDeleted = false} = {}) {
-    const getValue = () => Array.from(this.query(filters, {includeDeleted}))
+    const getValue = () => this.query(filters, {includeDeleted})
 
     return customStore<TrustedEvent[]>({
       get: getValue,
@@ -132,7 +132,8 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
     return this.filter(getIdFilters([idOrAddress]), {includeDeleted: true}).derived(first)
   }
 
-  *query(filters: Filter[], {includeDeleted = false} = {}) {
+  query(filters: Filter[], {includeDeleted = false} = {}) {
+    const result: TrustedEvent[][] = []
     for (let filter of filters) {
       let events: TrustedEvent[] = Array.from(this.eventsById.values())
 
@@ -165,10 +166,9 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
         }
       }
 
-      let i = 0
-
+      const chunk: TrustedEvent[] = []
       for (const event of sortBy((e: TrustedEvent) => -e.created_at, events)) {
-        if (filter.limit && i > filter.limit) {
+        if (filter.limit && chunk.length >= filter.limit) {
           break
         }
 
@@ -177,11 +177,14 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
         }
 
         if (matchFilter(filter, event)) {
-          yield event
-          i += 1
+          chunk.push(event)
         }
       }
+
+      result.push(chunk)
     }
+
+    return uniq(flatten(result))
   }
 
   publish(event: TrustedEvent) {

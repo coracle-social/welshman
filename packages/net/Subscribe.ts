@@ -78,7 +78,7 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
   const completedRelays = new Set()
   const mergedSubscriptions = []
 
-  for (const group of Object.values(groupBy(calculateSubscriptionGroup, subs))) {
+  for (const group of groupBy(calculateSubscriptionGroup, subs).values()) {
     for (const relay of uniq(group.flatMap((sub: Subscription) => sub.request.relays))) {
       const abortedSubs = new Set()
       const callerSubs = group.filter((sub: Subscription) => sub.request.relays.includes(relay))
