@@ -254,6 +254,17 @@ export const chunks = <T>(n: number, xs: T[]) => {
   return result
 }
 
+export const once = (f: (...args: any) => void) => {
+  let called = false
+
+  return (...args: any) => {
+    if (!called) {
+      called = true
+      f(...args)
+    }
+  }
+}
+
 export const batch = <T>(t: number, f: (xs: T[]) => void) => {
   const xs: T[] = []
   const cb = throttle(t, () => xs.length > 0 && f(xs.splice(0)))

@@ -2,7 +2,7 @@ import {Event} from 'nostr-tools'
 import {matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
 import {prop, avg, hash, groupBy, randomId, uniq} from '@welshman/lib'
 import type {HashedEvent, TrustedEvent} from './Events'
-import {isReplaceableKind} from './Kinds'
+import {isReplaceableKind, isPlainReplaceableKind} from './Kinds'
 import {Address, getAddress} from './Address'
 
 export const EPOCH = 1609459200
@@ -204,3 +204,12 @@ export const getFilterGenerality = (filter: Filter) => {
 
 export const guessFilterDelta = (filters: Filter[], max = 60 * 60 * 24 * 7) =>
   Math.round(max * Math.max(0.005, 1 - avg(filters.map(getFilterGenerality))))
+
+// If a filter is specifying ids, we know how many results to expect
+export const getFilterResultCardinality = (filter: Filter) => {
+  if (filter.ids) {
+    return filter.ids.length
+  }
+
+  return null
+}
