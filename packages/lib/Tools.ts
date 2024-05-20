@@ -1,7 +1,7 @@
 import {throttle} from 'throttle-debounce'
 import {bech32, utf8} from "@scure/base"
 
-// Data types
+// Dealing with nil
 
 export type Nil = null | undefined
 
@@ -116,6 +116,8 @@ export const eq = <T>(v: T) => (x: T) => x === v
 export const ne = <T>(v: T) => (x: T) => x !== v
 
 export const prop = (k: string) => <T>(x: Record<string, T>) => x[k]
+
+export const assoc = <K extends string, T, U>(k: K, v: T) => (o: U) => ({...o, [k as K]: v}) as U & Record<K, T>
 
 export const hash = (s: string) =>
   Math.abs(s.split("").reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0)).toString()
