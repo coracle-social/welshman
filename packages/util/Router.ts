@@ -193,7 +193,7 @@ export class Router {
   EventAncestors = (event: TrustedEvent, type: "mentions" | "replies" | "roots") => {
     const tags = Tags.fromEvent(event)
     const ancestors = tags.ancestors()[type]
-    const pubkeys = tags.whereKey("p").values().valueOf()
+    const pubkeys = tags.values("p").valueOf()
     const communities = tags.communities().values().valueOf()
     const groups = tags.groups().values().valueOf()
     const relays = uniq([

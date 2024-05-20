@@ -2,7 +2,7 @@ import {Event} from 'nostr-tools'
 import {matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
 import {prop, avg, hash, groupBy, randomId, uniq} from '@welshman/lib'
 import type {HashedEvent, TrustedEvent} from './Events'
-import {isReplaceableKind, isPlainReplaceableKind} from './Kinds'
+import {isReplaceableKind} from './Kinds'
 import {Address, getAddress} from './Address'
 
 export const EPOCH = 1609459200
