@@ -38,6 +38,8 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
   }
 
   async set(events: TrustedEvent[], chunkSize = 1000) {
+    this.clear()
+
     for (const eventsChunk of chunk(chunkSize, events)) {
       for (const event of eventsChunk) {
         this.publish(event)
@@ -49,6 +51,14 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
     }
   }
 
+  clear() {
+    this.eventsById.clear()
+    this.eventsByAddress.clear()
+    this.eventsByTag.clear()
+    this.eventsByDay.clear()
+    this.eventsByAuthor.clear()
+    this.deletes.clear()
+  }
 
   subscribe(f: Subscriber<TrustedEvent[]>, invalidate?: Invalidator<TrustedEvent[]>) {
     this.subs.push(f)
