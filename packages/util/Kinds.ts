@@ -20,6 +20,7 @@ export const GROUP_CHAT_THREAD = 11
 export const GROUP_CHAT_THREAD_REPLY = 12
 export const SEAL = 13
 export const DIRECT_MESSAGE = 14
+export const READ_RECEIPT = 15
 export const GENERIC_REPOST = 16
 export const CHANNEL_CREATE = 40
 export const CHANNEL_UPDATE = 41
