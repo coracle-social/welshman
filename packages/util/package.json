@@ -1,6 +1,6 @@
 {
   "name": "@welshman/util",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of nostr-related utilities.",
