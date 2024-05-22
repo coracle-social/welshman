@@ -1,6 +1,6 @@
 import {inc, max, min, now} from '@welshman/lib'
 import type {TrustedEvent, Filter} from '@welshman/util'
-import {EPOCH, guessFilterDelta} from '@welshman/util'
+import {EPOCH, trimFilters, guessFilterDelta} from '@welshman/util'
 import type {Feed, RequestItem, FeedOptions} from './core'
 import {FeedType} from './core'
 import {FeedCompiler} from './compiler'
@@ -100,26 +100,26 @@ export class FeedLoader<E extends TrustedEvent> {
 
       await this.options.request({
         relays,
-        filters: requestFilters,
+        filters: trimFilters(requestFilters),
         onEvent: (event: E) => {
           count += 1
-          until = Math.min(until, event.created_at)
+          until = Math.min(until, event.created_at - 1)
           onEvent?.(event)
         },
       })
 
+      if (since === minSince) {
+        onExhausted?.()
+      }
+
       // Relays can't be relied upon to return events in descending order, do exponential
       // windowing to ensure we get the most recent stuff on first load, but eventually find it all
-      if (count === 0) {
-        delta *= 10
+      if (count < limit) {
+        delta = delta * Math.round(10 - 9 * (Math.log(count + 1) / Math.log(limit + 1)))
         until = since
       }
 
       since = Math.max(minSince, until - delta)
-
-      if (since === minSince) {
-        onExhausted?.()
-      }
     }
   }
 

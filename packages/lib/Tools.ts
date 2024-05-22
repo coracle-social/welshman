@@ -63,6 +63,26 @@ export function* range(a: number, b: number, step = 1) {
   }
 }
 
+export const mapKeys = <T extends Record<string, any>>(f: (v: string) => string, x: T) => {
+  const r: Record<string, any> = {}
+
+  for (const [k, v] of Object.entries(x)) {
+    r[f(k)] = v
+  }
+
+  return r as T
+}
+
+export const mapVals = <T extends Record<string, any>>(f: (v: any) => any, x: T) => {
+  const r: Record<string, any> = {}
+
+  for (const [k, v] of Object.entries(x)) {
+    r[k] = f(v)
+  }
+
+  return r as T
+}
+
 export const between = (low: number, high: number, n: number) => n > low && n < high
 
 export const randomId = (): string => Math.random().toString().slice(2)

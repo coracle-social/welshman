@@ -1,6 +1,6 @@
 import {Event} from 'nostr-tools'
 import {matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
-import {prop, avg, hash, groupBy, randomId, uniq} from '@welshman/lib'
+import {prop, mapVals, shuffle, avg, hash, groupBy, randomId, uniq} from '@welshman/lib'
 import type {HashedEvent, TrustedEvent} from './Events'
 import {isReplaceableKind} from './Kinds'
 import {Address, getAddress} from './Address'
@@ -213,3 +213,8 @@ export const getFilterResultCardinality = (filter: Filter) => {
 
   return null
 }
+
+export const trimFilter = (filter: Filter) =>
+  mapVals(v => Array.isArray(v) && v.length > 1000 ? shuffle(v).slice(0, 1000) : v, filter)
+
+export const trimFilters = (filters: Filter[]) => filters.map(trimFilter)
