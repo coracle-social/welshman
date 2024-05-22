@@ -230,7 +230,6 @@ export class FeedCompiler<E extends TrustedEvent> {
 
             if (event) {
               for (const feed of feedsFromTags(Tags.fromEvent(event), mappings)) {
-
                 feeds.push(feed)
               }
             }

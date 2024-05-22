@@ -159,12 +159,11 @@ export class ConnectionMeta {
   getSpeed = () => this.responseCount ? this.responseTimer / this.responseCount : 0
 
   getStatus = () => {
-    if (this.authStatus === AuthStatus.Unauthorized)  return ConnectionStatus.Unauthorized
-    if (this.authStatus === AuthStatus.Forbidden)     return ConnectionStatus.Forbidden
-    if (this.lastOpen === 0)                          return ConnectionStatus.Closed
-    if (this.lastFault > this.lastOpen)               return ConnectionStatus.Error
-    if (this.lastClose > this.lastOpen)               return ConnectionStatus.Closed
-    if (this.getSpeed() > 1000)                       return ConnectionStatus.Slow
+    if (this.authStatus === AuthStatus.Unauthorized)      return ConnectionStatus.Unauthorized
+    if (this.authStatus === AuthStatus.Forbidden)         return ConnectionStatus.Forbidden
+    if (this.lastFault && this.lastFault > this.lastOpen) return ConnectionStatus.Error
+    if (this.lastClose > this.lastOpen)                   return ConnectionStatus.Closed
+    if (this.getSpeed() > 1000)                           return ConnectionStatus.Slow
 
     return ConnectionStatus.Ok
   }

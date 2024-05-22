@@ -59,6 +59,7 @@ export class Socket {
   }
 
   onError = () => {
+    this.failedToConnect = true
     this.opts.onError()
     this.disconnect()
   }
@@ -105,7 +106,7 @@ export class Socket {
     if (this.ws) {
       const currentWs = this.ws
 
-      this.ready.then(() => currentWs.close())
+      this.ready.finally(() => currentWs.close())
       this.ready = defer()
       this.opts.onClose()
       this.ws = undefined
