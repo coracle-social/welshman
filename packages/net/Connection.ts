@@ -24,7 +24,7 @@ export class Connection extends Emitter {
   createSender = () => {
     const worker = new Worker<SocketMessage>({
       shouldDefer: (message: SocketMessage) => {
-        if (!this.socket.isReady()) {
+        if (!this.socket.isOpen()) {
           return true
         }
 
@@ -91,13 +91,16 @@ export class Connection extends Emitter {
     this.emit('receive', this, message)
   }
 
-  ensureConnected = ({shouldReconnect = true}) => {
-    if (shouldReconnect && !this.socket.isHealthy()) {
-      this.disconnect()
+  ensureConnected = async ({shouldReconnect = true}) => {
+    const isUnhealthy = this.socket.isClosing() || this.socket.isClosed()
+    const noRecentFault = this.meta.lastFault < Date.now() - 60_000
+
+    if (shouldReconnect && isUnhealthy && noRecentFault) {
+      await this.disconnect()
     }
 
-    if (this.socket.isPending()) {
-      this.socket.connect()
+    if (this.socket.isNew()) {
+      await this.socket.connect()
     }
   }
 

@@ -1,5 +1,5 @@
 import WebSocket from "isomorphic-ws"
-import {Deferred, defer} from '@welshman/lib'
+import {sleep} from '@welshman/lib'
 
 export type Message = [string, ...any[]]
 
@@ -19,50 +19,21 @@ export type SocketOpts = {
 }
 
 export class Socket {
-  url: string
-  ws?: WebSocket
-  ready: Deferred<boolean>
-  failedToConnect = false
+  ws?: WebSocket | 'invalid'
 
-  constructor(url: string, readonly opts: SocketOpts) {
-    this.url = url
-    this.ready = defer()
-  }
+  constructor(readonly url: string, readonly opts: SocketOpts) {}
 
-  isPending() {
-    return !this.ws && !this.failedToConnect
-  }
+  isNew = () => this.ws === undefined
 
-  isConnecting() {
-    return this.ws?.readyState === WebSocket.CONNECTING
-  }
+  isInvalid = () => this.ws === 'invalid'
 
-  isReady() {
-    return this.ws?.readyState === WebSocket.OPEN
-  }
+  isConnecting = () => this.ws?.readyState === WebSocket.CONNECTING
 
-  isClosing() {
-    return this.ws?.readyState === WebSocket.CLOSING
-  }
+  isOpen = () => this.ws?.readyState === WebSocket.OPEN
 
-  isClosed() {
-    return this.ws?.readyState === WebSocket.CLOSED
-  }
+  isClosing = () => this.ws?.readyState === WebSocket.CLOSING
 
-  isHealthy() {
-    return this.isPending() || this.isConnecting() || this.isReady()
-  }
-
-  onOpen = () => {
-    this.ready.resolve(true)
-    this.opts.onOpen()
-  }
-
-  onError = () => {
-    this.failedToConnect = true
-    this.opts.onError()
-    this.disconnect()
-  }
+  isClosed = () => this.ws?.readyState === WebSocket.CLOSED
 
   onMessage = (event: {data: string}) => {
     try {
@@ -78,41 +49,42 @@ export class Socket {
     }
   }
 
-  send = (message: any) => {
-    if (!this.ws) {
-      throw new Error('Send attempted before socket was opened')
-    }
+  send = (message: any) => this.ws.send(JSON.stringify(message))
 
-    this.ws.send(JSON.stringify(message))
-  }
-
-  connect = () => {
+  connect = async () => {
     if (this.ws) {
       throw new Error(`Already attempted connection for ${this.url}`)
     }
 
     try {
       this.ws = new WebSocket(this.url)
-      this.ws.onopen = this.onOpen
-      this.ws.onerror = this.onError
+      this.ws.onopen = this.opts.onOpen
+      this.ws.onerror = this.opts.onError
+      this.ws.onclose = this.opts.onClose
       this.ws.onmessage = this.onMessage
-      this.ws.onclose = this.disconnect
     } catch (e) {
-      this.failedToConnect = true
+      this.ws = 'invalid'
+      this.opts.onError()
+    }
+
+    while (this.isConnecting()) {
+      await sleep(100)
     }
   }
 
-  disconnect = () => {
-    if (this.ws) {
-      const currentWs = this.ws
-
-      this.ready.finally(() => currentWs.close())
-      this.ready = defer()
-      this.opts.onClose()
-      this.ws = undefined
-
-      // Resolve a different instance of the promise
-      this.ready.resolve(false)
+  disconnect = async () => {
+    while (this.isConnecting()) {
+      await sleep(100)
     }
+
+    if (this.isOpen()) {
+      this.ws.close()
+    }
+
+    while (this.isClosing()) {
+      await sleep(100)
+    }
+
+    this.ws = undefined
   }
 }
