@@ -31,8 +31,8 @@
     "typescript": "~5.1.6"
   },
   "dependencies": {
-    "@welshman/lib": "0.0.7",
-    "@welshman/util": "0.0.10",
+    "@welshman/lib": "0.0.8",
+    "@welshman/util": "0.0.11",
     "isomorphic-ws": "^5.0.0",
     "ws": "^8.16.0"
   }

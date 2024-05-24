@@ -21,7 +21,7 @@ export class FeedLoader<E extends TrustedEvent> {
 
   async getLoader([type, ...feed]: Feed, loadOpts: LoadOpts<E>) {
     if (this.compiler.canCompile([type, ...feed] as Feed)) {
-      return this._getRequestsLoader(await this.compiler.compile([type, ...feed] as Feed), loadOpts)
+      return this.getRequestsLoader(await this.compiler.compile([type, ...feed] as Feed), loadOpts)
     }
 
     switch(type) {
@@ -38,7 +38,7 @@ export class FeedLoader<E extends TrustedEvent> {
     }
   }
 
-  async _getRequestsLoader(requests: RequestItem[], {onEvent, onExhausted}: LoadOpts<E>) {
+  async getRequestsLoader(requests: RequestItem[], {onEvent, onExhausted}: LoadOpts<E>) {
     const seen = new Set()
     const exhausted = new Set()
     const loaders = await Promise.all(

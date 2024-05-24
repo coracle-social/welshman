@@ -106,11 +106,9 @@ export class FeedCompiler<E extends TrustedEvent> {
         this.options.requestDVM({
           ...request,
           onEvent: async (e: E) => {
-            const tags = Tags.fromEvent(e)
-            const request = await tryCatch(() => JSON.parse(tags.get("request")?.value()))
-            const responseTags = tags.rejectByValue([request?.id, request?.pubkey])
+            const tags = Tags.wrap(await tryCatch(() => JSON.parse(e.content)) || [])
 
-            for (const feed of feedsFromTags(responseTags, mappings)) {
+            for (const feed of feedsFromTags(tags, mappings)) {
               feeds.push(feed)
             }
           },
@@ -118,7 +116,7 @@ export class FeedCompiler<E extends TrustedEvent> {
       )
     )
 
-    return this._compileUnion(feeds)
+    return await this._compileUnion(feeds)
   }
 
   async _compileIntersection(feeds: Feed[]): Promise<RequestItem[]> {
