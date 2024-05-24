@@ -207,8 +207,10 @@ export const uniqBy = <T>(f: (x: T) => any, xs: T[]) => {
   return r
 }
 
+export const sort = <T>(xs: T[]) => [...xs].sort()
+
 export const sortBy = <T>(f: (x: T) => number, xs: T[]) =>
-  xs.sort((a: T, b: T) => f(a) - f(b))
+  [...xs].sort((a: T, b: T) => f(a) - f(b))
 
 export const groupBy = <T, K>(f: (x: T) => K, xs: T[]) => {
   const r = new Map<K, T[]>()

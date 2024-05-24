@@ -19,6 +19,8 @@ export const isShareableRelayUrl = (url: string) =>
     !url.match(/\s|%/) &&
     // Don't match stuff with a port number
     !url.slice(6).match(/:\d+/) &&
+    // Don't match stuff with a numeric tld
+    !url.slice(6).match(/\.\d+\b/) &&
     // Don't match raw ip addresses
     !url.slice(6).match(/\d+\.\d+\.\d+\.\d+/) &&
     // Skip nostr.wine's virtual relays
