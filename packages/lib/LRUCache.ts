@@ -2,7 +2,7 @@ export class LRUCache<T, U> {
   map = new Map<T, U>()
   keys: T[] = []
 
-  constructor(readonly maxSize: number) {}
+  constructor(readonly maxSize: number = Infinity) {}
 
   has(k: T) {
     return this.map.has(k)

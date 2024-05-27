@@ -1,8 +1,8 @@
 import {throttle} from 'throttle-debounce'
-import type {IReadable, Subscriber, Invalidator} from '@welshman/lib'
-import {Derived, flatten, Emitter, sortBy, customStore, inc, first, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
+import type {ISubscribable, ISettable, Subscriber, Invalidator} from '@welshman/lib'
+import {flatten, Emitter, sortBy, inc, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
 import {DELETE} from './Kinds'
-import {EPOCH, matchFilter, getIdFilters, matchFilters} from './Filters'
+import {EPOCH, matchFilter} from './Filters'
 import {isReplaceable, isTrustedEvent} from './Events'
 import {getAddress} from './Address'
 import type {Filter} from './Filters'
@@ -18,7 +18,7 @@ export type RepositoryOptions = {
   throttle?: number
 }
 
-export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
+export class Repository extends Emitter implements ISubscribable<TrustedEvent[]>, ISettable<TrustedEvent[]> {
   eventsById = new Map<string, TrustedEvent>()
   eventsByAddress = new Map<string, TrustedEvent>()
   eventsByTag = new Map<string, TrustedEvent[]>()
@@ -68,41 +68,6 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
     }
   }
 
-  derived<U>(f: (v: TrustedEvent[]) => U): Derived<U> {
-    return new Derived<U>(this, f)
-  }
-
-  throttle(t: number): Derived<TrustedEvent[]> {
-    return new Derived<TrustedEvent[]>(this, identity, t)
-  }
-
-  filter(filters: Filter[], {includeDeleted = false} = {}) {
-    const getValue = () => this.query(filters, {includeDeleted})
-
-    return customStore<TrustedEvent[]>({
-      get: getValue,
-      start: setValue => {
-        const onEvent = (event: TrustedEvent) => {
-          if (matchFilters(filters, event)) {
-            setValue(getValue())
-          }
-        }
-
-        const onRefresh = () => {
-          setValue(getValue())
-        }
-
-        this.on('event', onEvent)
-        this.on('delete', onRefresh)
-
-        return () => {
-          this.off('event', onEvent)
-          this.off('delete', onRefresh)
-        }
-      },
-    })
-  }
-
   notifyUpdate = maybeThrottle(this.options.throttle, () => {
     const events = this.get()
 
@@ -136,10 +101,6 @@ export class Repository extends Emitter implements IReadable<TrustedEvent[]> {
     )
 
     return duplicate && duplicate.created_at >= event.created_at
-  }
-
-  watchEvent(idOrAddress: string) {
-    return this.filter(getIdFilters([idOrAddress]), {includeDeleted: true}).derived(first)
   }
 
   query(filters: Filter[], {includeDeleted = false} = {}) {

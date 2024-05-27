@@ -9,9 +9,16 @@ type Unsubscriber = () => void
 type R = Record<string, any>
 type M<T> = Map<string, T>
 
-export interface IDerivable<T> {
-  get: () => T
+export interface ISubscribable<T> {
   subscribe(this: void, run: Subscriber<T>, invalidate?: Invalidator<T>): Unsubscriber
+}
+
+export interface ISettable<T> {
+  set: (xs: T) => void
+}
+
+export interface IDerivable<T> extends ISubscribable<T> {
+  get: () => T
 }
 
 export interface IReadable<T> extends IDerivable<T> {
@@ -339,44 +346,3 @@ export const asReadable = <T>(store: IDerivable<T>) => {
     throttle: (t: number) => new Derived<T>(store, identity, t),
   }
 }
-
-export type ICustomStore<T> = {
-  get: () => T
-  start: (set: (x: T) => void) => () => void
-}
-
-export const customStore = <T>({get, start}: ICustomStore<T>) => {
-  const subs: Subscriber<T>[] = []
-
-  const set = (newValue: T) => {
-    value = newValue
-
-    for (const sub of subs) {
-      sub(value)
-    }
-  }
-
-  let stop: () => void
-  let value = get()
-
-  return asReadable({
-    get: () => subs.length === 0 ? get() : value,
-    subscribe: (sub: Subscriber<T>) => {
-      subs.push(sub)
-
-      if (subs.length === 1) {
-        stop = start(set)
-        set(get())
-      }
-
-      return () => {
-        subs.splice(subs.findIndex(s => s === sub), 1)
-
-        if (subs.length === 0) {
-          stop()
-        }
-      }
-    },
-  })
-}
-
