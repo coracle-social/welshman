@@ -1,6 +1,11 @@
 import {throttle} from "throttle-debounce"
 import {ensurePlural, identity} from "./Tools"
 
+// Deprecated: use svelte's stores instead. I did all this to add a `get` convenience
+// method that was more perfomant than subscribing/unsubscribing. That turned out to be
+// a mistake, since that makes it much harder to make custom stores that don't run when
+// there are no subscribers.
+
 export type Invalidator<T> = (value?: T) => void
 export type Subscriber<T> = (value: T) => void
 

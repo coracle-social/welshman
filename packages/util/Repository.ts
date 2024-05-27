@@ -1,5 +1,4 @@
 import {throttle} from 'throttle-debounce'
-import type {ISubscribable, ISettable, Subscriber, Invalidator} from '@welshman/lib'
 import {flatten, Emitter, sortBy, inc, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
 import {DELETE} from './Kinds'
 import {EPOCH, matchFilter} from './Filters'
@@ -18,26 +17,31 @@ export type RepositoryOptions = {
   throttle?: number
 }
 
-export class Repository extends Emitter implements ISubscribable<TrustedEvent[]>, ISettable<TrustedEvent[]> {
+export class Repository extends Emitter {
   eventsById = new Map<string, TrustedEvent>()
   eventsByAddress = new Map<string, TrustedEvent>()
   eventsByTag = new Map<string, TrustedEvent[]>()
   eventsByDay = new Map<number, TrustedEvent[]>()
   eventsByAuthor = new Map<string, TrustedEvent[]>()
   deletes = new Map<string, number>()
-  subs: Subscriber<TrustedEvent[]>[] = []
 
   constructor(private options: RepositoryOptions) {
     super()
   }
 
-  // Methods for implementing store interface
+  // Compatibliity with stores
 
-  get() {
+  get = () => this.dump()
+
+  set = (events: TrustedEvent[], chunkSize = 1000) => this.load(events, chunkSize)
+
+  // Dump/load
+
+  dump() {
     return Array.from(this.eventsById.values())
   }
 
-  async set(events: TrustedEvent[], chunkSize = 1000) {
+  async load(events: TrustedEvent[], chunkSize = 1000) {
     this.clear()
 
     for (const eventsChunk of chunk(chunkSize, events)) {
@@ -60,21 +64,7 @@ export class Repository extends Emitter implements ISubscribable<TrustedEvent[]>
     this.deletes.clear()
   }
 
-  subscribe(f: Subscriber<TrustedEvent[]>, invalidate?: Invalidator<TrustedEvent[]>) {
-    this.subs.push(f)
-
-    return () => {
-      this.subs = this.subs.filter(sub => sub !== f)
-    }
-  }
-
   notifyUpdate = maybeThrottle(this.options.throttle, () => {
-    const events = this.get()
-
-    for (const sub of this.subs) {
-      sub(events)
-    }
-
     this.emit('update')
   })
 
