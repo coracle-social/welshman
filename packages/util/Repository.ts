@@ -29,13 +29,7 @@ export class Repository extends Emitter {
     super()
   }
 
-  // Compatibliity with stores
-
-  get = () => this.dump()
-
-  set = (events: TrustedEvent[], chunkSize = 1000) => this.load(events, chunkSize)
-
-  // Dump/load
+  // Dump/load/clear
 
   dump() {
     return Array.from(this.eventsById.values())
@@ -63,6 +57,8 @@ export class Repository extends Emitter {
     this.eventsByAuthor.clear()
     this.deletes.clear()
   }
+
+  // Notify methods
 
   notifyUpdate = maybeThrottle(this.options.throttle, () => {
     this.emit('update')
