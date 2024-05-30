@@ -46,12 +46,6 @@ export type RouterOptions = {
   getFallbackRelays: () => string[]
 
   /**
-   * Retrieves relays likely to return results for kind 0, 3, and 10002.
-   * @returns An array of relay URLs as strings.
-   */
-  getIndexerRelays?: () => string[]
-
-  /**
    * Retrieves relays likely to support NIP-50 search.
    * @returns An array of relay URLs as strings.
    */
@@ -262,9 +256,6 @@ export class Router {
 
   Search = (term: string, relays: string[] = []) =>
     this.product([term], uniq(relays.concat(this.options.getSearchRelays?.() || [])))
-
-  Indexers = (relays: string[] = []) =>
-    this.fromRelays(uniq(relays.concat(this.options.getIndexerRelays?.() || [])))
 
   // Fallback policies
 

@@ -31,11 +31,11 @@ export class Repository extends Emitter {
 
   // Dump/load/clear
 
-  dump() {
+  dump = () => {
     return Array.from(this.eventsById.values())
   }
 
-  async load(events: TrustedEvent[], chunkSize = 1000) {
+  load = async (events: TrustedEvent[], chunkSize = 1000) => {
     this.clear()
 
     for (const eventsChunk of chunk(chunkSize, events)) {
@@ -49,7 +49,7 @@ export class Repository extends Emitter {
     }
   }
 
-  clear() {
+  clear = () => {
     this.eventsById.clear()
     this.eventsByAddress.clear()
     this.eventsByTag.clear()
@@ -74,13 +74,13 @@ export class Repository extends Emitter {
 
   // API
 
-  getEvent(idOrAddress: string) {
+  getEvent = (idOrAddress: string) => {
     return idOrAddress.includes(':')
       ? this.eventsByAddress.get(idOrAddress)
       : this.eventsById.get(idOrAddress)
   }
 
-  hasEvent(event: TrustedEvent) {
+  hasEvent = (event: TrustedEvent) => {
     const duplicate = (
       this.eventsById.get(event.id) ||
       this.eventsByAddress.get(getAddress(event))
@@ -89,7 +89,7 @@ export class Repository extends Emitter {
     return duplicate && duplicate.created_at >= event.created_at
   }
 
-  query(filters: Filter[], {includeDeleted = false} = {}) {
+  query = (filters: Filter[], {includeDeleted = false} = {}) => {
     const result: TrustedEvent[][] = []
     for (let filter of filters) {
       let events: TrustedEvent[] = Array.from(this.eventsById.values())
@@ -144,7 +144,7 @@ export class Repository extends Emitter {
     return uniq(flatten(result))
   }
 
-  publish(event: TrustedEvent) {
+  publish = (event: TrustedEvent) => {
     if (!isTrustedEvent(event)) {
       throw new Error("Invalid event published to Repository", event)
     }
@@ -204,7 +204,7 @@ export class Repository extends Emitter {
     }
   }
 
-  isDeleted(event: TrustedEvent) {
+  isDeleted = (event: TrustedEvent) => {
     const deletedAt = (
       this.deletes.get(event.id) ||
       this.deletes.get(getAddress(event)) ||

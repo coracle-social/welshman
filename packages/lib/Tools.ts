@@ -230,6 +230,16 @@ export const groupBy = <T, K>(f: (x: T) => K, xs: T[]) => {
   return r
 }
 
+export const indexBy = <T, K>(f: (x: T) => K, xs: T[]) => {
+  const r = new Map<K, T>()
+
+  for (const x of xs) {
+    r.set(f(x), x)
+  }
+
+  return r
+}
+
 export const sample = <T>(n: number, xs: T[]) => {
   const result: T[] = []
   const limit = Math.min(n, xs.length)
