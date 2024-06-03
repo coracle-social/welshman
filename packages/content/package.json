@@ -1,0 +1,36 @@
+{
+  "name": "@welshman/content",
+  "version": "0.0.1",
+  "author": "hodlbod",
+  "license": "MIT",
+  "description": "A collection of utilities for parsing nostr note content.",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "files": [
+    "build"
+  ],
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.mjs",
+      "require": "./build/index.cjs"
+    }
+  },
+  "scripts": {
+    "pub": "npm run lint && npm run build && npm publish",
+    "build": "gts clean && tsc-multi",
+    "lint": "gts lint",
+    "fix": "gts fix"
+  },
+  "devDependencies": {
+    "gts": "^5.0.1",
+    "tsc-multi": "^1.1.0",
+    "typescript": "~5.1.6"
+  },
+  "dependencies": {
+    "nostr-tools": "^2.7.0"
+  }
+}
