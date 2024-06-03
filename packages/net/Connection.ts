@@ -30,8 +30,13 @@ export class Connection extends Emitter {
 
         const [verb, ...extra] = asMessage(message)
 
-        if (['AUTH', 'CLOSE'].includes(verb)) {
+        if (verb === 'AUTH') {
           return false
+        }
+
+        // Only close reqs that have been sent
+        if (verb === 'CLOSE') {
+          return !this.meta.pendingRequests.has(extra[0])
         }
 
         // Allow relay requests through

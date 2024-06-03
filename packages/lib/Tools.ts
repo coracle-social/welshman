@@ -311,11 +311,25 @@ export const batch = <T>(t: number, f: (xs: T[]) => void) => {
   }
 }
 
-export const addToMapKey = <K, T>(m: Map<K, Set<T>>, k: K, v: T) => {
-  const a = m.get(k) || new Set<T>()
+export const addToKey = <T>(m: Record<string, Set<T>>, k: string, v: T) => {
+  const s = m[k] || new Set<T>()
 
-  a.add(v)
-  m.set(k, a)
+  s.add(v)
+  m[k] = s
+}
+
+export const pushToKey = <T>(m: Record<string, T[]>, k: string, v: T) => {
+  const a = m[k] || []
+
+  a.push(v)
+  m[k] = a
+}
+
+export const addToMapKey = <K, T>(m: Map<K, Set<T>>, k: K, v: T) => {
+  const s = m.get(k) || new Set<T>()
+
+  s.add(v)
+  m.set(k, s)
 }
 
 export const pushToMapKey = <K, T>(m: Map<K, T[]>, k: K, v: T) => {

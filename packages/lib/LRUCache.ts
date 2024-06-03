@@ -63,3 +63,7 @@ export function cached<T, V, Args extends any[]>({
 
   return get
 }
+
+export function simpleCache<V, Args extends any[]>(getValue: (args: Args) => V) {
+  return cached({maxSize: 10**10, getKey: xs => xs.join(':'), getValue})
+}

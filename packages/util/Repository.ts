@@ -162,6 +162,7 @@ export class Repository extends Emitter {
 
     // Delete our duplicate first
     if (duplicate) {
+      this.notifyDelete(duplicate)
       this.eventsById.delete(duplicate.id)
 
       if (isReplaceable(duplicate)) {
