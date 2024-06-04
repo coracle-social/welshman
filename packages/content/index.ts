@@ -1,4 +1,5 @@
 import {nip19} from "nostr-tools"
+import insane from 'insane'
 
 const last = <T>(xs: T[], ...args: unknown[]) => xs[xs.length - 1]
 
@@ -79,8 +80,7 @@ export type ParsedInvoice = {
 }
 
 export type ParsedLinkValue = {
-  url: string
-  hash: string
+  url: URL
   meta: Record<string, string>
   isMedia: boolean
 }
@@ -143,46 +143,46 @@ export type Parsed =
 
 // Parsers for known formats
 
-export const parseAddress = (raw: string, context: ParseContext): ParsedAddress | void => {
-  const [naddr] = raw.match(/^(web\+)?(nostr:)?\/?\/?naddr1[\d\w]+/i) || []
+export const parseAddress = (text: string, context: ParseContext): ParsedAddress | void => {
+  const [naddr] = text.match(/^(web\+)?(nostr:)?\/?\/?naddr1[\d\w]+/i) || []
 
   if (naddr) {
     try {
       const {data} = nip19.decode(fromNostrURI(naddr))
 
-      return {type: ParsedType.Address, value: data as AddressPointer, raw}
+      return {type: ParsedType.Address, value: data as AddressPointer, raw: naddr}
     } catch (e) {
       // Pass
     }
   }
 }
 
-export const parseCashu = (raw: string, context: ParseContext): ParsedCashu | void => {
-  const [value] = raw.match(/^(cashu)[\d\w=]{50,5000}/i) || []
+export const parseCashu = (text: string, context: ParseContext): ParsedCashu | void => {
+  const [value] = text.match(/^(cashu)[\d\w=]{50,5000}/i) || []
 
   if (value) {
-    return {type: ParsedType.Cashu, value, raw}
+    return {type: ParsedType.Cashu, value, raw: value}
   }
 }
 
-export const parseCodeBlock = (raw: string, context: ParseContext): ParsedCodeBlock | void => {
-  const [code, value] = raw.match(/^```([^]*?)```/i) || []
+export const parseCodeBlock = (text: string, context: ParseContext): ParsedCodeBlock | void => {
+  const [code, value] = text.match(/^```([^]*?)```/i) || []
 
   if (code) {
-    return {type: ParsedType.CodeBlock, value, raw}
+    return {type: ParsedType.CodeBlock, value, raw: code}
   }
 }
 
-export const parseCodeInline = (raw: string, context: ParseContext): ParsedCodeInline | void => {
-  const [code, value] = raw.match(/^`(.*?)`/i) || []
+export const parseCodeInline = (text: string, context: ParseContext): ParsedCodeInline | void => {
+  const [code, value] = text.match(/^`(.*?)`/i) || []
 
   if (code) {
-    return {type: ParsedType.CodeInline, value, raw}
+    return {type: ParsedType.CodeInline, value, raw: code}
   }
 }
 
-export const parseEvent = (raw: string, context: ParseContext): ParsedEvent | void => {
-  const [entity] = raw.match(/^(web\+)?(nostr:)?\/?\/?n(event|ote)1[\d\w]+/i) || []
+export const parseEvent = (text: string, context: ParseContext): ParsedEvent | void => {
+  const [entity] = text.match(/^(web\+)?(nostr:)?\/?\/?n(event|ote)1[\d\w]+/i) || []
 
   if (entity) {
     try {
@@ -191,23 +191,23 @@ export const parseEvent = (raw: string, context: ParseContext): ParsedEvent | vo
         ? {id: data as string, relays: []}
         : data as EventPointer
 
-      return {type: ParsedType.Event, value, raw}
+      return {type: ParsedType.Event, value, raw: entity}
     } catch (e) {
       // Pass
     }
   }
 }
 
-export const parseInvoice = (raw: string, context: ParseContext): ParsedInvoice | void => {
-  const [value] = raw.match(/^ln(lnbc|lnurl)[\d\w]{50,1000}/i) || []
+export const parseInvoice = (text: string, context: ParseContext): ParsedInvoice | void => {
+  const [value] = text.match(/^ln(lnbc|lnurl)[\d\w]{50,1000}/i) || []
 
   if (value) {
-    return {type: ParsedType.Invoice, value, raw}
+    return {type: ParsedType.Invoice, value, raw: value}
   }
 }
 
-export const parseLink = (raw: string, context: ParseContext): ParsedLink | void => {
-  const [link] = raw.match(/^([a-z\+:]{2,30}:\/\/)?[^<>\(\)\s]+\.[a-z]{2,6}[^\s]*[^<>"'\.!?,:\s\)\(]/gi) || []
+export const parseLink = (text: string, context: ParseContext): ParsedLink | void => {
+  let [link] = text.match(/^([a-z\+:]{2,30}:\/\/)?[^<>\(\)\s]+\.[a-z]{2,6}[^\s]*[^<>"'\.!?,:\s\)\(]/gi) || []
 
   if (!link) {
     return
@@ -215,52 +215,51 @@ export const parseLink = (raw: string, context: ParseContext): ParsedLink | void
 
   const prev = last(context.results)
 
-  // Skip url if it's just the end of a filepath
-  if (prev?.type === ParsedType.Text && prev.value.endsWith("/")) {
-    return
-  }
-
-  // Strip hash component
-  let [url, hash] = link.split("#")
-
-  // Skip ellipses and very short non-urls
-  if (url.match(/\.\./)) {
+  // Skip url if it's just the end of a filepath or an ellipse
+  if (prev?.type === ParsedType.Text && prev.value.endsWith("/") || link.match(/\.\./)) {
     return
   }
 
   // Make sure there's a protocol
-  if (!url.match("^\w+://")) {
-    url = "https://" + url
+  if (!link.match(/^\w+:\/\//)) {
+    link = "https://" + link
   }
 
-  const meta = Object.fromEntries(new URLSearchParams(hash).entries())
+  // Parse using URL
+  let url
+  try {
+    url = new URL(link)
+  } catch (e) {
+    return
+  }
+
+  const meta = Object.fromEntries(new URLSearchParams(url.hash.slice(1)).entries())
 
   for (const tag of context.tags) {
-    if (tag[0] === 'imeta' && tag.find(t => t.includes(`url ${raw}`))) {
+    if (tag[0] === 'imeta' && tag.find(t => t.includes(`url ${link}`))) {
       Object.assign(meta, Object.fromEntries(tag.slice(1).map((m: string) => m.split(" "))))
     }
   }
 
   const isMedia = Boolean(
-    url.match(/\.(jpe?g|png|wav|mp3|mp4|mov|avi|webm|webp|gif|bmp|svg)$/) &&
-    last(url.replace(/\/$/, "").split("://"))?.includes("/")
+    url.pathname.match(/\.(jpe?g|png|wav|mp3|mp4|mov|avi|webm|webp|gif|bmp|svg)$/)
   )
 
-  const value = {url, hash, meta, isMedia}
+  const value = {url, meta, isMedia}
 
-  return {type: ParsedType.Link, value, raw}
+  return {type: ParsedType.Link, value, raw: link}
 }
 
-export const parseNewline = (raw: string, context: ParseContext): ParsedNewline | void => {
-  const [value] = raw.match(/^\n+/) || []
+export const parseNewline = (text: string, context: ParseContext): ParsedNewline | void => {
+  const [value] = text.match(/^\n+/) || []
 
   if (value) {
-    return {type: ParsedType.Newline, raw, value}
+    return {type: ParsedType.Newline, value, raw: value}
   }
 }
 
-export const parseProfile = (raw: string, context: ParseContext): ParsedProfile | void => {
-  const [entity] = raw.match(/^(web\+)?(nostr:)?\/?\/?n(profile|pub)1[\d\w]+/i) || []
+export const parseProfile = (text: string, context: ParseContext): ParsedProfile | void => {
+  const [entity] = text.match(/^(web\+)?(nostr:)?\/?\/?n(profile|pub)1[\d\w]+/i) || []
 
   if (entity) {
     try {
@@ -269,38 +268,38 @@ export const parseProfile = (raw: string, context: ParseContext): ParsedProfile 
         ? {pubkey: data as string, relays: []}
         : data as ProfilePointer
 
-      return {type: ParsedType.Profile, value, raw}
+      return {type: ParsedType.Profile, value, raw: entity}
     } catch (e) {
       // Pass
     }
   }
 }
 
-export const parseTopic = (raw: string, context: ParseContext): ParsedTopic | void => {
-  const [value] = raw.match(/^#[^\s!\"#$%&'()*+,-.\/:;<=>?@[\\\]^_`{|}~]+/i) || []
+export const parseTopic = (text: string, context: ParseContext): ParsedTopic | void => {
+  const [value] = text.match(/^#[^\s!\"#$%&'()*+,-.\/:;<=>?@[\\\]^_`{|}~]+/i) || []
 
   // Skip numeric topics
   if (value && !value.match(/^#\d+$/)) {
-    return {type: ParsedType.Topic, raw, value}
+    return {type: ParsedType.Topic, value, raw: value}
   }
 }
 
 
 // Parse other formats to known types
 
-export const parseLegacyMention = (raw: string, context: ParseContext): ParsedProfile | ParsedEvent | void => {
-  const mentionMatch = raw.match(/^#\[(\d+)\]/i) || []
+export const parseLegacyMention = (text: string, context: ParseContext): ParsedProfile | ParsedEvent | void => {
+  const mentionMatch = text.match(/^#\[(\d+)\]/i) || []
 
   if (mentionMatch) {
     const [tag, value, url] = context.tags[parseInt(mentionMatch[1])] || []
     const relays = url ? [url] : []
 
     if (tag === "p") {
-      return {type: ParsedType.Profile, value: {pubkey: value, relays}, raw}
+      return {type: ParsedType.Profile, value: {pubkey: value, relays}, raw: mentionMatch[0]!}
     }
 
     if (tag === "e") {
-      return {type: ParsedType.Event, value: {id: value, relays}, raw}
+      return {type: ParsedType.Event, value: {id: value, relays}, raw: mentionMatch[0]!}
     }
   }
 }
@@ -366,10 +365,10 @@ export const parse = ({content = "", tags = []}: {content?: string; tags?: strin
 }
 
 type TruncateOpts = {
-  minLength: number
-  maxLength: number
-  mediaLength: number
-  entityLength: number
+  minLength?: number
+  maxLength?: number
+  mediaLength?: number
+  entityLength?: number
 }
 
 export const truncate = (
@@ -379,7 +378,7 @@ export const truncate = (
     maxLength = 600,
     mediaLength = 200,
     entityLength = 30,
-  }: TruncateOpts,
+  }: TruncateOpts = {},
 ) => {
   // Get a list of content sizes so we know where to truncate
   // Non-plaintext things might take up more or less room if rendered
@@ -422,4 +421,90 @@ export const truncate = (
   })
 
   return content
+}
+
+// Renderers
+
+export type RenderOptions = {
+  entityBaseUrl?: string
+}
+
+export const defaultRenderOptions = {
+  entityBaseUrl: 'https://njump.me/'
+}
+
+export class HTML {
+  constructor(readonly value: string) {
+    this.value = value
+  }
+
+  toString = () => this.value
+
+  static useSafely = (value: string) => new HTML(insane(value))
+
+  static useDangerously = (value: string) => new HTML(value)
+
+  static buildLink = (href: string, display: string) =>
+    HTML.useSafely(`<a href=${href} target="_blank">${display}</a>`)
+
+  static buildEntityLink = (entity: string, options: RenderOptions) =>
+    HTML.buildLink(options.entityBaseUrl + entity, entity.slice(0, 16))
+}
+
+export const renderCashu = (parsed: ParsedCashu, options: RenderOptions) =>
+  HTML.useSafely(parsed.value)
+
+export const renderCodeBlock = (parsed: ParsedCodeBlock, options: RenderOptions) =>
+  HTML.useSafely(parsed.value)
+
+export const renderCodeInline = (parsed: ParsedCodeInline, options: RenderOptions) =>
+  HTML.useSafely(parsed.value)
+
+export const renderEllipsis = (parsed: ParsedEllipsis, options: RenderOptions) => "..."
+
+export const renderInvoice = (parsed: ParsedInvoice, options: RenderOptions) =>
+  HTML.useSafely(parsed.value)
+
+export const renderLink = (parsed: ParsedLink, options: RenderOptions) => {
+  const href = parsed.value.url.toString()
+  const display = parsed.value.url.host + parsed.value.url.pathname
+
+  return HTML.buildLink(href, display)
+}
+
+export const renderNewline = (parsed: ParsedNewline, options: RenderOptions) =>
+  HTML.useSafely(Array.from(parsed.value).map(() => '<br />').join(''))
+
+export const renderText = (parsed: ParsedText, options: RenderOptions) =>
+  HTML.useSafely(parsed.value)
+
+export const renderTopic = (parsed: ParsedTopic, options: RenderOptions) =>
+  HTML.useSafely(parsed.value)
+
+export const renderEvent = (parsed: ParsedEvent, options: RenderOptions) =>
+  HTML.buildEntityLink(nip19.neventEncode(parsed.value), options)
+
+export const renderProfile = (parsed: ParsedProfile, options: RenderOptions) =>
+  HTML.buildEntityLink(nip19.nprofileEncode(parsed.value), options)
+
+export const renderAddress = (parsed: ParsedAddress, options: RenderOptions) =>
+  HTML.buildEntityLink(nip19.naddrEncode(parsed.value), options)
+
+export const render = (parsed: Parsed, options: RenderOptions = {}) => {
+  options = {...defaultRenderOptions, ...options}
+
+  switch (parsed.type) {
+    case ParsedType.Address:    return renderAddress(parsed as ParsedAddress, options)
+    case ParsedType.Cashu:      return renderCashu(parsed as ParsedCashu, options)
+    case ParsedType.CodeBlock:  return renderCodeBlock(parsed as ParsedCodeBlock, options)
+    case ParsedType.CodeInline: return renderCodeInline(parsed as ParsedCodeInline, options)
+    case ParsedType.Ellipsis:   return renderEllipsis(parsed as ParsedEllipsis, options)
+    case ParsedType.Event:      return renderEvent(parsed as ParsedEvent, options)
+    case ParsedType.Invoice:    return renderInvoice(parsed as ParsedInvoice, options)
+    case ParsedType.Link:       return renderLink(parsed as ParsedLink, options)
+    case ParsedType.Newline:    return renderNewline(parsed as ParsedNewline, options)
+    case ParsedType.Profile:    return renderProfile(parsed as ParsedProfile, options)
+    case ParsedType.Text:       return renderText(parsed as ParsedText, options)
+    case ParsedType.Topic:      return renderTopic(parsed as ParsedTopic, options)
+  }
 }

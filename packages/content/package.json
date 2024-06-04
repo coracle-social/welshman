@@ -1,6 +1,6 @@
 {
   "name": "@welshman/content",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of utilities for parsing nostr note content.",
@@ -26,11 +26,13 @@
     "fix": "gts fix"
   },
   "devDependencies": {
+    "@types/insane": "^1.0.0",
     "gts": "^5.0.1",
     "tsc-multi": "^1.1.0",
     "typescript": "~5.1.6"
   },
   "dependencies": {
+    "insane": "^2.6.2",
     "nostr-tools": "^2.7.0"
   }
 }
