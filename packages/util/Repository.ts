@@ -1,4 +1,3 @@
-import {throttle} from 'throttle-debounce'
 import {flatten, nth, Emitter, sortBy, inc, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
 import {DELETE} from './Kinds'
 import {EPOCH, matchFilter} from './Filters'
@@ -11,12 +10,6 @@ export const DAY = 86400
 
 const getDay = (ts: number) => Math.floor(ts / DAY)
 
-const maybeThrottle = (t: number | undefined, f: () => void) => t ? throttle(t, f) : f
-
-export type RepositoryOptions = {
-  throttle?: number
-}
-
 export class Repository extends Emitter {
   eventsById = new Map<string, TrustedEvent>()
   eventsByAddress = new Map<string, TrustedEvent>()
@@ -24,10 +17,6 @@ export class Repository extends Emitter {
   eventsByDay = new Map<number, TrustedEvent[]>()
   eventsByAuthor = new Map<string, TrustedEvent[]>()
   deletes = new Map<string, number>()
-
-  constructor(private options: RepositoryOptions) {
-    super()
-  }
 
   // Dump/load/clear
 
@@ -59,10 +48,6 @@ export class Repository extends Emitter {
   }
 
   // Notify methods
-
-  notifyUpdate = maybeThrottle(this.options.throttle, () => {
-    this.emit('update')
-  })
 
   notifyEvent = (event: TrustedEvent) => {
     this.emit('event', event)
@@ -195,7 +180,6 @@ export class Repository extends Emitter {
     }
 
     if (!this.isDeleted(event)) {
-      this.notifyUpdate()
       this.notifyEvent(event)
 
       // Deletes are tricky, re-evaluate all subscriptions if that's what we're dealing with
