@@ -5,6 +5,9 @@ const last = <T>(xs: T[], ...args: unknown[]) => xs[xs.length - 1]
 
 const fromNostrURI = (s: string) => s.replace(/^nostr:\/?\/?/, "")
 
+export const urlIsMedia = (url: string) =>
+  Boolean(url.match(/\.(jpe?g|png|wav|mp3|mp4|mov|avi|webm|webp|gif|bmp|svg)$/))
+
 // Copy some types from nostr-tools because I can't import them
 
 type AddressPointer = {
@@ -37,8 +40,7 @@ export type ParseContext = {
 export enum ParsedType {
   Address = "address",
   Cashu = "cashu",
-  CodeBlock = "code_block",
-  CodeInline = "code_inline",
+  Code = "code",
   Ellipsis = "ellipsis",
   Event = "event",
   Invoice = "invoice",
@@ -55,14 +57,8 @@ export type ParsedCashu = {
   raw: string
 }
 
-export type ParsedCodeBlock = {
-  type: ParsedType.CodeBlock
-  value: string
-  raw: string
-}
-
-export type ParsedCodeInline = {
-  type: ParsedType.CodeInline
+export type ParsedCode = {
+  type: ParsedType.Code
   value: string
   raw: string
 }
@@ -130,8 +126,7 @@ export type ParsedAddress = {
 export type Parsed =
   ParsedAddress |
   ParsedCashu |
-  ParsedCodeBlock |
-  ParsedCodeInline |
+  ParsedCode |
   ParsedEllipsis |
   ParsedEvent |
   ParsedInvoice |
@@ -140,6 +135,20 @@ export type Parsed =
   ParsedProfile |
   ParsedText |
   ParsedTopic
+
+// Matchers
+
+export const isAddress  = (parsed: Parsed): parsed is ParsedAddress  => parsed.type === ParsedType.Address
+export const isCashu    = (parsed: Parsed): parsed is ParsedCashu    => parsed.type === ParsedType.Cashu
+export const isCode     = (parsed: Parsed): parsed is ParsedCode     => parsed.type === ParsedType.Code
+export const isEllipsis = (parsed: Parsed): parsed is ParsedEllipsis => parsed.type === ParsedType.Ellipsis
+export const isEvent    = (parsed: Parsed): parsed is ParsedEvent    => parsed.type === ParsedType.Event
+export const isInvoice  = (parsed: Parsed): parsed is ParsedInvoice  => parsed.type === ParsedType.Invoice
+export const isLink     = (parsed: Parsed): parsed is ParsedLink     => parsed.type === ParsedType.Link
+export const isNewline  = (parsed: Parsed): parsed is ParsedNewline  => parsed.type === ParsedType.Newline
+export const isProfile  = (parsed: Parsed): parsed is ParsedProfile  => parsed.type === ParsedType.Profile
+export const isText     = (parsed: Parsed): parsed is ParsedText     => parsed.type === ParsedType.Text
+export const isTopic    = (parsed: Parsed): parsed is ParsedTopic    => parsed.type === ParsedType.Topic
 
 // Parsers for known formats
 
@@ -165,19 +174,19 @@ export const parseCashu = (text: string, context: ParseContext): ParsedCashu | v
   }
 }
 
-export const parseCodeBlock = (text: string, context: ParseContext): ParsedCodeBlock | void => {
+export const parseCodeBlock = (text: string, context: ParseContext): ParsedCode | void => {
   const [code, value] = text.match(/^```([^]*?)```/i) || []
 
   if (code) {
-    return {type: ParsedType.CodeBlock, value, raw: code}
+    return {type: ParsedType.Code, value, raw: code}
   }
 }
 
-export const parseCodeInline = (text: string, context: ParseContext): ParsedCodeInline | void => {
+export const parseCodeInline = (text: string, context: ParseContext): ParsedCode | void => {
   const [code, value] = text.match(/^`(.*?)`/i) || []
 
   if (code) {
-    return {type: ParsedType.CodeInline, value, raw: code}
+    return {type: ParsedType.Code, value, raw: code}
   }
 }
 
@@ -207,28 +216,18 @@ export const parseInvoice = (text: string, context: ParseContext): ParsedInvoice
 }
 
 export const parseLink = (text: string, context: ParseContext): ParsedLink | void => {
-  let [link] = text.match(/^([a-z\+:]{2,30}:\/\/)?[^<>\(\)\s]+\.[a-z]{2,6}[^\s]*[^<>"'\.!?,:\s\)\(]/gi) || []
-
-  if (!link) {
-    return
-  }
-
   const prev = last(context.results)
+  const [link] = text.match(/^([a-z\+:]{2,30}:\/\/)?[^<>\(\)\s]+\.[a-z]{2,6}[^\s]*[^<>"'\.!?,:\s\)\(]/gi) || []
 
   // Skip url if it's just the end of a filepath or an ellipse
-  if (prev?.type === ParsedType.Text && prev.value.endsWith("/") || link.match(/\.\./)) {
+  if (!link || prev?.type === ParsedType.Text && prev.value.endsWith("/") || link.match(/\.\./)) {
     return
   }
 
-  // Make sure there's a protocol
-  if (!link.match(/^\w+:\/\//)) {
-    link = "https://" + link
-  }
-
-  // Parse using URL
+  // Parse using URL, make sure there's a protocol
   let url
   try {
-    url = new URL(link)
+    url = new URL(link.match(/^\w+:\/\//) ? link : "https://" + link)
   } catch (e) {
     return
   }
@@ -241,13 +240,7 @@ export const parseLink = (text: string, context: ParseContext): ParsedLink | voi
     }
   }
 
-  const isMedia = Boolean(
-    url.pathname.match(/\.(jpe?g|png|wav|mp3|mp4|mov|avi|webm|webp|gif|bmp|svg)$/)
-  )
-
-  const value = {url, meta, isMedia}
-
-  return {type: ParsedType.Link, value, raw: link}
+  return {type: ParsedType.Link, value: {url, meta, isMedia: urlIsMedia(url.pathname)}, raw: link}
 }
 
 export const parseNewline = (text: string, context: ParseContext): ParsedNewline | void => {
@@ -280,7 +273,7 @@ export const parseTopic = (text: string, context: ParseContext): ParsedTopic | v
 
   // Skip numeric topics
   if (value && !value.match(/^#\d+$/)) {
-    return {type: ParsedType.Topic, value, raw: value}
+    return {type: ParsedType.Topic, value: value.slice(1), raw: value}
   }
 }
 
@@ -448,19 +441,16 @@ export class HTML {
     HTML.useSafely(`<a href=${href} target="_blank">${display}</a>`)
 
   static buildEntityLink = (entity: string, options: RenderOptions) =>
-    HTML.buildLink(options.entityBaseUrl + entity, entity.slice(0, 16))
+    HTML.buildLink(options.entityBaseUrl + entity, entity.slice(0, 16) + '…')
 }
 
 export const renderCashu = (parsed: ParsedCashu, options: RenderOptions) =>
   HTML.useSafely(parsed.value)
 
-export const renderCodeBlock = (parsed: ParsedCodeBlock, options: RenderOptions) =>
+export const renderCode = (parsed: ParsedCode, options: RenderOptions) =>
   HTML.useSafely(parsed.value)
 
-export const renderCodeInline = (parsed: ParsedCodeInline, options: RenderOptions) =>
-  HTML.useSafely(parsed.value)
-
-export const renderEllipsis = (parsed: ParsedEllipsis, options: RenderOptions) => "..."
+export const renderEllipsis = (parsed: ParsedEllipsis, options: RenderOptions) => "…"
 
 export const renderInvoice = (parsed: ParsedInvoice, options: RenderOptions) =>
   HTML.useSafely(parsed.value)
@@ -496,8 +486,7 @@ export const render = (parsed: Parsed, options: RenderOptions = {}) => {
   switch (parsed.type) {
     case ParsedType.Address:    return renderAddress(parsed as ParsedAddress, options)
     case ParsedType.Cashu:      return renderCashu(parsed as ParsedCashu, options)
-    case ParsedType.CodeBlock:  return renderCodeBlock(parsed as ParsedCodeBlock, options)
-    case ParsedType.CodeInline: return renderCodeInline(parsed as ParsedCodeInline, options)
+    case ParsedType.Code:       return renderCode(parsed as ParsedCode, options)
     case ParsedType.Ellipsis:   return renderEllipsis(parsed as ParsedEllipsis, options)
     case ParsedType.Event:      return renderEvent(parsed as ParsedEvent, options)
     case ParsedType.Invoice:    return renderInvoice(parsed as ParsedInvoice, options)

@@ -1,8 +1,8 @@
 import {throttle} from 'throttle-debounce'
-import {flatten, Emitter, sortBy, inc, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
+import {flatten, nth, Emitter, sortBy, inc, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
 import {DELETE} from './Kinds'
 import {EPOCH, matchFilter} from './Filters'
-import {isReplaceable, isTrustedEvent} from './Events'
+import {getIdAndAddress, isReplaceable, isTrustedEvent} from './Events'
 import {getAddress} from './Address'
 import type {Filter} from './Filters'
 import type {TrustedEvent} from './Events'
@@ -68,8 +68,8 @@ export class Repository extends Emitter {
     this.emit('event', event)
   }
 
-  notifyDelete = (event: TrustedEvent) => {
-    this.emit('delete', event)
+  notifyDelete = (values: string[]) => {
+    this.emit('delete', new Set(values))
   }
 
   // API
@@ -162,7 +162,7 @@ export class Repository extends Emitter {
 
     // Delete our duplicate first
     if (duplicate) {
-      this.notifyDelete(duplicate)
+      this.notifyDelete(getIdAndAddress(duplicate))
       this.eventsById.delete(duplicate.id)
 
       if (isReplaceable(duplicate)) {
@@ -200,7 +200,7 @@ export class Repository extends Emitter {
 
       // Deletes are tricky, re-evaluate all subscriptions if that's what we're dealing with
       if (event.kind === DELETE) {
-        this.notifyDelete(event)
+        this.notifyDelete(event.tags.map(nth(1)))
       }
     }
   }
