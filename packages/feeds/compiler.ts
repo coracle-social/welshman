@@ -1,7 +1,7 @@
 import {uniq, identity, flatten, pushToMapKey, intersection, tryCatch, now} from '@welshman/lib'
 import type {TrustedEvent, Filter} from '@welshman/util'
-import {Tags, intersectFilters, getAddress, getIdFilters, unionFilters} from '@welshman/util'
-import type {CreatedAtItem, RequestItem, ListItem, WOTItem, DVMItem, Scope, Feed, FeedOptions} from './core'
+import {Tags, intersectFilters, matchFilter, getAddress, getIdFilters, unionFilters} from '@welshman/util'
+import type {CreatedAtItem, RequestItem, ListItem, LabelItem, WOTItem, DVMItem, Scope, Feed, FeedOptions} from './core'
 import {getFeedArgs, feedsFromTags} from './utils'
 import {FeedType} from './core'
 
@@ -20,6 +20,7 @@ export class FeedCompiler<E extends TrustedEvent> {
       case FeedType.ID:
       case FeedType.Kind:
       case FeedType.List:
+      case FeedType.Label:
       case FeedType.Relay:
       case FeedType.Scope:
       case FeedType.Search:
@@ -39,6 +40,7 @@ export class FeedCompiler<E extends TrustedEvent> {
       case FeedType.DVM:          return await this._compileDvms(getFeedArgs(feed))
       case FeedType.Intersection: return await this._compileIntersection(getFeedArgs(feed))
       case FeedType.List:         return await this._compileLists(getFeedArgs(feed))
+      case FeedType.Label:        return await this._compileLabels(getFeedArgs(feed))
       case FeedType.Union:        return await this._compileUnion(getFeedArgs(feed))
       case FeedType.Address:      return this._compileAddresses(getFeedArgs(feed))
       case FeedType.CreatedAt:    return this._compileCreatedAt(getFeedArgs(feed))
@@ -234,6 +236,40 @@ export class FeedCompiler<E extends TrustedEvent> {
           }
 
           return feeds
+        })
+      )
+    )
+
+    return this._compileUnion(feeds)
+  }
+
+  async _compileLabels(labelItems: LabelItem[]): Promise<RequestItem[]> {
+    const events: E[] = []
+
+    await Promise.all(
+      labelItems.map(({mappings, relays, ...filter}) =>
+        this.options.request({
+          relays,
+          filters: [{kinds: [1985], ...filter}],
+          onEvent: (e: E) => events.push(e),
+        })
+      )
+    )
+
+    const feeds = flatten(
+      await Promise.all(
+        labelItems.map(({mappings, relays, ...filter}) => {
+          const tags: string[][] = []
+
+          for (const event of events) {
+            if (matchFilter(filter, event)) {
+              for (const tag of event.tags) {
+                tags.push(tag)
+              }
+            }
+          }
+
+          return feedsFromTags(Tags.wrap(tags), mappings)
         })
       )
     )

@@ -10,6 +10,7 @@ export enum FeedType {
   Intersection = "intersection",
   Kind = "kind",
   List = "list",
+  Label = "label",
   WOT = "wot",
   Relay = "relay",
   Scope = "scope",
@@ -48,6 +49,13 @@ export type ListItem = {
   mappings?: TagFeedMapping[],
 }
 
+export type LabelItem = {
+  relays?: string[],
+  authors?: string[]
+  [key: `#${string}`]: string[]
+  mappings?: TagFeedMapping[],
+}
+
 export type WOTItem = {
   min?: number,
   max?: number,
@@ -68,6 +76,7 @@ export type IDFeed = [type: FeedType.ID, ...ids: string[]]
 export type IntersectionFeed = [type: FeedType.Intersection, ...feeds: Feed[]]
 export type KindFeed = [type: FeedType.Kind, ...kinds: number[]]
 export type ListFeed = [type: FeedType.List, ...items: ListItem[]]
+export type LabelFeed = [type: FeedType.Label, ...items: LabelItem[]]
 export type WOTFeed = [type: FeedType.WOT, ...items: WOTItem[]]
 export type RelayFeed = [type: FeedType.Relay, ...urls: string[]]
 export type ScopeFeed = [type: FeedType.Scope, ...scopes: Scope[]]
@@ -86,6 +95,7 @@ export type Feed =
   IntersectionFeed |
   KindFeed |
   ListFeed |
+  LabelFeed |
   WOTFeed |
   RelayFeed |
   ScopeFeed |

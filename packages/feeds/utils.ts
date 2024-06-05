@@ -13,6 +13,7 @@ import {
   IntersectionFeed,
   KindFeed,
   ListFeed,
+  LabelFeed,
   WOTFeed,
   RelayFeed,
   ScopeFeed,
@@ -25,6 +26,7 @@ import {
   WOTItem,
   DVMItem,
   ListItem,
+  LabelItem,
   CreatedAtItem,
 } from './core'
 
@@ -37,6 +39,7 @@ export const makeIDFeed =                  (...ids: string[]): IDFeed           
 export const makeIntersectionFeed =        (...feeds: Feed[]): IntersectionFeed        => [FeedType.Intersection, ...feeds]
 export const makeKindFeed =                (...kinds: number[]): KindFeed              => [FeedType.Kind, ...kinds]
 export const makeListFeed =                (...items: ListItem[]): ListFeed            => [FeedType.List, ...items]
+export const makeLabelFeed =               (...items: LabelItem[]): LabelFeed          => [FeedType.Label, ...items]
 export const makeWOTFeed =                 (...items: WOTItem[]): WOTFeed              => [FeedType.WOT, ...items]
 export const makeRelayFeed =               (...urls: string[]): RelayFeed              => [FeedType.Relay, ...urls]
 export const makeScopeFeed =               (...scopes: Scope[]): ScopeFeed             => [FeedType.Scope, ...scopes]
@@ -54,6 +57,7 @@ export const isIDFeed =                  (feed: Feed): feed is IDFeed           
 export const isIntersectionFeed =        (feed: Feed): feed is IntersectionFeed        => feed[0] === FeedType.Intersection
 export const isKindFeed =                (feed: Feed): feed is KindFeed                => feed[0] === FeedType.Kind
 export const isListFeed =                (feed: Feed): feed is ListFeed                => feed[0] === FeedType.List
+export const isLabelFeed =               (feed: Feed): feed is LabelFeed               => feed[0] === FeedType.Label
 export const isWOTFeed =                 (feed: Feed): feed is WOTFeed                 => feed[0] === FeedType.WOT
 export const isRelayFeed =               (feed: Feed): feed is RelayFeed               => feed[0] === FeedType.Relay
 export const isScopeFeed =               (feed: Feed): feed is ScopeFeed               => feed[0] === FeedType.Scope
@@ -66,6 +70,7 @@ export function getFeedArgs(feed: IntersectionFeed | UnionFeed | DifferenceFeed 
 export function getFeedArgs(feed: AddressFeed | AuthorFeed | IDFeed | RelayFeed | SearchFeed): string[]
 export function getFeedArgs(feed: CreatedAtFeed): CreatedAtItem[]
 export function getFeedArgs(feed: ListFeed): ListItem[]
+export function getFeedArgs(feed: LabelFeed): LabelItem[]
 export function getFeedArgs(feed: DVMFeed): DVMItem[]
 export function getFeedArgs(feed: WOTFeed): WOTItem[]
 export function getFeedArgs(feed: ScopeFeed): Scope[]
@@ -85,6 +90,7 @@ export function getFeedArgs(feed: Feed) {
     case FeedType.Tag:                 return feed.slice(1) as [string, ...string[]]
     case FeedType.CreatedAt:           return feed.slice(1) as CreatedAtItem[]
     case FeedType.List:                return feed.slice(1) as ListItem[]
+    case FeedType.Label:               return feed.slice(1) as LabelItem[]
     case FeedType.DVM:                 return feed.slice(1) as DVMItem[]
     case FeedType.WOT:                 return feed.slice(1) as WOTItem[]
     case FeedType.Scope:               return feed.slice(1) as Scope[]
