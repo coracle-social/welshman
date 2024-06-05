@@ -252,11 +252,11 @@ export const parseNewline = (text: string, context: ParseContext): ParsedNewline
 }
 
 export const parseProfile = (text: string, context: ParseContext): ParsedProfile | void => {
-  const [entity] = text.match(/^(web\+)?(nostr:)?\/?\/?n(profile|pub)1[\d\w]+/i) || []
+  const [entity] = text.match(/^@?(web\+)?(nostr:)?\/?\/?n(profile|pub)1[\d\w]+/i) || []
 
   if (entity) {
     try {
-      const {type, data} = nip19.decode(fromNostrURI(entity))
+      const {type, data} = nip19.decode(fromNostrURI(entity.replace('@', '')))
       const value = type === "npub"
         ? {pubkey: data as string, relays: []}
         : data as ProfilePointer
@@ -367,8 +367,8 @@ type TruncateOpts = {
 export const truncate = (
   content: Parsed[],
   {
-    minLength = 400,
-    maxLength = 600,
+    minLength = 500,
+    maxLength = 700,
     mediaLength = 200,
     entityLength = 30,
   }: TruncateOpts = {},
@@ -400,15 +400,13 @@ export const truncate = (
   // Otherwise, truncate more then necessary so that when the user expands the note
   // they have more than just a tiny bit to look at. Truncating a single word is annoying.
   sizes.every((size, i) => {
-    currentSize += size
-
-    // Don't truncate down to nothing
-    if (currentSize > minLength && i > 0) {
-      content = content.slice(0, i)
+    if (currentSize > minLength) {
+      content = content.slice(0, i).concat({type: ParsedType.Ellipsis, value: "…", raw: ""})
 
       return false
     }
 
+    currentSize += size
 
     return true
   })
