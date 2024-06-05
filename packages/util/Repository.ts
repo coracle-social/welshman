@@ -1,7 +1,7 @@
 import {flatten, nth, Emitter, sortBy, inc, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
 import {DELETE} from './Kinds'
 import {EPOCH, matchFilter} from './Filters'
-import {getIdAndAddress, isReplaceable, isTrustedEvent} from './Events'
+import {isReplaceable, isTrustedEvent} from './Events'
 import {getAddress} from './Address'
 import type {Filter} from './Filters'
 import type {TrustedEvent} from './Events'
@@ -11,6 +11,7 @@ export const DAY = 86400
 const getDay = (ts: number) => Math.floor(ts / DAY)
 
 export class Repository extends Emitter {
+  _shouldNotify = true
   eventsById = new Map<string, TrustedEvent>()
   eventsByWrap = new Map<string, TrustedEvent>()
   eventsByAddress = new Map<string, TrustedEvent>()
@@ -26,6 +27,8 @@ export class Repository extends Emitter {
   }
 
   load = async (events: TrustedEvent[], chunkSize = 1000) => {
+    this._shouldNotify = false
+
     this.clear()
 
     for (const eventsChunk of chunk(chunkSize, events)) {
@@ -37,6 +40,13 @@ export class Repository extends Emitter {
         await sleep(1)
       }
     }
+
+    this.emit('update', {
+      added: events.filter(e => !this.isDeleted(e)),
+      removed: new Set(),
+    })
+
+    this._shouldNotify = false
   }
 
   clear = () => {
@@ -47,16 +57,6 @@ export class Repository extends Emitter {
     this.eventsByDay.clear()
     this.eventsByAuthor.clear()
     this.deletes.clear()
-  }
-
-  // Notify methods
-
-  notifyEvent = (event: TrustedEvent) => {
-    this.emit('event', event)
-  }
-
-  notifyDelete = (values: string[]) => {
-    this.emit('delete', new Set(values))
   }
 
   // API
@@ -147,23 +147,15 @@ export class Repository extends Emitter {
       return
     }
 
-    // Delete our duplicate first
+    // Delete our duplicate
     if (duplicate) {
-      this.notifyDelete(getIdAndAddress(duplicate))
-      this.eventsById.delete(duplicate.id)
-
-      if (isReplaceable(duplicate)) {
-        this.eventsByAddress.delete(address)
-      }
+      this.deletes.set(duplicate.id, event.created_at)
     }
 
-    // Now add our new event
+    // Add our new event by id
     this.eventsById.set(event.id, event)
 
-    if (event.wrap) {
-      this.eventsByWrap.set(event.wrap.id, event)
-    }
-
+    // Add our new event by address
     if (isReplaceable(event)) {
       this.eventsByAddress.set(address, event)
     }
@@ -185,13 +177,22 @@ export class Repository extends Emitter {
       }
     }
 
-    if (!this.isDeleted(event)) {
-      this.notifyEvent(event)
+    // Notify caller
+    const added = this.isDeleted(event) ? [] : [event]
+    const removed = new Set<string>()
 
-      // Deletes are tricky, re-evaluate all subscriptions if that's what we're dealing with
-      if (event.kind === DELETE) {
-        this.notifyDelete(event.tags.map(nth(1)))
+    if (duplicate) {
+      removed.add(duplicate!.id)
+    }
+
+    if (event.kind === DELETE) {
+      for (const value of event.tags.map(nth(1))) {
+        removed.add(value)
       }
+    }
+
+    if (this._shouldNotify) {
+      this.emit('update', {added, removed})
     }
   }
 
