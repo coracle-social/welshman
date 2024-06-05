@@ -12,6 +12,7 @@ const getDay = (ts: number) => Math.floor(ts / DAY)
 
 export class Repository extends Emitter {
   eventsById = new Map<string, TrustedEvent>()
+  eventsByWrap = new Map<string, TrustedEvent>()
   eventsByAddress = new Map<string, TrustedEvent>()
   eventsByTag = new Map<string, TrustedEvent[]>()
   eventsByDay = new Map<number, TrustedEvent[]>()
@@ -40,6 +41,7 @@ export class Repository extends Emitter {
 
   clear = () => {
     this.eventsById.clear()
+    this.eventsByWrap.clear()
     this.eventsByAddress.clear()
     this.eventsByTag.clear()
     this.eventsByDay.clear()
@@ -157,6 +159,10 @@ export class Repository extends Emitter {
 
     // Now add our new event
     this.eventsById.set(event.id, event)
+
+    if (event.wrap) {
+      this.eventsByWrap.set(event.wrap.id, event)
+    }
 
     if (isReplaceable(event)) {
       this.eventsByAddress.set(address, event)
