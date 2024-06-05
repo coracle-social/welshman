@@ -15,7 +15,6 @@ export enum FeedType {
   Relay = "relay",
   Scope = "scope",
   Search = "search",
-  SymmetricDifference = "symmetric_difference",
   Tag = "tag",
   Union = "union",
 }
@@ -81,7 +80,6 @@ export type WOTFeed = [type: FeedType.WOT, ...items: WOTItem[]]
 export type RelayFeed = [type: FeedType.Relay, ...urls: string[]]
 export type ScopeFeed = [type: FeedType.Scope, ...scopes: Scope[]]
 export type SearchFeed = [type: FeedType.Search, ...searches: string[]]
-export type SymmetricDifferenceFeed = [type: FeedType.SymmetricDifference, ...feeds: Feed[]]
 export type TagFeed = [type: FeedType.Tag, key: string, ...values: string[]]
 export type UnionFeed = [type: FeedType.Union, ...feeds: Feed[]]
 
@@ -100,7 +98,6 @@ export type Feed =
   RelayFeed |
   ScopeFeed |
   SearchFeed |
-  SymmetricDifferenceFeed |
   TagFeed |
   UnionFeed
 

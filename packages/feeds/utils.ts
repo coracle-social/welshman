@@ -18,7 +18,6 @@ import {
   RelayFeed,
   ScopeFeed,
   SearchFeed,
-  SymmetricDifferenceFeed,
   TagFeed,
   UnionFeed,
   TagFeedMapping,
@@ -44,7 +43,6 @@ export const makeWOTFeed =                 (...items: WOTItem[]): WOTFeed       
 export const makeRelayFeed =               (...urls: string[]): RelayFeed              => [FeedType.Relay, ...urls]
 export const makeScopeFeed =               (...scopes: Scope[]): ScopeFeed             => [FeedType.Scope, ...scopes]
 export const makeSearchFeed =              (...searches: string[]): SearchFeed         => [FeedType.Search, ...searches]
-export const makeSymmetricDifferenceFeed = (...feeds: Feed[]): SymmetricDifferenceFeed => [FeedType.SymmetricDifference, ...feeds]
 export const makeTagFeed =                 (key: string, ...values: string[]): TagFeed => [FeedType.Tag, key, ...values]
 export const makeUnionFeed =               (...feeds: Feed[]): UnionFeed               => [FeedType.Union, ...feeds]
 
@@ -62,11 +60,10 @@ export const isWOTFeed =                 (feed: Feed): feed is WOTFeed          
 export const isRelayFeed =               (feed: Feed): feed is RelayFeed               => feed[0] === FeedType.Relay
 export const isScopeFeed =               (feed: Feed): feed is ScopeFeed               => feed[0] === FeedType.Scope
 export const isSearchFeed =              (feed: Feed): feed is SearchFeed              => feed[0] === FeedType.Search
-export const isSymmetricDifferenceFeed = (feed: Feed): feed is SymmetricDifferenceFeed => feed[0] === FeedType.SymmetricDifference
 export const isTagFeed =                 (feed: Feed): feed is TagFeed                 => feed[0] === FeedType.Tag
 export const isUnionFeed =               (feed: Feed): feed is UnionFeed               => feed[0] === FeedType.Union
 
-export function getFeedArgs(feed: IntersectionFeed | UnionFeed | DifferenceFeed | SymmetricDifferenceFeed): Feed[]
+export function getFeedArgs(feed: IntersectionFeed | UnionFeed | DifferenceFeed): Feed[]
 export function getFeedArgs(feed: AddressFeed | AuthorFeed | IDFeed | RelayFeed | SearchFeed): string[]
 export function getFeedArgs(feed: CreatedAtFeed): CreatedAtItem[]
 export function getFeedArgs(feed: ListFeed): ListItem[]
@@ -81,7 +78,6 @@ export function getFeedArgs(feed: Feed) {
     case FeedType.Intersection:        return feed.slice(1) as Feed[]
     case FeedType.Union:               return feed.slice(1) as Feed[]
     case FeedType.Difference:          return feed.slice(1) as Feed[]
-    case FeedType.SymmetricDifference: return feed.slice(1) as Feed[]
     case FeedType.Address:             return feed.slice(1) as string[]
     case FeedType.Author:              return feed.slice(1) as string[]
     case FeedType.ID:                  return feed.slice(1) as string[]
@@ -98,13 +94,8 @@ export function getFeedArgs(feed: Feed) {
   }
 }
 
-export const hasSubFeeds = (feed: Feed): feed is IntersectionFeed | UnionFeed | DifferenceFeed | SymmetricDifferenceFeed =>
-  [
-    FeedType.Union,
-    FeedType.Intersection,
-    FeedType.Difference,
-    FeedType.SymmetricDifference,
-  ].includes(feed[0])
+export const hasSubFeeds = (feed: Feed): feed is IntersectionFeed | UnionFeed | DifferenceFeed =>
+  [FeedType.Union, FeedType.Intersection, FeedType.Difference].includes(feed[0])
 
 export const defaultTagFeedMappings: TagFeedMapping[] = [
   ['a', [FeedType.Address]],

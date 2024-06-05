@@ -29,8 +29,6 @@ export class FeedLoader<E extends TrustedEvent> {
         return this._getDifferenceLoader(feed as Feed[], loadOpts)
       case FeedType.Intersection:
         return this._getIntersectionLoader(feed as Feed[], loadOpts)
-      case FeedType.SymmetricDifference:
-        return this._getSymmetricDifferenceLoader(feed as Feed[], loadOpts)
       case FeedType.Union:
         return this._getUnionLoader(feed as Feed[], loadOpts)
       default:
@@ -199,48 +197,6 @@ export class FeedLoader<E extends TrustedEvent> {
 
       for (const event of events.splice(0)) {
         if (counts.get(event.id) === loaders.length && !seen.has(event.id)) {
-          onEvent?.(event)
-          seen.add(event.id)
-        }
-      }
-
-      if (exhausted.size === loaders.length) {
-        onExhausted?.()
-      }
-    }
-  }
-
-  async _getSymmetricDifferenceLoader(feeds: Feed[], {onEvent, onExhausted}: LoadOpts<E>) {
-    const exhausted = new Set<number>()
-    const counts = new Map<string, number>()
-    const events: E[] = []
-    const seen = new Set()
-
-    const loaders = await Promise.all(
-      feeds.map((feed: Feed, i: number) =>
-        this.getLoader(feed, {
-          onExhausted: () => exhausted.add(i),
-          onEvent: (event: E) => {
-            events.push(event)
-            counts.set(event.id, inc(counts.get(event.id)))
-          },
-        })
-      )
-    )
-
-    return async (limit: number) => {
-      await Promise.all(
-        loaders.map(async (loader: Loader, i: number) => {
-          if (exhausted.has(i)) {
-            return
-          }
-
-          await loader(limit)
-        })
-      )
-
-      for (const event of events.values()) {
-        if (counts.get(event.id) === 1 && !seen.has(event.id)) {
           onEvent?.(event)
           seen.add(event.id)
         }
