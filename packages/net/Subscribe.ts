@@ -1,5 +1,5 @@
 import type {Event} from 'nostr-tools'
-import {Emitter, randomId, once, groupBy, batch, defer, uniq, uniqBy} from '@welshman/lib'
+import {Emitter, flatten, randomId, once, groupBy, batch, defer, uniq, uniqBy} from '@welshman/lib'
 import type {Deferred} from '@welshman/lib'
 import {matchFilters, unionFilters} from '@welshman/util'
 import type {Filter} from '@welshman/util'
@@ -79,6 +79,8 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
   const mergedSubscriptions = []
 
   for (const group of groupBy(calculateSubscriptionGroup, subs).values()) {
+    const groupSubscriptions = []
+
     for (const relay of uniq(group.flatMap((sub: Subscription) => sub.request.relays))) {
       const abortedSubs = new Set()
       const callerSubs = group.filter((sub: Subscription) => sub.request.relays.includes(relay))
@@ -158,17 +160,19 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
         mergedSub.emitter.removeAllListeners()
       })
 
-      // Propagate promise resolution
-      mergedSub.result.then((events: Event[]) => {
-        events = uniqBy((event: Event) => event.id, events)
+      mergedSubscriptions.push(mergedSub)
+      groupSubscriptions.push(mergedSub)
+    }
 
-        for (const sub of callerSubs) {
+    // Propagate promise resolution
+    Promise.all(groupSubscriptions.map(sub => sub.result))
+      .then((chunks: Event[][]) => {
+        const events = uniqBy((event: Event) => event.id, flatten(chunks))
+
+        for (const sub of group) {
           sub.result.resolve(events.filter((e: Event) => matchFilters(sub.request.filters, e)))
         }
       })
-
-      mergedSubscriptions.push(mergedSub)
-    }
   }
 
   return mergedSubscriptions
