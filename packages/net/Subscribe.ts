@@ -1,5 +1,5 @@
 import type {Event} from 'nostr-tools'
-import {Emitter, flatten, randomId, once, groupBy, batch, defer, uniq, uniqBy} from '@welshman/lib'
+import {Emitter, chunk, flatten, randomId, once, groupBy, batch, defer, uniq, uniqBy} from '@welshman/lib'
 import type {Deferred} from '@welshman/lib'
 import {matchFilters, unionFilters} from '@welshman/util'
 import type {Filter} from '@welshman/util'
@@ -182,6 +182,7 @@ export const executeSubscription = (sub: Subscription) => {
   const {result, request, emitter, tracker, controller} = sub
   const {timeout, filters, closeOnEose, relays, signal} = request
   const executor = NetworkContext.getExecutor(relays)
+  const subs: {unsubscribe: () => void}[] = []
   const completedRelays = new Set()
   const events: Event[] = []
 
@@ -209,8 +210,8 @@ export const executeSubscription = (sub: Subscription) => {
 
   emitter.on(SubscriptionEvent.Complete, () => {
     result.resolve(events)
-    executorSub?.unsubscribe()
     emitter.removeAllListeners()
+    subs.forEach(sub => sub.unsubscribe())
     executor.target.connections.forEach((c: Connection) => c.off("close", onClose))
     executor.target.cleanup()
   })
@@ -253,9 +254,12 @@ export const executeSubscription = (sub: Subscription) => {
 
   // Finally, start our subscription. If we didn't get any filters, don't even send the
   // request, just close it. This can be valid when a caller fulfills a request themselves.
-  let executorSub: {unsubscribe: () => void}
   if (filters.length > 0) {
-    executorSub = executor.subscribe(filters, {onEvent, onEose})
+    // If we send too many filters in a request relays will refuse to respond. REQs are rate
+    // limited client-side by Connection, so this will throttle concurrent requests.
+    for (const filtersChunk of chunk(8, filters)) {
+      subs.push(executor.subscribe(filtersChunk, {onEvent, onEose}))
+    }
   } else {
     onComplete()
   }

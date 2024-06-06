@@ -156,6 +156,11 @@ export class Repository extends Emitter {
       this.eventsByAddress.set(address, event)
     }
 
+    // Save wrapper index
+    if (event.wrap) {
+      this.eventsByWrap.set(event.wrap.id, event)
+    }
+
     // Update our timestamp and author indexes
     this._updateIndex(this.eventsByDay, getDay(event.created_at), event, duplicate)
     this._updateIndex(this.eventsByAuthor, event.pubkey, event, duplicate)
