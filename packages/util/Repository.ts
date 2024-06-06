@@ -40,8 +40,8 @@ export class Repository extends Emitter {
 
 
     this.emit('update', {
-      added: events.filter(e => !this.isDeleted(e)),
-      removed: new Set(),
+      added: events,
+      removed: new Set(this.deletes.keys()),
     })
   }
 
