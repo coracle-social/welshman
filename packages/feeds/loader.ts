@@ -76,8 +76,6 @@ export class FeedLoader<E extends TrustedEvent> {
     const minSince = sinces.length === filters.length ? min(sinces) : EPOCH
     const initialDelta = guessFilterDelta(filters)
 
-    console.log(useWindowing)
-
     let delta = initialDelta
     let since = useWindowing ? maxUntil - delta : minSince
     let until = maxUntil
