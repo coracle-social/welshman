@@ -1,6 +1,6 @@
 import {Event} from 'nostr-tools'
 import {matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
-import {prop, mapVals, shuffle, avg, hash, groupBy, randomId, uniq} from '@welshman/lib'
+import {uniqBy, prop, mapVals, shuffle, avg, hash, groupBy, randomId, uniq} from '@welshman/lib'
 import type {HashedEvent, TrustedEvent} from './Events'
 import {isReplaceableKind} from './Kinds'
 import {Address, getAddress} from './Address'
@@ -79,7 +79,8 @@ export const calculateFilterGroup = ({since, until, limit, search, ...filter}: F
 export const unionFilters = (filters: Filter[]) => {
   const result = []
 
-  for (const group of groupBy(calculateFilterGroup, filters).values()) {
+  // Group, but also get unique filters by ids because duplicates can come through subscribe
+  for (const group of groupBy(calculateFilterGroup, uniqBy(getFilterId, filters)).values()) {
     const newFilter: Record<string, any> = {}
 
     for (const k of Object.keys(group[0])) {

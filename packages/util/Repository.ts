@@ -140,6 +140,8 @@ export class Repository extends Emitter {
 
     // If our duplicate is newer than the event we're adding, we're done
     if (duplicate && duplicate.created_at >= event.created_at) {
+      this.deletes.set(event.id, duplicate.created_at)
+
       return
     }
 
