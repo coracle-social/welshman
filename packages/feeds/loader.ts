@@ -8,6 +8,7 @@ import {FeedCompiler} from './compiler'
 export type LoadOpts<E> = {
   onEvent?: (event: E) => void
   onExhausted?: () => void
+  useWindowing?: boolean
 }
 
 export type Loader = (limit: number) => Promise<void>
@@ -36,16 +37,17 @@ export class FeedLoader<E extends TrustedEvent> {
     }
   }
 
-  async getRequestsLoader(requests: RequestItem[], {onEvent, onExhausted}: LoadOpts<E>) {
+  async getRequestsLoader(requests: RequestItem[], loadOpts: LoadOpts<E>) {
     const seen = new Set()
     const exhausted = new Set()
     const loaders = await Promise.all(
       requests.map(
         request => this._getRequestLoader(request, {
+          ...loadOpts,
           onExhausted: () => exhausted.add(request),
           onEvent: e => {
             if (!seen.has(e.id)) {
-              onEvent?.(e)
+              loadOpts.onEvent?.(e)
               seen.add(e.id)
             }
           },
@@ -57,12 +59,12 @@ export class FeedLoader<E extends TrustedEvent> {
       await Promise.all(loaders.map(loader => loader(limit)))
 
       if (exhausted.size === requests.length) {
-        onExhausted?.()
+        loadOpts.onExhausted?.()
       }
     }
   }
 
-  async _getRequestLoader({relays, filters}: RequestItem, {onEvent, onExhausted}: LoadOpts<E>) {
+  async _getRequestLoader({relays, filters}: RequestItem, {useWindowing, onEvent, onExhausted}: LoadOpts<E>) {
     // Make sure we have some kind of filter to send if we've been given an empty one, as happens with relay feeds
     if (!filters || filters.length === 0) {
       filters = [{}]
@@ -74,8 +76,10 @@ export class FeedLoader<E extends TrustedEvent> {
     const minSince = sinces.length === filters.length ? min(sinces) : EPOCH
     const initialDelta = guessFilterDelta(filters)
 
+    console.log(useWindowing)
+
     let delta = initialDelta
-    let since = maxUntil - delta
+    let since = useWindowing ? maxUntil - delta : minSince
     let until = maxUntil
 
     return async (limit: number) => {
@@ -106,18 +110,22 @@ export class FeedLoader<E extends TrustedEvent> {
         },
       })
 
-      if (since === minSince) {
+      if (useWindowing) {
+        if (since === minSince) {
+          onExhausted?.()
+        }
+
+        // Relays can't be relied upon to return events in descending order, do exponential
+        // windowing to ensure we get the most recent stuff on first load, but eventually find it all
+        if (count < limit) {
+          delta = delta * Math.round(10 - 9 * (Math.log(count + 1) / Math.log(limit + 1)))
+          until = since
+        }
+
+        since = Math.max(minSince, until - delta)
+      } else if (count === 0) {
         onExhausted?.()
       }
-
-      // Relays can't be relied upon to return events in descending order, do exponential
-      // windowing to ensure we get the most recent stuff on first load, but eventually find it all
-      if (count < limit) {
-        delta = delta * Math.round(10 - 9 * (Math.log(count + 1) / Math.log(limit + 1)))
-        until = since
-      }
-
-      since = Math.max(minSince, until - delta)
     }
   }
 
