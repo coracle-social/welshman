@@ -64,7 +64,7 @@ export class FeedLoader<E extends TrustedEvent> {
     }
   }
 
-  async _getRequestLoader({relays, filters}: RequestItem, {useWindowing, onEvent, onExhausted}: LoadOpts<E>) {
+  async _getRequestLoader({relays, filters}: RequestItem, {useWindowing = true, onEvent, onExhausted}: LoadOpts<E>) {
     // Make sure we have some kind of filter to send if we've been given an empty one, as happens with relay feeds
     if (!filters || filters.length === 0) {
       filters = [{}]

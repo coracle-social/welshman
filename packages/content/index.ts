@@ -1,5 +1,5 @@
 import {nip19} from "nostr-tools"
-import insane from 'insane'
+import {sanitizeUrl} from '@braintree/sanitize-url'
 
 const last = <T>(xs: T[], ...args: unknown[]) => xs[xs.length - 1]
 
@@ -431,12 +431,25 @@ export class HTML {
 
   toString = () => this.value
 
-  static useSafely = (value: string) => new HTML(insane(value))
-
   static useDangerously = (value: string) => new HTML(value)
 
-  static buildLink = (href: string, display: string) =>
-    HTML.useSafely(`<a href=${href} target="_blank">${display}</a>`)
+  static useSafely = (value: string) => {
+    const element = document.createElement('div')
+
+    element.innerText = value
+
+    return new HTML(element.innerHTML)
+  }
+
+  static buildLink = (href: string, display: string) => {
+    const element = document.createElement('a')
+
+    element.href = sanitizeUrl(href)
+    element.target = "_blank"
+    element.innerText = display
+
+    return HTML.useDangerously(element.outerHTML)
+  }
 
   static buildEntityLink = (entity: string, options: RenderOptions) =>
     HTML.buildLink(options.entityBaseUrl + entity, entity.slice(0, 16) + '…')

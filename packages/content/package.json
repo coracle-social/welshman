@@ -26,13 +26,12 @@
     "fix": "gts fix"
   },
   "devDependencies": {
-    "@types/insane": "^1.0.0",
     "gts": "^5.0.1",
     "tsc-multi": "^1.1.0",
     "typescript": "~5.1.6"
   },
   "dependencies": {
-    "insane": "^2.6.2",
+    "@braintree/sanitize-url": "^7.0.2",
     "nostr-tools": "^2.7.0"
   }
 }
