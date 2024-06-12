@@ -46,6 +46,8 @@ export class Repository extends Emitter {
   }
 
   clear = () => {
+    const removed = new Set(this.eventsById.keys())
+
     this.eventsById.clear()
     this.eventsByWrap.clear()
     this.eventsByAddress.clear()
@@ -53,6 +55,8 @@ export class Repository extends Emitter {
     this.eventsByDay.clear()
     this.eventsByAuthor.clear()
     this.deletes.clear()
+
+    this.emit('update', {added: [], removed})
   }
 
   // API
