@@ -1,6 +1,6 @@
 {
   "name": "@welshman/net",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "author": "hodlbod",
   "license": "MIT",
   "description": "Utilities for connecting with nostr relays.",
@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@welshman/lib": "0.0.9",
-    "@welshman/util": "0.0.13",
+    "@welshman/util": "0.0.14",
     "isomorphic-ws": "^5.0.0",
     "ws": "^8.16.0"
   }
