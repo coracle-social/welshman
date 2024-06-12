@@ -1,5 +1,5 @@
 import {first, splitAt, identity, sortBy, uniq, shuffle, pushToMapKey} from '@welshman/lib'
-import {Tags, Tag} from '@welshman/util'
+import {Tags, Tag} from './Tags'
 import type {TrustedEvent} from './Events'
 import {isReplaceable} from './Events'
 import {isShareableRelayUrl} from './Relay'

@@ -11,12 +11,12 @@
   "files": [
     "build"
   ],
-  "types": "./build/index.d.ts",
+  "types": "./build/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./build/index.d.ts",
-      "import": "./build/index.mjs",
-      "require": "./build/index.cjs"
+      "types": "./build/src/index.d.ts",
+      "import": "./build/src/index.mjs",
+      "require": "./build/src/index.cjs"
     }
   },
   "scripts": {
