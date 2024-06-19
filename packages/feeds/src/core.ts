@@ -8,6 +8,7 @@ export enum FeedType {
   Difference = "difference",
   ID = "id",
   Intersection = "intersection",
+  Global = "global",
   Kind = "kind",
   List = "list",
   Label = "label",
@@ -73,6 +74,7 @@ export type DVMFeed = [type: FeedType.DVM, ...items: DVMItem[]]
 export type DifferenceFeed = [type: FeedType.Difference, ...feeds: Feed[]]
 export type IDFeed = [type: FeedType.ID, ...ids: string[]]
 export type IntersectionFeed = [type: FeedType.Intersection, ...feeds: Feed[]]
+export type GlobalFeed = [type: FeedType.Global, ...feeds: Feed[]]
 export type KindFeed = [type: FeedType.Kind, ...kinds: number[]]
 export type ListFeed = [type: FeedType.List, ...items: ListItem[]]
 export type LabelFeed = [type: FeedType.Label, ...items: LabelItem[]]
@@ -91,6 +93,7 @@ export type Feed =
   DifferenceFeed |
   IDFeed |
   IntersectionFeed |
+  GlobalFeed |
   KindFeed |
   ListFeed |
   LabelFeed |

@@ -18,6 +18,7 @@ export class FeedCompiler<E extends TrustedEvent> {
       case FeedType.CreatedAt:
       case FeedType.DVM:
       case FeedType.ID:
+      case FeedType.Global:
       case FeedType.Kind:
       case FeedType.List:
       case FeedType.Label:
@@ -48,6 +49,7 @@ export class FeedCompiler<E extends TrustedEvent> {
       case FeedType.Search:       return this._compileSearches(getFeedArgs(feed))
       case FeedType.WOT:          return this._compileWot(getFeedArgs(feed))
       case FeedType.Relay:        return [{relays: getFeedArgs(feed)}]
+      case FeedType.Global:       return [{filters: [{}]}]
       case FeedType.Tag: {
         const [key, ...value] = getFeedArgs(feed)
 

@@ -11,6 +11,7 @@ import {
   DifferenceFeed,
   IDFeed,
   IntersectionFeed,
+  GlobalFeed,
   KindFeed,
   ListFeed,
   LabelFeed,
@@ -36,6 +37,7 @@ export const makeDVMFeed =                 (...items: DVMItem[]): DVMFeed       
 export const makeDifferenceFeed =          (...feeds: Feed[]): DifferenceFeed          => [FeedType.Difference, ...feeds]
 export const makeIDFeed =                  (...ids: string[]): IDFeed                  => [FeedType.ID, ...ids]
 export const makeIntersectionFeed =        (...feeds: Feed[]): IntersectionFeed        => [FeedType.Intersection, ...feeds]
+export const makeGlobalFeed =              (): GlobalFeed                              => [FeedType.Global]
 export const makeKindFeed =                (...kinds: number[]): KindFeed              => [FeedType.Kind, ...kinds]
 export const makeListFeed =                (...items: ListItem[]): ListFeed            => [FeedType.List, ...items]
 export const makeLabelFeed =               (...items: LabelItem[]): LabelFeed          => [FeedType.Label, ...items]
@@ -53,6 +55,7 @@ export const isDVMFeed =                 (feed: Feed): feed is DVMFeed          
 export const isDifferenceFeed =          (feed: Feed): feed is DifferenceFeed          => feed[0] === FeedType.Difference
 export const isIDFeed =                  (feed: Feed): feed is IDFeed                  => feed[0] === FeedType.ID
 export const isIntersectionFeed =        (feed: Feed): feed is IntersectionFeed        => feed[0] === FeedType.Intersection
+export const isGlobalFeed =              (feed: Feed): feed is GlobalFeed              => feed[0] === FeedType.Global
 export const isKindFeed =                (feed: Feed): feed is KindFeed                => feed[0] === FeedType.Kind
 export const isListFeed =                (feed: Feed): feed is ListFeed                => feed[0] === FeedType.List
 export const isLabelFeed =               (feed: Feed): feed is LabelFeed               => feed[0] === FeedType.Label
@@ -73,6 +76,7 @@ export function getFeedArgs(feed: WOTFeed): WOTItem[]
 export function getFeedArgs(feed: ScopeFeed): Scope[]
 export function getFeedArgs(feed: KindFeed): number[]
 export function getFeedArgs(feed: TagFeed): [string, ...string[]]
+export function getFeedArgs(feed: GlobalFeed): []
 export function getFeedArgs(feed: Feed) {
   switch (feed[0]) {
     case FeedType.Intersection:        return feed.slice(1) as Feed[]
@@ -91,6 +95,7 @@ export function getFeedArgs(feed: Feed) {
     case FeedType.WOT:                 return feed.slice(1) as WOTItem[]
     case FeedType.Scope:               return feed.slice(1) as Scope[]
     case FeedType.Kind:                return feed.slice(1) as number[]
+    case FeedType.Global:              return feed.slice(1) as never[]
   }
 }
 
