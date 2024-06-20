@@ -1,6 +1,6 @@
 # @welshman/feeds [![version](https://badgen.feeds/npm/v/@welshman/feeds)](https://npmjs.com/package/@welshman/feeds)
 
-A custom feed compiler and loader for nostr.
+A custom feed compiler and loader for nostr. Read the spec on [wikifreedia](https://wikifreedia.xyz/cip-01/97c70a44366a6535c1).
 
 # Example
 
