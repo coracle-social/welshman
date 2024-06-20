@@ -98,6 +98,7 @@ export const CHANNELS = 10005
 export const BLOCKED_RELAYS = 10006
 export const SEARCH_RELAYS = 10007
 export const GROUPS = 10009
+export const FEEDS = 10014
 export const TOPICS = 10015
 export const EMOJIS = 10030
 export const DM_INBOX_RELAYS = 10050
