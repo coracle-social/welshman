@@ -1,6 +1,5 @@
 import type {Event} from 'nostr-tools'
-import {Emitter, chunk, flatten, randomId, once, groupBy, batch, defer, uniq, uniqBy} from '@welshman/lib'
-import type {Deferred} from '@welshman/lib'
+import {Emitter, chunk, randomId, once, groupBy, batch, uniq} from '@welshman/lib'
 import {matchFilters, unionFilters} from '@welshman/util'
 import type {Filter} from '@welshman/util'
 import {Tracker} from "./Tracker"
@@ -47,7 +46,6 @@ export type Subscription = {
   emitter: Emitter
   tracker: Tracker
   controller: AbortController
-  result: Deferred<Event[]>
   request: SubscribeRequest
   close: () => void
 }
@@ -56,13 +54,12 @@ export const makeSubscription = (request: SubscribeRequest) => {
   const id = randomId()
   const emitter = new Emitter()
   const controller = new AbortController()
-  const result = defer<Event[]>()
   const tracker = request.tracker || new Tracker()
   const close = () => controller.abort()
 
   emitter.setMaxListeners(100)
 
-  return {id, request, emitter, tracker, controller, result, close}
+  return {id, request, emitter, tracker, controller, close}
 }
 
 export const calculateSubscriptionGroup = (sub: Subscription) => {
@@ -87,6 +84,7 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
       const mergedSub = makeSubscription({
         relays: [relay],
         timeout: callerSubs[0].request.timeout,
+        closeOnEose: callerSubs[0].request.closeOnEose,
         filters: unionFilters(callerSubs.flatMap((sub: Subscription) => sub.request.filters)),
       })
 
@@ -163,23 +161,13 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
       mergedSubscriptions.push(mergedSub)
       groupSubscriptions.push(mergedSub)
     }
-
-    // Propagate promise resolution
-    Promise.all(groupSubscriptions.map(sub => sub.result))
-      .then((chunks: Event[][]) => {
-        const events = uniqBy((event: Event) => event.id, flatten(chunks))
-
-        for (const sub of group) {
-          sub.result.resolve(events.filter((e: Event) => matchFilters(sub.request.filters, e)))
-        }
-      })
   }
 
   return mergedSubscriptions
 }
 
 export const executeSubscription = (sub: Subscription) => {
-  const {result, request, emitter, tracker, controller} = sub
+  const {request, emitter, tracker, controller} = sub
   const {timeout, filters, closeOnEose, relays, signal} = request
   const executor = NetworkContext.getExecutor(relays)
   const subs: {unsubscribe: () => void}[] = []
@@ -209,7 +197,6 @@ export const executeSubscription = (sub: Subscription) => {
   })
 
   emitter.on(SubscriptionEvent.Complete, () => {
-    result.resolve(events)
     emitter.removeAllListeners()
     subs.forEach(sub => sub.unsubscribe())
     executor.target.connections.forEach((c: Connection) => c.off("close", onClose))
