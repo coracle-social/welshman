@@ -1,13 +1,13 @@
 import {first, splitAt, identity, sortBy, uniq, shuffle, pushToMapKey} from '@welshman/lib'
-import {Tags, Tag} from './Tags'
+import {Tags} from './Tags'
 import type {TrustedEvent} from './Events'
-import {isReplaceable} from './Events'
 import {isShareableRelayUrl} from './Relay'
-import {getAddress, isCommunityAddress, isGroupAddress} from './Address'
+import {isCommunityAddress, isGroupAddress} from './Address'
 
 export enum RelayMode {
   Read = "read",
   Write = "write",
+  Inbox = "inbox"
 }
 
 export type RouterOptions = {
@@ -34,7 +34,7 @@ export type RouterOptions = {
   /**
    * Retrieves relays for the specified public key and mode.
    * @param pubkey - The public key to retrieve relays for.
-   * @param mode - The relay mode (optional).
+   * @param mode - The relay mode (optional). May be "read", "write", or "inbox".
    * @returns An array of relay URLs as strings.
    */
   getPubkeyRelays?: (pubkey: string, mode?: RelayMode) => string[]
@@ -168,8 +168,8 @@ export class Router {
 
   PublishMessage = (pubkey: string) =>
     this.scenario([
-      ...this.getUserSelections(RelayMode.Write),
-      this.getPubkeySelection(pubkey, RelayMode.Read),
+      ...this.getUserSelections(RelayMode.Inbox),
+      this.getPubkeySelection(pubkey, RelayMode.Inbox),
     ]).policy(this.addMinimalFallbacks)
 
   Event = (event: TrustedEvent) =>
@@ -264,27 +264,6 @@ export class Router {
   addMinimalFallbacks = (count: number, redundancy: number) => count > 0 ? 0 : 1
 
   addMaximalFallbacks = (count: number, redundancy: number) => redundancy - count
-
-  // Higher level utils that use hints
-
-  tagPubkey = (pubkey: string) =>
-    Tag.from(["p", pubkey, this.FromPubkeys([pubkey]).getUrl()])
-
-  tagEventId = (event: TrustedEvent, mark = "") =>
-    Tag.from(["e", event.id, this.Event(event).getUrl(), mark, event.pubkey])
-
-  tagEventAddress = (event: TrustedEvent, mark = "") =>
-    Tag.from(["a", getAddress(event), this.Event(event).getUrl(), mark, event.pubkey])
-
-  tagEvent = (event: TrustedEvent, mark = "") => {
-    const tags = [this.tagEventId(event, mark)]
-
-    if (isReplaceable(event)) {
-      tags.push(this.tagEventAddress(event, mark))
-    }
-
-    return new Tags(tags)
-  }
 }
 
 // Router Scenario
