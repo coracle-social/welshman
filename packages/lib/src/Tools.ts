@@ -93,7 +93,7 @@ export const sleep = (t: number) => new Promise(resolve => setTimeout(resolve, t
 
 export const concat = <T>(...xs: (T | Nil)[][]) => xs.flatMap(x => x || [])
 
-export const append = <T>(xs: (T | Nil)[], x: T) => concat(xs, [x])
+export const append = <T>(x: T, xs: (T | Nil)[]) => concat(xs, [x])
 
 export const union = <T>(a: T[], b: T[]) => uniq([...a, ...b])
 
@@ -112,6 +112,8 @@ export const difference = <T>(a: T[], b: T[]) => {
 export const remove = <T>(a: T, b: T[]) => b.filter(x => x !== a)
 
 export const without = <T>(a: T[], b: T[]) => b.filter(x => !a.includes(x))
+
+export const toggle = <T>(x: T, xs: T[]) => xs.includes(x) ? remove(x, xs) : append(x, xs)
 
 export const clamp = ([min, max]: [number, number], n: number) => Math.min(max, Math.max(min, n))
 
