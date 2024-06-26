@@ -9,3 +9,4 @@ This is a monorepo which is split into several different packages:
 - [@welshman/net](./packages/net) - framework for interacting with relays.
 - [@welshman/content](./packages/content) - utilities for parsing and rendering notes.
 - [@welshman/feeds](./packages/feeds) - an interpreter for custom nostr feeds.
+- [@welshman/dvm](./packages/dvm) - utilities for creating and making request against dvms.
