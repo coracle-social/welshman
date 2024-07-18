@@ -1,4 +1,4 @@
-import {flatten, Emitter, sortBy, inc, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
+import {flatten, Emitter, max, sortBy, inc, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
 import {DELETE} from './Kinds'
 import {EPOCH, matchFilter} from './Filters'
 import {isReplaceable, isTrustedEvent} from './Events'
@@ -202,15 +202,8 @@ export class Repository extends Emitter {
     }
   }
 
-  isDeleted = (event: TrustedEvent) => {
-    const deletedAt = (
-      this.deletes.get(event.id) ||
-      this.deletes.get(getAddress(event)) ||
-      0
-    )
-
-    return deletedAt > event.created_at
-  }
+  isDeleted = (event: TrustedEvent) =>
+    max([this.deletes.get(event.id) || 0, this.deletes.get(getAddress(event)) || 0]) > event.created_at
 
   // Utilities
 
