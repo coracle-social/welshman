@@ -136,21 +136,21 @@ export class Repository extends Emitter {
       throw new Error("Invalid event published to Repository", event)
     }
 
-    const address = getAddress(event)
-    const duplicate = (
-      this.eventsById.get(event.id) ||
-      this.eventsByAddress.get(address)
-    )
-
-    // If our duplicate is newer than the event we're adding, we're done
-    if (duplicate && duplicate.created_at >= event.created_at) {
-      this.deletes.set(event.id, duplicate.created_at)
-
+    // If we've already seen this event, we're done
+    if (this.eventsById.get(event.id)) {
       return
     }
 
-    // Delete our duplicate
+    const address = getAddress(event)
+    const duplicate = this.eventsByAddress.get(address)
+
     if (duplicate) {
+      // If our event is older than the duplicate, we're done
+      if (event.created_at <= duplicate.created_at) {
+        return
+      }
+
+      // If our event is newer than what it's replacing, delete the old version
       this.deletes.set(duplicate.id, event.created_at)
     }
 
