@@ -16,13 +16,14 @@ export type DVMRequestOptions = {
   reportProgress?: boolean
 }
 
-export type DVMRequest = DVMRequestOptions & {
+export type DVMRequest = {
+  request: DVMRequestOptions
   emitter: Emitter,
   sub: Subscription
   pub: Publish
 }
 
-export const makeDvmRequest = (request: DVMRequest) => {
+export const makeDvmRequest = (request: DVMRequestOptions) => {
   const emitter = new Emitter()
   const {event, relays, timeout = 30_000, autoClose = true, reportProgress = true} = request
   const kind = event.kind + 1000
@@ -43,5 +44,5 @@ export const makeDvmRequest = (request: DVMRequest) => {
     }
   })
 
-  return {request, emitter, sub, pub}
+  return {request, emitter, sub, pub} as DVMRequest
 }

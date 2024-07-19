@@ -136,11 +136,12 @@ export class Repository extends Emitter {
       throw new Error("Invalid event published to Repository", event)
     }
 
-    // If we've already seen this event, we're done
-    if (this.eventsById.get(event.id)) {
+    // If we've already seen this event, or it's been deleted, we're done
+    if (this.eventsById.get(event.id) || this.isDeleted(event)) {
       return
     }
 
+    const removed = new Set<string>()
     const address = getAddress(event)
     const duplicate = this.eventsByAddress.get(address)
 
@@ -152,6 +153,9 @@ export class Repository extends Emitter {
 
       // If our event is newer than what it's replacing, delete the old version
       this.deletes.set(duplicate.id, event.created_at)
+
+      // Notify listeners that it's been removed
+      removed.add(duplicate.id)
     }
 
     // Add our new event by id
@@ -171,12 +175,9 @@ export class Repository extends Emitter {
     this._updateIndex(this.eventsByDay, getDay(event.created_at), event, duplicate)
     this._updateIndex(this.eventsByAuthor, event.pubkey, event, duplicate)
 
-    // Keep track of deleted events to notify about
-    const removed = new Set<string>()
-
     // Update our tag indexes
     for (const tag of event.tags) {
-      if (tag[0].length === 1) {
+      if (tag[0]?.length === 1) {
         this._updateIndex(this.eventsByTag, tag.slice(0, 2).join(':'), event, duplicate)
 
         // If this is a delete event, the tag value is an id or address. Track when it was
@@ -193,12 +194,8 @@ export class Repository extends Emitter {
       }
     }
 
-    if (duplicate) {
-      removed.add(duplicate.id)
-    }
-
     if (shouldNotify) {
-      this.emit('update', {added: this.isDeleted(event) ? [] : [event], removed})
+      this.emit('update', {added: [event], removed})
     }
   }
 
