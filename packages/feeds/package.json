@@ -31,6 +31,6 @@
     "typescript": "~5.1.6"
   },
   "dependencies": {
-    "@welshman/util": "0.0.19"
+    "@welshman/util": "0.0.20"
   }
 }

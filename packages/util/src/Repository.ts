@@ -28,9 +28,13 @@ export class Repository extends Emitter {
   load = async (events: TrustedEvent[], chunkSize = 1000) => {
     this.clear()
 
+    const added = []
+
     for (const eventsChunk of chunk(chunkSize, events)) {
       for (const event of eventsChunk) {
-        this.publish(event, {shouldNotify: false})
+        if (this.publish(event, {shouldNotify: false})) {
+          added.push(event)
+        }
       }
 
       if (eventsChunk.length === chunkSize) {
@@ -38,11 +42,9 @@ export class Repository extends Emitter {
       }
     }
 
+    const removed = new Set(this.deletes.keys())
 
-    this.emit('update', {
-      added: events,
-      removed: new Set(this.deletes.keys()),
-    })
+    this.emit('update', {added, removed})
   }
 
   clear = () => {
@@ -131,14 +133,14 @@ export class Repository extends Emitter {
     return uniq(flatten(result))
   }
 
-  publish = (event: TrustedEvent, {shouldNotify = true} = {}) => {
+  publish = (event: TrustedEvent, {shouldNotify = true} = {}): boolean => {
     if (!isTrustedEvent(event)) {
       throw new Error("Invalid event published to Repository", event)
     }
 
     // If we've already seen this event, or it's been deleted, we're done
     if (this.eventsById.get(event.id) || this.isDeleted(event)) {
-      return
+      return false
     }
 
     const removed = new Set<string>()
@@ -148,7 +150,7 @@ export class Repository extends Emitter {
     if (duplicate) {
       // If our event is older than the duplicate, we're done
       if (event.created_at <= duplicate.created_at) {
-        return
+        return false
       }
 
       // If our event is newer than what it's replacing, delete the old version
@@ -197,6 +199,8 @@ export class Repository extends Emitter {
     if (shouldNotify) {
       this.emit('update', {added: [event], removed})
     }
+
+    return true
   }
 
   isDeleted = (event: TrustedEvent) =>
