@@ -119,6 +119,7 @@ export const NAMED_WIKI_RELAYS = 30102
 export const NAMED_EMOJIS = 30030
 export const NAMED_TOPICS = 30015
 export const NAMED_ARTIFACTS = 30063
+export const NAMED_COMMUNITIES = 30064
 export const BADGES = 30008
 export const BADGE_DEFINITION = 30009
 export const STALL = 30017

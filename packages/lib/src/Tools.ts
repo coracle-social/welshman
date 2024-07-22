@@ -109,7 +109,7 @@ export const difference = <T>(a: T[], b: T[]) => {
   return a.filter(x => !s.has(x))
 }
 
-export const remove = <T>(a: T, b: T[]) => b.filter(x => x !== a)
+export const remove = <T>(a: T, xs: T[]) => xs.filter(x => x !== a)
 
 export const without = <T>(a: T[], b: T[]) => b.filter(x => !a.includes(x))
 
