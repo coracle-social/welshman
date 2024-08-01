@@ -12,4 +12,5 @@ for pkg in $(./get_packages.py); do
   git tag "$pkg/$version" >/dev/null 2>&1
 done
 
+git push
 git push --tags

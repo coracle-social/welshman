@@ -1,12 +1,12 @@
-import {writable} from '@welshman/lib'
+import {Emitter} from '@welshman/lib'
 
-export class Tracker {
-  data = writable(new Map<string, Set<string>>())
+export class Tracker extends Emitter {
+  data = new Map<string, Set<string>>()
 
   getRelays = (eventId: string) => {
     const relays = new Set<string>()
 
-    for (const relay of this.data.get().get(eventId) || []) {
+    for (const relay of this.data.get(eventId) || []) {
       relays.add(relay)
     }
 
@@ -18,19 +18,16 @@ export class Tracker {
   }
 
   addRelay = (eventId: string, relay: string) => {
-    const relays = this.data.get().get(eventId) || new Set()
+    const relays = this.data.get(eventId) || new Set()
 
     relays.add(relay)
 
-    this.data.update(m => {
-      m.set(eventId, relays)
-
-      return m
-    })
+    this.data.set(eventId, relays)
+    this.emit('update')
   }
 
   track = (eventId: string, relay: string) => {
-    const seen = this.data.get().has(eventId)
+    const seen = this.data.has(eventId)
 
     this.addRelay(eventId, relay)
 
@@ -44,10 +41,7 @@ export class Tracker {
   }
 
   clear = () => {
-    this.data.update(m => {
-      m.clear()
-
-      return m
-    })
+    this.data.clear()
+    this.emit('update')
   }
 }
