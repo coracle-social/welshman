@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for package in $(ls packages); do
+for package in $(./get_packages.py); do
   tag=$(git describe --tags --abbrev=0 --match=$package'/*')
   changes=$(git diff "$tag" "packages/$package" | wc -l)
 
