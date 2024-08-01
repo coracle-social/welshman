@@ -1,0 +1,36 @@
+{
+  "name": "@welshman/store",
+  "version": "0.0.1",
+  "author": "hodlbod",
+  "license": "MIT",
+  "description": "A collection of utilities based on svelte/store for use with welshman",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "files": [
+    "build"
+  ],
+  "types": "./build/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/src/index.d.ts",
+      "import": "./build/src/index.mjs",
+      "require": "./build/src/index.cjs"
+    }
+  },
+  "scripts": {
+    "pub": "npm run lint && npm run build && npm publish",
+    "build": "gts clean && tsc-multi",
+    "lint": "gts lint",
+    "fix": "gts fix"
+  },
+  "devDependencies": {
+    "gts": "^5.0.1",
+    "tsc-multi": "^1.1.0",
+    "typescript": "~5.1.6"
+  },
+  "dependencies": {
+    "svelte": "^4.2.18"
+  }
+}

@@ -83,6 +83,10 @@ export const mapVals = <T extends Record<string, any>>(f: (v: any) => any, x: T)
   return r as T
 }
 
+export const mergeLeft = <T extends Record<string, any>>(a: T, b: T) => ({...b, ...a})
+
+export const mergeRight = <T extends Record<string, any>>(a: T, b: T) => ({...a, ...b})
+
 export const between = (low: number, high: number, n: number) => n > low && n < high
 
 export const randomId = (): string => Math.random().toString().slice(2)

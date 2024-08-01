@@ -167,7 +167,7 @@ export const parseAddress = (text: string, context: ParseContext): ParsedAddress
 }
 
 export const parseCashu = (text: string, context: ParseContext): ParsedCashu | void => {
-  const [value] = text.match(/^(cashu)[\d\w=]{50,5000}/i) || []
+  const [value] = text.match(/^(cashu)[-\d\w=]{50,5000}/i) || []
 
   if (value) {
     return {type: ParsedType.Cashu, value, raw: value}
