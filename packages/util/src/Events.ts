@@ -98,6 +98,8 @@ export const hasValidSignature = cached<string, boolean, [SignedEvent]>({
   },
 })
 
+export const getIdentifier = (e: EventTemplate) => e.tags.find(t => t[0] === 'd')?.[1]
+
 export const getIdOrAddress = (e: HashedEvent) => isReplaceable(e) ? getAddress(e) : e.id
 
 export const getIdAndAddress = (e: HashedEvent) => isReplaceable(e) ? [e.id, getAddress(e)] : [e.id]

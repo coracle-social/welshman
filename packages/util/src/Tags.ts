@@ -2,6 +2,7 @@ import {EventTemplate} from 'nostr-tools'
 import type {OmitStatics} from '@welshman/lib'
 import {Fluent, ensurePlural} from '@welshman/lib'
 import {isShareableRelayUrl, normalizeRelayUrl} from './Relay'
+import {Address, isContextAddress} from './Address'
 import {GROUP, COMMUNITY} from './Kinds'
 
 export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, 'from'>) {
@@ -204,3 +205,45 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   setIMeta = (imeta: Tags[]) => this.removeIMeta().addIMeta(imeta)
 }
+
+// New, simpler version
+
+export const getTags =
+  (types: string[], testValue?: (v: string) => boolean) =>
+  (tags: string[][]) =>
+    tags.filter(t => types.includes(t[0]) && (!testValue || testValue(t[1] || "")))
+
+export const getTagValues = (types: string[], testValue?: (v: string) => boolean) => {
+  const _getTags = getTags(types, testValue)
+
+  return (tags: string[][]) => _getTags(tags).map(t => t[1] || "")
+}
+
+export const getTagValue = (types: string[], testValue?: (v: string) => boolean) => {
+  const _getTagValues = getTagValues(types, testValue)
+
+  return (tags: string[][]) => _getTagValues(tags)[0]
+}
+
+export const getEventTags = getTags(["e"], id => id.length === 64)
+
+export const getEventTagValues = getTagValues(["e"], id => id.length === 64)
+
+export const getAddressTags = getTags(["a"], Address.isAddress)
+
+export const getAddressTagValues = getTagValues(["a"], Address.isAddress)
+
+export const getContextTagValues = (tags: string[][]) =>
+  getAddressTagValues(tags).filter(isContextAddress)
+
+export const getPubkeyTags = getTags(["p"], pk => pk.length === 64)
+
+export const getPubkeyTagValues = getTagValues(["p"], pk => pk.length === 64)
+
+export const getRelayTags = getTags(["r", "relay"], isShareableRelayUrl)
+
+export const getRelayTagValues = getTagValues(["r", "relay"], isShareableRelayUrl)
+
+export const getGroupTags = getTags(["h", "group"], h => Boolean(h.match(/^(.+)'(.+)$/)))
+
+export const getGroupTagValues = getTagValues(["h", "group"], h => Boolean(h.match(/^(.+)'(.+)$/)))
