@@ -350,6 +350,9 @@ export const pushToMapKey = <K, T>(m: Map<K, T[]>, k: K, v: T) => {
   m.set(k, a)
 }
 
+export const switcher = <T>(k: string, m: Record<string, T>) =>
+  m[k] === undefined ? m.default : m[k]
+
 // Random obscure stuff
 
 export const hexToBech32 = (prefix: string, url: string) =>
