@@ -131,6 +131,43 @@ export const tryCatch = async <T>(f: () => Promise<T | void> | T | void, onError
   return undefined
 }
 
+export const equals = (a: any, b: any) => {
+  if (a === b) return true
+
+  if (Array.isArray(a)) {
+    if (!Array.isArray(b) || a.length !== b.length) {
+      return false
+    }
+
+    for (let i = 0; i < a.length; i++) {
+      if (!equals(a[i], b[i])) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  if (typeof a === 'object') {
+    const aKeys = Object.keys(a)
+    const bKeys = Object.keys(b)
+
+    if (typeof b !== 'object' || aKeys.length !== bKeys.length) {
+      return false
+    }
+
+    for (const k of aKeys) {
+      if (!equals(a[k], b[k])) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  return false
+}
+
 // Curried utils
 
 export const nth = (i: number) => <T>(xs: T[], ...args: unknown[]) => xs[i]
