@@ -1,23 +1,23 @@
 import {EventTemplate} from '@welshman/util'
 import {hash, own, Sign, ISigner, EncryptionImplementation} from '../util'
 
-export type Extension = {
-  sign: Sign
+export type Nip07 = {
+  signEvent: Sign
   nip04: EncryptionImplementation
   nip44: EncryptionImplementation
   getPublicKey: () => string | undefined
 }
 
-export class ExtensionSigner implements ISigner {
+export const getNip07 = () => (window as {nostr?: Nip07}).nostr
+
+export class Nip07Signer implements ISigner {
   #lock = Promise.resolve()
 
-  #ext = () => (window as {nostr?: Extension}).nostr
-
-  #then = async <T>(f: (ext: Extension) => T | Promise<T>) => {
+  #then = async <T>(f: (ext: Nip07) => T | Promise<T>) => {
     const promise = this.#lock.then(() => {
-      const ext = this.#ext()
+      const ext = getNip07()
 
-      if (!ext) throw new Error("Extension is not enabled")
+      if (!ext) throw new Error("Nip07 is not enabled")
 
       return f(ext)
     })
@@ -28,19 +28,13 @@ export class ExtensionSigner implements ISigner {
     return promise
   }
 
-  isEnabled = () => Boolean(this.#ext())
+  getPubkey = async () => getNip07()!.getPublicKey()!
 
-  getPubkey = () =>
-    this.#then(ext => {
-      const pubkey = ext.getPublicKey()
+  sign = async (template: EventTemplate) => {
+    const event = hash(own(await this.getPubkey(), template))
 
-      if (!pubkey) throw new Error("Failed to retrieve pubkey")
-
-      return pubkey as string
-    })
-
-  sign = (event: EventTemplate) =>
-    this.#then(ext => ext.sign(hash(own(ext.getPublicKey() as string, event))))
+    return this.#then(ext => ext.signEvent(event))
+  }
 
   nip04 = {
     encrypt: (pubkey: string, message: string) =>

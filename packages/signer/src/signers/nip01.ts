@@ -1,14 +1,16 @@
 import {EventTemplate} from '@welshman/util'
-import {nip04, nip44, own, hash, sign, getPubkey, ISigner} from "../util"
+import {nip04, nip44, own, hash, sign, getPubkey, ISigner, makeSecret} from "../util"
 
-export class SecretSigner implements ISigner {
+export class Nip01Signer implements ISigner {
   private pubkey: string
 
   constructor(private secret: string) {
     this.pubkey = getPubkey(this.secret)
   }
 
-  isEnabled = () => true
+  static fromSecret = (secret: string) => new Nip01Signer(secret)
+
+  static ephemeral = () => new Nip01Signer(makeSecret())
 
   getPubkey = async () => this.pubkey
 

@@ -4,41 +4,41 @@ import {Emitter, tryCatch, randomId, sleep, equals, now} from "@welshman/lib"
 import {createEvent, TrustedEvent, EventTemplate, NOSTR_CONNECT} from "@welshman/util"
 import {subscribe, publish, Subscription} from "@welshman/net"
 import {ISigner, decrypt} from '../util'
-import {SecretSigner} from './secret'
+import {Nip01Signer} from './nip01'
 
-export type NostrConnectHandler = {
-  pubkey: string
+export type Nip46Handler = {
   relays: string[]
+  pubkey?: string
   domain?: string
 }
 
-export type ConnectResponse = {
+export type Nip46Response = {
   id: string
   error?: string
   result?: string
 }
 
-let singleton: NostrConnectBroker
+let singleton: Nip46Broker
 
 // FIXME set the full list of requested perms
 const Perms =
   "nip04_encrypt,nip04_decrypt,sign_event:0,sign_event:1,sign_event:4,sign_event:6,sign_event:7"
 
-export class NostrConnectBroker extends Emitter {
+export class Nip46Broker extends Emitter {
   #sub: Subscription
   #signer: ISigner
   #ready = sleep(500)
   #closed = false
   #connectResult: any
 
-  static get(pubkey: string, secret: string, handler: NostrConnectHandler) {
+  static get(pubkey: string, secret: string, handler: Nip46Handler) {
     if (
       singleton?.pubkey !== pubkey ||
       singleton?.secret !== secret ||
       !equals(singleton?.handler, handler)
     ) {
       singleton?.teardown()
-      singleton = new NostrConnectBroker(pubkey, secret, handler)
+      singleton = new Nip46Broker(pubkey, secret, handler)
     }
 
     return singleton
@@ -47,11 +47,11 @@ export class NostrConnectBroker extends Emitter {
   constructor(
     readonly pubkey: string,
     readonly secret: string,
-    readonly handler: NostrConnectHandler,
+    readonly handler: Nip46Handler,
   ) {
     super()
 
-    this.#signer = new SecretSigner(secret)
+    this.#signer = new Nip01Signer(secret)
     this.#sub = this.subscribe()
   }
 
@@ -96,7 +96,7 @@ export class NostrConnectBroker extends Emitter {
     await this.#ready
 
     const id = randomId()
-    const pubkey = admin ? this.handler.pubkey : this.pubkey
+    const pubkey = admin ? this.handler.pubkey! : this.pubkey
     const payload = JSON.stringify({id, method, params})
     const content = await nip04.encrypt(this.secret, pubkey, payload)
     const template = createEvent(NOSTR_CONNECT, {content, tags: [["p", pubkey]]})
@@ -109,7 +109,7 @@ export class NostrConnectBroker extends Emitter {
     })
 
     return new Promise<string>((resolve, reject) => {
-      this.once(`res-${id}`, ({result, error}: ConnectResponse) => {
+      this.once(`res-${id}`, ({result, error}: Nip46Response) => {
         if (error) {
           reject(error as string)
         } else {
@@ -163,10 +163,8 @@ export class NostrConnectBroker extends Emitter {
   }
 }
 
-export class ConnectSigner implements ISigner {
-  constructor(private broker: NostrConnectBroker) {}
-
-  isEnabled = () => true
+export class Nip46Signer implements ISigner {
+  constructor(private broker: Nip46Broker) {}
 
   getPubkey = async () => this.broker.pubkey
 

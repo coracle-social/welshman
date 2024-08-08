@@ -121,9 +121,15 @@ export const toggle = <T>(x: T, xs: T[]) => xs.includes(x) ? remove(x, xs) : app
 
 export const clamp = ([min, max]: [number, number], n: number) => Math.min(max, Math.max(min, n))
 
-export const tryCatch = async <T>(f: () => Promise<T | void> | T | void, onError?: (e: Error) => void): Promise<T | void> => {
+export const tryCatch = <T>(f: () => T, onError?: (e: Error) => void): T | undefined => {
   try {
-    return await f()
+    const r = f()
+
+    if (r instanceof Promise) {
+      r.catch(e => onError?.(e as Error))
+    }
+
+    return r
   } catch (e) {
     onError?.(e as Error)
   }

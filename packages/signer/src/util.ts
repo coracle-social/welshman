@@ -4,7 +4,7 @@ import {nip04 as nt04, nip44 as nt44, generateSecretKey, getPublicKey, getEventH
 import {cached} from '@welshman/lib'
 import {SignedEvent, HashedEvent, EventTemplate, OwnedEvent} from '@welshman/util'
 
-export const getSecret = () => bytesToHex(generateSecretKey())
+export const makeSecret = () => bytesToHex(generateSecretKey())
 
 export const getPubkey = (secret: string) => getPublicKey(hexToBytes(secret))
 
@@ -47,11 +47,10 @@ export type EncryptionImplementation = {
 }
 
 export interface ISigner {
-  isEnabled: () => boolean
-  getPubkey: () => Promise<string>
   sign: Sign
   nip04: EncryptionImplementation
   nip44: EncryptionImplementation
+  getPubkey: () => Promise<string>
 }
 
 export const decrypt = async (signer: ISigner, pubkey: string, message: string) =>
