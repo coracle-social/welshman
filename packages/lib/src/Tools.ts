@@ -137,6 +137,29 @@ export const tryCatch = <T>(f: () => T, onError?: (e: Error) => void): T | undef
   return undefined
 }
 
+export const isPojo = (obj: any) => {
+  const hasOwnProperty = Object.prototype.hasOwnProperty
+  const toString = Object.prototype.toString
+
+  // Detect obvious negatives use toString to catch host objects
+  if (obj === null || toString.call(obj) !== '[object Object]') {
+    return false
+  }
+
+  const proto = Object.getPrototypeOf(obj)
+  // Objects with no prototype (e.g., `Object.create( null )`) are plain
+  if (!proto) {
+    return true
+  }
+
+  // Objects with prototype are plain iff constructed by `Object` function
+  const ctor = hasOwnProperty.call(proto, 'constructor') && proto.constructor
+  return (
+    typeof ctor === 'function' &&
+    hasOwnProperty.toString.call(ctor) === hasOwnProperty.toString.call(Object)
+  )
+}
+
 export const equals = (a: any, b: any) => {
   if (a === b) return true
 
@@ -154,11 +177,15 @@ export const equals = (a: any, b: any) => {
     return true
   }
 
-  if (typeof a === 'object') {
+  if (isPojo(a)) {
+    if (!isPojo(b)) {
+      return false
+    }
+
     const aKeys = Object.keys(a)
     const bKeys = Object.keys(b)
 
-    if (typeof b !== 'object' || aKeys.length !== bKeys.length) {
+    if (aKeys.length !== bKeys.length) {
       return false
     }
 
