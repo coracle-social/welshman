@@ -355,6 +355,20 @@ export const once = (f: (...args: any) => void) => {
   }
 }
 
+export const memoize = <T>(f: (...args: any[]) => T) => {
+  let prevArgs: any[]
+  let result: T
+
+  return (...args: any[]) => {
+    if (!equals(prevArgs, args)) {
+      prevArgs = args
+      result = f(...args)
+    }
+
+    return result
+  }
+}
+
 export const batch = <T>(t: number, f: (xs: T[]) => void) => {
   const xs: T[] = []
   const cb = throttle(t, () => xs.length > 0 && f(xs.splice(0)))
@@ -363,6 +377,30 @@ export const batch = <T>(t: number, f: (xs: T[]) => void) => {
     xs.push(x)
     cb()
   }
+}
+
+export const batcher = <T, U>(t: number, execute: (request: T[]) => U[] | Promise<U[]>) => {
+  const queue: {request: T, resolve: (x: U) => void}[] = []
+
+  const _execute = async () => {
+    const items = queue.splice(0)
+    const results = await execute(items.map(item => item.request))
+
+    if (results.length !== items.length) {
+      throw new Error("Execute must return a promise for each request")
+    }
+
+    results.forEach(async (r, i) => items[i].resolve(await r))
+  }
+
+  return (request: T): Promise<U> =>
+    new Promise(resolve => {
+      if (queue.length === 0) {
+        setTimeout(_execute, t)
+      }
+
+      queue.push({request, resolve})
+    })
 }
 
 export const addToKey = <T>(m: Record<string, Set<T>>, k: string, v: T) => {

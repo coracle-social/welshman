@@ -68,8 +68,8 @@ export function withGetter<T>(store: Readable<T> | Writable<T>) {
 export const throttled = <T>(delay: number, store: Readable<T>) =>
   custom(set => store.subscribe(throttle(delay, set)))
 
-export const createEventStore = (repository: Repository) => {
-  let subs: Sub<TrustedEvent[]>[] = []
+export const createEventStore = <E extends TrustedEvent>(repository: Repository<E>) => {
+  let subs: Sub<E[]>[] = []
 
   const onUpdate = throttle(300, () => {
     const $events = repository.dump()
@@ -81,8 +81,8 @@ export const createEventStore = (repository: Repository) => {
 
   return {
     get: () => repository.dump(),
-    set: (events: TrustedEvent[]) => repository.load(events),
-    subscribe: (f: Sub<TrustedEvent[]>) => {
+    set: (events: E[]) => repository.load(events),
+    subscribe: (f: Sub<E[]>) => {
       f(repository.dump())
 
       subs.push(f)
@@ -102,7 +102,7 @@ export const createEventStore = (repository: Repository) => {
   }
 }
 
-export const deriveEventsMapped = <T>({
+export const deriveEventsMapped = <T, E extends TrustedEvent>({
   filters,
   repository,
   eventToItem,
@@ -110,9 +110,9 @@ export const deriveEventsMapped = <T>({
   includeDeleted = false,
 }: {
   filters: Filter[]
-  repository: Repository,
-  eventToItem: (event: TrustedEvent) => T
-  itemToEvent: (item: T) => TrustedEvent
+  repository: Repository<E>,
+  eventToItem: (event: E) => T
+  itemToEvent: (item: T) => E
   includeDeleted?: boolean
 }) =>
   custom<T[]>(setter => {
@@ -120,7 +120,7 @@ export const deriveEventsMapped = <T>({
 
     setter(data)
 
-    const onUpdate = batch(300, (updates: {added: TrustedEvent[]; removed: Set<string>}[]) => {
+    const onUpdate = batch(300, (updates: {added: E[]; removed: Set<string>}[]) => {
       const removed = new Set()
       const added = new Map()
 
@@ -150,7 +150,7 @@ export const deriveEventsMapped = <T>({
 
       if (!includeDeleted && removed.size > 0) {
         const [deleted, ok] = partition(
-          (item: T) => getIdAndAddress(itemToEvent(item)).some(id => removed.has(id)),
+          (item: T) => getIdAndAddress(itemToEvent(item)).some((id: string) => removed.has(id)),
           data,
         )
 
@@ -170,15 +170,15 @@ export const deriveEventsMapped = <T>({
     return () => repository.off("update", onUpdate)
   })
 
-export const deriveEvents = (repository: Repository, opts: {filters: Filter[]; includeDeleted?: boolean}) =>
-  deriveEventsMapped<TrustedEvent>({
+export const deriveEvents = <E extends TrustedEvent>(repository: Repository<E>, opts: {filters: Filter[]; includeDeleted?: boolean}) =>
+  deriveEventsMapped<E, E>({
     ...opts,
     repository,
     eventToItem: identity,
     itemToEvent: identity,
   })
 
-export const deriveEvent = (repository: Repository, idOrAddress: string) =>
+export const deriveEvent = <E extends TrustedEvent>(repository: Repository<E>, idOrAddress: string) =>
   derived(
     deriveEvents(repository, {
       filters: getIdFilters([idOrAddress]),
@@ -187,7 +187,7 @@ export const deriveEvent = (repository: Repository, idOrAddress: string) =>
     first
   )
 
-export const deriveIsDeletedByAddress = (repository: Repository, event: TrustedEvent) =>
+export const deriveIsDeletedByAddress = <E extends TrustedEvent>(repository: Repository<E>, event: E) =>
   custom<boolean>(setter => {
     setter(repository.isDeletedByAddress(event))
 

@@ -48,22 +48,22 @@ export const normalizeRelayUrl = (url: string, {allowInsecure = false}: Normaliz
   return prefix + url
 }
 
-export class Relay extends Emitter {
+export class Relay<T extends TrustedEvent> extends Emitter {
   subs = new Map<string, Filter[]>()
 
-  constructor(readonly repository: Repository) {
+  constructor(readonly repository: Repository<T>) {
     super()
   }
 
   send(type: string, ...message: any[]) {
     switch(type) {
-      case 'EVENT': return this.handleEVENT(message as [TrustedEvent])
+      case 'EVENT': return this.handleEVENT(message as [T])
       case 'CLOSE': return this.handleCLOSE(message as [string])
       case 'REQ': return this.handleREQ(message as [string, ...Filter[]])
     }
   }
 
-  handleEVENT([event]: [TrustedEvent]) {
+  handleEVENT([event]: [T]) {
     this.repository.publish(event)
 
     // Callers generally expect async relays

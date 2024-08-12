@@ -1,9 +1,10 @@
 import {Emitter} from '@welshman/lib'
+import type {TrustedEvent} from '@welshman/util'
 import {Relay, LOCAL_RELAY_URL} from '@welshman/util'
 import type {Message} from '../Socket'
 
-export class Local extends Emitter {
-  constructor(readonly relay: Relay) {
+export class Local<T extends TrustedEvent> extends Emitter {
+  constructor(readonly relay: Relay<T>) {
     super()
 
     relay.on('*', this.onMessage)

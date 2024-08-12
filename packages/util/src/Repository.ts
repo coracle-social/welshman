@@ -10,13 +10,13 @@ export const DAY = 86400
 
 const getDay = (ts: number) => Math.floor(ts / DAY)
 
-export class Repository extends Emitter {
-  eventsById = new Map<string, TrustedEvent>()
-  eventsByWrap = new Map<string, TrustedEvent>()
-  eventsByAddress = new Map<string, TrustedEvent>()
-  eventsByTag = new Map<string, TrustedEvent[]>()
-  eventsByDay = new Map<number, TrustedEvent[]>()
-  eventsByAuthor = new Map<string, TrustedEvent[]>()
+export class Repository<T extends TrustedEvent> extends Emitter {
+  eventsById = new Map<string, T>()
+  eventsByWrap = new Map<string, T>()
+  eventsByAddress = new Map<string, T>()
+  eventsByTag = new Map<string, T[]>()
+  eventsByDay = new Map<number, T[]>()
+  eventsByAuthor = new Map<string, T[]>()
   deletes = new Map<string, number>()
 
   // Dump/load/clear
@@ -25,7 +25,7 @@ export class Repository extends Emitter {
     return Array.from(this.eventsById.values())
   }
 
-  load = async (events: TrustedEvent[], chunkSize = 1000) => {
+  load = async (events: T[], chunkSize = 1000) => {
     this.clear()
 
     const added = []
@@ -69,7 +69,7 @@ export class Repository extends Emitter {
       : this.eventsById.get(idOrAddress)
   }
 
-  hasEvent = (event: TrustedEvent) => {
+  hasEvent = (event: T) => {
     const duplicate = (
       this.eventsById.get(event.id) ||
       this.eventsByAddress.get(getAddress(event))
@@ -79,12 +79,12 @@ export class Repository extends Emitter {
   }
 
   query = (filters: Filter[], {includeDeleted = false} = {}) => {
-    const result: TrustedEvent[][] = []
+    const result: T[][] = []
     for (let filter of filters) {
-      let events: TrustedEvent[] = Array.from(this.eventsById.values())
+      let events: T[] = Array.from(this.eventsById.values())
 
       if (filter.ids) {
-        events = filter.ids!.map(id => this.eventsById.get(id)).filter(identity) as TrustedEvent[]
+        events = filter.ids!.map(id => this.eventsById.get(id)).filter(identity) as T[]
         filter = omit(['ids'], filter)
       } else if (filter.authors) {
         events = uniq(filter.authors!.flatMap(pubkey => this.eventsByAuthor.get(pubkey) || []))
@@ -112,8 +112,8 @@ export class Repository extends Emitter {
         }
       }
 
-      const chunk: TrustedEvent[] = []
-      for (const event of sortBy((e: TrustedEvent) => -e.created_at, events)) {
+      const chunk: T[] = []
+      for (const event of sortBy((e: T) => -e.created_at, events)) {
         if (filter.limit && chunk.length >= filter.limit) {
           break
         }
@@ -133,7 +133,7 @@ export class Repository extends Emitter {
     return uniq(flatten(result))
   }
 
-  publish = (event: TrustedEvent, {shouldNotify = true} = {}): boolean => {
+  publish = (event: T, {shouldNotify = true} = {}): boolean => {
     if (!isTrustedEvent(event)) {
       throw new Error("Invalid event published to Repository", event)
     }
@@ -203,19 +203,19 @@ export class Repository extends Emitter {
     return true
   }
 
-  isDeletedByAddress = (event: TrustedEvent) => (this.deletes.get(getAddress(event)) || 0) > event.created_at
+  isDeletedByAddress = (event: T) => (this.deletes.get(getAddress(event)) || 0) > event.created_at
 
-  isDeletedById = (event: TrustedEvent) => (this.deletes.get(event.id) || 0) > event.created_at
+  isDeletedById = (event: T) => (this.deletes.get(event.id) || 0) > event.created_at
 
-  isDeleted = (event: TrustedEvent) => this.isDeletedByAddress(event) || this.isDeletedById(event)
+  isDeleted = (event: T) => this.isDeletedByAddress(event) || this.isDeletedById(event)
 
   // Utilities
 
-  _updateIndex<K>(m: Map<K, TrustedEvent[]>, k: K, e: TrustedEvent, duplicate?: TrustedEvent) {
+  _updateIndex<K>(m: Map<K, T[]>, k: K, e: T, duplicate?: T) {
     let a = m.get(k) || []
 
     if (duplicate) {
-      a = a.filter((x: TrustedEvent) => x !== duplicate)
+      a = a.filter((x: T) => x !== duplicate)
     }
 
     a.push(e)

@@ -55,7 +55,7 @@ export class Nip46Broker extends Emitter {
     this.#sub = this.subscribe()
   }
 
-  subscribe() {
+  subscribe = () => {
     const sub = subscribe({
       relays: this.handler.relays,
       filters: [
@@ -91,7 +91,7 @@ export class Nip46Broker extends Emitter {
     return sub
   }
 
-  async request(method: string, params: string[], admin = false) {
+  request = async (method: string, params: string[], admin = false) => {
     // nsecbunker has a race condition
     await this.#ready
 
@@ -105,7 +105,7 @@ export class Nip46Broker extends Emitter {
     publish({event, relays: this.handler.relays})
 
     this.once(`auth-${id}`, res => {
-      window.open(res.result, "Coracle", "width=600,height=800,popup=yes")
+      window.open(res.error, "Coracle", "width=600,height=800,popup=yes")
     })
 
     return new Promise<string>((resolve, reject) => {
@@ -119,7 +119,7 @@ export class Nip46Broker extends Emitter {
     })
   }
 
-  createAccount(username: string) {
+  createAccount = (username: string) => {
     if (!this.handler.domain) {
       throw new Error("Unable to create an account without a handler domain")
     }
@@ -127,7 +127,7 @@ export class Nip46Broker extends Emitter {
     return this.request("create_account", [username, this.handler.domain, "", Perms], true)
   }
 
-  async connect(token = "") {
+  connect = async (token = "") => {
     if (!this.#connectResult) {
       const params = [this.pubkey, token, Perms]
 
@@ -137,27 +137,27 @@ export class Nip46Broker extends Emitter {
     return this.#connectResult === "ack"
   }
 
-  async signEvent(event: EventTemplate) {
+  signEvent = async (event: EventTemplate) => {
     return JSON.parse(await this.request("sign_event", [JSON.stringify(event)]) as string)
   }
 
-  nip04Encrypt(pk: string, message: string) {
+  nip04Encrypt = (pk: string, message: string) => {
     return this.request("nip04_encrypt", [pk, message])
   }
 
-  nip04Decrypt(pk: string, message: string) {
+  nip04Decrypt = (pk: string, message: string) => {
     return this.request("nip04_decrypt", [pk, message])
   }
 
-  nip44Encrypt(pk: string, message: string) {
+  nip44Encrypt = (pk: string, message: string) => {
     return this.request("nip44_encrypt", [pk, message])
   }
 
-  nip44Decrypt(pk: string, message: string) {
+  nip44Decrypt = (pk: string, message: string) => {
     return this.request("nip44_decrypt", [pk, message])
   }
 
-  teardown() {
+  teardown = () => {
     this.#closed = true
     this.#sub?.close()
   }
