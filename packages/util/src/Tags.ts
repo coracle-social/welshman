@@ -1,4 +1,4 @@
-import {EventTemplate} from 'nostr-tools'
+import {EventTemplate} from 'nostr-tools/pure'
 import type {OmitStatics} from '@welshman/lib'
 import {Fluent, ensurePlural} from '@welshman/lib'
 import {isShareableRelayUrl, normalizeRelayUrl} from './Relay'

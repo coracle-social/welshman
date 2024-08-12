@@ -1,5 +1,5 @@
-import {Event} from 'nostr-tools'
-import {matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
+import {Event} from 'nostr-tools/pure'
+import {matchFilter as nostrToolsMatchFilter} from 'nostr-tools/filter'
 import {uniqBy, prop, mapVals, shuffle, avg, hash, groupBy, randomId, uniq} from '@welshman/lib'
 import type {HashedEvent, TrustedEvent} from './Events'
 import {isReplaceableKind} from './Kinds'

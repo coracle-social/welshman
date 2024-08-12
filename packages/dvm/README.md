@@ -30,7 +30,7 @@ req.emitter.on(DVMEvent.Result, (url, event) => console.log(event))
 
 ```javascript
 const {bytesToHex} = require('@noble/hashes/utils')
-const {generateSecretKey} = require('nostr-tools')
+const {generateSecretKey} = require('nostr-tools/pure')
 const {createEvent} = require('@welshman/util')
 const {subscribe} = require('@welshman/net')
 const {DVM} = require('@welshman/dvm')

@@ -1,6 +1,8 @@
 import {schnorr} from '@noble/curves/secp256k1'
 import {bytesToHex, hexToBytes} from '@noble/hashes/utils'
-import {nip04 as nt04, nip44 as nt44, generateSecretKey, getPublicKey, getEventHash} from "nostr-tools"
+import * as nt04 from 'nostr-tools/nip04'
+import * as nt44 from 'nostr-tools/nip44'
+import {generateSecretKey, getPublicKey, getEventHash} from 'nostr-tools/pure'
 import {cached} from '@welshman/lib'
 import {SignedEvent, HashedEvent, EventTemplate, OwnedEvent} from '@welshman/util'
 

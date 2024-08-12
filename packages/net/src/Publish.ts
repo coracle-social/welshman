@@ -1,4 +1,4 @@
-import type {Event} from 'nostr-tools'
+import type {Event} from 'nostr-tools/pure'
 import {Emitter, now, randomId, defer} from '@welshman/lib'
 import type {Deferred} from '@welshman/lib'
 import {asSignedEvent} from '@welshman/util'
@@ -97,4 +97,3 @@ export const publish = (request: PublishRequest) => {
 
   return pub
 }
-

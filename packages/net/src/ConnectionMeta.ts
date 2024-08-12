@@ -1,4 +1,5 @@
-import type {Event, Filter} from 'nostr-tools'
+import type {Event} from 'nostr-tools/pure'
+import type {Filter} from 'nostr-tools/filter'
 import type {Message} from './Socket'
 import type {Connection} from './Connection'
 

@@ -1,4 +1,5 @@
-import {nip04, finalizeEvent, getPublicKey} from "nostr-tools"
+import * as nt04 from 'nostr-tools/nip04'
+import {finalizeEvent, getPublicKey} from 'nostr-tools/pure'
 import {hexToBytes} from '@noble/hashes/utils'
 import {Emitter, tryCatch, randomId, sleep, equals, now} from "@welshman/lib"
 import {createEvent, TrustedEvent, EventTemplate, NOSTR_CONNECT} from "@welshman/util"
@@ -98,7 +99,7 @@ export class Nip46Broker extends Emitter {
     const id = randomId()
     const pubkey = admin ? this.handler.pubkey! : this.pubkey
     const payload = JSON.stringify({id, method, params})
-    const content = await nip04.encrypt(this.secret, pubkey, payload)
+    const content = await nt04.encrypt(this.secret, pubkey, payload)
     const template = createEvent(NOSTR_CONNECT, {content, tags: [["p", pubkey]]})
     const event = finalizeEvent(template, this.secret as any)
 

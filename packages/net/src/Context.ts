@@ -1,4 +1,4 @@
-import type {Event} from 'nostr-tools'
+import type {Event} from 'nostr-tools/pure'
 import {matchFilters, hasValidSignature} from '@welshman/util'
 import type {Filter} from '@welshman/util'
 import {Pool} from "./Pool"

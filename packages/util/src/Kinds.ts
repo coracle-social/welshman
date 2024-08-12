@@ -1,9 +1,9 @@
-import {kinds} from 'nostr-tools'
+import {isRegularKind, isEphemeralKind, isReplaceableKind, isParameterizedReplaceableKind} from 'nostr-tools/kinds'
 
-export const isRegularKind = kinds.isRegularKind
-export const isEphemeralKind = kinds.isEphemeralKind
-export const isPlainReplaceableKind = kinds.isReplaceableKind
-export const isParameterizedReplaceableKind = kinds.isParameterizedReplaceableKind
+export const isRegularKind = isRegularKind
+export const isEphemeralKind = isEphemeralKind
+export const isPlainReplaceableKind = isReplaceableKind
+export const isParameterizedReplaceableKind = isParameterizedReplaceableKind
 export const isReplaceableKind = (kind: number) =>
   isPlainReplaceableKind(kind) || isParameterizedReplaceableKind(kind)
 
@@ -161,4 +161,3 @@ export const GROUP_ADMINS = 39001
 export const DEPRECATED_RELAY_RECOMMENDATION = 2
 export const DEPRECATED_DIRECT_MESSAGE = 4
 export const DEPRECATED_NAMED_GENERIC = 30001
-

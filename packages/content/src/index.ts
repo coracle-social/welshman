@@ -1,4 +1,4 @@
-import {nip19} from "nostr-tools"
+import * as nip19 from "nostr-tools/nip19"
 import {sanitizeUrl} from '@braintree/sanitize-url'
 
 const last = <T>(xs: T[], ...args: unknown[]) => xs[xs.length - 1]

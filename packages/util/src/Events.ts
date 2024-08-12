@@ -1,5 +1,4 @@
-import {verifiedSymbol} from 'nostr-tools'
-import {verifyEvent, getEventHash} from 'nostr-tools'
+import {verifiedSymbol, verifyEvent, getEventHash} from 'nostr-tools/pure'
 import {cached, pick, now} from '@welshman/lib'
 import {Tags} from './Tags'
 import {getAddress} from './Address'

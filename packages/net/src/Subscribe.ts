@@ -1,4 +1,4 @@
-import type {Event} from 'nostr-tools'
+import type {Event} from 'nostr-tools/pure'
 import {Emitter, chunk, randomId, once, groupBy, batch, uniq} from '@welshman/lib'
 import {matchFilters, unionFilters} from '@welshman/util'
 import type {Filter} from '@welshman/util'
