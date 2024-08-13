@@ -121,6 +121,16 @@ export const toggle = <T>(x: T, xs: T[]) => xs.includes(x) ? remove(x, xs) : app
 
 export const clamp = ([min, max]: [number, number], n: number) => Math.min(max, Math.max(min, n))
 
+export const parseJson = (json: string | Nil) => {
+  if (!json) return null
+
+  try {
+    return JSON.parse(json)
+  } catch (e) {
+    return null
+  }
+}
+
 export const tryCatch = <T>(f: () => T, onError?: (e: Error) => void): T | undefined => {
   try {
     const r = f()
@@ -135,6 +145,18 @@ export const tryCatch = <T>(f: () => T, onError?: (e: Error) => void): T | undef
   }
 
   return undefined
+}
+
+export const ellipsize = (s: string, l: number, suffix = '...') => {
+  if (s.length < l * 1.1) {
+    return s
+  }
+
+  while (s.length > l && s.includes(' ')) {
+    s = s.split(' ').slice(0, -1).join(' ')
+  }
+
+  return s + suffix
 }
 
 export const isPojo = (obj: any) => {

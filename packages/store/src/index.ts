@@ -102,7 +102,7 @@ export const createEventStore = <E extends TrustedEvent>(repository: Repository<
   }
 }
 
-export const deriveEventsMapped = <T, E extends TrustedEvent>({
+export const deriveEventsMapped = <E extends TrustedEvent, T>({
   filters,
   repository,
   eventToItem,
