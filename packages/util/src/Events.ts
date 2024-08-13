@@ -5,10 +5,13 @@ import {Tags} from './Tags'
 import {getAddress} from './Address'
 import {isEphemeralKind, isReplaceableKind, isPlainReplaceableKind, isParameterizedReplaceableKind} from './Kinds'
 
-export type EventTemplate = {
-  kind: number
+export type EventContent = {
   tags: string[][]
   content: string
+}
+
+export type EventTemplate = EventContent & {
+  kind: number
   created_at: number
 }
 
@@ -34,6 +37,8 @@ export type TrustedEvent = HashedEvent & {
   wrap?: SignedEvent
   [verifiedSymbol]?: boolean
 }
+
+export type ExtensibleTrustedEvent = TrustedEvent & Record<string, any>
 
 export type CreateEventOpts = {
   content?: string

@@ -1,26 +1,26 @@
 import {inc, max, min, now} from '@welshman/lib'
-import type {TrustedEvent, Filter} from '@welshman/util'
+import type {ExtensibleTrustedEvent, Filter} from '@welshman/util'
 import {EPOCH, trimFilters, guessFilterDelta} from '@welshman/util'
 import type {Feed, RequestItem, FeedOptions} from './core'
 import {FeedType} from './core'
 import {FeedCompiler} from './compiler'
 
-export type LoadOpts<E> = {
-  onEvent?: (event: E) => void
+export type LoadOpts = {
+  onEvent?: (event: ExtensibleTrustedEvent) => void
   onExhausted?: () => void
   useWindowing?: boolean
 }
 
 export type Loader = (limit: number) => Promise<void>
 
-export class FeedLoader<E extends TrustedEvent> {
-  compiler: FeedCompiler<E>
+export class FeedLoader {
+  compiler: FeedCompiler
 
-  constructor(readonly options: FeedOptions<E>) {
+  constructor(readonly options: FeedOptions) {
     this.compiler = new FeedCompiler(options)
   }
 
-  async getLoader([type, ...feed]: Feed, loadOpts: LoadOpts<E>) {
+  async getLoader([type, ...feed]: Feed, loadOpts: LoadOpts) {
     if (this.compiler.canCompile([type, ...feed] as Feed)) {
       return this.getRequestsLoader(await this.compiler.compile([type, ...feed] as Feed), loadOpts)
     }
@@ -37,7 +37,7 @@ export class FeedLoader<E extends TrustedEvent> {
     }
   }
 
-  async getRequestsLoader(requests: RequestItem[], loadOpts: LoadOpts<E>) {
+  async getRequestsLoader(requests: RequestItem[], loadOpts: LoadOpts) {
     const seen = new Set()
     const exhausted = new Set()
     const loaders = await Promise.all(
@@ -64,7 +64,7 @@ export class FeedLoader<E extends TrustedEvent> {
     }
   }
 
-  async _getRequestLoader({relays, filters}: RequestItem, {useWindowing = true, onEvent, onExhausted}: LoadOpts<E>) {
+  async _getRequestLoader({relays, filters}: RequestItem, {useWindowing = true, onEvent, onExhausted}: LoadOpts) {
     // Make sure we have some kind of filter to send if we've been given an empty one, as happens with relay feeds
     if (!filters || filters.length === 0) {
       filters = [{}]
@@ -101,7 +101,7 @@ export class FeedLoader<E extends TrustedEvent> {
       await this.options.request({
         relays,
         filters: trimFilters(requestFilters),
-        onEvent: (event: E) => {
+        onEvent: (event: ExtensibleTrustedEvent) => {
           count += 1
           until = Math.min(until, event.created_at - 1)
           onEvent?.(event)
@@ -127,17 +127,17 @@ export class FeedLoader<E extends TrustedEvent> {
     }
   }
 
-  async _getDifferenceLoader(feeds: Feed[], {onEvent, onExhausted}: LoadOpts<E>) {
+  async _getDifferenceLoader(feeds: Feed[], {onEvent, onExhausted}: LoadOpts) {
     const exhausted = new Set<number>()
     const skip = new Set<string>()
-    const events: E[] = []
+    const events: ExtensibleTrustedEvent[] = []
     const seen = new Set()
 
     const loaders = await Promise.all(
       feeds.map((feed: Feed, i: number) =>
         this.getLoader(feed, {
           onExhausted: () => exhausted.add(i),
-          onEvent: (event: E) => {
+          onEvent: (event: ExtensibleTrustedEvent) => {
             if (i === 0) {
               events.push(event)
             } else {
@@ -172,17 +172,17 @@ export class FeedLoader<E extends TrustedEvent> {
     }
   }
 
-  async _getIntersectionLoader(feeds: Feed[], {onEvent, onExhausted}: LoadOpts<E>) {
+  async _getIntersectionLoader(feeds: Feed[], {onEvent, onExhausted}: LoadOpts) {
     const exhausted = new Set<number>()
     const counts = new Map<string, number>()
-    const events: E[] = []
+    const events: ExtensibleTrustedEvent[] = []
     const seen = new Set()
 
     const loaders = await Promise.all(
       feeds.map((feed: Feed, i: number) =>
         this.getLoader(feed, {
           onExhausted: () => exhausted.add(i),
-          onEvent: (event: E) => {
+          onEvent: (event: ExtensibleTrustedEvent) => {
             events.push(event)
             counts.set(event.id, inc(counts.get(event.id)))
           },
@@ -214,7 +214,7 @@ export class FeedLoader<E extends TrustedEvent> {
     }
   }
 
-  async _getUnionLoader(feeds: Feed[], {onEvent, onExhausted}: LoadOpts<E>) {
+  async _getUnionLoader(feeds: Feed[], {onEvent, onExhausted}: LoadOpts) {
     const exhausted = new Set<number>()
     const seen = new Set()
 
@@ -222,7 +222,7 @@ export class FeedLoader<E extends TrustedEvent> {
       feeds.map((feed: Feed, i: number) =>
         this.getLoader(feed, {
           onExhausted: () => exhausted.add(i),
-          onEvent: (event: E) => {
+          onEvent: (event: ExtensibleTrustedEvent) => {
             if (!seen.has(event.id)) {
               onEvent?.(event)
               seen.add(event.id)

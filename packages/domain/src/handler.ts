@@ -1,20 +1,20 @@
 import {fromPairs, parseJson} from "@welshman/lib"
 import {getAddress, Tags} from "@welshman/util"
-import type {TrustedEvent} from "@welshman/util"
+import type {ExtensibleTrustedEvent} from "@welshman/util"
 
-export type Handler<E extends TrustedEvent> = {
+export type Handler = {
   kind: number
   name: string
   about: string
   image: string
   identifier: string
-  event: E
+  event: ExtensibleTrustedEvent
   website?: string
   lud16?: string
   nip05?: string
 }
 
-export const readHandlers = <E extends TrustedEvent>(event: E) => {
+export const readHandlers = (event: ExtensibleTrustedEvent) => {
   const {d: identifier} = fromPairs(event.tags)
   const meta = parseJson(event.content)
   const normalizedMeta = {
@@ -35,14 +35,14 @@ export const readHandlers = <E extends TrustedEvent>(event: E) => {
     .whereKey("k")
     .values()
     .valueOf()
-    .map(kind => ({...normalizedMeta, kind: parseInt(kind), identifier, event})) as Handler<E>[]
+    .map(kind => ({...normalizedMeta, kind: parseInt(kind), identifier, event})) as Handler[]
 }
 
-export const getHandlerKey = <E extends TrustedEvent>(handler: Handler<E>) => `${handler.kind}:${getAddress(handler.event)}`
+export const getHandlerKey = (handler: Handler) => `${handler.kind}:${getAddress(handler.event)}`
 
-export const displayHandler = <E extends TrustedEvent>(handler?: Handler<E>, fallback = "") => handler?.name || fallback
+export const displayHandler = (handler?: Handler, fallback = "") => handler?.name || fallback
 
-export const getHandlerAddress = <E extends TrustedEvent>(event: E) => {
+export const getHandlerAddress = (event: ExtensibleTrustedEvent) => {
   const tags = Tags.fromEvent(event).whereKey("a")
   const tag = tags.filter(t => t.last() === "web").first() || tags.first()
 

@@ -32,6 +32,6 @@
   },
   "dependencies": {
     "@braintree/sanitize-url": "^7.0.2",
-    "nostr-tools": "^2.7.0"
+    "nostr-tools": "^2.7.2"
   }
 }

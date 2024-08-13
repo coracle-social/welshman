@@ -1,12 +1,12 @@
 import {uniq, identity, flatten, pushToMapKey, intersection, tryCatch, now} from '@welshman/lib'
-import type {TrustedEvent, Filter} from '@welshman/util'
+import type {ExtensibleTrustedEvent, Filter} from '@welshman/util'
 import {Tags, intersectFilters, matchFilter, getAddress, getIdFilters, unionFilters} from '@welshman/util'
 import type {CreatedAtItem, RequestItem, ListItem, LabelItem, WOTItem, DVMItem, Scope, Feed, FeedOptions} from './core'
 import {getFeedArgs, feedsFromTags} from './utils'
 import {FeedType} from './core'
 
-export class FeedCompiler<E extends TrustedEvent> {
-  constructor(readonly options: FeedOptions<E>) {}
+export class FeedCompiler {
+  constructor(readonly options: FeedOptions) {}
 
   canCompile(feed: Feed): boolean {
     switch(feed[0]) {
@@ -109,7 +109,7 @@ export class FeedCompiler<E extends TrustedEvent> {
       items.map(({mappings, ...request}) =>
         this.options.requestDVM({
           ...request,
-          onEvent: async (e: E) => {
+          onEvent: async (e: ExtensibleTrustedEvent) => {
             const tags = Tags.wrap(await tryCatch(() => JSON.parse(e.content)) || [])
 
             for (const feed of feedsFromTags(tags, mappings)) {
@@ -215,11 +215,11 @@ export class FeedCompiler<E extends TrustedEvent> {
 
   async _compileLists(listItems: ListItem[]): Promise<RequestItem[]> {
     const addresses = uniq(listItems.flatMap(({addresses}) => addresses))
-    const eventsByAddress = new Map<string, E>()
+    const eventsByAddress = new Map<string, ExtensibleTrustedEvent>()
 
     await this.options.request({
       filters: getIdFilters(addresses),
-      onEvent: (e: E) => eventsByAddress.set(getAddress(e), e),
+      onEvent: (e: ExtensibleTrustedEvent) => eventsByAddress.set(getAddress(e), e),
     })
 
     const feeds = flatten(
@@ -246,14 +246,14 @@ export class FeedCompiler<E extends TrustedEvent> {
   }
 
   async _compileLabels(labelItems: LabelItem[]): Promise<RequestItem[]> {
-    const events: E[] = []
+    const events: ExtensibleTrustedEvent[] = []
 
     await Promise.all(
       labelItems.map(({mappings, relays, ...filter}) =>
         this.options.request({
           relays,
           filters: [{kinds: [1985], ...filter}],
-          onEvent: (e: E) => events.push(e),
+          onEvent: (e: ExtensibleTrustedEvent) => events.push(e),
         })
       )
     )

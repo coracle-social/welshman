@@ -1,21 +1,16 @@
-import type {TrustedEvent} from "@welshman/util"
+import type {EventContent, ExtensibleTrustedEvent} from "@welshman/util"
 
 export type Encrypt = (x: string) => Promise<string>
 
-export type EventContent = {
-  content?: string
-  tags?: string[][]
+export type DecryptedEvent = ExtensibleTrustedEvent & {
+  plaintext: Partial<EventContent>
 }
 
-export type DecryptedEvent<E extends TrustedEvent> = E & {
-  plaintext: EventContent
-}
+export const asDecryptedEvent = (event: ExtensibleTrustedEvent, plaintext: Partial<EventContent>) =>
+  ({...event, plaintext}) as DecryptedEvent
 
-export const asDecryptedEvent = <E extends TrustedEvent>(event: E, plaintext: EventContent) =>
-  ({...event, plaintext}) as DecryptedEvent<E>
-
-export class Encryptable<E extends TrustedEvent> {
-  constructor(readonly event: Partial<E>, readonly updates: EventContent) {}
+export class Encryptable<E extends Partial<EventContent>> {
+  constructor(readonly event: E, readonly updates: E) {}
 
   async reconcile(encrypt: Encrypt) {
     const encryptContent = () => {
@@ -41,8 +36,8 @@ export class Encryptable<E extends TrustedEvent> {
     // Updates are optional. If not provided, fall back to the event's content and tags.
     return {
       ...this.event,
-      tags: tags || this.event.tags,
-      content: content || this.event.content,
+      tags: tags || this.event.tags || [],
+      content: content || this.event.content || "",
     }
   }
 }

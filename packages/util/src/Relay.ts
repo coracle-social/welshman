@@ -2,7 +2,7 @@ import {Emitter, normalizeUrl, sleep, stripProtocol} from '@welshman/lib'
 import {matchFilters} from './Filters'
 import type {Repository} from './Repository'
 import type {Filter} from './Filters'
-import type {TrustedEvent} from './Events'
+import type {ExtensibleTrustedEvent} from './Events'
 
 export const LOCAL_RELAY_URL = "local://welshman.relay"
 
@@ -48,22 +48,22 @@ export const normalizeRelayUrl = (url: string, {allowInsecure = false}: Normaliz
   return prefix + url
 }
 
-export class Relay<T extends TrustedEvent> extends Emitter {
+export class Relay extends Emitter {
   subs = new Map<string, Filter[]>()
 
-  constructor(readonly repository: Repository<T>) {
+  constructor(readonly repository: Repository) {
     super()
   }
 
   send(type: string, ...message: any[]) {
     switch(type) {
-      case 'EVENT': return this.handleEVENT(message as [T])
+      case 'EVENT': return this.handleEVENT(message as [ExtensibleTrustedEvent])
       case 'CLOSE': return this.handleCLOSE(message as [string])
       case 'REQ': return this.handleREQ(message as [string, ...Filter[]])
     }
   }
 
-  handleEVENT([event]: [T]) {
+  handleEVENT([event]: [ExtensibleTrustedEvent]) {
     this.repository.publish(event)
 
     // Callers generally expect async relays

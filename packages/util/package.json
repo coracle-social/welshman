@@ -32,6 +32,6 @@
   },
   "dependencies": {
     "@welshman/lib": "0.0.14",
-    "nostr-tools": "^2.3.2"
+    "nostr-tools": "^2.7.2"
   }
 }

@@ -1,12 +1,12 @@
 import {hexToBytes} from '@noble/hashes/utils'
 import {getPublicKey, finalizeEvent} from 'nostr-tools'
 import {now} from '@welshman/lib'
-import type {TrustedEvent, EventTemplate, Filter} from '@welshman/util'
+import type {ExtensibleTrustedEvent, EventTemplate, Filter} from '@welshman/util'
 import {subscribe, publish} from '@welshman/net'
 
 export type DVMHandler = {
   stop?: () => void
-  handleEvent: (e: TrustedEvent) => AsyncGenerator<EventTemplate>
+  handleEvent: (e: ExtensibleTrustedEvent) => AsyncGenerator<EventTemplate>
 }
 
 export type CreateDVMHandler = (dvm: DVM) => DVMHandler
@@ -49,7 +49,7 @@ export class DVM {
         const filters = [filter]
         const sub = subscribe({relays, filters})
 
-        sub.emitter.on('event', (url: string, e: TrustedEvent) => this.onEvent(e))
+        sub.emitter.on('event', (url: string, e: ExtensibleTrustedEvent) => this.onEvent(e))
         sub.emitter.on('complete', () => resolve())
       })
     }
@@ -63,7 +63,7 @@ export class DVM {
     this.active = false
   }
 
-  async onEvent(request: TrustedEvent) {
+  async onEvent(request: ExtensibleTrustedEvent) {
     console.log(request)
     const {expireAfter = 60 * 60} = this.opts
 
@@ -87,7 +87,7 @@ export class DVM {
       if (event.kind !== 7000) {
         event.tags.push(['request', JSON.stringify(request)])
 
-        const inputTag = request.tags.find(t => t[0] === 'i')
+        const inputTag = request.tags.find((t: string[]) => t[0] === 'i')
 
         if (inputTag) {
           event.tags.push(inputTag)

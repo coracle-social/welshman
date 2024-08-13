@@ -1,22 +1,22 @@
 import {parseJson} from "@welshman/lib"
-import {Address, isShareableRelayUrl, TrustedEvent} from "@welshman/util"
+import {Address, isShareableRelayUrl} from "@welshman/util"
 import {Encryptable, DecryptedEvent} from "./util"
 
 export type ListParams = {
   kind: number
 }
 
-export type List<E extends TrustedEvent> = ListParams & {
+export type List = ListParams & {
   publicTags: string[][]
   privateTags: string[][]
-  event?: DecryptedEvent<E>
+  event?: DecryptedEvent
 }
 
-export type PublishedList<E extends TrustedEvent> = Omit<List<E>, "event"> & {
-  event: DecryptedEvent<E>
+export type PublishedList = Omit<List, "event"> & {
+  event: DecryptedEvent
 }
 
-export const makeList = <E extends TrustedEvent>(list: ListParams & Partial<List<E>>): List<E> =>
+export const makeList = (list: ListParams & Partial<List>): List =>
   ({publicTags: [], privateTags: [], ...list})
 
 const isValidTag = (tag: string[]) => {
@@ -30,7 +30,7 @@ const isValidTag = (tag: string[]) => {
   return true
 }
 
-export const readList = <E extends TrustedEvent>(event: DecryptedEvent<E>): PublishedList<E> => {
+export const readList = (event: DecryptedEvent): PublishedList => {
   const getTags = (tags: string[][]) => (Array.isArray(tags) ? tags.filter(isValidTag) : [])
   const privateTags = getTags(parseJson(event.plaintext?.content))
   const publicTags = getTags(event.tags)
@@ -38,8 +38,8 @@ export const readList = <E extends TrustedEvent>(event: DecryptedEvent<E>): Publ
   return {event, kind: event.kind, publicTags, privateTags}
 }
 
-export const createList = <E extends TrustedEvent>({kind, publicTags = [], privateTags = []}: List<E>) =>
+export const createList = ({kind, publicTags = [], privateTags = []}: List) =>
   new Encryptable({kind, tags: publicTags}, {content: JSON.stringify(privateTags)})
 
-export const editList = <E extends TrustedEvent>({kind, publicTags = [], privateTags = []}: PublishedList<E>) =>
+export const editList = ({kind, publicTags = [], privateTags = []}: PublishedList) =>
   new Encryptable({kind, tags: publicTags}, {content: JSON.stringify(privateTags)})

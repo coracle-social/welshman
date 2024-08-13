@@ -1,8 +1,8 @@
 import {nip19} from "nostr-tools"
 import {ellipsize, parseJson} from "@welshman/lib"
-import {PROFILE, TrustedEvent} from "@welshman/util"
+import {PROFILE, ExtensibleTrustedEvent} from "@welshman/util"
 
-export type Profile<E extends TrustedEvent> = {
+export type Profile = {
   name?: string
   nip05?: string
   lud06?: string
@@ -12,17 +12,17 @@ export type Profile<E extends TrustedEvent> = {
   picture?: string
   website?: string
   display_name?: string
-  event?: E
+  event?: ExtensibleTrustedEvent
 }
 
-export type PublishedProfile<E extends TrustedEvent> = Omit<Profile<E>, "event"> & {
-  event: E
+export type PublishedProfile = Omit<Profile, "event"> & {
+  event: ExtensibleTrustedEvent
 }
 
-export const isPublishedProfile = <E extends TrustedEvent>(profile: Profile<E>): profile is PublishedProfile<E> =>
+export const isPublishedProfile = (profile: Profile): profile is PublishedProfile =>
   Boolean(profile.event)
 
-export const makeProfile = <E extends TrustedEvent>(profile: Partial<Profile<E>> = {}): Profile<E> => ({
+export const makeProfile = (profile: Partial<Profile> = {}): Profile => ({
   name: "",
   nip05: "",
   lud06: "",
@@ -35,18 +35,18 @@ export const makeProfile = <E extends TrustedEvent>(profile: Partial<Profile<E>>
   ...profile,
 })
 
-export const readProfile = <E extends TrustedEvent>(event: E) => {
+export const readProfile = (event: ExtensibleTrustedEvent) => {
   const profile = parseJson(event.content) || {}
 
-  return {...profile, event} as PublishedProfile<E>
+  return {...profile, event} as PublishedProfile
 }
 
-export const createProfile = <E extends TrustedEvent>({event, ...profile}: Profile<E>) => ({
+export const createProfile = ({event, ...profile}: Profile) => ({
   kind: PROFILE,
   content: JSON.stringify(profile),
 })
 
-export const editProfile = <E extends TrustedEvent>({event, ...profile}: PublishedProfile<E>) => ({
+export const editProfile = ({event, ...profile}: PublishedProfile) => ({
   kind: PROFILE,
   content: JSON.stringify(profile),
   tags: event.tags,
@@ -58,7 +58,7 @@ export const displayPubkey = (pubkey: string) => {
   return d.slice(0, 8) + "…" + d.slice(-5)
 }
 
-export const displayProfile = <E extends TrustedEvent>(profile?: Profile<E>, fallback = "") => {
+export const displayProfile = (profile?: Profile, fallback = "") => {
   const {display_name, name, event} = profile || {}
 
   if (name) return ellipsize(name, 60)
@@ -68,4 +68,4 @@ export const displayProfile = <E extends TrustedEvent>(profile?: Profile<E>, fal
   return fallback
 }
 
-export const profileHasName = <E extends TrustedEvent>(profile?: Profile<E>) => Boolean(profile?.name || profile?.display_name)
+export const profileHasName = (profile?: Profile) => Boolean(profile?.name || profile?.display_name)

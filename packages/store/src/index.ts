@@ -4,7 +4,7 @@ import type {Readable, Writable} from "svelte/store"
 import {identity, batch, partition, first} from "@welshman/lib"
 import type {Repository} from "@welshman/util"
 import {matchFilters, getIdAndAddress, getIdFilters} from "@welshman/util"
-import type {Filter, TrustedEvent} from "@welshman/util"
+import type {Filter, ExtensibleTrustedEvent} from "@welshman/util"
 
 export const getter = <T>(store: Readable<T>) => {
   let value: T
@@ -68,8 +68,8 @@ export function withGetter<T>(store: Readable<T> | Writable<T>) {
 export const throttled = <T>(delay: number, store: Readable<T>) =>
   custom(set => store.subscribe(throttle(delay, set)))
 
-export const createEventStore = <E extends TrustedEvent>(repository: Repository<E>) => {
-  let subs: Sub<E[]>[] = []
+export const createEventStore = (repository: Repository) => {
+  let subs: Sub<ExtensibleTrustedEvent[]>[] = []
 
   const onUpdate = throttle(300, () => {
     const $events = repository.dump()
@@ -81,8 +81,8 @@ export const createEventStore = <E extends TrustedEvent>(repository: Repository<
 
   return {
     get: () => repository.dump(),
-    set: (events: E[]) => repository.load(events),
-    subscribe: (f: Sub<E[]>) => {
+    set: (events: ExtensibleTrustedEvent[]) => repository.load(events),
+    subscribe: (f: Sub<ExtensibleTrustedEvent[]>) => {
       f(repository.dump())
 
       subs.push(f)
@@ -102,7 +102,7 @@ export const createEventStore = <E extends TrustedEvent>(repository: Repository<
   }
 }
 
-export const deriveEventsMapped = <E extends TrustedEvent, T>({
+export const deriveEventsMapped = <T>({
   filters,
   repository,
   eventToItem,
@@ -110,9 +110,9 @@ export const deriveEventsMapped = <E extends TrustedEvent, T>({
   includeDeleted = false,
 }: {
   filters: Filter[]
-  repository: Repository<E>,
-  eventToItem: (event: E) => T
-  itemToEvent: (item: T) => E
+  repository: Repository,
+  eventToItem: (event: ExtensibleTrustedEvent) => T
+  itemToEvent: (item: T) => ExtensibleTrustedEvent
   includeDeleted?: boolean
 }) =>
   custom<T[]>(setter => {
@@ -120,7 +120,7 @@ export const deriveEventsMapped = <E extends TrustedEvent, T>({
 
     setter(data)
 
-    const onUpdate = batch(300, (updates: {added: E[]; removed: Set<string>}[]) => {
+    const onUpdate = batch(300, (updates: {added: ExtensibleTrustedEvent[]; removed: Set<string>}[]) => {
       const removed = new Set()
       const added = new Map()
 
@@ -170,15 +170,15 @@ export const deriveEventsMapped = <E extends TrustedEvent, T>({
     return () => repository.off("update", onUpdate)
   })
 
-export const deriveEvents = <E extends TrustedEvent>(repository: Repository<E>, opts: {filters: Filter[]; includeDeleted?: boolean}) =>
-  deriveEventsMapped<E, E>({
+export const deriveEvents = (repository: Repository, opts: {filters: Filter[]; includeDeleted?: boolean}) =>
+  deriveEventsMapped<ExtensibleTrustedEvent>({
     ...opts,
     repository,
     eventToItem: identity,
     itemToEvent: identity,
   })
 
-export const deriveEvent = <E extends TrustedEvent>(repository: Repository<E>, idOrAddress: string) =>
+export const deriveEvent = (repository: Repository, idOrAddress: string) =>
   derived(
     deriveEvents(repository, {
       filters: getIdFilters([idOrAddress]),
@@ -187,7 +187,7 @@ export const deriveEvent = <E extends TrustedEvent>(repository: Repository<E>, i
     first
   )
 
-export const deriveIsDeletedByAddress = <E extends TrustedEvent>(repository: Repository<E>, event: E) =>
+export const deriveIsDeletedByAddress = (repository: Repository, event: ExtensibleTrustedEvent) =>
   custom<boolean>(setter => {
     setter(repository.isDeletedByAddress(event))
 
