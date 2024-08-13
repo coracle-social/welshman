@@ -1,6 +1,7 @@
 import {nip19} from "nostr-tools"
 import {ellipsize, parseJson} from "@welshman/lib"
-import {PROFILE, ExtensibleTrustedEvent} from "@welshman/util"
+import {CustomEvent} from "./Events"
+import {PROFILE} from "./Kinds"
 
 export type Profile = {
   name?: string
@@ -12,11 +13,11 @@ export type Profile = {
   picture?: string
   website?: string
   display_name?: string
-  event?: ExtensibleTrustedEvent
+  event?: CustomEvent
 }
 
 export type PublishedProfile = Omit<Profile, "event"> & {
-  event: ExtensibleTrustedEvent
+  event: CustomEvent
 }
 
 export const isPublishedProfile = (profile: Profile): profile is PublishedProfile =>
@@ -35,7 +36,7 @@ export const makeProfile = (profile: Partial<Profile> = {}): Profile => ({
   ...profile,
 })
 
-export const readProfile = (event: ExtensibleTrustedEvent) => {
+export const readProfile = (event: CustomEvent) => {
   const profile = parseJson(event.content) || {}
 
   return {...profile, event} as PublishedProfile

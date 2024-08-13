@@ -1,10 +1,10 @@
-import type {Event, Filter} from 'nostr-tools'
+import type {SignedEvent, Filter} from '@welshman/util'
 import type {Message} from './Socket'
 import type {Connection} from './Connection'
 
 export type PublishMeta = {
   sent: number
-  event: Event
+  event: SignedEvent
 }
 
 export type RequestMeta = {

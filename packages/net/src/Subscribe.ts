@@ -1,6 +1,5 @@
-import type {Event} from 'nostr-tools'
 import {Emitter, chunk, randomId, once, groupBy, batch, uniq} from '@welshman/lib'
-import {matchFilters, unionFilters} from '@welshman/util'
+import {matchFilters, unionFilters, SignedEvent} from '@welshman/util'
 import type {Filter} from '@welshman/util'
 import {Tracker} from "./Tracker"
 import {Connection} from './Connection'
@@ -101,7 +100,7 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
         controller.signal.addEventListener('abort', onAbort)
       }
 
-      mergedSub.emitter.on(SubscriptionEvent.Event, (url: string, event: Event) => {
+      mergedSub.emitter.on(SubscriptionEvent.Event, (url: string, event: SignedEvent) => {
         for (const sub of callerSubs) {
           if (sub.tracker.track(event.id, url)) {
             continue
@@ -117,7 +116,7 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
 
       // Pass events back to caller
       const propagateEvent = (type: SubscriptionEvent, checkFilter: boolean) =>
-        mergedSub.emitter.on(type,  (url: string, event: Event) => {
+        mergedSub.emitter.on(type,  (url: string, event: SignedEvent) => {
           for (const sub of callerSubs) {
             if (!checkFilter || matchFilters(sub.request.filters, event)) {
               sub.emitter.emit(type, url, event)
@@ -172,11 +171,11 @@ export const executeSubscription = (sub: Subscription) => {
   const executor = NetworkContext.getExecutor(relays)
   const subs: {unsubscribe: () => void}[] = []
   const completedRelays = new Set()
-  const events: Event[] = []
+  const events: SignedEvent[] = []
 
   // Hook up our events
 
-  emitter.on(SubscriptionEvent.Event, (url: string, event: Event) => {
+  emitter.on(SubscriptionEvent.Event, (url: string, event: SignedEvent) => {
     events.push(event)
   })
 
@@ -205,7 +204,7 @@ export const executeSubscription = (sub: Subscription) => {
 
   // Functions for emitting events
 
-  const onEvent = (url: string, event: Event) => {
+  const onEvent = (url: string, event: SignedEvent) => {
     if (tracker.track(event.id, url)) {
       emitter.emit(SubscriptionEvent.Duplicate, url, event)
     } else if (NetworkContext.isDeleted(url, event)) {

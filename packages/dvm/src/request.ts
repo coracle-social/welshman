@@ -1,5 +1,5 @@
 import {Emitter, now} from '@welshman/lib'
-import type {TrustedEvent, SignedEvent} from '@welshman/util'
+import type {CustomEvent, SignedEvent} from '@welshman/util'
 import {subscribe, publish} from '@welshman/net'
 import type {Subscription, Publish} from '@welshman/net'
 
@@ -32,7 +32,7 @@ export const makeDvmRequest = (request: DVMRequestOptions) => {
   const sub = subscribe({relays, timeout, filters})
   const pub = publish({event, relays, timeout})
 
-  sub.emitter.on('event', (url: string, event: TrustedEvent) => {
+  sub.emitter.on('event', (url: string, event: CustomEvent) => {
     if (event.kind === 7000) {
       emitter.emit(DVMEvent.Progress, url, event)
     } else {

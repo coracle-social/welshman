@@ -7,6 +7,8 @@ export type Nil = null | undefined
 
 export const isNil = (x: any) => [null, undefined].includes(x)
 
+export type Maybe<T> = T | undefined
+
 // Regular old utils
 
 export const now = () => Math.round(Date.now() / 1000)
@@ -95,9 +97,9 @@ export const stripProtocol = (url: string) => url.replace(/.*:\/\//, "")
 
 export const sleep = (t: number) => new Promise(resolve => setTimeout(resolve, t))
 
-export const concat = <T>(...xs: (T | Nil)[][]) => xs.flatMap(x => x || [])
+export const concat = <T>(...xs: T[][]) => xs.flatMap(x => x || [])
 
-export const append = <T>(x: T, xs: (T | Nil)[]) => concat(xs, [x])
+export const append = <T>(x: T, xs: T[]) => concat(xs, [x])
 
 export const union = <T>(a: T[], b: T[]) => uniq([...a, ...b])
 

@@ -1,5 +1,5 @@
-import type {Event, Filter} from 'nostr-tools'
 import type {Emitter} from '@welshman/lib'
+import type {SignedEvent, Filter} from '@welshman/util'
 import type {Message} from './Socket'
 import type {Connection} from './Connection'
 import {NetworkContext} from './Context'
@@ -10,7 +10,7 @@ export type Target = Emitter & {
   cleanup: () => void
 }
 
-type EventCallback = (url: string, event: Event) => void
+type EventCallback = (url: string, event: SignedEvent) => void
 type EoseCallback = (url: string) => void
 type OkCallback = (url: string, id: string, ...extra: any[]) => void
 type ErrorCallback = (url: string, id: string, ...extra: any[]) => void
@@ -31,7 +31,7 @@ export class Executor {
 
     const id = createSubId('REQ')
 
-    const eventListener = (url: string, subid: string, e: Event) => {
+    const eventListener = (url: string, subid: string, e: SignedEvent) => {
       if (subid === id) {
         NetworkContext.onEvent(url, e)
         onEvent?.(url, e)
@@ -61,7 +61,7 @@ export class Executor {
     }
   }
 
-  publish(event: Event, {verb = 'EVENT', onOk, onError}: PublishOpts = {}) {
+  publish(event: SignedEvent, {verb = 'EVENT', onOk, onError}: PublishOpts = {}) {
     const okListener = (url: string, id: string, ...payload: any[]) => {
       if (id === event.id) {
         NetworkContext.onEvent(url, event)

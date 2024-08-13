@@ -1,6 +1,6 @@
 import {first, splitAt, identity, sortBy, uniq, shuffle, pushToMapKey} from '@welshman/lib'
 import {Tags} from './Tags'
-import type {TrustedEvent} from './Events'
+import type {CustomEvent} from './Events'
 import {isShareableRelayUrl} from './Relay'
 import {isCommunityAddress, isGroupAddress} from './Address'
 
@@ -172,19 +172,19 @@ export class Router {
       this.getPubkeySelection(pubkey, RelayMode.Inbox),
     ]).policy(this.addMinimalFallbacks)
 
-  Event = (event: TrustedEvent) =>
+  Event = (event: CustomEvent) =>
     this.scenario(this.forceValue(event.id, [
       this.getPubkeySelection(event.pubkey, RelayMode.Write),
       ...this.getContextSelections(Tags.fromEvent(event).context()),
     ]))
 
-  EventChildren = (event: TrustedEvent) =>
+  EventChildren = (event: CustomEvent) =>
     this.scenario(this.forceValue(event.id, [
       this.getPubkeySelection(event.pubkey, RelayMode.Read),
       ...this.getContextSelections(Tags.fromEvent(event).context()),
     ]))
 
-  EventAncestors = (event: TrustedEvent, type: "mentions" | "replies" | "roots") => {
+  EventAncestors = (event: CustomEvent, type: "mentions" | "replies" | "roots") => {
     const tags = Tags.fromEvent(event)
     const ancestors = tags.ancestors()[type]
     const pubkeys = tags.values("p").valueOf()
@@ -201,13 +201,13 @@ export class Router {
     return this.product(ancestors.values().valueOf(), relays)
   }
 
-  EventMentions = (event: TrustedEvent) => this.EventAncestors(event, "mentions")
+  EventMentions = (event: CustomEvent) => this.EventAncestors(event, "mentions")
 
-  EventParents = (event: TrustedEvent) => this.EventAncestors(event, "replies")
+  EventParents = (event: CustomEvent) => this.EventAncestors(event, "replies")
 
-  EventRoots = (event: TrustedEvent) => this.EventAncestors(event, "roots")
+  EventRoots = (event: CustomEvent) => this.EventAncestors(event, "roots")
 
-  PublishEvent = (event: TrustedEvent) => {
+  PublishEvent = (event: CustomEvent) => {
     const tags = Tags.fromEvent(event)
     const mentions = tags.values("p").valueOf()
 

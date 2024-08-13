@@ -38,7 +38,8 @@ export type TrustedEvent = HashedEvent & {
   [verifiedSymbol]?: boolean
 }
 
-export type ExtensibleTrustedEvent = TrustedEvent & Record<string, any>
+/* eslint @typescript-eslint/no-empty-interface: 0 */
+export interface CustomEvent extends TrustedEvent {}
 
 export type CreateEventOpts = {
   content?: string

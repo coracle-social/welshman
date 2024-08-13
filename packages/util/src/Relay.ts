@@ -1,22 +1,45 @@
-import {Emitter, normalizeUrl, sleep, stripProtocol} from '@welshman/lib'
+import {last, Emitter, normalizeUrl, sleep, stripProtocol} from '@welshman/lib'
 import {matchFilters} from './Filters'
 import type {Repository} from './Repository'
 import type {Filter} from './Filters'
-import type {ExtensibleTrustedEvent} from './Events'
+import type {CustomEvent} from './Events'
+
+// Constants and types
 
 export const LOCAL_RELAY_URL = "local://welshman.relay"
 
 export const BOGUS_RELAY_URL = "bogus://welshman.relay"
 
+export type RelayProfile = {
+  url: string
+  name?: string
+  pubkey?: string
+  contact?: string
+  description?: string
+  supported_nips?: number[]
+  limitation?: {
+    payment_required?: boolean
+    auth_required?: boolean
+  }
+}
+
+// Utils related to bare urls
+
+export const isRelayUrl = (url: string) => {
+  try {
+    new URL(url)
+  } catch (e) {
+    return false
+  }
+
+  return true
+}
+
 export const isShareableRelayUrl = (url: string) =>
   Boolean(
-    typeof url === 'string' &&
+    isRelayUrl(url) &&
     // Is it actually a websocket url and has a dot
     url.match(/^wss:\/\/.+\..+/) &&
-    // Sometimes bugs cause multiple relays to get concatenated
-    url.match(/:\/\//g)?.length === 1 &&
-    // It shouldn't have any whitespace, url-encoded or otherwise
-    !url.match(/\s|%/) &&
     // Don't match stuff with a port number
     !url.slice(6).match(/:\d+/) &&
     // Don't match stuff with a numeric tld
@@ -48,6 +71,10 @@ export const normalizeRelayUrl = (url: string, {allowInsecure = false}: Normaliz
   return prefix + url
 }
 
+export const displayRelayUrl = (url: string) => last(url.split("://")).replace(/\/$/, "")
+
+// In-memory relay implementation backed by Repository
+
 export class Relay extends Emitter {
   subs = new Map<string, Filter[]>()
 
@@ -57,13 +84,13 @@ export class Relay extends Emitter {
 
   send(type: string, ...message: any[]) {
     switch(type) {
-      case 'EVENT': return this.handleEVENT(message as [ExtensibleTrustedEvent])
+      case 'EVENT': return this.handleEVENT(message as [CustomEvent])
       case 'CLOSE': return this.handleCLOSE(message as [string])
       case 'REQ': return this.handleREQ(message as [string, ...Filter[]])
     }
   }
 
-  handleEVENT([event]: [ExtensibleTrustedEvent]) {
+  handleEVENT([event]: [CustomEvent]) {
     this.repository.publish(event)
 
     // Callers generally expect async relays

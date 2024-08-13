@@ -1,6 +1,7 @@
-import {parseJson} from "@welshman/lib"
-import {Address, isShareableRelayUrl} from "@welshman/util"
-import {Encryptable, DecryptedEvent} from "./util"
+import {parseJson, nth, nthEq} from "@welshman/lib"
+import {Address} from "./Address"
+import {isShareableRelayUrl} from "./Relay"
+import {Encryptable, DecryptedEvent} from "./Encryptable"
 
 export type ListParams = {
   kind: number
@@ -43,3 +44,6 @@ export const createList = ({kind, publicTags = [], privateTags = []}: List) =>
 
 export const editList = ({kind, publicTags = [], privateTags = []}: PublishedList) =>
   new Encryptable({kind, tags: publicTags}, {content: JSON.stringify(privateTags)})
+
+export const getListValues = (tagName: string, list: List | undefined) =>
+  [...list?.publicTags || [], ...list?.privateTags || []].filter(nthEq(0, tagName)).map(nth(1))

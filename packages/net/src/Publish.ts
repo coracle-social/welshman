@@ -1,7 +1,7 @@
-import type {Event} from 'nostr-tools'
 import {Emitter, now, randomId, defer} from '@welshman/lib'
 import type {Deferred} from '@welshman/lib'
 import {asSignedEvent} from '@welshman/util'
+import type {SignedEvent} from '@welshman/util'
 import {NetworkContext} from './Context'
 
 export enum PublishStatus {
@@ -15,7 +15,7 @@ export enum PublishStatus {
 export type PublishStatusMap = Map<string, PublishStatus>
 
 export type PublishRequest = {
-  event: Event
+  event: SignedEvent
   relays: string[]
   signal?: AbortSignal
   timeout?: number

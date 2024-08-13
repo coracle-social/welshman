@@ -1,6 +1,7 @@
-import {fromPairs, parseJson} from "@welshman/lib"
-import {getAddress, Tags} from "@welshman/util"
-import type {ExtensibleTrustedEvent} from "@welshman/util"
+import {fromPairs, last, first, parseJson} from "@welshman/lib"
+import {getAddress} from "./Address"
+import {getAddressTags, getKindTagValues} from "./Tags"
+import type {CustomEvent} from "./Events"
 
 export type Handler = {
   kind: number
@@ -8,13 +9,13 @@ export type Handler = {
   about: string
   image: string
   identifier: string
-  event: ExtensibleTrustedEvent
+  event: CustomEvent
   website?: string
   lud16?: string
   nip05?: string
 }
 
-export const readHandlers = (event: ExtensibleTrustedEvent) => {
+export const readHandlers = (event: CustomEvent) => {
   const {d: identifier} = fromPairs(event.tags)
   const meta = parseJson(event.content)
   const normalizedMeta = {
@@ -31,10 +32,7 @@ export const readHandlers = (event: ExtensibleTrustedEvent) => {
     return []
   }
 
-  return Tags.fromEvent(event)
-    .whereKey("k")
-    .values()
-    .valueOf()
+  return getKindTagValues(event.tags)
     .map(kind => ({...normalizedMeta, kind: parseInt(kind), identifier, event})) as Handler[]
 }
 
@@ -42,9 +40,9 @@ export const getHandlerKey = (handler: Handler) => `${handler.kind}:${getAddress
 
 export const displayHandler = (handler?: Handler, fallback = "") => handler?.name || fallback
 
-export const getHandlerAddress = (event: ExtensibleTrustedEvent) => {
-  const tags = Tags.fromEvent(event).whereKey("a")
-  const tag = tags.filter(t => t.last() === "web").first() || tags.first()
+export const getHandlerAddress = (event: CustomEvent) => {
+  const tags = getAddressTags(event.tags)
+  const tag = tags.find(t => last(t) === "web") || first(tags)
 
-  return tag?.value()
+  return tag?.[1]
 }

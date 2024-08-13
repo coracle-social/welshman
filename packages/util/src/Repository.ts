@@ -4,19 +4,19 @@ import {EPOCH, matchFilter} from './Filters'
 import {isReplaceable, isTrustedEvent} from './Events'
 import {getAddress} from './Address'
 import type {Filter} from './Filters'
-import type {ExtensibleTrustedEvent} from './Events'
+import type {CustomEvent} from './Events'
 
 export const DAY = 86400
 
 const getDay = (ts: number) => Math.floor(ts / DAY)
 
 export class Repository extends Emitter {
-  eventsById = new Map<string, ExtensibleTrustedEvent>()
-  eventsByWrap = new Map<string, ExtensibleTrustedEvent>()
-  eventsByAddress = new Map<string, ExtensibleTrustedEvent>()
-  eventsByTag = new Map<string, ExtensibleTrustedEvent[]>()
-  eventsByDay = new Map<number, ExtensibleTrustedEvent[]>()
-  eventsByAuthor = new Map<string, ExtensibleTrustedEvent[]>()
+  eventsById = new Map<string, CustomEvent>()
+  eventsByWrap = new Map<string, CustomEvent>()
+  eventsByAddress = new Map<string, CustomEvent>()
+  eventsByTag = new Map<string, CustomEvent[]>()
+  eventsByDay = new Map<number, CustomEvent[]>()
+  eventsByAuthor = new Map<string, CustomEvent[]>()
   deletes = new Map<string, number>()
 
   // Dump/load/clear
@@ -25,7 +25,7 @@ export class Repository extends Emitter {
     return Array.from(this.eventsById.values())
   }
 
-  load = async (events: ExtensibleTrustedEvent[], chunkSize = 1000) => {
+  load = async (events: CustomEvent[], chunkSize = 1000) => {
     this.clear()
 
     const added = []
@@ -69,7 +69,7 @@ export class Repository extends Emitter {
       : this.eventsById.get(idOrAddress)
   }
 
-  hasEvent = (event: ExtensibleTrustedEvent) => {
+  hasEvent = (event: CustomEvent) => {
     const duplicate = (
       this.eventsById.get(event.id) ||
       this.eventsByAddress.get(getAddress(event))
@@ -79,12 +79,12 @@ export class Repository extends Emitter {
   }
 
   query = (filters: Filter[], {includeDeleted = false} = {}) => {
-    const result: ExtensibleTrustedEvent[][] = []
+    const result: CustomEvent[][] = []
     for (let filter of filters) {
-      let events: ExtensibleTrustedEvent[] = Array.from(this.eventsById.values())
+      let events: CustomEvent[] = Array.from(this.eventsById.values())
 
       if (filter.ids) {
-        events = filter.ids!.map(id => this.eventsById.get(id)).filter(identity) as ExtensibleTrustedEvent[]
+        events = filter.ids!.map(id => this.eventsById.get(id)).filter(identity) as CustomEvent[]
         filter = omit(['ids'], filter)
       } else if (filter.authors) {
         events = uniq(filter.authors!.flatMap(pubkey => this.eventsByAuthor.get(pubkey) || []))
@@ -112,8 +112,8 @@ export class Repository extends Emitter {
         }
       }
 
-      const chunk: ExtensibleTrustedEvent[] = []
-      for (const event of sortBy((e: ExtensibleTrustedEvent) => -e.created_at, events)) {
+      const chunk: CustomEvent[] = []
+      for (const event of sortBy((e: CustomEvent) => -e.created_at, events)) {
         if (filter.limit && chunk.length >= filter.limit) {
           break
         }
@@ -133,7 +133,7 @@ export class Repository extends Emitter {
     return uniq(flatten(result))
   }
 
-  publish = (event: ExtensibleTrustedEvent, {shouldNotify = true} = {}): boolean => {
+  publish = (event: CustomEvent, {shouldNotify = true} = {}): boolean => {
     if (!isTrustedEvent(event)) {
       throw new Error("Invalid event published to Repository", event)
     }
@@ -203,19 +203,19 @@ export class Repository extends Emitter {
     return true
   }
 
-  isDeletedByAddress = (event: ExtensibleTrustedEvent) => (this.deletes.get(getAddress(event)) || 0) > event.created_at
+  isDeletedByAddress = (event: CustomEvent) => (this.deletes.get(getAddress(event)) || 0) > event.created_at
 
-  isDeletedById = (event: ExtensibleTrustedEvent) => (this.deletes.get(event.id) || 0) > event.created_at
+  isDeletedById = (event: CustomEvent) => (this.deletes.get(event.id) || 0) > event.created_at
 
-  isDeleted = (event: ExtensibleTrustedEvent) => this.isDeletedByAddress(event) || this.isDeletedById(event)
+  isDeleted = (event: CustomEvent) => this.isDeletedByAddress(event) || this.isDeletedById(event)
 
   // Utilities
 
-  _updateIndex<K>(m: Map<K, ExtensibleTrustedEvent[]>, k: K, e: ExtensibleTrustedEvent, duplicate?: ExtensibleTrustedEvent) {
+  _updateIndex<K>(m: Map<K, CustomEvent[]>, k: K, e: CustomEvent, duplicate?: CustomEvent) {
     let a = m.get(k) || []
 
     if (duplicate) {
-      a = a.filter((x: ExtensibleTrustedEvent) => x !== duplicate)
+      a = a.filter((x: CustomEvent) => x !== duplicate)
     }
 
     a.push(e)

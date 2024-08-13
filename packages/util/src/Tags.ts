@@ -1,7 +1,7 @@
 import {EventTemplate} from 'nostr-tools'
 import type {OmitStatics} from '@welshman/lib'
 import {Fluent, ensurePlural} from '@welshman/lib'
-import {isShareableRelayUrl, normalizeRelayUrl} from './Relay'
+import {isRelayUrl, normalizeRelayUrl} from './Relay'
 import {Address, isContextAddress} from './Address'
 import {GROUP, COMMUNITY} from './Kinds'
 
@@ -71,7 +71,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   entries = () => this.mapTo(t => t.entry())
 
-  relays = () => this.flatMap((t: Tag) => t.valueOf().filter(isShareableRelayUrl).map(url => normalizeRelayUrl(url))).uniq()
+  relays = () => this.flatMap((t: Tag) => t.valueOf().filter(isRelayUrl).map(url => normalizeRelayUrl(url))).uniq()
 
   topics = () => this.whereKey("t").values().map((t: string) => t.replace(/^#/, ""))
 
@@ -240,10 +240,14 @@ export const getPubkeyTags = getTags(["p"], pk => pk.length === 64)
 
 export const getPubkeyTagValues = getTagValues(["p"], pk => pk.length === 64)
 
-export const getRelayTags = getTags(["r", "relay"], isShareableRelayUrl)
+export const getRelayTags = getTags(["r", "relay"], isRelayUrl)
 
-export const getRelayTagValues = getTagValues(["r", "relay"], isShareableRelayUrl)
+export const getRelayTagValues = getTagValues(["r", "relay"], isRelayUrl)
 
 export const getGroupTags = getTags(["h", "group"], h => Boolean(h.match(/^(.+)'(.+)$/)))
 
 export const getGroupTagValues = getTagValues(["h", "group"], h => Boolean(h.match(/^(.+)'(.+)$/)))
+
+export const getKindTags = getTags(["k"], h => Boolean(h.match(/^\d+$/)))
+
+export const getKindTagValues = getTagValues(["k"], h => Boolean(h.match(/^\d+$/)))

@@ -1,5 +1,5 @@
 import {uniq, identity, flatten, pushToMapKey, intersection, tryCatch, now} from '@welshman/lib'
-import type {ExtensibleTrustedEvent, Filter} from '@welshman/util'
+import type {CustomEvent, Filter} from '@welshman/util'
 import {Tags, intersectFilters, matchFilter, getAddress, getIdFilters, unionFilters} from '@welshman/util'
 import type {CreatedAtItem, RequestItem, ListItem, LabelItem, WOTItem, DVMItem, Scope, Feed, FeedOptions} from './core'
 import {getFeedArgs, feedsFromTags} from './utils'
@@ -109,7 +109,7 @@ export class FeedCompiler {
       items.map(({mappings, ...request}) =>
         this.options.requestDVM({
           ...request,
-          onEvent: async (e: ExtensibleTrustedEvent) => {
+          onEvent: async (e: CustomEvent) => {
             const tags = Tags.wrap(await tryCatch(() => JSON.parse(e.content)) || [])
 
             for (const feed of feedsFromTags(tags, mappings)) {
@@ -215,11 +215,11 @@ export class FeedCompiler {
 
   async _compileLists(listItems: ListItem[]): Promise<RequestItem[]> {
     const addresses = uniq(listItems.flatMap(({addresses}) => addresses))
-    const eventsByAddress = new Map<string, ExtensibleTrustedEvent>()
+    const eventsByAddress = new Map<string, CustomEvent>()
 
     await this.options.request({
       filters: getIdFilters(addresses),
-      onEvent: (e: ExtensibleTrustedEvent) => eventsByAddress.set(getAddress(e), e),
+      onEvent: (e: CustomEvent) => eventsByAddress.set(getAddress(e), e),
     })
 
     const feeds = flatten(
@@ -246,14 +246,14 @@ export class FeedCompiler {
   }
 
   async _compileLabels(labelItems: LabelItem[]): Promise<RequestItem[]> {
-    const events: ExtensibleTrustedEvent[] = []
+    const events: CustomEvent[] = []
 
     await Promise.all(
       labelItems.map(({mappings, relays, ...filter}) =>
         this.options.request({
           relays,
           filters: [{kinds: [1985], ...filter}],
-          onEvent: (e: ExtensibleTrustedEvent) => events.push(e),
+          onEvent: (e: CustomEvent) => events.push(e),
         })
       )
     )

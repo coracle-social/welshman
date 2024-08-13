@@ -5,7 +5,7 @@
     "outDir": "build",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "lib": ["esnext"]
+    "lib": ["esnext", "dom"]
   },
   "include": ["**/*.ts"]
 }
