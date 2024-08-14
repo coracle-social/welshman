@@ -1,4 +1,4 @@
-import {Emitter, chunk, randomId, once, groupBy, batch, uniq} from '@welshman/lib'
+import {Emitter, chunk, randomId, once, groupBy, uniq} from '@welshman/lib'
 import {matchFilters, unionFilters, SignedEvent} from '@welshman/util'
 import type {Filter} from '@welshman/util'
 import {Tracker} from "./Tracker"
@@ -33,10 +33,10 @@ export enum SubscriptionEvent {
 export type SubscribeRequest = {
   relays: string[]
   filters: Filter[]
+  delay?: number
   signal?: AbortSignal
   timeout?: number
   tracker?: Tracker
-  immediate?: boolean
   closeOnEose?: boolean
 }
 
@@ -254,12 +254,28 @@ export const executeSubscription = (sub: Subscription) => {
 export const executeSubscriptions = (subs: Subscription[]) =>
   mergeSubscriptions(subs).forEach(executeSubscription)
 
-export const executeSubscriptionBatched = batch(800, executeSubscriptions)
+export const executeSubscriptionBatched = (() => {
+  const subs: Subscription[] = []
+  const timeouts: number[] = []
+
+  const executeAll = () => {
+    executeSubscriptions(subs.splice(0))
+
+    for (const timeout of timeouts.splice(0)) {
+      clearTimeout(timeout)
+    }
+  }
+
+  return (sub: Subscription) => {
+    subs.push(sub)
+    timeouts.push(setTimeout(executeAll, Math.max(16, sub.request.delay!)))
+  }
+})()
 
 export const subscribe = (request: SubscribeRequest) => {
-  const subscription: Subscription = makeSubscription(request)
+  const subscription: Subscription = makeSubscription({delay: 800, ...request})
 
-  if (request.immediate) {
+  if (request.delay === 0) {
     executeSubscription(subscription)
   } else {
     executeSubscriptionBatched(subscription)
