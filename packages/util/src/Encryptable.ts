@@ -2,6 +2,18 @@ import type {EventContent, CustomEvent} from './Events'
 
 export type Encrypt = (x: string) => Promise<string>
 
+export type EncryptableParams = {
+  kind: number,
+  tags?: string[][]
+  content?: string
+}
+
+export type EncryptableResult = {
+  kind: number,
+  tags: string[][]
+  content: string
+}
+
 export type DecryptedEvent = CustomEvent & {
   plaintext: Partial<EventContent>
 }
@@ -9,10 +21,10 @@ export type DecryptedEvent = CustomEvent & {
 export const asDecryptedEvent = (event: CustomEvent, plaintext: Partial<EventContent>) =>
   ({...event, plaintext}) as DecryptedEvent
 
-export class Encryptable<E extends Partial<EventContent>> {
-  constructor(readonly event: E, readonly updates: E) {}
+export class Encryptable {
+  constructor(readonly event: EncryptableParams, readonly updates: Partial<EventContent>) {}
 
-  async reconcile(encrypt: Encrypt) {
+  async reconcile(encrypt: Encrypt): Promise<EncryptableResult> {
     const encryptContent = () => {
       if (!this.updates.content) return null
 

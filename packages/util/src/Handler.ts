@@ -33,7 +33,7 @@ export const readHandlers = (event: CustomEvent) => {
   }
 
   return getKindTagValues(event.tags)
-    .map(kind => ({...normalizedMeta, kind: parseInt(kind), identifier, event})) as Handler[]
+    .map(kind => ({...normalizedMeta, kind, identifier, event})) as Handler[]
 }
 
 export const getHandlerKey = (handler: Handler) => `${handler.kind}:${getAddress(handler.event)}`

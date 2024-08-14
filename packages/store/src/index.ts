@@ -110,17 +110,45 @@ export const deriveEventsMapped = <T>({
   repository,
   eventToItem,
   itemToEvent,
+  throttle = 300,
   includeDeleted = false,
 }: {
   filters: Filter[]
   repository: Repository,
   eventToItem: (event: CustomEvent) => T | Promise<T>
   itemToEvent: (item: T) => CustomEvent
+  throttle?: number
   includeDeleted?: boolean
 }) =>
   custom<T[]>(setter => {
-    let data = repository.query(filters, {includeDeleted}).map(eventToItem).filter(identity) as T[]
+    let data: T[] = []
     const deferred = new Set()
+
+    const defer = (event: CustomEvent, item: Promise<T>) => {
+      deferred.add(event.id)
+
+      item.then($item => {
+        if (deferred.has(event.id)) {
+          deferred.delete(event.id)
+          data.push($item)
+          setter(data)
+        }
+      })
+    }
+
+    for (const event of repository.query(filters, {includeDeleted})) {
+      const item = eventToItem(event)
+
+      if (!item) {
+        continue
+      }
+
+      if (item instanceof Promise) {
+        defer(event, item)
+      } else {
+        data.push(item)
+      }
+    }
 
     setter(data)
 
@@ -147,18 +175,7 @@ export const deriveEventsMapped = <T>({
           const item = eventToItem(event)
 
           if (item instanceof Promise) {
-            // If it's a promise, resolve it before adding it to data
-            deferred.add(event.id)
-
-            // Wait for the promise to resolve. If it hasn't since been removed,
-            // we're clear to add it
-            item.then($item => {
-              if (deferred.has(event.id)) {
-                deferred.delete(event.id)
-                data.push($item)
-                setter(data)
-              }
-            })
+            defer(event, item)
           } else if (item) {
             dirty = true
             data.push(item as T)
@@ -186,9 +203,7 @@ export const deriveEventsMapped = <T>({
     repository.on("update", onUpdate)
 
     return () => repository.off("update", onUpdate)
-  }, {
-    throttle: 300,
-  })
+  }, {throttle})
 
 export const deriveEvents = (opts: {repository: Repository, filters: Filter[], includeDeleted?: boolean}) =>
   deriveEventsMapped<CustomEvent>({

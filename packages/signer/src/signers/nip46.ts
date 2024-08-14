@@ -3,7 +3,7 @@ import {hexToBytes} from '@noble/hashes/utils'
 import {Emitter, tryCatch, randomId, sleep, equals, now} from "@welshman/lib"
 import {createEvent, TrustedEvent, EventTemplate, NOSTR_CONNECT} from "@welshman/util"
 import {subscribe, publish, Subscription} from "@welshman/net"
-import {ISigner, decrypt} from '../util'
+import {ISigner, decrypt, hash, own} from '../util'
 import {Nip01Signer} from './nip01'
 
 export type Nip46Handler = {
@@ -168,7 +168,8 @@ export class Nip46Signer implements ISigner {
 
   getPubkey = async () => this.broker.pubkey
 
-  sign = (event: EventTemplate) => this.broker.signEvent(event)
+  sign = (template: EventTemplate) =>
+    this.broker.signEvent(hash(own(this.broker.pubkey, template)))
 
   nip04 = {
     encrypt: this.broker.nip04Encrypt,

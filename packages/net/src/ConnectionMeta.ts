@@ -100,7 +100,7 @@ export class ConnectionMeta {
     if (ok) {
       this.authStatus = AuthStatus.Ok
     } else if (notice?.startsWith('auth-required:')) {
-      // Re-enqueue pending reqs when auth challenge is received
+      // Re-enqueue pending events when auth challenge is received
       const pub = this.pendingPublishes.get(eventId)
 
       if (pub) {

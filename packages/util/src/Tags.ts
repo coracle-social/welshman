@@ -1,6 +1,6 @@
 import {EventTemplate} from 'nostr-tools'
 import type {OmitStatics} from '@welshman/lib'
-import {Fluent, ensurePlural} from '@welshman/lib'
+import {Fluent, nth, ensurePlural} from '@welshman/lib'
 import {isRelayUrl, normalizeRelayUrl} from './Relay'
 import {Address, isContextAddress} from './Address'
 import {GROUP, COMMUNITY} from './Kinds'
@@ -208,46 +208,35 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
 // New, simpler version
 
-export const getTags =
-  (types: string[], testValue?: (v: string) => boolean) =>
-  (tags: string[][]) =>
-    tags.filter(t => types.includes(t[0]) && (!testValue || testValue(t[1] || "")))
+export const getEventTags = (tags: string[][]) =>
+  tags.filter(t => ["e"].includes(t[0]) && t[1].length === 64)
 
-export const getTagValues = (types: string[], testValue?: (v: string) => boolean) => {
-  const _getTags = getTags(types, testValue)
+export const getEventTagValues = (tags: string[][]) => getEventTags(tags).map(nth(1))
 
-  return (tags: string[][]) => _getTags(tags).map(t => t[1] || "")
-}
+export const getAddressTags = (tags: string[][]) =>
+  tags.filter(t => ["a"].includes(t[0]) && Address.isAddress(t[1]))
 
-export const getTagValue = (types: string[], testValue?: (v: string) => boolean) => {
-  const _getTagValues = getTagValues(types, testValue)
-
-  return (tags: string[][]) => _getTagValues(tags)[0]
-}
-
-export const getEventTags = getTags(["e"], id => id.length === 64)
-
-export const getEventTagValues = getTagValues(["e"], id => id.length === 64)
-
-export const getAddressTags = getTags(["a"], Address.isAddress)
-
-export const getAddressTagValues = getTagValues(["a"], Address.isAddress)
+export const getAddressTagValues = (tags: string[][]) => getAddressTags(tags).map(nth(1))
 
 export const getContextTagValues = (tags: string[][]) =>
   getAddressTagValues(tags).filter(isContextAddress)
 
-export const getPubkeyTags = getTags(["p"], pk => pk.length === 64)
+export const getPubkeyTags = (tags: string[][]) =>
+  tags.filter(t => ["p"].includes(t[0]) && t[1].length === 64)
 
-export const getPubkeyTagValues = getTagValues(["p"], pk => pk.length === 64)
+export const getPubkeyTagValues = (tags: string[][]) => getPubkeyTags(tags).map(nth(1))
 
-export const getRelayTags = getTags(["r", "relay"], isRelayUrl)
+export const getRelayTags = (tags: string[][]) =>
+  tags.filter(t => ["r", "relay"].includes(t[0]) && isRelayUrl(t[1]))
 
-export const getRelayTagValues = getTagValues(["r", "relay"], isRelayUrl)
+export const getRelayTagValues = (tags: string[][]) => getRelayTags(tags).map(nth(1))
 
-export const getGroupTags = getTags(["h", "group"], h => Boolean(h.match(/^(.+)'(.+)$/)))
+export const getGroupTags = (tags: string[][]) =>
+  tags.filter(t => ["h", "group"].includes(t[0]) && t[1] && isRelayUrl(t[2]))
 
-export const getGroupTagValues = getTagValues(["h", "group"], h => Boolean(h.match(/^(.+)'(.+)$/)))
+export const getGroupTagValues = (tags: string[][]) => getGroupTags(tags).map(nth(1))
 
-export const getKindTags = getTags(["k"], h => Boolean(h.match(/^\d+$/)))
+export const getKindTags = (tags: string[][]) =>
+  tags.filter(t => ["k"].includes(t[0]) && t[1].match(/^\d+$/))
 
-export const getKindTagValues = getTagValues(["k"], h => Boolean(h.match(/^\d+$/)))
+export const getKindTagValues = (tags: string[][]) => getKindTags(tags).map(t => parseInt(t[1]))
