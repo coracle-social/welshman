@@ -91,6 +91,8 @@ export const mergeRight = <T extends Record<string, any>>(a: T, b: T) => ({...a,
 
 export const between = (low: number, high: number, n: number) => n > low && n < high
 
+export const randomInt = (min = 0, max = 9) => min + Math.round(Math.random()) * (max - min)
+
 export const randomId = (): string => Math.random().toString().slice(2)
 
 export const stripProtocol = (url: string) => url.replace(/.*:\/\//, "")

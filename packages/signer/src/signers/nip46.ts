@@ -1,10 +1,12 @@
-import {nip04, finalizeEvent, getPublicKey} from "nostr-tools"
+import {finalizeEvent, getPublicKey} from "nostr-tools"
 import {hexToBytes} from '@noble/hashes/utils'
 import {Emitter, tryCatch, randomId, sleep, equals, now} from "@welshman/lib"
 import {createEvent, TrustedEvent, EventTemplate, NOSTR_CONNECT} from "@welshman/util"
 import {subscribe, publish, Subscription} from "@welshman/net"
-import {ISigner, decrypt, hash, own} from '../util'
+import {nip04, nip44, ISigner, decrypt, hash, own} from '../util'
 import {Nip01Signer} from './nip01'
+
+export type Algorithm = "nip04" | "nip44"
 
 export type Nip46Handler = {
   relays: string[]
@@ -20,10 +22,6 @@ export type Nip46Response = {
 
 let singleton: Nip46Broker
 
-// FIXME set the full list of requested perms
-const Perms =
-  "nip04_encrypt,nip04_decrypt,sign_event:0,sign_event:1,sign_event:4,sign_event:6,sign_event:7"
-
 export class Nip46Broker extends Emitter {
   #sub: Subscription
   #signer: ISigner
@@ -31,14 +29,15 @@ export class Nip46Broker extends Emitter {
   #closed = false
   #connectResult: any
 
-  static get(pubkey: string, secret: string, handler: Nip46Handler) {
+  static get(pubkey: string, secret: string, handler: Nip46Handler, algorithm: Algorithm = "nip04") {
     if (
       singleton?.pubkey !== pubkey ||
       singleton?.secret !== secret ||
-      !equals(singleton?.handler, handler)
+      !equals(singleton?.handler, handler) ||
+      singleton?.algorithm !== algorithm
     ) {
       singleton?.teardown()
-      singleton = new Nip46Broker(pubkey, secret, handler)
+      singleton = new Nip46Broker(pubkey, secret, handler, algorithm)
     }
 
     return singleton
@@ -48,6 +47,7 @@ export class Nip46Broker extends Emitter {
     readonly pubkey: string,
     readonly secret: string,
     readonly handler: Nip46Handler,
+    readonly algorithm: Algorithm
   ) {
     super()
 
@@ -98,7 +98,8 @@ export class Nip46Broker extends Emitter {
     const id = randomId()
     const pubkey = admin ? this.handler.pubkey! : this.pubkey
     const payload = JSON.stringify({id, method, params})
-    const content = await nip04.encrypt(this.secret, pubkey, payload)
+    const crypt = this.algorithm === "nip04" ? nip04 : nip44
+    const content = await crypt.encrypt(pubkey, this.secret, payload)
     const template = createEvent(NOSTR_CONNECT, {content, tags: [["p", pubkey]]})
     const event = finalizeEvent(template, this.secret as any)
 
@@ -119,17 +120,17 @@ export class Nip46Broker extends Emitter {
     })
   }
 
-  createAccount = (username: string) => {
+  createAccount = (username: string, perms = "") => {
     if (!this.handler.domain) {
       throw new Error("Unable to create an account without a handler domain")
     }
 
-    return this.request("create_account", [username, this.handler.domain, "", Perms], true)
+    return this.request("create_account", [username, this.handler.domain, "", perms], true)
   }
 
-  connect = async (token = "") => {
+  connect = async (token = "", perms = "") => {
     if (!this.#connectResult) {
-      const params = [this.pubkey, token, Perms]
+      const params = [this.pubkey, token, perms]
 
       this.#connectResult = await this.request("connect", params)
     }

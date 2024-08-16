@@ -1,7 +1,8 @@
 import {throttle} from "throttle-debounce"
 import {derived} from "svelte/store"
-import type {Readable, Writable} from "svelte/store"
+import type {Readable, Updater, Writable, Subscriber, Unsubscriber} from "svelte/store"
 import {identity, batch, partition, first} from "@welshman/lib"
+import type {Maybe} from "@welshman/lib"
 import type {Repository} from "@welshman/util"
 import {matchFilters, getIdAndAddress, getIdFilters} from "@welshman/util"
 import type {Filter, CustomEvent} from "@welshman/util"
@@ -16,12 +17,10 @@ export const getter = <T>(store: Readable<T>) => {
   return () => value
 }
 
-type Stop = () => void
-type Sub<T> = (x: T) => void
-type Start<T> = (set: Sub<T>) => Stop
+type Start<T> = (set: Subscriber<T>) => Unsubscriber
 
 export const custom = <T>(start: Start<T>, opts: {throttle?: number} = {}) => {
-  const subs: Sub<T>[] = []
+  const subs: Subscriber<T>[] = []
 
   let value: T
   let stop: () => void
@@ -36,7 +35,7 @@ export const custom = <T>(start: Start<T>, opts: {throttle?: number} = {}) => {
 
   return {
     set,
-    subscribe: (sub: Sub<T>) => {
+    subscribe: (sub: Subscriber<T>) => {
       if (opts.throttle) {
         sub = throttle(opts.throttle, sub)
       }
@@ -71,8 +70,8 @@ export function withGetter<T>(store: Readable<T> | Writable<T>) {
 export const throttled = <T>(delay: number, store: Readable<T>) =>
   custom(set => store.subscribe(throttle(delay, set)))
 
-export const createEventStore = (repository: Repository) => {
-  let subs: Sub<CustomEvent[]>[] = []
+export const createEventStore = (repository: Repository): Writable<CustomEvent[]> => {
+  let subs: Subscriber<CustomEvent[]>[] = []
 
   const onUpdate = throttle(300, () => {
     const $events = repository.dump()
@@ -83,9 +82,9 @@ export const createEventStore = (repository: Repository) => {
   })
 
   return {
-    get: () => repository.dump(),
     set: (events: CustomEvent[]) => repository.load(events),
-    subscribe: (f: Sub<CustomEvent[]>) => {
+    update: (f: Updater<CustomEvent[]>) => repository.load(f(repository.dump())),
+    subscribe: (f: Subscriber<CustomEvent[]>) => {
       f(repository.dump())
 
       subs.push(f)
@@ -105,17 +104,15 @@ export const createEventStore = (repository: Repository) => {
   }
 }
 
-export const deriveEventsMapped = <T>({
+export const deriveEventsMapped = <T>(repository: Repository, {
   filters,
-  repository,
   eventToItem,
   itemToEvent,
   throttle = 300,
   includeDeleted = false,
 }: {
   filters: Filter[]
-  repository: Repository,
-  eventToItem: (event: CustomEvent) => T | Promise<T>
+  eventToItem: (event: CustomEvent) => Maybe<T | Promise<T>>
   itemToEvent: (item: T) => CustomEvent
   throttle?: number
   includeDeleted?: boolean
@@ -205,24 +202,23 @@ export const deriveEventsMapped = <T>({
     return () => repository.off("update", onUpdate)
   }, {throttle})
 
-export const deriveEvents = (opts: {repository: Repository, filters: Filter[], includeDeleted?: boolean}) =>
-  deriveEventsMapped<CustomEvent>({
+export const deriveEvents = (repository: Repository, opts: {filters: Filter[], includeDeleted?: boolean}) =>
+  deriveEventsMapped<CustomEvent>(repository, {
     ...opts,
     eventToItem: identity,
     itemToEvent: identity,
   })
 
-export const deriveEvent = ({repository, idOrAddress}: {repository: Repository, idOrAddress: string}) =>
+export const deriveEvent = (repository: Repository, idOrAddress: string) =>
   derived(
-    deriveEvents({
-      repository,
+    deriveEvents(repository, {
       filters: getIdFilters([idOrAddress]),
       includeDeleted: true,
     }),
     first
   )
 
-export const deriveIsDeletedByAddress = ({repository, event}: {repository: Repository, event: CustomEvent}) =>
+export const deriveIsDeletedByAddress = (repository: Repository, event: CustomEvent) =>
   custom<boolean>(setter => {
     setter(repository.isDeletedByAddress(event))
 

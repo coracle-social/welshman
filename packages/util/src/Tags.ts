@@ -1,6 +1,6 @@
 import {EventTemplate} from 'nostr-tools'
 import type {OmitStatics} from '@welshman/lib'
-import {Fluent, nth, ensurePlural} from '@welshman/lib'
+import {Fluent, nth, nthEq, ensurePlural} from '@welshman/lib'
 import {isRelayUrl, normalizeRelayUrl} from './Relay'
 import {Address, isContextAddress} from './Address'
 import {GROUP, COMMUNITY} from './Kinds'
@@ -76,37 +76,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
   topics = () => this.whereKey("t").values().map((t: string) => t.replace(/^#/, ""))
 
   ancestors = (x?: boolean) => {
-    const tags = this.filterByKey(["a", "e", "q"]).reject(t => t.isContext())
-    const mentionTags = tags.whereKey("q")
-    const roots: string[][] = []
-    const replies: string[][] = []
-    const mentions: string[][] = []
-
-    const dispatchTags = (thisTags: Tags) =>
-      thisTags.forEach((t: Tag, i: number) => {
-        if (t.nth(3) === 'root') {
-          if (tags.filter(t => t.nth(3) === "reply").count() === 0) {
-            replies.push(t.valueOf())
-          } else {
-            roots.push(t.valueOf())
-          }
-        } else if (t.nth(3) === 'reply') {
-          replies.push(t.valueOf())
-        } else if (t.nth(3) === 'mention') {
-          mentions.push(t.valueOf())
-        } else if (i === thisTags.count() - 1) {
-          replies.push(t.valueOf())
-        } else if (i === 0) {
-          roots.push(t.valueOf())
-        } else {
-          mentions.push(t.valueOf())
-        }
-      })
-
-    // Add different types separately so positional logic works
-    dispatchTags(tags.whereKey("e"))
-    dispatchTags(tags.whereKey("a").filter(t => Boolean(t.nth(3))))
-    mentionTags.forEach((t: Tag) => mentions.push(t.valueOf()))
+    const {roots, replies, mentions} = getAncestorTags(this.unwrap())
 
     return {
       roots: Tags.wrap(roots),
@@ -240,3 +210,39 @@ export const getKindTags = (tags: string[][]) =>
   tags.filter(t => ["k"].includes(t[0]) && t[1].match(/^\d+$/))
 
 export const getKindTagValues = (tags: string[][]) => getKindTags(tags).map(t => parseInt(t[1]))
+
+export const getAncestorTags = (tags: string[][]) => {
+  const validTags = tags.filter(t => ["a", "e", "q"].includes(t[0]) && !isContextAddress(t[1]))
+  const mentionTags = validTags.filter(nthEq(0, "q"))
+  const roots: string[][] = []
+  const replies: string[][] = []
+  const mentions: string[][] = []
+
+  const dispatchTags = (thisTags: string[][]) =>
+    thisTags.forEach((t: string[], i: number) => {
+      if (t[3] === 'root') {
+        if (validTags.filter(nthEq(3, "reply")).length === 0) {
+          replies.push(t)
+        } else {
+          roots.push(t)
+        }
+      } else if (t[3] === 'reply') {
+        replies.push(t)
+      } else if (t[3] === 'mention') {
+        mentions.push(t)
+      } else if (i === thisTags.length - 1) {
+        replies.push(t)
+      } else if (i === 0) {
+        roots.push(t)
+      } else {
+        mentions.push(t)
+      }
+    })
+
+  // Add different types separately so positional logic works
+  dispatchTags(validTags.filter(nthEq(0, "e")))
+  dispatchTags(validTags.filter(nthEq(0, "a")).filter(t => Boolean(t[3])))
+  mentionTags.forEach((t: string[]) => mentions.push(t))
+
+  return {roots, replies, mentions}
+}

@@ -60,8 +60,8 @@ export class Address {
 
 export const getAddress = (e: AddressableEvent) => Address.fromEvent(e).toString()
 
-export const isGroupAddress = (a: string, ...args: unknown[]) => Address.from(a).kind === GROUP
+export const isGroupAddress = (a: string, ...args: unknown[]) => Address.isAddress(a) && Address.from(a).kind === GROUP
 
-export const isCommunityAddress = (a: string, ...args: unknown[]) => Address.from(a).kind === COMMUNITY
+export const isCommunityAddress = (a: string, ...args: unknown[]) => Address.isAddress(a) && Address.from(a).kind === COMMUNITY
 
-export const isContextAddress = (a: string, ...args: unknown[]) => [GROUP, COMMUNITY].includes(Address.from(a).kind)
+export const isContextAddress = (a: string, ...args: unknown[]) => Address.isAddress(a) && [GROUP, COMMUNITY].includes(Address.from(a).kind)
