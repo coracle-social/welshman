@@ -1,6 +1,6 @@
 import {matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
 import {uniqBy, prop, mapVals, shuffle, avg, hash, groupBy, randomId, uniq} from '@welshman/lib'
-import type {HashedEvent, CustomEvent, SignedEvent} from './Events'
+import type {HashedEvent, TrustedEvent, SignedEvent} from './Events'
 import {isReplaceableKind} from './Kinds'
 import {Address, getAddress} from './Address'
 
@@ -155,7 +155,7 @@ export const getIdFilters = (idsOrAddresses: string[]) => {
   return filters
 }
 
-export const getReplyFilters = (events: CustomEvent[], filter: Filter) => {
+export const getReplyFilters = (events: TrustedEvent[], filter: Filter) => {
   const a = []
   const e = []
 

@@ -12,10 +12,13 @@ export type EventContent = {
 
 export type EventTemplate = EventContent & {
   kind: number
+}
+
+export type StampedEvent = EventTemplate & {
   created_at: number
 }
 
-export type OwnedEvent = EventTemplate & {
+export type OwnedEvent = StampedEvent & {
   pubkey: string
 }
 
@@ -38,9 +41,6 @@ export type TrustedEvent = HashedEvent & {
   [verifiedSymbol]?: boolean
 }
 
-/* eslint @typescript-eslint/no-empty-interface: 0 */
-export interface CustomEvent extends TrustedEvent {}
-
 export type CreateEventOpts = {
   content?: string
   tags?: string[][]
@@ -51,10 +51,13 @@ export const createEvent = (kind: number, {content = "", tags = [], created_at =
   ({kind, content, tags, created_at})
 
 export const isEventTemplate = (e: EventTemplate): e is EventTemplate =>
-  Boolean(typeof e.kind === "number" && e.tags && typeof e.content === "string" && e.created_at)
+  Boolean(typeof e.kind === "number" && e.tags && typeof e.content === "string")
+
+export const isStampedEvent = (e: StampedEvent): e is StampedEvent =>
+  Boolean(isEventTemplate(e) && e.created_at)
 
 export const isOwnedEvent = (e: OwnedEvent): e is OwnedEvent =>
-  Boolean(isEventTemplate(e) && e.pubkey)
+  Boolean(isStampedEvent(e) && e.pubkey)
 
 export const isHashedEvent = (e: HashedEvent): e is HashedEvent =>
   Boolean(isOwnedEvent(e) && e.id)
@@ -69,6 +72,9 @@ export const isTrustedEvent = (e: TrustedEvent): e is TrustedEvent =>
   isSignedEvent(e) || isUnwrappedEvent(e)
 
 export const asEventTemplate = (e: EventTemplate): EventTemplate =>
+  pick(['kind', 'tags', 'content'], e)
+
+export const asStampedEvent = (e: StampedEvent): StampedEvent =>
   pick(['kind', 'tags', 'content', 'created_at'], e)
 
 export const asOwnedEvent = (e: OwnedEvent): OwnedEvent =>
@@ -118,7 +124,7 @@ export const isPlainReplaceable = (e: EventTemplate) => isPlainReplaceableKind(e
 
 export const isParameterizedReplaceable = (e: EventTemplate) => isParameterizedReplaceableKind(e.kind)
 
-export const isChildOf = (child: EventTemplate, parent: HashedEvent) => {
+export const isChildOf = (child: EventContent, parent: HashedEvent) => {
   const {roots, replies} = Tags.fromEvent(child).ancestors()
   const parentIds = (replies.exists() ? replies : roots).values().valueOf()
 

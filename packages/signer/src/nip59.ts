@@ -1,4 +1,4 @@
-import {UnwrappedEvent, SignedEvent, HashedEvent, EventTemplate, WRAP, SEAL} from '@welshman/util'
+import {UnwrappedEvent, SignedEvent, HashedEvent, StampedEvent, WRAP, SEAL} from '@welshman/util'
 import {own, hash, decrypt, ISigner} from './util'
 import {Nip01Signer} from './signers/nip01'
 
@@ -7,8 +7,8 @@ export const seen = new Map<string, UnwrappedEvent | Error>()
 export const now = (drift = 0) =>
   Math.round(Date.now() / 1000 - Math.random() * Math.pow(10, drift))
 
-export const getRumor = async (signer: ISigner, template: EventTemplate) =>
-  hash(own(await signer.getPubkey(), template))
+export const getRumor = async (signer: ISigner, template: StampedEvent) =>
+  hash(own(template, await signer.getPubkey()))
 
 export const getSeal = async (signer: ISigner, pubkey: string, rumor: HashedEvent) =>
   signer.sign(hash({
@@ -28,7 +28,7 @@ export const getWrap = async (wrapper: ISigner, pubkey: string, seal: SignedEven
     tags: [...tags, ["p", pubkey]],
   }))
 
-export const wrap = async (signer: ISigner, wrapper: ISigner, pubkey: string, template: EventTemplate, tags: string[][] = []) => {
+export const wrap = async (signer: ISigner, wrapper: ISigner, pubkey: string, template: StampedEvent, tags: string[][] = []) => {
   const rumor = await getRumor(signer, template)
   const seal = await getSeal(signer, pubkey, rumor)
   const wrap = await getWrap(wrapper, pubkey, seal, tags)
@@ -77,7 +77,7 @@ export class Nip59 {
 
   withWrapper = (wrapper: ISigner) => new Nip59(this.signer, wrapper)
 
-  wrap = (pubkey: string, template: EventTemplate, tags: string[][] = []) =>
+  wrap = (pubkey: string, template: StampedEvent, tags: string[][] = []) =>
     wrap(this.signer, this.wrapper || Nip01Signer.ephemeral(), pubkey, template, tags)
 
   unwrap = (event: SignedEvent) =>

@@ -1,12 +1,12 @@
 import {hexToBytes} from '@noble/hashes/utils'
 import {getPublicKey, finalizeEvent} from 'nostr-tools'
 import {now} from '@welshman/lib'
-import type {CustomEvent, EventTemplate, Filter} from '@welshman/util'
+import type {TrustedEvent, StampedEvent, Filter} from '@welshman/util'
 import {subscribe, publish} from '@welshman/net'
 
 export type DVMHandler = {
   stop?: () => void
-  handleEvent: (e: CustomEvent) => AsyncGenerator<EventTemplate>
+  handleEvent: (e: TrustedEvent) => AsyncGenerator<StampedEvent>
 }
 
 export type CreateDVMHandler = (dvm: DVM) => DVMHandler
@@ -49,7 +49,7 @@ export class DVM {
         const filters = [filter]
         const sub = subscribe({relays, filters})
 
-        sub.emitter.on('event', (url: string, e: CustomEvent) => this.onEvent(e))
+        sub.emitter.on('event', (url: string, e: TrustedEvent) => this.onEvent(e))
         sub.emitter.on('complete', () => resolve())
       })
     }
@@ -63,7 +63,7 @@ export class DVM {
     this.active = false
   }
 
-  async onEvent(request: CustomEvent) {
+  async onEvent(request: TrustedEvent) {
     const {expireAfter = 60 * 60} = this.opts
 
     if (this.seen.has(request.id)) {
@@ -108,7 +108,7 @@ export class DVM {
     }
   }
 
-  async publish(template: EventTemplate) {
+  async publish(template: StampedEvent) {
     const {sk, relays} = this.opts
     const event = finalizeEvent(template, hexToBytes(sk))
 

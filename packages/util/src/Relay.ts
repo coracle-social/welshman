@@ -2,7 +2,7 @@ import {last, Emitter, normalizeUrl, sleep, stripProtocol} from '@welshman/lib'
 import {matchFilters} from './Filters'
 import type {Repository} from './Repository'
 import type {Filter} from './Filters'
-import type {CustomEvent} from './Events'
+import type {TrustedEvent} from './Events'
 
 // Constants and types
 
@@ -84,13 +84,13 @@ export class Relay extends Emitter {
 
   send(type: string, ...message: any[]) {
     switch(type) {
-      case 'EVENT': return this.handleEVENT(message as [CustomEvent])
+      case 'EVENT': return this.handleEVENT(message as [TrustedEvent])
       case 'CLOSE': return this.handleCLOSE(message as [string])
       case 'REQ': return this.handleREQ(message as [string, ...Filter[]])
     }
   }
 
-  handleEVENT([event]: [CustomEvent]) {
+  handleEVENT([event]: [TrustedEvent]) {
     this.repository.publish(event)
 
     // Callers generally expect async relays

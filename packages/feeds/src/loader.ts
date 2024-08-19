@@ -1,12 +1,12 @@
 import {inc, max, min, now} from '@welshman/lib'
-import type {CustomEvent, Filter} from '@welshman/util'
+import type {TrustedEvent, Filter} from '@welshman/util'
 import {EPOCH, trimFilters, guessFilterDelta} from '@welshman/util'
 import type {Feed, RequestItem, FeedOptions} from './core'
 import {FeedType} from './core'
 import {FeedCompiler} from './compiler'
 
 export type LoadOpts = {
-  onEvent?: (event: CustomEvent) => void
+  onEvent?: (event: TrustedEvent) => void
   onExhausted?: () => void
   useWindowing?: boolean
 }
@@ -101,7 +101,7 @@ export class FeedLoader {
       await this.options.request({
         relays,
         filters: trimFilters(requestFilters),
-        onEvent: (event: CustomEvent) => {
+        onEvent: (event: TrustedEvent) => {
           count += 1
           until = Math.min(until, event.created_at - 1)
           onEvent?.(event)
@@ -130,14 +130,14 @@ export class FeedLoader {
   async _getDifferenceLoader(feeds: Feed[], {onEvent, onExhausted}: LoadOpts) {
     const exhausted = new Set<number>()
     const skip = new Set<string>()
-    const events: CustomEvent[] = []
+    const events: TrustedEvent[] = []
     const seen = new Set()
 
     const loaders = await Promise.all(
       feeds.map((feed: Feed, i: number) =>
         this.getLoader(feed, {
           onExhausted: () => exhausted.add(i),
-          onEvent: (event: CustomEvent) => {
+          onEvent: (event: TrustedEvent) => {
             if (i === 0) {
               events.push(event)
             } else {
@@ -175,14 +175,14 @@ export class FeedLoader {
   async _getIntersectionLoader(feeds: Feed[], {onEvent, onExhausted}: LoadOpts) {
     const exhausted = new Set<number>()
     const counts = new Map<string, number>()
-    const events: CustomEvent[] = []
+    const events: TrustedEvent[] = []
     const seen = new Set()
 
     const loaders = await Promise.all(
       feeds.map((feed: Feed, i: number) =>
         this.getLoader(feed, {
           onExhausted: () => exhausted.add(i),
-          onEvent: (event: CustomEvent) => {
+          onEvent: (event: TrustedEvent) => {
             events.push(event)
             counts.set(event.id, inc(counts.get(event.id)))
           },
@@ -222,7 +222,7 @@ export class FeedLoader {
       feeds.map((feed: Feed, i: number) =>
         this.getLoader(feed, {
           onExhausted: () => exhausted.add(i),
-          onEvent: (event: CustomEvent) => {
+          onEvent: (event: TrustedEvent) => {
             if (!seen.has(event.id)) {
               onEvent?.(event)
               seen.add(event.id)

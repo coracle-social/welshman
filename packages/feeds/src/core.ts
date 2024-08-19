@@ -1,4 +1,4 @@
-import type {CustomEvent, Filter} from '@welshman/util'
+import type {TrustedEvent, Filter} from '@welshman/util'
 
 export enum FeedType {
   Address = "address",
@@ -110,7 +110,7 @@ export type RequestItem = {
 }
 
 export type RequestOpts = RequestItem & {
-  onEvent: (event: CustomEvent) => void
+  onEvent: (event: TrustedEvent) => void
 }
 
 export type DVMRequest = {
@@ -120,7 +120,7 @@ export type DVMRequest = {
 }
 
 export type DVMOpts = DVMRequest & {
-  onEvent: (event: CustomEvent) => void
+  onEvent: (event: TrustedEvent) => void
 }
 
 export type FeedOptions = {

@@ -1,4 +1,4 @@
-import type {EventContent, CustomEvent} from './Events'
+import type {EventContent, TrustedEvent} from './Events'
 
 export type Encrypt = (x: string) => Promise<string>
 
@@ -14,11 +14,11 @@ export type EncryptableResult = {
   content: string
 }
 
-export type DecryptedEvent = CustomEvent & {
+export type DecryptedEvent = TrustedEvent & {
   plaintext: Partial<EventContent>
 }
 
-export const asDecryptedEvent = (event: CustomEvent, plaintext: Partial<EventContent>) =>
+export const asDecryptedEvent = (event: TrustedEvent, plaintext: Partial<EventContent>) =>
   ({...event, plaintext}) as DecryptedEvent
 
 export class Encryptable {

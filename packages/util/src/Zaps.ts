@@ -1,5 +1,5 @@
 import {hexToBech32} from '@welshman/lib'
-import type {CustomEvent} from './Events'
+import type {TrustedEvent} from './Events'
 import {Tags} from "./Tags"
 
 const DIVISORS = {
@@ -81,12 +81,12 @@ export type Zapper = {
 }
 
 export type Zap = {
-  request: CustomEvent
-  response: CustomEvent,
+  request: TrustedEvent
+  response: TrustedEvent,
   invoiceAmount: number
 }
 
-export const zapFromEvent = (response: CustomEvent, zapper: Zapper) => {
+export const zapFromEvent = (response: TrustedEvent, zapper: Zapper) => {
   const responseMeta = Tags.fromEvent(response).asObject()
 
   let zap: Zap

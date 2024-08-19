@@ -1,7 +1,7 @@
 import {fromPairs, last, first, parseJson} from "@welshman/lib"
 import {getAddress} from "./Address"
 import {getAddressTags, getKindTagValues} from "./Tags"
-import type {CustomEvent} from "./Events"
+import type {TrustedEvent} from "./Events"
 
 export type Handler = {
   kind: number
@@ -9,13 +9,13 @@ export type Handler = {
   about: string
   image: string
   identifier: string
-  event: CustomEvent
+  event: TrustedEvent
   website?: string
   lud16?: string
   nip05?: string
 }
 
-export const readHandlers = (event: CustomEvent) => {
+export const readHandlers = (event: TrustedEvent) => {
   const {d: identifier} = fromPairs(event.tags)
   const meta = parseJson(event.content)
   const normalizedMeta = {
@@ -40,7 +40,7 @@ export const getHandlerKey = (handler: Handler) => `${handler.kind}:${getAddress
 
 export const displayHandler = (handler?: Handler, fallback = "") => handler?.name || fallback
 
-export const getHandlerAddress = (event: CustomEvent) => {
+export const getHandlerAddress = (event: TrustedEvent) => {
   const tags = getAddressTags(event.tags)
   const tag = tags.find(t => last(t) === "web") || first(tags)
 

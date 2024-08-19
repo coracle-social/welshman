@@ -1,4 +1,4 @@
-import {EventTemplate} from '@welshman/util'
+import {StampedEvent} from '@welshman/util'
 import {nip04, nip44, own, hash, sign, getPubkey, ISigner, makeSecret} from "../util"
 
 export class Nip01Signer implements ISigner {
@@ -14,7 +14,7 @@ export class Nip01Signer implements ISigner {
 
   getPubkey = async () => this.pubkey
 
-  sign = async (event: EventTemplate) => sign(hash(own(this.pubkey, event)), this.secret)
+  sign = async (event: StampedEvent) => sign(hash(own(event, this.pubkey)), this.secret)
 
   nip04 = {
     encrypt: async (pubkey: string, message: string) =>

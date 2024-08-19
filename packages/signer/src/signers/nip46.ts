@@ -1,7 +1,7 @@
 import {finalizeEvent, getPublicKey} from "nostr-tools"
 import {hexToBytes} from '@noble/hashes/utils'
 import {Emitter, tryCatch, randomId, sleep, equals, now} from "@welshman/lib"
-import {createEvent, TrustedEvent, EventTemplate, NOSTR_CONNECT} from "@welshman/util"
+import {createEvent, TrustedEvent, StampedEvent, NOSTR_CONNECT} from "@welshman/util"
 import {subscribe, publish, Subscription} from "@welshman/net"
 import {nip04, nip44, ISigner, decrypt, hash, own} from '../util'
 import {Nip01Signer} from './nip01'
@@ -138,7 +138,7 @@ export class Nip46Broker extends Emitter {
     return this.#connectResult === "ack"
   }
 
-  signEvent = async (event: EventTemplate) => {
+  signEvent = async (event: StampedEvent) => {
     return JSON.parse(await this.request("sign_event", [JSON.stringify(event)]) as string)
   }
 
@@ -169,8 +169,8 @@ export class Nip46Signer implements ISigner {
 
   getPubkey = async () => this.broker.pubkey
 
-  sign = (template: EventTemplate) =>
-    this.broker.signEvent(hash(own(this.broker.pubkey, template)))
+  sign = (template: StampedEvent) =>
+    this.broker.signEvent(hash(own(template, this.broker.pubkey)))
 
   nip04 = {
     encrypt: this.broker.nip04Encrypt,

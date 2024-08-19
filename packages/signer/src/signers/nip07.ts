@@ -1,4 +1,4 @@
-import {EventTemplate} from '@welshman/util'
+import {StampedEvent} from '@welshman/util'
 import {hash, own, Sign, ISigner, EncryptionImplementation} from '../util'
 
 export type Nip07 = {
@@ -30,8 +30,8 @@ export class Nip07Signer implements ISigner {
 
   getPubkey = async () => getNip07()!.getPublicKey()!
 
-  sign = async (template: EventTemplate) => {
-    const event = hash(own(await this.getPubkey(), template))
+  sign = async (template: StampedEvent) => {
+    const event = hash(own(template, await this.getPubkey()))
 
     return this.#then(ext => ext.signEvent(event))
   }

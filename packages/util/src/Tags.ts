@@ -1,4 +1,3 @@
-import {EventTemplate} from 'nostr-tools'
 import type {OmitStatics} from '@welshman/lib'
 import {Fluent, nth, nthEq, ensurePlural} from '@welshman/lib'
 import {isRelayUrl, normalizeRelayUrl} from './Relay'
@@ -42,9 +41,9 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   static wrap = (p: Iterable<string[]>) => new Tags(Array.from(p).map(Tag.from))
 
-  static fromEvent = (event: Pick<EventTemplate, "tags">) => Tags.wrap(event.tags || [])
+  static fromEvent = (event: {tags: string[][]}) => Tags.wrap(event.tags || [])
 
-  static fromEvents = (events: Pick<EventTemplate, "tags">[]) => Tags.wrap(events.flatMap(e => e.tags || []))
+  static fromEvents = (events: {tags: string[][]}[]) => Tags.wrap(events.flatMap(e => e.tags || []))
 
   static fromIMeta = (imeta: string[]) => Tags.wrap(imeta.map((m: string) => m.split(" ")))
 

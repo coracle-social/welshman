@@ -5,7 +5,7 @@ import {identity, batch, partition, first} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import type {Repository} from "@welshman/util"
 import {matchFilters, getIdAndAddress, getIdFilters} from "@welshman/util"
-import type {Filter, CustomEvent} from "@welshman/util"
+import type {Filter, TrustedEvent} from "@welshman/util"
 
 export const getter = <T>(store: Readable<T>) => {
   let value: T
@@ -70,8 +70,8 @@ export function withGetter<T>(store: Readable<T> | Writable<T>) {
 export const throttled = <T>(delay: number, store: Readable<T>) =>
   custom(set => store.subscribe(throttle(delay, set)))
 
-export const createEventStore = (repository: Repository): Writable<CustomEvent[]> => {
-  let subs: Subscriber<CustomEvent[]>[] = []
+export const createEventStore = (repository: Repository): Writable<TrustedEvent[]> => {
+  let subs: Subscriber<TrustedEvent[]>[] = []
 
   const onUpdate = throttle(300, () => {
     const $events = repository.dump()
@@ -82,9 +82,9 @@ export const createEventStore = (repository: Repository): Writable<CustomEvent[]
   })
 
   return {
-    set: (events: CustomEvent[]) => repository.load(events),
-    update: (f: Updater<CustomEvent[]>) => repository.load(f(repository.dump())),
-    subscribe: (f: Subscriber<CustomEvent[]>) => {
+    set: (events: TrustedEvent[]) => repository.load(events),
+    update: (f: Updater<TrustedEvent[]>) => repository.load(f(repository.dump())),
+    subscribe: (f: Subscriber<TrustedEvent[]>) => {
       f(repository.dump())
 
       subs.push(f)
@@ -112,8 +112,8 @@ export const deriveEventsMapped = <T>(repository: Repository, {
   includeDeleted = false,
 }: {
   filters: Filter[]
-  eventToItem: (event: CustomEvent) => Maybe<T | Promise<T>>
-  itemToEvent: (item: T) => CustomEvent
+  eventToItem: (event: TrustedEvent) => Maybe<T | Promise<T>>
+  itemToEvent: (item: T) => TrustedEvent
   throttle?: number
   includeDeleted?: boolean
 }) =>
@@ -121,7 +121,7 @@ export const deriveEventsMapped = <T>(repository: Repository, {
     let data: T[] = []
     const deferred = new Set()
 
-    const defer = (event: CustomEvent, item: Promise<T>) => {
+    const defer = (event: TrustedEvent, item: Promise<T>) => {
       deferred.add(event.id)
 
       item.then($item => {
@@ -149,7 +149,7 @@ export const deriveEventsMapped = <T>(repository: Repository, {
 
     setter(data)
 
-    const onUpdate = batch(300, (updates: {added: CustomEvent[]; removed: Set<string>}[]) => {
+    const onUpdate = batch(300, (updates: {added: TrustedEvent[]; removed: Set<string>}[]) => {
       const removed = new Set()
       const added = new Map()
 
@@ -203,7 +203,7 @@ export const deriveEventsMapped = <T>(repository: Repository, {
   }, {throttle})
 
 export const deriveEvents = (repository: Repository, opts: {filters: Filter[], includeDeleted?: boolean}) =>
-  deriveEventsMapped<CustomEvent>(repository, {
+  deriveEventsMapped<TrustedEvent>(repository, {
     ...opts,
     eventToItem: identity,
     itemToEvent: identity,
@@ -218,7 +218,7 @@ export const deriveEvent = (repository: Repository, idOrAddress: string) =>
     first
   )
 
-export const deriveIsDeletedByAddress = (repository: Repository, event: CustomEvent) =>
+export const deriveIsDeletedByAddress = (repository: Repository, event: TrustedEvent) =>
   custom<boolean>(setter => {
     setter(repository.isDeletedByAddress(event))
 
