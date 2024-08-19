@@ -1,7 +1,7 @@
-import {Emitter, Worker} from '@welshman/lib'
+import {Emitter, Worker, sleep} from '@welshman/lib'
 import {AuthStatus, ConnectionMeta} from './ConnectionMeta'
 import {Socket, isMessage, asMessage} from './Socket'
-import type {SocketMessage} from './Socket'
+import type {SocketMessage, Message} from './Socket'
 
 export class Connection extends Emitter {
   url: string
@@ -106,6 +106,23 @@ export class Connection extends Emitter {
 
     if (this.socket.isNew()) {
       await this.socket.connect()
+    }
+  }
+
+  ensureAuth = async ({timeout = 3000}) => {
+    await this.ensureConnected({shouldReconnect: true})
+
+    if (this.meta.authStatus === AuthStatus.Pending) {
+      await Promise.race([
+        sleep(timeout),
+        new Promise<void>(resolve => {
+          this.on('receive', (cxn: Connection, message: Message) => {
+            if (message[0] === 'OK' && message[2]) {
+             resolve()
+            }
+          })
+        })
+      ])
     }
   }
 

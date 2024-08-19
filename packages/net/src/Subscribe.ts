@@ -1,4 +1,4 @@
-import {Emitter, chunk, randomId, once, groupBy, uniq} from '@welshman/lib'
+import {Emitter, identity, max, chunk, randomId, once, groupBy, uniq} from '@welshman/lib'
 import {matchFilters, unionFilters, SignedEvent} from '@welshman/util'
 import type {Filter} from '@welshman/util'
 import {Tracker} from "./Tracker"
@@ -38,6 +38,7 @@ export type SubscribeRequest = {
   timeout?: number
   tracker?: Tracker
   closeOnEose?: boolean
+  authTimeout?: number
 }
 
 export type Subscription = {
@@ -84,6 +85,7 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
         relays: [relay],
         timeout: callerSubs[0].request.timeout,
         closeOnEose: callerSubs[0].request.closeOnEose,
+        authTimeout: max(callerSubs.map(r => r.request.authTimeout!).filter(identity)),
         filters: unionFilters(callerSubs.flatMap((sub: Subscription) => sub.request.filters)),
       })
 
@@ -167,7 +169,7 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
 
 export const executeSubscription = (sub: Subscription) => {
   const {request, emitter, tracker, controller} = sub
-  const {timeout, filters, closeOnEose, relays, signal} = request
+  const {timeout, filters, closeOnEose, relays, signal, authTimeout = 0} = request
   const executor = NetworkContext.getExecutor(relays)
   const subs: {unsubscribe: () => void}[] = []
   const completedRelays = new Set()
@@ -233,7 +235,7 @@ export const executeSubscription = (sub: Subscription) => {
   controller.signal.addEventListener('abort', onComplete)
 
   // If we have a timeout, complete the subscription automatically
-  if (timeout) setTimeout(onComplete, timeout)
+  if (timeout) setTimeout(onComplete, timeout + authTimeout)
 
   // If one of our connections gets closed make sure to kill our sub
   executor.target.connections.forEach((c: Connection) => c.on('close', onClose))
@@ -241,11 +243,19 @@ export const executeSubscription = (sub: Subscription) => {
   // Finally, start our subscription. If we didn't get any filters, don't even send the
   // request, just close it. This can be valid when a caller fulfills a request themselves.
   if (filters.length > 0) {
-    // If we send too many filters in a request relays will refuse to respond. REQs are rate
-    // limited client-side by Connection, so this will throttle concurrent requests.
-    for (const filtersChunk of chunk(8, filters)) {
-      subs.push(executor.subscribe(filtersChunk, {onEvent, onEose}))
-    }
+    Promise.all(
+      executor.target.connections.map(async (connection: Connection) => {
+        if (authTimeout) {
+          await connection.ensureAuth({timeout: authTimeout})
+        }
+      })
+    ).then(() => {
+      // If we send too many filters in a request relays will refuse to respond. REQs are rate
+      // limited client-side by Connection, so this will throttle concurrent requests.
+      for (const filtersChunk of chunk(8, filters)) {
+        subs.push(executor.subscribe(filtersChunk, {onEvent, onEose}))
+      }
+    })
   } else {
     onComplete()
   }
