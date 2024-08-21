@@ -97,6 +97,10 @@ export const randomId = (): string => Math.random().toString().slice(2)
 
 export const stripProtocol = (url: string) => url.replace(/.*:\/\//, "")
 
+export const displayUrl = (url: string) => stripProtocol(url).replace(/^(www\.)?/i, "").replace(/\/$/, "")
+
+export const displayDomain = (url: string) => first(displayUrl(url).split(/[\/\?]/))
+
 export const sleep = (t: number) => new Promise(resolve => setTimeout(resolve, t))
 
 export const concat = <T>(...xs: T[][]) => xs.flatMap(x => x || [])
