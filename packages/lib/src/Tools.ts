@@ -99,7 +99,7 @@ export const stripProtocol = (url: string) => url.replace(/.*:\/\//, "")
 
 export const displayUrl = (url: string) => stripProtocol(url).replace(/^(www\.)?/i, "").replace(/\/$/, "")
 
-export const displayDomain = (url: string) => first(displayUrl(url).split(/[\/\?]/))
+export const displayDomain = (url: string) => displayUrl(first(url.split(/[\/\?]/)))
 
 export const sleep = (t: number) => new Promise(resolve => setTimeout(resolve, t))
 

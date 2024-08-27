@@ -2,7 +2,7 @@ import {last, Emitter, normalizeUrl, sleep, stripProtocol} from '@welshman/lib'
 import {matchFilters} from './Filters'
 import type {Repository} from './Repository'
 import type {Filter} from './Filters'
-import type {TrustedEvent} from './Events'
+import type {HashedEvent, TrustedEvent} from './Events'
 
 // Constants and types
 
@@ -75,22 +75,22 @@ export const displayRelayUrl = (url: string) => last(url.split("://")).replace(/
 
 // In-memory relay implementation backed by Repository
 
-export class Relay extends Emitter {
+export class Relay<E extends HashedEvent = TrustedEvent> extends Emitter {
   subs = new Map<string, Filter[]>()
 
-  constructor(readonly repository: Repository) {
+  constructor(readonly repository: Repository<E>) {
     super()
   }
 
   send(type: string, ...message: any[]) {
     switch(type) {
-      case 'EVENT': return this.handleEVENT(message as [TrustedEvent])
+      case 'EVENT': return this.handleEVENT(message as [E])
       case 'CLOSE': return this.handleCLOSE(message as [string])
       case 'REQ': return this.handleREQ(message as [string, ...Filter[]])
     }
   }
 
-  handleEVENT([event]: [TrustedEvent]) {
+  handleEVENT([event]: [E]) {
     this.repository.publish(event)
 
     // Callers generally expect async relays

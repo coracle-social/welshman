@@ -1,6 +1,6 @@
 {
   "name": "@welshman/feeds",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "author": "hodlbod",
   "license": "MIT",
   "description": "Utilities for building dynamic nostr feeds.",
@@ -32,6 +32,6 @@
   },
   "dependencies": {
     "@welshman/lib": "0.0.15",
-    "@welshman/util": "0.0.27"
+    "@welshman/util": "0.0.28"
   }
 }

@@ -51,10 +51,10 @@ export const createEvent = (kind: number, {content = "", tags = [], created_at =
   ({kind, content, tags, created_at})
 
 export const isEventTemplate = (e: EventTemplate): e is EventTemplate =>
-  Boolean(typeof e.kind === "number" && e.tags && typeof e.content === "string")
+  Boolean(typeof e.kind === "number" && Array.isArray(e.tags) && typeof e.content === "string")
 
 export const isStampedEvent = (e: StampedEvent): e is StampedEvent =>
-  Boolean(isEventTemplate(e) && e.created_at)
+  Boolean(isEventTemplate(e) && e.created_at >= 0)
 
 export const isOwnedEvent = (e: OwnedEvent): e is OwnedEvent =>
   Boolean(isStampedEvent(e) && e.pubkey)

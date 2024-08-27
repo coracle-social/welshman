@@ -61,6 +61,20 @@ export const custom = <T>(start: Start<T>, opts: {throttle?: number} = {}) => {
   }
 }
 
+export const adapter = <Source, Target>({
+  store,
+  forward,
+  backward,
+}: {
+  store: Writable<Source>,
+  forward: (x: Source) => Target,
+  backward: (x: Target) => Source,
+}) => ({
+  ...derived(store, forward),
+  set: (x: Target) => store.set(backward(x)),
+  update: (f: (x: Target) => Target) => store.update((x: Source) => backward(f(forward(x)))),
+})
+
 export function withGetter<T>(store: Writable<T>): Writable<T> & {get: () => T}
 export function withGetter<T>(store: Readable<T>): Readable<T> & {get: () => T}
 export function withGetter<T>(store: Readable<T> | Writable<T>) {

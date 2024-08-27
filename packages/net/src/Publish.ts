@@ -83,11 +83,11 @@ export const publish = (request: PublishRequest) => {
   // Delegate to our executor
   const executorSub = executor.publish(event, {
     verb: request.verb || "EVENT",
-    onOk: (url: string, eventId: string, ok: boolean) => {
+    onOk: (url: string, eventId: string, ok: boolean, message: string) => {
       if (ok) {
-        pub.emitter.emit(PublishStatus.Success, url)
+        pub.emitter.emit(PublishStatus.Success, url, message)
       } else {
-        pub.emitter.emit(PublishStatus.Failure, url)
+        pub.emitter.emit(PublishStatus.Failure, url, message)
       }
     },
     onError: (url: string) => {
