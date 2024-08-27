@@ -1,6 +1,5 @@
-import {hexToBech32} from '@welshman/lib'
+import {hexToBech32, fromPairs} from '@welshman/lib'
 import type {TrustedEvent} from './Events'
-import {Tags} from "./Tags"
 
 const DIVISORS = {
   m: BigInt(1e3),
@@ -86,8 +85,8 @@ export type Zap = {
   invoiceAmount: number
 }
 
-export const zapFromEvent = (response: TrustedEvent, zapper: Zapper) => {
-  const responseMeta = Tags.fromEvent(response).asObject()
+export const zapFromEvent = (response: TrustedEvent, zapper: Zapper | undefined) => {
+  const responseMeta = fromPairs(response.tags)
 
   let zap: Zap
   try {
@@ -100,25 +99,30 @@ export const zapFromEvent = (response: TrustedEvent, zapper: Zapper) => {
     return null
   }
 
-  // Don't count zaps that the user sent himself
-  if (zap.request.pubkey === zapper.pubkey) {
+  // Don't count zaps that the user requested for himself
+  if (zap.request.pubkey === zapper?.pubkey) {
     return null
   }
 
-  const {amount, lnurl} = Tags.fromEvent(zap.request).asObject()
+  const {amount, lnurl} = fromPairs(zap.request.tags)
 
   // Verify that the zapper actually sent the requested amount (if it was supplied)
   if (amount && parseInt(amount) !== zap.invoiceAmount) {
     return null
   }
 
+  // If the recipient and the zapper are the same person, it's legit
+  if (responseMeta.p === response.pubkey) {
+    return zap
+  }
+
   // If the sending client provided an lnurl tag, verify that too
-  if (lnurl && lnurl !== zapper.lnurl) {
+  if (lnurl && lnurl !== zapper?.lnurl) {
     return null
   }
 
   // Verify that the request actually came from the recipient's zapper
-  if (zap.response.pubkey !== zapper.nostrPubkey) {
+  if (zap.response.pubkey !== zapper?.nostrPubkey) {
     return null
   }
 
