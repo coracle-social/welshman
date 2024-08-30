@@ -1,11 +1,22 @@
 import {throttle} from "throttle-debounce"
-import {derived} from "svelte/store"
+import {derived, writable} from "svelte/store"
 import type {Readable, Updater, Writable, Subscriber, Unsubscriber} from "svelte/store"
-import {identity, batch, partition, first} from "@welshman/lib"
+import {identity, getJson, setJson, batch, partition, first} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import type {Repository} from "@welshman/util"
 import {matchFilters, getIdAndAddress, getIdFilters} from "@welshman/util"
 import type {Filter, TrustedEvent} from "@welshman/util"
+
+// Generic store utils
+
+export const synced = <T>(key: string, defaultValue: T) => {
+  const init = getJson(key)
+  const store = writable<T>(init === null ? defaultValue : init)
+
+  store.subscribe((value: T) => setJson(key, value))
+
+  return store
+}
 
 export const getter = <T>(store: Readable<T>) => {
   let value: T
@@ -15,6 +26,12 @@ export const getter = <T>(store: Readable<T>) => {
   })
 
   return () => value
+}
+
+export function withGetter<T>(store: Writable<T>): Writable<T> & {get: () => T}
+export function withGetter<T>(store: Readable<T>): Readable<T> & {get: () => T}
+export function withGetter<T>(store: Readable<T> | Writable<T>) {
+  return {...store, get: getter<T>(store)}
 }
 
 type Start<T> = (set: Subscriber<T>) => Unsubscriber
@@ -75,14 +92,10 @@ export const adapter = <Source, Target>({
   update: (f: (x: Target) => Target) => store.update((x: Source) => backward(f(forward(x)))),
 })
 
-export function withGetter<T>(store: Writable<T>): Writable<T> & {get: () => T}
-export function withGetter<T>(store: Readable<T>): Readable<T> & {get: () => T}
-export function withGetter<T>(store: Readable<T> | Writable<T>) {
-  return {...store, get: getter<T>(store)}
-}
-
 export const throttled = <T>(delay: number, store: Readable<T>) =>
   custom(set => store.subscribe(throttle(delay, set)))
+
+// Event related stores
 
 export const createEventStore = (repository: Repository): Writable<TrustedEvent[]> => {
   let subs: Subscriber<TrustedEvent[]>[] = []

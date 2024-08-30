@@ -71,12 +71,12 @@ export const getLnUrl = (address: string) => {
 
 export type Zapper = {
   lnurl: string
-  pubkey: string,
-  callback: string
-  minSendable: number
-  maxSendable: number
-  nostrPubkey: string
-  allowsNostr: boolean
+  pubkey?: string,
+  callback?: string
+  minSendable?: number
+  maxSendable?: number
+  nostrPubkey?: string
+  allowsNostr?: boolean
 }
 
 export type Zap = {

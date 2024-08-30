@@ -139,6 +139,10 @@ export const parseJson = (json: string | Nil) => {
   }
 }
 
+export const getJson = (k: string) => parseJson(localStorage.getItem(k) || "")
+
+export const setJson = (k: string, v: any) => localStorage.setItem(k, JSON.stringify(v))
+
 export const tryCatch = <T>(f: () => T, onError?: (e: Error) => void): T | undefined => {
   try {
     const r = f()

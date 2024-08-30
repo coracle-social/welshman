@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@welshman/lib": "0.0.15",
-    "@welshman/util": "0.0.28",
+    "@welshman/util": "0.0.29",
     "isomorphic-ws": "^5.0.0",
     "ws": "^8.16.0"
   }

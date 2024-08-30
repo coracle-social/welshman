@@ -118,7 +118,7 @@ export class Connection extends Emitter {
         new Promise<void>(resolve => {
           this.on('receive', (cxn: Connection, message: Message) => {
             if (message[0] === 'OK' && message[2]) {
-             resolve()
+              resolve()
             }
           })
         })

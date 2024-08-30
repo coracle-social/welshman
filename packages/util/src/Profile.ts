@@ -1,6 +1,7 @@
 import {nip19} from "nostr-tools"
 import {ellipsize, parseJson} from "@welshman/lib"
 import {TrustedEvent} from "./Events"
+import {getLnUrl} from './Zaps'
 import {PROFILE} from "./Kinds"
 
 export type Profile = {
@@ -8,6 +9,7 @@ export type Profile = {
   nip05?: string
   lud06?: string
   lud16?: string
+  lnurl?: string
   about?: string
   banner?: string
   picture?: string
@@ -23,24 +25,15 @@ export type PublishedProfile = Omit<Profile, "event"> & {
 export const isPublishedProfile = (profile: Profile): profile is PublishedProfile =>
   Boolean(profile.event)
 
-export const makeProfile = (profile: Partial<Profile> = {}): Profile => ({
-  name: "",
-  nip05: "",
-  lud06: "",
-  lud16: "",
-  about: "",
-  banner: "",
-  picture: "",
-  website: "",
-  display_name: "",
-  ...profile,
-})
+export const makeProfile = (profile: Partial<Profile> = {}): Profile => {
+  const address = profile.lud06 || profile.lud16
+  const lnurl = address ? getLnUrl(address) : null
 
-export const readProfile = (event: TrustedEvent) => {
-  const profile = parseJson(event.content) || {}
-
-  return {...profile, event} as PublishedProfile
+  return lnurl ? {lnurl, ...profile} : profile
 }
+
+export const readProfile = (event: TrustedEvent): PublishedProfile =>
+  ({...makeProfile(parseJson(event.content) || {}), event})
 
 export const createProfile = ({event, ...profile}: Profile) => ({
   kind: PROFILE,
