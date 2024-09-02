@@ -1,4 +1,3 @@
-import {first} from "@welshman/lib"
 import {Repository, Relay} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Tracker, subscribe as baseSubscribe} from "@welshman/net"
@@ -6,9 +5,11 @@ import type {SubscribeRequest} from "@welshman/net"
 import {createEventStore} from "@welshman/store"
 
 export const env: {
+  BOOTSTRAP_RELAYS: string[]
   DUFFLEPUD_URL?: string
   [key: string]: any
 } = {
+  BOOTSTRAP_RELAYS: [],
   DUFFLEPUD_URL: undefined,
 }
 
@@ -39,4 +40,16 @@ export const load = (request: SubscribeRequest) =>
     sub.emitter.on("complete", () => resolve(events))
   })
 
-export const loadOne = async (request: SubscribeRequest) => first(await load(request))
+export const loadOne = (request: SubscribeRequest) =>
+  new Promise<TrustedEvent | null>(resolve => {
+    const sub = subscribe({closeOnEose: true, timeout: 3000, ...request})
+
+    sub.emitter.on("event", (url: string, event: TrustedEvent) => {
+      resolve(event)
+      sub.close()
+    })
+
+    sub.emitter.on("complete", () => {
+      resolve(null)
+    })
+  })

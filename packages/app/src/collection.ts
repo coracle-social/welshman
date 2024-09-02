@@ -19,8 +19,11 @@ export const collection = <T, LoadArgs extends any[]>({
   const pending = new Map<string, Promise<Maybe<T>>>()
 
   const loadItem = async (key: string, ...args: LoadArgs) => {
-    if (getFreshness(name, key) > now() - 3600) {
-      return indexStore.get().get(key)
+    const item = indexStore.get().get(key)
+    const delta = item ? 3600 : 300
+
+    if (getFreshness(name, key) > now() - delta) {
+      return item
     }
 
     if (pending.has(key)) {
@@ -47,7 +50,7 @@ export const collection = <T, LoadArgs extends any[]>({
 
     // If we don't yet have the item, or it's stale, trigger a request for it. The derived
     // store will update when it arrives
-    load(key, ...args)
+    loadItem(key, ...args)
 
     return derived(indexStore, $index => $index.get(key))
   }

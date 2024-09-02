@@ -1,19 +1,11 @@
-import {writable, derived} from 'svelte/store'
+import {writable} from 'svelte/store'
 import {withGetter} from '@welshman/store'
 import type {Zapper} from '@welshman/util'
-import {uniq, identity, bech32ToHex, indexBy, tryCatch, uniqBy, batcher, postJson} from '@welshman/lib'
+import {uniq, identity, bech32ToHex, tryCatch, uniqBy, batcher, postJson} from '@welshman/lib'
 import {env} from './core'
 import {collection} from './collection'
-import {profilesByPubkey} from './profiles'
 
 export const zappers = withGetter(writable<Zapper[]>([]))
-
-export const zappersByPubkey = derived([profilesByPubkey, zappers], ([$profilesByPubkey, $zappers]) =>
-  indexBy(
-    $zapper => $zapper.pubkey,
-    $zappers.filter($zapper => $zapper.pubkey && $profilesByPubkey.get($zapper.pubkey)?.lnurl === $zapper.lnurl),
-  ),
-)
 
 export const fetchZappers = (lnurls: string[]) => {
   const base = env.DUFFLEPUD_URL!

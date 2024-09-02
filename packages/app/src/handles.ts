@@ -1,9 +1,8 @@
-import {writable, derived} from 'svelte/store'
+import {writable} from 'svelte/store'
 import {withGetter} from '@welshman/store'
-import {uniq, indexBy, uniqBy, batcher, postJson, last} from '@welshman/lib'
+import {uniq, uniqBy, batcher, postJson, last} from '@welshman/lib'
 import {env} from './core'
 import {collection} from './collection'
-import {profilesByPubkey} from './profiles'
 
 export type Handle = {
   nip05: string
@@ -13,13 +12,6 @@ export type Handle = {
 }
 
 export const handles = withGetter(writable<Handle[]>([]))
-
-export const handlesByPubkey = derived([profilesByPubkey, handles], ([$profilesByPubkey, $handles]) =>
-  indexBy(
-    $handle => $handle.pubkey,
-    $handles.filter($handle => $handle.pubkey && $profilesByPubkey.get($handle.pubkey)?.nip05 === $handle.nip05),
-  ),
-)
 
 export const fetchHandles = (handles: string[]) => {
   const base = env.DUFFLEPUD_URL!
