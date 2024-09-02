@@ -14,7 +14,7 @@ export const asMessage = (m: SocketMessage): Message => isMessage(m) ? m : m[1]
 export type SocketOpts = {
   onOpen: () => void
   onClose: () => void
-  onError: () => void
+  onFault: () => void
   onMessage: (message: SocketMessage) => void
 }
 
@@ -59,12 +59,12 @@ export class Socket {
     try {
       this.ws = new WebSocket(this.url)
       this.ws.onopen = this.opts.onOpen
-      this.ws.onerror = this.opts.onError
+      this.ws.onerror = this.opts.onFault
       this.ws.onclose = this.opts.onClose
       this.ws.onmessage = this.onMessage
     } catch (e) {
       this.ws = 'invalid'
-      this.opts.onError()
+      this.opts.onFault()
     }
 
     while (this.isConnecting()) {

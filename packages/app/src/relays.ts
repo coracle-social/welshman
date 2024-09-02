@@ -1,6 +1,6 @@
 import {writable, derived} from 'svelte/store'
 import {withGetter} from '@welshman/store'
-import {groupBy, batch, nth, now, uniq, uniqBy, batcher, postJson} from '@welshman/lib'
+import {groupBy, indexBy, batch, now, uniq, uniqBy, batcher, postJson} from '@welshman/lib'
 import {type RelayProfile} from "@welshman/util"
 import {AuthStatus, asMessage, type Connection, type SocketMessage} from '@welshman/net'
 import {env} from './core'
@@ -99,27 +99,27 @@ export const relaySearch = derived(relays, $relays =>
 type RelayStatsUpdate = [string, (stats: RelayStats) => void]
 
 const updateRelayStats = batch(500, (updates: RelayStatsUpdate[]) => {
-  const updatesByUrl = groupBy(nth(0), updates)
+  relays.update(($relays: Relay[]) => {
+    const $relaysByUrl = indexBy(r => r.url, $relays)
+    const $itemsByUrl = groupBy(([url]) => url, updates)
 
-  relays.update($relays => {
-    return $relays.map($relay => {
-      for (const [_, update] of updatesByUrl.get($relay.url) || []) {
-        if (!$relay.stats) {
-          $relay.stats = makeRelayStats()
-        }
+    for (const [url, items] of $itemsByUrl.entries()) {
+      const $relay: Relay = $relaysByUrl.get(url) || {url}
 
+      if (!$relay.stats) {
+        $relay.stats = makeRelayStats()
+      }
+
+      for (const [_, update] of items) {
         update($relay.stats)
       }
 
-      return $relay
-    })
+      $relaysByUrl.set(url, $relay)
+    }
+
+    return Array.from($relaysByUrl.values())
   })
 })
-
-const onConnectionError = ({url}: Connection) =>
-  updateRelayStats([url, stats => {
-    stats.recent_errors = stats.recent_errors.concat(now()).slice(-10)
-  }])
 
 const onConnectionSend = ({url}: Connection, socketMessage: SocketMessage) => {
   const [verb] = asMessage(socketMessage)
@@ -153,18 +153,23 @@ const onConnectionReceive = ({url}: Connection, socketMessage: SocketMessage) =>
   }
 }
 
+const onConnectionFault = ({url}: Connection) =>
+  updateRelayStats([url, stats => {
+    stats.recent_errors = stats.recent_errors.concat(now()).slice(-10)
+  }])
+
 export const trackRelayStats = (connection: Connection) => {
   updateRelayStats([connection.url, stats => {
     stats.connect_count = stats.connect_count + 1
   }])
 
-  connection.on('error', onConnectionError)
   connection.on('send', onConnectionSend)
   connection.on('receive', onConnectionReceive)
+  connection.on('fault', onConnectionFault)
 
   return () => {
-    connection.off('error', onConnectionError)
     connection.off('send', onConnectionSend)
     connection.off('receive', onConnectionReceive)
+    connection.off('fault', onConnectionFault)
   }
 }

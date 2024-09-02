@@ -83,7 +83,7 @@ export class Connection extends Emitter {
 
   onClose = () => this.emit('close', this)
 
-  onError = () => this.emit('fault', this)
+  onFault = () => this.emit('fault', this)
 
   onMessage = (m: SocketMessage) => this.receiver.push(m)
 
