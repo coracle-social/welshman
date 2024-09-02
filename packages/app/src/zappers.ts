@@ -1,7 +1,7 @@
 import {writable, derived} from 'svelte/store'
 import {withGetter} from '@welshman/store'
 import type {Zapper} from '@welshman/util'
-import {uniq, bech32ToHex, indexBy, tryCatch, uniqBy, batcher, postJson} from '@welshman/lib'
+import {uniq, identity, bech32ToHex, indexBy, tryCatch, uniqBy, batcher, postJson} from '@welshman/lib'
 import {env} from './core'
 import {collection} from './collection'
 import {profilesByPubkey} from './profiles'
@@ -22,8 +22,10 @@ export const fetchZappers = (lnurls: string[]) => {
     throw new Error("DUFFLEPUD_URL is required to fetch zapper info")
   }
 
-  const res: any = postJson(`${base}/zapper/info`, {lnurls: lnurls.map(bech32ToHex)})
   const zappersByLnurl = new Map<string, Zapper>()
+  const res: any = postJson(`${base}/zapper/info`, {
+    lnurls: lnurls.map(lnurl => tryCatch(() => bech32ToHex(lnurl))).filter(identity),
+  })
 
   for (const {lnurl, info} of res?.data || []) {
     tryCatch(() => zappersByLnurl.set(bech32ToHex(lnurl), info))

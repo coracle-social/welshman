@@ -7,6 +7,7 @@ import {createEventStore} from "@welshman/store"
 
 export const env: {
   DUFFLEPUD_URL?: string
+  [key: string]: any
 } = {
   DUFFLEPUD_URL: undefined,
 }

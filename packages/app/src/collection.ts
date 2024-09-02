@@ -3,7 +3,7 @@ import {indexBy, type Maybe, now} from '@welshman/lib'
 import {withGetter} from '@welshman/store'
 import {getFreshness, setFreshness} from './freshness'
 
-export const collection = <T>({
+export const collection = <T, LoadArgs extends any[]>({
   name,
   store,
   getKey,
@@ -12,13 +12,13 @@ export const collection = <T>({
   name: string
   store: Readable<T[]>
   getKey: (item: T) => string
-  load: (key: string, ...args: any) => Promise<any>
+  load: (key: string, ...args: LoadArgs) => Promise<any>
 }) => {
   const indexStore = withGetter(derived(store, $items => indexBy(getKey, $items)))
   const getItem = (key: string) => indexStore.get().get(key)
   const pending = new Map<string, Promise<Maybe<T>>>()
 
-  const loadItem = async (key: string, ...args: any[]) => {
+  const loadItem = async (key: string, ...args: LoadArgs) => {
     if (getFreshness(name, key) > now() - 3600) {
       return indexStore.get().get(key)
     }
@@ -40,7 +40,7 @@ export const collection = <T>({
     return indexStore.get().get(key)
   }
 
-  const deriveItem = (key: Maybe<string>, ...args: any[]) => {
+  const deriveItem = (key: Maybe<string>, ...args: LoadArgs) => {
     if (!key) {
       return readable(undefined)
     }

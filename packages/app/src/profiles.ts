@@ -23,7 +23,7 @@ export const {
   store: profiles,
   getKey: profile => profile.event.pubkey,
   load: async (pubkey: string, hints = [], request: Partial<SubscribeRequest> = {}) => {
-    const relays = getWriteRelayUrls(await loadRelaySelections(pubkey))
+    const relays = getWriteRelayUrls(await loadRelaySelections(pubkey, hints))
 
     return load({
       ...request,
