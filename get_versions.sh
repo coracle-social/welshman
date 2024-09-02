@@ -1,7 +1,7 @@
 #!/bin/bash
 
-for upstream in $(./get_packages.py); do
-  version=$(sed -nr 's/ +"version": "(.+)",/\1/p' packages/$upstream/package.json)
+for package in $(./get_packages.py); do
+  version=$(sed -nr 's/ +"version": "(.+)",/\1/p' packages/$package/package.json)
 
-  echo $upstream $version
+  echo '"@welshman/'$package'": "^'$version'",'
 done
