@@ -36,8 +36,8 @@ export const profileSearch = derived(profiles, $profiles =>
   }),
 )
 
-export const displayProfileByPubkey = (pubkey: string) =>
+export const displayProfileByPubkey = (pubkey = "") =>
   displayProfile(profilesByPubkey.get().get(pubkey), displayPubkey(pubkey))
 
-export const deriveProfileDisplay = (pubkey: string) =>
+export const deriveProfileDisplay = (pubkey = "") =>
   derived(deriveProfile(pubkey), $profile => displayProfile($profile, displayPubkey(pubkey)))

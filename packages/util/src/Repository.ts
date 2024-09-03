@@ -19,6 +19,12 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
   eventsByAuthor = new Map<string, E[]>()
   deletes = new Map<string, number>()
 
+  constructor() {
+    super()
+
+    this.setMaxListeners(100)
+  }
+
   // Dump/load/clear
 
   dump = () => {

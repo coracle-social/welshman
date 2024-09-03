@@ -45,10 +45,10 @@ export const relaysByPubkey = derived(relays, $relays =>
 )
 
 export const fetchRelayProfiles = (urls: string[]) => {
-  const base = AppContext.DUFFLEPUD_URL!
+  const base = AppContext.dufflepudUrl!
 
   if (!base) {
-    throw new Error("DUFFLEPUD_URL is required to fetch relay metadata")
+    throw new Error("AppContext.dufflepudUrl is required to fetch relay metadata")
   }
 
   const res: any = postJson(`${base}/relay/info`, {urls})

@@ -3,6 +3,12 @@ import {Emitter} from '@welshman/lib'
 export class Tracker extends Emitter {
   data = new Map<string, Set<string>>()
 
+  constructor() {
+    super()
+
+    this.setMaxListeners(100)
+  }
+
   getRelays = (eventId: string) => {
     const relays = new Set<string>()
 

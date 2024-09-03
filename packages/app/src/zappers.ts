@@ -10,10 +10,10 @@ import {deriveProfile} from './profiles'
 export const zappers = withGetter(writable<Zapper[]>([]))
 
 export const fetchZappers = (lnurls: string[]) => {
-  const base = AppContext.DUFFLEPUD_URL!
+  const base = AppContext.dufflepudUrl!
 
   if (!base) {
-    throw new Error("DUFFLEPUD_URL is required to fetch zapper info")
+    throw new Error("AppContext.dufflepudUrl is required to fetch zapper info")
   }
 
   const zappersByLnurl = new Map<string, Zapper>()

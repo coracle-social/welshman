@@ -1,8 +1,12 @@
-import {first, splitAt, identity, sortBy, uniq, shuffle, pushToMapKey} from '@welshman/lib'
-import {Tags} from './Tags'
-import type {TrustedEvent} from './Events'
-import {isShareableRelayUrl} from './Relay'
-import {isCommunityAddress, isGroupAddress} from './Address'
+import {first, switcher, throttleWithValue, clamp, last, splitAt, identity, sortBy, uniq, shuffle, pushToMapKey} from '@welshman/lib'
+import {Tags, getFilterId, unionFilters, isShareableRelayUrl, isCommunityAddress, isGroupAddress, isContextAddress} from '@welshman/util'
+import type {TrustedEvent, Filter} from '@welshman/util'
+import {NetworkContext, ConnectionStatus} from '@welshman/net'
+import {AppContext} from './core'
+import type {PartialSubscribeRequest} from './core'
+import {pubkey} from './session'
+import {relaySelectionsByPubkey, getReadRelayUrls, getWriteRelayUrls, getRelayUrls} from './relaySelections'
+import {relays, relaysByUrl} from './relays'
 
 export enum RelayMode {
   Read = "read",
@@ -84,7 +88,15 @@ export type ValueRelays = {
   relays: string[]
 }
 
+// Fallback policies
+
 export type FallbackPolicy = (count: number, limit: number) => number
+
+export const addNoFallbacks = (count: number, redundancy: number) => 0
+
+export const addMinimalFallbacks = (count: number, redundancy: number) => count > 0 ? 0 : 1
+
+export const addMaximalFallbacks = (count: number, redundancy: number) => redundancy - count
 
 export class Router {
   constructor(readonly options: RouterOptions) {}
@@ -170,7 +182,7 @@ export class Router {
     this.scenario([
       ...this.getUserSelections(RelayMode.Inbox),
       this.getPubkeySelection(pubkey, RelayMode.Inbox),
-    ]).policy(this.addMinimalFallbacks)
+    ]).policy(addMinimalFallbacks)
 
   Event = (event: TrustedEvent) =>
     this.scenario(this.forceValue(event.id, [
@@ -215,7 +227,7 @@ export class Router {
     if (tags.groups().exists()) {
       return this
         .scenario(this.getContextSelections(tags.groups()))
-        .policy(this.addNoFallbacks)
+        .policy(addNoFallbacks)
     }
 
     return this.scenario(this.forceValue(event.id, [
@@ -234,7 +246,7 @@ export class Router {
   WithinGroup = (address: string, relays?: string) =>
     this
       .scenario(this.getContextSelections(Tags.wrap([["a", address]])))
-      .policy(this.addNoFallbacks)
+      .policy(addNoFallbacks)
 
   WithinCommunity = (address: string) =>
     this.scenario(this.getContextSelections(Tags.wrap([["a", address]])))
@@ -256,14 +268,6 @@ export class Router {
 
   Search = (term: string, relays: string[] = []) =>
     this.product([term], uniq(relays.concat(this.options.getSearchRelays?.() || [])))
-
-  // Fallback policies
-
-  addNoFallbacks = (count: number, redundancy: number) => 0
-
-  addMinimalFallbacks = (count: number, redundancy: number) => count > 0 ? 0 : 1
-
-  addMaximalFallbacks = (count: number, redundancy: number) => redundancy - count
 }
 
 // Router Scenario
@@ -291,7 +295,7 @@ export class RouterScenario {
 
   getRedundancy = () => this.options.redundancy || this.router.options.getRedundancy?.() || 3
 
-  getPolicy = () => this.options.policy || this.router.addMaximalFallbacks
+  getPolicy = () => this.options.policy || addMaximalFallbacks
 
   getLimit = () => this.options.limit || this.router.options.getLimit?.() || 10
 
@@ -359,3 +363,223 @@ export class RouterScenario {
 
   getUrl = () => first(this.getUrls())
 }
+
+// Default router options
+
+export const getRelayQuality = (url: string) => {
+  const oneMinute = 60 * 1000
+  const oneHour = 60 * oneMinute
+  const oneDay = 24 * oneHour
+  const oneWeek = 7 * oneDay
+  const relay = relaysByUrl.get().get(url)
+  const connect_count = relay?.stats?.connect_count || 0
+  const recent_errors = relay?.stats?.recent_errors || []
+  const connection = NetworkContext.pool.get(url, {autoConnect: false})
+
+  // If we haven't connected, consult our relay record and see if there has
+  // been a recent fault. If there has been, penalize the relay. If there have been several,
+  // don't use the relay.
+  if (!connection) {
+    const lastFault = last(recent_errors) || 0
+
+    if (recent_errors.filter(n => n > Date.now() - oneHour).length > 10) {
+      return 0
+    }
+
+    if (recent_errors.filter(n => n > Date.now() - oneDay).length > 50) {
+      return 0
+    }
+
+    if (recent_errors.filter(n => n > Date.now() - oneWeek).length > 100) {
+      return 0
+    }
+
+    return Math.max(0, Math.min(0.5, (Date.now() - oneMinute - lastFault) / oneHour))
+  }
+
+  return switcher(connection.meta.getStatus(), {
+    [ConnectionStatus.Unauthorized]: 0.5,
+    [ConnectionStatus.Forbidden]: 0,
+    [ConnectionStatus.Error]: 0,
+    [ConnectionStatus.Closed]: 0.6,
+    [ConnectionStatus.Slow]: 0.5,
+    [ConnectionStatus.Ok]: 1,
+    default: clamp([0.5, 1], connect_count / 1000),
+  })
+}
+
+export const getPubkeyRelays = (pubkey: string, mode?: string) => {
+  const $relaySelections = relaySelectionsByPubkey.get()
+  const $inboxSelections = relaySelectionsByPubkey.get()
+
+  switch (mode) {
+    case RelayMode.Read:  return getReadRelayUrls($relaySelections.get(pubkey))
+    case RelayMode.Write: return getWriteRelayUrls($relaySelections.get(pubkey))
+    case RelayMode.Inbox: return getRelayUrls($inboxSelections.get(pubkey))
+    default:              return getRelayUrls($relaySelections.get(pubkey))
+  }
+}
+
+export const getFallbackRelays = throttleWithValue(300, () =>
+  relays.get().filter(r => getRelayQuality(r.url) >= 0.5).map(r => r.url)
+)
+
+export const getSearchRelays = throttleWithValue(300, () =>
+  relays.get().filter(r => getRelayQuality(r.url) >= 0.5 &&  r.profile?.supported_nips?.includes(50)).map(r => r.url)
+)
+
+export const makeRouter = (options: Partial<RouterOptions> = {}) =>
+  new Router({
+    getPubkeyRelays,
+    getFallbackRelays,
+    getSearchRelays,
+    getRelayQuality,
+    getUserPubkey: () => pubkey.get(),
+    getRedundancy: () => 2,
+    getLimit: () => 5,
+    ...options,
+  })
+
+// Infer relay selections from filters
+
+export type RelayFilters = {
+  relay: string
+  filters: Filter[]
+}
+
+export type FilterSelection = {
+  id: string,
+  filter: Filter,
+  scenario: RouterScenario
+}
+
+export const makeFilterSelection = (id: string, filter: Filter, scenario: RouterScenario) =>
+  ({id, filter, scenario})
+
+export const getFilterSelectionsForSearch = (filter: Filter) => {
+  const id = getFilterId(filter)
+  const relays = AppContext.router.options.getSearchRelays?.() || []
+  const scenario = AppContext.router.product([id], relays)
+
+  return [makeFilterSelection(id, filter, scenario)]
+}
+
+export const getFilterSelectionsForContext = (filter: Filter) => {
+  const filterSelections = []
+  const contexts = filter["#a"].filter(isContextAddress)
+  const scenario = AppContext.router.WithinMultipleContexts(contexts)
+
+  for (const {relay, values} of scenario.getSelections()) {
+    const contextFilter = {...filter, "#a": Array.from(values)}
+    const id = getFilterId(contextFilter)
+    const scenario = AppContext.router.product([id], [relay])
+
+    filterSelections.push(
+      makeFilterSelection(id, contextFilter, scenario)
+    )
+  }
+
+  return filterSelections
+}
+
+export const getFilterSelectionsForAuthors = (filter: Filter) => {
+  const filterSelections = []
+  const scenario = AppContext.router.FromPubkeys(filter.authors!)
+
+  for (const {relay, values} of scenario.getSelections()) {
+    const authorsFilter = {...filter, authors: Array.from(values)}
+    const id = getFilterId(authorsFilter)
+
+    filterSelections.push(
+      makeFilterSelection(id, authorsFilter, AppContext.router.product([id], [relay]))
+    )
+  }
+
+  return filterSelections
+}
+
+export const getFilterSelectionsForMentions = (filter: Filter) => {
+  const filterSelections = []
+  const scenario = AppContext.router.ForPubkeys(filter['#p']!)
+
+  for (const {relay, values} of scenario.getSelections()) {
+    const mentionsFilter = {...filter, '#p': Array.from(values)}
+    const id = getFilterId(mentionsFilter)
+
+    filterSelections.push(
+      makeFilterSelection(id, mentionsFilter, AppContext.router.product([id], [relay]))
+    )
+  }
+
+  return filterSelections
+}
+
+export const getFilterSelectionsForUser = (filter: Filter) => {
+  const id = getFilterId(filter)
+  const scenario = AppContext.router.ReadRelays()
+
+  return [makeFilterSelection(id, filter, AppContext.router.product([id], scenario.getUrls()))]
+}
+
+export const getFilterSelections = (filters: Filter[]): RelayFilters[] => {
+  const scenarios: RouterScenario[] = []
+  const filtersById = new Map<string, Filter>()
+
+  const addSelections = (selections: FilterSelection[]) => {
+    for (const {id, filter, scenario} of selections) {
+      filtersById.set(id, filter)
+      scenarios.push(scenario)
+    }
+  }
+
+  for (const filter of filters) {
+    if (filter.search) {
+      addSelections(getFilterSelectionsForSearch(filter))
+    }
+
+    if (filter["#a"]?.some(isContextAddress)) {
+      addSelections(getFilterSelectionsForContext(filter))
+    }
+
+    if (filter.authors) {
+      addSelections(getFilterSelectionsForAuthors(filter))
+    }
+
+    if (filter['#p']) {
+      addSelections(getFilterSelectionsForMentions(filter))
+    }
+
+    if (scenarios.length === 0) {
+      addSelections(getFilterSelectionsForUser(filter))
+    }
+  }
+
+  // Use low redundancy because filters will be very low cardinality
+  const selections = AppContext.router
+    .merge(scenarios)
+    .redundancy(1)
+    .getSelections()
+    .map(({values, relay}) => ({
+      filters: values.map(id => filtersById.get(id)!),
+      relay,
+    }))
+
+  // Pubkey-based selections can get really big. Use the most popular relays for the long tail
+  const limit = AppContext.router.options.getLimit?.() || 8
+  const redundancy = AppContext.router.options.getRedundancy?.() || 3
+  const [keep, discard] = splitAt(limit, selections)
+
+  for (const target of keep.slice(0, redundancy)) {
+    target.filters = unionFilters([...discard, target].flatMap(s => s.filters))
+  }
+
+  return keep
+}
+
+export const splitRequest = (req: PartialSubscribeRequest) => {
+  if ((req.relays || []).length > 0) return [req]
+
+  return getFilterSelections(req.filters)
+    .map(({relay, filters}) => ({...req, filters, relays: [relay]}))
+}
+

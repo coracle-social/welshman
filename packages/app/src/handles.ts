@@ -16,10 +16,10 @@ export type Handle = {
 export const handles = withGetter(writable<Handle[]>([]))
 
 export const fetchHandles = (handles: string[]) => {
-  const base = AppContext.DUFFLEPUD_URL!
+  const base = AppContext.dufflepudUrl!
 
   if (!base) {
-    throw new Error("DUFFLEPUD_URL is required to fetch nip05 info")
+    throw new Error("AppContext.dufflepudUrl is required to fetch nip05 info")
   }
 
   const res: any = postJson(`${base}/handle/info`, {handles})

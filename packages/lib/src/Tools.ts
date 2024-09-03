@@ -430,6 +430,20 @@ export const memoize = <T>(f: (...args: any[]) => T) => {
   }
 }
 
+export const throttleWithValue = <T>(ms: number, f: () => T) => {
+  let value: T
+
+  const update = throttle(ms, () => {
+    value = f()
+  })
+
+  return () => {
+    update()
+
+    return value
+  }
+}
+
 export const batch = <T>(t: number, f: (xs: T[]) => void) => {
   const xs: T[] = []
   const cb = throttle(t, () => xs.length > 0 && f(xs.splice(0)))
