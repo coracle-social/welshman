@@ -1,8 +1,7 @@
-import {uniq} from '@welshman/lib'
 import {INBOX_RELAYS, RELAYS, getRelayTags, normalizeRelayUrl, type TrustedEvent} from '@welshman/util'
 import {type SubscribeRequest} from "@welshman/net"
 import {deriveEvents, withGetter} from '@welshman/store'
-import {AppContext, load, repository} from './core'
+import {load, repository} from './core'
 import {collection} from './collection'
 
 export const getRelayUrls = (event?: TrustedEvent): string[] =>
@@ -30,15 +29,8 @@ export const {
   store: relaySelections,
   getKey: relaySelections => relaySelections.pubkey,
   load: (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
-    load({
-      ...request,
-      filters: [{kinds: [RELAYS], authors: [pubkey]}],
-      relays: [...AppContext.BOOTSTRAP_RELAYS, ...request.relays || []],
-    }),
+    load({...request, filters: [{kinds: [RELAYS], authors: [pubkey]}]}),
 })
-
-export const getHintsForPubkey = async (pubkey: string, relays: string[] = []) =>
-  uniq([...relays, ...AppContext.BOOTSTRAP_RELAYS, ...getWriteRelayUrls(await loadRelaySelections(pubkey, {relays}))])
 
 export const inboxRelaySelections = withGetter(deriveEvents(repository, {filters: [{kinds: [RELAYS]}]}))
 
@@ -50,10 +42,6 @@ export const {
   name: "inboxRelaySelections",
   store: inboxRelaySelections,
   getKey: inboxRelaySelections => inboxRelaySelections.pubkey,
-  load: async (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
-    load({
-      ...request,
-      filters: [{kinds: [INBOX_RELAYS], authors: [pubkey]}],
-      relays: await getHintsForPubkey(pubkey, request.relays),
-    }),
+  load: (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
+    load({...request, filters: [{kinds: [INBOX_RELAYS], authors: [pubkey]}]}),
 })

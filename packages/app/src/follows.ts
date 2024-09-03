@@ -5,7 +5,6 @@ import {deriveEventsMapped, withGetter} from '@welshman/store'
 import {repository, load} from './core'
 import {collection} from './collection'
 import {ensurePlaintext} from './plaintext'
-import {getHintsForPubkey} from './relaySelections'
 
 export const follows = withGetter(
   deriveEventsMapped<PublishedList>(repository, {
@@ -28,10 +27,6 @@ export const {
   name: "follows",
   store: follows,
   getKey: follows => follows.event.pubkey,
-  load: async (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
-    load({
-      ...request,
-      filters: [{kinds: [FOLLOWS], authors: [pubkey]}],
-      relays: await getHintsForPubkey(pubkey, request.relays || []),
-    }),
+  load: (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
+    load({...request, filters: [{kinds: [FOLLOWS], authors: [pubkey]}]}),
 })
