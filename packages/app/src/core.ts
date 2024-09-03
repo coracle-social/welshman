@@ -4,7 +4,7 @@ import {Tracker, subscribe as baseSubscribe} from "@welshman/net"
 import type {SubscribeRequest} from "@welshman/net"
 import {createEventStore} from "@welshman/store"
 
-export const env: {
+export const AppContext: {
   BOOTSTRAP_RELAYS: string[]
   DUFFLEPUD_URL?: string
   [key: string]: any

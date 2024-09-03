@@ -3,7 +3,7 @@ import {withGetter} from '@welshman/store'
 import {groupBy, indexBy, batch, now, uniq, uniqBy, batcher, postJson} from '@welshman/lib'
 import {type RelayProfile} from "@welshman/util"
 import {AuthStatus, asMessage, type Connection, type SocketMessage} from '@welshman/net'
-import {env} from './core'
+import {AppContext} from './core'
 import {createSearch} from './util'
 import {collection} from './collection'
 
@@ -45,7 +45,7 @@ export const relaysByPubkey = derived(relays, $relays =>
 )
 
 export const fetchRelayProfiles = (urls: string[]) => {
-  const base = env.DUFFLEPUD_URL!
+  const base = AppContext.DUFFLEPUD_URL!
 
   if (!base) {
     throw new Error("DUFFLEPUD_URL is required to fetch relay metadata")

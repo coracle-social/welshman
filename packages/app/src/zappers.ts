@@ -3,14 +3,14 @@ import {withGetter} from '@welshman/store'
 import {type Zapper} from '@welshman/util'
 import {type SubscribeRequest} from "@welshman/net"
 import {uniq, identity, bech32ToHex, tryCatch, uniqBy, batcher, postJson} from '@welshman/lib'
-import {env} from './core'
+import {AppContext} from './core'
 import {collection} from './collection'
 import {deriveProfile} from './profiles'
 
 export const zappers = withGetter(writable<Zapper[]>([]))
 
 export const fetchZappers = (lnurls: string[]) => {
-  const base = env.DUFFLEPUD_URL!
+  const base = AppContext.DUFFLEPUD_URL!
 
   if (!base) {
     throw new Error("DUFFLEPUD_URL is required to fetch zapper info")

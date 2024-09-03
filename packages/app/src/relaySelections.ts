@@ -2,7 +2,7 @@ import {uniq} from '@welshman/lib'
 import {INBOX_RELAYS, RELAYS, getRelayTags, normalizeRelayUrl, type TrustedEvent} from '@welshman/util'
 import {type SubscribeRequest} from "@welshman/net"
 import {deriveEvents, withGetter} from '@welshman/store'
-import {env, load, repository} from './core'
+import {AppContext, load, repository} from './core'
 import {collection} from './collection'
 
 export const getRelayUrls = (event?: TrustedEvent): string[] =>
@@ -33,12 +33,12 @@ export const {
     load({
       ...request,
       filters: [{kinds: [RELAYS], authors: [pubkey]}],
-      relays: [...env.BOOTSTRAP_RELAYS, ...request.relays || []],
+      relays: [...AppContext.BOOTSTRAP_RELAYS, ...request.relays || []],
     }),
 })
 
 export const getHintsForPubkey = async (pubkey: string, relays: string[] = []) =>
-  uniq([...relays, ...env.BOOTSTRAP_RELAYS, ...getWriteRelayUrls(await loadRelaySelections(pubkey, {relays}))])
+  uniq([...relays, ...AppContext.BOOTSTRAP_RELAYS, ...getWriteRelayUrls(await loadRelaySelections(pubkey, {relays}))])
 
 export const inboxRelaySelections = withGetter(deriveEvents(repository, {filters: [{kinds: [RELAYS]}]}))
 
