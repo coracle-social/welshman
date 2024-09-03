@@ -1,8 +1,10 @@
-import {writable} from 'svelte/store'
+import {writable, derived} from 'svelte/store'
 import {withGetter} from '@welshman/store'
+import {type SubscribeRequest} from "@welshman/net"
 import {uniq, uniqBy, batcher, postJson, last} from '@welshman/lib'
 import {env} from './core'
 import {collection} from './collection'
+import {deriveProfile} from './profiles'
 
 export type Handle = {
   nip05: string
@@ -52,6 +54,13 @@ export const {
     return items
   }),
 })
+
+export const deriveHandleForPubkey = (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
+  derived(
+    [handlesByNip05, deriveProfile(pubkey, request)],
+    ([$handlesByNip05, $profile]) =>
+      $profile?.nip05 ? $handlesByNip05.get($profile?.nip05) : undefined
+  )
 
 export const displayHandle = (handle: Handle) =>
   handle.nip05.startsWith("_@") ? last(handle.nip05.split("@")) : handle.nip05

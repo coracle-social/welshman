@@ -1,9 +1,11 @@
-import {writable} from 'svelte/store'
+import {writable, derived} from 'svelte/store'
 import {withGetter} from '@welshman/store'
-import type {Zapper} from '@welshman/util'
+import {type Zapper} from '@welshman/util'
+import {type SubscribeRequest} from "@welshman/net"
 import {uniq, identity, bech32ToHex, tryCatch, uniqBy, batcher, postJson} from '@welshman/lib'
 import {env} from './core'
 import {collection} from './collection'
+import {deriveProfile} from './profiles'
 
 export const zappers = withGetter(writable<Zapper[]>([]))
 
@@ -48,4 +50,11 @@ export const {
     return items
   }),
 })
+
+export const deriveZapperForPubkey = (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
+  derived(
+    [zappersByLnurl, deriveProfile(pubkey, request)],
+    ([$zappersByLnurl, $profile]) =>
+      $profile?.lnurl ? $zappersByLnurl.get($profile?.lnurl) : undefined
+  )
 
