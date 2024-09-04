@@ -2,7 +2,7 @@ import {FOLLOWS, asDecryptedEvent, readList} from '@welshman/util'
 import {type TrustedEvent, type PublishedList} from '@welshman/util'
 import {type SubscribeRequest} from "@welshman/net"
 import {deriveEventsMapped, withGetter} from '@welshman/store'
-import {repository, load} from './core'
+import {repository, loadOne} from './core'
 import {collection} from './collection'
 import {ensurePlaintext} from './plaintext'
 
@@ -28,5 +28,5 @@ export const {
   store: follows,
   getKey: follows => follows.event.pubkey,
   load: (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
-    load({...request, filters: [{kinds: [FOLLOWS], authors: [pubkey]}]}),
+    loadOne({...request, filters: [{kinds: [FOLLOWS], authors: [pubkey]}]}),
 })

@@ -1,6 +1,6 @@
 import {
   intersection, first, switcher, throttleWithValue, clamp, last, splitAt, identity, sortBy, uniq, shuffle,
-  pushToMapKey, now,
+  pushToMapKey, now, assoc,
 } from '@welshman/lib'
 import {
   Tags, getFilterId, unionFilters, isShareableRelayUrl, isCommunityAddress, isGroupAddress, isContextAddress,
@@ -303,8 +303,11 @@ export class RouterScenario {
   clone = (options: RouterScenarioOptions) =>
     new RouterScenario(this.router, this.selections, {...this.options, ...options})
 
-  select = (f: (selection: string) => boolean) =>
-    new RouterScenario(this.router, this.selections.filter(({value}) => f(value)), this.options)
+  filter = (f: (selection: ValueRelays) => boolean) =>
+    new RouterScenario(this.router, this.selections.filter(selection => f(selection)), this.options)
+
+  update = (f: (selection: ValueRelays) => ValueRelays) =>
+    new RouterScenario(this.router, this.selections.map(selection => f(selection)), this.options)
 
   redundancy = (redundancy: number) => this.clone({redundancy})
 
@@ -475,119 +478,110 @@ export type FilterSelection = {
   scenario: RouterScenario
 }
 
+type FilterSelectionRuleState = {
+  filter: Filter,
+  selections: FilterSelection[]
+}
+
+type FilterSelectionRule = (state: FilterSelectionRuleState) => boolean
+
 export const makeFilterSelection = (id: string, filter: Filter, scenario: RouterScenario) =>
   ({id, filter, scenario})
 
-export const getFilterSelectionsForSearch = (filter: Filter) => {
-  const id = getFilterId(filter)
+export const getFilterSelectionsForSearch = (state: FilterSelectionRuleState) => {
+  if (!state.filter.search) return false
+
+  const id = getFilterId(state.filter)
   const relays = AppContext.router.options.getSearchRelays?.() || []
   const scenario = AppContext.router.product([id], relays)
 
-  return [makeFilterSelection(id, filter, scenario)]
+  state.selections.push(makeFilterSelection(id, state.filter, scenario))
+
+  return true
 }
 
-export const getFilterSelectionsForIndexedKinds = (filter: Filter) => {
-  const kinds = intersection(INDEXED_KINDS, filter.kinds!)
-  const id = getFilterId({...filter, kinds})
-  const relays = AppContext.router.options.getIndexerRelays?.() || []
-  const scenario = AppContext.router.product([id], relays)
+export const getFilterSelectionsForContext = (state: FilterSelectionRuleState) => {
+  const contexts = state.filter["#a"]?.filter(isContextAddress) || []
 
-  return [makeFilterSelection(id, filter, scenario)]
-}
+  if (contexts.length === 0) return false
 
-export const getFilterSelectionsForContext = (filter: Filter) => {
-  const filterSelections = []
-  const contexts = filter["#a"].filter(isContextAddress)
   const scenario = AppContext.router.WithinMultipleContexts(contexts)
 
   for (const {relay, values} of scenario.getSelections()) {
-    const contextFilter = {...filter, "#a": Array.from(values)}
+    const contextFilter = {...state.filter, "#a": Array.from(values)}
     const id = getFilterId(contextFilter)
     const scenario = AppContext.router.product([id], [relay])
 
-    filterSelections.push(
-      makeFilterSelection(id, contextFilter, scenario)
-    )
+    state.selections.push(makeFilterSelection(id, contextFilter, scenario))
   }
 
-  return filterSelections
+  return true
 }
 
-export const getFilterSelectionsForAuthors = (filter: Filter) => {
-  const filterSelections = []
-  const scenario = AppContext.router.FromPubkeys(filter.authors!)
+export const getFilterSelectionsForIndexedKinds = (state: FilterSelectionRuleState) => {
+  const kinds = intersection(INDEXED_KINDS, state.filter.kinds || [])
 
-  for (const {relay, values} of scenario.getSelections()) {
-    const authorsFilter = {...filter, authors: Array.from(values)}
-    const id = getFilterId(authorsFilter)
+  if (kinds.length === 0) return false
 
-    filterSelections.push(
-      makeFilterSelection(id, authorsFilter, AppContext.router.product([id], [relay]))
-    )
-  }
+  const id = getFilterId({...state.filter, kinds})
+  const relays = AppContext.router.options.getIndexerRelays?.() || []
+  const scenario = AppContext.router.product([id], relays)
 
-  return filterSelections
+  state.selections.push(makeFilterSelection(id, state.filter, scenario))
+
+  return false
 }
 
-export const getFilterSelectionsForMentions = (filter: Filter) => {
-  const filterSelections = []
-  const scenario = AppContext.router.ForPubkeys(filter['#p']!)
+export const getFilterSelectionsForAuthors = (state: FilterSelectionRuleState) => {
+  if (!state.filter.authors) return false
 
-  for (const {relay, values} of scenario.getSelections()) {
-    const mentionsFilter = {...filter, '#p': Array.from(values)}
-    const id = getFilterId(mentionsFilter)
+  const id = getFilterId(state.filter)
+  const scenario = AppContext.router.FromPubkeys(state.filter.authors!).update(assoc('value', id))
 
-    filterSelections.push(
-      makeFilterSelection(id, mentionsFilter, AppContext.router.product([id], [relay]))
-    )
-  }
+  state.selections.push(makeFilterSelection(id, state.filter, scenario))
 
-  return filterSelections
+  return false
 }
 
-export const getFilterSelectionsForUser = (filter: Filter) => {
-  const id = getFilterId(filter)
-  const scenario = AppContext.router.ReadRelays()
+export const getFilterSelectionsForUser = (state: FilterSelectionRuleState) => {
+  const id = getFilterId(state.filter)
+  const relays = AppContext.router.ReadRelays().getUrls()
+  const scenario = AppContext.router.product([id], relays)
 
-  return [makeFilterSelection(id, filter, AppContext.router.product([id], scenario.getUrls()))]
+  state.selections.push(makeFilterSelection(id, state.filter, scenario))
+
+  return false
 }
 
-export const getFilterSelections = (filters: Filter[]): RelayFilters[] => {
+export const defaultFilterSelectionRules = [
+  getFilterSelectionsForSearch,
+  getFilterSelectionsForContext,
+  getFilterSelectionsForIndexedKinds,
+  getFilterSelectionsForAuthors,
+  getFilterSelectionsForUser,
+]
+
+export const getFilterSelections = (filters: Filter[], rules: FilterSelectionRule[] = defaultFilterSelectionRules): RelayFilters[] => {
   const scenarios: RouterScenario[] = []
   const filtersById = new Map<string, Filter>()
 
-  const addSelections = (selections: FilterSelection[]) => {
-    for (const {id, filter, scenario} of selections) {
-      filtersById.set(id, filter)
-      scenarios.push(scenario)
-    }
-  }
-
   for (const filter of filters) {
-    if (filter.search) {
-      addSelections(getFilterSelectionsForSearch(filter))
+    const state: FilterSelectionRuleState = {filter, selections: []}
+
+    for (const rule of rules) {
+      const done = rule(state)
+
+      if (done) {
+        break
+      }
     }
 
-    if (filter.kinds?.some(k => INDEXED_KINDS.includes(k))) {
-      addSelections(getFilterSelectionsForIndexedKinds(filter))
-    }
-
-    if (filter["#a"]?.some(isContextAddress)) {
-      addSelections(getFilterSelectionsForContext(filter))
-    }
-
-    if (filter.authors) {
-      addSelections(getFilterSelectionsForAuthors(filter))
-    }
-
-    if (filter['#p']) {
-      addSelections(getFilterSelectionsForMentions(filter))
-    }
-
-    if (scenarios.length === 0) {
-      addSelections(getFilterSelectionsForUser(filter))
+    for (const {id, filter, scenario} of state.selections) {
+      filtersById.set(id, filter)
+      scenarios.push(scenario.policy(addNoFallbacks))
     }
   }
+
 
   // Use low redundancy because filters will be very low cardinality
   const selections = AppContext.router
