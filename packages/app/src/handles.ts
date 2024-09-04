@@ -58,8 +58,15 @@ export const {
 export const deriveHandleForPubkey = (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
   derived(
     [handlesByNip05, deriveProfile(pubkey, request)],
-    ([$handlesByNip05, $profile]) =>
-      $profile?.nip05 ? $handlesByNip05.get($profile?.nip05) : undefined
+    ([$handlesByNip05, $profile]) => {
+      if (!$profile?.nip05) {
+        return undefined
+      }
+
+      loadHandle($profile.nip05)
+
+      return $handlesByNip05.get($profile?.nip05)
+    }
   )
 
 export const displayHandle = (handle: Handle) =>

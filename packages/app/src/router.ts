@@ -1,6 +1,6 @@
 import {
   intersection, first, switcher, throttleWithValue, clamp, last, splitAt, identity, sortBy, uniq, shuffle,
-  pushToMapKey,
+  pushToMapKey, now,
 } from '@welshman/lib'
 import {
   Tags, getFilterId, unionFilters, isShareableRelayUrl, isCommunityAddress, isGroupAddress, isContextAddress,
@@ -401,19 +401,19 @@ export const getRelayQuality = (url: string) => {
   if (!connection) {
     const lastFault = last(recent_errors) || 0
 
-    if (recent_errors.filter(n => n > Date.now() - oneHour).length > 10) {
+    if (recent_errors.filter(n => n > now() - oneHour).length > 10) {
       return 0
     }
 
-    if (recent_errors.filter(n => n > Date.now() - oneDay).length > 50) {
+    if (recent_errors.filter(n => n > now() - oneDay).length > 50) {
       return 0
     }
 
-    if (recent_errors.filter(n => n > Date.now() - oneWeek).length > 100) {
+    if (recent_errors.filter(n => n > now() - oneWeek).length > 100) {
       return 0
     }
 
-    return Math.max(0, Math.min(0.5, (Date.now() - oneMinute - lastFault) / oneHour))
+    return Math.max(0, Math.min(0.5, (now() - oneMinute - lastFault) / oneHour))
   }
 
   return switcher(connection.meta.getStatus(), {

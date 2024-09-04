@@ -254,6 +254,8 @@ export const nth = (i: number) => <T>(xs: T[], ...args: unknown[]) => xs[i]
 
 export const nthEq = (i: number, v: any) => (xs: any[], ...args: unknown[]) => xs[i] === v
 
+export const nthNe = (i: number, v: any) => (xs: any[], ...args: unknown[]) => xs[i] !== v
+
 export const eq = <T>(v: T) => (x: T) => x === v
 
 export const ne = <T>(v: T) => (x: T) => x !== v

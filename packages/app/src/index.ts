@@ -25,11 +25,13 @@ import {onAuth} from './session'
 
 export function* optimizeSubscriptions(subs: Subscription[]) {
   const [withRelays, withoutRelays] = partition(sub => sub.request.relays.length > 0, subs)
+  const filters = unionFilters(withoutRelays.flatMap(sub => sub.request.filters))
 
   yield* defaultOptimizeSubscriptions(withRelays)
-  yield* getFilterSelections(
-    unionFilters(withoutRelays.flatMap(sub => sub.request.filters))
-  )
+
+  if (filters.length > 0) {
+    yield* getFilterSelections(filters)
+  }
 }
 
 Object.assign(NetworkContext, {

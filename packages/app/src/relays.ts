@@ -99,7 +99,7 @@ export const relaySearch = derived(relays, $relays =>
 type RelayStatsUpdate = [string, (stats: RelayStats) => void]
 
 const updateRelayStats = batch(500, (updates: RelayStatsUpdate[]) => {
-  relays.update(($relays: Relay[]) => {
+  relays.update($relays => {
     const $relaysByUrl = indexBy(r => r.url, $relays)
     const $itemsByUrl = groupBy(([url]) => url, updates)
 
@@ -125,13 +125,9 @@ const onConnectionSend = ({url}: Connection, socketMessage: SocketMessage) => {
   const [verb] = asMessage(socketMessage)
 
   if (verb === 'REQ') {
-    updateRelayStats([url, stats => {
-      stats.request_count = stats.request_count + 1
-    }])
+    updateRelayStats([url, stats => ++stats.request_count])
   } else if (verb === 'EVENT') {
-    updateRelayStats([url, stats => {
-      stats.publish_count = stats.publish_count + 1
-    }])
+    updateRelayStats([url, stats => ++stats.publish_count])
   }
 }
 
@@ -139,9 +135,7 @@ const onConnectionReceive = ({url}: Connection, socketMessage: SocketMessage) =>
   const [verb] = asMessage(socketMessage)
 
   if (verb === 'EVENT') {
-    updateRelayStats([url, stats => {
-      stats.event_count = stats.event_count + 1
-    }])
+    updateRelayStats([url, stats => ++stats.event_count])
   } else if (verb === 'OK') {
     updateRelayStats([url, stats => {
       stats.last_auth_status = AuthStatus.Ok
@@ -159,9 +153,7 @@ const onConnectionFault = ({url}: Connection) =>
   }])
 
 export const trackRelayStats = (connection: Connection) => {
-  updateRelayStats([connection.url, stats => {
-    stats.connect_count = stats.connect_count + 1
-  }])
+  updateRelayStats([connection.url, stats => ++stats.connect_count])
 
   connection.on('send', onConnectionSend)
   connection.on('receive', onConnectionReceive)

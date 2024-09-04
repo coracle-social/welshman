@@ -20,7 +20,7 @@ export const collection = <T, LoadArgs extends any[]>({
 
   const loadItem = async (key: string, ...args: LoadArgs) => {
     const item = indexStore.get().get(key)
-    const delta = item ? 3600 : 300
+    const delta = item ? 3600 : 30
 
     if (getFreshness(name, key) > now() - delta) {
       return item

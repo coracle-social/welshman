@@ -54,7 +54,14 @@ export const {
 export const deriveZapperForPubkey = (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
   derived(
     [zappersByLnurl, deriveProfile(pubkey, request)],
-    ([$zappersByLnurl, $profile]) =>
-      $profile?.lnurl ? $zappersByLnurl.get($profile?.lnurl) : undefined
+    ([$zappersByLnurl, $profile]) => {
+      if (!$profile?.lnurl) {
+        return undefined
+      }
+
+      loadZapper($profile.lnurl)
+
+      return $zappersByLnurl.get($profile?.lnurl)
+    }
   )
 

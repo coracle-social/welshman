@@ -3,8 +3,8 @@ import type {IDBPDatabase} from "idb"
 import {throttle} from "throttle-debounce"
 import {writable} from "svelte/store"
 import type {Unsubscriber, Writable} from "svelte/store"
-import {randomInt} from "@welshman/lib"
-import {withGetter} from "@welshman/store"
+import {randomInt, fromPairs} from "@welshman/lib"
+import {withGetter, adapter} from "@welshman/store"
 
 export type Item = Record<string, any>
 
@@ -18,8 +18,6 @@ export let db: IDBPDatabase
 export const dead = withGetter(writable(false))
 
 export const subs: Unsubscriber[] = []
-
-export const DB_NAME = "flotilla"
 
 export const getAll = async (name: string) => {
   const tx = db.transaction(name, "readwrite")
@@ -48,22 +46,20 @@ export const bulkDelete = async (name: string, ids: string[]) => {
 }
 
 export const initIndexedDbAdapter = async (name: string, adapter: IndexedDbAdapter) => {
-  let copy = await getAll(name)
+  let prevRecords = await getAll(name)
 
-  adapter.store.set(copy)
+  adapter.store.set(prevRecords)
 
   adapter.store.subscribe(
-    throttle(randomInt(3000, 5000), async (data: Item[]) => {
+    throttle(randomInt(3000, 5000), async (newRecords: Item[]) => {
       if (dead.get()) {
         return
       }
 
-      const prevIds = new Set(copy.map(item => item[adapter.keyPath]))
-      const currentIds = new Set(data.map(item => item[adapter.keyPath]))
-      const newRecords = data.filter(r => !prevIds.has(r[adapter.keyPath]))
-      const removedRecords = copy.filter(r => !currentIds.has(r[adapter.keyPath]))
+      const currentIds = new Set(newRecords.map(item => item[adapter.keyPath]))
+      const removedRecords = prevRecords.filter(r => !currentIds.has(r[adapter.keyPath]))
 
-      copy = data
+      prevRecords = newRecords
 
       if (newRecords.length > 0) {
         await bulkPut(name, newRecords)
@@ -79,12 +75,16 @@ export const initIndexedDbAdapter = async (name: string, adapter: IndexedDbAdapt
   )
 }
 
-export const initStorage = async (version: number, adapters: Record<string, IndexedDbAdapter>) => {
+export const initStorage = async (name: string, version: number, adapters: Record<string, IndexedDbAdapter>) => {
   if (!window.indexedDB) return
 
   window.addEventListener("beforeunload", () => closeStorage())
 
-  db = await openDB(DB_NAME, version, {
+  if (db) {
+    throw new Error("Db initialized multiple times")
+  }
+
+  db = await openDB(name, version, {
     upgrade(db: IDBPDatabase) {
       const names = Object.keys(adapters)
 
@@ -117,5 +117,18 @@ export const closeStorage = async () => {
 
 export const clearStorage = async () => {
   await closeStorage()
-  await deleteDB(DB_NAME)
+  await deleteDB(db.name)
+}
+
+export const storageAdapters = {
+  fromObjectStore: <T>(store: Writable<Record<string, T>>) => ({
+    keyPath: "key",
+    store: adapter({
+      store: store,
+      forward: ($data: Record<string, T>) =>
+        Object.entries($data).map(([key, value]) => ({key, value})),
+      backward: (data: {key: string, value: T}[]) =>
+        fromPairs(data.map(({key, value}) => [key, value])),
+    }),
+  }),
 }
