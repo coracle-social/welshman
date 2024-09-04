@@ -1,11 +1,25 @@
-import {first, switcher, throttleWithValue, clamp, last, splitAt, identity, sortBy, uniq, shuffle, pushToMapKey} from '@welshman/lib'
-import {Tags, getFilterId, unionFilters, isShareableRelayUrl, isCommunityAddress, isGroupAddress, isContextAddress} from '@welshman/util'
+import {
+  intersection, first, switcher, throttleWithValue, clamp, last, splitAt, identity, sortBy, uniq, shuffle,
+  pushToMapKey,
+} from '@welshman/lib'
+import {
+  Tags, getFilterId, unionFilters, isShareableRelayUrl, isCommunityAddress, isGroupAddress, isContextAddress,
+  PROFILE, RELAYS, INBOX_RELAYS, FOLLOWS,
+} from '@welshman/util'
 import type {TrustedEvent, Filter} from '@welshman/util'
 import {NetworkContext, ConnectionStatus} from '@welshman/net'
 import {AppContext} from './core'
 import {pubkey} from './session'
 import {relaySelectionsByPubkey, getReadRelayUrls, getWriteRelayUrls, getRelayUrls} from './relaySelections'
 import {relays, relaysByUrl} from './relays'
+
+export const INDEXED_KINDS = [PROFILE, RELAYS, INBOX_RELAYS, FOLLOWS]
+
+export const INDEXER_RELAYS = [
+  'wss://purplepag.es/',
+  'wss://relay.damus.io/',
+  'wss://relay.nostr.band/',
+]
 
 export enum RelayMode {
   Read = "read",
@@ -47,6 +61,12 @@ export type RouterOptions = {
    * @returns An array of relay URLs as strings.
    */
   getFallbackRelays: () => string[]
+
+  /**
+   * Retrieves relays that index profiles and relay selections.
+   * @returns An array of relay URLs as strings.
+   */
+  getIndexerRelays?: () => string[]
 
   /**
    * Retrieves relays likely to support NIP-50 search.
@@ -419,6 +439,8 @@ export const getPubkeyRelays = (pubkey: string, mode?: string) => {
   }
 }
 
+export const getIndexerRelays = () => INDEXER_RELAYS
+
 export const getFallbackRelays = throttleWithValue(300, () =>
   relays.get().filter(r => getRelayQuality(r.url) >= 0.5).map(r => r.url)
 )
@@ -430,6 +452,7 @@ export const getSearchRelays = throttleWithValue(300, () =>
 export const makeRouter = (options: Partial<RouterOptions> = {}) =>
   new Router({
     getPubkeyRelays,
+    getIndexerRelays,
     getFallbackRelays,
     getSearchRelays,
     getRelayQuality,
@@ -458,6 +481,15 @@ export const makeFilterSelection = (id: string, filter: Filter, scenario: Router
 export const getFilterSelectionsForSearch = (filter: Filter) => {
   const id = getFilterId(filter)
   const relays = AppContext.router.options.getSearchRelays?.() || []
+  const scenario = AppContext.router.product([id], relays)
+
+  return [makeFilterSelection(id, filter, scenario)]
+}
+
+export const getFilterSelectionsForIndexedKinds = (filter: Filter) => {
+  const kinds = intersection(INDEXED_KINDS, filter.kinds!)
+  const id = getFilterId({...filter, kinds})
+  const relays = AppContext.router.options.getIndexerRelays?.() || []
   const scenario = AppContext.router.product([id], relays)
 
   return [makeFilterSelection(id, filter, scenario)]
@@ -534,6 +566,10 @@ export const getFilterSelections = (filters: Filter[]): RelayFilters[] => {
   for (const filter of filters) {
     if (filter.search) {
       addSelections(getFilterSelectionsForSearch(filter))
+    }
+
+    if (filter.kinds?.some(k => INDEXED_KINDS.includes(k))) {
+      addSelections(getFilterSelectionsForIndexedKinds(filter))
     }
 
     if (filter["#a"]?.some(isContextAddress)) {

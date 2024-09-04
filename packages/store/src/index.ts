@@ -100,13 +100,13 @@ export const throttled = <T>(delay: number, store: Readable<T>) =>
 export const createEventStore = (repository: Repository): Writable<TrustedEvent[]> => {
   let subs: Subscriber<TrustedEvent[]>[] = []
 
-  const onUpdate = throttle(300, () => {
+  const onUpdate = () => {
     const $events = repository.dump()
 
     for (const sub of subs) {
       sub($events)
     }
-  })
+  }
 
   return {
     set: (events: TrustedEvent[]) => repository.load(events),
@@ -135,7 +135,7 @@ export const deriveEventsMapped = <T>(repository: Repository, {
   filters,
   eventToItem,
   itemToEvent,
-  throttle = 300,
+  throttle = 0,
   includeDeleted = false,
 }: {
   filters: Filter[]
