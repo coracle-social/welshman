@@ -1,7 +1,7 @@
 import {isNil} from "@welshman/lib"
 import {Repository, Relay, LOCAL_RELAY_URL, getFilterResultCardinality} from "@welshman/util"
 import type {TrustedEvent, Filter} from "@welshman/util"
-import {Tracker, subscribe as baseSubscribe, mergeSubscriptions} from "@welshman/net"
+import {Tracker, subscribe as baseSubscribe} from "@welshman/net"
 import type {SubscribeRequest} from "@welshman/net"
 import {createEventStore} from "@welshman/store"
 import type {Router} from './router'
@@ -52,29 +52,23 @@ export const subscribe = (request: PartialSubscribeRequest) => {
     }
   }
 
+  // Make sure to query our local relay too
   const delay = AppContext.requestDelay
   const timeout = AppContext.requestTimeout
+  const sub = baseSubscribe({delay, authTimeout: timeout, relays: [], ...request})
 
-  return mergeSubscriptions(
-    AppContext.splitRequest!(request).map(req => {
-      // Make sure to query our local relay too
-      const relays = [...req.relays, LOCAL_RELAY_URL]
-      const sub = baseSubscribe({delay, authTimeout: timeout, ...req, relays})
+  sub.emitter.on("event", (url: string, e: TrustedEvent) => {
+    repository.publish(e)
+  })
 
-      sub.emitter.on("event", (url: string, e: TrustedEvent) => {
-        repository.publish(e)
-      })
+  // Keep cached results async so the caller can set up handlers
+  setTimeout(() => {
+    for (const event of events) {
+      sub.emitter.emit("event", LOCAL_RELAY_URL, event)
+    }
+  })
 
-      // Keep cached results async so the caller can set up handlers
-      setTimeout(() => {
-        for (const event of events) {
-          sub.emitter.emit("event", LOCAL_RELAY_URL, event)
-        }
-      })
-
-      return sub
-    })
-  )
+  return sub
 }
 
 export const load = (request: PartialSubscribeRequest) =>

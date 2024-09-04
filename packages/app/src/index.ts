@@ -16,19 +16,29 @@ export * from './topics'
 export * from './util'
 export * from './zappers'
 
-import {NetworkContext} from "@welshman/net"
-import {type TrustedEvent} from "@welshman/util"
+import {partition} from "@welshman/lib"
+import {type Subscription, NetworkContext, defaultOptimizeSubscriptions} from "@welshman/net"
+import {type TrustedEvent, unionFilters} from "@welshman/util"
 import {tracker, repository, AppContext} from './core'
-import {splitRequest, makeRouter} from './router'
+import {makeRouter, getFilterSelections} from './router'
 import {onAuth} from './session'
+
+export function* optimizeSubscriptions(subs: Subscription[]) {
+  const [withRelays, withoutRelays] = partition(sub => sub.request.relays.length > 0, subs)
+
+  yield* defaultOptimizeSubscriptions(withRelays)
+  yield* getFilterSelections(
+    unionFilters(withoutRelays.flatMap(sub => sub.request.filters))
+  )
+}
 
 Object.assign(NetworkContext, {
   onAuth,
   onEvent: (url: string, event: TrustedEvent) => tracker.track(event.id, url),
   isDeleted: (url: string, event: TrustedEvent) => repository.isDeleted(event),
+  optimizeSubscriptions,
 })
 
 Object.assign(AppContext, {
-  splitRequest,
   router: makeRouter(),
 })

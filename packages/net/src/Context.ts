@@ -1,8 +1,10 @@
-import {matchFilters, hasValidSignature} from '@welshman/util'
+import {uniq} from '@welshman/lib'
+import {matchFilters, unionFilters, hasValidSignature} from '@welshman/util'
 import type {Filter, SignedEvent} from '@welshman/util'
 import {Pool} from "./Pool"
 import {Executor} from "./Executor"
 import {Relays} from "./target/Relays"
+import type {Subscription} from "./Subscribe"
 
 export const defaultPool = new Pool()
 
@@ -21,6 +23,15 @@ const defaultHasValidSignature = (url: string, event: SignedEvent) => hasValidSi
 
 const defaultMatchFilters = (url: string, filters: Filter[], event: SignedEvent) => matchFilters(filters, event)
 
+export function* defaultOptimizeSubscriptions(subs: Subscription[]) {
+  for (const relay of uniq(subs.flatMap(sub => sub.request.relays || []))) {
+    const relaySubs = subs.filter(sub => sub.request.relays.includes(relay))
+    const filters = unionFilters(relaySubs.flatMap(sub => sub.request.filters))
+
+    yield {relays: [relay], filters}
+  }
+}
+
 export const NetworkContext = {
   pool: defaultPool,
   getExecutor: defaultGetExecutor,
@@ -30,4 +41,5 @@ export const NetworkContext = {
   isDeleted: defaultIsDeleted,
   hasValidSignature: defaultHasValidSignature,
   matchFilters: defaultMatchFilters,
+  optimizeSubscriptions: defaultOptimizeSubscriptions,
 }

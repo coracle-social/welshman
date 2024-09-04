@@ -3,7 +3,6 @@ import {Tags, getFilterId, unionFilters, isShareableRelayUrl, isCommunityAddress
 import type {TrustedEvent, Filter} from '@welshman/util'
 import {NetworkContext, ConnectionStatus} from '@welshman/net'
 import {AppContext} from './core'
-import type {PartialSubscribeRequest} from './core'
 import {pubkey} from './session'
 import {relaySelectionsByPubkey, getReadRelayUrls, getWriteRelayUrls, getRelayUrls} from './relaySelections'
 import {relays, relaysByUrl} from './relays'
@@ -443,7 +442,7 @@ export const makeRouter = (options: Partial<RouterOptions> = {}) =>
 // Infer relay selections from filters
 
 export type RelayFilters = {
-  relay: string
+  relays: string[]
   filters: Filter[]
 }
 
@@ -561,7 +560,7 @@ export const getFilterSelections = (filters: Filter[]): RelayFilters[] => {
     .getSelections()
     .map(({values, relay}) => ({
       filters: values.map(id => filtersById.get(id)!),
-      relay,
+      relays: [relay],
     }))
 
   // Pubkey-based selections can get really big. Use the most popular relays for the long tail
@@ -575,11 +574,3 @@ export const getFilterSelections = (filters: Filter[]): RelayFilters[] => {
 
   return keep
 }
-
-export const splitRequest = (req: PartialSubscribeRequest) => {
-  if ((req.relays || []).length > 0) return [req]
-
-  return getFilterSelections(req.filters)
-    .map(({relay, filters}) => ({...req, filters, relays: [relay]}))
-}
-
