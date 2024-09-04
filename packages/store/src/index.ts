@@ -93,7 +93,7 @@ export const adapter = <Source, Target>({
 })
 
 export const throttled = <T>(delay: number, store: Readable<T>) =>
-  custom(set => store.subscribe(throttle(delay, set)))
+  custom<T>(set => store.subscribe(throttle(delay, set)))
 
 // Event related stores
 
