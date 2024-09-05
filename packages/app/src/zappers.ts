@@ -12,33 +12,27 @@ export const fetchZappers = async (lnurls: string[]) => {
   const base = ctx.app.dufflepudUrl!
   const zappersByLnurl = new Map<string, Zapper>()
 
-  // Attempt fetching directly first
-  const results = await Promise.all(
-    lnurls.map(async lnurl => {
-      const hexUrl = tryCatch(() => bech32ToHex(lnurl))
-      const info = hexUrl ? await fetchJson(hexUrl) : undefined
-
-      return {lnurl, hexUrl, info}
-    })
-  )
-
-  const dufflepudLnurls: string[] = []
-
-  // If we got a response, great, if not (due to CORS), proxy via dufflepud
-  for (const {lnurl, hexUrl, info} of results) {
-    if (info) {
-      zappersByLnurl.set(lnurl, info)
-    } else if (hexUrl) {
-      dufflepudLnurls.push(hexUrl)
-    }
-  }
-
-  // Fetch via dufflepud if we have an endpoint
-  if (base && dufflepudLnurls.length > 0) {
-    const res: any = await postJson(`${base}/zapper/info`, {lnurls: dufflepudLnurls})
+  // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly
+  if (base) {
+    const res: any = await postJson(`${base}/zapper/info`, {lnurls})
 
     for (const {lnurl, info} of res?.data || []) {
       tryCatch(() => zappersByLnurl.set(hexToBech32("lnurl", lnurl), info))
+    }
+  } else {
+    const results = await Promise.all(
+      lnurls.map(async lnurl => {
+        const hexUrl = tryCatch(() => bech32ToHex(lnurl))
+        const info = hexUrl ? await fetchJson(hexUrl) : undefined
+
+        return {lnurl, hexUrl, info}
+      })
+    )
+
+    for (const {lnurl, info} of results) {
+      if (info) {
+        zappersByLnurl.set(lnurl, info)
+      }
     }
   }
 

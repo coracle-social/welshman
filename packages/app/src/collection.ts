@@ -20,12 +20,8 @@ export const collection = <T, LoadArgs extends any[]>({
   const loadAttempts = new Map<string, number>()
 
   const loadItem = async (key: string, ...args: LoadArgs) => {
-    const item = undefined//indexStore.get().get(key)
+    const item = indexStore.get().get(key)
     const freshness = getFreshness(name, key)
-
-    if (name === 'zappers' && key === '6e468422dfb74a5738702a8823b9b28168abab8655faacb6853cd0ee15deee93') {
-      console.log(item)
-    }
 
     // If we have an item, reload anyway if it's stale. If not, retry with exponential backoff
     if (item) {

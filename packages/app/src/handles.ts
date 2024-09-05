@@ -47,28 +47,22 @@ export const fetchHandles = async (nip05s: string[]) => {
   const base = ctx.app.dufflepudUrl!
   const handlesByNip05 = new Map<string, Handle>()
 
-  // Attempt fetching directly first
-  const results = await Promise.all(
-    nip05s.map(async nip05 => ({nip05, info: await queryProfile(nip05)}))
-  )
-
-  const dufflepudNip05s: string[] = []
-
-  // If we got a response, great, if not (due to CORS), proxy via dufflepud
-  for (const {nip05, info} of results) {
-    if (info) {
-      handlesByNip05.set(nip05, info)
-    } else {
-      dufflepudNip05s.push(nip05)
-    }
-  }
-
-  // Fetch via dufflepud if we have an endpoint
-  if (base && dufflepudNip05s.length > 0) {
-    const res: any = await postJson(`${base}/handle/info`, {handles: dufflepudNip05s})
+  // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly
+  if (base) {
+    const res: any = await postJson(`${base}/handle/info`, {handles: nip05s})
 
     for (const {handle: nip05, info} of res?.data || []) {
       handlesByNip05.set(nip05, info)
+    }
+  } else {
+    const results = await Promise.all(
+      nip05s.map(async nip05 => ({nip05, info: await queryProfile(nip05)}))
+    )
+
+    for (const {nip05, info} of results) {
+      if (info) {
+        handlesByNip05.set(nip05, info)
+      }
     }
   }
 
