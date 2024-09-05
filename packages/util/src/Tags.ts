@@ -41,7 +41,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   static wrap = (p: Iterable<string[]>) => new Tags(Array.from(p).map(Tag.from))
 
-  static fromEvent = (event: {tags: string[][]}) => Tags.wrap(event.tags || [])
+  static fromEvent = (event: {tags: string[][]}) => Tags.wrap(event?.tags || [])
 
   static fromEvents = (events: {tags: string[][]}[]) => Tags.wrap(events.flatMap(e => e.tags || []))
 

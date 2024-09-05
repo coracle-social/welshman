@@ -11,6 +11,7 @@ import type {Router} from './router'
 export type AppContext = {
   router: Router
   requestDelay: number
+  authTimeout: number
   requestTimeout: number
   dufflepudUrl?: string
 }
@@ -41,6 +42,7 @@ export const getDefaultNetContext = (overrides: Partial<NetContext> = {}) => ({
 export const getDefaultAppContext = (overrides: Partial<AppContext> = {}) => ({
   router: makeRouter(),
   requestDelay: 50,
+  authTimeout: 300,
   requestTimeout: 3000,
   ...overrides,
 })

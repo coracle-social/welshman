@@ -42,7 +42,8 @@ export const subscribe = (request: PartialSubscribeRequest) => {
   // Make sure to query our local relay too
   const delay = ctx.app.requestDelay
   const timeout = ctx.app.requestTimeout
-  const sub = baseSubscribe({delay, authTimeout: timeout, relays: [], ...request})
+  const authTimeout = ctx.app.authTimeout
+  const sub = baseSubscribe({delay, timeout, authTimeout, relays: [], ...request})
 
   sub.emitter.on("event", (url: string, e: TrustedEvent) => {
     repository.publish(e)
