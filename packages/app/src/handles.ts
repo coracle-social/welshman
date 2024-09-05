@@ -1,7 +1,7 @@
 import {writable, derived} from 'svelte/store'
 import {withGetter} from '@welshman/store'
 import {type SubscribeRequest} from "@welshman/net"
-import {ctx, uniq, uniqBy, batcher, postJson, last} from '@welshman/lib'
+import {ctx, fetchJson, uniq, batcher, postJson, last} from '@welshman/lib'
 import {collection} from './collection'
 import {deriveProfile} from './profiles'
 
@@ -12,20 +12,64 @@ export type Handle = {
   relays?: string[]
 }
 
+export const NIP05_REGEX = /^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$/
+
+export async function queryProfile(nip05: string) {
+  const match = nip05.match(NIP05_REGEX)
+
+  if (!match) return undefined
+
+  const [_, name = '_', domain] = match
+
+  try {
+    const {names, relays = {}, nip46 = {}} = await fetchJson(`https://${domain}/.well-known/nostr.json?name=${name}`)
+
+    const pubkey = names[name]
+
+    if (!pubkey) {
+      return undefined
+    }
+
+    return {
+      nip05,
+      pubkey,
+      nip46: nip46[pubkey],
+      relays: relays[pubkey],
+    }
+  } catch (_e) {
+    return undefined
+  }
+}
+
 export const handles = withGetter(writable<Handle[]>([]))
 
-export const fetchHandles = (handles: string[]) => {
+export const fetchHandles = async (nip05s: string[]) => {
   const base = ctx.app.dufflepudUrl!
-
-  if (!base) {
-    throw new Error("ctx.app.dufflepudUrl is required to fetch nip05 info")
-  }
-
-  const res: any = postJson(`${base}/handle/info`, {handles})
   const handlesByNip05 = new Map<string, Handle>()
 
-  for (const {handle, info} of res?.data || []) {
-    handlesByNip05.set(handle, info)
+  // Attempt fetching directly first
+  const results = await Promise.all(
+    nip05s.map(async nip05 => ({nip05, info: await queryProfile(nip05)}))
+  )
+
+  const dufflepudNip05s: string[] = []
+
+  // If we got a response, great, if not (due to CORS), proxy via dufflepud
+  for (const {nip05, info} of results) {
+    if (info) {
+      handlesByNip05.set(nip05, info)
+    } else {
+      dufflepudNip05s.push(nip05)
+    }
+  }
+
+  // Fetch via dufflepud if we have an endpoint
+  if (base && dufflepudNip05s.length > 0) {
+    const res: any = await postJson(`${base}/handle/info`, {handles: dufflepudNip05s})
+
+    for (const {handle: nip05, info} of res?.data || []) {
+      handlesByNip05.set(nip05, info)
+    }
   }
 
   return handlesByNip05
@@ -43,12 +87,17 @@ export const {
     const fresh = await fetchHandles(uniq(nip05s))
     const stale = handlesByNip05.get()
     const items: Handle[] = nip05s.map(nip05 => {
-      const handle = fresh.get(nip05) || stale.get(nip05) || {}
+      const newHandle = fresh.get(nip05)
+      const oldHandle = stale.get(nip05)
 
-      return {...handle, nip05}
+      if (newHandle) {
+        stale.set(nip05, {...newHandle, nip05})
+      }
+
+      return {...oldHandle, ...newHandle, nip05}
     })
 
-    handles.update($handles => uniqBy($handle => $handle.nip05, [...$handles, ...items]))
+    handles.set(Array.from(stale.values()))
 
     return items
   }),
@@ -64,7 +113,7 @@ export const deriveHandleForPubkey = (pubkey: string, request: Partial<Subscribe
 
       loadHandle($profile.nip05)
 
-      return $handlesByNip05.get($profile?.nip05)
+      return $handlesByNip05.get($profile.nip05)
     }
   )
 

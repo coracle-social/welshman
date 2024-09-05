@@ -42,7 +42,7 @@ export class Socket {
       if (Array.isArray(message)) {
         this.opts.onMessage(message as Message)
       } else {
-        console.warn("Invalid messages received:", message)
+        console.warn(`Invalid message received on ${this.url}:`, message)
       }
     } catch (e) {
       // pass

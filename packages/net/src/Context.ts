@@ -27,7 +27,7 @@ export const defaultOptimizeSubscriptions = (subs: Subscription[]) =>
       return {relays: [relay], filters}
     })
 
-export const getDefaultNetContext = () => ({
+export const getDefaultNetContext = (overrides: Partial<NetContext> = {}) => ({
   onOk: noop,
   onAuth: noop,
   onEvent: noop,
@@ -37,4 +37,5 @@ export const getDefaultNetContext = () => ({
   getExecutor: (relays: string[]) => new Executor(new Relays(relays.map((relay: string) => ctx.net.pool.get(relay)))),
   matchFilters: (url: string, filters: Filter[], event: TrustedEvent) => matchFilters(filters, event),
   optimizeSubscriptions: defaultOptimizeSubscriptions,
+  ...overrides,
 })

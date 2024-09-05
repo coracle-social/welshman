@@ -1,6 +1,6 @@
 import {partition} from "@welshman/lib"
 import {defaultOptimizeSubscriptions, getDefaultNetContext as originalGetDefaultNetContext} from "@welshman/net"
-import type {Subscription, RelaysAndFilters} from "@welshman/net"
+import type {Subscription, RelaysAndFilters, NetContext} from "@welshman/net"
 import {unionFilters, isSignedEvent, hasValidSignature} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {tracker, repository} from './core'
@@ -15,7 +15,7 @@ export type AppContext = {
   dufflepudUrl?: string
 }
 
-export const getDefaultNetContext = () => ({
+export const getDefaultNetContext = (overrides: Partial<NetContext> = {}) => ({
   ...originalGetDefaultNetContext(),
   onAuth: onAuth,
   onEvent: (url: string, event: TrustedEvent) => tracker.track(event.id, url),
@@ -35,11 +35,13 @@ export const getDefaultNetContext = () => ({
 
     return selections
   },
+  ...overrides,
 })
 
-export const getDefaultAppContext = () => ({
+export const getDefaultAppContext = (overrides: Partial<AppContext> = {}) => ({
   router: makeRouter(),
   requestDelay: 50,
   requestTimeout: 3000,
+  ...overrides,
 })
 
