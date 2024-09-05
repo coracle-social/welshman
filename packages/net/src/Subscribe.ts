@@ -1,5 +1,5 @@
 import {Emitter, max, chunk, randomId, once, groupBy, uniq} from '@welshman/lib'
-import {matchFilters, unionFilters, SignedEvent} from '@welshman/util'
+import {matchFilters, unionFilters, TrustedEvent} from '@welshman/util'
 import type {Filter} from '@welshman/util'
 import {Tracker} from "./Tracker"
 import {Connection} from './Connection'
@@ -91,7 +91,7 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
 
   for (const sub of subs) {
     // Propagate events, but avoid duplicates
-    sub.emitter.on(SubscriptionEvent.Event, (url: string, event: SignedEvent) => {
+    sub.emitter.on(SubscriptionEvent.Event, (url: string, event: TrustedEvent) => {
       if (!mergedSub.tracker.track(event.id, url)) {
         mergedSub.emitter.emit(SubscriptionEvent.Event, url, event)
       }
@@ -157,7 +157,7 @@ export const optimizeSubscriptions = (subs: Subscription[]) => {
           controller.signal.addEventListener('abort', onAbort)
         }
 
-        mergedSub.emitter.on(SubscriptionEvent.Event, (url: string, event: SignedEvent) => {
+        mergedSub.emitter.on(SubscriptionEvent.Event, (url: string, event: TrustedEvent) => {
           for (const sub of group) {
             if (!sub.tracker.track(event.id, url) && matchFilters(sub.request.filters, event)) {
               sub.emitter.emit(SubscriptionEvent.Event, url, event)
@@ -167,7 +167,7 @@ export const optimizeSubscriptions = (subs: Subscription[]) => {
 
         // Pass events back to caller
         const propagateEvent = (type: SubscriptionEvent) =>
-          mergedSub.emitter.on(type,  (url: string, event: SignedEvent) => {
+          mergedSub.emitter.on(type,  (url: string, event: TrustedEvent) => {
             for (const sub of group) {
               if (matchFilters(sub.request.filters, event)) {
                 sub.emitter.emit(type, url, event)
@@ -215,11 +215,11 @@ export const executeSubscription = (sub: Subscription) => {
   const executor = NetworkContext.getExecutor(relays)
   const subs: {unsubscribe: () => void}[] = []
   const completedRelays = new Set()
-  const events: SignedEvent[] = []
+  const events: TrustedEvent[] = []
 
   // Hook up our events
 
-  emitter.on(SubscriptionEvent.Event, (url: string, event: SignedEvent) => {
+  emitter.on(SubscriptionEvent.Event, (url: string, event: TrustedEvent) => {
     events.push(event)
   })
 
@@ -248,7 +248,7 @@ export const executeSubscription = (sub: Subscription) => {
 
   // Functions for emitting events
 
-  const onEvent = (url: string, event: SignedEvent) => {
+  const onEvent = (url: string, event: TrustedEvent) => {
     if (tracker.track(event.id, url)) {
       emitter.emit(SubscriptionEvent.Duplicate, url, event)
     } else if (NetworkContext.isDeleted(url, event)) {
@@ -324,14 +324,27 @@ export const executeSubscriptionBatched = (() => {
   }
 })()
 
-export const subscribe = (request: SubscribeRequest) => {
-  const subscription: Subscription = makeSubscription({delay: 50, ...request})
+export type SubscribeRequestWithHandlers = SubscribeRequest & {
+  onEvent?: (event: TrustedEvent) => void
+  onEose?: (url: string) => void
+  onClose?: (url: string) => void
+  onComplete?: () => void
+}
+
+export const subscribe = ({onEvent, onEose, onClose, onComplete, ...request}: SubscribeRequestWithHandlers) => {
+  const sub: Subscription = makeSubscription({delay: 50, ...request})
 
   if (request.delay === 0) {
-    executeSubscription(subscription)
+    executeSubscription(sub)
   } else {
-    executeSubscriptionBatched(subscription)
+    executeSubscriptionBatched(sub)
   }
 
-  return subscription
+  // Signature for onEvent is different from emitter signature for historical reasons and convenience
+  if (onEvent) sub.emitter.on(SubscriptionEvent.Event, (url: string, event: TrustedEvent) => onEvent(event))
+  if (onEose) sub.emitter.on(SubscriptionEvent.Eose, onEose)
+  if (onClose) sub.emitter.on(SubscriptionEvent.Close, onClose)
+  if (onComplete) sub.emitter.on(SubscriptionEvent.Complete, onComplete)
+
+  return sub
 }

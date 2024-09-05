@@ -18,10 +18,10 @@ export * from './zappers'
 
 import {partition} from "@welshman/lib"
 import {type Subscription, NetworkContext, defaultOptimizeSubscriptions} from "@welshman/net"
-import {type TrustedEvent, unionFilters} from "@welshman/util"
+import {type TrustedEvent, unionFilters, isSignedEvent, hasValidSignature} from "@welshman/util"
 import {tracker, repository, AppContext} from './core'
 import {makeRouter, getFilterSelections} from './router'
-import {onAuth} from './session'
+import {onAuth, getSession} from './session'
 
 export function* optimizeSubscriptions(subs: Subscription[]) {
   const [withRelays, withoutRelays] = partition(sub => sub.request.relays.length > 0, subs)
@@ -38,6 +38,8 @@ Object.assign(NetworkContext, {
   onAuth,
   onEvent: (url: string, event: TrustedEvent) => tracker.track(event.id, url),
   isDeleted: (url: string, event: TrustedEvent) => repository.isDeleted(event),
+  hasValidSignature: (event: TrustedEvent) =>
+    getSession(event.pubkey) || (isSignedEvent(event) && hasValidSignature(event)),
   optimizeSubscriptions,
 })
 

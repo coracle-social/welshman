@@ -1,10 +1,6 @@
 import {readable, derived, type Readable} from 'svelte/store'
-import {type SubscribeRequest} from "@welshman/net"
 import {indexBy, type Maybe, now} from '@welshman/lib'
-import {getIdFilters} from '@welshman/util'
-import type {TrustedEvent} from '@welshman/util'
-import {withGetter, deriveEvents} from '@welshman/store'
-import {repository, load} from './core'
+import {withGetter} from '@welshman/store'
 import {getFreshness, setFreshness} from './freshness'
 
 export const collection = <T, LoadArgs extends any[]>({
@@ -60,22 +56,4 @@ export const collection = <T, LoadArgs extends any[]>({
   }
 
   return {indexStore, deriveItem, loadItem, getItem}
-}
-
-export const deriveEvent = (idOrAddress: string, request: Partial<SubscribeRequest> = {}) => {
-  let attempted = false
-
-  const filters = getIdFilters([idOrAddress])
-
-  return derived(
-    deriveEvents(repository, {filters, includeDeleted: true}),
-    (events: TrustedEvent[]) => {
-      if (!attempted && events.length === 0) {
-        load({...request, filters})
-        attempted = true
-      }
-
-      return events[0]
-    },
-  )
 }

@@ -2,7 +2,7 @@ import {isNil} from "@welshman/lib"
 import {Repository, Relay, LOCAL_RELAY_URL, getFilterResultCardinality} from "@welshman/util"
 import type {TrustedEvent, Filter} from "@welshman/util"
 import {Tracker, subscribe as baseSubscribe} from "@welshman/net"
-import type {SubscribeRequest} from "@welshman/net"
+import type {SubscribeRequestWithHandlers} from "@welshman/net"
 import {createEventStore} from "@welshman/store"
 import type {Router} from './router'
 
@@ -11,7 +11,6 @@ export const AppContext: {
   requestDelay: number
   requestTimeout: number
   dufflepudUrl?: string
-  splitRequest?: (req: PartialSubscribeRequest) => SubscribeRequest[]
 } = {
   router: undefined as unknown as Router,
   requestDelay: 50,
@@ -26,7 +25,7 @@ export const relay = new Relay(repository)
 
 export const tracker = new Tracker()
 
-export type PartialSubscribeRequest = Partial<SubscribeRequest> & {filters: Filter[]}
+export type PartialSubscribeRequest = Partial<SubscribeRequestWithHandlers> & {filters: Filter[]}
 
 export const subscribe = (request: PartialSubscribeRequest) => {
   const events: TrustedEvent[] = []
