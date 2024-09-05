@@ -1,4 +1,4 @@
-import {derived} from 'svelte/store'
+import {derived, readable} from 'svelte/store'
 import {readProfile, displayProfile, displayPubkey, PROFILE} from '@welshman/util'
 import {type SubscribeRequest} from "@welshman/net"
 import {type PublishedProfile} from "@welshman/util"
@@ -36,8 +36,12 @@ export const profileSearch = derived(profiles, $profiles =>
   }),
 )
 
-export const displayProfileByPubkey = (pubkey = "") =>
-  displayProfile(profilesByPubkey.get().get(pubkey), displayPubkey(pubkey))
+export const displayProfileByPubkey = (pubkey: string | undefined) =>
+  pubkey
+    ? displayProfile(profilesByPubkey.get().get(pubkey), displayPubkey(pubkey))
+    : ""
 
-export const deriveProfileDisplay = (pubkey = "") =>
-  derived(deriveProfile(pubkey), $profile => displayProfile($profile, displayPubkey(pubkey)))
+export const deriveProfileDisplay = (pubkey: string | undefined) =>
+  pubkey
+    ? derived(deriveProfile(pubkey), $profile => displayProfile($profile, displayPubkey(pubkey)))
+    : readable("")
