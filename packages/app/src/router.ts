@@ -15,12 +15,6 @@ import {relays, relaysByUrl} from './relays'
 
 export const INDEXED_KINDS = [PROFILE, RELAYS, INBOX_RELAYS, FOLLOWS]
 
-export const INDEXER_RELAYS = [
-  'wss://purplepag.es/',
-  'wss://relay.damus.io/',
-  'wss://relay.nostr.band/',
-]
-
 export enum RelayMode {
   Read = "read",
   Write = "write",
@@ -442,7 +436,7 @@ export const getPubkeyRelays = (pubkey: string, mode?: string) => {
   }
 }
 
-export const getIndexerRelays = () => INDEXER_RELAYS
+export const getIndexerRelays = () => ctx.app.indexerRelays || getFallbackRelays()
 
 export const getFallbackRelays = throttleWithValue(300, () =>
   relays.get().filter(r => getRelayQuality(r.url) >= 0.5).map(r => r.url)

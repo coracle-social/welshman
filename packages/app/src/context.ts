@@ -14,6 +14,7 @@ export type AppContext = {
   authTimeout: number
   requestTimeout: number
   dufflepudUrl?: string
+  indexerRelays?: string[]
 }
 
 export const getDefaultNetContext = (overrides: Partial<NetContext> = {}) => ({

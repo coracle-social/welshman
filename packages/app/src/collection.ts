@@ -20,41 +20,45 @@ export const collection = <T, LoadArgs extends any[]>({
   const loadAttempts = new Map<string, number>()
 
   const loadItem = async (key: string, ...args: LoadArgs) => {
-    const item = indexStore.get().get(key)
+    const stale = getItem(key)
     const freshness = getFreshness(name, key)
 
-    // If we have an item, reload anyway if it's stale. If not, retry with exponential backoff
-    if (item) {
-      loadAttempts.delete(key)
-
-      if (freshness > now() - 3600) {
-        return item
-      }
-    } else {
-      const attempt = loadAttempts.get(key) || 0
-
-      if (freshness > now() - Math.pow(2, attempt)) {
-        return undefined
-      }
-
-      loadAttempts.set(key, attempt + 1)
+    // If we have an item, reload if it's stale
+    if (stale && freshness > now() - 3600) {
+      return stale
     }
 
+    // If we already are loading, await and return
     if (pending.has(key)) {
-      await pending.get(key)
-    } else {
-      setFreshness(name, key, now())
-
-      const promise = load(key, ...args)
-
-      pending.set(key, promise)
-
-      await promise
-
-      pending.delete(key)
+      return pending.get(key)!.then(() => getItem(key))
     }
 
-    return indexStore.get().get(key)
+    const attempt = loadAttempts.get(key) || 0
+
+    // Use exponential backoff to throttle attempts
+    if (freshness > now() - Math.pow(2, attempt)) {
+      return stale
+    }
+
+    loadAttempts.set(key, attempt + 1)
+
+    setFreshness(name, key, now())
+
+    const promise = load(key, ...args)
+
+    pending.set(key, promise)
+
+    await promise
+
+    pending.delete(key)
+
+    const fresh = getItem(key)
+
+    if (fresh) {
+      loadAttempts.delete(key)
+    }
+
+    return fresh
   }
 
   const deriveItem = (key: Maybe<string>, ...args: LoadArgs) => {
