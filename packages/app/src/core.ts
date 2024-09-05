@@ -1,21 +1,9 @@
-import {isNil} from "@welshman/lib"
+import {ctx, isNil} from "@welshman/lib"
 import {Repository, Relay, LOCAL_RELAY_URL, getFilterResultCardinality} from "@welshman/util"
 import type {TrustedEvent, Filter} from "@welshman/util"
 import {Tracker, subscribe as baseSubscribe} from "@welshman/net"
 import type {SubscribeRequestWithHandlers} from "@welshman/net"
 import {createEventStore} from "@welshman/store"
-import type {Router} from './router'
-
-export const AppContext: {
-  router: Router,
-  requestDelay: number
-  requestTimeout: number
-  dufflepudUrl?: string
-} = {
-  router: undefined as unknown as Router,
-  requestDelay: 50,
-  requestTimeout: 3000,
-}
 
 export const repository = new Repository<TrustedEvent>()
 
@@ -52,8 +40,8 @@ export const subscribe = (request: PartialSubscribeRequest) => {
   }
 
   // Make sure to query our local relay too
-  const delay = AppContext.requestDelay
-  const timeout = AppContext.requestTimeout
+  const delay = ctx.app.requestDelay
+  const timeout = ctx.app.requestTimeout
   const sub = baseSubscribe({delay, authTimeout: timeout, relays: [], ...request})
 
   sub.emitter.on("event", (url: string, e: TrustedEvent) => {
@@ -72,7 +60,7 @@ export const subscribe = (request: PartialSubscribeRequest) => {
 
 export const load = (request: PartialSubscribeRequest) =>
   new Promise<TrustedEvent[]>(resolve => {
-    const sub = subscribe({closeOnEose: true, timeout: AppContext.requestTimeout, ...request})
+    const sub = subscribe({closeOnEose: true, timeout: ctx.app.requestTimeout, ...request})
     const events: TrustedEvent[] = []
 
     sub.emitter.on("event", (url: string, e: TrustedEvent) => events.push(e))

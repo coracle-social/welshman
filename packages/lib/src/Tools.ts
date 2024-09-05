@@ -13,6 +13,8 @@ export type Maybe<T> = T | undefined
 
 export const now = () => Math.round(Date.now() / 1000)
 
+export const noop = (...args: unknown[]) => undefined
+
 export const first = <T>(xs: T[], ...args: unknown[]) => xs[0]
 
 export const last = <T>(xs: T[], ...args: unknown[]) => xs[xs.length - 1]

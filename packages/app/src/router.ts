@@ -1,14 +1,14 @@
 import {
   intersection, first, switcher, throttleWithValue, clamp, last, splitAt, identity, sortBy, uniq, shuffle,
-  pushToMapKey, now, assoc,
+  pushToMapKey, now, assoc, ctx,
 } from '@welshman/lib'
 import {
   Tags, getFilterId, unionFilters, isShareableRelayUrl, isCommunityAddress, isGroupAddress, isContextAddress,
   PROFILE, RELAYS, INBOX_RELAYS, FOLLOWS,
 } from '@welshman/util'
 import type {TrustedEvent, Filter} from '@welshman/util'
-import {NetworkContext, ConnectionStatus} from '@welshman/net'
-import {AppContext} from './core'
+import {ConnectionStatus} from '@welshman/net'
+import type {RelaysAndFilters} from '@welshman/net'
 import {pubkey} from './session'
 import {relaySelectionsByPubkey, getReadRelayUrls, getWriteRelayUrls, getRelayUrls} from './relaySelections'
 import {relays, relaysByUrl} from './relays'
@@ -396,7 +396,7 @@ export const getRelayQuality = (url: string) => {
   const relay = relaysByUrl.get().get(url)
   const connect_count = relay?.stats?.connect_count || 0
   const recent_errors = relay?.stats?.recent_errors || []
-  const connection = NetworkContext.pool.get(url, {autoConnect: false})
+  const connection = ctx.net.pool.get(url, {autoConnect: false})
 
   // If we haven't connected, consult our relay record and see if there has
   // been a recent fault. If there has been, penalize the relay. If there have been several,
@@ -467,11 +467,6 @@ export const makeRouter = (options: Partial<RouterOptions> = {}) =>
 
 // Infer relay selections from filters
 
-export type RelayFilters = {
-  relays: string[]
-  filters: Filter[]
-}
-
 export type FilterSelection = {
   id: string,
   filter: Filter,
@@ -492,8 +487,8 @@ export const getFilterSelectionsForSearch = (state: FilterSelectionRuleState) =>
   if (!state.filter.search) return false
 
   const id = getFilterId(state.filter)
-  const relays = AppContext.router.options.getSearchRelays?.() || []
-  const scenario = AppContext.router.product([id], relays)
+  const relays = ctx.app.router.options.getSearchRelays?.() || []
+  const scenario = ctx.app.router.product([id], relays)
 
   state.selections.push(makeFilterSelection(id, state.filter, scenario))
 
@@ -505,12 +500,12 @@ export const getFilterSelectionsForContext = (state: FilterSelectionRuleState) =
 
   if (contexts.length === 0) return false
 
-  const scenario = AppContext.router.WithinMultipleContexts(contexts)
+  const scenario = ctx.app.router.WithinMultipleContexts(contexts)
 
   for (const {relay, values} of scenario.getSelections()) {
     const contextFilter = {...state.filter, "#a": Array.from(values)}
     const id = getFilterId(contextFilter)
-    const scenario = AppContext.router.product([id], [relay])
+    const scenario = ctx.app.router.product([id], [relay])
 
     state.selections.push(makeFilterSelection(id, contextFilter, scenario))
   }
@@ -524,8 +519,8 @@ export const getFilterSelectionsForIndexedKinds = (state: FilterSelectionRuleSta
   if (kinds.length === 0) return false
 
   const id = getFilterId({...state.filter, kinds})
-  const relays = AppContext.router.options.getIndexerRelays?.() || []
-  const scenario = AppContext.router.product([id], relays)
+  const relays = ctx.app.router.options.getIndexerRelays?.() || []
+  const scenario = ctx.app.router.product([id], relays)
 
   state.selections.push(makeFilterSelection(id, state.filter, scenario))
 
@@ -536,7 +531,7 @@ export const getFilterSelectionsForAuthors = (state: FilterSelectionRuleState) =
   if (!state.filter.authors) return false
 
   const id = getFilterId(state.filter)
-  const scenario = AppContext.router.FromPubkeys(state.filter.authors!).update(assoc('value', id))
+  const scenario = ctx.app.router.FromPubkeys(state.filter.authors!).update(assoc('value', id))
 
   state.selections.push(makeFilterSelection(id, state.filter, scenario))
 
@@ -545,8 +540,8 @@ export const getFilterSelectionsForAuthors = (state: FilterSelectionRuleState) =
 
 export const getFilterSelectionsForUser = (state: FilterSelectionRuleState) => {
   const id = getFilterId(state.filter)
-  const relays = AppContext.router.ReadRelays().getUrls()
-  const scenario = AppContext.router.product([id], relays)
+  const relays = ctx.app.router.ReadRelays().getUrls()
+  const scenario = ctx.app.router.product([id], relays)
 
   state.selections.push(makeFilterSelection(id, state.filter, scenario))
 
@@ -561,7 +556,7 @@ export const defaultFilterSelectionRules = [
   getFilterSelectionsForUser,
 ]
 
-export const getFilterSelections = (filters: Filter[], rules: FilterSelectionRule[] = defaultFilterSelectionRules): RelayFilters[] => {
+export const getFilterSelections = (filters: Filter[], rules: FilterSelectionRule[] = defaultFilterSelectionRules): RelaysAndFilters[] => {
   const scenarios: RouterScenario[] = []
   const filtersById = new Map<string, Filter>()
 
@@ -584,7 +579,7 @@ export const getFilterSelections = (filters: Filter[], rules: FilterSelectionRul
 
 
   // Use low redundancy because filters will be very low cardinality
-  const selections = AppContext.router
+  const selections = ctx.app.router
     .merge(scenarios)
     .redundancy(1)
     .getSelections()
@@ -594,8 +589,8 @@ export const getFilterSelections = (filters: Filter[], rules: FilterSelectionRul
     }))
 
   // Pubkey-based selections can get really big. Use the most popular relays for the long tail
-  const limit = AppContext.router.options.getLimit?.() || 8
-  const redundancy = AppContext.router.options.getRedundancy?.() || 3
+  const limit = ctx.app.router.options.getLimit?.() || 8
+  const redundancy = ctx.app.router.options.getRedundancy?.() || 3
   const [keep, discard] = splitAt(limit, selections)
 
   for (const target of keep.slice(0, redundancy)) {

@@ -1,8 +1,7 @@
 import {writable, derived} from 'svelte/store'
 import {withGetter} from '@welshman/store'
 import {type SubscribeRequest} from "@welshman/net"
-import {uniq, uniqBy, batcher, postJson, last} from '@welshman/lib'
-import {AppContext} from './core'
+import {ctx, uniq, uniqBy, batcher, postJson, last} from '@welshman/lib'
 import {collection} from './collection'
 import {deriveProfile} from './profiles'
 
@@ -16,10 +15,10 @@ export type Handle = {
 export const handles = withGetter(writable<Handle[]>([]))
 
 export const fetchHandles = (handles: string[]) => {
-  const base = AppContext.dufflepudUrl!
+  const base = ctx.app.dufflepudUrl!
 
   if (!base) {
-    throw new Error("AppContext.dufflepudUrl is required to fetch nip05 info")
+    throw new Error("ctx.app.dufflepudUrl is required to fetch nip05 info")
   }
 
   const res: any = postJson(`${base}/handle/info`, {handles})

@@ -1,9 +1,8 @@
 import {derived} from "svelte/store"
-import {memoize, omit, equals, assoc} from "@welshman/lib"
+import {ctx, memoize, omit, equals, assoc} from "@welshman/lib"
 import {createEvent} from "@welshman/util"
 import {withGetter, synced} from "@welshman/store"
 import {type Nip46Handler} from "@welshman/signer"
-import {NetworkContext} from "@welshman/net"
 import {Nip46Broker, Nip46Signer, Nip07Signer, Nip01Signer} from "@welshman/signer"
 
 export type Session = {
@@ -76,7 +75,7 @@ export const onAuth = async (url: string, challenge: string) => {
     }),
   )
 
-  NetworkContext.pool.get(url).send(["AUTH", event])
+  ctx.net.pool.get(url).send(["AUTH", event])
 
   return event
 }

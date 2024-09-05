@@ -1,8 +1,7 @@
-import {Emitter, now, randomId, defer} from '@welshman/lib'
+import {ctx, Emitter, now, randomId, defer} from '@welshman/lib'
 import type {Deferred} from '@welshman/lib'
 import {asSignedEvent} from '@welshman/util'
 import type {SignedEvent} from '@welshman/util'
-import {NetworkContext} from './Context'
 
 export enum PublishStatus {
   Pending = "pending",
@@ -44,7 +43,7 @@ export const makePublish = (request: PublishRequest) => {
 export const publish = (request: PublishRequest) => {
   const pub = makePublish(request)
   const event = asSignedEvent(request.event)
-  const executor = NetworkContext.getExecutor(request.relays)
+  const executor = ctx.net.getExecutor(request.relays)
 
   const abort = (reason: PublishStatus) => {
     for (const [url, status] of pub.status.entries()) {

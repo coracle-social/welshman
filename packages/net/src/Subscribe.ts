@@ -1,16 +1,15 @@
-import {Emitter, max, chunk, randomId, once, groupBy, uniq} from '@welshman/lib'
+import {ctx, Emitter, max, chunk, randomId, once, groupBy, uniq} from '@welshman/lib'
 import {matchFilters, unionFilters, TrustedEvent} from '@welshman/util'
 import type {Filter} from '@welshman/util'
 import {Tracker} from "./Tracker"
 import {Connection} from './Connection'
-import {NetworkContext} from './Context'
 
 // `subscribe` is a super function that handles batching subscriptions by merging
 // them based on parameters (filters and subscribe opts), then splits them by relay.
 // This results in fewer REQs being opened per connection, fewer duplicate events
 // being downloaded, and therefore less signature validation.
 //
-// Behavior can be further configured using NetworkContext. This can be useful for
+// Behavior can be further configured using ctx.net. This can be useful for
 // adding support for querying a local cache like a relay, tracking deleted events,
 // and bypassing validation for trusted relays.
 //
@@ -30,9 +29,12 @@ export enum SubscriptionEvent {
   InvalidSignature = "invalid-signature",
 }
 
-export type SubscribeRequest = {
+export type RelaysAndFilters = {
   relays: string[]
   filters: Filter[]
+}
+
+export type SubscribeRequest = RelaysAndFilters & {
   delay?: number
   signal?: AbortSignal
   timeout?: number
@@ -136,7 +138,7 @@ export const optimizeSubscriptions = (subs: Subscription[]) => {
       const eosedSubs = new Set<string>()
       const mergedSubs = []
 
-      for (const {relays, filters} of NetworkContext.optimizeSubscriptions(group)) {
+      for (const {relays, filters} of ctx.net.optimizeSubscriptions(group)) {
         const mergedSub = makeSubscription({filters,
           relays,
           timeout,
@@ -212,7 +214,7 @@ export const optimizeSubscriptions = (subs: Subscription[]) => {
 export const executeSubscription = (sub: Subscription) => {
   const {request, emitter, tracker, controller} = sub
   const {filters, closeOnEose, relays, signal, timeout, authTimeout = 0} = request
-  const executor = NetworkContext.getExecutor(relays)
+  const executor = ctx.net.getExecutor(relays)
   const subs: {unsubscribe: () => void}[] = []
   const completedRelays = new Set()
   const events: TrustedEvent[] = []
@@ -251,11 +253,11 @@ export const executeSubscription = (sub: Subscription) => {
   const onEvent = (url: string, event: TrustedEvent) => {
     if (tracker.track(event.id, url)) {
       emitter.emit(SubscriptionEvent.Duplicate, url, event)
-    } else if (NetworkContext.isDeleted(url, event)) {
+    } else if (ctx.net.isDeleted(url, event)) {
       emitter.emit(SubscriptionEvent.DeletedEvent, url, event)
-    } else if (!NetworkContext.matchFilters(url, filters, event)) {
+    } else if (!ctx.net.matchFilters(url, filters, event)) {
       emitter.emit(SubscriptionEvent.FailedFilter, url, event)
-    } else if (!NetworkContext.hasValidSignature(url, event)) {
+    } else if (!ctx.net.hasValidSignature(url, event)) {
       emitter.emit(SubscriptionEvent.InvalidSignature, url, event)
     } else {
       emitter.emit(SubscriptionEvent.Event, url, event)

@@ -1,8 +1,8 @@
+import {ctx} from '@welshman/lib'
 import type {Emitter} from '@welshman/lib'
 import type {SignedEvent, Filter} from '@welshman/util'
 import type {Message} from './Socket'
 import type {Connection} from './Connection'
-import {NetworkContext} from './Context'
 
 export type Target = Emitter & {
   connections: Connection[]
@@ -22,8 +22,8 @@ const createSubId = (prefix: string) => [prefix, Math.random().toString().slice(
 export class Executor {
 
   constructor(readonly target: Target) {
-    target.on('AUTH', NetworkContext.onAuth)
-    target.on('OK', NetworkContext.onOk)
+    target.on('AUTH', ctx.net.onAuth)
+    target.on('OK', ctx.net.onOk)
   }
 
   subscribe(filters: Filter[], {onEvent, onEose}: SubscribeOpts = {}) {
@@ -33,7 +33,7 @@ export class Executor {
 
     const eventListener = (url: string, subid: string, e: SignedEvent) => {
       if (subid === id) {
-        NetworkContext.onEvent(url, e)
+        ctx.net.onEvent(url, e)
         onEvent?.(url, e)
       }
     }
@@ -64,7 +64,7 @@ export class Executor {
   publish(event: SignedEvent, {verb = 'EVENT', onOk, onError}: PublishOpts = {}) {
     const okListener = (url: string, id: string, ...payload: any[]) => {
       if (id === event.id) {
-        NetworkContext.onEvent(url, event)
+        ctx.net.onEvent(url, event)
         onOk?.(url, id, ...payload)
       }
     }

@@ -1,9 +1,8 @@
 import {writable, derived} from 'svelte/store'
 import {withGetter} from '@welshman/store'
-import {groupBy, indexBy, batch, now, uniq, uniqBy, batcher, postJson} from '@welshman/lib'
-import {type RelayProfile} from "@welshman/util"
+import {ctx, groupBy, indexBy, batch, now, uniq, uniqBy, batcher, postJson} from '@welshman/lib'
+import type {RelayProfile} from "@welshman/util"
 import {AuthStatus, asMessage, type Connection, type SocketMessage} from '@welshman/net'
-import {AppContext} from './core'
 import {createSearch} from './util'
 import {collection} from './collection'
 
@@ -45,10 +44,10 @@ export const relaysByPubkey = derived(relays, $relays =>
 )
 
 export const fetchRelayProfiles = (urls: string[]) => {
-  const base = AppContext.dufflepudUrl!
+  const base = ctx.app.dufflepudUrl!
 
   if (!base) {
-    throw new Error("AppContext.dufflepudUrl is required to fetch relay metadata")
+    throw new Error("ctx.app.dufflepudUrl is required to fetch relay metadata")
   }
 
   const res: any = postJson(`${base}/relay/info`, {urls})
