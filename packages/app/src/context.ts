@@ -20,7 +20,7 @@ export const getDefaultNetContext = () => ({
   onAuth: onAuth,
   onEvent: (url: string, event: TrustedEvent) => tracker.track(event.id, url),
   isDeleted: (url: string, event: TrustedEvent) => repository.isDeleted(event),
-  hasValidSignature: (event: TrustedEvent) =>
+  isValid: (url: string, event: TrustedEvent) =>
     getSession(event.pubkey) || (isSignedEvent(event) && hasValidSignature(event)),
   optimizeSubscriptions: (subs: Subscription[]) => {
     const [withRelays, withoutRelays] = partition(sub => sub.request.relays.length > 0, subs)

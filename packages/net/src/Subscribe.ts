@@ -26,7 +26,7 @@ export enum SubscriptionEvent {
   Duplicate = "duplicate",
   DeletedEvent = "deleted-event",
   FailedFilter = "failed-filter",
-  InvalidSignature = "invalid-signature",
+  Invalid = "invalid",
 }
 
 export type RelaysAndFilters = {
@@ -118,7 +118,7 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
     propagateEvent(SubscriptionEvent.Duplicate)
     propagateEvent(SubscriptionEvent.DeletedEvent)
     propagateEvent(SubscriptionEvent.FailedFilter)
-    propagateEvent(SubscriptionEvent.InvalidSignature)
+    propagateEvent(SubscriptionEvent.Invalid)
     propagateEvent(SubscriptionEvent.Eose)
     propagateEvent(SubscriptionEvent.Close)
   }
@@ -179,7 +179,7 @@ export const optimizeSubscriptions = (subs: Subscription[]) => {
 
         propagateEvent(SubscriptionEvent.Duplicate)
         propagateEvent(SubscriptionEvent.DeletedEvent)
-        propagateEvent(SubscriptionEvent.InvalidSignature)
+        propagateEvent(SubscriptionEvent.Invalid)
 
         const propagateFinality = (type: SubscriptionEvent, subIds: Set<string>) =>
           mergedSub.emitter.on(type, (...args: any[]) => {
@@ -257,8 +257,8 @@ export const executeSubscription = (sub: Subscription) => {
       emitter.emit(SubscriptionEvent.DeletedEvent, url, event)
     } else if (!ctx.net.matchFilters(url, filters, event)) {
       emitter.emit(SubscriptionEvent.FailedFilter, url, event)
-    } else if (!ctx.net.hasValidSignature(url, event)) {
-      emitter.emit(SubscriptionEvent.InvalidSignature, url, event)
+    } else if (!ctx.net.isValid(url, event)) {
+      emitter.emit(SubscriptionEvent.Invalid, url, event)
     } else {
       emitter.emit(SubscriptionEvent.Event, url, event)
     }

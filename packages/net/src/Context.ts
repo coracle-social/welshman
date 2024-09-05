@@ -13,7 +13,7 @@ export type NetContext = {
   onAuth: (url: string, challenge: string) => void
   onOk: (url: string, id: string, ok: boolean, message: string) => void
   isDeleted: (url: string, event: TrustedEvent) => boolean
-  hasValidSignature: (url: string, event: TrustedEvent) => boolean
+  isValid: (url: string, event: TrustedEvent) => boolean
   matchFilters: (url: string, filters: Filter[], event: TrustedEvent) => boolean
   optimizeSubscriptions: (subs: Subscription[]) => RelaysAndFilters[]
 }
@@ -33,8 +33,8 @@ export const getDefaultNetContext = () => ({
   onEvent: noop,
   pool: new Pool(),
   isDeleted: always(false),
+  isValid: (url: string, event: TrustedEvent) => isSignedEvent(event) && hasValidSignature(event),
   getExecutor: (relays: string[]) => new Executor(new Relays(relays.map((relay: string) => ctx.net.pool.get(relay)))),
-  hasValidSignature: (url: string, event: TrustedEvent) => isSignedEvent(event) && hasValidSignature(event),
   matchFilters: (url: string, filters: Filter[], event: TrustedEvent) => matchFilters(filters, event),
   optimizeSubscriptions: defaultOptimizeSubscriptions,
 })
