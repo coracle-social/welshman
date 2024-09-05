@@ -3,7 +3,7 @@ import {readProfile, displayProfile, displayPubkey, PROFILE} from '@welshman/uti
 import {type SubscribeRequest} from "@welshman/net"
 import {type PublishedProfile} from "@welshman/util"
 import {deriveEventsMapped, withGetter} from '@welshman/store'
-import {repository, loadOne} from './core'
+import {repository, load} from './core'
 import {createSearch} from './util'
 import {collection} from './collection'
 
@@ -24,7 +24,7 @@ export const {
   store: profiles,
   getKey: profile => profile.event.pubkey,
   load: (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
-    loadOne({...request, filters: [{kinds: [PROFILE], authors: [pubkey]}]}),
+    load({...request, filters: [{kinds: [PROFILE], authors: [pubkey]}]}),
 })
 
 export const profileSearch = derived(profiles, $profiles =>

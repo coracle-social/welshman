@@ -79,17 +79,3 @@ export const load = (request: PartialSubscribeRequest) =>
     sub.emitter.on("event", (url: string, e: TrustedEvent) => events.push(e))
     sub.emitter.on("complete", () => resolve(events))
   })
-
-export const loadOne = (request: PartialSubscribeRequest) =>
-  new Promise<TrustedEvent | null>(resolve => {
-    const sub = subscribe({closeOnEose: true, timeout: AppContext.requestTimeout, ...request})
-
-    sub.emitter.on("event", (url: string, event: TrustedEvent) => {
-      resolve(event)
-      sub.close()
-    })
-
-    sub.emitter.on("complete", () => {
-      resolve(null)
-    })
-  })
