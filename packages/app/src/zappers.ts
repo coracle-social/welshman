@@ -2,7 +2,7 @@ import {writable, derived} from 'svelte/store'
 import {withGetter} from '@welshman/store'
 import {type Zapper} from '@welshman/util'
 import {type SubscribeRequest} from "@welshman/net"
-import {ctx, fetchJson, uniq, bech32ToHex, hexToBech32, tryCatch, batcher, postJson} from '@welshman/lib'
+import {ctx, identity, fetchJson, uniq, bech32ToHex, hexToBech32, tryCatch, batcher, postJson} from '@welshman/lib'
 import {collection} from './collection'
 import {deriveProfile} from './profiles'
 
@@ -14,7 +14,8 @@ export const fetchZappers = async (lnurls: string[]) => {
 
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly
   if (base) {
-    const res: any = await postJson(`${base}/zapper/info`, {lnurls})
+    const hexUrls = lnurls.map(lnurl => tryCatch(() => bech32ToHex(lnurl))).filter(identity)
+    const res: any = await postJson(`${base}/zapper/info`, {lnurls: hexUrls})
 
     for (const {lnurl, info} of res?.data || []) {
       tryCatch(() => zappersByLnurl.set(hexToBech32("lnurl", lnurl), info))
