@@ -4,7 +4,7 @@ import {
 } from '@welshman/lib'
 import {
   Tags, getFilterId, unionFilters, isShareableRelayUrl, isCommunityAddress, isGroupAddress, isContextAddress,
-  PROFILE, RELAYS, INBOX_RELAYS, FOLLOWS,
+  PROFILE, RELAYS, INBOX_RELAYS, FOLLOWS, LOCAL_RELAY_URL,
 } from '@welshman/util'
 import type {TrustedEvent, Filter} from '@welshman/util'
 import {ConnectionStatus} from '@welshman/net'
@@ -439,11 +439,13 @@ export const getPubkeyRelays = (pubkey: string, mode?: string) => {
 export const getIndexerRelays = () => ctx.app.indexerRelays || getFallbackRelays()
 
 export const getFallbackRelays = throttleWithValue(300, () =>
-  relays.get().filter(r => getRelayQuality(r.url) >= 0.5).map(r => r.url)
+  sortBy(r => -getRelayQuality(r.url), relays.get()).slice(0, 30).map(r => r.url)
 )
 
 export const getSearchRelays = throttleWithValue(300, () =>
-  relays.get().filter(r => getRelayQuality(r.url) >= 0.5 &&  r.profile?.supported_nips?.includes(50)).map(r => r.url)
+  sortBy(r => -getRelayQuality(r.url), relays.get())
+    .filter(r => r.profile?.supported_nips?.includes(50))
+    .slice(0, 30).map(r => r.url)
 )
 
 export const makeRouter = (options: Partial<RouterOptions> = {}) =>
@@ -476,6 +478,15 @@ type FilterSelectionRule = (state: FilterSelectionRuleState) => boolean
 
 export const makeFilterSelection = (id: string, filter: Filter, scenario: RouterScenario) =>
   ({id, filter, scenario})
+
+export const getFilterSelectionsForLocalRelay = (state: FilterSelectionRuleState) => {
+  const id = getFilterId(state.filter)
+  const scenario = ctx.app.router.product([id], [LOCAL_RELAY_URL])
+
+  state.selections.push(makeFilterSelection(id, state.filter, scenario))
+
+  return false
+}
 
 export const getFilterSelectionsForSearch = (state: FilterSelectionRuleState) => {
   if (!state.filter.search) return false
@@ -543,6 +554,7 @@ export const getFilterSelectionsForUser = (state: FilterSelectionRuleState) => {
 }
 
 export const defaultFilterSelectionRules = [
+  getFilterSelectionsForLocalRelay,
   getFilterSelectionsForSearch,
   getFilterSelectionsForContext,
   getFilterSelectionsForIndexedKinds,
