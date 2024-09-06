@@ -6,6 +6,7 @@ import {deriveEventsMapped, withGetter} from '@welshman/store'
 import {repository, load} from './core'
 import {createSearch} from './util'
 import {collection} from './collection'
+import {loadRelaySelections} from './relaySelections'
 
 export const profiles = withGetter(
   deriveEventsMapped<PublishedProfile>(repository, {
@@ -23,8 +24,10 @@ export const {
   name: "profiles",
   store: profiles,
   getKey: profile => profile.event.pubkey,
-  load: (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
-    load({...request, filters: [{kinds: [PROFILE], authors: [pubkey]}]}),
+  load: async (pubkey: string, request: Partial<SubscribeRequest> = {}) => {
+    await loadRelaySelections(pubkey, request)
+    await load({...request, filters: [{kinds: [PROFILE], authors: [pubkey]}]})
+  },
 })
 
 export const profileSearch = derived(profiles, $profiles =>

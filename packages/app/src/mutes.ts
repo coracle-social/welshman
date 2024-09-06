@@ -5,6 +5,7 @@ import {deriveEventsMapped, withGetter} from '@welshman/store'
 import {repository, load} from './core'
 import {collection} from './collection'
 import {ensurePlaintext} from './plaintext'
+import {loadRelaySelections} from './relaySelections'
 
 export const mutes = withGetter(
   deriveEventsMapped<PublishedList>(repository, {
@@ -27,6 +28,8 @@ export const {
   name: "mutes",
   store: mutes,
   getKey: mute => mute.event.pubkey,
-  load: (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
-    load({...request, filters: [{kinds: [MUTES], authors: [pubkey]}]}),
+  load: async (pubkey: string, request: Partial<SubscribeRequest> = {}) => {
+    await loadRelaySelections(pubkey, request)
+    await load({...request, filters: [{kinds: [MUTES], authors: [pubkey]}]})
+  },
 })

@@ -533,7 +533,8 @@ export const getFilterSelectionsForIndexedKinds = (state: FilterSelectionRuleSta
 }
 
 export const getFilterSelectionsForAuthors = (state: FilterSelectionRuleState) => {
-  if (!state.filter.authors) return false
+  // If we have a ton of authors, just use our indexers
+  if (!state.filter.authors || state.filter.authors.length > 30) return false
 
   const id = getFilterId(state.filter)
   const scenario = ctx.app.router.FromPubkeys(state.filter.authors!).update(assoc('value', id))

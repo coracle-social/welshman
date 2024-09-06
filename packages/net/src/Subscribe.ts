@@ -189,7 +189,7 @@ export const optimizeSubscriptions = (subs: Subscription[]) => {
             // This is sub-optimal, but because we're outsourcing filter/relay optimization
             // we can't make any assumptions about which caller subscriptions have completed
             // at any given time.
-            if (subIds.size === group.length) {
+            if (subIds.size === mergedSubs.length) {
               for (const sub of group) {
                 sub.emitter.emit(type, ...args)
               }

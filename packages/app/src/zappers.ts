@@ -15,7 +15,7 @@ export const fetchZappers = async (lnurls: string[]) => {
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly
   if (base) {
     const hexUrls = lnurls.map(lnurl => tryCatch(() => bech32ToHex(lnurl))).filter(identity)
-    const res: any = await postJson(`${base}/zapper/info`, {lnurls: hexUrls})
+    const res: any = await tryCatch(async () => await postJson(`${base}/zapper/info`, {lnurls: hexUrls}))
 
     for (const {lnurl, info} of res?.data || []) {
       tryCatch(() => zappersByLnurl.set(hexToBech32("lnurl", lnurl), info))
@@ -24,7 +24,7 @@ export const fetchZappers = async (lnurls: string[]) => {
     const results = await Promise.all(
       lnurls.map(async lnurl => {
         const hexUrl = tryCatch(() => bech32ToHex(lnurl))
-        const info = hexUrl ? await fetchJson(hexUrl) : undefined
+        const info = hexUrl ? await tryCatch(async () => await fetchJson(hexUrl)) : undefined
 
         return {lnurl, hexUrl, info}
       })

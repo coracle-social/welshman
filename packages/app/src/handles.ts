@@ -1,7 +1,7 @@
 import {writable, derived} from 'svelte/store'
 import {withGetter} from '@welshman/store'
 import {type SubscribeRequest} from "@welshman/net"
-import {ctx, fetchJson, uniq, batcher, postJson, last} from '@welshman/lib'
+import {ctx, tryCatch, fetchJson, uniq, batcher, postJson, last} from '@welshman/lib'
 import {collection} from './collection'
 import {deriveProfile} from './profiles'
 
@@ -49,14 +49,14 @@ export const fetchHandles = async (nip05s: string[]) => {
 
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly
   if (base) {
-    const res: any = await postJson(`${base}/handle/info`, {handles: nip05s})
+    const res: any = await tryCatch(async () => await postJson(`${base}/handle/info`, {handles: nip05s}))
 
     for (const {handle: nip05, info} of res?.data || []) {
       handlesByNip05.set(nip05, info)
     }
   } else {
     const results = await Promise.all(
-      nip05s.map(async nip05 => ({nip05, info: await queryProfile(nip05)}))
+      nip05s.map(async nip05 => ({nip05, info: await tryCatch(async () => await queryProfile(nip05))}))
     )
 
     for (const {nip05, info} of results) {
