@@ -97,7 +97,10 @@ export const throttled = <T>(delay: number, store: Readable<T>) =>
 
 // Event related stores
 
-export const createEventStore = (repository: Repository): Writable<TrustedEvent[]> => {
+export const createEventStore = (
+  repository: Repository,
+  migrate?: (events: TrustedEvent[]) => TrustedEvent[],
+): Writable<TrustedEvent[]> => {
   let subs: Subscriber<TrustedEvent[]>[] = []
 
   const onUpdate = () => {
@@ -108,9 +111,17 @@ export const createEventStore = (repository: Repository): Writable<TrustedEvent[
     }
   }
 
+  const setEvents = (events: TrustedEvent[]) => {
+    if (migrate) {
+      events = migrate(events)
+    }
+
+    repository.load(events)
+  }
+
   return {
-    set: (events: TrustedEvent[]) => repository.load(events),
-    update: (f: Updater<TrustedEvent[]>) => repository.load(f(repository.dump())),
+    set: (events: TrustedEvent[]) => setEvents(events),
+    update: (f: Updater<TrustedEvent[]>) => setEvents(f(repository.dump())),
     subscribe: (f: Subscriber<TrustedEvent[]>) => {
       f(repository.dump())
 
