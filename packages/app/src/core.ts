@@ -41,8 +41,8 @@ export const subscribe = (request: PartialSubscribeRequest) => {
 
   // Make sure to query our local relay too
   const delay = ctx.app.requestDelay
-  const timeout = ctx.app.requestTimeout
   const authTimeout = ctx.app.authTimeout
+  const timeout = request.closeOnEose ? ctx.app.requestTimeout : 0
   const sub = baseSubscribe({delay, timeout, authTimeout, relays: [], ...request})
 
   sub.emitter.on("event", (url: string, e: TrustedEvent) => {
