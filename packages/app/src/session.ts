@@ -44,9 +44,9 @@ export const nip46Perms = "sign_event:22242,nip04_encrypt,nip04_decrypt,nip44_en
 
 export const getSigner = memoize((session: Session) => {
   switch (session?.method) {
-    case "extension":
+    case "nip07":
       return new Nip07Signer()
-    case "privkey":
+    case "nip01":
       return new Nip01Signer(session.secret!)
     case "nip46":
       return new Nip46Signer(Nip46Broker.get(session.pubkey, session.secret!, session.handler!))
