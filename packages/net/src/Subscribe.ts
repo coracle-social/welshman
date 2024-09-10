@@ -139,7 +139,8 @@ export const optimizeSubscriptions = (subs: Subscription[]) => {
       const mergedSubs = []
 
       for (const {relays, filters} of ctx.net.optimizeSubscriptions(group)) {
-        const mergedSub = makeSubscription({filters,
+        const mergedSub = makeSubscription({
+          filters,
           relays,
           timeout,
           authTimeout,
@@ -211,7 +212,7 @@ export const optimizeSubscriptions = (subs: Subscription[]) => {
     })
 }
 
-export const executeSubscription = (sub: Subscription) => {
+const _executeSubscription = (sub: Subscription) => {
   const {request, emitter, tracker, controller} = sub
   const {filters, closeOnEose, relays, signal, timeout, authTimeout = 0} = request
   const executor = ctx.net.getExecutor(relays)
@@ -305,8 +306,11 @@ export const executeSubscription = (sub: Subscription) => {
   }
 }
 
+export const executeSubscription = (sub: Subscription) =>
+  optimizeSubscriptions([sub]).forEach(_executeSubscription)
+
 export const executeSubscriptions = (subs: Subscription[]) =>
-  optimizeSubscriptions(subs).forEach(executeSubscription)
+  optimizeSubscriptions(subs).forEach(_executeSubscription)
 
 export const executeSubscriptionBatched = (() => {
   const subs: Subscription[] = []

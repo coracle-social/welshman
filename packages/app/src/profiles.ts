@@ -1,7 +1,7 @@
 import {derived, readable} from 'svelte/store'
 import {readProfile, displayProfile, displayPubkey, PROFILE} from '@welshman/util'
-import {type SubscribeRequest} from "@welshman/net"
-import {type PublishedProfile} from "@welshman/util"
+import type {SubscribeRequestWithHandlers} from "@welshman/net"
+import type {PublishedProfile, TrustedEvent} from "@welshman/util"
 import {deriveEventsMapped, withGetter} from '@welshman/store'
 import {repository, load} from './core'
 import {createSearch} from './util'
@@ -24,9 +24,24 @@ export const {
   name: "profiles",
   store: profiles,
   getKey: profile => profile.event.pubkey,
-  load: async (pubkey: string, request: Partial<SubscribeRequest> = {}) => {
-    await loadRelaySelections(pubkey, request)
-    await load({...request, filters: [{kinds: [PROFILE], authors: [pubkey]}]})
+  load: async (pubkey: string, request: Partial<SubscribeRequestWithHandlers> = {}) => {
+    const filters = [{kinds: [PROFILE], authors: [pubkey]}]
+
+    // Attempt to load the user profile right away, regardless of whether we have relays,
+    // since profiles are crucial to UX
+    load({...request, filters})
+
+    // Load relay selections as quickly as possible, moving on to retrying profiles with
+    // better selections the moment we have a result, even if it's outdated
+    await new Promise<void>(resolve => {
+      loadRelaySelections(pubkey, {
+        onEvent: (event: TrustedEvent) => {
+          resolve()
+        }
+      })
+    })
+
+    await load({...request, filters})
   },
 })
 

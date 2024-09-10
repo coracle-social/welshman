@@ -1,5 +1,5 @@
 import {INBOX_RELAYS, RELAYS, getRelayTags, normalizeRelayUrl, type TrustedEvent} from '@welshman/util'
-import {type SubscribeRequest} from "@welshman/net"
+import {type SubscribeRequestWithHandlers} from "@welshman/net"
 import {deriveEvents, withGetter} from '@welshman/store'
 import {load, repository} from './core'
 import {collection} from './collection'
@@ -28,7 +28,7 @@ export const {
   name: "relaySelections",
   store: relaySelections,
   getKey: relaySelections => relaySelections.pubkey,
-  load: (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
+  load: (pubkey: string, request: Partial<SubscribeRequestWithHandlers> = {}) =>
     load({...request, filters: [{kinds: [RELAYS], authors: [pubkey]}]}),
 })
 
@@ -42,6 +42,6 @@ export const {
   name: "inboxRelaySelections",
   store: inboxRelaySelections,
   getKey: inboxRelaySelections => inboxRelaySelections.pubkey,
-  load: (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
+  load: (pubkey: string, request: Partial<SubscribeRequestWithHandlers> = {}) =>
     load({...request, filters: [{kinds: [INBOX_RELAYS], authors: [pubkey]}]}),
 })

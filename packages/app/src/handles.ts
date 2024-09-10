@@ -1,6 +1,6 @@
 import {writable, derived} from 'svelte/store'
 import {withGetter} from '@welshman/store'
-import {type SubscribeRequest} from "@welshman/net"
+import {type SubscribeRequestWithHandlers} from "@welshman/net"
 import {ctx, tryCatch, fetchJson, uniq, batcher, postJson, last} from '@welshman/lib'
 import {collection} from './collection'
 import {deriveProfile} from './profiles'
@@ -97,7 +97,7 @@ export const {
   }),
 })
 
-export const deriveHandleForPubkey = (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
+export const deriveHandleForPubkey = (pubkey: string, request: Partial<SubscribeRequestWithHandlers> = {}) =>
   derived(
     [handlesByNip05, deriveProfile(pubkey, request)],
     ([$handlesByNip05, $profile]) => {

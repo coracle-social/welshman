@@ -1,6 +1,6 @@
 import {MUTES, asDecryptedEvent, readList} from '@welshman/util'
 import {type TrustedEvent, type PublishedList} from '@welshman/util'
-import {type SubscribeRequest} from "@welshman/net"
+import {type SubscribeRequestWithHandlers} from "@welshman/net"
 import {deriveEventsMapped, withGetter} from '@welshman/store'
 import {repository, load} from './core'
 import {collection} from './collection'
@@ -28,7 +28,7 @@ export const {
   name: "mutes",
   store: mutes,
   getKey: mute => mute.event.pubkey,
-  load: async (pubkey: string, request: Partial<SubscribeRequest> = {}) => {
+  load: async (pubkey: string, request: Partial<SubscribeRequestWithHandlers> = {}) => {
     await loadRelaySelections(pubkey, request)
     await load({...request, filters: [{kinds: [MUTES], authors: [pubkey]}]})
   },

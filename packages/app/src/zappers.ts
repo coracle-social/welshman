@@ -1,7 +1,7 @@
 import {writable, derived} from 'svelte/store'
 import {withGetter} from '@welshman/store'
 import {type Zapper} from '@welshman/util'
-import {type SubscribeRequest} from "@welshman/net"
+import {type SubscribeRequestWithHandlers} from "@welshman/net"
 import {ctx, identity, fetchJson, uniq, bech32ToHex, hexToBech32, tryCatch, batcher, postJson} from '@welshman/lib'
 import {collection} from './collection'
 import {deriveProfile} from './profiles'
@@ -15,10 +15,13 @@ export const fetchZappers = async (lnurls: string[]) => {
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly
   if (base) {
     const hexUrls = lnurls.map(lnurl => tryCatch(() => bech32ToHex(lnurl))).filter(identity)
-    const res: any = await tryCatch(async () => await postJson(`${base}/zapper/info`, {lnurls: hexUrls}))
 
-    for (const {lnurl, info} of res?.data || []) {
-      tryCatch(() => zappersByLnurl.set(hexToBech32("lnurl", lnurl), info))
+    if (hexUrls.length > 0) {
+      const res: any = await tryCatch(async () => await postJson(`${base}/zapper/info`, {lnurls: hexUrls}))
+
+      for (const {lnurl, info} of res?.data || []) {
+        tryCatch(() => zappersByLnurl.set(hexToBech32("lnurl", lnurl), info))
+      }
     }
   } else {
     const results = await Promise.all(
@@ -68,7 +71,7 @@ export const {
   }),
 })
 
-export const deriveZapperForPubkey = (pubkey: string, request: Partial<SubscribeRequest> = {}) =>
+export const deriveZapperForPubkey = (pubkey: string, request: Partial<SubscribeRequestWithHandlers> = {}) =>
   derived(
     [zappersByLnurl, deriveProfile(pubkey, request)],
     ([$zappersByLnurl, $profile]) => {
