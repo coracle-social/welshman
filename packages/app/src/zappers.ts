@@ -54,20 +54,18 @@ export const {
   load: batcher(800, async (lnurls: string[]) => {
     const fresh = await fetchZappers(uniq(lnurls))
     const stale = zappersByLnurl.get()
-    const items: Zapper[] = lnurls.map(lnurl => {
+
+    for (const lnurl of lnurls) {
       const newZapper = fresh.get(lnurl)
-      const oldZapper = stale.get(lnurl)
 
       if (newZapper) {
         stale.set(lnurl, {...newZapper, lnurl})
       }
-
-      return {...oldZapper, ...newZapper, lnurl}
-    })
+    }
 
     zappers.set(Array.from(stale.values()))
 
-    return items
+    return lnurls
   }),
 })
 

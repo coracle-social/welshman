@@ -479,7 +479,7 @@ export const batcher = <T, U>(t: number, execute: (request: T[]) => U[] | Promis
     const results = await execute(items.map(item => item.request))
 
     if (results.length !== items.length) {
-      throw new Error("Execute must return a promise for each request")
+      throw new Error("Execute must return a result for each request")
     }
 
     results.forEach(async (r, i) => items[i].resolve(await r))

@@ -131,4 +131,14 @@ export const storageAdapters = {
         fromPairs(data.map(({key, value}) => [key, value])),
     }),
   }),
+  fromMapStore: <T>(store: Writable<Map<string, T>>) => ({
+    keyPath: "key",
+    store: adapter({
+      store: store,
+      forward: ($data: Map<string, T>) =>
+        Array.from($data.entries()).map(([key, value]) => ({key, value})),
+      backward: (data: {key: string, value: T}[]) =>
+        new Map(data.map(({key, value}) => [key, value])),
+    }),
+  }),
 }

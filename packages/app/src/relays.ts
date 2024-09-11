@@ -1,6 +1,6 @@
 import {writable, derived} from 'svelte/store'
 import {withGetter} from '@welshman/store'
-import {ctx, groupBy, indexBy, batch, now, uniq, uniqBy, batcher, postJson} from '@welshman/lib'
+import {ctx, groupBy, indexBy, batch, now, uniq, batcher, postJson} from '@welshman/lib'
 import type {RelayProfile} from "@welshman/util"
 import {AuthStatus, asMessage, type Connection, type SocketMessage} from '@welshman/net'
 import {createSearch} from './util'
@@ -43,14 +43,14 @@ export const relaysByPubkey = derived(relays, $relays =>
   ),
 )
 
-export const fetchRelayProfiles = (urls: string[]) => {
+export const fetchRelayProfiles = async (urls: string[]) => {
   const base = ctx.app.dufflepudUrl!
 
   if (!base) {
     throw new Error("ctx.app.dufflepudUrl is required to fetch relay metadata")
   }
 
-  const res: any = postJson(`${base}/relay/info`, {urls})
+  const res: any = await postJson(`${base}/relay/info`, {urls})
   const profilesByUrl = new Map<string, RelayProfile>()
 
   for (const {url, info} of res?.data || []) {
@@ -69,18 +69,21 @@ export const {
   store: relays,
   getKey: (relay: Relay) => relay.url,
   load: batcher(800, async (urls: string[]) => {
-    const profilesByUrl = await fetchRelayProfiles(uniq(urls))
-    const index = relaysByUrl.get()
-    const items: Relay[] = urls.map(url => {
-      const relay = index.get(url)
-      const profile = profilesByUrl.get(url) || relay?.profile
+    const fresh = await fetchRelayProfiles(uniq(urls))
+    const stale = relaysByUrl.get()
 
-      return {...relay, profile, url}
-    })
+    for (const url of urls) {
+      const relay = stale.get(url)
+      const profile = fresh.get(url)
 
-    relays.update($relays => uniqBy($relay => $relay.url, [...$relays, ...items]))
+      if (profile) {
+        stale.set(url, {...relay, profile, url})
+      }
+    }
 
-    return items
+    relays.set(Array.from(stale.values()))
+
+    return urls
   }),
 })
 

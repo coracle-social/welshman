@@ -195,6 +195,10 @@ export const getPubkeyTags = (tags: string[][]) =>
 
 export const getPubkeyTagValues = (tags: string[][]) => getPubkeyTags(tags).map(nth(1))
 
+export const getTopicTags = (tags: string[][]) => tags.filter(t => ["t"].includes(t[0]))
+
+export const getTopicTagValues = (tags: string[][]) => getTopicTags(tags).map(nth(1))
+
 export const getRelayTags = (tags: string[][]) =>
   tags.filter(t => ["r", "relay"].includes(t[0]) && isRelayUrl(t[1]))
 

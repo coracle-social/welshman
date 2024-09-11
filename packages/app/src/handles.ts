@@ -80,20 +80,18 @@ export const {
   load: batcher(800, async (nip05s: string[]) => {
     const fresh = await fetchHandles(uniq(nip05s))
     const stale = handlesByNip05.get()
-    const items: Handle[] = nip05s.map(nip05 => {
+
+    for (const nip05 of nip05s) {
       const newHandle = fresh.get(nip05)
-      const oldHandle = stale.get(nip05)
 
       if (newHandle) {
         stale.set(nip05, {...newHandle, nip05})
       }
-
-      return {...oldHandle, ...newHandle, nip05}
-    })
+    }
 
     handles.set(Array.from(stale.values()))
 
-    return items
+    return nip05s
   }),
 })
 

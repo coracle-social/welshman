@@ -1,7 +1,7 @@
 import {throttle} from "throttle-debounce"
 import {derived, writable} from "svelte/store"
 import type {Readable, Updater, Writable, Subscriber, Unsubscriber} from "svelte/store"
-import {identity, getJson, setJson, batch, partition, first} from "@welshman/lib"
+import {identity, ensurePlural, getJson, setJson, batch, partition, first} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import type {Repository} from "@welshman/util"
 import {matchFilters, getIdAndAddress, getIdFilters} from "@welshman/util"
@@ -150,7 +150,7 @@ export const deriveEventsMapped = <T>(repository: Repository, {
   includeDeleted = false,
 }: {
   filters: Filter[]
-  eventToItem: (event: TrustedEvent) => Maybe<T | Promise<T>>
+  eventToItem: (event: TrustedEvent) => Maybe<T | T[] | Promise<T | T[]>>
   itemToEvent: (item: T) => TrustedEvent
   throttle?: number
   includeDeleted?: boolean
@@ -159,29 +159,35 @@ export const deriveEventsMapped = <T>(repository: Repository, {
     let data: T[] = []
     const deferred = new Set()
 
-    const defer = (event: TrustedEvent, item: Promise<T>) => {
+    const defer = (event: TrustedEvent, promise: Promise<T | T[]>) => {
       deferred.add(event.id)
 
-      item.then($item => {
+      promise.then(items => {
         if (deferred.has(event.id)) {
           deferred.delete(event.id)
-          data.push($item)
+
+          for (const item of ensurePlural(items)) {
+            data.push(item)
+          }
+
           setter(data)
         }
       })
     }
 
     for (const event of repository.query(filters, {includeDeleted})) {
-      const item = eventToItem(event)
+      const items = eventToItem(event)
 
-      if (!item) {
+      if (!items) {
         continue
       }
 
-      if (item instanceof Promise) {
-        defer(event, item)
+      if (items instanceof Promise) {
+        defer(event, items)
       } else {
-        data.push(item)
+        for (const item of ensurePlural(items)) {
+          data.push(item)
+        }
       }
     }
 
@@ -207,13 +213,16 @@ export const deriveEventsMapped = <T>(repository: Repository, {
       let dirty = false
       for (const event of added.values()) {
         if (matchFilters(filters, event)) {
-          const item = eventToItem(event)
+          const items = eventToItem(event)
 
-          if (item instanceof Promise) {
-            defer(event, item)
-          } else if (item) {
+          if (items instanceof Promise) {
+            defer(event, items)
+          } else if (items) {
             dirty = true
-            data.push(item as T)
+
+            for (const item of ensurePlural(items)) {
+              data.push(item as T)
+            }
           }
         }
       }
