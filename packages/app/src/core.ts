@@ -3,7 +3,7 @@ import {Repository, Relay, LOCAL_RELAY_URL, getFilterResultCardinality} from "@w
 import type {TrustedEvent, Filter} from "@welshman/util"
 import {Tracker, subscribe as baseSubscribe} from "@welshman/net"
 import type {SubscribeRequestWithHandlers} from "@welshman/net"
-import {createEventStore} from "@welshman/store"
+import {createEventStore, custom} from "@welshman/store"
 
 export const repository = new Repository<TrustedEvent>()
 
@@ -12,6 +12,17 @@ export const events = createEventStore(repository)
 export const relay = new Relay(repository)
 
 export const tracker = new Tracker()
+
+export const trackerStore = custom(setter => {
+  const onUpdate = () => setter(tracker)
+
+  onUpdate()
+  tracker.on('update', onUpdate)
+
+  return () => tracker.off('update', onUpdate)
+}, {
+  set: (other: Tracker) => tracker.load(other.data),
+})
 
 export type PartialSubscribeRequest = Partial<SubscribeRequestWithHandlers> & {filters: Filter[]}
 

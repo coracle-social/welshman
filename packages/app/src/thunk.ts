@@ -3,7 +3,7 @@ import {Worker, assoc} from '@welshman/lib'
 import {stamp, own, hash} from "@welshman/signer"
 import type {HashedEvent, EventTemplate, SignedEvent} from '@welshman/util'
 import {publish, PublishStatus} from "@welshman/net"
-import {repository} from './core'
+import {repository, tracker} from './core'
 import {pubkey, getSession, getSigner} from './session'
 
 export type PublishStatusData = {
@@ -51,6 +51,10 @@ thunkWorker.addGlobalHandler(async ({event, relays, resolve}: ThunkWithResolve) 
     publishStatusData.update(
       assoc(id, Object.assign(statusByUrl, {[url]: {id, url, status, message}})),
     )
+
+    if (status === PublishStatus.Success) {
+      tracker.track(id, url)
+    }
 
     if (
       Object.values(statusByUrl).filter(s => s.status !== PublishStatus.Pending).length ===

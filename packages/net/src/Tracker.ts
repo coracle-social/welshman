@@ -46,6 +46,11 @@ export class Tracker extends Emitter {
     }
   }
 
+  load = (data: Tracker['data']) => {
+    this.data = data
+    this.emit('update')
+  }
+
   clear = () => {
     this.data.clear()
     this.emit('update')

@@ -12,6 +12,7 @@ export const BOGUS_RELAY_URL = "bogus://welshman.relay"
 
 export type RelayProfile = {
   url: string
+  icon?: string
   name?: string
   pubkey?: string
   contact?: string

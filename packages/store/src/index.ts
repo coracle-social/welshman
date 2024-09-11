@@ -28,15 +28,23 @@ export const getter = <T>(store: Readable<T>) => {
   return () => value
 }
 
-export function withGetter<T>(store: Writable<T>): Writable<T> & {get: () => T}
-export function withGetter<T>(store: Readable<T>): Readable<T> & {get: () => T}
+export type WritableWithGetter<T> = Writable<T> & {get: () => T}
+export type ReadableWithGetter<T> = Readable<T> & {get: () => T}
+
+export function withGetter<T>(store: Writable<T>): WritableWithGetter<T>
+export function withGetter<T>(store: Readable<T>): ReadableWithGetter<T>
 export function withGetter<T>(store: Readable<T> | Writable<T>) {
   return {...store, get: getter<T>(store)}
 }
 
 type Start<T> = (set: Subscriber<T>) => Unsubscriber
 
-export const custom = <T>(start: Start<T>, opts: {throttle?: number} = {}) => {
+export type CustomStoreOpts<T> = {
+  throttle?: number
+  set?: (x: T) => void
+}
+
+export const custom = <T>(start: Start<T>, opts: CustomStoreOpts<T> = {}): WritableWithGetter<T> => {
   const subs: Subscriber<T>[] = []
 
   let value: T
@@ -51,7 +59,17 @@ export const custom = <T>(start: Start<T>, opts: {throttle?: number} = {}) => {
   }
 
   return {
-    set,
+    get: () => value,
+    set: (newValue: T) => {
+      set(newValue)
+      opts.set?.(newValue)
+    },
+    update: (f: (value: T) => T) => {
+      const newValue = f(value)
+
+      set(newValue)
+      opts.set?.(newValue)
+    },
     subscribe: (sub: Subscriber<T>) => {
       if (opts.throttle) {
         sub = throttle(opts.throttle, sub)

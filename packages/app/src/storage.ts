@@ -4,7 +4,8 @@ import {throttle} from "throttle-debounce"
 import {writable} from "svelte/store"
 import type {Unsubscriber, Writable} from "svelte/store"
 import {randomInt, fromPairs} from "@welshman/lib"
-import {withGetter, adapter} from "@welshman/store"
+import type {Tracker} from "@welshman/net"
+import {withGetter, adapter, custom} from "@welshman/store"
 
 export type Item = Record<string, any>
 
@@ -139,6 +140,24 @@ export const storageAdapters = {
         Array.from($data.entries()).map(([key, value]) => ({key, value})),
       backward: (data: {key: string, value: T}[]) =>
         new Map(data.map(({key, value}) => [key, value])),
+    }),
+  }),
+  fromTracker: (tracker: Tracker) => ({
+    keyPath: 'key',
+    store: custom(setter => {
+      const onUpdate = () =>
+        setter(
+          Array.from(tracker.data.entries())
+            .map(([key, urls]) => ({key, value: Array.from(urls)}))
+        )
+
+      onUpdate()
+      tracker.on('update', onUpdate)
+
+      return () => tracker.off('update', onUpdate)
+    }, {
+      set: (data: {key: string, value: string[]}[]) =>
+        tracker.load(new Map(data.map(({key, value}) => [key, new Set(value)]))),
     }),
   }),
 }
