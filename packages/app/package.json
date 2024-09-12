@@ -1,6 +1,6 @@
 {
   "name": "@welshman/app",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of svelte stores for use in building nostr client applications.",
@@ -32,10 +32,10 @@
   },
   "dependencies": {
     "@welshman/lib": "0.0.17",
-    "@welshman/net": "0.0.21",
+    "@welshman/net": "0.0.22",
     "@welshman/signer": "0.0.5",
-    "@welshman/store": "0.0.5",
-    "@welshman/util": "0.0.30",
+    "@welshman/store": "0.0.6",
+    "@welshman/util": "0.0.31",
     "fuse.js": "^7.0.0",
     "idb": "^8.0.0",
     "svelte": "^4.2.18",
