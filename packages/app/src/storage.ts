@@ -3,15 +3,19 @@ import type {IDBPDatabase} from "idb"
 import {throttle} from "throttle-debounce"
 import {writable} from "svelte/store"
 import type {Unsubscriber, Writable} from "svelte/store"
-import {randomInt, fromPairs} from "@welshman/lib"
+import {indexBy, fromPairs} from "@welshman/lib"
+import type {TrustedEvent, Repository} from "@welshman/util"
 import type {Tracker} from "@welshman/net"
-import {withGetter, adapter, custom} from "@welshman/store"
+import {withGetter, adapter, throttled, custom} from "@welshman/store"
 
-export type Item = Record<string, any>
+export type IndexedDbAdapterOptions = {
+  migrate?: (items: any[]) => any[]
+}
 
 export type IndexedDbAdapter = {
   keyPath: string
-  store: Writable<Item[]>
+  store: Writable<any[]>
+  options?: IndexedDbAdapterOptions
 }
 
 export let db: IDBPDatabase
@@ -49,21 +53,29 @@ export const bulkDelete = async (name: string, ids: string[]) => {
 export const initIndexedDbAdapter = async (name: string, adapter: IndexedDbAdapter) => {
   let prevRecords = await getAll(name)
 
+  if (adapter.options?.migrate) {
+    prevRecords = adapter.options.migrate(prevRecords)
+  }
+
   adapter.store.set(prevRecords)
 
   adapter.store.subscribe(
-    throttle(randomInt(3000, 5000), async (newRecords: Item[]) => {
+    async (currentRecords: any[]) => {
       if (dead.get()) {
         return
       }
 
-      const currentIds = new Set(newRecords.map(item => item[adapter.keyPath]))
+      const currentIds = new Set(currentRecords.map(item => item[adapter.keyPath]))
       const removedRecords = prevRecords.filter(r => !currentIds.has(r[adapter.keyPath]))
 
-      prevRecords = newRecords
+      const prevRecordsById = indexBy(item => item[adapter.keyPath], prevRecords)
+      const updatedRecords = currentRecords.filter(r => r !== prevRecordsById.get(r[adapter.keyPath]))
 
-      if (newRecords.length > 0) {
-        await bulkPut(name, newRecords)
+      prevRecords = currentRecords
+
+      if (updatedRecords.length > 0) {
+
+        await bulkPut(name, updatedRecords)
       }
 
       if (removedRecords.length > 0) {
@@ -72,7 +84,7 @@ export const initIndexedDbAdapter = async (name: string, adapter: IndexedDbAdapt
           removedRecords.map(item => item[adapter.keyPath]),
         )
       }
-    }),
+    },
   )
 }
 
@@ -121,35 +133,46 @@ export const clearStorage = async () => {
   await deleteDB(db.name)
 }
 
+export type StorageAdapterOptions = IndexedDbAdapterOptions & {
+  throttle?: number
+}
+
 export const storageAdapters = {
-  fromObjectStore: <T>(store: Writable<Record<string, T>>) => ({
+  fromObjectStore: <T>(store: Writable<Record<string, T>>, options: StorageAdapterOptions = {}) => ({
+    options,
     keyPath: "key",
-    store: adapter({
+    store: throttled(options.throttle || 0, adapter({
       store: store,
       forward: ($data: Record<string, T>) =>
         Object.entries($data).map(([key, value]) => ({key, value})),
       backward: (data: {key: string, value: T}[]) =>
         fromPairs(data.map(({key, value}) => [key, value])),
-    }),
+    })),
   }),
-  fromMapStore: <T>(store: Writable<Map<string, T>>) => ({
+  fromMapStore: <T>(store: Writable<Map<string, T>>, options: StorageAdapterOptions = {}) => ({
+    options,
     keyPath: "key",
-    store: adapter({
+    store: throttled(options.throttle || 0, adapter({
       store: store,
       forward: ($data: Map<string, T>) =>
         Array.from($data.entries()).map(([key, value]) => ({key, value})),
       backward: (data: {key: string, value: T}[]) =>
         new Map(data.map(({key, value}) => [key, value])),
-    }),
+    })),
   }),
-  fromTracker: (tracker: Tracker) => ({
+  fromTracker: (tracker: Tracker, options: StorageAdapterOptions = {}) => ({
+    options,
     keyPath: 'key',
     store: custom(setter => {
-      const onUpdate = () =>
+      let onUpdate = () =>
         setter(
           Array.from(tracker.data.entries())
             .map(([key, urls]) => ({key, value: Array.from(urls)}))
         )
+
+      if (options.throttle) {
+        onUpdate = throttle(options.throttle, onUpdate)
+      }
 
       onUpdate()
       tracker.on('update', onUpdate)
@@ -158,6 +181,24 @@ export const storageAdapters = {
     }, {
       set: (data: {key: string, value: string[]}[]) =>
         tracker.load(new Map(data.map(({key, value}) => [key, new Set(value)]))),
+    }),
+  }),
+  fromRepository: (repository: Repository, options: StorageAdapterOptions = {}) => ({
+    options,
+    keyPath: 'id',
+    store: custom(setter => {
+      let onUpdate = () => setter(repository.dump())
+
+      if (options.throttle) {
+        onUpdate = throttle(options.throttle, onUpdate)
+      }
+
+      onUpdate()
+      repository.on('update', onUpdate)
+
+      return () => repository.off('update', onUpdate)
+    }, {
+      set: (events: TrustedEvent[]) => repository.load(events),
     }),
   }),
 }

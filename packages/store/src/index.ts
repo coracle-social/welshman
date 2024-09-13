@@ -1,13 +1,13 @@
 import {throttle} from "throttle-debounce"
 import {derived, writable} from "svelte/store"
-import type {Readable, Updater, Writable, Subscriber, Unsubscriber} from "svelte/store"
+import type {Readable, Writable, Subscriber, Unsubscriber} from "svelte/store"
 import {identity, ensurePlural, getJson, setJson, batch, partition, first} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import type {Repository} from "@welshman/util"
 import {matchFilters, getIdAndAddress, getIdFilters} from "@welshman/util"
 import type {Filter, TrustedEvent} from "@welshman/util"
 
-// Generic store utils
+// Sync with localstorage
 
 export const synced = <T>(key: string, defaultValue: T) => {
   const init = getJson(key)
@@ -17,6 +17,8 @@ export const synced = <T>(key: string, defaultValue: T) => {
 
   return store
 }
+
+// Getters
 
 export const getter = <T>(store: Readable<T>) => {
   let value: T
@@ -36,6 +38,20 @@ export function withGetter<T>(store: Readable<T>): ReadableWithGetter<T>
 export function withGetter<T>(store: Readable<T> | Writable<T>) {
   return {...store, get: getter<T>(store)}
 }
+
+// Throttle
+
+export const throttled = <T, S extends Readable<T>>(delay: number, store: S) => {
+  if (delay) {
+    const {subscribe} = store
+
+    store = {...store, subscribe: (f: Subscriber<T>) => subscribe(throttle(delay, f))}
+  }
+
+  return store
+}
+
+// Custom store
 
 type Start<T> = (set: Subscriber<T>) => Unsubscriber
 
@@ -96,6 +112,8 @@ export const custom = <T>(start: Start<T>, opts: CustomStoreOpts<T> = {}): Writa
   }
 }
 
+// Simple adapter
+
 export const adapter = <Source, Target>({
   store,
   forward,
@@ -110,54 +128,14 @@ export const adapter = <Source, Target>({
   update: (f: (x: Target) => Target) => store.update((x: Source) => backward(f(forward(x)))),
 })
 
-export const throttled = <T>(delay: number, store: Readable<T>) =>
-  custom<T>(set => store.subscribe(throttle(delay, set)))
-
 // Event related stores
 
-export const createEventStore = (
-  repository: Repository,
-  migrate?: (events: TrustedEvent[]) => TrustedEvent[],
-): Writable<TrustedEvent[]> => {
-  let subs: Subscriber<TrustedEvent[]>[] = []
-
-  const onUpdate = () => {
-    const $events = repository.dump()
-
-    for (const sub of subs) {
-      sub($events)
-    }
-  }
-
-  const setEvents = (events: TrustedEvent[]) => {
-    if (migrate) {
-      events = migrate(events)
-    }
-
-    repository.load(events)
-  }
-
-  return {
-    set: (events: TrustedEvent[]) => setEvents(events),
-    update: (f: Updater<TrustedEvent[]>) => setEvents(f(repository.dump())),
-    subscribe: (f: Subscriber<TrustedEvent[]>) => {
-      f(repository.dump())
-
-      subs.push(f)
-
-      if (subs.length === 1) {
-        repository.on("update", onUpdate)
-      }
-
-      return () => {
-        subs = subs.filter(x => x !== f)
-
-        if (subs.length === 0) {
-          repository.off("update", onUpdate)
-        }
-      }
-    },
-  }
+export type DeriveEventsMappedOptions<T> = {
+  filters: Filter[]
+  eventToItem: (event: TrustedEvent) => Maybe<T | T[] | Promise<T | T[]>>
+  itemToEvent: (item: T) => TrustedEvent
+  throttle?: number
+  includeDeleted?: boolean
 }
 
 export const deriveEventsMapped = <T>(repository: Repository, {
@@ -166,13 +144,7 @@ export const deriveEventsMapped = <T>(repository: Repository, {
   itemToEvent,
   throttle = 0,
   includeDeleted = false,
-}: {
-  filters: Filter[]
-  eventToItem: (event: TrustedEvent) => Maybe<T | T[] | Promise<T | T[]>>
-  itemToEvent: (item: T) => TrustedEvent
-  throttle?: number
-  includeDeleted?: boolean
-}) =>
+}: DeriveEventsMappedOptions<T>) =>
   custom<T[]>(setter => {
     let data: T[] = []
     const deferred = new Set()
@@ -267,7 +239,9 @@ export const deriveEventsMapped = <T>(repository: Repository, {
     return () => repository.off("update", onUpdate)
   }, {throttle})
 
-export const deriveEvents = (repository: Repository, opts: {filters: Filter[], includeDeleted?: boolean}) =>
+export type DeriveEventsOptions<T> = Omit<DeriveEventsMappedOptions<T>, "itemToEvent" | "eventToItem">
+
+export const deriveEvents = <T>(repository: Repository, opts: DeriveEventsOptions<T>) =>
   deriveEventsMapped<TrustedEvent>(repository, {
     ...opts,
     eventToItem: identity,
