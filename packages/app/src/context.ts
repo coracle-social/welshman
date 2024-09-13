@@ -1,12 +1,13 @@
 import {partition} from "@welshman/lib"
 import {defaultOptimizeSubscriptions, getDefaultNetContext as originalGetDefaultNetContext} from "@welshman/net"
 import type {Subscription, RelaysAndFilters, NetContext} from "@welshman/net"
-import {unionFilters, isSignedEvent, hasValidSignature} from "@welshman/util"
+import {WRAP, unionFilters, isSignedEvent, hasValidSignature} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {tracker, repository} from './core'
 import {makeRouter, getFilterSelections} from './router'
 import {onAuth, getSession} from './session'
 import type {Router} from './router'
+import {loadProfile} from './profiles'
 
 export type AppContext = {
   router: Router
@@ -20,7 +21,14 @@ export type AppContext = {
 export const getDefaultNetContext = (overrides: Partial<NetContext> = {}) => ({
   ...originalGetDefaultNetContext(),
   onAuth: onAuth,
-  onEvent: (url: string, event: TrustedEvent) => tracker.track(event.id, url),
+  onEvent: (url: string, event: TrustedEvent) => {
+    tracker.track(event.id, url)
+
+    // Eagerly load profiles since they're critical to UX
+    if (event.kind !== WRAP) {
+      loadProfile(event.pubkey)
+    }
+  },
   isDeleted: (url: string, event: TrustedEvent) => repository.isDeleted(event),
   isValid: (url: string, event: TrustedEvent) =>
     getSession(event.pubkey) || (isSignedEvent(event) && hasValidSignature(event)),
