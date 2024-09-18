@@ -1,7 +1,7 @@
 import {readable, derived, type Readable} from 'svelte/store'
 import {indexBy, type Maybe, now} from '@welshman/lib'
 import {withGetter} from '@welshman/store'
-import {getFreshness, setFreshness} from './freshness'
+import {getFreshness, setFreshnessThrottled} from './freshness'
 
 export const collection = <T, LoadArgs extends any[]>({
   name,
@@ -42,7 +42,7 @@ export const collection = <T, LoadArgs extends any[]>({
 
     loadAttempts.set(key, attempt + 1)
 
-    setFreshness(name, key, now())
+    setFreshnessThrottled({ns: name, key, ts: now()})
 
     const promise = load(key, ...args)
 

@@ -3,7 +3,7 @@ import type {IDBPDatabase} from "idb"
 import {throttle} from "throttle-debounce"
 import {writable} from "svelte/store"
 import type {Unsubscriber, Writable} from "svelte/store"
-import {indexBy, fromPairs} from "@welshman/lib"
+import {indexBy, equals, fromPairs} from "@welshman/lib"
 import type {TrustedEvent, Repository} from "@welshman/util"
 import type {Tracker} from "@welshman/net"
 import {withGetter, adapter, throttled, custom} from "@welshman/store"
@@ -69,12 +69,11 @@ export const initIndexedDbAdapter = async (name: string, adapter: IndexedDbAdapt
       const removedRecords = prevRecords.filter(r => !currentIds.has(r[adapter.keyPath]))
 
       const prevRecordsById = indexBy(item => item[adapter.keyPath], prevRecords)
-      const updatedRecords = currentRecords.filter(r => r !== prevRecordsById.get(r[adapter.keyPath]))
+      const updatedRecords = currentRecords.filter(r => !equals(r, prevRecordsById.get(r[adapter.keyPath])))
 
       prevRecords = currentRecords
 
       if (updatedRecords.length > 0) {
-
         await bulkPut(name, updatedRecords)
       }
 
@@ -141,24 +140,24 @@ export const storageAdapters = {
   fromObjectStore: <T>(store: Writable<Record<string, T>>, options: StorageAdapterOptions = {}) => ({
     options,
     keyPath: "key",
-    store: throttled(options.throttle || 0, adapter({
-      store: store,
+    store: adapter({
+      store: throttled(options.throttle || 0, store),
       forward: ($data: Record<string, T>) =>
         Object.entries($data).map(([key, value]) => ({key, value})),
       backward: (data: {key: string, value: T}[]) =>
         fromPairs(data.map(({key, value}) => [key, value])),
-    })),
+    }),
   }),
   fromMapStore: <T>(store: Writable<Map<string, T>>, options: StorageAdapterOptions = {}) => ({
     options,
     keyPath: "key",
-    store: throttled(options.throttle || 0, adapter({
-      store: store,
+    store: adapter({
+      store: throttled(options.throttle || 0, store),
       forward: ($data: Map<string, T>) =>
         Array.from($data.entries()).map(([key, value]) => ({key, value})),
       backward: (data: {key: string, value: T}[]) =>
         new Map(data.map(({key, value}) => [key, value])),
-    })),
+    }),
   }),
   fromTracker: (tracker: Tracker, options: StorageAdapterOptions = {}) => ({
     options,
