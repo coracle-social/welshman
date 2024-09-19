@@ -140,6 +140,12 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
   }
 
   publish = (event: E, {shouldNotify = true} = {}): boolean => {
+    if (!event?.id) {
+      console.warn("Attempted to publish invalid event to repository", event)
+
+      return false
+    }
+
     // If we've already seen this event, or it's been deleted, we're done
     if (this.eventsById.get(event.id) || this.isDeleted(event)) {
       return false

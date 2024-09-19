@@ -1,4 +1,4 @@
-import {parseJson, nth, nthEq} from "@welshman/lib"
+import {parseJson, ensurePlural, nth} from "@welshman/lib"
 import {Address} from "./Address"
 import {isShareableRelayUrl} from "./Relay"
 import {Encryptable, DecryptedEvent} from "./Encryptable"
@@ -45,5 +45,10 @@ export const createList = ({kind, publicTags = [], privateTags = []}: List) =>
 export const editList = ({kind, publicTags = [], privateTags = []}: PublishedList) =>
   new Encryptable({kind, tags: publicTags}, {content: JSON.stringify(privateTags)})
 
-export const getListValues = (tagName: string, list: List | undefined) =>
-  [...list?.publicTags || [], ...list?.privateTags || []].filter(nthEq(0, tagName)).map(nth(1))
+export const getListValues = (tagName: string | string[], list: List | undefined) => {
+  const tagNames = ensurePlural(tagName)
+  const allTags = [...list?.publicTags || [], ...list?.privateTags || []]
+  const filteredTags = allTags.filter(t => tagNames.includes(t[0])).map(nth(1))
+
+  return filteredTags
+}
