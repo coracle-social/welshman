@@ -17,7 +17,11 @@ export const ensurePlaintext = async (e: TrustedEvent) => {
     const $signer = getSigner(getSession(e.pubkey))
 
     if ($signer) {
-      setPlaintext(e, await decrypt($signer, e.pubkey, e.content))
+      const result = await decrypt($signer, e.pubkey, e.content)
+
+      if (result) {
+        setPlaintext(e, result)
+      }
     }
   }
 
