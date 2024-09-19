@@ -77,14 +77,14 @@ export const mapKeys = <T extends Record<string, any>>(f: (v: string) => string,
   return r as T
 }
 
-export const mapVals = <T extends Record<string, any>>(f: (v: any) => any, x: T) => {
-  const r: Record<string, any> = {}
+export const mapVals = <V, U>(f: (v: V) => U, x: Record<string, V>) => {
+  const r: Record<string, U> = {}
 
   for (const [k, v] of Object.entries(x)) {
     r[k] = f(v)
   }
 
-  return r as T
+  return r
 }
 
 export const mergeLeft = <T extends Record<string, any>>(a: T, b: T) => ({...b, ...a})

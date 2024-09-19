@@ -214,7 +214,7 @@ export const getFilterResultCardinality = (filter: Filter) => {
   return null
 }
 
-export const trimFilter = (filter: Filter) =>
-  mapVals(v => Array.isArray(v) && v.length > 1000 ? shuffle(v).slice(0, 1000) : v, filter)
+export const trimFilter = (filter: Filter): Filter =>
+  mapVals(v => Array.isArray(v) && v.length > 1000 ? shuffle(v as string[]).slice(0, 1000) : v, filter) as Filter
 
 export const trimFilters = (filters: Filter[]) => filters.map(trimFilter)
