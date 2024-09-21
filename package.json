@@ -6,5 +6,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/coracle-social/skiff.git"
+  },
+  "dependencies": {
+    "nostr-signer-capacitor-plugin": "github:chebizarro/nostr-signer-capacitor-plugin"
   }
 }
