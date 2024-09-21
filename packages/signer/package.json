@@ -34,6 +34,7 @@
     "@welshman/lib": "0.0.17",
     "@welshman/net": "0.0.22",
     "@welshman/util": "0.0.32",
+    "nostr-signer-capacitor-plugin": "github:chebizarro/nostr-signer-capacitor-plugin",
     "nostr-tools": "^2.7.2"
   }
 }
