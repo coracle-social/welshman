@@ -51,7 +51,7 @@ export const getSigner = memoize((session: Session) => {
     case "nip46":
       return new Nip46Signer(Nip46Broker.get(session.pubkey, session.secret!, session.handler!))
 	case "nip55":
-	  return new Nip55Signer()
+      return new Nip55Signer()
 	default:
       return null
   }

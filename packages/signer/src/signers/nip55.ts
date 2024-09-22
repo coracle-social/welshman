@@ -1,23 +1,14 @@
 import {SignedEvent, StampedEvent} from '@welshman/util'
 import {hash, own, ISigner} from '../util'
-import NostrSigner from 'nostr-signer-capacitor-plugin'
+import {NostrSignerPlugin} from 'nostr-signer-capacitor-plugin'
 
-// Define the interface for the NostrSigner methods
-export type NostrSignerType = {
-  getPublicKey: () => Promise<{ npub: string }>;
-  signEvent: (options: { eventJson: string }) => Promise<{ event: string }>;
-  nip04Encrypt: (options: { pubKey: string; plainText: string }) => Promise<{ result: string }>;
-  nip04Decrypt: (options: { pubKey: string; encryptedText: string }) => Promise<{ result: string }>;
-  nip44Encrypt: (options: { pubKey: string; plainText: string }) => Promise<{ result: string }>;
-  nip44Decrypt: (options: { pubKey: string; encryptedText: string }) => Promise<{ result: string }>;
-}
 
-export const getNip55 = () => NostrSigner
+export const getNip55 = () => NostrSignerPlugin
 
 export class Nip55Signer implements ISigner {
   #lock = Promise.resolve()
 
-  #then = async <T>(f: (signer: NostrSignerType) => T | Promise<T>): Promise<T> => {
+  #then = async <T>(f: (signer: NostrSignerPlugin) => T | Promise<T>): Promise<T> => {
     const promise = this.#lock.then(() => f(getNip55()))
 
     // Recover from errors
