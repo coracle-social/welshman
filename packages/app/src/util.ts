@@ -5,6 +5,7 @@ import {sortBy} from "@welshman/lib"
 export type SearchOptions<V, T> = {
   getValue: (item: T) => V
   fuseOptions?: IFuseOptions<T>
+  onSearch?: (term: string) => void
   sortFn?: (items: FuseResult<T>) => any
 }
 
@@ -21,6 +22,8 @@ export const createSearch = <V, T>(options: T[], opts: SearchOptions<V, T>): Sea
   const map = new Map<V, T>(options.map(item => [opts.getValue(item), item]))
 
   const search = (term: string) => {
+    opts.onSearch?.(term)
+
     let results = term ? fuse.search(term) : options.map(item => ({item, score: 1}) as FuseResult<T>)
 
     if (opts.sortFn) {

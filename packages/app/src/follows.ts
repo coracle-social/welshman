@@ -1,4 +1,4 @@
-import {FOLLOWS, asDecryptedEvent, readList} from '@welshman/util'
+import {FOLLOWS, getListValues, asDecryptedEvent, readList} from '@welshman/util'
 import {type TrustedEvent, type PublishedList} from '@welshman/util'
 import {type SubscribeRequestWithHandlers} from "@welshman/net"
 import {deriveEventsMapped, withGetter} from '@welshman/store'
@@ -33,3 +33,6 @@ export const {
     await load({...request, filters: [{kinds: [FOLLOWS], authors: [pubkey]}]})
   },
 })
+
+export const getFollows = (pubkey: string) =>
+  getListValues("p", followsByPubkey.get().get(pubkey))
