@@ -1,5 +1,5 @@
 import type {OmitStatics} from '@welshman/lib'
-import {Fluent, mapVals, nth, nthEq, ensurePlural} from '@welshman/lib'
+import {Fluent, uniqBy, mapVals, nth, nthEq, ensurePlural} from '@welshman/lib'
 import {isRelayUrl, normalizeRelayUrl} from './Relay'
 import {Address, isContextAddress} from './Address'
 import {GROUP, COMMUNITY} from './Kinds'
@@ -252,3 +252,5 @@ export const getAncestorTags = (tags: string[][]) => {
 
 export const getAncestorTagValues = (tags: string[][]) =>
   mapVals(tags => tags.map(nth(1)), getAncestorTags(tags))
+
+export const uniqTags = (tags: string[][]) => uniqBy(t => t.join(":"), tags)
