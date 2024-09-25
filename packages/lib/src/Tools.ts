@@ -91,7 +91,7 @@ export const mergeLeft = <T extends Record<string, any>>(a: T, b: T) => ({...b, 
 
 export const mergeRight = <T extends Record<string, any>>(a: T, b: T) => ({...a, ...b})
 
-export const between = (low: number, high: number, n: number) => n > low && n < high
+export const between = ([low, high]: [number, number], n: number) => n > low && n < high
 
 export const randomInt = (min = 0, max = 9) => min + Math.round(Math.random()) * (max - min)
 
