@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@welshman/lib": "0.0.17",
-    "@welshman/util": "0.0.32",
+    "@welshman/util": "0.0.33",
     "svelte": "^4.2.18"
   }
 }
