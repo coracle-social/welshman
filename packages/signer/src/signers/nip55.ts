@@ -10,23 +10,31 @@ export const getNip55 = async () => {
 
 export class Nip55Signer implements ISigner {
   #lock = Promise.resolve()
-  private plugin = NostrSignerPlugin
-  private packageName: string
-  private packageNameSet = false
-  private npub?: string
-  private publicKey?: string
+  #plugin = NostrSignerPlugin
+  #packageName: string
+  #packageNameSet = false
+  #npub?: string
+  #publicKey?: string
 
   constructor(packageName: string) {
-    this.packageName = packageName
+    this.#packageName = packageName
   }
+
+  #initialize = async () => {
+    if (!this.#packageNameSet) {
+      await this.#plugin.setPackageName({packageName: this.#packageName})
+      this.#packageNameSet = true
+    }
+  }
+
 
   #then = async <T>(f: (signer: typeof NostrSignerPlugin) => T | Promise<T>): Promise<T> => {
     const promise = this.#lock.then(async () => {
-      if (!this.packageNameSet) {
-        await this.plugin.setPackageName({packageName: this.packageName})
-        this.packageNameSet = true
+      if (!this.#packageNameSet) {
+        await this.#plugin.setPackageName({packageName: this.#packageName})
+        this.#packageNameSet = true
       }
-      return f(this.plugin)
+      return f(this.#plugin)
     })
 
     // Recover from errors
@@ -40,13 +48,13 @@ export class Nip55Signer implements ISigner {
 
   getPubkey = async (): Promise<string> => {
     return this.#then(async signer => {
-      if (!this.publicKey) {
+      if (!this.#publicKey) {
         const {npub} = await signer.getPublicKey()
-        this.npub = npub
+        this.#npub = npub
         const {data} = nip19.decode(npub)
-        this.publicKey = data as string
+        this.#publicKey = data as string
       }
-      return this.publicKey
+      return this.#publicKey
     })
   }
 
@@ -69,7 +77,7 @@ export class Nip55Signer implements ISigner {
     encrypt: (pubkey: string, message: string): Promise<string> =>
       this.#then(async signer => {
         const {result} = await signer.nip04Encrypt({
-          pubKey: this.publicKey!,
+          pubKey: this.#publicKey!,
           plainText: message,
           npub: pubkey,
         })
@@ -78,7 +86,7 @@ export class Nip55Signer implements ISigner {
     decrypt: (pubkey: string, message: string): Promise<string> =>
       this.#then(async signer => {
         const {result} = await signer.nip04Decrypt({
-          pubKey: this.publicKey!,
+          pubKey: this.#publicKey!,
           encryptedText: message,
           npub: pubkey,
         })
@@ -90,7 +98,7 @@ export class Nip55Signer implements ISigner {
     encrypt: (pubkey: string, message: string): Promise<string> =>
       this.#then(async signer => {
         const {result} = await signer.nip44Encrypt({
-          pubKey: this.publicKey!,
+          pubKey: this.#publicKey!,
           plainText: message,
           npub: pubkey,
         })
@@ -99,7 +107,7 @@ export class Nip55Signer implements ISigner {
     decrypt: (pubkey: string, message: string): Promise<string> =>
       this.#then(async signer => {
         const {result} = await signer.nip44Decrypt({
-          pubKey: this.publicKey!,
+          pubKey: this.#publicKey!,
           encryptedText: message,
           npub: pubkey,
         })
