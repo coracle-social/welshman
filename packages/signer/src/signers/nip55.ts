@@ -18,6 +18,7 @@ export class Nip55Signer implements ISigner {
 
   constructor(packageName: string) {
     this.#packageName = packageName
+	this.#initialize()
   }
 
   #initialize = async () => {
