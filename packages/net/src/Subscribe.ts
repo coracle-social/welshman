@@ -326,7 +326,9 @@ export const executeSubscriptionBatched = (() => {
 
   return (sub: Subscription) => {
     subs.push(sub)
-    timeouts.push(setTimeout(executeAll, Math.max(16, sub.request.delay!)))
+    timeouts.push(
+      setTimeout(executeAll, Math.max(16, sub.request.delay!)) as unknown as number
+    )
   }
 })()
 

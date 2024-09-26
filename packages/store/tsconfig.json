@@ -7,5 +7,5 @@
     "skipLibCheck": true,
     "lib": ["esnext", "dom", "dom.iterable"]
   },
-  "include": ["**/*.ts"]
+  "include": ["src/**/*.ts"]
 }

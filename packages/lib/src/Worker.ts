@@ -44,7 +44,7 @@ export class Worker<T> {
 
   #enqueueWork = () => {
     if (!this.timeout && this.buffer.length > 0) {
-      this.timeout = setTimeout(this.#doWork, 50)
+      this.timeout = setTimeout(this.#doWork, 50) as unknown as number
     }
   }
 

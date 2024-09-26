@@ -23,10 +23,12 @@
     "pub": "npm run lint && npm run build && npm publish",
     "build": "gts clean && tsc-multi",
     "lint": "gts lint",
-    "fix": "gts fix"
+    "fix": "gts fix",
+    "test": "mocha"
   },
   "devDependencies": {
     "gts": "^5.0.1",
+    "mocha": "^10.7.3",
     "tsc-multi": "^1.1.0",
     "typescript": "~5.1.6"
   },
