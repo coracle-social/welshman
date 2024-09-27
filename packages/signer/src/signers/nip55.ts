@@ -1,19 +1,17 @@
 import {SignedEvent, StampedEvent} from "@welshman/util"
 import {hash, own, ISigner} from "../util"
-import {NostrSignerPlugin} from "nostr-signer-capacitor-plugin"
+import {NostrSignerPlugin, AppInfo} from "nostr-signer-capacitor-plugin"
 import {nip19} from "nostr-tools"
 
-export const getNip55 = async () => {
-  const {installed} = await NostrSignerPlugin.isExternalSignerInstalled()
-  return installed
+export const getNip55 = async (): Promise<AppInfo[]> => {
+  const {apps} = await NostrSignerPlugin.getInstalledSignerApps()
+  return apps
 }
 
 export class Nip55Signer implements ISigner {
   #lock = Promise.resolve()
   #plugin = NostrSignerPlugin
   #packageName: string
-  #packageNameSet = false
-  #npub?: string
   #publicKey?: string
 
   constructor(packageName: string) {
@@ -22,19 +20,11 @@ export class Nip55Signer implements ISigner {
   }
 
   #initialize = async () => {
-    if (!this.#packageNameSet) {
-      await this.#plugin.setPackageName({packageName: this.#packageName})
-      this.#packageNameSet = true
-    }
+    await this.#plugin.setPackageName({packageName: this.#packageName})
   }
-
 
   #then = async <T>(f: (signer: typeof NostrSignerPlugin) => T | Promise<T>): Promise<T> => {
     const promise = this.#lock.then(async () => {
-      if (!this.#packageNameSet) {
-        await this.#plugin.setPackageName({packageName: this.#packageName})
-        this.#packageNameSet = true
-      }
       return f(this.#plugin)
     })
 
@@ -49,19 +39,18 @@ export class Nip55Signer implements ISigner {
 
   getPubkey = async (): Promise<string> => {
     return this.#then(async signer => {
-      if (!this.#publicKey) {
+      if (this.#publicKey == null) {
         const {npub} = await signer.getPublicKey()
-        this.#npub = npub
         const {data} = nip19.decode(npub)
         this.#publicKey = data as string
       }
-      return this.#publicKey
+      return this.#publicKey!
     })
   }
 
   sign = async (template: StampedEvent): Promise<SignedEvent> => {
     const pubkey = await this.getPubkey()
-    const event = hash(own(template, pubkey))
+    const event = {sig: "", ...hash(own(template, pubkey))}
 
     return this.#then(async signer => {
       const {event: signedEventJson} = await signer.signEvent({
@@ -77,8 +66,9 @@ export class Nip55Signer implements ISigner {
   nip04 = {
     encrypt: (pubkey: string, message: string): Promise<string> =>
       this.#then(async signer => {
+        const pk = await this.getPubkey()
         const {result} = await signer.nip04Encrypt({
-          pubKey: this.#publicKey!,
+          pubKey: pk,
           plainText: message,
           npub: pubkey,
         })
@@ -86,8 +76,9 @@ export class Nip55Signer implements ISigner {
       }),
     decrypt: (pubkey: string, message: string): Promise<string> =>
       this.#then(async signer => {
+        const pk = await this.getPubkey()
         const {result} = await signer.nip04Decrypt({
-          pubKey: this.#publicKey!,
+          pubKey: pk,
           encryptedText: message,
           npub: pubkey,
         })
@@ -98,8 +89,9 @@ export class Nip55Signer implements ISigner {
   nip44 = {
     encrypt: (pubkey: string, message: string): Promise<string> =>
       this.#then(async signer => {
+        const pk = await this.getPubkey()
         const {result} = await signer.nip44Encrypt({
-          pubKey: this.#publicKey!,
+          pubKey: pk,
           plainText: message,
           npub: pubkey,
         })
@@ -107,8 +99,9 @@ export class Nip55Signer implements ISigner {
       }),
     decrypt: (pubkey: string, message: string): Promise<string> =>
       this.#then(async signer => {
+        const pk = await this.getPubkey()
         const {result} = await signer.nip44Decrypt({
-          pubKey: this.#publicKey!,
+          pubKey: pk,
           encryptedText: message,
           npub: pubkey,
         })
