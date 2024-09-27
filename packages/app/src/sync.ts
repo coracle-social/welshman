@@ -1,6 +1,7 @@
-import {flatten} from '@welshman/lib'
+import type {Filter} from '@welshman/util'
+import {isSignedEvent} from '@welshman/util'
 import {push as basePush, pull as basePull, sync as baseSync, pushWithoutNegentropy, pullWithoutNegentropy, syncWithoutNegentropy} from "@welshman/net"
-import type {PullOpts, PushOpts, SyncOpts} from "@welshman/net"
+import {repository} from './core'
 import {relaysByUrl} from './relays'
 
 export const hasNegentropy = (url: string) => {
@@ -12,36 +13,41 @@ export const hasNegentropy = (url: string) => {
   return false
 }
 
-export const pull = async (opts: PullOpts) =>
-  flatten(
-    await Promise.all(
-      opts.relays.map(relay =>
-        hasNegentropy(relay)
-          ? basePull({...opts, relays: [relay]})
-          : pullWithoutNegentropy({...opts, relays: [relay]})
-      )
-    )
+export type AppSyncOpts = {
+  relays: string[]
+  filters: Filter[]
+}
+
+export const pull = async ({relays, filters}: AppSyncOpts) =>
+  await Promise.all(
+    relays.map(async relay => {
+      const events = repository.query(filters)
+
+      await hasNegentropy(relay)
+        ? basePull({filters, events, relays: [relay]})
+        : pullWithoutNegentropy({filters, relays: [relay]})
+    })
   )
 
-export const push = async (opts: PushOpts) =>
-  flatten(
-    await Promise.all(
-      opts.relays.map(relay =>
-        hasNegentropy(relay)
-          ? basePush({...opts, relays: [relay]})
-          : pushWithoutNegentropy({...opts, relays: [relay]})
-      )
-    )
+export const push = async ({relays, filters}: AppSyncOpts) =>
+  await Promise.all(
+    relays.map(async relay => {
+      const events = repository.query(filters).filter(isSignedEvent)
+
+      await hasNegentropy(relay)
+        ? basePush({filters, events, relays: [relay]})
+        : pushWithoutNegentropy({events, relays: [relay]})
+    })
   )
 
-export const sync = async (opts: SyncOpts) =>
-  flatten(
-    await Promise.all(
-      opts.relays.map(relay =>
-        hasNegentropy(relay)
-          ? baseSync({...opts, relays: [relay]})
-          : syncWithoutNegentropy({...opts, relays: [relay]})
-      )
-    )
+export const sync = async ({relays, filters}: AppSyncOpts) =>
+  await Promise.all(
+    relays.map(async relay => {
+      const events = repository.query(filters).filter(isSignedEvent)
+
+      await hasNegentropy(relay)
+        ? baseSync({filters, events, relays: [relay]})
+        : syncWithoutNegentropy({filters, events, relays: [relay]})
+    })
   )
 

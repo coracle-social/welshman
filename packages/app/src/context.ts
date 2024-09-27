@@ -23,6 +23,7 @@ export const getDefaultNetContext = (overrides: Partial<NetContext> = {}) => ({
   onAuth: onAuth,
   onEvent: (url: string, event: TrustedEvent) => {
     tracker.track(event.id, url)
+    repository.publish(event)
 
     // Eagerly load profiles since they're critical to UX
     if (event.kind !== WRAP) {

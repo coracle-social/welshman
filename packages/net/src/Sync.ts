@@ -169,7 +169,7 @@ export const pullWithoutNegentropy = async ({relays, filters, onEvent}: PullWith
       subscribe({
         relays,
         filters: filters
-          .filter(filter => filter.since && filter.since > until)
+          .filter(filter => !filter.since || filter.since > until)
           .map(filter => ({...filter, until})),
         closeOnEose: true,
         onClose: () => {
