@@ -54,10 +54,6 @@ export const subscribe = (request: PartialSubscribeRequest) => {
   const timeout = request.closeOnEose ? ctx.app.requestTimeout : 0
   const sub = baseSubscribe({delay, timeout, authTimeout, relays: [], ...request})
 
-  sub.emitter.on("event", (url: string, e: TrustedEvent) => {
-    repository.publish(e)
-  })
-
   // Keep cached results async so the caller can set up handlers
   setTimeout(() => {
     for (const event of events) {

@@ -1,4 +1,4 @@
-import {flatten, Emitter, sortBy, inc, chunk, sleep, uniq, omit, now, range, identity} from '@welshman/lib'
+import {flatten, Emitter, sortBy, inc, chunk, uniq, omit, now, range, identity} from '@welshman/lib'
 import {DELETE} from './Kinds'
 import {EPOCH, matchFilter} from './Filters'
 import {isReplaceable, isUnwrappedEvent} from './Events'
@@ -31,7 +31,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
     return Array.from(this.eventsById.values())
   }
 
-  load = async (events: E[], chunkSize = 1000) => {
+  load = (events: E[], chunkSize = 1000) => {
     this.clear()
 
     const added = []
@@ -41,10 +41,6 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
         if (this.publish(event, {shouldNotify: false})) {
           added.push(event)
         }
-      }
-
-      if (eventsChunk.length === chunkSize) {
-        await sleep(1)
       }
     }
 
