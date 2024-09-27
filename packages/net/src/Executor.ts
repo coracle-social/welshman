@@ -1,6 +1,6 @@
 import {ctx} from '@welshman/lib'
 import type {Emitter} from '@welshman/lib'
-import type {SignedEvent, Filter} from '@welshman/util'
+import type {SignedEvent, TrustedEvent, Filter} from '@welshman/util'
 import type {Message} from './Socket'
 import type {Connection} from './Connection'
 import {Negentropy, NegentropyStorageVector} from './Negentropy'
@@ -11,7 +11,12 @@ export type Target = Emitter & {
   cleanup: () => void
 }
 
-type EventCallback = (url: string, event: SignedEvent) => void
+export type NegentropyMessage = {
+  have: string[]
+  need: string[]
+}
+
+type EventCallback = (url: string, event: TrustedEvent) => void
 type EoseCallback = (url: string) => void
 type CloseCallback = () => void
 type OkCallback = (url: string, id: string, ...extra: any[]) => void
@@ -35,7 +40,7 @@ export class Executor {
 
     const id = createSubId('REQ')
 
-    const eventListener = (url: string, subid: string, e: SignedEvent) => {
+    const eventListener = (url: string, subid: string, e: TrustedEvent) => {
       if (subid === id) {
         ctx.net.onEvent(url, e)
         onEvent?.(url, e)
@@ -91,7 +96,7 @@ export class Executor {
     }
   }
 
-  diff(filter: Filter, events: SignedEvent[], {onMessage, onError, onClose}: DiffOpts = {}) {
+  diff(filter: Filter, events: TrustedEvent[], {onMessage, onError, onClose}: DiffOpts = {}) {
     let closed = false
 
     const id = createSubId('NEG')
