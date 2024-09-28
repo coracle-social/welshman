@@ -12,6 +12,8 @@ export class Nip55Signer implements ISigner {
   #lock = Promise.resolve()
   #plugin = NostrSignerPlugin
   #packageName: string
+  #packageNameSet = false
+  #npub?: string
   #publicKey?: string
 
   constructor(packageName: string) {
@@ -19,44 +21,58 @@ export class Nip55Signer implements ISigner {
     this.#initialize()
   }
 
-  #initialize = async () => {
-    await this.#plugin.setPackageName({packageName: this.#packageName})
+  async #initialize() {
+    if (!this.#packageNameSet) {
+      await this.#plugin.setPackageName({packageName: this.#packageName})
+      this.#packageNameSet = true
+    }
   }
 
   #then = async <T>(f: (signer: typeof NostrSignerPlugin) => T | Promise<T>): Promise<T> => {
     const promise = this.#lock.then(async () => {
+      if (!this.#packageNameSet) {
+        try {
+          await this.#plugin.setPackageName({packageName: this.#packageName})
+          this.#packageNameSet = true
+        } catch (error) {
+          this.#packageNameSet = false
+          throw error
+        }
+      }
       return f(this.#plugin)
     })
 
-    // Recover from errors
-    this.#lock = promise.then(
-      () => undefined,
-      () => undefined,
-    )
+    this.#lock = promise.then(() => Promise.resolve())
 
     return promise
   }
 
   getPubkey = async (): Promise<string> => {
     return this.#then(async signer => {
-      if (this.#publicKey == null) {
-        const {npub} = await signer.getPublicKey()
-        const {data} = nip19.decode(npub)
-        this.#publicKey = data as string
+      if (!this.#publicKey || !this.#npub) {
+        try {
+          const {npub} = await signer.getPublicKey()
+          this.#npub = npub
+          const {data} = nip19.decode(npub)
+          this.#publicKey = data as string
+        } catch (error) {
+          throw new Error(`Failed to get public key`)
+        }
       }
-      return this.#publicKey!
+      return this.#publicKey
     })
   }
 
   sign = async (template: StampedEvent): Promise<SignedEvent> => {
-    const pubkey = await this.getPubkey()
+    const pubkey = await this.getPubkey() // hex-encoded public key
+    const npub = this.#npub! // Bech32-encoded public key
     const event = {sig: "", ...hash(own(template, pubkey))}
 
     return this.#then(async signer => {
       const {event: signedEventJson} = await signer.signEvent({
         eventJson: JSON.stringify(event),
         eventId: event.id,
-        npub: pubkey,
+        npub: npub,
       })
       const signedEvent = JSON.parse(signedEventJson) as SignedEvent
       return signedEvent
@@ -64,48 +80,64 @@ export class Nip55Signer implements ISigner {
   }
 
   nip04 = {
-    encrypt: (pubkey: string, message: string): Promise<string> =>
-      this.#then(async signer => {
-        const pk = await this.getPubkey()
+    encrypt: async (recipientPubKey: string, message: string): Promise<string> => {
+      const myNpub = this.#npub
+      if (!myNpub) {
+        await this.getPubkey()
+      }
+      return this.#then(async signer => {
         const {result} = await signer.nip04Encrypt({
-          pubKey: pk,
+          pubKey: recipientPubKey,
           plainText: message,
-          npub: pubkey,
+          npub: this.#npub!,
         })
         return result
-      }),
-    decrypt: (pubkey: string, message: string): Promise<string> =>
-      this.#then(async signer => {
-        const pk = await this.getPubkey()
+      })
+    },
+    decrypt: async (senderPubKey: string, message: string): Promise<string> => {
+      const myNpub = this.#npub
+      if (!myNpub) {
+        await this.getPubkey()
+      }
+      return this.#then(async signer => {
         const {result} = await signer.nip04Decrypt({
-          pubKey: pk,
+          pubKey: senderPubKey,
           encryptedText: message,
-          npub: pubkey,
+          npub: this.#npub!,
         })
         return result
-      }),
+      })
+    },
   }
 
   nip44 = {
-    encrypt: (pubkey: string, message: string): Promise<string> =>
-      this.#then(async signer => {
-        const pk = await this.getPubkey()
+    encrypt: async (recipientPubKey: string, message: string): Promise<string> => {
+      const myNpub = this.#npub
+      if (!myNpub) {
+        await this.getPubkey()
+      }
+      return this.#then(async signer => {
         const {result} = await signer.nip44Encrypt({
-          pubKey: pk,
+          pubKey: recipientPubKey,
           plainText: message,
-          npub: pubkey,
+          npub: this.#npub!,
         })
         return result
-      }),
-    decrypt: (pubkey: string, message: string): Promise<string> =>
-      this.#then(async signer => {
-        const pk = await this.getPubkey()
+      })
+    },
+    decrypt: async (senderPubKey: string, message: string): Promise<string> => {
+      const myNpub = this.#npub
+      if (!myNpub) {
+        await this.getPubkey()
+      }
+      return this.#then(async signer => {
         const {result} = await signer.nip44Decrypt({
-          pubKey: pk,
+          pubKey: senderPubKey,
           encryptedText: message,
-          npub: pubkey,
+          npub: this.#npub!,
         })
         return result
-      }),
+      })
+    },
   }
 }
