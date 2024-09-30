@@ -224,6 +224,11 @@ export const parseLink = (text: string, context: ParseContext): ParsedLink | voi
     return
   }
 
+  // Skip it if it looks like an IP address but doesn't have a protocol
+  if (link.match(/\d+\.\d+/) && !link.includes('://')) {
+    return
+  }
+
   // Parse using URL, make sure there's a protocol
   let url
   try {
