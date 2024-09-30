@@ -3,7 +3,7 @@ import {ctx, memoize, omit, equals, assoc} from "@welshman/lib"
 import {createEvent} from "@welshman/util"
 import {withGetter, synced} from "@welshman/store"
 import {type Nip46Handler} from "@welshman/signer"
-import {Nip46Broker, Nip46Signer, Nip07Signer, Nip01Signer} from "@welshman/signer"
+import {Nip46Broker, Nip46Signer, Nip07Signer, Nip01Signer, Nip55Signer} from "@welshman/signer"
 
 export type Session = {
   method: string
@@ -11,6 +11,7 @@ export type Session = {
   token?: string
   secret?: string
   handler?: Nip46Handler
+  signer?: string
 }
 
 export const pubkey = withGetter(synced<string | null>("pubkey", null))
@@ -50,6 +51,8 @@ export const getSigner = memoize((session: Session) => {
       return new Nip01Signer(session.secret!)
     case "nip46":
       return new Nip46Signer(Nip46Broker.get(session.pubkey, session.secret!, session.handler!))
+    case "nip55":
+      return new Nip55Signer(session.signer!)
     default:
       return null
   }

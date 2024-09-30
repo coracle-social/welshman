@@ -35,5 +35,8 @@
     "@welshman/net": "0.0.22",
     "@welshman/util": "0.0.33",
     "nostr-tools": "^2.7.2"
+  },
+  "peerDependencies": {
+    "nostr-signer-capacitor-plugin": "github:chebizarro/nostr-signer-capacitor-plugin"
   }
 }
