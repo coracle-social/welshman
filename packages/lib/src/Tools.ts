@@ -11,8 +11,6 @@ export type Maybe<T> = T | undefined
 
 // Regular old utils
 
-export const now = () => Math.round(Date.now() / 1000)
-
 export const noop = (...args: unknown[]) => undefined
 
 export const first = <T>(xs: T[], ...args: unknown[]) => xs[0]
@@ -510,6 +508,30 @@ export const pushToMapKey = <K, T>(m: Map<K, T[]>, k: K, v: T) => {
 
 export const switcher = <T>(k: string, m: Record<string, T>) =>
   m[k] === undefined ? m.default : m[k]
+
+// Time
+
+export const MINUTE = 60
+
+export const HOUR = 60 * MINUTE
+
+export const DAY = 24 * HOUR
+
+export const WEEK = 7 * DAY
+
+export const MONTH = 30 * DAY
+
+export const QUARTER = 90 * DAY
+
+export const YEAR = 365 * DAY
+
+export const int = (unit: number, count = 1) => unit * count
+
+export const now = () => Math.round(Date.now() / 1000)
+
+export const ago = (unit: number, count = 1) => now() - int(unit, count)
+
+export const ms = (seconds: number) => seconds * 1000
 
 // Fetch
 

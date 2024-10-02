@@ -83,5 +83,3 @@ export const getWotScore = (pubkey: string, target: string) => {
 
   return follows.length - mutes.length
 }
-
-export const getUserWotScore = (pubkey: string) => wotGraph.get().get(pubkey) || 0

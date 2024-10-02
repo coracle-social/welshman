@@ -32,7 +32,7 @@ export const {
     load({...request, filters: [{kinds: [RELAYS], authors: [pubkey]}]}),
 })
 
-export const inboxRelaySelections = withGetter(deriveEvents(repository, {filters: [{kinds: [RELAYS]}]}))
+export const inboxRelaySelections = withGetter(deriveEvents(repository, {filters: [{kinds: [INBOX_RELAYS]}]}))
 
 export const {
   indexStore: inboxRelaySelectionsByPubkey,

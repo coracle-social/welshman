@@ -1,6 +1,6 @@
 import Fuse from "fuse.js"
 import type {IFuseOptions, FuseResult} from "fuse.js"
-import {sortBy} from "@welshman/lib"
+import {now, int, sortBy, DAY, HOUR, MINUTE} from "@welshman/lib"
 
 export type SearchOptions<V, T> = {
   getValue: (item: T) => V
@@ -24,7 +24,7 @@ export const createSearch = <V, T>(options: T[], opts: SearchOptions<V, T>): Sea
   const search = (term: string) => {
     opts.onSearch?.(term)
 
-    let results = term ? fuse.search(term) : options.map(item => ({item, score: 1}) as FuseResult<T>)
+    let results = term ? fuse.search(term) : options.map(item => ({item}) as FuseResult<T>)
 
     if (opts.sortFn) {
       results = sortBy(opts.sortFn, results)
@@ -77,4 +77,28 @@ export const formatTimestampAsTime = (ts: number) => {
   })
 
   return formatter.format(secondsToDate(ts))
+}
+
+export const formatTimestampRelative = (ts: number) => {
+  let unit
+  let delta = now() - ts
+  if (delta < int(MINUTE)) {
+    unit = "second"
+  } else if (delta < int(HOUR)) {
+    unit = "minute"
+    delta = Math.round(delta / int(MINUTE))
+  } else if (delta < int(DAY, 2)) {
+    unit = "hour"
+    delta = Math.round(delta / int(HOUR))
+  } else {
+    unit = "day"
+    delta = Math.round(delta / int(DAY))
+  }
+
+  const locale = new Intl.RelativeTimeFormat().resolvedOptions().locale
+  const formatter = new Intl.RelativeTimeFormat(locale, {
+    numeric: "auto",
+  })
+
+  return formatter.format(-delta, unit as Intl.RelativeTimeFormatUnit)
 }
