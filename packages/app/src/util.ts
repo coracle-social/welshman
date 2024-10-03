@@ -1,46 +1,4 @@
-import Fuse from "fuse.js"
-import type {IFuseOptions, FuseResult} from "fuse.js"
-import {now, int, sortBy, DAY, HOUR, MINUTE} from "@welshman/lib"
-
-export type SearchOptions<V, T> = {
-  getValue: (item: T) => V
-  fuseOptions?: IFuseOptions<T>
-  onSearch?: (term: string) => void
-  sortFn?: (items: FuseResult<T>) => any
-}
-
-export type Search<V, T> = {
-  options: T[]
-  getValue: (item: T) => V
-  getOption: (value: V) => T | undefined
-  searchOptions: (term: string) => T[]
-  searchValues: (term: string) => V[]
-}
-
-export const createSearch = <V, T>(options: T[], opts: SearchOptions<V, T>): Search<V, T> => {
-  const fuse = new Fuse(options, {...opts.fuseOptions, includeScore: true})
-  const map = new Map<V, T>(options.map(item => [opts.getValue(item), item]))
-
-  const search = (term: string) => {
-    opts.onSearch?.(term)
-
-    let results = term ? fuse.search(term) : options.map(item => ({item}) as FuseResult<T>)
-
-    if (opts.sortFn) {
-      results = sortBy(opts.sortFn, results)
-    }
-
-    return results.map(result => result.item)
-  }
-
-  return {
-    options,
-    getValue: opts.getValue,
-    getOption: (value: V) => map.get(value),
-    searchOptions: (term: string) => search(term),
-    searchValues: (term: string) => search(term).map(opts.getValue),
-  }
-}
+import {now, int, DAY, HOUR, MINUTE} from "@welshman/lib"
 
 export const secondsToDate = (ts: number) => new Date(ts * 1000)
 

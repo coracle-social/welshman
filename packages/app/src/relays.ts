@@ -4,7 +4,6 @@ import {ctx, groupBy, indexBy, batch, now, uniq, batcher, postJson} from '@welsh
 import type {RelayProfile} from "@welshman/util"
 import {normalizeRelayUrl} from "@welshman/util"
 import {AuthStatus, asMessage, type Connection, type SocketMessage} from '@welshman/net'
-import {createSearch} from './util'
 import {collection} from './collection'
 
 export type RelayStats = {
@@ -88,15 +87,6 @@ export const {
     return urls
   }),
 })
-
-export const relaySearch = derived(relays, $relays =>
-  createSearch($relays, {
-    getValue: (relay: Relay) => relay.url,
-    fuseOptions: {
-      keys: ["url", "name", {name: "description", weight: 0.3}],
-    },
-  }),
-)
 
 // Utilities for syncing stats from connections to relays
 

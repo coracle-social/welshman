@@ -1,8 +1,6 @@
 import {throttle} from 'throttle-debounce'
-import {derived} from 'svelte/store'
 import {inc} from '@welshman/lib'
 import {custom} from '@welshman/store'
-import {createSearch} from './util'
 import {repository} from './core'
 
 export type Topic = {
@@ -32,10 +30,3 @@ export const topics = custom<Topic[]>(setter => {
 
   return () => repository.off("update", onUpdate)
 })
-
-export const topicSearch = derived(topics, $topics =>
-  createSearch($topics, {
-    getValue: (topic: Topic) => topic.name,
-    fuseOptions: {keys: ["name"]},
-  }),
-)
