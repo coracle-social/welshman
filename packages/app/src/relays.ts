@@ -2,6 +2,7 @@ import {writable, derived} from 'svelte/store'
 import {withGetter} from '@welshman/store'
 import {ctx, groupBy, indexBy, batch, now, uniq, batcher, postJson} from '@welshman/lib'
 import type {RelayProfile} from "@welshman/util"
+import {normalizeRelayUrl} from "@welshman/util"
 import {AuthStatus, asMessage, type Connection, type SocketMessage} from '@welshman/net'
 import {createSearch} from './util'
 import {collection} from './collection'
@@ -68,7 +69,8 @@ export const {
   name: "relays",
   store: relays,
   getKey: (relay: Relay) => relay.url,
-  load: batcher(800, async (urls: string[]) => {
+  load: batcher(800, async (rawUrls: string[]) => {
+    const urls = rawUrls.map(normalizeRelayUrl)
     const fresh = await fetchRelayProfiles(uniq(urls))
     const stale = relaysByUrl.get()
 

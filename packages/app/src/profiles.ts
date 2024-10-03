@@ -23,6 +23,7 @@ export const {
   indexStore: profilesByPubkey,
   deriveItem: deriveProfile,
   loadItem: loadProfile,
+  getItem: getProfile,
 } = collection({
   name: "profiles",
   store: profiles,

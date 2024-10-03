@@ -41,7 +41,12 @@ thunkWorker.addGlobalHandler(async ({event, relays, resolve}: ThunkWithResolve) 
   const pub = publish({event: signedEvent, relays})
 
   // Copy the signature over since we had deferred it
-  ;(repository.getEvent(signedEvent.id) as SignedEvent).sig = signedEvent.sig
+  const savedEvent = repository.getEvent(signedEvent.id) as SignedEvent
+
+  // The event may already be replaced or deleted
+  if (savedEvent) {
+    savedEvent.sig = signedEvent.sig
+  }
 
   // Track publish success
   const {id} = event
