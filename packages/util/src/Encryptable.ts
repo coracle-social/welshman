@@ -8,6 +8,8 @@ export type EncryptableParams = {
   content?: string
 }
 
+export type EncryptableUpdates = Partial<EventContent>
+
 export type EncryptableResult = {
   kind: number,
   tags: string[][]
@@ -15,15 +17,35 @@ export type EncryptableResult = {
 }
 
 export type DecryptedEvent = TrustedEvent & {
-  plaintext: Partial<EventContent>
+  plaintext: EncryptableUpdates
 }
 
-export const asDecryptedEvent = (event: TrustedEvent, plaintext: Partial<EventContent> = {}) =>
+export const asDecryptedEvent = (event: TrustedEvent, plaintext: EncryptableUpdates = {}) =>
   ({...event, plaintext}) as DecryptedEvent
 
+/**
+ * Represents an encryptable event with optional updates.
+ */
 export class Encryptable {
-  constructor(readonly event: EncryptableParams, readonly updates: Partial<EventContent>) {}
+  /**
+   * Creates an instance of Encryptable.
+   * @param event - An EventTemplate with optional tags and content.
+   * @param updates - Plaintext updates to be applied to the event content.
+   * @example
+   * Here's an example which enables updating a private mute list:
+   * ```
+   * const event = {kind: 10000, content: "", tags: []} // An event, only kind is required
+   * const encryptable = new Encryptable(event, {content: JSON.stringify([["e", "bad word"]])})
+   * const eventTemplate = await encryptable.reconcile(myEncryptFunction)
+   * ```
+   */
+  constructor(readonly event: EncryptableParams, readonly updates: EncryptableUpdates) {}
 
+  /**
+   * Encrypts plaintext updates and merges them into the event template.
+   * @param encrypt - The encryption function to be used.
+   * @returns A promise that resolves to the reconciled and encrypted event.
+   */
   async reconcile(encrypt: Encrypt): Promise<EncryptableResult> {
     const encryptContent = () => {
       if (!this.updates.content) return null

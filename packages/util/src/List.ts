@@ -1,7 +1,8 @@
-import {parseJson} from "@welshman/lib"
+import {parseJson, append, nthNe, nthEq} from "@welshman/lib"
 import {Address} from "./Address"
 import {isShareableRelayUrl} from "./Relay"
-import {DecryptedEvent} from "./Encryptable"
+import {Encryptable, DecryptedEvent} from "./Encryptable"
+import type {EncryptableUpdates} from "./Encryptable"
 
 export type ListParams = {
   kind: number
@@ -41,3 +42,40 @@ export const readList = (event: DecryptedEvent): PublishedList => {
 
 export const getListTags = (list: List | undefined) =>
   [...list?.publicTags || [], ...list?.privateTags || []]
+
+export const removeFromList = (list: List, value: string) => {
+  const plaintext: EncryptableUpdates = {}
+  const template = {
+    kind: list.kind,
+    content: list.event?.content || "",
+    tags: list.publicTags.filter(nthNe(1, value)),
+  }
+
+  // Avoid redundant encrypt calls if possible
+  if (list.privateTags.some(nthEq(1, value))) {
+    plaintext.content = JSON.stringify(list.privateTags.filter(nthNe(1, value)))
+  }
+
+  return new Encryptable(template, plaintext)
+}
+
+export const addToListPublicly = (list: List, tag: string[]) => {
+  const template = {
+    kind: list.kind,
+    content: list.event?.content || "",
+    tags: append(tag, list.publicTags),
+  }
+
+  return new Encryptable(template, {})
+}
+
+export const addToListPrivately = (list: List, tag: string[]) => {
+  const template = {
+    kind: list.kind,
+    tags: list.publicTags,
+  }
+
+  return new Encryptable(template, {
+    content: JSON.stringify(append(tag, list.privateTags)),
+  })
+}

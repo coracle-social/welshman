@@ -40,14 +40,14 @@ export const tagReplyTo = (event: TrustedEvent) => {
   }
 
   // Inherit p-tag mentions
-  for (const pubkey of getPubkeyTagValues(tags)) {
+  for (const pubkey of getPubkeyTagValues(event.tags)) {
     if (pubkey !== $pubkey) {
       tags.push(tagPubkey(pubkey))
     }
   }
 
   // Based on NIP 10 legacy tags, order is root, mentions, reply
-  const {roots, replies, mentions} = getAncestorTags(tags)
+  const {roots, replies, mentions} = getAncestorTags(event.tags)
 
   // Root comes first
   if (roots.length > 0) {
