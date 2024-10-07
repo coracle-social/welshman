@@ -18,36 +18,39 @@ export type AppSyncOpts = {
   filters: Filter[]
 }
 
-export const pull = async ({relays, filters}: AppSyncOpts) =>
+export const pull = async ({relays, filters}: AppSyncOpts) => {
+  const events = repository.query(filters)
+
   await Promise.all(
     relays.map(async relay => {
-      const events = repository.query(filters)
-
       await hasNegentropy(relay)
         ? basePull({filters, events, relays: [relay]})
         : pullWithoutNegentropy({filters, relays: [relay]})
     })
   )
+}
 
-export const push = async ({relays, filters}: AppSyncOpts) =>
+export const push = async ({relays, filters}: AppSyncOpts) => {
+  const events = repository.query(filters).filter(isSignedEvent)
+
   await Promise.all(
     relays.map(async relay => {
-      const events = repository.query(filters).filter(isSignedEvent)
-
       await hasNegentropy(relay)
         ? basePush({filters, events, relays: [relay]})
         : pushWithoutNegentropy({events, relays: [relay]})
     })
   )
+}
 
-export const sync = async ({relays, filters}: AppSyncOpts) =>
+export const sync = async ({relays, filters}: AppSyncOpts) => {
+  const events = repository.query(filters).filter(isSignedEvent)
+
   await Promise.all(
     relays.map(async relay => {
-      const events = repository.query(filters).filter(isSignedEvent)
-
       await hasNegentropy(relay)
         ? baseSync({filters, events, relays: [relay]})
         : syncWithoutNegentropy({filters, events, relays: [relay]})
     })
   )
+}
 

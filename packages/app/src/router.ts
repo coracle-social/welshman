@@ -4,13 +4,13 @@ import {
 } from '@welshman/lib'
 import {
   Tags, getFilterId, unionFilters, isShareableRelayUrl, isCommunityAddress, isGroupAddress, isContextAddress,
-  PROFILE, RELAYS, INBOX_RELAYS, FOLLOWS, LOCAL_RELAY_URL,
+  PROFILE, RELAYS, INBOX_RELAYS, FOLLOWS, LOCAL_RELAY_URL, WRAP,
 } from '@welshman/util'
 import type {TrustedEvent, Filter} from '@welshman/util'
 import {ConnectionStatus} from '@welshman/net'
 import type {RelaysAndFilters} from '@welshman/net'
 import {pubkey} from './session'
-import {relaySelectionsByPubkey, getReadRelayUrls, getWriteRelayUrls, getRelayUrls} from './relaySelections'
+import {relaySelectionsByPubkey, inboxRelaySelectionsByPubkey, getReadRelayUrls, getWriteRelayUrls, getRelayUrls} from './relaySelections'
 import {relays, relaysByUrl} from './relays'
 
 export const INDEXED_KINDS = [PROFILE, RELAYS, INBOX_RELAYS, FOLLOWS]
@@ -184,6 +184,8 @@ export class Router {
   ReadRelays = () => this.scenario(this.getUserSelections(RelayMode.Read))
 
   WriteRelays = () => this.scenario(this.getUserSelections(RelayMode.Write))
+
+  InboxRelays = () => this.scenario(this.getUserSelections(RelayMode.Inbox)).policy(addNoFallbacks)
 
   Messages = (pubkeys: string[]) =>
     this.scenario([
@@ -426,7 +428,7 @@ export const getRelayQuality = (url: string) => {
 
 export const getPubkeyRelays = (pubkey: string, mode?: string) => {
   const $relaySelections = relaySelectionsByPubkey.get()
-  const $inboxSelections = relaySelectionsByPubkey.get()
+  const $inboxSelections = inboxRelaySelectionsByPubkey.get()
 
   switch (mode) {
     case RelayMode.Read:  return getReadRelayUrls($relaySelections.get(pubkey))
@@ -518,6 +520,17 @@ export const getFilterSelectionsForContext = (state: FilterSelectionRuleState) =
   return true
 }
 
+export const getFilterSelectionsForWraps = (state: FilterSelectionRuleState) => {
+  if (state.filter.kinds?.includes(WRAP) || !state.filter.authors) return false
+
+  const id = getFilterId({...state.filter, kinds: [WRAP]})
+  const scenario = ctx.app.router.InboxRelays().update(assoc('value', id))
+
+  state.selections.push(makeFilterSelection(id, state.filter, scenario))
+
+  return false
+}
+
 export const getFilterSelectionsForIndexedKinds = (state: FilterSelectionRuleState) => {
   const kinds = intersection(INDEXED_KINDS, state.filter.kinds || [])
 
@@ -558,6 +571,7 @@ export const defaultFilterSelectionRules = [
   getFilterSelectionsForLocalRelay,
   getFilterSelectionsForSearch,
   getFilterSelectionsForContext,
+  getFilterSelectionsForWraps,
   getFilterSelectionsForIndexedKinds,
   getFilterSelectionsForAuthors,
   getFilterSelectionsForUser,
