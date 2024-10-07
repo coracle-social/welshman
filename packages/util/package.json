@@ -1,6 +1,6 @@
 {
   "name": "@welshman/util",
-  "version": "0.0.35",
+  "version": "0.0.36",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of nostr-related utilities.",
@@ -31,7 +31,7 @@
     "typescript": "~5.1.6"
   },
   "dependencies": {
-    "@welshman/lib": "^0.0.18",
+    "@welshman/lib": "~0.0.19",
     "nostr-tools": "^2.7.2"
   }
 }
