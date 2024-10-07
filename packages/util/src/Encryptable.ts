@@ -18,7 +18,7 @@ export type DecryptedEvent = TrustedEvent & {
   plaintext: Partial<EventContent>
 }
 
-export const asDecryptedEvent = (event: TrustedEvent, plaintext: Partial<EventContent>) =>
+export const asDecryptedEvent = (event: TrustedEvent, plaintext: Partial<EventContent> = {}) =>
   ({...event, plaintext}) as DecryptedEvent
 
 export class Encryptable {

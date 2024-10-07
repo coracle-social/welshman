@@ -1,11 +1,17 @@
 import {throttle} from 'throttle-debounce'
 import {derived, writable} from 'svelte/store'
 import {addToMapKey, inc, dec} from '@welshman/lib'
-import {getListValues} from '@welshman/util'
+import {getListTags, getPubkeyTagValues} from '@welshman/util'
 import {throttled, withGetter} from '@welshman/store'
 import {pubkey} from './session'
-import {follows, getFollows, followsByPubkey} from './follows'
-import {mutes, getMutes} from './mutes'
+import {follows, followsByPubkey} from './follows'
+import {mutes, mutesByPubkey} from './mutes'
+
+export const getFollows = (pubkey: string) =>
+  getPubkeyTagValues(getListTags(followsByPubkey.get().get(pubkey)))
+
+export const getMutes = (pubkey: string) =>
+  getPubkeyTagValues(getListTags(mutesByPubkey.get().get(pubkey)))
 
 export const followersByPubkey = withGetter(
   derived(
@@ -14,7 +20,7 @@ export const followersByPubkey = withGetter(
       const $followersByPubkey = new Map<string, Set<string>>()
 
       for (const list of lists) {
-        for (const pubkey of getListValues("p", list)) {
+        for (const pubkey of getPubkeyTagValues(getListTags(list))) {
           addToMapKey($followersByPubkey, pubkey, list.event.pubkey)
         }
       }
@@ -31,7 +37,7 @@ export const mutersByPubkey = withGetter(
       const $mutersByPubkey = new Map<string, Set<string>>()
 
       for (const list of lists) {
-        for (const pubkey of getListValues("p", list)) {
+        for (const pubkey of getPubkeyTagValues(getListTags(list))) {
           addToMapKey($mutersByPubkey, pubkey, list.event.pubkey)
         }
       }

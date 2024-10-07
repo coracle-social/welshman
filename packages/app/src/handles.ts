@@ -1,5 +1,4 @@
 import {writable, derived} from 'svelte/store'
-import {withGetter} from '@welshman/store'
 import {type SubscribeRequestWithHandlers} from "@welshman/net"
 import {ctx, tryCatch, fetchJson, uniq, batcher, postJson, last} from '@welshman/lib'
 import {collection} from './collection'
@@ -41,7 +40,7 @@ export async function queryProfile(nip05: string) {
   }
 }
 
-export const handles = withGetter(writable<Handle[]>([]))
+export const handles = writable<Handle[]>([])
 
 export const fetchHandles = async (nip05s: string[]) => {
   const base = ctx.app.dufflepudUrl!

@@ -177,6 +177,15 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
 // New, simpler version
 
+export const getTags = (types: string | string[], tags: string[][]) => {
+  types = ensurePlural(types)
+
+  return tags.filter(t => types.includes(t[0]))
+}
+
+export const getTagValues = (types: string | string[], tags: string[][]) =>
+  getTags(types, tags).map(nth(1))
+
 export const getEventTags = (tags: string[][]) =>
   tags.filter(t => ["e"].includes(t[0]) && t[1].length === 64)
 

@@ -1,12 +1,11 @@
 import {writable, derived} from 'svelte/store'
-import {withGetter} from '@welshman/store'
 import {type Zapper} from '@welshman/util'
 import {type SubscribeRequestWithHandlers} from "@welshman/net"
 import {ctx, identity, fetchJson, uniq, bech32ToHex, hexToBech32, tryCatch, batcher, postJson} from '@welshman/lib'
 import {collection} from './collection'
 import {deriveProfile} from './profiles'
 
-export const zappers = withGetter(writable<Zapper[]>([]))
+export const zappers = writable<Zapper[]>([])
 
 export const fetchZappers = async (lnurls: string[]) => {
   const base = ctx.app.dufflepudUrl!

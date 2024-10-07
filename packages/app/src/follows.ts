@@ -1,24 +1,17 @@
-import {FOLLOWS, getListValues, asDecryptedEvent, readList} from '@welshman/util'
+import {FOLLOWS, asDecryptedEvent, readList} from '@welshman/util'
 import {type TrustedEvent, type PublishedList} from '@welshman/util'
 import {type SubscribeRequestWithHandlers} from "@welshman/net"
-import {deriveEventsMapped, withGetter} from '@welshman/store'
+import {deriveEventsMapped} from '@welshman/store'
 import {repository, load} from './core'
 import {collection} from './collection'
-import {ensurePlaintext} from './plaintext'
 import {loadRelaySelections} from './relaySelections'
 
-export const follows = withGetter(
-  deriveEventsMapped<PublishedList>(repository, {
-    filters: [{kinds: [FOLLOWS]}],
-    itemToEvent: item => item.event,
-    eventToItem: async (event: TrustedEvent) =>
-      readList(
-        asDecryptedEvent(event, {
-          content: await ensurePlaintext(event),
-        }),
-      ),
-  })
-)
+export const follows = deriveEventsMapped<PublishedList>(repository, {
+  filters: [{kinds: [FOLLOWS]}],
+  itemToEvent: item => item.event,
+  eventToItem: (event: TrustedEvent) =>
+    readList(asDecryptedEvent(event)),
+})
 
 export const {
   indexStore: followsByPubkey,
@@ -33,6 +26,3 @@ export const {
     await load({...request, filters: [{kinds: [FOLLOWS], authors: [pubkey]}]})
   },
 })
-
-export const getFollows = (pubkey: string) =>
-  getListValues("p", followsByPubkey.get().get(pubkey))

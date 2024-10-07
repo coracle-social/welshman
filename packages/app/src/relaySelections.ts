@@ -1,56 +1,62 @@
 import {uniq} from '@welshman/lib'
-import {INBOX_RELAYS, RELAYS, getRelayTags, normalizeRelayUrl, type TrustedEvent} from '@welshman/util'
-import {type SubscribeRequestWithHandlers} from "@welshman/net"
-import {deriveEvents, withGetter} from '@welshman/store'
+import {INBOX_RELAYS, RELAYS, normalizeRelayUrl, asDecryptedEvent, readList, getListTags, getRelayTags, getRelayTagValues} from '@welshman/util'
+import type {TrustedEvent, PublishedList, List} from '@welshman/util'
+import type {SubscribeRequestWithHandlers} from "@welshman/net"
+import {deriveEventsMapped} from '@welshman/store'
 import {load, repository} from './core'
 import {collection} from './collection'
 
-export const getRelayUrls = (event?: TrustedEvent): string[] =>
-  uniq(
-    getRelayTags(event?.tags || [])
-      .map((t: string[]) => normalizeRelayUrl(t[1]))
-  )
+export const getRelayUrls = (list?: List): string[] =>
+  uniq(getRelayTagValues(getListTags(list)).map(normalizeRelayUrl))
 
-export const getReadRelayUrls = (event?: TrustedEvent): string[] =>
+export const getReadRelayUrls = (list?: List): string[] =>
   uniq(
-    getRelayTags(event?.tags || [])
+    getRelayTags(getListTags(list))
       .filter((t: string[]) => !t[2] || t[2] === "read")
       .map((t: string[]) => normalizeRelayUrl(t[1]))
   )
 
-export const getWriteRelayUrls = (event?: TrustedEvent): string[] =>
+export const getWriteRelayUrls = (list?: List): string[] =>
   uniq(
-    getRelayTags(event?.tags || [])
+    getRelayTags(getListTags(list))
       .filter((t: string[]) => !t[2] || t[2] === "write")
       .map((t: string[]) => normalizeRelayUrl(t[1]))
   )
 
-export const relaySelections = withGetter(deriveEvents(repository, {filters: [{kinds: [RELAYS]}]}))
+export const relaySelections = deriveEventsMapped<PublishedList>(repository, {
+  filters: [{kinds: [RELAYS]}],
+  itemToEvent: item => item.event,
+  eventToItem: (event: TrustedEvent) =>
+    readList(asDecryptedEvent(event)),
+})
 
 export const {
   indexStore: relaySelectionsByPubkey,
   deriveItem: deriveRelaySelections,
   loadItem: loadRelaySelections,
-  getItem: getRelaySelections,
 } = collection({
   name: "relaySelections",
   store: relaySelections,
-  getKey: relaySelections => relaySelections.pubkey,
+  getKey: relaySelections => relaySelections.event.pubkey,
   load: (pubkey: string, request: Partial<SubscribeRequestWithHandlers> = {}) =>
     load({...request, filters: [{kinds: [RELAYS], authors: [pubkey]}]}),
 })
 
-export const inboxRelaySelections = withGetter(deriveEvents(repository, {filters: [{kinds: [INBOX_RELAYS]}]}))
+export const inboxRelaySelections = deriveEventsMapped<PublishedList>(repository, {
+  filters: [{kinds: [INBOX_RELAYS]}],
+  itemToEvent: item => item.event,
+  eventToItem: (event: TrustedEvent) =>
+    readList(asDecryptedEvent(event)),
+})
 
 export const {
   indexStore: inboxRelaySelectionsByPubkey,
   deriveItem: deriveInboxRelaySelections,
   loadItem: loadInboxRelaySelections,
-  getItem: getInboxRelaySelections,
 } = collection({
   name: "inboxRelaySelections",
   store: inboxRelaySelections,
-  getKey: inboxRelaySelections => inboxRelaySelections.pubkey,
+  getKey: inboxRelaySelections => inboxRelaySelections.event.pubkey,
   load: (pubkey: string, request: Partial<SubscribeRequestWithHandlers> = {}) =>
     load({...request, filters: [{kinds: [INBOX_RELAYS], authors: [pubkey]}]}),
 })

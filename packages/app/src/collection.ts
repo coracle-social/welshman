@@ -15,12 +15,11 @@ export const collection = <T, LoadArgs extends any[]>({
   load: (key: string, ...args: LoadArgs) => Promise<any>
 }) => {
   const indexStore = withGetter(derived(store, $items => indexBy(getKey, $items)))
-  const getItem = (key: string) => indexStore.get().get(key)
   const pending = new Map<string, Promise<Maybe<T>>>()
   const loadAttempts = new Map<string, number>()
 
   const loadItem = async (key: string, ...args: LoadArgs) => {
-    const stale = getItem(key)
+    const stale = indexStore.get().get(key)
     const freshness = getFreshness(name, key)
 
     // If we have an item, reload if it's stale
@@ -30,7 +29,7 @@ export const collection = <T, LoadArgs extends any[]>({
 
     // If we already are loading, await and return
     if (pending.has(key)) {
-      return pending.get(key)!.then(() => getItem(key))
+      return pending.get(key)!.then(() => indexStore.get().get(key))
     }
 
     const attempt = loadAttempts.get(key) || 0
@@ -52,7 +51,7 @@ export const collection = <T, LoadArgs extends any[]>({
 
     pending.delete(key)
 
-    const fresh = getItem(key)
+    const fresh = indexStore.get().get(key)
 
     if (fresh) {
       loadAttempts.delete(key)
@@ -73,5 +72,5 @@ export const collection = <T, LoadArgs extends any[]>({
     return derived(indexStore, $index => $index.get(key))
   }
 
-  return {indexStore, deriveItem, loadItem, getItem}
+  return {indexStore, deriveItem, loadItem}
 }
