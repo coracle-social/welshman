@@ -1,5 +1,6 @@
 import {parseJson, append, nthNe, nthEq} from "@welshman/lib"
 import {Address} from "./Address"
+import {uniqTags} from "./Tags"
 import {isShareableRelayUrl} from "./Relay"
 import {Encryptable, DecryptedEvent} from "./Encryptable"
 import type {EncryptableUpdates} from "./Encryptable"
@@ -63,7 +64,7 @@ export const addToListPublicly = (list: List, tag: string[]) => {
   const template = {
     kind: list.kind,
     content: list.event?.content || "",
-    tags: append(tag, list.publicTags),
+    tags: uniqTags(append(tag, list.publicTags)),
   }
 
   return new Encryptable(template, {})
@@ -76,6 +77,6 @@ export const addToListPrivately = (list: List, tag: string[]) => {
   }
 
   return new Encryptable(template, {
-    content: JSON.stringify(append(tag, list.privateTags)),
+    content: JSON.stringify(uniqTags(append(tag, list.privateTags))),
   })
 }

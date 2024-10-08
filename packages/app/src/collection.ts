@@ -12,7 +12,7 @@ export const collection = <T, LoadArgs extends any[]>({
   name: string
   store: Readable<T[]>
   getKey: (item: T) => string
-  load: (key: string, ...args: LoadArgs) => Promise<any>
+  load?: (key: string, ...args: LoadArgs) => Promise<any>
 }) => {
   const indexStore = withGetter(derived(store, $items => indexBy(getKey, $items)))
   const pending = new Map<string, Promise<Maybe<T>>>()
@@ -20,6 +20,12 @@ export const collection = <T, LoadArgs extends any[]>({
 
   const loadItem = async (key: string, ...args: LoadArgs) => {
     const stale = indexStore.get().get(key)
+
+    // If we have no loader function, nothing we can do
+    if (!load) {
+      return stale
+    }
+
     const freshness = getFreshness(name, key)
 
     // If we have an item, reload if it's stale

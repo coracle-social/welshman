@@ -1,7 +1,8 @@
 import {writable, get} from 'svelte/store'
 import {Worker, assoc} from '@welshman/lib'
 import {stamp, own, hash} from "@welshman/signer"
-import type {HashedEvent, EventTemplate, SignedEvent} from '@welshman/util'
+import type {TrustedEvent, HashedEvent, EventTemplate, SignedEvent, StampedEvent, OwnedEvent} from '@welshman/util'
+import {isStampedEvent, isOwnedEvent, isHashedEvent, isUnwrappedEvent, isSignedEvent} from '@welshman/util'
 import {publish, PublishStatus} from "@welshman/net"
 import {repository, tracker} from './core'
 import {pubkey, getSession, getSigner} from './session'
@@ -20,7 +21,7 @@ export type PublishStatusDataByUrlById = Record<string, PublishStatusDataByUrl>
 export const publishStatusData = writable<PublishStatusDataByUrlById>({})
 
 export type Thunk = {
-  event: HashedEvent
+  event: TrustedEvent
   relays: string[]
 }
 
@@ -31,31 +32,45 @@ export type ThunkWithResolve = Thunk & {
 export const thunkWorker = new Worker<ThunkWithResolve>()
 
 thunkWorker.addGlobalHandler(async ({event, relays, resolve}: ThunkWithResolve) => {
-  const session = getSession(event.pubkey)
-
-  if (!session) {
-    return console.warn(`No session found for ${event.pubkey}`)
+  // If we were given a wrapped event, make sure to publish the wrapper, not the rumor
+  if (isUnwrappedEvent(event)) {
+    event = event.wrap
   }
 
-  const signedEvent = await getSigner(session)!.sign(event)
+  // If the event was already signed, leave it alone. Otherwise, sign it now. This is to
+  // decrease apparent latency in the UI that results from waiting for remote signers
+  if (!isSignedEvent(event)) {
+    const signer = getSigner(getSession(event.pubkey))
+
+    if (!signer) {
+      return console.warn(`No signer found for ${event.pubkey}`)
+    }
+
+    event = await signer.sign(event)
+  }
+
+  // We're guaranteed to have a signed event at this point
+  const signedEvent = event as SignedEvent
+  const {id, sig} = signedEvent
+
+  // Send it off
   const pub = publish({event: signedEvent, relays})
 
   // Copy the signature over since we had deferred it
-  const savedEvent = repository.getEvent(signedEvent.id) as SignedEvent
+  const savedEvent = repository.getEvent(id) as SignedEvent
 
   // The event may already be replaced or deleted
   if (savedEvent) {
-    savedEvent.sig = signedEvent.sig
+    savedEvent.sig = sig
   }
 
   // Track publish success
-  const {id} = event
   const statusByUrl: PublishStatusDataByUrl = {}
 
   pub.emitter.on("*", (status: PublishStatus, url: string, message: string) => {
-    publishStatusData.update(
-      assoc(id, Object.assign(statusByUrl, {[url]: {id, url, status, message}})),
-    )
+    Object.assign(statusByUrl, {[url]: {id, url, status, message}})
+
+    publishStatusData.update(assoc(id, statusByUrl))
 
     if (status === PublishStatus.Success) {
       tracker.track(id, url)
@@ -70,23 +85,31 @@ thunkWorker.addGlobalHandler(async ({event, relays, resolve}: ThunkWithResolve) 
   })
 })
 
-export type ThunkParams = {
-  event: EventTemplate
-  relays: string[]
-}
+export type ThunkEvent = EventTemplate | StampedEvent | OwnedEvent | TrustedEvent
 
-export const makeThunk = ({event, relays}: ThunkParams) => {
-  const $pubkey = get(pubkey)
-
-  if (!$pubkey) {
-    throw new Error("Unable to make thunk if no user is logged in")
+export const prepEvent = (event: ThunkEvent) => {
+  if (!isStampedEvent(event as StampedEvent)) {
+    event = stamp(event)
   }
 
-  return {event: hash(own(stamp(event), $pubkey)), relays}
+  if (!isOwnedEvent(event as OwnedEvent)) {
+    event = own(event as StampedEvent, get(pubkey)!)
+  }
+
+  if (!isHashedEvent(event as HashedEvent)) {
+    event = hash(event as OwnedEvent)
+  }
+
+  return event as TrustedEvent
 }
 
-export const publishThunk = (thunk: Thunk) =>
+export const makeThunk = ({event, relays}: {event: ThunkEvent, relays: string[]}) =>
+  ({event, relays})
+
+export const publishThunk = ({event, relays}: Thunk) =>
   new Promise<PublishStatusDataByUrl>(resolve => {
-    thunkWorker.push({...thunk, resolve})
-    repository.publish(thunk.event)
+    event = prepEvent(event)
+
+    thunkWorker.push({event, relays, resolve})
+    repository.publish(event)
   })
