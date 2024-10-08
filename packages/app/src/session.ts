@@ -82,3 +82,14 @@ export const onAuth = async (url: string, challenge: string) => {
 
   return event
 }
+
+export const nip44EncryptToSelf = (payload: string) => {
+  const $pubkey = pubkey.get()
+  const $signer = signer.get()
+
+  if (!$signer) {
+    throw new Error("Unable to encrypt to self without valid signer")
+  }
+
+  return $signer.nip44.encrypt($pubkey!, payload)
+}

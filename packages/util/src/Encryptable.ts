@@ -1,20 +1,8 @@
-import type {EventContent, TrustedEvent} from './Events'
+import type {EventContent, TrustedEvent, EventTemplate} from './Events'
 
 export type Encrypt = (x: string) => Promise<string>
 
-export type EncryptableParams = {
-  kind: number,
-  tags?: string[][]
-  content?: string
-}
-
 export type EncryptableUpdates = Partial<EventContent>
-
-export type EncryptableResult = {
-  kind: number,
-  tags: string[][]
-  content: string
-}
 
 export type DecryptedEvent = TrustedEvent & {
   plaintext: EncryptableUpdates
@@ -26,7 +14,7 @@ export const asDecryptedEvent = (event: TrustedEvent, plaintext: EncryptableUpda
 /**
  * Represents an encryptable event with optional updates.
  */
-export class Encryptable {
+export class Encryptable<T extends EventTemplate> {
   /**
    * Creates an instance of Encryptable.
    * @param event - An EventTemplate with optional tags and content.
@@ -39,14 +27,14 @@ export class Encryptable {
    * const eventTemplate = await encryptable.reconcile(myEncryptFunction)
    * ```
    */
-  constructor(readonly event: EncryptableParams, readonly updates: EncryptableUpdates) {}
+  constructor(readonly event: Partial<T>, readonly updates: EncryptableUpdates) {}
 
   /**
    * Encrypts plaintext updates and merges them into the event template.
    * @param encrypt - The encryption function to be used.
    * @returns A promise that resolves to the reconciled and encrypted event.
    */
-  async reconcile(encrypt: Encrypt): Promise<EncryptableResult> {
+  async reconcile(encrypt: Encrypt) {
     const encryptContent = () => {
       if (!this.updates.content) return null
 
@@ -72,6 +60,6 @@ export class Encryptable {
       ...this.event,
       tags: tags || this.event.tags || [],
       content: content || this.event.content || "",
-    }
+    } as T
   }
 }

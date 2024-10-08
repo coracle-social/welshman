@@ -1,4 +1,4 @@
-import {parseJson, append, nthNe, nthEq} from "@welshman/lib"
+import {parseJson, append, nthEq} from "@welshman/lib"
 import {Address} from "./Address"
 import {uniqTags} from "./Tags"
 import {isShareableRelayUrl} from "./Relay"
@@ -44,21 +44,24 @@ export const readList = (event: DecryptedEvent): PublishedList => {
 export const getListTags = (list: List | undefined) =>
   [...list?.publicTags || [], ...list?.privateTags || []]
 
-export const removeFromList = (list: List, value: string) => {
+export const removeFromListByPredicate = (list: List, pred: (t: string[]) => boolean) => {
   const plaintext: EncryptableUpdates = {}
   const template = {
     kind: list.kind,
     content: list.event?.content || "",
-    tags: list.publicTags.filter(nthNe(1, value)),
+    tags: list.publicTags.filter(t => !pred(t)),
   }
 
   // Avoid redundant encrypt calls if possible
-  if (list.privateTags.some(nthEq(1, value))) {
-    plaintext.content = JSON.stringify(list.privateTags.filter(nthNe(1, value)))
+  if (list.privateTags.some(t => pred(t))) {
+    plaintext.content = JSON.stringify(list.privateTags.filter(t => !pred(t)))
   }
 
   return new Encryptable(template, plaintext)
 }
+
+export const removeFromList = (list: List, value: string) =>
+  removeFromListByPredicate(list, nthEq(1, value))
 
 export const addToListPublicly = (list: List, tag: string[]) => {
   const template = {

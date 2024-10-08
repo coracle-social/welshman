@@ -20,12 +20,9 @@ export type PublishStatusDataByUrlById = Record<string, PublishStatusDataByUrl>
 
 export const publishStatusData = writable<PublishStatusDataByUrlById>({})
 
-export type Thunk = {
+export type ThunkWithResolve = {
   event: TrustedEvent
   relays: string[]
-}
-
-export type ThunkWithResolve = Thunk & {
   resolve: (data: PublishStatusDataByUrl) => void
 }
 
@@ -103,13 +100,17 @@ export const prepEvent = (event: ThunkEvent) => {
   return event as TrustedEvent
 }
 
-export const makeThunk = ({event, relays}: {event: ThunkEvent, relays: string[]}) =>
-  ({event, relays})
+export type ThunkParams = {
+  event: ThunkEvent
+  relays: string[]
+}
 
-export const publishThunk = ({event, relays}: Thunk) =>
+export const makeThunk = (params: ThunkParams) => params
+
+export const publishThunk = (params: ThunkParams) =>
   new Promise<PublishStatusDataByUrl>(resolve => {
-    event = prepEvent(event)
+    const event = prepEvent(params.event)
 
-    thunkWorker.push({event, relays, resolve})
+    thunkWorker.push({...params, event, resolve})
     repository.publish(event)
   })
