@@ -72,6 +72,8 @@ export const normalizeRelayUrl = (url: string) => {
 
 export const displayRelayUrl = (url: string) => last(url.split("://")).replace(/\/$/, "")
 
+export const displayRelayProfile = (profile?: RelayProfile, fallback = "") => profile?.name || fallback
+
 // In-memory relay implementation backed by Repository
 
 export class Relay<E extends HashedEvent = TrustedEvent> extends Emitter {

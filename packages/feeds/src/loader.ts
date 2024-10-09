@@ -20,7 +20,7 @@ export class FeedLoader {
     this.compiler = new FeedCompiler(options)
   }
 
-  async getLoader([type, ...feed]: Feed, loadOpts: LoadOpts) {
+  async getLoader([type, ...feed]: Feed, loadOpts: LoadOpts = {}) {
     if (this.compiler.canCompile([type, ...feed] as Feed)) {
       return this.getRequestsLoader(await this.compiler.compile([type, ...feed] as Feed), loadOpts)
     }

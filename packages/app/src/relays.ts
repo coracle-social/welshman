@@ -2,7 +2,7 @@ import {writable, derived} from 'svelte/store'
 import {withGetter} from '@welshman/store'
 import {ctx, groupBy, indexBy, batch, now, uniq, batcher, postJson} from '@welshman/lib'
 import type {RelayProfile} from "@welshman/util"
-import {normalizeRelayUrl} from "@welshman/util"
+import {normalizeRelayUrl, displayRelayUrl, displayRelayProfile} from "@welshman/util"
 import {AuthStatus, asMessage, type Connection, type SocketMessage} from '@welshman/net'
 import {collection} from './collection'
 
@@ -87,6 +87,12 @@ export const {
     return urls
   }),
 })
+
+export const displayRelayByPubkey = (url: string) =>
+  displayRelayProfile(relaysByUrl.get().get(url)?.profile, displayRelayUrl(url))
+
+export const deriveRelayDisplay = (url: string) =>
+  derived(deriveRelay(url), $relay => displayRelayProfile($relay?.profile, displayRelayUrl(url)))
 
 // Utilities for syncing stats from connections to relays
 
