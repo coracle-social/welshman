@@ -1,6 +1,6 @@
 import {throttle} from 'throttle-debounce'
 import {derived, writable} from 'svelte/store'
-import {addToMapKey, inc, dec} from '@welshman/lib'
+import {max, addToMapKey, inc, dec} from '@welshman/lib'
 import {getListTags, getPubkeyTagValues} from '@welshman/util'
 import {throttled, withGetter} from '@welshman/store'
 import {pubkey} from './session'
@@ -12,6 +12,22 @@ export const getFollows = (pubkey: string) =>
 
 export const getMutes = (pubkey: string) =>
   getPubkeyTagValues(getListTags(mutesByPubkey.get().get(pubkey)))
+
+export const getNetwork = (pubkey: string) => {
+  const pubkeys = new Set(getFollows(pubkey))
+  const network = new Set<string>()
+
+  for (const follow of pubkeys) {
+    for (const tpk of getFollows(follow)) {
+      if (!pubkeys.has(tpk)) {
+        network.add(tpk)
+      }
+    }
+  }
+
+  return Array.from(network)
+}
+
 
 export const followersByPubkey = withGetter(
   derived(
@@ -60,6 +76,8 @@ export const getFollowsWhoMute = (pubkey: string, target: string) =>
   getFollows(pubkey).filter(other => getMutes(other).includes(target))
 
 export const wotGraph = withGetter(writable(new Map<string, number>()))
+
+export const maxWot = withGetter(derived(wotGraph, $g => max(Array.from($g.values()))))
 
 const buildGraph = throttle(1000, () => {
   const $pubkey = pubkey.get()

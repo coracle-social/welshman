@@ -47,6 +47,18 @@ export const omit = <T extends Record<string, any>>(ks: string[], x: T) => {
   return r
 }
 
+export const omitVals = <T extends Record<string, any>>(xs: any[], x: T) => {
+  const r: Record<string, any> = {}
+
+  for (const [k, v] of Object.entries(x)) {
+    if (!xs.includes(v)) {
+      r[k] = v
+    }
+  }
+
+  return r as T
+}
+
 export const pick = <T extends Record<string, any>>(ks: string[], x: T) => {
   const r: T = {...x}
 

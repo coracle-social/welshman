@@ -1,4 +1,4 @@
-import {inc, max, min, now} from '@welshman/lib'
+import {inc, omitVals, max, min, now} from '@welshman/lib'
 import type {TrustedEvent, Filter} from '@welshman/util'
 import {EPOCH, trimFilters, guessFilterDelta} from '@welshman/util'
 import type {Feed, RequestItem, FeedOptions} from './core'
@@ -98,7 +98,7 @@ export class FeedLoader {
 
       let count = 0
 
-      await this.options.request({
+      await this.options.request(omitVals([undefined], {
         relays,
         filters: trimFilters(requestFilters),
         onEvent: (event: TrustedEvent) => {
@@ -106,7 +106,7 @@ export class FeedLoader {
           until = Math.min(until, event.created_at - 1)
           onEvent?.(event)
         },
-      })
+      }))
 
       if (useWindowing) {
         if (since === minSince) {

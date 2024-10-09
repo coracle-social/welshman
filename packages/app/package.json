@@ -32,6 +32,8 @@
   },
   "dependencies": {
     "@welshman/lib": "~0.0.19",
+    "@welshman/feeds": "~0.0.19",
+    "@welshman/dvm": "~0.0.9",
     "@welshman/net": "~0.0.24",
     "@welshman/signer": "~0.0.7",
     "@welshman/store": "~0.0.9",

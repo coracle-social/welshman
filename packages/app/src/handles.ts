@@ -108,5 +108,7 @@ export const deriveHandleForPubkey = (pubkey: string, request: Partial<Subscribe
     }
   )
 
-export const displayHandle = (handle: Handle) =>
-  handle.nip05.startsWith("_@") ? last(handle.nip05.split("@")) : handle.nip05
+export const displayNip05 = (nip05: string) =>
+  (nip05?.startsWith("_@") ? last(nip05.split("@")) : nip05)
+
+export const displayHandle = (handle: Handle) => displayNip05(handle.nip05)
