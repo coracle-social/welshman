@@ -105,8 +105,6 @@ export type ThunkParams = {
   relays: string[]
 }
 
-export const makeThunk = (params: ThunkParams) => params
-
 export const publishThunk = (params: ThunkParams) =>
   new Promise<PublishStatusDataByUrl>(resolve => {
     const event = prepEvent(params.event)

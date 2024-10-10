@@ -96,7 +96,7 @@ export class Connection extends Emitter {
     this.emit('receive', this, message)
   }
 
-  ensureConnected = async ({shouldReconnect = true}) => {
+  ensureConnected = async ({shouldReconnect = true} = {}) => {
     const isUnhealthy = this.socket.isClosing() || this.socket.isClosed()
     const noRecentFault = this.meta.lastFault < Date.now() - 60_000
 
@@ -107,10 +107,14 @@ export class Connection extends Emitter {
     if (this.socket.isNew()) {
       await this.socket.connect()
     }
+
+    while (this.socket.isConnecting()) {
+      await sleep(100)
+    }
   }
 
-  ensureAuth = async ({timeout = 3000}) => {
-    await this.ensureConnected({shouldReconnect: true})
+  ensureAuth = async ({timeout = 3000} = {}) => {
+    await this.ensureConnected()
 
     if (this.meta.authStatus === AuthStatus.Pending) {
       await Promise.race([
