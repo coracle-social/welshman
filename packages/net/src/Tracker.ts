@@ -1,7 +1,8 @@
-import {Emitter} from '@welshman/lib'
+import {Emitter, addToMapKey} from '@welshman/lib'
 
 export class Tracker extends Emitter {
-  data = new Map<string, Set<string>>()
+  relaysById = new Map<string, Set<string>>()
+  idsByRelay = new Map<string, Set<string>>()
 
   constructor() {
     super()
@@ -9,31 +10,27 @@ export class Tracker extends Emitter {
     this.setMaxListeners(100)
   }
 
-  getRelays = (eventId: string) => {
-    const relays = new Set<string>()
+  getIds = (relay: string) => this.idsByRelay.get(relay) || new Set<string>()
 
-    for (const relay of this.data.get(eventId) || []) {
-      relays.add(relay)
-    }
+  getRelays = (eventId: string) => this.relaysById.get(eventId) || new Set<string>()
 
-    return relays
-  }
-
-  hasRelay = (eventId: string, relay: string) => {
-    return this.getRelays(eventId).has(relay)
-  }
+  hasRelay = (eventId: string, relay: string) => this.relaysById.get(eventId)?.has(relay)
 
   addRelay = (eventId: string, relay: string) => {
-    const relays = this.data.get(eventId) || new Set()
+    const relays = this.relaysById.get(eventId) || new Set()
+    const ids = this.idsByRelay.get(relay) || new Set()
 
     relays.add(relay)
+    ids.add(eventId)
 
-    this.data.set(eventId, relays)
+    this.relaysById.set(eventId, relays)
+    this.idsByRelay.set(eventId, relays)
+
     this.emit('update')
   }
 
   track = (eventId: string, relay: string) => {
-    const seen = this.data.has(eventId)
+    const seen = this.relaysById.has(eventId)
 
     this.addRelay(eventId, relay)
 
@@ -46,13 +43,24 @@ export class Tracker extends Emitter {
     }
   }
 
-  load = (data: Tracker['data']) => {
-    this.data = data
+  load = (relaysById: Tracker['relaysById']) => {
+    this.relaysById.clear()
+    this.idsByRelay.clear()
+
+    for (const [id, relays] of relaysById.entries()) {
+      for (const relay of relays) {
+        addToMapKey(this.relaysById, id, relay)
+        addToMapKey(this.idsByRelay, relay, id)
+      }
+    }
+
     this.emit('update')
   }
 
   clear = () => {
-    this.data.clear()
+    this.relaysById.clear()
+    this.idsByRelay.clear()
+
     this.emit('update')
   }
 }

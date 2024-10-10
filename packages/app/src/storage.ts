@@ -161,7 +161,7 @@ export const storageAdapters = {
       let onUpdate = () =>
         setter(
           migrate(
-            Array.from(tracker.data.entries())
+            Array.from(tracker.relaysById.entries())
               .map(([key, urls]) => ({key, value: Array.from(urls)})),
             options
           )

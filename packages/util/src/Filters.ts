@@ -155,7 +155,7 @@ export const getIdFilters = (idsOrAddresses: string[]) => {
   return filters
 }
 
-export const getReplyFilters = (events: TrustedEvent[], filter: Filter) => {
+export const getReplyFilters = (events: TrustedEvent[], filter: Filter = {}) => {
   const a = []
   const e = []
 

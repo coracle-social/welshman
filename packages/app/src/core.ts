@@ -7,6 +7,17 @@ import {custom} from "@welshman/store"
 
 export const repository = new Repository<TrustedEvent>()
 
+export const repositoryStore = custom(setter => {
+  const onUpdate = () => setter(repository)
+
+  onUpdate()
+  repository.on('update', onUpdate)
+
+  return () => repository.off('update', onUpdate)
+}, {
+  set: (other: Repository) => repository.load(other.dump()),
+})
+
 export const relay = new Relay(repository)
 
 export const tracker = new Tracker()
@@ -19,7 +30,7 @@ export const trackerStore = custom(setter => {
 
   return () => tracker.off('update', onUpdate)
 }, {
-  set: (other: Tracker) => tracker.load(other.data),
+  set: (other: Tracker) => tracker.load(other.relaysById),
 })
 
 export type PartialSubscribeRequest = Partial<SubscribeRequestWithHandlers> & {filters: Filter[]}
