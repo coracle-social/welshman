@@ -30,10 +30,7 @@ const createSubId = (prefix: string) => [prefix, Math.random().toString().slice(
 
 export class Executor {
 
-  constructor(readonly target: Target) {
-    target.on('AUTH', ctx.net.onAuth)
-    target.on('OK', ctx.net.onOk)
-  }
+  constructor(readonly target: Target) {}
 
   subscribe(filters: Filter[], {onEvent, onEose}: SubscribeOpts = {}) {
     let closed = false

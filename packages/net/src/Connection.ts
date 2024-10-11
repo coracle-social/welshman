@@ -1,4 +1,4 @@
-import {Emitter, Worker, sleep} from '@welshman/lib'
+import {ctx, Emitter, Worker, sleep} from '@welshman/lib'
 import {AuthStatus, ConnectionMeta} from './ConnectionMeta'
 import {Socket, isMessage, asMessage} from './Socket'
 import type {SocketMessage, Message} from './Socket'
@@ -93,6 +93,20 @@ export class Connection extends Emitter {
   }
 
   onReceive = (message: SocketMessage) => {
+    const [verb, ...extra] = asMessage(message)
+
+    if (verb === 'AUTH') {
+      const [challenge] = extra
+
+      ctx.net.onAuth(this.url, challenge)
+    }
+
+    if (verb === 'OK') {
+      const [id, ok, message] = extra
+
+      ctx.net.onOk(this.url, id, ok, message)
+    }
+
     this.emit('receive', this, message)
   }
 
@@ -120,11 +134,14 @@ export class Connection extends Emitter {
       await Promise.race([
         sleep(timeout),
         new Promise<void>(resolve => {
-          this.on('receive', (cxn: Connection, message: Message) => {
+          const onReceive = (cxn: Connection, message: Message) => {
             if (message[0] === 'OK' && message[2]) {
+              this.off('receive', onReceive)
               resolve()
             }
-          })
+          }
+
+          this.on('receive', onReceive)
         })
       ])
     }
