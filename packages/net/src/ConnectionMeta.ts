@@ -42,6 +42,7 @@ export class ConnectionMeta {
   lastPublish = 0
   lastRequest = 0
   lastEvent = 0
+  lastAuth = 0
   responseCount = 0
   responseTimer = 0
 
@@ -117,6 +118,7 @@ export class ConnectionMeta {
 
   onReceiveAuth([verb, eventId]: Message) {
     this.authStatus = AuthStatus.Unauthorized
+    this.lastAuth = Date.now()
   }
 
   onReceiveEvent([verb, event]: Message) {
