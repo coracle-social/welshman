@@ -130,7 +130,7 @@ export class Connection extends Emitter {
   ensureAuth = async ({timeout = 3000} = {}) => {
     await this.ensureConnected()
 
-    if (this.meta.authStatus === AuthStatus.Pending) {
+    if ([AuthStatus.Unauthorized, AuthStatus.Pending].includes(this.meta.authStatus)) {
       await Promise.race([
         sleep(timeout),
         new Promise<void>(resolve => {
