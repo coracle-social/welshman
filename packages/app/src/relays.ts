@@ -3,7 +3,7 @@ import {withGetter} from '@welshman/store'
 import {ctx, groupBy, indexBy, batch, now, uniq, batcher, postJson} from '@welshman/lib'
 import type {RelayProfile} from "@welshman/util"
 import {normalizeRelayUrl, displayRelayUrl, displayRelayProfile} from "@welshman/util"
-import {AuthStatus, asMessage, type Connection, type SocketMessage} from '@welshman/net'
+import {asMessage, type Connection, type SocketMessage} from '@welshman/net'
 import {collection} from './collection'
 
 export type RelayStats = {
@@ -13,7 +13,6 @@ export type RelayStats = {
   publish_count: number
   connect_count: number
   recent_errors: number[]
-  last_auth_status: AuthStatus
 }
 
 // Relays
@@ -25,7 +24,6 @@ export const makeRelayStats = (): RelayStats => ({
   publish_count: 0,
   connect_count: 0,
   recent_errors: [],
-  last_auth_status: AuthStatus.Pending,
 })
 
 export type Relay = {
@@ -136,14 +134,6 @@ const onConnectionReceive = ({url}: Connection, socketMessage: SocketMessage) =>
 
   if (verb === 'EVENT') {
     updateRelayStats([url, stats => ++stats.event_count])
-  } else if (verb === 'OK') {
-    updateRelayStats([url, stats => {
-      stats.last_auth_status = AuthStatus.Ok
-    }])
-  } else if (verb === 'AUTH') {
-    updateRelayStats([url, stats => {
-      stats.last_auth_status = AuthStatus.Unauthorized
-    }])
   }
 }
 

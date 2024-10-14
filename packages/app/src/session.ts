@@ -1,6 +1,5 @@
 import {derived} from "svelte/store"
-import {ctx, memoize, omit, equals, assoc} from "@welshman/lib"
-import {createEvent} from "@welshman/util"
+import {memoize, omit, equals, assoc} from "@welshman/lib"
 import {withGetter, synced} from "@welshman/store"
 import {type Nip46Handler} from "@welshman/signer"
 import {Nip46Broker, Nip46Signer, Nip07Signer, Nip01Signer, Nip55Signer} from "@welshman/signer"
@@ -59,29 +58,6 @@ export const getSigner = memoize((session: Session) => {
 })
 
 export const signer = withGetter(derived(session, getSigner))
-
-export const authChallenges = new Set()
-
-export const onAuth = async (url: string, challenge: string) => {
-  if (authChallenges.has(challenge) || !signer.get()) {
-    return
-  }
-
-  authChallenges.add(challenge)
-
-  const event = await signer.get()!.sign(
-    createEvent(22242, {
-      tags: [
-        ["relay", url],
-        ["challenge", challenge],
-      ],
-    }),
-  )
-
-  ctx.net.pool.get(url).send(["AUTH", event])
-
-  return event
-}
 
 export const nip44EncryptToSelf = (payload: string) => {
   const $pubkey = pubkey.get()

@@ -13,16 +13,7 @@ export type RequestMeta = {
   eoseReceived: boolean
 }
 
-export enum AuthStatus {
-  Ok = 'ok',
-  Pending = 'pending',
-  Unauthorized = 'unauthorized',
-  Forbidden = 'forbidden',
-}
-
 export enum ConnectionStatus {
-  Unauthorized = 'unauthorized',
-  Forbidden = 'forbidden',
   Error = 'error',
   Closed = 'closed',
   Slow = 'slow',
@@ -30,7 +21,6 @@ export enum ConnectionStatus {
 }
 
 export class ConnectionMeta {
-  authStatus = AuthStatus.Pending
   pendingPublishes = new Map<string, PublishMeta>()
   pendingRequests = new Map<string, RequestMeta>()
   publishCount = 0
@@ -96,18 +86,16 @@ export class ConnectionMeta {
   }
 
   onReceiveOk([verb, eventId, ok, notice]: Message) {
-    const publish = this.pendingPublishes.get(eventId)
-
-    if (ok) {
-      this.authStatus = AuthStatus.Ok
-    } else if (notice?.startsWith('auth-required:')) {
-      // Re-enqueue pending events when auth challenge is received
+    // Re-enqueue pending events when auth challenge is received
+    if (notice?.startsWith('auth-required:')) {
       const pub = this.pendingPublishes.get(eventId)
 
       if (pub) {
         this.cxn.send(['EVENT', pub.event])
       }
     }
+
+    const publish = this.pendingPublishes.get(eventId)
 
     if (publish) {
       this.responseCount++
@@ -116,8 +104,7 @@ export class ConnectionMeta {
     }
   }
 
-  onReceiveAuth([verb, eventId]: Message) {
-    this.authStatus = AuthStatus.Unauthorized
+  onReceiveAuth(message: Message) {
     this.lastAuth = Date.now()
   }
 
@@ -139,8 +126,8 @@ export class ConnectionMeta {
   }
 
   onReceiveClosed([verb, id, notice]: Message) {
-    if (notice.startsWith('auth-required:')) {
-      // Re-enqueue pending reqs when auth challenge is received
+    // Re-enqueue pending reqs when auth challenge is received
+    if (notice?.startsWith('auth-required:')) {
       const req = this.pendingRequests.get(id)
 
       if (req) {
@@ -163,24 +150,11 @@ export class ConnectionMeta {
   getStatus = () => {
     const socket = this.cxn.socket
 
-    if (this.authStatus === AuthStatus.Unauthorized)      return ConnectionStatus.Unauthorized
-    if (this.authStatus === AuthStatus.Forbidden)         return ConnectionStatus.Forbidden
     if (socket.isNew())                                   return ConnectionStatus.Closed
     if (this.lastFault && this.lastFault > this.lastOpen) return ConnectionStatus.Error
     if (socket.isClosed() || socket.isClosing())          return ConnectionStatus.Closed
-    if (this.getSpeed() > 1000)                           return ConnectionStatus.Slow
+    if (this.getSpeed() > 2000)                           return ConnectionStatus.Slow
 
     return ConnectionStatus.Ok
-  }
-
-  getDescription = () => {
-    switch (this.getStatus()) {
-      case ConnectionStatus.Unauthorized: return 'Logging in'
-      case ConnectionStatus.Forbidden:    return 'Failed to log in'
-      case ConnectionStatus.Error:        return 'Failed to connect'
-      case ConnectionStatus.Closed:       return 'Waiting to reconnect'
-      case ConnectionStatus.Slow:         return 'Slow Connection'
-      case ConnectionStatus.Ok:           return 'Connected'
-    }
   }
 }

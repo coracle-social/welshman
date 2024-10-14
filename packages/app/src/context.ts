@@ -2,10 +2,10 @@ import {partition} from "@welshman/lib"
 import {defaultOptimizeSubscriptions, getDefaultNetContext as originalGetDefaultNetContext} from "@welshman/net"
 import type {Subscription, RelaysAndFilters, NetContext} from "@welshman/net"
 import {WRAP, unionFilters, isSignedEvent, hasValidSignature} from "@welshman/util"
-import type {TrustedEvent} from "@welshman/util"
+import type {TrustedEvent, StampedEvent} from "@welshman/util"
 import {tracker, repository} from './core'
 import {makeRouter, getFilterSelections} from './router'
-import {onAuth, getSession} from './session'
+import {getSession, signer} from './session'
 import type {Router} from './router'
 import {loadProfile} from './profiles'
 
@@ -20,7 +20,7 @@ export type AppContext = {
 
 export const getDefaultNetContext = (overrides: Partial<NetContext> = {}) => ({
   ...originalGetDefaultNetContext(),
-  onAuth: onAuth,
+  signEvent: (event: StampedEvent) => signer.get()?.sign(event),
   onEvent: (url: string, event: TrustedEvent) => {
     tracker.track(event.id, url)
     repository.publish(event)

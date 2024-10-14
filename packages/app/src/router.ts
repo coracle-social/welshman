@@ -7,7 +7,7 @@ import {
   PROFILE, RELAYS, INBOX_RELAYS, FOLLOWS, LOCAL_RELAY_URL, WRAP,
 } from '@welshman/util'
 import type {TrustedEvent, Filter} from '@welshman/util'
-import {ConnectionStatus} from '@welshman/net'
+import {ConnectionStatus, AuthStatus} from '@welshman/net'
 import type {RelaysAndFilters} from '@welshman/net'
 import {pubkey} from './session'
 import {relaySelectionsByPubkey, inboxRelaySelectionsByPubkey, getReadRelayUrls, getWriteRelayUrls, getRelayUrls} from './relaySelections'
@@ -415,15 +415,21 @@ export const getRelayQuality = (url: string) => {
     return Math.max(0, Math.min(0.5, (now() - oneMinute - lastFault) / oneHour))
   }
 
-  return switcher(connection.meta.getStatus(), {
-    [ConnectionStatus.Unauthorized]: 0.5,
-    [ConnectionStatus.Forbidden]: 0,
+  const authScore = switcher(connection.auth.status, {
+    [AuthStatus.Forbidden]: 0,
+    [AuthStatus.Ok]: 1,
+    default: 0.5,
+  })
+
+  const connectionScore = switcher(connection.meta.getStatus(), {
     [ConnectionStatus.Error]: 0,
     [ConnectionStatus.Closed]: 0.6,
     [ConnectionStatus.Slow]: 0.5,
     [ConnectionStatus.Ok]: 1,
     default: clamp([0.5, 1], connect_count / 1000),
   })
+
+  return authScore * connectionScore
 }
 
 export const getPubkeyRelays = (pubkey: string, mode?: string) => {

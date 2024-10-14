@@ -291,7 +291,7 @@ const _executeSubscription = (sub: Subscription) => {
     Promise.all(
       executor.target.connections.map(async (connection: Connection) => {
         if (authTimeout) {
-          await connection.ensureAuth({timeout: authTimeout})
+          await connection.auth.waitIfPending({timeout: authTimeout})
         }
       })
     ).then(() => {

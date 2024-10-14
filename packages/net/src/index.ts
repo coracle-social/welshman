@@ -1,4 +1,5 @@
 export * from "./Connection"
+export * from "./ConnectionAuth"
 export * from "./ConnectionMeta"
 export * from "./Context"
 export * from "./Executor"
