@@ -101,12 +101,6 @@ export class Connection extends Emitter {
       ctx.net.onAuth(this.url, challenge)
     }
 
-    if (verb === 'OK') {
-      const [id, ok, message] = extra
-
-      ctx.net.onOk(this.url, id, ok, message)
-    }
-
     this.emit('receive', this, message)
   }
 

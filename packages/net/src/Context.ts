@@ -11,7 +11,6 @@ export type NetContext = {
   getExecutor: (relays: string[]) => Executor
   onEvent: (url: string, event: TrustedEvent) => void
   onAuth: (url: string, challenge: string) => void
-  onOk: (url: string, id: string, ok: boolean, message: string) => void
   isDeleted: (url: string, event: TrustedEvent) => boolean
   isValid: (url: string, event: TrustedEvent) => boolean
   matchFilters: (url: string, filters: Filter[], event: TrustedEvent) => boolean
@@ -28,7 +27,6 @@ export const defaultOptimizeSubscriptions = (subs: Subscription[]) =>
     })
 
 export const getDefaultNetContext = (overrides: Partial<NetContext> = {}) => ({
-  onOk: noop,
   onAuth: noop,
   onEvent: noop,
   pool: new Pool(),
