@@ -25,14 +25,22 @@ export class Worker<T> {
         this.buffer.push(message)
       } else {
         for (const handler of this.handlers.get(ANY) || []) {
-          await handler(message)
+          try {
+            await handler(message)
+          } catch (e) {
+            console.error(e)
+          }
         }
 
         if (this.opts.getKey) {
           const k = this.opts.getKey(message)
 
           for (const handler of this.handlers.get(k) || []) {
-            await handler(message)
+            try {
+              await handler(message)
+            } catch (e) {
+              console.error(e)
+            }
           }
         }
       }
