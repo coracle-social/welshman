@@ -189,8 +189,8 @@ export class Router {
 
   Messages = (pubkeys: string[]) =>
     this.scenario([
-      ...this.getUserSelections(),
-      ...this.getPubkeySelections(pubkeys),
+      ...this.getUserSelections(RelayMode.Inbox),
+      ...this.getPubkeySelections(pubkeys, RelayMode.Inbox),
     ])
 
   PublishMessage = (pubkey: string) =>
