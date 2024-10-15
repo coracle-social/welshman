@@ -37,6 +37,6 @@
     "nostr-tools": "^2.7.2"
   },
   "peerDependencies": {
-    "nostr-signer-capacitor-plugin": "github:chebizarro/nostr-signer-capacitor-plugin"
+    "nostr-signer-capacitor-plugin": "^0.0.3"
   }
 }
