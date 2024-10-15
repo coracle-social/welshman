@@ -1,6 +1,6 @@
 {
   "name": "@welshman/app",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of svelte stores for use in building nostr client applications.",
@@ -31,10 +31,10 @@
     "typescript": "~5.1.6"
   },
   "dependencies": {
-    "@welshman/lib": "~0.0.21",
+    "@welshman/lib": "~0.0.22",
     "@welshman/feeds": "~0.0.20",
     "@welshman/dvm": "~0.0.10",
-    "@welshman/net": "~0.0.26",
+    "@welshman/net": "~0.0.27",
     "@welshman/signer": "~0.0.8",
     "@welshman/store": "~0.0.10",
     "@welshman/util": "~0.0.38",
