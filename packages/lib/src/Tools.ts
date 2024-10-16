@@ -15,6 +15,8 @@ export const noop = (...args: unknown[]) => undefined
 
 export const first = <T>(xs: T[], ...args: unknown[]) => xs[0]
 
+export const ffirst = <T>(xs: T[][], ...args: unknown[]) => xs[0][0]
+
 export const last = <T>(xs: T[], ...args: unknown[]) => xs[xs.length - 1]
 
 export const identity = <T>(x: T, ...args: unknown[]) => x

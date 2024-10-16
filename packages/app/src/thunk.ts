@@ -1,5 +1,5 @@
 import {writable, get} from 'svelte/store'
-import {Worker, assoc} from '@welshman/lib'
+import {Worker, sleep, assoc} from '@welshman/lib'
 import {stamp, own, hash} from "@welshman/signer"
 import type {TrustedEvent, HashedEvent, EventTemplate, SignedEvent, StampedEvent, OwnedEvent} from '@welshman/util'
 import {isStampedEvent, isOwnedEvent, isHashedEvent, isUnwrappedEvent, isSignedEvent} from '@welshman/util'
@@ -24,11 +24,20 @@ export type ThunkWithResolve = {
   event: TrustedEvent
   relays: string[]
   resolve: (data: PublishStatusDataByUrl) => void
+  delay?: number
+  signal?: AbortSignal
 }
 
 export const thunkWorker = new Worker<ThunkWithResolve>()
 
-thunkWorker.addGlobalHandler(async ({event, relays, resolve}: ThunkWithResolve) => {
+thunkWorker.addGlobalHandler(async ({event, relays, resolve, delay, signal}: ThunkWithResolve) => {
+  let aborted = false
+
+  // Handle abort
+  signal?.addEventListener('abort', () => {
+    aborted = true
+  })
+
   // If we were given a wrapped event, make sure to publish the wrapper, not the rumor
   if (isUnwrappedEvent(event)) {
     event = event.wrap
@@ -48,23 +57,34 @@ thunkWorker.addGlobalHandler(async ({event, relays, resolve}: ThunkWithResolve) 
 
   // We're guaranteed to have a signed event at this point
   const signedEvent = event as SignedEvent
-  const {id, sig} = signedEvent
+
+  // Wait if the thunk is to be delayed
+  if (delay) {
+    await sleep(delay)
+  }
+
+  // Skip publishing and remove from the repository if aborted
+  if (aborted) {
+    return repository.removeEvent(signedEvent.id)
+  }
 
   // Send it off
   const pub = publish({event: signedEvent, relays})
 
   // Copy the signature over since we had deferred it
-  const savedEvent = repository.getEvent(id) as SignedEvent
+  const savedEvent = repository.getEvent(signedEvent.id) as SignedEvent
 
   // The event may already be replaced or deleted
   if (savedEvent) {
-    savedEvent.sig = sig
+    savedEvent.sig = signedEvent.sig
   }
 
   // Track publish success
   const statusByUrl: PublishStatusDataByUrl = {}
 
-  pub.emitter.on("*", (status: PublishStatus, url: string, message: string) => {
+  pub.emitter.on("*", async (status: PublishStatus, url: string, message: string) => {
+    const {id} = signedEvent
+
     Object.assign(statusByUrl, {[url]: {id, url, status, message}})
 
     publishStatusData.update(assoc(id, statusByUrl))
@@ -103,6 +123,8 @@ export const prepEvent = (event: ThunkEvent) => {
 export type ThunkParams = {
   event: ThunkEvent
   relays: string[]
+  delay?: number
+  signal?: AbortSignal
 }
 
 export const publishThunk = (params: ThunkParams) =>

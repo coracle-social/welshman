@@ -1,11 +1,11 @@
 import {partition} from "@welshman/lib"
 import {defaultOptimizeSubscriptions, getDefaultNetContext as originalGetDefaultNetContext} from "@welshman/net"
 import type {Subscription, RelaysAndFilters, NetContext} from "@welshman/net"
-import {WRAP, unionFilters, isSignedEvent, hasValidSignature} from "@welshman/util"
+import {WRAP, unionFilters} from "@welshman/util"
 import type {TrustedEvent, StampedEvent} from "@welshman/util"
 import {tracker, repository} from './core'
 import {makeRouter, getFilterSelections} from './router'
-import {getSession, signer} from './session'
+import {signer} from './session'
 import type {Router} from './router'
 import {loadProfile} from './profiles'
 
@@ -31,8 +31,6 @@ export const getDefaultNetContext = (overrides: Partial<NetContext> = {}) => ({
     }
   },
   isDeleted: (url: string, event: TrustedEvent) => repository.isDeleted(event),
-  isValid: (url: string, event: TrustedEvent) =>
-    getSession(event.pubkey) || (isSignedEvent(event) && hasValidSignature(event)),
   optimizeSubscriptions: (subs: Subscription[]) => {
     const [withRelays, withoutRelays] = partition(sub => sub.request.relays.length > 0, subs)
     const filters = unionFilters(withoutRelays.flatMap(sub => sub.request.filters))

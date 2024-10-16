@@ -80,6 +80,31 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
     return duplicate && duplicate.created_at >= event.created_at
   }
 
+  removeEvent = (idOrAddress: string) => {
+    const event = this.getEvent(idOrAddress)
+
+    if (event) {
+      this.eventsById.delete(event.id)
+
+      if (isUnwrappedEvent(event)) {
+        this.eventsByWrap.delete(event.wrap.id)
+      }
+
+      this.eventsByAddress.delete(getAddress(event))
+
+      for (const [k, v] of event.tags) {
+        if (k.length === 1) {
+          this._updateIndex(this.eventsByTag, `${k}:${v}`, undefined, event)
+        }
+      }
+
+      this._updateIndex(this.eventsByDay, getDay(event.created_at), undefined, event)
+      this._updateIndex(this.eventsByAuthor, event.pubkey, undefined, event)
+
+      this.emit('update', {added: [], removed: [event.id]})
+    }
+  }
+
   query = (filters: Filter[], {includeDeleted = false} = {}) => {
     const result: E[][] = []
     for (let filter of filters) {
@@ -215,14 +240,17 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
 
   // Utilities
 
-  _updateIndex<K>(m: Map<K, E[]>, k: K, e: E, duplicate?: E) {
+  _updateIndex<K>(m: Map<K, E[]>, k: K, add?: E, remove?: E) {
     let a = m.get(k) || []
 
-    if (duplicate) {
-      a = a.filter((x: E) => x !== duplicate)
+    if (remove) {
+      a = a.filter((x: E) => x !== remove)
     }
 
-    a.push(e)
+    if (add) {
+      a.push(add)
+    }
+
     m.set(k, a)
   }
 }
