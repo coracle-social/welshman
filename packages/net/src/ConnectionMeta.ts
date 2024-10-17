@@ -1,3 +1,4 @@
+import {AUTH_JOIN} from '@welshman/util'
 import type {SignedEvent, Filter} from '@welshman/util'
 import type {Message} from './Socket'
 import type {Connection} from './Connection'
@@ -86,20 +87,16 @@ export class ConnectionMeta {
   }
 
   onReceiveOk([verb, eventId, ok, notice]: Message) {
+    const pub = this.pendingPublishes.get(eventId)
+
+    if (!pub) return
+
     // Re-enqueue pending events when auth challenge is received
-    if (notice?.startsWith('auth-required:')) {
-      const pub = this.pendingPublishes.get(eventId)
-
-      if (pub) {
-        this.cxn.send(['EVENT', pub.event])
-      }
-    }
-
-    const publish = this.pendingPublishes.get(eventId)
-
-    if (publish) {
+    if (notice?.startsWith('auth-required:') && pub.event.kind !== AUTH_JOIN) {
+      this.cxn.send(['EVENT', pub.event])
+    } else {
       this.responseCount++
-      this.responseTimer += Date.now() - publish.sent
+      this.responseTimer += Date.now() - pub.sent
       this.pendingPublishes.delete(eventId)
     }
   }

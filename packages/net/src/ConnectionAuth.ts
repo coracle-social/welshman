@@ -46,8 +46,6 @@ export class ConnectionAuth {
       const [id, ok, message] = extra
 
       if (id === this.request) {
-        this.challenge = undefined
-        this.request = undefined
         this.message = message
         this.status = ok ? Ok : Forbidden
       }

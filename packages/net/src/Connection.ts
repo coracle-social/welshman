@@ -1,4 +1,5 @@
 import {Emitter, Worker, sleep} from '@welshman/lib'
+import {AUTH_JOIN} from '@welshman/util'
 import {ConnectionMeta} from './ConnectionMeta'
 import {ConnectionAuth, AuthStatus} from './ConnectionAuth'
 import {Socket, isMessage, asMessage} from './Socket'
@@ -43,7 +44,7 @@ export class Connection extends Emitter {
         }
 
         // Allow relay requests through
-        if (verb === 'EVENT' && extra[0].kind === 28934) {
+        if (verb === 'EVENT' && extra[0].kind === AUTH_JOIN) {
           return false
         }
 

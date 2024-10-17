@@ -117,7 +117,7 @@ export const publishThunk = (request: ThunkRequest) => {
 
 export const thunkWorker = new Worker<Thunk>()
 
-thunkWorker.addGlobalHandler(async (thunk: Thunk) => {
+thunkWorker.addGlobalHandler((thunk: Thunk) => {
   let event = thunk.event
 
   // Handle abort immediately if possible
@@ -128,57 +128,60 @@ thunkWorker.addGlobalHandler(async (thunk: Thunk) => {
     event = event.wrap
   }
 
-  // If the event was already signed, leave it alone. Otherwise, sign it now. This is to
-  // decrease apparent latency in the UI that results from waiting for remote signers
-  if (!isSignedEvent(event)) {
-    const signer = getSigner(getSession(event.pubkey))
+  // Avoid making this function async so multiple publishes can run concurrently
+  Promise.resolve().then(async () => {
+    // If the event was already signed, leave it alone. Otherwise, sign it now. This is to
+    // decrease apparent latency in the UI that results from waiting for remote signers
+    if (!isSignedEvent(event)) {
+      const signer = getSigner(getSession(event.pubkey))
 
-    if (!signer) {
-      return console.warn(`No signer found for ${event.pubkey}`)
+      if (!signer) {
+        return console.warn(`No signer found for ${event.pubkey}`)
+      }
+
+      event = await signer.sign(event)
     }
 
-    event = await signer.sign(event)
-  }
+    // We're guaranteed to have a signed event at this point
+    const signedEvent = event as SignedEvent
 
-  // We're guaranteed to have a signed event at this point
-  const signedEvent = event as SignedEvent
-
-  // Wait if the thunk is to be delayed
-  if (thunk.request.delay) {
-    await sleep(thunk.request.delay)
-  }
-
-  // Skip publishing if aborted
-  if (thunk.controller.signal.aborted) {
-    return
-  }
-
-  // Send it off
-  const pub = publish({event: signedEvent, relays: thunk.request.relays})
-
-  // Copy the signature over since we had deferred it
-  const savedEvent = repository.getEvent(signedEvent.id) as SignedEvent
-
-  // The event may already be replaced or deleted
-  if (savedEvent) {
-    savedEvent.sig = signedEvent.sig
-  }
-
-  const completed = new Set()
-
-  pub.emitter.on("*", async (status: PublishStatus, url: string, message = "") => {
-    thunk.status.update(assoc(url, {status, message}))
-
-    if (status !== PublishStatus.Pending) {
-      completed.add(url)
+    // Wait if the thunk is to be delayed
+    if (thunk.request.delay) {
+      await sleep(thunk.request.delay)
     }
 
-    if (status === PublishStatus.Success) {
-      tracker.track(signedEvent.id, url)
+    // Skip publishing if aborted
+    if (thunk.controller.signal.aborted) {
+      return
     }
 
-    if (completed.size === thunk.request.relays.length) {
-      thunk.result.resolve(get(thunk.status))
+    // Send it off
+    const pub = publish({event: signedEvent, relays: thunk.request.relays})
+
+    // Copy the signature over since we had deferred it
+    const savedEvent = repository.getEvent(signedEvent.id) as SignedEvent
+
+    // The event may already be replaced or deleted
+    if (savedEvent) {
+      savedEvent.sig = signedEvent.sig
     }
+
+    const completed = new Set()
+
+    pub.emitter.on("*", async (status: PublishStatus, url: string, message = "") => {
+      thunk.status.update(assoc(url, {status, message}))
+
+      if (status !== PublishStatus.Pending) {
+        completed.add(url)
+      }
+
+      if (status === PublishStatus.Success) {
+        tracker.track(signedEvent.id, url)
+      }
+
+      if (completed.size === thunk.request.relays.length) {
+        thunk.result.resolve(get(thunk.status))
+      }
+    })
   })
 })
