@@ -1,6 +1,6 @@
-import {writable, get} from 'svelte/store'
-import type {Writable} from 'svelte/store'
-import {Worker, defer, sleep, assoc} from '@welshman/lib'
+import {writable, derived, get} from 'svelte/store'
+import type {Writable, Readable} from 'svelte/store'
+import {Worker, identity, uniq, defer, sleep, assoc} from '@welshman/lib'
 import type {Deferred} from '@welshman/lib'
 import {stamp, own, hash} from "@welshman/signer"
 import type {TrustedEvent, HashedEvent, EventTemplate, SignedEvent, StampedEvent, OwnedEvent} from '@welshman/util'
@@ -8,6 +8,8 @@ import {isStampedEvent, isOwnedEvent, isHashedEvent, isUnwrappedEvent, isSignedE
 import {publish, PublishStatus} from "@welshman/net"
 import {repository, tracker} from './core'
 import {pubkey, getSession, getSigner} from './session'
+
+const {Pending, Success, Failure, Timeout, Aborted} = PublishStatus
 
 export type ThunkEvent = EventTemplate | StampedEvent | OwnedEvent | TrustedEvent
 
@@ -55,6 +57,48 @@ export const makeThunk = (request: ThunkRequest) => {
   const status: Thunk['status'] = writable({})
 
   return {event, request, controller, result, status}
+}
+
+export type MergedThunk = {
+  thunks: Thunk[]
+  controller: AbortController
+  result: Promise<ThunkStatusByUrl[]>
+  status: Readable<ThunkStatusByUrl>
+}
+
+export const mergeThunks = (thunks: Thunk[]) => {
+  const controller = new AbortController()
+
+  controller.signal.addEventListener('abort', () => {
+    for (const thunk of thunks) {
+      thunk.controller.abort()
+    }
+  })
+
+  return {
+    thunks,
+    controller,
+    result: Promise.all(thunks.map(thunk => thunk.result)),
+    status: derived(
+      thunks.map(thunk => thunk.status),
+      statuses => {
+        const mergedStatus: ThunkStatusByUrl = {}
+
+        for (const url of uniq(statuses.flatMap(s => Object.keys(s)))) {
+          const urlStatuses = statuses.map(s => s[url])
+          const thunkStatus = [Aborted, Failure, Timeout, Pending, Success]
+            .map(status => urlStatuses.find(s => s?.status === status))
+            .find(identity)
+
+          if (thunkStatus) {
+            mergedStatus[url] = thunkStatus
+          }
+        }
+
+        return mergedStatus
+      }
+    )
+  }
 }
 
 export const publishThunk = (request: ThunkRequest) => {
@@ -122,7 +166,7 @@ thunkWorker.addGlobalHandler(async (thunk: Thunk) => {
 
   const completed = new Set()
 
-  pub.emitter.on("*", async (status: PublishStatus, url: string, message: string) => {
+  pub.emitter.on("*", async (status: PublishStatus, url: string, message = "") => {
     thunk.status.update(assoc(url, {status, message}))
 
     if (status !== PublishStatus.Pending) {
