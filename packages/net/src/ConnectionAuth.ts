@@ -120,7 +120,7 @@ export class ConnectionAuth {
   }
 
   waitIfPending = async ({timeout = 3000}: {timeout?: number} = {}) => {
-    if ([PendingSignature, PendingResponse].includes(this.status)) {
+    while ([PendingSignature, PendingResponse].includes(this.status)) {
       await this.wait({timeout})
     }
   }
