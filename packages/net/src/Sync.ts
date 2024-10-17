@@ -1,4 +1,4 @@
-import {ctx, groupBy, now, pushToMapKey, inc, flatten, chunk} from '@welshman/lib'
+import {ctx, assoc, lt, groupBy, now, pushToMapKey, inc, flatten, chunk} from '@welshman/lib'
 import type {SignedEvent, TrustedEvent, Filter} from '@welshman/util'
 import {subscribe} from './Subscribe'
 import {publish} from './Publish'
@@ -168,9 +168,7 @@ export const pullWithoutNegentropy = async ({relays, filters, onEvent}: PullWith
     await new Promise<void>(resolve => {
       subscribe({
         relays,
-        filters: filters
-          .filter(filter => !filter.since || filter.since > until)
-          .map(filter => ({...filter, until})),
+        filters: filters.filter(f => lt(f.since, until)).map(assoc('until', until)),
         closeOnEose: true,
         onClose: () => {
           done = !anyResults

@@ -27,6 +27,14 @@ export const inc = (x: number | Nil) => (x || 0) + 1
 
 export const dec = (x: number | Nil) => (x || 0) - 1
 
+export const lt = (x: number | Nil, y: number | Nil) => (x || 0) < (y || 0)
+
+export const lte = (x: number | Nil, y: number | Nil) => (x || 0) <= (y || 0)
+
+export const gt = (x: number | Nil, y: number | Nil) => (x || 0) > (y || 0)
+
+export const gte = (x: number | Nil, y: number | Nil) => (x || 0) >= (y || 0)
+
 export const max = (xs: number[]) => xs.reduce((a, b) => Math.max(a, b), 0)
 
 export const min = (xs: number[]) => xs.reduce((a, b) => Math.min(a, b), 0)
