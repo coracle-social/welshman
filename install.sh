@@ -4,7 +4,7 @@ upstream=$1
 
 if [[ -z $upstream ]]; then
   echo "Please provide an upstream package name"
-  die 1
+  exit 1
 fi
 
 version=$(sed -nr 's/ +"version": "(.+)",/\1/p' packages/$upstream/package.json)

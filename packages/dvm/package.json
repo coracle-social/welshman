@@ -31,9 +31,9 @@
     "typescript": "~5.1.6"
   },
   "dependencies": {
-    "@welshman/lib": "~0.0.22",
-    "@welshman/net": "~0.0.28",
-    "@welshman/util": "~0.0.37",
+    "@welshman/lib": "~0.0.23",
+    "@welshman/net": "~0.0.29",
+    "@welshman/util": "~0.0.40",
     "nostr-tools": "^2.7.2"
   }
 }
