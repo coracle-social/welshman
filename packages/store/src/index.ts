@@ -191,6 +191,7 @@ export const deriveEventsMapped = <T>(repository: Repository, {
       for (const update of updates) {
         for (const event of update.added.values()) {
           added.set(event.id, event)
+          removed.delete(event.id)
         }
 
         for (const id of update.removed) {

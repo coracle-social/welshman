@@ -32,24 +32,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
   }
 
   load = (events: E[], chunkSize = 1000) => {
-    this.clear()
-
     const added = []
-
-    for (const eventsChunk of chunk(chunkSize, events)) {
-      for (const event of eventsChunk) {
-        if (this.publish(event, {shouldNotify: false})) {
-          added.push(event)
-        }
-      }
-    }
-
-    const removed = new Set(this.deletes.keys())
-
-    this.emit('update', {added, removed})
-  }
-
-  clear = () => {
     const removed = new Set(this.eventsById.keys())
 
     this.eventsById.clear()
@@ -60,7 +43,16 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
     this.eventsByAuthor.clear()
     this.deletes.clear()
 
-    this.emit('update', {added: [], removed})
+    for (const eventsChunk of chunk(chunkSize, events)) {
+      for (const event of eventsChunk) {
+        if (this.publish(event, {shouldNotify: false})) {
+          added.push(event)
+          removed.delete(event.id)
+        }
+      }
+    }
+
+    this.emit('update', {added, removed})
   }
 
   // API
