@@ -29,6 +29,10 @@ export type RelayProfile = {
 // Utils related to bare urls
 
 export const isRelayUrl = (url: string) => {
+  if (!url.includes('://')) {
+    url = 'wss://' + url
+  }
+
   try {
     new URL(url)
   } catch (e) {
@@ -59,7 +63,7 @@ export const normalizeRelayUrl = (url: string) => {
   // Use our library to normalize
   url = normalizeUrl(url, {stripHash: true, stripAuthentication: false})
 
-  // Strip the protocol since only wss works, lowercase
+  // Strip the protocol, lowercase
   url = stripProtocol(url).toLowerCase()
 
   // Urls without pathnames are supposed to have a trailing slash

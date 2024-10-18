@@ -37,6 +37,7 @@ export class ConnectionAuth {
 
   constructor(readonly connection: Connection) {
     this.connection.on('receive', this.#onReceive)
+    this.connection.on('close', this.#onClose)
   }
 
   #onReceive = (connection: Connection, message: SocketMessage) => {
@@ -61,6 +62,13 @@ export class ConnectionAuth {
         this.attempt()
       }
     }
+  }
+
+  #onClose = (connection: Connection) => {
+    this.challenge = undefined
+    this.request = undefined
+    this.message = undefined
+    this.status = None
   }
 
   attempt = async () => {
@@ -124,6 +132,7 @@ export class ConnectionAuth {
   }
 
   destroy = () => {
-    this.connection.off('recieve', this.#onReceive)
+    this.connection.off('receive', this.#onReceive)
+    this.connection.off('close', this.#onClose)
   }
 }
