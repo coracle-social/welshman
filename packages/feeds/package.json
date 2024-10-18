@@ -32,6 +32,6 @@
   },
   "dependencies": {
     "@welshman/lib": "~0.0.23",
-    "@welshman/util": "~0.0.40"
+    "@welshman/util": "~0.0.41"
   }
 }
