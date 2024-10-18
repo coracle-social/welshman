@@ -52,6 +52,10 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
       }
     }
 
+    for (const id of this.deletes.keys()) {
+      removed.add(id)
+    }
+
     this.emit('update', {added, removed})
   }
 
