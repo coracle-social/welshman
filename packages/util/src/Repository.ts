@@ -32,8 +32,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
   }
 
   load = (events: E[], chunkSize = 1000) => {
-    const added = []
-    const removed = new Set(this.eventsById.keys())
+    const stale = new Set(this.eventsById.keys())
 
     this.eventsById.clear()
     this.eventsByWrap.clear()
@@ -43,15 +42,29 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
     this.eventsByAuthor.clear()
     this.deletes.clear()
 
+    const added = []
+
     for (const eventsChunk of chunk(chunkSize, events)) {
       for (const event of eventsChunk) {
         if (this.publish(event, {shouldNotify: false})) {
-          added.push(event)
-          removed.delete(event.id)
+          // Don't send duplicate events to subscribers
+          if (!stale.has(event.id)) {
+            added.push(event)
+          }
         }
       }
     }
 
+    const removed = new Set<string>()
+
+    // Anything we had before clearing the repository has been removed
+    for (const id of stale) {
+      if (!this.eventsById.has(id)) {
+        removed.add(id)
+      }
+    }
+
+    // Anything removed via delete or replace has been removed
     for (const id of this.deletes.keys()) {
       removed.add(id)
     }
