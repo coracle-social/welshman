@@ -203,7 +203,7 @@ export const getFilterGenerality = (filter: Filter) => {
 }
 
 export const guessFilterDelta = (filters: Filter[], max = 60 * 60 * 24 * 7) =>
-  Math.round(max * Math.max(0.005, 1 - avg(filters.map(getFilterGenerality))))
+  Math.round(max * Math.max(0.01, 1 - avg(filters.map(getFilterGenerality))))
 
 // If a filter is specifying ids, we know how many results to expect
 export const getFilterResultCardinality = (filter: Filter) => {

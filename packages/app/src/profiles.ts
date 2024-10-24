@@ -1,7 +1,7 @@
 import {derived, readable} from 'svelte/store'
 import {readProfile, displayProfile, displayPubkey, PROFILE} from '@welshman/util'
 import type {SubscribeRequestWithHandlers} from "@welshman/net"
-import type {PublishedProfile, TrustedEvent} from "@welshman/util"
+import type {PublishedProfile} from "@welshman/util"
 import {deriveEventsMapped, withGetter} from '@welshman/store'
 import {repository, load} from './core'
 import {collection} from './collection'
@@ -34,9 +34,8 @@ export const {
     // better selections the moment we have a result, even if it's outdated
     await new Promise<void>(resolve => {
       loadRelaySelections(pubkey, {
-        onEvent: (event: TrustedEvent) => {
-          resolve()
-        }
+        onEvent: () => resolve(),
+        onComplete: () => resolve(),
       })
     })
 

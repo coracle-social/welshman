@@ -258,6 +258,17 @@ export const deriveEvent = (repository: Repository, idOrAddress: string) =>
     first
   )
 
+export const deriveIsDeleted = (repository: Repository, event: TrustedEvent) =>
+  custom<boolean>(setter => {
+    setter(repository.isDeleted(event))
+
+    const onUpdate = batch(300, () => setter(repository.isDeleted(event)))
+
+    repository.on("update", onUpdate)
+
+    return () => repository.off("update", onUpdate)
+  })
+
 export const deriveIsDeletedByAddress = (repository: Repository, event: TrustedEvent) =>
   custom<boolean>(setter => {
     setter(repository.isDeletedByAddress(event))

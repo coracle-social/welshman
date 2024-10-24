@@ -158,6 +158,8 @@ export const feedsFromFilter = ({since, until, ...filter}: Filter) => {
 export const feedFromFilter = (filter: Filter) =>
   makeIntersectionFeed(...feedsFromFilter(filter))
 
+export const feedsFromFilters = (filters: Filter[]) =>
+  makeUnionFeed(...filters.map(filter => feedFromFilter(filter)))
 
 export const walkFeed = (feed: Feed, visit: (feed: Feed) => void) => {
   visit(feed)
