@@ -138,6 +138,10 @@ export class Nip46Broker extends Emitter {
     return this.#connectResult === "ack"
   }
 
+  getPublicKey = () => {
+    return this.request("get_public_key", [])
+  }
+
   signEvent = async (event: StampedEvent) => {
     return JSON.parse(await this.request("sign_event", [JSON.stringify(event)]) as string)
   }
@@ -165,9 +169,16 @@ export class Nip46Broker extends Emitter {
 }
 
 export class Nip46Signer implements ISigner {
+  userPubkeyCached: string | undefined
+
   constructor(private broker: Nip46Broker) {}
 
-  getPubkey = async () => this.broker.pubkey
+  getPubkey = async () => {
+    if (!this.userPubkeyCached) {
+      this.userPubkeyCached = await this.broker.getPublicKey()
+    }
+    return this.userPubkeyCached
+  }
 
   sign = (template: StampedEvent) =>
     this.broker.signEvent(hash(own(template, this.broker.pubkey)))
