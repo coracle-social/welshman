@@ -2,19 +2,19 @@ import {StampedEvent} from '@welshman/util'
 import {nip04, nip44, own, hash, sign, getPubkey, ISigner, makeSecret} from "../util"
 
 export class Nip01Signer implements ISigner {
-  private pubkey: string
+  #pubkey: string
 
   constructor(private secret: string) {
-    this.pubkey = getPubkey(this.secret)
+    this.#pubkey = getPubkey(this.secret)
   }
 
   static fromSecret = (secret: string) => new Nip01Signer(secret)
 
   static ephemeral = () => new Nip01Signer(makeSecret())
 
-  getPubkey = async () => this.pubkey
+  getPubkey = async () => this.#pubkey
 
-  sign = async (event: StampedEvent) => sign(hash(own(event, this.pubkey)), this.secret)
+  sign = async (event: StampedEvent) => sign(hash(own(event, this.#pubkey)), this.secret)
 
   nip04 = {
     encrypt: async (pubkey: string, message: string) =>

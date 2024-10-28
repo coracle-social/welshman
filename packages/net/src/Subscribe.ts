@@ -20,6 +20,7 @@ import {Connection} from './Connection'
 
 export enum SubscriptionEvent {
   Eose = "eose",
+  Send = "send",
   Close = "close",
   Event = "event",
   Complete = "complete",
@@ -120,6 +121,7 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
     propagateEvent(SubscriptionEvent.FailedFilter)
     propagateEvent(SubscriptionEvent.Invalid)
     propagateEvent(SubscriptionEvent.Eose)
+    propagateEvent(SubscriptionEvent.Send)
     propagateEvent(SubscriptionEvent.Close)
   }
 
@@ -136,6 +138,7 @@ export const optimizeSubscriptions = (subs: Subscription[]) => {
       const abortedSubs = new Set<string>()
       const closedSubs = new Set<string>()
       const eosedSubs = new Set<string>()
+      const sentSubs = new Set<string>()
       const mergedSubs = []
 
       for (const {relays, filters} of ctx.net.optimizeSubscriptions(group)) {
@@ -201,6 +204,7 @@ export const optimizeSubscriptions = (subs: Subscription[]) => {
             }
           })
 
+        propagateFinality(SubscriptionEvent.Send, sentSubs)
         propagateFinality(SubscriptionEvent.Eose, eosedSubs)
         propagateFinality(SubscriptionEvent.Close, closedSubs)
         propagateFinality(SubscriptionEvent.Complete, completedSubs)
@@ -300,6 +304,8 @@ const _executeSubscription = (sub: Subscription) => {
       for (const filtersChunk of chunk(8, filters)) {
         subs.push(executor.subscribe(filtersChunk, {onEvent, onEose}))
       }
+
+      emitter.emit(SubscriptionEvent.Send)
     })
   } else {
     onComplete()
