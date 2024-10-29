@@ -42,6 +42,24 @@ export class Nip46Broker extends Emitter {
   #queue: Request[] = []
   #sub?: Subscription
 
+  static parseBunkerLink(link: string) {
+    let token = ""
+    let pubkey = ""
+    let relays: string[] = []
+
+    try {
+      const url = new URL(link)
+
+      pubkey = url.hostname || url.pathname.replace(/\//g, '')
+      relays = url.searchParams.getAll("relay") || []
+      token = url.searchParams.get("secret") || ""
+    } catch {
+      // pass
+    }
+
+    return {token, pubkey, relays}
+  }
+
   static get(params: Nip46BrokerParams) {
     if (!singleton?.hasParams(params)) {
       singleton?.teardown()
