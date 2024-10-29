@@ -1,4 +1,4 @@
-import {Emitter, tryCatch, randomId, equals, now} from "@welshman/lib"
+import {Emitter, sleep, tryCatch, randomId, equals, now} from "@welshman/lib"
 import {createEvent, TrustedEvent, StampedEvent, NOSTR_CONNECT} from "@welshman/util"
 import {subscribe, publish, Subscription} from "@welshman/net"
 import {ISigner, decrypt, hash, own} from '../util'
@@ -24,6 +24,12 @@ export type Nip46Response = {
   result?: string
 }
 
+type Request = {
+  method: string
+  params: string[]
+  resolve: (result: string) => void
+}
+
 let singleton: Nip46Broker
 
 export class Nip46Broker extends Emitter {
@@ -31,7 +37,9 @@ export class Nip46Broker extends Emitter {
   #handler: Nip46Handler
   #algorithm: Nip46Algorithm
   #closed = false
+  #processing = false
   #connectResult?: string
+  #queue: Request[] = []
   #sub?: Subscription
 
   static get(params: Nip46BrokerParams) {
@@ -91,6 +99,31 @@ export class Nip46Broker extends Emitter {
     })
   }
 
+  #processQueue = async () => {
+    if (this.#processing) {
+      return
+    }
+
+    this.#processing = true
+
+    try {
+      while (this.#queue.length > 0) {
+        const [{method, params, resolve}] = this.#queue.splice(0, 1)
+
+        // Throttle requests to the signer so the user isn't overwhelmed by dialogs, but time
+        // out and move on to other requests if they're ignored
+        // Note: currenlty throttle is too low to help with dialogs, but blocking prevents
+        // important user actions
+        await Promise.race([
+          this.request(method, params).then(resolve),
+          sleep(100),
+        ])
+      }
+    } finally {
+      this.#processing = false
+    }
+  }
+
   request = async (method: string, params: string[]) => {
     if (this.#closed) {
       throw new Error("Attempted to make a nip46 request with a closed broker")
@@ -126,44 +159,50 @@ export class Nip46Broker extends Emitter {
     })
   }
 
+  enqueue = (method: string, params: string[]) =>
+    new Promise<string>(resolve => {
+      this.#queue.push({method, params, resolve})
+      this.#processQueue()
+    })
+
   createAccount = (username: string, perms = "") => {
     if (!this.#handler.domain) {
       throw new Error("Unable to create an account without a handler domain")
     }
 
-    return this.request("create_account", [username, this.#handler.domain, "", perms])
+    return this.enqueue("create_account", [username, this.#handler.domain, "", perms])
   }
 
   connect = async (token = "", perms = "") => {
     if (!this.#connectResult) {
       const params = ["", token, perms]
 
-      this.#connectResult = await this.request("connect", params)
+      this.#connectResult = await this.enqueue("connect", params)
     }
 
     return this.#connectResult === "ack"
   }
 
-  getPublicKey = () => this.request("get_public_key", [])
+  getPublicKey = () => this.enqueue("get_public_key", [])
 
   signEvent = async (event: StampedEvent) => {
-    return JSON.parse(await this.request("sign_event", [JSON.stringify(event)]) as string)
+    return JSON.parse(await this.enqueue("sign_event", [JSON.stringify(event)]) as string)
   }
 
   nip04Encrypt = (pk: string, message: string) => {
-    return this.request("nip04_encrypt", [pk, message])
+    return this.enqueue("nip04_encrypt", [pk, message])
   }
 
   nip04Decrypt = (pk: string, message: string) => {
-    return this.request("nip04_decrypt", [pk, message])
+    return this.enqueue("nip04_decrypt", [pk, message])
   }
 
   nip44Encrypt = (pk: string, message: string) => {
-    return this.request("nip44_encrypt", [pk, message])
+    return this.enqueue("nip44_encrypt", [pk, message])
   }
 
   nip44Decrypt = (pk: string, message: string) => {
-    return this.request("nip44_decrypt", [pk, message])
+    return this.enqueue("nip44_decrypt", [pk, message])
   }
 
   teardown = () => {
