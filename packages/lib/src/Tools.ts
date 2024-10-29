@@ -282,6 +282,8 @@ export const choice = <T>(xs: T[]): T => xs[Math.floor(xs.length * Math.random()
 
 export const shuffle = <T>(xs: Iterable<T>): T[] => Array.from(xs).sort(() => Math.random() > 0.5 ? 1 : -1)
 
+export const sample = <T>(n: number, xs: T[]) => shuffle(xs).slice(0, n)
+
 export const isIterable = (x: any) => Symbol.iterator in Object(x)
 
 export const toIterable = (x: any) => isIterable(x) ? x : [x]
@@ -375,17 +377,6 @@ export const indexBy = <T, K>(f: (x: T) => K, xs: T[]) => {
   }
 
   return r
-}
-
-export const sample = <T>(n: number, xs: T[]) => {
-  const result: T[] = []
-  const limit = Math.min(n, xs.length)
-
-  for (let i = 0; i < limit; i++) {
-    result.push(xs.splice(Math.floor(xs.length * Math.random()), 1)[0])
-  }
-
-  return result
 }
 
 export const initArray = <T>(n: number, f: () => T) => {

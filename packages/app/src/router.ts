@@ -1,6 +1,6 @@
 import {
   intersection, first, switcher, throttleWithValue, clamp, last, splitAt, identity, sortBy, uniq, shuffle,
-  pushToMapKey, now, assoc, ctx,
+  pushToMapKey, now, assoc, ctx, sample,
 } from '@welshman/lib'
 import {
   Tags, getFilterId, unionFilters, isShareableRelayUrl, isCommunityAddress, isGroupAddress, isContextAddress,
@@ -527,7 +527,7 @@ export const getFilterSelectionsForContext = (state: FilterSelectionRuleState) =
 }
 
 export const getFilterSelectionsForWraps = (state: FilterSelectionRuleState) => {
-  if (state.filter.kinds?.includes(WRAP) || !state.filter.authors) return false
+  if (!state.filter.kinds?.includes(WRAP) || state.filter.authors) return false
 
   const id = getFilterId({...state.filter, kinds: [WRAP]})
   const scenario = ctx.app.router.InboxRelays().update(assoc('value', id))
@@ -553,10 +553,11 @@ export const getFilterSelectionsForIndexedKinds = (state: FilterSelectionRuleSta
 
 export const getFilterSelectionsForAuthors = (state: FilterSelectionRuleState) => {
   // If we have a ton of authors, just use our indexers
-  if (!state.filter.authors || state.filter.authors.length > 30) return false
+  if (!state.filter.authors) return false
 
   const id = getFilterId(state.filter)
-  const scenario = ctx.app.router.FromPubkeys(state.filter.authors!).update(assoc('value', id))
+  const pubkeys = sample(50, state.filter.authors!)
+  const scenario = ctx.app.router.FromPubkeys(pubkeys).update(assoc('value', id))
 
   state.selections.push(makeFilterSelection(id, state.filter, scenario))
 
