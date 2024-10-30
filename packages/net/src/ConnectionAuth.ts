@@ -115,10 +115,12 @@ export class ConnectionAuth {
     while (Date.now() < deadline) {
       await sleep(100)
 
+      // State got reset while we were waiting
       if ([None, Requested].includes(this.status)) {
-        throw new Error("Auth flow reset while waiting for auth")
+        break
       }
 
+      // We've completed the auth flow
       if ([DeniedSignature, Forbidden, Ok].includes(this.status)) {
         break
       }

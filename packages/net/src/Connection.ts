@@ -117,15 +117,17 @@ export class Connection extends Emitter {
     }
   }
 
-  disconnect() {
-    this.socket.disconnect()
+  async disconnect() {
+    await this.socket.disconnect()
+
     this.sender.clear()
     this.receiver.clear()
     this.meta.clearPending()
   }
 
-  destroy() {
-    this.disconnect()
+  async destroy() {
+    await this.disconnect()
+
     this.removeAllListeners()
     this.sender.stop()
     this.receiver.stop()
