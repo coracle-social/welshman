@@ -233,7 +233,7 @@ const _executeSubscription = (sub: Subscription) => {
   emitter.on(SubscriptionEvent.Eose, (url: string) => {
     completedRelays.add(url)
 
-    if (closeOnEose && completedRelays.size === executor.target.connections.length) {
+    if (closeOnEose && completedRelays.size === uniq(relays).length) {
       onComplete()
     }
   })
@@ -241,7 +241,7 @@ const _executeSubscription = (sub: Subscription) => {
   emitter.on(SubscriptionEvent.Close, (url: string) => {
     completedRelays.add(url)
 
-    if (completedRelays.size === executor.target.connections.length) {
+    if (completedRelays.size === uniq(relays).length) {
       onComplete()
     }
   })
