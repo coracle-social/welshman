@@ -1,4 +1,5 @@
 import {kinds} from 'nostr-tools'
+import {between} from '@welshman/lib'
 
 export const isRegularKind = kinds.isRegularKind
 export const isEphemeralKind = kinds.isEphemeralKind
@@ -6,6 +7,7 @@ export const isPlainReplaceableKind = kinds.isReplaceableKind
 export const isParameterizedReplaceableKind = kinds.isParameterizedReplaceableKind
 export const isReplaceableKind = (kind: number) =>
   isPlainReplaceableKind(kind) || isParameterizedReplaceableKind(kind)
+export const isDVMKind = (kind: number) => between([4999, 7001], kind)
 
 export const PROFILE = 0
 export const NOTE = 1

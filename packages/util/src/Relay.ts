@@ -13,6 +13,7 @@ export const BOGUS_RELAY_URL = "bogus://welshman.relay"
 export type RelayProfile = {
   url: string
   icon?: string
+  banner?: string
   name?: string
   pubkey?: string
   contact?: string
@@ -21,6 +22,7 @@ export type RelayProfile = {
   description?: string
   supported_nips?: number[]
   limitation?: {
+    min_pow_difficulty?: number
     payment_required?: boolean
     auth_required?: boolean
   }

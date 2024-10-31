@@ -1,7 +1,7 @@
 import {partition} from "@welshman/lib"
 import {defaultOptimizeSubscriptions, getDefaultNetContext as originalGetDefaultNetContext} from "@welshman/net"
 import type {Subscription, RelaysAndFilters, NetContext} from "@welshman/net"
-import {WRAP, unionFilters} from "@welshman/util"
+import {WRAP, isEphemeralKind, isDVMKind,  unionFilters} from "@welshman/util"
 import type {TrustedEvent, StampedEvent} from "@welshman/util"
 import {tracker, repository} from './core'
 import {makeRouter, getFilterSelections} from './router'
@@ -22,6 +22,8 @@ export const getDefaultNetContext = (overrides: Partial<NetContext> = {}) => ({
   ...originalGetDefaultNetContext(),
   signEvent: (event: StampedEvent) => signer.get()?.sign(event),
   onEvent: (url: string, event: TrustedEvent) => {
+    if (isEphemeralKind(event.kind) || isDVMKind(event.kind)) return
+
     tracker.track(event.id, url)
     repository.publish(event)
 

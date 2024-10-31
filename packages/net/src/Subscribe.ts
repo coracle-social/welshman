@@ -139,7 +139,7 @@ export const optimizeSubscriptions = (subs: Subscription[]) => {
       const closedSubs = new Set<string>()
       const eosedSubs = new Set<string>()
       const sentSubs = new Set<string>()
-      const mergedSubs = []
+      const mergedSubs: Subscription[] = []
 
       for (const {relays, filters} of ctx.net.optimizeSubscriptions(group)) {
         const mergedSub = makeSubscription({
