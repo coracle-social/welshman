@@ -136,7 +136,7 @@ export class Nip46Broker extends Emitter {
         // important user actions
         await Promise.race([
           this.request(method, params).then(resolve),
-          sleep(100),
+          sleep(15),
         ])
       }
     } finally {
