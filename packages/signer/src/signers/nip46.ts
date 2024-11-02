@@ -104,6 +104,8 @@ export class Nip46Broker extends Emitter {
           console.error(`Invalid nostr-connect response: ${json}`)
         }
 
+        console.log('nip46 response:', res)
+
         if (res.result === "auth_url") {
           this.emit(`auth-${res.id}`, res)
         } else {
@@ -156,6 +158,8 @@ export class Nip46Broker extends Emitter {
     const payload = JSON.stringify({id, method, params})
     const content = await this.#signer[this.#algorithm].encrypt(recipient, payload)
     const template = createEvent(NOSTR_CONNECT, {content, tags: [["p", recipient]]})
+
+    console.log('nip46 request:', {id, method, params})
 
     publish({
       relays: this.#handler.relays,
