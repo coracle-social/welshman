@@ -7,14 +7,14 @@ import {pubkey} from './session'
 export const tagZapSplit = (pubkey: string, split = 1) => [
   "zap",
   pubkey,
-  ctx.app.router.FromPubkeys([pubkey]).getUrl(),
+  ctx.app.router.FromPubkey(pubkey).getUrl(),
   String(split),
 ]
 
 export const tagPubkey = (pubkey: string, ...args: unknown[]) => [
   "p",
   pubkey,
-  ctx.app.router.FromPubkeys([pubkey]).getUrl(),
+  ctx.app.router.FromPubkey(pubkey).getUrl(),
   displayProfileByPubkey(pubkey),
 ]
 

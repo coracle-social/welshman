@@ -9,27 +9,27 @@ export const unfollow = async (value: string) => {
   const list = get(userFollows) || makeList({kind: FOLLOWS})
   const event = await removeFromList(list, value).reconcile(nip44EncryptToSelf)
 
-  return publishThunk({event, relays: ctx.app.router.WriteRelays().getUrls()})
+  return publishThunk({event, relays: ctx.app.router.FromUser().getUrls()})
 }
 
 export const follow = async (tag: string[]) => {
   const list = get(userFollows) || makeList({kind: FOLLOWS})
   const event = await addToListPublicly(list, tag).reconcile(nip44EncryptToSelf)
 
-  return publishThunk({event, relays: ctx.app.router.WriteRelays().getUrls()})
+  return publishThunk({event, relays: ctx.app.router.FromUser().getUrls()})
 }
 
 export const unmute = async (value: string) => {
   const list = get(userMutes) || makeList({kind: MUTES})
   const event = await removeFromList(list, value).reconcile(nip44EncryptToSelf)
 
-  return publishThunk({event, relays: ctx.app.router.WriteRelays().getUrls()})
+  return publishThunk({event, relays: ctx.app.router.FromUser().getUrls()})
 }
 
 export const mute = async (tag: string[]) => {
   const list = get(userMutes) || makeList({kind: MUTES})
   const event = await addToListPublicly(list, tag).reconcile(nip44EncryptToSelf)
 
-  return publishThunk({event, relays: ctx.app.router.WriteRelays().getUrls()})
+  return publishThunk({event, relays: ctx.app.router.FromUser().getUrls()})
 }
 

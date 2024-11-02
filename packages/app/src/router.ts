@@ -114,6 +114,7 @@ export type RelayValues = {
 export type ValueRelays = {
   value: string
   relays: string[]
+  weight: number
 }
 
 // Fallback policies
@@ -131,24 +132,22 @@ export class Router {
 
   // Utilities derived from options
 
-  getPubkeySelection = (pubkey: string, mode?: RelayMode) =>
-    this.selection(pubkey, this.options.getPubkeyRelays?.(pubkey, mode) || [])
+  getRelaysForPubkey = (pubkey: string, mode?: RelayMode) =>
+    this.options.getPubkeyRelays?.(pubkey, mode) || []
 
-  getPubkeySelections = (pubkeys: string[], mode?: RelayMode) =>
-    pubkeys.map(pubkey => this.getPubkeySelection(pubkey, mode))
+  getRelaysForPubkeys = (pubkeys: string[], mode?: RelayMode) =>
+    pubkeys.map(pubkey => this.getRelaysForPubkey(pubkey, mode))
 
-  getUserSelections = (mode?: RelayMode) =>
-    this.getPubkeySelections([this.options.getUserPubkey?.()].filter(identity) as string[], mode)
+  getRelaysForUser = (mode?: RelayMode) => {
+    const pubkey = this.options.getUserPubkey?.()
+
+    return pubkey ? this.getRelaysForPubkey(pubkey) : []
+  }
 
   // Utilities for creating ValueRelays
 
-  selection = (value: string, relays: Iterable<string>) => ({value, relays: Array.from(relays)})
-
-  selections = (values: string[], relays: string[]) =>
-    values.map(value => this.selection(value, relays))
-
-  forceValue = (value: string, selections: ValueRelays[]) =>
-    selections.map(({relays}) => this.selection(value, relays))
+  selection = (value: string, relays: Iterable<string>, weight = 1): ValueRelays =>
+    ({value, relays: Array.from(relays), weight})
 
   // Utilities for processing hints
 
@@ -161,8 +160,8 @@ export class Router {
       }))
     )
 
-  scoreRelaySelection = ({values, relay}: RelayValues) =>
-    values.length * (this.options.getRelayQuality?.(relay) || 1)
+  scoreRelaySelection = ({values, relay, weight}: RelayValues) =>
+    values.length * (this.options.getRelayQuality?.(relay) || 1) * weight
 
   sortRelaySelections = (relaySelections: RelayValues[]) => {
     const scores = new Map<string, number>()
@@ -182,53 +181,63 @@ export class Router {
   merge = (scenarios: RouterScenario[]) =>
     this.scenario(scenarios.flatMap((scenario: RouterScenario) => scenario.selections))
 
-  product = (values: string[], relays: string[]) => this.scenario(this.selections(values, relays))
-
-  fromRelays = (relays: string[]) => this.scenario([this.selection("", relays)])
-
   // Routing scenarios
 
-  User = () => this.scenario(this.getUserSelections())
 
-  ReadRelays = () => this.scenario(this.getUserSelections(RelayMode.Read))
+  FromRelays = (relays: string[], id = "") =>
+    this.scenario([this.selection(id, relays)])
 
-  WriteRelays = () => this.scenario(this.getUserSelections(RelayMode.Write))
+  ForPubkey = (pubkey: string) =>
+    this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Read))
 
-  InboxRelays = () => this.scenario(this.getUserSelections(RelayMode.Inbox)).policy(addNoFallbacks)
+  FromPubkey = (pubkey: string) =>
+    this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Write))
 
-  Messages = (pubkeys: string[]) =>
-    this.scenario([
-      ...this.getUserSelections(RelayMode.Inbox),
-      ...this.getPubkeySelections(pubkeys, RelayMode.Inbox),
-    ])
+  PubkeyInbox = (pubkey: string) =>
+    this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Inbox)).policy(addNoFallbacks)
 
-  PublishMessage = (pubkey: string) =>
-    this.scenario([
-      ...this.getUserSelections(RelayMode.Inbox),
-      this.getPubkeySelection(pubkey, RelayMode.Inbox),
-    ]).policy(addMinimalFallbacks)
+  ForUser = () =>
+    this.FromRelays(this.getRelaysForUser(RelayMode.Read))
+
+  FromUser = () =>
+    this.FromRelays(this.getRelaysForUser(RelayMode.Write))
+
+  UserInbox = () =>
+    this.FromRelays(this.getRelaysForUser(RelayMode.Inbox)).policy(addNoFallbacks)
+
+  ForPubkeys = (pubkeys: string[]) =>
+    this.merge(pubkeys.map(pubkey => this.ForPubkey(pubkey)))
+
+  FromPubkeys = (pubkeys: string[]) =>
+    this.merge(pubkeys.map(pubkey => this.FromPubkey(pubkey)))
+
+  PubkeyInboxes = (pubkeys: string[]) =>
+    this.merge(pubkeys.map(pubkey => this.PubkeyInbox(pubkey)))
 
   Event = (event: TrustedEvent) =>
-    this.scenario(
-      this.forceValue(event.id, [this.getPubkeySelection(event.pubkey, RelayMode.Write)])
-    )
+    this.FromRelays(this.getRelaysForPubkey(event.pubkey, RelayMode.Write), event.id)
 
   EventChildren = (event: TrustedEvent) =>
-    this.scenario(
-      this.forceValue(event.id, [this.getPubkeySelection(event.pubkey, RelayMode.Read)])
-    )
+    this.FromRelays(this.getRelaysForPubkey(event.pubkey, RelayMode.Read), event.id)
 
   EventAncestors = (event: TrustedEvent, type: "mentions" | "replies" | "roots") => {
-    const tags = Tags.fromEvent(event)
-    const ancestors = tags.ancestors()[type]
-    const pubkeys = tags.values("p").valueOf()
-    const relays = uniq([
-      ...(this.options.getPubkeyRelays?.(event.pubkey, RelayMode.Read) || []),
-      ...pubkeys.flatMap((k: string) => this.options.getPubkeyRelays?.(k, RelayMode.Write) || []),
-      ...ancestors.relays().valueOf(),
-    ])
+    return this.scenario(
+      getAncestorTags(event.tags)[type].flatMap(
+        ([_, value, relay, pubkey]) => {
+          const tagScenarios = [this.selection(value, this.ForUser().getUrls(), 0.5)]
 
-    return this.product(ancestors.values().valueOf(), relays)
+          if (pubkey) {
+            tagScenarios.push(this.selection(value, this.FromPubkey(pubkey).getUrls()))
+          }
+
+          if (relay) {
+            tagScenarios.push(this.selection(value, [relay], 0.9))
+          }
+
+          return tagScenarios
+        }
+      )
+    )
   }
 
   EventMentions = (event: TrustedEvent) => this.EventAncestors(event, "mentions")
@@ -238,25 +247,13 @@ export class Router {
   EventRoots = (event: TrustedEvent) => this.EventAncestors(event, "roots")
 
   PublishEvent = (event: TrustedEvent) => {
-    const tags = Tags.fromEvent(event)
-    const mentions = tags.values("p").valueOf()
+    const pubkeys = getPubkeyTagValues(event.tags)
 
-    return this.scenario(
-      this.forceValue(event.id, [
-        this.getPubkeySelection(event.pubkey, RelayMode.Write),
-        ...this.getPubkeySelections(mentions, RelayMode.Read),
-      ])
-    )
+    return this.scenario([
+      this.selection(event.id, this.FromPubkey(event.pubkey).getUrls()),
+      ...pubkeys.map(pubkey => this.selection(event.id, this.ForPubkey(event.pubkey).getUrls(), 0.5)),
+    ])
   }
-
-  FromPubkeys = (pubkeys: string[]) =>
-    this.scenario(this.getPubkeySelections(pubkeys, RelayMode.Write))
-
-  ForPubkeys = (pubkeys: string[]) =>
-    this.scenario(this.getPubkeySelections(pubkeys, RelayMode.Read))
-
-  Search = (term: string, relays: string[] = []) =>
-    this.product([term], uniq(relays.concat(this.options.getSearchRelays?.() || [])))
 }
 
 // Router Scenario
@@ -490,7 +487,7 @@ export const makeFilterSelection = (id: string, filter: Filter, scenario: Router
 
 export const getFilterSelectionsForLocalRelay = (state: FilterSelectionRuleState) => {
   const id = getFilterId(state.filter)
-  const scenario = ctx.app.router.product([id], [LOCAL_RELAY_URL])
+  const scenario = ctx.app.router.FromRelays([LOCAL_RELAY_URL], id)
 
   state.selections.push(makeFilterSelection(id, state.filter, scenario))
 
@@ -502,27 +499,9 @@ export const getFilterSelectionsForSearch = (state: FilterSelectionRuleState) =>
 
   const id = getFilterId(state.filter)
   const relays = ctx.app.router.options.getSearchRelays?.() || []
-  const scenario = ctx.app.router.product([id], relays)
+  const scenario = ctx.app.router.FromRelays(relays, id)
 
   state.selections.push(makeFilterSelection(id, state.filter, scenario))
-
-  return true
-}
-
-export const getFilterSelectionsForContext = (state: FilterSelectionRuleState) => {
-  const contexts = state.filter["#a"]?.filter(isContextAddress) || []
-
-  if (contexts.length === 0) return false
-
-  const scenario = ctx.app.router.WithinMultipleContexts(contexts)
-
-  for (const {relay, values} of scenario.getSelections()) {
-    const contextFilter = {...state.filter, "#a": Array.from(values)}
-    const id = getFilterId(contextFilter)
-    const scenario = ctx.app.router.product([id], [relay])
-
-    state.selections.push(makeFilterSelection(id, contextFilter, scenario))
-  }
 
   return true
 }
@@ -531,7 +510,7 @@ export const getFilterSelectionsForWraps = (state: FilterSelectionRuleState) => 
   if (!state.filter.kinds?.includes(WRAP) || state.filter.authors) return false
 
   const id = getFilterId({...state.filter, kinds: [WRAP]})
-  const scenario = ctx.app.router.InboxRelays().update(assoc("value", id))
+  const scenario = ctx.app.router.UserInbox().update(assoc('value', id))
 
   state.selections.push(makeFilterSelection(id, state.filter, scenario))
 
@@ -545,7 +524,7 @@ export const getFilterSelectionsForIndexedKinds = (state: FilterSelectionRuleSta
 
   const id = getFilterId({...state.filter, kinds})
   const relays = ctx.app.router.options.getIndexerRelays?.() || []
-  const scenario = ctx.app.router.product([id], relays)
+  const scenario = ctx.app.router.FromRelays(relays, id)
 
   state.selections.push(makeFilterSelection(id, state.filter, scenario))
 
@@ -567,8 +546,8 @@ export const getFilterSelectionsForAuthors = (state: FilterSelectionRuleState) =
 
 export const getFilterSelectionsForUser = (state: FilterSelectionRuleState) => {
   const id = getFilterId(state.filter)
-  const relays = ctx.app.router.ReadRelays().getUrls()
-  const scenario = ctx.app.router.product([id], relays)
+  const relays = ctx.app.router.ForUser().getUrls()
+  const scenario = ctx.app.router.FromRelays(relays, id)
 
   state.selections.push(makeFilterSelection(id, state.filter, scenario))
 
@@ -578,7 +557,6 @@ export const getFilterSelectionsForUser = (state: FilterSelectionRuleState) => {
 export const defaultFilterSelectionRules = [
   getFilterSelectionsForLocalRelay,
   getFilterSelectionsForSearch,
-  getFilterSelectionsForContext,
   getFilterSelectionsForWraps,
   getFilterSelectionsForIndexedKinds,
   getFilterSelectionsForAuthors,

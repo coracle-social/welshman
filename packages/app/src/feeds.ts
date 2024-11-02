@@ -25,7 +25,7 @@ export const feedLoader = new FeedLoader({
     const event = await $signer.sign(createEvent(kind, {tags}))
     const relays =
       request.relays
-        ? ctx.app.router.fromRelays(request.relays).getUrls()
+        ? ctx.app.router.FromRelays(request.relays).getUrls()
         : ctx.app.router.FromPubkeys(getPubkeyTagValues(tags)).getUrls()
 
     const req = makeDvmRequest({event, relays})
