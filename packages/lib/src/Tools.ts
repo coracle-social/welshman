@@ -23,9 +23,17 @@ export const identity = <T>(x: T, ...args: unknown[]) => x
 
 export const always = <T>(x: T, ...args: unknown[]) => () => x
 
-export const inc = (x: number | Nil) => (x || 0) + 1
+export const add = (x: number | Nil, y: number | Nil) => (x || 0) + (y || 0)
 
-export const dec = (x: number | Nil) => (x || 0) - 1
+export const sub = (x: number | Nil, y: number | Nil) => (x || 0) - (y || 0)
+
+export const mul = (x: number | Nil, y: number | Nil) => (x || 0) * (y || 0)
+
+export const div = (x: number | Nil, y: number) => (x || 0) / y
+
+export const inc = (x: number | Nil) => add(x, 1)
+
+export const dec = (x: number | Nil) => sub(x, 1)
 
 export const lt = (x: number | Nil, y: number | Nil) => (x || 0) < (y || 0)
 

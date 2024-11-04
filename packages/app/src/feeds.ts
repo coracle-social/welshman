@@ -14,7 +14,7 @@ export const feedLoader = new FeedLoader({
       await load({onEvent, filters, relays})
     } else {
       await Promise.all(
-        getFilterSelections(filters)
+        Array.from(getFilterSelections(filters))
           .map(opts =>  load({onEvent, ...opts}))
       )
     }
