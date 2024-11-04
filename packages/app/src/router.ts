@@ -144,15 +144,6 @@ export class Router {
   FromRelays = (relays: string[]) =>
     this.scenario([makeSelection(relays)])
 
-  ForPubkey = (pubkey: string) =>
-    this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Read))
-
-  FromPubkey = (pubkey: string) =>
-    this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Write))
-
-  PubkeyInbox = (pubkey: string) =>
-    this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Inbox)).policy(addNoFallbacks)
-
   ForUser = () =>
     this.FromRelays(this.getRelaysForUser(RelayMode.Read))
 
@@ -161,6 +152,15 @@ export class Router {
 
   UserInbox = () =>
     this.FromRelays(this.getRelaysForUser(RelayMode.Inbox)).policy(addNoFallbacks)
+
+  ForPubkey = (pubkey: string) =>
+    this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Read))
+
+  FromPubkey = (pubkey: string) =>
+    this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Write))
+
+  PubkeyInbox = (pubkey: string) =>
+    this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Inbox)).policy(addNoFallbacks)
 
   ForPubkeys = (pubkeys: string[]) =>
     this.merge(pubkeys.map(pubkey => this.ForPubkey(pubkey)))
@@ -174,8 +174,23 @@ export class Router {
   Event = (event: TrustedEvent) =>
     this.FromRelays(this.getRelaysForPubkey(event.pubkey, RelayMode.Write))
 
-  EventChildren = (event: TrustedEvent) =>
+  Replies = (event: TrustedEvent) =>
     this.FromRelays(this.getRelaysForPubkey(event.pubkey, RelayMode.Read))
+
+  Quote = (event: TrustedEvent, value: string, relays = []) => {
+    const tag = event.tags.find(t => t[1] === value)
+    const scenarios: RouterScenario[] = []
+
+    if (tag?.[2] && isShareableRelayUrl(tag[2])) {
+      scenarios.push(this.FromRelays([tag[2]]))
+    }
+
+    if (tag?.[3]?.length === 64) {
+      scenarios.push(this.FromPubkeys([tag[3]]))
+    }
+
+    return this.merge(scenarios)
+  }
 
   EventAncestors = (event: TrustedEvent, type: "mentions" | "replies" | "roots") => {
     return this.scenario(
@@ -444,7 +459,10 @@ export const defaultFilterSelectionRules = [
   getFilterSelectionsForUser,
 ]
 
-export function* getFilterSelections(filters: Filter[], rules: FilterSelectionRule[] = defaultFilterSelectionRules) {
+export const getFilterSelections = (
+  filters: Filter[],
+  rules: FilterSelectionRule[] = defaultFilterSelectionRules
+): RelaysAndFilters[] => {
   const filtersById = new Map<string, Filter>()
   const scenariosById = new Map<string, RouterScenario[]>()
 
@@ -457,10 +475,13 @@ export function* getFilterSelections(filters: Filter[], rules: FilterSelectionRu
     }
   }
 
+  const result = []
+
   for (const [id, filter] of filtersById.entries()) {
     const scenario = ctx.app.router.merge(scenariosById.get(id) || [])
-    const result = {filters: [filter], relays: scenario.getUrls()} as RelaysAndFilters
 
-    yield result
+    result.push({filters: [filter], relays: scenario.getUrls()})
   }
+
+  return result
 }
