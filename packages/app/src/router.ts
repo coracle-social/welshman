@@ -312,16 +312,15 @@ export class RouterScenario {
 export const getRelayQuality = (url: string) => {
   const relay = relaysByUrl.get().get(url)
 
-  if (!relay?.stats) return 1
+  if (relay?.stats) {
+    if (relay.stats.recent_errors.filter(n => n > ago(5)).length > 0) return 0
+    if (relay.stats.recent_errors.filter(n => n > ago(MINUTE)).length > 1) return 0
+    if (relay.stats.recent_errors.filter(n => n > ago(HOUR)).length > 5) return 0
+    if (relay.stats.recent_errors.filter(n => n > ago(DAY)).length > 20) return 0
+    if (relay.stats.recent_errors.filter(n => n > ago(WEEK)).length > 100) return 0
+  }
 
-  const {recent_errors} = relay.stats
-  const last_error = last(recent_errors) || 0
-
-  if (recent_errors.filter(n => n > ago(HOUR)).length > 5) return 0
-  if (recent_errors.filter(n => n > ago(DAY)).length > 20) return 0
-  if (recent_errors.filter(n => n > ago(WEEK)).length > 100) return 0
-
-  return Math.max(0, Math.min(0.5, (ago(MINUTE) - last_error) / HOUR))
+  return 1
 }
 
 export const getPubkeyRelays = (pubkey: string, mode?: string) => {

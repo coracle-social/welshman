@@ -37,9 +37,10 @@ export class ConnectionAuth {
 
   constructor(readonly cxn: Connection) {
     this.cxn.on(ConnectionEvent.Close, this.#onClose)
+    this.cxn.on(ConnectionEvent.Receive, this.#onReceive)
   }
 
-  #onMessage = (cxn: Connection, [verb, ...extra]: Message) => {
+  #onReceive = (cxn: Connection, [verb, ...extra]: Message) => {
     if (verb === 'OK') {
       const [id, ok, message] = extra
 
@@ -56,7 +57,7 @@ export class ConnectionAuth {
       this.status = Requested
 
       if (ctx.net.authMode === AuthMode.Implicit) {
-        this.attempt()
+        this.respond()
       }
     }
   }
@@ -68,7 +69,25 @@ export class ConnectionAuth {
     this.status = None
   }
 
-  attempt = async () => {
+  waitFor = async (condition: () => boolean, timeout = 300) => {
+    const start = Date.now()
+
+    while (Date.now() - timeout <= start) {
+      await sleep(100)
+
+      if (condition()) {
+        break
+      }
+    }
+  }
+
+  waitForChallenge = async (timeout = 300) =>
+    this.waitFor(() => Boolean(this.challenge), timeout)
+
+  waitForResolution = async (timeout = 300) =>
+    this.waitFor(() => [None, DeniedSignature, Forbidden, Ok].includes(this.status), timeout)
+
+  respond = async () => {
     if (!this.challenge) {
       throw new Error("Attempted to authenticate with no challenge")
     }
@@ -86,7 +105,10 @@ export class ConnectionAuth {
       ],
     })
 
-    const [event] = await Promise.all([ctx.net.signEvent(template), this.cxn.open()])
+    const [event] = await Promise.all([
+      ctx.net.signEvent(template),
+      this.cxn.socket.open(),
+    ])
 
     if (event) {
       this.request = event.id
@@ -97,33 +119,14 @@ export class ConnectionAuth {
     }
   }
 
-  attemptIfRequested = async () => {
+  attempt = async (timeout = 300) => {
+    await this.cxn.socket.open()
+    await this.waitForChallenge(timeout)
+
     if (this.status === Requested) {
-      await this.attempt()
+      await this.respond()
     }
-  }
 
-  wait = async ({timeout = 3000}: {timeout?: number} = {}) => {
-    const deadline = Date.now() + timeout
-
-    while (Date.now() < deadline) {
-      await sleep(100)
-
-      // State got reset while we were waiting
-      if ([None, Requested].includes(this.status)) {
-        break
-      }
-
-      // We've completed the auth flow
-      if ([DeniedSignature, Forbidden, Ok].includes(this.status)) {
-        break
-      }
-    }
-  }
-
-  waitIfPending = async ({timeout = 3000}: {timeout?: number} = {}) => {
-    while ([PendingSignature, PendingResponse].includes(this.status)) {
-      await this.wait({timeout})
-    }
+    await this.waitForResolution(timeout)
   }
 }

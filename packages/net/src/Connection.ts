@@ -39,15 +39,11 @@ export class Connection extends Emitter {
   emit = (type: ConnectionEvent, ...args: any[]) => super.emit(type, this, ...args)
 
   send = async (message: Message) => {
-    await this.open()
+    await this.socket.open()
 
     if (this.status === Ready) {
       this.sender.push(message)
     }
-  }
-
-  open = async () => {
-    await this.socket.open()
   }
 
   close = async () => {

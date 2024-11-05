@@ -63,9 +63,16 @@ export class Socket {
   }
 
   close = async () => {
+    if (this.cxn.url === 'wss://filter.nostr.wine/') {
+      console.trace('closing')
+    }
     this.worker.pause()
     this.ws?.close()
 
+    // Allow the socket to start closing before waiting
+    await sleep(100)
+
+    // Wait for the socket to fully clos
     await this.wait()
 
     this.ws = undefined
