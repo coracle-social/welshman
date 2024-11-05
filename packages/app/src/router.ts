@@ -129,7 +129,7 @@ export class Router {
   getRelaysForUser = (mode?: RelayMode) => {
     const pubkey = this.options.getUserPubkey?.()
 
-    return pubkey ? this.getRelaysForPubkey(pubkey) : []
+    return pubkey ? this.getRelaysForPubkey(pubkey, mode) : []
   }
 
   // Utilities for creating scenarios
@@ -274,10 +274,14 @@ export class RouterScenario {
     }
 
     const scoreRelay = (relay: string) => {
-      const quality = this.router.options.getRelayQuality?.(relay) || 1
+      const {getRelayQuality = always(1)} = this.router.options
+      const quality = getRelayQuality(relay)
       const weight = relayWeights.get(relay)!
 
-      return -(quality * weight)
+      // Log the weight, since it's a straight count which ends up over-weighting hubs.
+      // Also add some random noise so that we'll occasionally pick lower quality/less
+      // popular relays.
+      return -(quality * inc(Math.log(weight)) * Math.random())
     }
 
     const relays = take(
@@ -306,51 +310,18 @@ export class RouterScenario {
 // Default router options
 
 export const getRelayQuality = (url: string) => {
-  const oneMinute = 60 * 1000
-  const oneHour = 60 * oneMinute
-  const oneDay = 24 * oneHour
-  const oneWeek = 7 * oneDay
   const relay = relaysByUrl.get().get(url)
-  const connect_count = relay?.stats?.connect_count || 0
-  const recent_errors = relay?.stats?.recent_errors || []
-  const connection = ctx.net.pool.get(url, {autoConnect: false})
 
-  // If we haven't connected, consult our relay record and see if there has
-  // been a recent fault. If there has been, penalize the relay. If there have been several,
-  // don't use the relay.
-  if (!connection) {
-    const lastFault = last(recent_errors) || 0
+  if (!relay?.stats) return 1
 
-    if (recent_errors.filter(n => n > now() - oneHour).length > 10) {
-      return 0
-    }
+  const {recent_errors} = relay.stats
+  const last_error = last(recent_errors) || 0
 
-    if (recent_errors.filter(n => n > now() - oneDay).length > 50) {
-      return 0
-    }
+  if (recent_errors.filter(n => n > ago(HOUR)).length > 5) return 0
+  if (recent_errors.filter(n => n > ago(DAY)).length > 20) return 0
+  if (recent_errors.filter(n => n > ago(WEEK)).length > 100) return 0
 
-    if (recent_errors.filter(n => n > now() - oneWeek).length > 100) {
-      return 0
-    }
-
-    return Math.max(0, Math.min(0.5, (now() - oneMinute - lastFault) / oneHour))
-  }
-
-  const authScore = switcher(connection.auth.status, {
-    [AuthStatus.Forbidden]: 0,
-    [AuthStatus.Ok]: 1,
-    default: 0.5,
-  })
-
-  const connectionScore = switcher(connection.meta.getStatus(), {
-    [ConnectionStatus.Error]: 0,
-    [ConnectionStatus.Closed]: 0.6,
-    [ConnectionStatus.Slow]: 0.5,
-    [ConnectionStatus.Ok]: 1,
-    default: clamp([0.5, 1], connect_count / 1000),
-  })
-
-  return authScore * connectionScore
+  return Math.max(0, Math.min(0.5, (ago(MINUTE) - last_error) / HOUR))
 }
 
 export const getPubkeyRelays = (pubkey: string, mode?: string) => {
@@ -402,9 +373,6 @@ type FilterScenario = {filter: Filter, scenario: RouterScenario}
 
 type FilterSelectionRule = (filter: Filter) => FilterScenario[]
 
-export const getFilterSelectionsForLocalRelay = (filter: Filter) =>
- [{filter, scenario: ctx.app.router.FromRelays([LOCAL_RELAY_URL])}]
-
 export const getFilterSelectionsForSearch = (filter: Filter) => {
   if (!filter.search) return []
 
@@ -438,7 +406,7 @@ export const getFilterSelectionsForIndexedKinds = (filter: Filter) => {
 export const getFilterSelectionsForAuthors = (filter: Filter) => {
   if (!filter.authors) return []
 
-  const chunkCount = clamp([1, 4], Math.round(filter.authors.length / 50))
+  const chunkCount = clamp([1, 30], Math.round(filter.authors.length / 30))
 
   return chunks(chunkCount, filter.authors)
     .map(authors => ({
@@ -448,10 +416,9 @@ export const getFilterSelectionsForAuthors = (filter: Filter) => {
 }
 
 export const getFilterSelectionsForUser = (filter: Filter) =>
-  [{filter, scenario: ctx.app.router.ForUser().weight(0.5)}]
+  [{filter, scenario: ctx.app.router.ForUser().weight(0.2)}]
 
 export const defaultFilterSelectionRules = [
-  getFilterSelectionsForLocalRelay,
   getFilterSelectionsForSearch,
   getFilterSelectionsForWraps,
   getFilterSelectionsForIndexedKinds,
@@ -461,7 +428,7 @@ export const defaultFilterSelectionRules = [
 
 export const getFilterSelections = (
   filters: Filter[],
-  rules: FilterSelectionRule[] = defaultFilterSelectionRules
+ rules: FilterSelectionRule[] = defaultFilterSelectionRules
 ): RelaysAndFilters[] => {
   const filtersById = new Map<string, Filter>()
   const scenariosById = new Map<string, RouterScenario[]>()
@@ -479,8 +446,9 @@ export const getFilterSelections = (
 
   for (const [id, filter] of filtersById.entries()) {
     const scenario = ctx.app.router.merge(scenariosById.get(id) || [])
+    const relays = scenario.getUrls().concat(LOCAL_RELAY_URL)
 
-    result.push({filters: [filter], relays: scenario.getUrls()})
+    result.push({filters: [filter], relays})
   }
 
   return result

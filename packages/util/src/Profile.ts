@@ -27,7 +27,7 @@ export const isPublishedProfile = (profile: Profile): profile is PublishedProfil
 
 export const makeProfile = (profile: Partial<Profile> = {}): Profile => {
   const address = profile.lud06 || profile.lud16
-  const lnurl = address ? getLnUrl(address) : null
+  const lnurl = typeof address === 'string' ? getLnUrl(address) : null
 
   return lnurl ? {lnurl, ...profile} : profile
 }

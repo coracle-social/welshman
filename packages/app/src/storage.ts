@@ -3,7 +3,7 @@ import type {IDBPDatabase} from "idb"
 import {throttle} from "throttle-debounce"
 import {writable} from "svelte/store"
 import type {Unsubscriber, Writable} from "svelte/store"
-import {indexBy, equals, fromPairs} from "@welshman/lib"
+import {indexBy, fromPairs} from "@welshman/lib"
 import type {TrustedEvent, Repository} from "@welshman/util"
 import type {Tracker} from "@welshman/net"
 import {withGetter, adapter, throttled, custom} from "@welshman/store"
@@ -60,7 +60,7 @@ export const initIndexedDbAdapter = async (name: string, adapter: IndexedDbAdapt
       const removedRecords = prevRecords.filter(r => !currentIds.has(r[adapter.keyPath]))
 
       const prevRecordsById = indexBy(item => item[adapter.keyPath], prevRecords)
-      const updatedRecords = currentRecords.filter(r => !equals(r, prevRecordsById.get(r[adapter.keyPath])))
+      const updatedRecords = currentRecords.filter(r => r !== prevRecordsById.get(r[adapter.keyPath]))
 
       prevRecords = currentRecords
 

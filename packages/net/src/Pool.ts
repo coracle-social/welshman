@@ -11,32 +11,25 @@ export class Pool extends Emitter {
   has(url: string) {
     return this.data.has(url)
   }
-  get(url: string, {autoConnect = true, reconnectAfter = 3000} = {}): Connection {
-    let connection = this.data.get(url)
+  get(url: string): Connection {
+    const oldConnection = this.data.get(url)
 
-    if (autoConnect) {
-      if (!connection) {
-        connection = new Connection(url)
-
-        this.data.set(url, connection)
-        this.emit('init', connection)
-
-        connection.on('open', () => this.emit('open', connection))
-        connection.on('close', () => this.emit('close', connection))
-      }
-
-      connection.ensureConnected({
-        shouldReconnect: connection.meta.lastClose < Date.now() - reconnectAfter,
-      })
+    if (oldConnection) {
+      return oldConnection
     }
 
-    return connection!
+    const newConnection = new Connection(url)
+
+    this.data.set(url, newConnection)
+    this.emit('init', newConnection)
+
+    return newConnection
   }
   remove(url: string) {
     const connection = this.data.get(url)
 
     if (connection) {
-      connection.destroy()
+      connection.close()
 
       this.data.delete(url)
     }

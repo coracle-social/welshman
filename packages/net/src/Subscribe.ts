@@ -3,6 +3,7 @@ import {matchFilters, unionFilters, TrustedEvent} from '@welshman/util'
 import type {Filter} from '@welshman/util'
 import {Tracker} from "./Tracker"
 import {Connection} from './Connection'
+import {ConnectionEvent} from './ConnectionEvent'
 
 // `subscribe` is a super function that handles batching subscriptions by merging
 // them based on parameters (filters and subscribe opts), then splits them by relay.
@@ -249,7 +250,10 @@ const _executeSubscription = (sub: Subscription) => {
   emitter.on(SubscriptionEvent.Complete, () => {
     emitter.removeAllListeners()
     subs.forEach(sub => sub.unsubscribe())
-    executor.target.connections.forEach((c: Connection) => c.off("close", onClose))
+    executor.target.connections.forEach((c: Connection) => {
+      c.off(ConnectionEvent.Close, onClose)
+    })
+
     executor.target.cleanup()
   })
 
@@ -287,13 +291,17 @@ const _executeSubscription = (sub: Subscription) => {
   if (timeout) setTimeout(onComplete, timeout + authTimeout)
 
   // If one of our connections gets closed make sure to kill our sub
-  executor.target.connections.forEach((c: Connection) => c.on('close', onClose))
+  executor.target.connections.forEach((c: Connection) => {
+    c.on(ConnectionEvent.Close, onClose)
+  })
 
   // Finally, start our subscription. If we didn't get any filters, don't even send the
   // request, just close it. This can be valid when a caller fulfills a request themselves.
   if (filters.length > 0) {
     Promise.all(
       executor.target.connections.map(async (connection: Connection) => {
+        await connection.open()
+
         if (authTimeout) {
           await connection.auth.waitIfPending({timeout: authTimeout})
         }

@@ -1,135 +1,62 @@
-import {Emitter, Worker, sleep} from '@welshman/lib'
-import {AUTH_JOIN} from '@welshman/util'
-import {ConnectionMeta} from './ConnectionMeta'
-import {ConnectionAuth, AuthStatus} from './ConnectionAuth'
-import {Socket, isMessage, asMessage} from './Socket'
-import type {SocketMessage} from './Socket'
+import {Emitter} from '@welshman/lib'
+import {Socket} from './Socket'
+import type {Message} from './Socket'
+import {ConnectionEvent} from './ConnectionEvent'
+import {ConnectionState} from './ConnectionState'
+import {ConnectionStats} from './ConnectionStats'
+import {ConnectionAuth} from './ConnectionAuth'
+import {ConnectionSender} from './ConnectionSender'
+
+export enum ConnectionStatus {
+  Ready = "ready",
+  Closed = "Closed",
+  Closing = "Closing",
+}
+
+const {Ready, Closed, Closing} = ConnectionStatus
 
 export class Connection extends Emitter {
   url: string
   socket: Socket
-  sender: Worker<SocketMessage>
-  receiver: Worker<SocketMessage>
-  meta: ConnectionMeta
+  sender: ConnectionSender
+  state: ConnectionState
+  stats: ConnectionStats
   auth: ConnectionAuth
+  status = Ready
 
   constructor(url: string) {
     super()
 
     this.url = url
-    this.socket = new Socket(url, this)
-    this.sender = this.createSender()
-    this.receiver = this.createReceiver()
-    this.meta = new ConnectionMeta(this)
+    this.socket = new Socket(this)
+    this.sender = new ConnectionSender(this)
+    this.state = new ConnectionState(this)
+    this.stats = new ConnectionStats(this)
     this.auth = new ConnectionAuth(this)
     this.setMaxListeners(100)
   }
 
-  createSender = () => {
-    const worker = new Worker<SocketMessage>({
-      shouldDefer: (message: SocketMessage) => {
-        if (!this.socket.isOpen()) {
-          return true
-        }
+  emit = (type: ConnectionEvent, ...args: any[]) => super.emit(type, this, ...args)
 
-        const [verb, ...extra] = asMessage(message)
+  send = async (message: Message) => {
+    await this.open()
 
-        if (verb === 'AUTH') {
-          return false
-        }
-
-        // Only close reqs that have been sent
-        if (verb === 'CLOSE') {
-          return !this.meta.pendingRequests.has(extra[0])
-        }
-
-        // Allow relay requests through
-        if (verb === 'EVENT' && extra[0].kind === AUTH_JOIN) {
-          return false
-        }
-
-        // Only defer for auth if we're not multiplexing
-        if (isMessage(message) && ![AuthStatus.None, AuthStatus.Ok].includes(this.auth.status)) {
-          return true
-        }
-
-        if (verb === 'REQ') {
-          return this.meta.pendingRequests.size >= 8
-        }
-
-        return false
-      }
-    })
-
-    worker.addGlobalHandler((message: SocketMessage) => {
-      // If we ended up handling a CLOSE before we handled the REQ, don't send the REQ
-      if (message[0] === 'CLOSE') {
-        worker.buffer = worker.buffer.filter(m => !(m[0] === 'REQ' && m[1] === message[1]))
-      }
-
-      this.onSend(message)
-    })
-
-    return worker
-  }
-
-  createReceiver = () => {
-    const worker = new Worker<SocketMessage>()
-
-    worker.addGlobalHandler(this.onReceive)
-
-    return worker
-  }
-
-  send = (m: SocketMessage) => this.sender.push(m)
-
-  onOpen = () => this.emit('open', this)
-
-  onClose = () => this.emit('close', this)
-
-  onFault = () => this.emit('fault', this)
-
-  onMessage = (m: SocketMessage) => this.receiver.push(m)
-
-  onSend = (message: SocketMessage) => {
-    this.emit('send', this, message)
-    this.socket.send(message)
-  }
-
-  onReceive = (message: SocketMessage) => {
-    this.emit('receive', this, message)
-  }
-
-  ensureConnected = async ({shouldReconnect = true} = {}) => {
-    const isUnhealthy = this.socket.isClosing() || this.socket.isClosed()
-    const noRecentFault = this.meta.lastFault < Date.now() - 60_000
-
-    if (shouldReconnect && isUnhealthy && noRecentFault) {
-      await this.disconnect()
-    }
-
-    if (this.socket.isNew()) {
-      await this.socket.connect()
-    }
-
-    while (this.socket.isConnecting()) {
-      await sleep(100)
+    if (this.status === Ready) {
+      this.sender.push(message)
     }
   }
 
-  async disconnect() {
-    await this.socket.disconnect()
-
-    this.sender.clear()
-    this.receiver.clear()
-    this.meta.clearPending()
+  open = async () => {
+    await this.socket.open()
   }
 
-  async destroy() {
-    await this.disconnect()
+  close = async () => {
+    this.status = Closing
 
+    await this.sender.close()
+    await this.socket.close()
+
+    this.status = Closed
     this.removeAllListeners()
-    this.sender.stop()
-    this.receiver.stop()
   }
 }

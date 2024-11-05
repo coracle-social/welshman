@@ -1,90 +1,122 @@
 import WebSocket from "isomorphic-ws"
-import {sleep} from '@welshman/lib'
+import {Worker, sleep} from '@welshman/lib'
+import {ConnectionEvent} from './ConnectionEvent'
+import type {Connection} from './Connection'
 
 export type Message = [string, ...any[]]
 
-export type PlexMessage = [{relays: string[]}, Message]
-
-export type SocketMessage = Message | PlexMessage
-
-export const isMessage = (m: SocketMessage): boolean => typeof m[0] === 'string'
-
-export const asMessage = (m: SocketMessage): Message => isMessage(m) ? m : m[1]
-
-export type SocketOpts = {
-  onOpen: () => void
-  onClose: () => void
-  onFault: () => void
-  onMessage: (message: SocketMessage) => void
+export enum SocketStatus {
+  New = 'new',
+  Open = 'open',
+  Opening = 'opening',
+  Closing = 'closing',
+  Closed = 'closed',
+  Error = 'error',
+  Invalid = 'invalid',
 }
 
+const {
+  New,
+  Open,
+  Opening,
+  Closing,
+  Closed,
+  Error,
+  Invalid,
+} = SocketStatus
+
 export class Socket {
-  ws?: WebSocket | 'invalid'
+  status = SocketStatus.New
+  worker = new Worker<Message>()
+  ws?: WebSocket
 
-  constructor(readonly url: string, readonly opts: SocketOpts) {}
-
-  isNew = () => this.ws === undefined
-
-  isInvalid = () => this.ws === 'invalid'
-
-  isConnecting = () => this.ws?.readyState === WebSocket.CONNECTING
-
-  isOpen = () => this.ws?.readyState === WebSocket.OPEN
-
-  isClosing = () => this.ws?.readyState === WebSocket.CLOSING
-
-  isClosed = () => this.ws?.readyState === WebSocket.CLOSED
-
-  onMessage = (event: {data: string}) => {
-    try {
-      const message = JSON.parse(event.data as string)
-
-      if (Array.isArray(message)) {
-        this.opts.onMessage(message as Message)
-      } else {
-        console.warn(`Invalid message received on ${this.url}:`, message)
-      }
-    } catch (e) {
-      // pass
-    }
+  constructor(readonly cxn: Connection) {
+    // Use a worker to throttle incoming data
+    this.worker.addGlobalHandler((message: Message) => {
+      this.cxn.emit(ConnectionEvent.Receive, message)
+    })
   }
 
-  send = (message: any) => this.ws.send(JSON.stringify(message))
-
-  connect = async () => {
-    if (this.ws) {
-      throw new Error(`Already attempted connection for ${this.url}`)
-    }
-
-    try {
-      this.ws = new WebSocket(this.url)
-      this.ws.onopen = this.opts.onOpen
-      this.ws.onerror = this.opts.onFault
-      this.ws.onclose = this.opts.onClose
-      this.ws.onmessage = this.onMessage
-    } catch (e) {
-      this.ws = 'invalid'
-      this.opts.onFault()
-    }
-
-    while (this.isConnecting()) {
+  wait = async () => {
+    while ([Opening, Closing].includes(this.status)) {
       await sleep(100)
     }
   }
 
-  disconnect = async () => {
-    while (this.isConnecting()) {
-      await sleep(100)
+  open = async () => {
+    // If we're in a provisional state, wait
+    await this.wait()
+
+    // If the socket is closed, reset
+    if (this.status === Closed) {
+      this.status = New
+      this.cxn.emit(ConnectionEvent.Reset)
     }
 
-    if (this.isOpen()) {
-      this.ws.close()
+    // If the socket is new, connect
+    if (this.status === New) {
+      this.#init()
     }
 
-    while (this.isClosing()) {
-      await sleep(100)
-    }
+    // Wait until we're connected (or fail to connect)
+    await this.wait()
+  }
+
+  close = async () => {
+    this.worker.pause()
+    this.ws?.close()
+
+    await this.wait()
 
     this.ws = undefined
+  }
+
+  send = async (message: Message) => {
+    await this.open()
+
+    this.cxn.emit(ConnectionEvent.Send, message)
+    this.ws.send(JSON.stringify(message))
+  }
+
+  #init = () => {
+    try {
+      this.ws = new WebSocket(this.cxn.url)
+      this.status = Opening
+
+      this.ws.onopen = () => {
+        this.status = Open
+        this.cxn.emit(ConnectionEvent.Open)
+      }
+
+      this.ws.onerror = () => {
+        this.status = Error
+        this.cxn.emit(ConnectionEvent.Error)
+      }
+
+      this.ws.onclose = () => {
+        if (this.status !== Error) {
+          this.status = Closed
+        }
+
+        this.cxn.emit(ConnectionEvent.Close)
+      }
+
+      this.ws.onmessage = (event: {data: string}) => {
+        try {
+          const message = JSON.parse(event.data as string)
+
+          if (Array.isArray(message)) {
+            this.worker.push(message as Message)
+          } else {
+            this.cxn.emit(ConnectionEvent.InvalidMessage, event.data)
+          }
+        } catch (e) {
+          this.cxn.emit(ConnectionEvent.InvalidMessage, event.data)
+        }
+      }
+    } catch (e) {
+      this.status = Invalid
+      this.cxn.emit(ConnectionEvent.InvalidUrl)
+    }
   }
 }

@@ -8,7 +8,8 @@ export type WorkerOpts<T> = {
 export class Worker<T> {
   buffer: T[] = []
   handlers: Map<any, Array<(x: T) => void>> = new Map()
-  timeout: number | undefined
+  #timeout: number | undefined
+  #paused = false
 
   constructor(readonly opts: WorkerOpts<T> = {}) {}
 
@@ -46,13 +47,13 @@ export class Worker<T> {
       }
     }
 
-    this.timeout = undefined
+    this.#timeout = undefined
     this.#enqueueWork()
   }
 
   #enqueueWork = () => {
-    if (!this.timeout && this.buffer.length > 0) {
-      this.timeout = setTimeout(this.#doWork, 50) as unknown as number
+    if (!this.#paused && !this.#timeout && this.buffer.length > 0) {
+      this.#timeout = setTimeout(this.#doWork, 50) as unknown as number
     }
   }
 
@@ -73,7 +74,15 @@ export class Worker<T> {
     this.buffer = []
   }
 
-  stop() {
-    clearTimeout(this.timeout)
+  pause() {
+    clearTimeout(this.#timeout)
+
+    this.#paused = true
+    this.#timeout = undefined
+  }
+
+  resume() {
+    this.#paused = false
+    this.#enqueueWork()
   }
 }

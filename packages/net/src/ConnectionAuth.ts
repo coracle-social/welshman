@@ -1,8 +1,8 @@
 import {ctx, sleep} from '@welshman/lib'
 import {CLIENT_AUTH, createEvent} from '@welshman/util'
+import {ConnectionEvent} from './ConnectionEvent'
 import type {Connection} from './Connection'
-import type {SocketMessage} from './Socket'
-import {asMessage} from './Socket'
+import type {Message} from './Socket'
 
 export enum AuthMode {
   Implicit = 'implicit',
@@ -35,14 +35,11 @@ export class ConnectionAuth {
   message: string | undefined
   status = None
 
-  constructor(readonly connection: Connection) {
-    this.connection.on('receive', this.#onReceive)
-    this.connection.on('close', this.#onClose)
+  constructor(readonly cxn: Connection) {
+    this.cxn.on(ConnectionEvent.Close, this.#onClose)
   }
 
-  #onReceive = (connection: Connection, message: SocketMessage) => {
-    const [verb, ...extra] = asMessage(message)
-
+  #onMessage = (cxn: Connection, [verb, ...extra]: Message) => {
     if (verb === 'OK') {
       const [id, ok, message] = extra
 
@@ -64,7 +61,7 @@ export class ConnectionAuth {
     }
   }
 
-  #onClose = (connection: Connection) => {
+  #onClose = (cxn: Connection) => {
     this.challenge = undefined
     this.request = undefined
     this.message = undefined
@@ -84,19 +81,16 @@ export class ConnectionAuth {
 
     const template = createEvent(CLIENT_AUTH, {
       tags: [
-        ["relay", this.connection.url],
+        ["relay", this.cxn.url],
         ["challenge", this.challenge],
       ],
     })
 
-    const [event] = await Promise.all([
-      ctx.net.signEvent(template),
-      this.connection.ensureConnected(),
-    ])
+    const [event] = await Promise.all([ctx.net.signEvent(template), this.cxn.open()])
 
     if (event) {
       this.request = event.id
-      this.connection.send(['AUTH', event])
+      this.cxn.send(['AUTH', event])
       this.status = PendingResponse
     } else {
       this.status = DeniedSignature
@@ -131,10 +125,5 @@ export class ConnectionAuth {
     while ([PendingSignature, PendingResponse].includes(this.status)) {
       await this.wait({timeout})
     }
-  }
-
-  destroy = () => {
-    this.connection.off('receive', this.#onReceive)
-    this.connection.off('close', this.#onClose)
   }
 }

@@ -1,13 +1,14 @@
 import {Emitter} from '@welshman/lib'
 import type {Message} from '../Socket'
 import type {Connection} from '../Connection'
+import {ConnectionEvent} from '../ConnectionEvent'
 
 export class Relays extends Emitter {
   constructor(readonly connections: Connection[]) {
     super()
 
     connections.forEach(connection => {
-      connection.on('receive', this.onMessage)
+      connection.on(ConnectionEvent.Receive, this.onMessage)
     })
   }
 
