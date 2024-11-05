@@ -1,5 +1,4 @@
-import {nip19} from 'nostr-tools'
-import {GROUP, COMMUNITY} from './Kinds'
+import {nip19} from "nostr-tools"
 
 // Define this locally to avoid circular dependencies
 type AddressableEvent = {
@@ -30,7 +29,7 @@ export class Address {
     let type
     let data = {} as any
     try {
-      ({type, data} = nip19.decode(naddr) as {
+      ;({type, data} = nip19.decode(naddr) as {
         type: "naddr"
         data: any
       })
@@ -59,9 +58,3 @@ export class Address {
 // Utils
 
 export const getAddress = (e: AddressableEvent) => Address.fromEvent(e).toString()
-
-export const isGroupAddress = (a: string, ...args: unknown[]) => Address.isAddress(a) && Address.from(a).kind === GROUP
-
-export const isCommunityAddress = (a: string, ...args: unknown[]) => Address.isAddress(a) && Address.from(a).kind === COMMUNITY
-
-export const isContextAddress = (a: string, ...args: unknown[]) => Address.isAddress(a) && [GROUP, COMMUNITY].includes(Address.from(a).kind)

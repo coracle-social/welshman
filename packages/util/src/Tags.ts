@@ -1,10 +1,9 @@
-import type {OmitStatics} from '@welshman/lib'
-import {Fluent, uniq, uniqBy, mapVals, nth, nthEq, ensurePlural} from '@welshman/lib'
-import {isRelayUrl, isShareableRelayUrl, normalizeRelayUrl} from './Relay'
-import {Address, isContextAddress} from './Address'
-import {GROUP, COMMUNITY} from './Kinds'
+import type {OmitStatics} from "@welshman/lib"
+import {Fluent, uniq, uniqBy, mapVals, nth, nthEq, ensurePlural} from "@welshman/lib"
+import {isRelayUrl, isShareableRelayUrl, normalizeRelayUrl} from "./Relay"
+import {Address} from "./Address"
 
-export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, 'from'>) {
+export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, "from">) {
   static from = (xs: Iterable<string>) => new Tag(Array.from(xs))
 
   static fromId = (id: string) => new Tag(["e", id])
@@ -28,15 +27,9 @@ export class Tag extends (Fluent<string> as OmitStatics<typeof Fluent<string>, '
   setValue = (v: string) => this.set(1, v)
 
   isAddress = (kind?: number) => this.key() === "a" && this.value()?.startsWith(`${kind}:`)
-
-  isGroup = () => this.isAddress(GROUP)
-
-  isCommunity = () => this.isAddress(COMMUNITY)
-
-  isContext = () => this.isAddress(GROUP) || this.isAddress(COMMUNITY)
 }
 
-export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'>) {
+export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, "from">) {
   static from = (p: Iterable<Tag>) => new Tags(Array.from(p))
 
   static wrap = (p: Iterable<string[]>) => new Tags(Array.from(p).map(Tag.from))
@@ -70,9 +63,18 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
   entries = () => this.mapTo(t => t.entry())
 
-  relays = () => this.flatMap((t: Tag) => t.valueOf().filter(isRelayUrl).map(url => normalizeRelayUrl(url))).uniq()
+  relays = () =>
+    this.flatMap((t: Tag) =>
+      t
+        .valueOf()
+        .filter(isRelayUrl)
+        .map(url => normalizeRelayUrl(url))
+    ).uniq()
 
-  topics = () => this.whereKey("t").values().map((t: string) => t.replace(/^#/, ""))
+  topics = () =>
+    this.whereKey("t")
+      .values()
+      .map((t: string) => t.replace(/^#/, ""))
 
   ancestors = (x?: boolean) => {
     const {roots, replies, mentions} = getAncestorTags(this.unwrap())
@@ -113,10 +115,6 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
 
     return parents.get("e") || parents.get("a")
   }
-
-  groups = () => this.whereKey("a").filter(t => t.isGroup())
-
-  communities = () => this.whereKey("a").filter(t => t.isCommunity())
 
   context = () => this.whereKey("a").filter(t => t.isContext())
 
@@ -161,7 +159,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
   addImages = (imeta: Tags[]) =>
     this.concat(imeta.map(tags => Tag.from(["image", tags.get("url").value()])))
 
-  removeImages = () => this.rejectByKey(['image'])
+  removeImages = () => this.rejectByKey(["image"])
 
   setImages = (imeta: Tags[]) => this.removeImages().addImages(imeta)
 
@@ -170,7 +168,7 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, 'from'
   addIMeta = (imeta: Tags[]) =>
     this.concat(imeta.map(tags => Tag.from(["imeta", ...tags.valueOf().map(xs => xs.join(" "))])))
 
-  removeIMeta = () => this.rejectByKey(['imeta'])
+  removeIMeta = () => this.rejectByKey(["imeta"])
 
   setIMeta = (imeta: Tags[]) => this.removeIMeta().addIMeta(imeta)
 }
@@ -195,9 +193,6 @@ export const getAddressTags = (tags: string[][]) =>
   tags.filter(t => ["a"].includes(t[0]) && Address.isAddress(t[1]))
 
 export const getAddressTagValues = (tags: string[][]) => getAddressTags(tags).map(nth(1))
-
-export const getContextTagValues = (tags: string[][]) =>
-  getAddressTagValues(tags).filter(isContextAddress)
 
 export const getPubkeyTags = (tags: string[][]) =>
   tags.filter(t => ["p"].includes(t[0]) && t[1].length === 64)
@@ -224,7 +219,7 @@ export const getKindTags = (tags: string[][]) =>
 export const getKindTagValues = (tags: string[][]) => getKindTags(tags).map(t => parseInt(t[1]))
 
 export const getAncestorTags = (tags: string[][]) => {
-  const validTags = tags.filter(t => ["a", "e", "q"].includes(t[0]) && !isContextAddress(t[1]))
+  const validTags = tags.filter(t => ["a", "e", "q"].includes(t[0]))
   const mentionTags = validTags.filter(nthEq(0, "q"))
   const roots: string[][] = []
   const replies: string[][] = []
@@ -232,15 +227,15 @@ export const getAncestorTags = (tags: string[][]) => {
 
   const dispatchTags = (thisTags: string[][]) =>
     thisTags.forEach((t: string[], i: number) => {
-      if (t[3] === 'root') {
+      if (t[3] === "root") {
         if (validTags.filter(nthEq(3, "reply")).length === 0) {
           replies.push(t)
         } else {
           roots.push(t)
         }
-      } else if (t[3] === 'reply') {
+      } else if (t[3] === "reply") {
         replies.push(t)
-      } else if (t[3] === 'mention') {
+      } else if (t[3] === "mention") {
         mentions.push(t)
       } else if (i === thisTags.length - 1) {
         replies.push(t)
