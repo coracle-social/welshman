@@ -116,8 +116,6 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, "from"
     return parents.get("e") || parents.get("a")
   }
 
-  context = () => this.whereKey("a").filter(t => t.isContext())
-
   asObject = () => {
     const result: Record<string, string> = {}
 
@@ -145,14 +143,6 @@ export class Tags extends (Fluent<Tag> as OmitStatics<typeof Fluent<Tag>, "from"
   addTag = (...args: string[]) => this.append(Tag.from(args))
 
   setTag = (k: string, ...args: string[]) => this.rejectByKey([k]).addTag(k, ...args)
-
-  // Context
-
-  addContext = (addresses: string[]) => this.concat(addresses.map(a => Tag.from(["a", a])))
-
-  removeContext = () => this.reject(t => t.isContext())
-
-  setContext = (addresses: string[]) => this.removeContext().addContext(addresses)
 
   // Images
 

@@ -63,9 +63,6 @@ export class Socket {
   }
 
   close = async () => {
-    if (this.cxn.url === 'wss://filter.nostr.wine/') {
-      console.trace('closing')
-    }
     this.worker.pause()
     this.ws?.close()
 

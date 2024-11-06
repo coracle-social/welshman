@@ -29,7 +29,7 @@ export class Address {
     let type
     let data = {} as any
     try {
-      ;({type, data} = nip19.decode(naddr) as {
+      ({type, data} = nip19.decode(naddr) as {
         type: "naddr"
         data: any
       })
