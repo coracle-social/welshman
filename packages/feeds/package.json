@@ -1,6 +1,6 @@
 {
   "name": "@welshman/feeds",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "author": "hodlbod",
   "license": "MIT",
   "description": "Utilities for building dynamic nostr feeds.",
@@ -31,7 +31,7 @@
     "typescript": "~5.1.6"
   },
   "dependencies": {
-    "@welshman/lib": "~0.0.23",
-    "@welshman/util": "~0.0.42"
+    "@welshman/lib": "~0.0.24",
+    "@welshman/util": "~0.0.45"
   }
 }
