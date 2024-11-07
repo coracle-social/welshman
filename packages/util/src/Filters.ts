@@ -1,10 +1,12 @@
 import {matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
-import {uniqBy, prop, mapVals, shuffle, avg, hash, groupBy, randomId, uniq} from '@welshman/lib'
+import {without, uniqBy, prop, mapVals, shuffle, avg, hash, groupBy, randomId, uniq} from '@welshman/lib'
 import type {HashedEvent, TrustedEvent, SignedEvent} from './Events'
 import {isReplaceableKind} from './Kinds'
 import {Address, getAddress} from './Address'
 
 export const EPOCH = 1609459200
+
+export const neverFilter = {ids: []}
 
 export type Filter = {
   ids?: string[]
@@ -183,6 +185,28 @@ export const getReplyFilters = (events: TrustedEvent[], filter: Filter = {}) => 
 
   return filters
 }
+
+
+export const addRepostFilters = (filters: Filter[]) =>
+  filters.flatMap(original => {
+    const filterChunk = [original]
+
+    if (!original.kinds) {
+      filterChunk.push({...original, kinds: [6, 16]})
+    } else {
+      if (original.kinds.includes(1)) {
+        filterChunk.push({...original, kinds: [6]})
+      }
+
+      const otherKinds = without([1], original.kinds)
+
+      if (otherKinds.length > 0) {
+        filterChunk.push({...original, kinds: [16], "#k": otherKinds.map(String)})
+      }
+    }
+
+    return filterChunk
+  })
 
 export const getFilterGenerality = (filter: Filter) => {
   if (filter.ids || filter["#e"] || filter["#a"]) {

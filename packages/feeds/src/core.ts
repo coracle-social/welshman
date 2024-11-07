@@ -124,8 +124,12 @@ export type DVMOpts = DVMRequest & {
 }
 
 export type FeedOptions = {
+  feed: Feed
   request: (opts: RequestOpts) => Promise<void>
   requestDVM: (opts: DVMOpts) => Promise<void>
   getPubkeysForScope: (scope: Scope) => string[]
   getPubkeysForWOTRange: (minWOT: number, maxWOT: number) => string[]
+  onEvent: (event: TrustedEvent) => void
+  onExhausted: () => void
+  useWindowing?: boolean
 }

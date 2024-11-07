@@ -5,14 +5,6 @@ A custom feed compiler and loader for nostr. Read the spec on [wikifreedia](http
 # Example
 
 ```javascript
-// Configure the feed loader so it can access your app's context and make requests
-const loader = new FeedLoader({
-  request,
-  requestDvm,
-  getPubkeysForScope,
-  getPubkeysForWotRange,
-})
-
 // Define a feed using set operations
 const feed = intersectionFeed(
   unionFeed(
@@ -26,9 +18,17 @@ const feed = intersectionFeed(
   scopeFeed("global"),
 )
 
-// Load notes using the feed
-loader.compiler.getLoader(feed, {
+// Create a controller
+const controller = new FeedController({
+  feed,
+  request,
+  requestDvm,
+  getPubkeysForScope,
+  getPubkeysForWotRange,
   onEvent: event => console.log("Event", event),
-  onExhausted: () =>  console.log("Exhausted"),
+  onExhausted: () => console.log("Exhausted"),
 })
+
+// Load notes using the feed
+controller.load(10)
 ```
