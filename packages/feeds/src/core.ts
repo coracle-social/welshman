@@ -129,7 +129,7 @@ export type FeedOptions = {
   requestDVM: (opts: DVMOpts) => Promise<void>
   getPubkeysForScope: (scope: Scope) => string[]
   getPubkeysForWOTRange: (minWOT: number, maxWOT: number) => string[]
-  onEvent: (event: TrustedEvent) => void
-  onExhausted: () => void
+  onEvent?: (event: TrustedEvent) => void
+  onExhausted?: () => void
   useWindowing?: boolean
 }

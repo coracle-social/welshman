@@ -22,9 +22,9 @@ const feed = intersectionFeed(
 const controller = new FeedController({
   feed,
   request,
-  requestDvm,
+  requestDVM,
   getPubkeysForScope,
-  getPubkeysForWotRange,
+  getPubkeysForWOTRange,
   onEvent: event => console.log("Event", event),
   onExhausted: () => console.log("Exhausted"),
 })

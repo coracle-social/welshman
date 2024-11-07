@@ -50,7 +50,7 @@ export class FeedController {
           onExhausted: () => exhausted.add(request),
           onEvent: e => {
             if (!seen.has(e.id)) {
-              onEvent(e)
+              onEvent?.(e)
               seen.add(e.id)
             }
           },
@@ -62,7 +62,7 @@ export class FeedController {
       await Promise.all(loaders.map(loader => loader(limit)))
 
       if (exhausted.size === requests.length) {
-        onExhausted()
+        onExhausted?.()
       }
     }
   }
@@ -98,7 +98,7 @@ export class FeedController {
         .map((filter: Filter) => ({...filter, until, limit, since}))
 
       if (requestFilters.length === 0) {
-        return onExhausted()
+        return onExhausted?.()
       }
 
       let count = 0
@@ -109,13 +109,13 @@ export class FeedController {
         onEvent: (event: TrustedEvent) => {
           count += 1
           until = Math.min(until, event.created_at - 1)
-          onEvent(event)
+          onEvent?.(event)
         },
       }))
 
       if (useWindowing) {
         if (since === minSince) {
-          onExhausted()
+          onExhausted?.()
         }
 
         // Relays can't be relied upon to return events in descending order, do exponential
@@ -127,7 +127,7 @@ export class FeedController {
 
         since = Math.max(minSince, until - delta)
       } else if (count === 0) {
-        onExhausted()
+        onExhausted?.()
       }
     }
   }
@@ -169,13 +169,13 @@ export class FeedController {
 
       for (const event of events.splice(0)) {
         if (!skip.has(event.id) && !seen.has(event.id)) {
-          onEvent(event)
+          onEvent?.(event)
           seen.add(event.id)
         }
       }
 
       if (exhausted.size === controllers.length) {
-        onExhausted()
+        onExhausted?.()
       }
     }
   }
@@ -214,13 +214,13 @@ export class FeedController {
 
       for (const event of events.splice(0)) {
         if (counts.get(event.id) === controllers.length && !seen.has(event.id)) {
-          onEvent(event)
+          onEvent?.(event)
           seen.add(event.id)
         }
       }
 
       if (exhausted.size === controllers.length) {
-        onExhausted()
+        onExhausted?.()
       }
     }
   }
@@ -238,7 +238,7 @@ export class FeedController {
           onExhausted: () => exhausted.add(i),
           onEvent: (event: TrustedEvent) => {
             if (!seen.has(event.id)) {
-              onEvent(event)
+              onEvent?.(event)
               seen.add(event.id)
             }
           },
@@ -258,7 +258,7 @@ export class FeedController {
       )
 
       if (exhausted.size === controllers.length) {
-        onExhausted()
+        onExhausted?.()
       }
     }
   }

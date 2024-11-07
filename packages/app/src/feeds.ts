@@ -1,7 +1,7 @@
 import {ctx, now} from '@welshman/lib'
 import {createEvent, getPubkeyTagValues} from '@welshman/util'
-import {Scope} from '@welshman/feeds'
-import type {RequestOpts, DVMOpts} from '@welshman/feeds'
+import {Scope, FeedController} from '@welshman/feeds'
+import type {RequestOpts, FeedOptions, DVMOpts, Feed} from '@welshman/feeds'
 import {makeDvmRequest} from '@welshman/dvm'
 import {makeSecret, Nip01Signer} from '@welshman/signer'
 import {pubkey, signer} from './session'
@@ -68,3 +68,14 @@ export const getPubkeysForWOTRange = (min: number, max: number) => {
 
   return pubkeys
 }
+
+type _FeedOptions = Partial<Omit<FeedOptions, 'feed'>> & {feed: Feed}
+
+export const createFeedController = (options: _FeedOptions) =>
+  new FeedController({
+    request,
+    requestDVM,
+    getPubkeysForScope,
+    getPubkeysForWOTRange,
+    ...options,
+  })
