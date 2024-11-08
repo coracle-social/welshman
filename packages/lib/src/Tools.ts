@@ -9,6 +9,8 @@ export const isNil = (x: any) => [null, undefined].includes(x)
 
 export type Maybe<T> = T | undefined
 
+export const ifLet = <T>(x: T | undefined, f: (x: T) => void) => x === undefined ? undefined : f(x)
+
 // Regular old utils
 
 export const noop = (...args: unknown[]) => undefined
