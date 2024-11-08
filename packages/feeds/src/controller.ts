@@ -12,7 +12,7 @@ export class FeedController {
     this.compiler = new FeedCompiler(options)
   }
 
-  getFilters = memoize(async () => {
+  getRequestItems = memoize(async () => {
     return this.compiler.canCompile(this.options.feed)
       ? this.compiler.compile(this.options.feed)
       : undefined
@@ -20,10 +20,10 @@ export class FeedController {
 
   getLoader = memoize(async () => {
     const [type, ...feed] = this.options.feed
-    const filters = await this.getFilters()
+    const requestItems = await this.getRequestItems()
 
-    if (filters) {
-      return this._getRequestsLoader(filters)
+    if (requestItems) {
+      return this._getRequestsLoader(requestItems)
     }
 
     switch(type) {
