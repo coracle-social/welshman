@@ -81,11 +81,18 @@ export class FeedController {
     const minSince = sinces.length === filters.length ? min(sinces) : EPOCH
     const initialDelta = guessFilterDelta(filters)
 
+    let loading = false
     let delta = initialDelta
     let since = useWindowing ? maxUntil - delta : minSince
     let until = maxUntil
 
     return async (limit: number) => {
+      if (loading) {
+        return
+      }
+
+      loading = true
+
       const requestFilters = filters!
         // Remove filters that don't fit our window
         .filter((filter: Filter) => {
@@ -129,6 +136,8 @@ export class FeedController {
       } else if (count === 0) {
         onExhausted?.()
       }
+
+      loading = false
     }
   }
 

@@ -1,7 +1,7 @@
 import {partition} from "@welshman/lib"
 import {defaultOptimizeSubscriptions, getDefaultNetContext as originalGetDefaultNetContext} from "@welshman/net"
 import type {Subscription, RelaysAndFilters, NetContext} from "@welshman/net"
-import {WRAP, isEphemeralKind, isDVMKind,  unionFilters} from "@welshman/util"
+import {WRAP, LOCAL_RELAY_URL, isEphemeralKind, isDVMKind,  unionFilters} from "@welshman/util"
 import type {TrustedEvent, StampedEvent} from "@welshman/util"
 import {tracker, repository} from './core'
 import {makeRouter, getFilterSelections} from './router'
@@ -38,8 +38,10 @@ export const getDefaultNetContext = (overrides: Partial<NetContext> = {}) => ({
     const filters = unionFilters(withoutRelays.flatMap(sub => sub.request.filters))
     const selections: RelaysAndFilters[] = defaultOptimizeSubscriptions(withRelays)
 
+    selections.push({relays: [LOCAL_RELAY_URL], filters})
+
     if (filters.length > 0) {
-      for (const selection of  getFilterSelections(filters)) {
+      for (const selection of getFilterSelections(filters)) {
         selections.push(selection)
       }
     }

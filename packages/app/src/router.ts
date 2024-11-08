@@ -25,10 +25,10 @@ import {
   RELAYS,
   INBOX_RELAYS,
   FOLLOWS,
-  LOCAL_RELAY_URL,
   WRAP,
   getAncestorTags,
-  getPubkeyTagValues
+  getPubkeyTagValues,
+  normalizeRelayUrl,
 } from "@welshman/util"
 import type {TrustedEvent, Filter} from "@welshman/util"
 import type {RelaysAndFilters} from "@welshman/net"
@@ -103,7 +103,8 @@ export type Selection = {
   relays: string[],
 }
 
-const makeSelection = (relays: string[], weight = 1): Selection => ({relays, weight})
+const makeSelection = (relays: string[], weight = 1): Selection =>
+  ({relays: relays.map(normalizeRelayUrl), weight})
 
 // Fallback policies
 
@@ -427,7 +428,7 @@ export const defaultFilterSelectionRules = [
 
 export const getFilterSelections = (
   filters: Filter[],
- rules: FilterSelectionRule[] = defaultFilterSelectionRules
+  rules: FilterSelectionRule[] = defaultFilterSelectionRules
 ): RelaysAndFilters[] => {
   const filtersById = new Map<string, Filter>()
   const scenariosById = new Map<string, RouterScenario[]>()
@@ -445,9 +446,8 @@ export const getFilterSelections = (
 
   for (const [id, filter] of filtersById.entries()) {
     const scenario = ctx.app.router.merge(scenariosById.get(id) || [])
-    const relays = scenario.getUrls().concat(LOCAL_RELAY_URL)
 
-    result.push({filters: [filter], relays})
+    result.push({filters: [filter], relays: scenario.getUrls()})
   }
 
   return result
