@@ -69,7 +69,7 @@ export class Socket {
     // Allow the socket to start closing before waiting
     await sleep(100)
 
-    // Wait for the socket to fully clos
+    // Wait for the socket to fully close
     await this.wait()
 
     this.ws = undefined

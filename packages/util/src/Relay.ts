@@ -6,9 +6,9 @@ import type {HashedEvent, TrustedEvent} from './Events'
 
 // Constants and types
 
-export const LOCAL_RELAY_URL = "local://welshman.relay"
+export const LOCAL_RELAY_URL = "local://welshman.relay/"
 
-export const BOGUS_RELAY_URL = "bogus://welshman.relay"
+export const BOGUS_RELAY_URL = "bogus://welshman.relay/"
 
 export type RelayProfile = {
   url: string

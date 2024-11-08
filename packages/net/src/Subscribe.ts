@@ -1,5 +1,5 @@
 import {ctx, Emitter, max, chunk, randomId, once, groupBy, uniq} from '@welshman/lib'
-import {matchFilters, unionFilters, TrustedEvent} from '@welshman/util'
+import {LOCAL_RELAY_URL, matchFilters, normalizeRelayUrl, unionFilters, TrustedEvent} from '@welshman/util'
 import type {Filter} from '@welshman/util'
 import {Tracker} from "./Tracker"
 import {Connection} from './Connection'
@@ -353,6 +353,12 @@ export type SubscribeRequestWithHandlers = SubscribeRequest & {
 
 export const subscribe = ({onEvent, onEose, onClose, onComplete, ...request}: SubscribeRequestWithHandlers) => {
   const sub: Subscription = makeSubscription({delay: 50, ...request})
+
+  for (const relay of request.relays) {
+    if (relay !== LOCAL_RELAY_URL && relay !== normalizeRelayUrl(relay)) {
+      console.warn(`Attempted to open subscription to non-normalized url ${relay}`)
+    }
+  }
 
   if (request.delay === 0) {
     executeSubscription(sub)

@@ -1,4 +1,5 @@
 import {Emitter} from '@welshman/lib'
+import {normalizeRelayUrl} from '@welshman/util'
 import {Socket} from './Socket'
 import type {Message} from './Socket'
 import {ConnectionEvent} from './ConnectionEvent'
@@ -26,6 +27,10 @@ export class Connection extends Emitter {
 
   constructor(url: string) {
     super()
+
+    if (url !== normalizeRelayUrl(url)) {
+      console.warn(`Attempted to open connection to non-normalized url ${url}`)
+    }
 
     this.url = url
     this.socket = new Socket(this)
