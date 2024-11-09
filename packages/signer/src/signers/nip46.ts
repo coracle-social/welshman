@@ -207,7 +207,9 @@ export class Nip46Broker extends Emitter {
       while (this.#queue.length > 0) {
         const [{method, params, resolve}] = this.#queue.splice(0, 1)
 
-        this.request(method, params).then(resolve)
+        this.request(method, params).then(resolve, error => {
+          console.error(`Failed to send nip46 request`, {method, params, error})
+        })
       }
     } finally {
       this.#processing = false

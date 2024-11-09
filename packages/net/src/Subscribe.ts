@@ -316,6 +316,7 @@ const _executeSubscription = (sub: Subscription) => {
       emitter.emit(SubscriptionEvent.Send)
     })
   } else {
+    emitter.emit(SubscriptionEvent.Send)
     onComplete()
   }
 }
