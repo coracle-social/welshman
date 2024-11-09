@@ -270,7 +270,7 @@ export class Nip46Broker extends Emitter {
       throw new Error("Unable to create an account without a handler domain")
     }
 
-    return this.enqueue("create_account", [username, this.#handler.domain, "", perms])
+    return this.#getResult(this.enqueue("create_account", [username, this.#handler.domain, "", perms]))
   }
 
   connect = async (token = "", perms = "", secret = "") => {
