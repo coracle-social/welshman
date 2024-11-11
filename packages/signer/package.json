@@ -1,6 +1,6 @@
 {
   "name": "@welshman/signer",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A nostr signer implemenation supporting several login methods.",
@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@welshman/lib": "~0.0.24",
-    "@welshman/net": "~0.0.33",
+    "@welshman/net": "~0.0.34",
     "@welshman/util": "~0.0.45",
     "nostr-tools": "^2.7.2"
   },
