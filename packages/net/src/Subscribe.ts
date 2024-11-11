@@ -166,9 +166,7 @@ export const optimizeSubscriptions = (subs: Subscription[]) => {
 
         mergedSub.emitter.on(SubscriptionEvent.Event, (url: string, event: TrustedEvent) => {
           for (const sub of group) {
-            const seen = sub.tracker.track(event.id, url)
-
-            if (!seen && matchFilters(sub.request.filters, event)) {
+            if (matchFilters(sub.request.filters, event) && !sub.tracker.track(event.id, url)) {
               sub.emitter.emit(SubscriptionEvent.Event, url, event)
             }
           }

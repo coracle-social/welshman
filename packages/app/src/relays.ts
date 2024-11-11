@@ -221,7 +221,7 @@ const onConnectionReceive = ({url, state}: Connection, [verb, ...extra]: Message
 const onConnectionError = ({url}: Connection) =>
   updateRelayStats([url, stats => {
     stats.last_error = now()
-    stats.recent_errors = stats.recent_errors.concat(now()).slice(-10)
+    stats.recent_errors = uniq(stats.recent_errors.concat(now())).slice(-10)
   }])
 
 export const trackRelayStats = (connection: Connection) => {

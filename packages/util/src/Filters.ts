@@ -220,7 +220,7 @@ export const getFilterGenerality = (filter: Filter) => {
   }
 
   if (filter.authors) {
-    return Math.min(1, filter.authors.length / 100)
+    return Math.min(1, filter.authors.length / 300)
   }
 
   return 1
