@@ -1,4 +1,4 @@
-import {Emitter, normalizeUrl, tryCatch, randomId, equals} from "@welshman/lib"
+import {Emitter, tryCatch, randomId, equals} from "@welshman/lib"
 import {createEvent, TrustedEvent, StampedEvent, NOSTR_CONNECT} from "@welshman/util"
 import {subscribe, publish, Subscription, SubscriptionEvent} from "@welshman/net"
 import {ISigner, decrypt, hash, own, makeSecret, getPubkey} from '../util'
@@ -78,6 +78,8 @@ export class Nip46Broker extends Emitter {
       params.append('relay', relay)
     }
 
+    const nostrconnect = `nostrconnect://${clientPubkey}?${params.toString()}`
+
     const result = new Promise<string | undefined>(resolve => {
       const complete = (pubkey?: string) => {
         sub.close()
@@ -103,20 +105,7 @@ export class Nip46Broker extends Emitter {
       abortController?.signal.addEventListener('abort', () => complete())
     })
 
-    return {
-      result,
-      params,
-      clientSecret,
-      clientPubkey,
-      getLink: (template: string) => {
-        const temp = normalizeUrl(template)
-        const uri = `nostrconnect://${clientPubkey}?${params.toString()}`
-
-        return temp.includes('<nostrconnect>')
-          ? temp.replace('<nostrconnect>', uri)
-          : new URL(temp).origin + '/' + uri
-      }
-    }
+    return {result, params, nostrconnect, clientSecret, clientPubkey}
   }
 
   static parseBunkerLink(link: string) {
