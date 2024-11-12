@@ -101,6 +101,8 @@ export const mergeThunks = (thunks: Thunk[]) => {
   }
 }
 
+export const thunks = writable<Record<string, Thunk | MergedThunk>>({})
+
 export const publishThunk = (request: ThunkRequest) => {
   const thunk = makeThunk(request)
 
@@ -108,11 +110,32 @@ export const publishThunk = (request: ThunkRequest) => {
 
   repository.publish(thunk.event)
 
+  thunks.update(assoc(thunk.event.id, thunk))
+
   thunk.controller.signal.addEventListener('abort', () => {
     repository.removeEvent(thunk.event.id)
   })
 
   return thunk
+}
+
+export const publishThunks = (requests: ThunkRequest[]) => {
+  const newThunks = requests.map(makeThunk)
+  const mergedThunk = mergeThunks(newThunks)
+
+  for (const thunk of newThunks) {
+    thunkWorker.push(thunk)
+
+    repository.publish(thunk.event)
+
+    thunks.update(assoc(thunk.event.id, mergedThunk))
+
+    thunk.controller.signal.addEventListener('abort', () => {
+      repository.removeEvent(thunk.event.id)
+    })
+  }
+
+  return mergedThunk
 }
 
 export const thunkWorker = new Worker<Thunk>()
