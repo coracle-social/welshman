@@ -46,15 +46,11 @@ export function cached<T, V, Args extends any[]>({
   const get = (...args: Args) => {
     const k = getKey(args)
 
-    let v = cache.get(k)
-
-    if (!v) {
-      v = getValue(args)
-
-      cache.set(k, v)
+    if (!cache.has(k)) {
+      cache.set(k, getValue(args))
     }
 
-    return v
+    return cache.get(k)
   }
 
   get.cache = cache

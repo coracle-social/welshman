@@ -1,5 +1,5 @@
 import {derived} from "svelte/store"
-import {memoize, omit, equals, assoc} from "@welshman/lib"
+import {cached, hash, omit, equals, assoc} from "@welshman/lib"
 import {withGetter, synced} from "@welshman/store"
 import {type Nip46Handler} from "@welshman/signer"
 import {Nip46Broker, Nip46Signer, Nip07Signer, Nip01Signer, Nip55Signer} from "@welshman/signer"
@@ -42,23 +42,27 @@ export const dropSession = (pubkey: string) =>
 
 export const nip46Perms = "sign_event:22242,nip04_encrypt,nip04_decrypt,nip44_encrypt,nip44_decrypt"
 
-export const getSigner = memoize((session: Session) => {
-  switch (session?.method) {
-    case "nip07":
-      return new Nip07Signer()
-    case "nip01":
-      return new Nip01Signer(session.secret!)
-    case "nip46":
-      return new Nip46Signer(
-        Nip46Broker.get({
-          secret: session.secret!,
-          handler: session.handler!,
-        })
-      )
-    case "nip55":
-      return new Nip55Signer(session.signer!)
-    default:
-      return null
+export const getSigner = cached({
+  maxSize: 100,
+  getKey: ([session]: [Session | null]) => hash(String(JSON.stringify(session))),
+  getValue: ([session]: [Session | null]) => {
+    switch (session?.method) {
+      case "nip07":
+        return new Nip07Signer()
+      case "nip01":
+        return new Nip01Signer(session.secret!)
+      case "nip46":
+        return new Nip46Signer(
+          Nip46Broker.get({
+            secret: session.secret!,
+            handler: session.handler!,
+          })
+        )
+      case "nip55":
+        return new Nip55Signer(session.signer!)
+      default:
+        return null
+    }
   }
 })
 
