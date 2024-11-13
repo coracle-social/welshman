@@ -1,13 +1,12 @@
 import {partition} from "@welshman/lib"
 import {defaultOptimizeSubscriptions, getDefaultNetContext as originalGetDefaultNetContext} from "@welshman/net"
 import type {Subscription, RelaysAndFilters, NetContext} from "@welshman/net"
-import {WRAP, LOCAL_RELAY_URL, isEphemeralKind, isDVMKind,  unionFilters} from "@welshman/util"
+import {LOCAL_RELAY_URL, isEphemeralKind, isDVMKind,  unionFilters} from "@welshman/util"
 import type {TrustedEvent, StampedEvent} from "@welshman/util"
 import {tracker, repository} from './core'
 import {makeRouter, getFilterSelections} from './router'
 import {signer} from './session'
 import type {Router} from './router'
-import {loadProfile} from './profiles'
 
 export type AppContext = {
   router: Router
@@ -26,11 +25,6 @@ export const getDefaultNetContext = (overrides: Partial<NetContext> = {}) => ({
 
     tracker.track(event.id, url)
     repository.publish(event)
-
-    // Eagerly load profiles since they're critical to UX
-    if (event.kind !== WRAP) {
-      loadProfile(event.pubkey)
-    }
   },
   isDeleted: (url: string, event: TrustedEvent) => repository.isDeleted(event),
   optimizeSubscriptions: (subs: Subscription[]) => {
