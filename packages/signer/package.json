@@ -1,6 +1,6 @@
 {
   "name": "@welshman/signer",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A nostr signer implemenation supporting several login methods.",
