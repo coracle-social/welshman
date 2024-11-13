@@ -99,6 +99,11 @@ export class Nip46Broker extends Emitter {
           if (response?.result === secret) {
             complete(pubkey)
           }
+
+          if (response?.result === 'ack') {
+            console.warn("Bunker responded to nostrconnect with 'ack', which can lead to session hijacking")
+            complete(pubkey)
+          }
         },
       })
 
