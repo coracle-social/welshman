@@ -19,7 +19,7 @@ export type AppContext = {
 
 export const getDefaultNetContext = (overrides: Partial<NetContext> = {}) => ({
   ...originalGetDefaultNetContext(),
-  signEvent: (event: StampedEvent) => signer.get()?.sign(event),
+  signEvent: async (event: StampedEvent) => signer.get()?.sign(event),
   onEvent: (url: string, event: TrustedEvent) => {
     if (isEphemeralKind(event.kind) || isDVMKind(event.kind)) return
 

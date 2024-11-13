@@ -11,7 +11,7 @@ export type NetContext = {
   pool: Pool
   authMode: AuthMode,
   onEvent: (url: string, event: TrustedEvent) => void
-  signEvent: (event: StampedEvent) => Promise<SignedEvent>
+  signEvent: (event: StampedEvent) => Promise<SignedEvent | undefined>
   getExecutor: (relays: string[]) => Executor
   isDeleted: (url: string, event: TrustedEvent) => boolean
   isValid: (url: string, event: TrustedEvent) => boolean
