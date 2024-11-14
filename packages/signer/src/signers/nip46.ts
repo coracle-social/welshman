@@ -1,4 +1,4 @@
-import {Emitter, tryCatch, randomId, equals} from "@welshman/lib"
+import {Emitter, sleep, tryCatch, randomId, equals} from "@welshman/lib"
 import {createEvent, TrustedEvent, StampedEvent, NOSTR_CONNECT} from "@welshman/util"
 import {subscribe, publish, Subscription, SubscriptionEvent} from "@welshman/net"
 import {ISigner, decrypt, hash, own, makeSecret, getPubkey} from '../util'
@@ -169,18 +169,21 @@ export class Nip46Broker extends Emitter {
 
       this.#sub.emitter.on(SubscriptionEvent.Event, async (url: string, event: TrustedEvent) => {
         const json = await decrypt(this.#signer, event.pubkey, event.content)
-        const response = tryCatch(() => JSON.parse(json))
+        const response = tryCatch(() => JSON.parse(json)) || {}
 
         if (!response.id) {
           console.error(`Invalid nostr-connect response: ${json}`)
         }
 
-        console.log('nip46 response:', response)
+        // Delay errors in case there's a zombie signer out there clogging things up
+        if (response.error) {
+          await sleep(3000)
+        }
 
         if (response.result === "auth_url") {
-          this.emit(`auth-${response.id}`, {...response, url, event})
+          this.emit(`auth-${response.id}`, response)
         } else {
-          this.emit(`res-${response.id}`, {...response, url, event})
+          this.emit(`res-${response.id}`, response)
         }
       })
 
@@ -201,9 +204,15 @@ export class Nip46Broker extends Emitter {
       while (this.#queue.length > 0) {
         const [{method, params, resolve}] = this.#queue.splice(0, 1)
 
-        this.request(method, params).then(resolve, error => {
-          console.error(`Failed to send nip46 request`, {method, params, error})
-        })
+        try {
+          const response = await this.request(method, params)
+
+          console.log('nip46 response:', {method, params, ...response})
+
+          resolve(response)
+        } catch (error: any) {
+          console.error(`nip46 error:`, {method, params, ...error})
+        }
       }
     } finally {
       this.#processing = false

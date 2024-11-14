@@ -3,6 +3,8 @@ const ANY = Symbol("worker/ANY")
 export type WorkerOpts<T> = {
   getKey?: (x: T) => any
   shouldDefer?: (x: T) => boolean
+  chunkSize?: number
+  delay?: number
 }
 
 export class Worker<T> {
@@ -14,7 +16,9 @@ export class Worker<T> {
   constructor(readonly opts: WorkerOpts<T> = {}) {}
 
   #doWork = async () => {
-    for (let i = 0; i < 50; i++) {
+    const {chunkSize = 50} = this.opts
+
+    for (let i = 0; i < chunkSize; i++) {
       if (this.buffer.length === 0) {
         break
       }
@@ -52,8 +56,10 @@ export class Worker<T> {
   }
 
   #enqueueWork = () => {
+    const {delay = 50} = this.opts
+
     if (!this.#paused && !this.#timeout && this.buffer.length > 0) {
-      this.#timeout = setTimeout(this.#doWork, 50) as unknown as number
+      this.#timeout = setTimeout(this.#doWork, delay) as unknown as number
     }
   }
 

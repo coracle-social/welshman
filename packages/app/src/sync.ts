@@ -23,9 +23,11 @@ export const pull = async ({relays, filters}: AppSyncOpts) => {
 
   await Promise.all(
     relays.map(async relay => {
-      await hasNegentropy(relay)
-        ? basePull({filters, events, relays: [relay]})
-        : pullWithoutNegentropy({filters, relays: [relay]})
+      await (
+        hasNegentropy(relay)
+          ? basePull({filters, events, relays: [relay]})
+          : pullWithoutNegentropy({filters, relays: [relay]})
+      )
     })
   )
 }
@@ -35,9 +37,11 @@ export const push = async ({relays, filters}: AppSyncOpts) => {
 
   await Promise.all(
     relays.map(async relay => {
-      await hasNegentropy(relay)
-        ? basePush({filters, events, relays: [relay]})
-        : pushWithoutNegentropy({events, relays: [relay]})
+      await (
+        hasNegentropy(relay)
+          ? basePush({filters, events, relays: [relay]})
+          : pushWithoutNegentropy({events, relays: [relay]})
+      )
     })
   )
 }
@@ -47,9 +51,11 @@ export const sync = async ({relays, filters}: AppSyncOpts) => {
 
   await Promise.all(
     relays.map(async relay => {
-      await hasNegentropy(relay)
-        ? baseSync({filters, events, relays: [relay]})
-        : syncWithoutNegentropy({filters, events, relays: [relay]})
+      await (
+        hasNegentropy(relay)
+          ? baseSync({filters, events, relays: [relay]})
+          : syncWithoutNegentropy({filters, events, relays: [relay]})
+      )
     })
   )
 }

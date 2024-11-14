@@ -33,8 +33,8 @@ export const nip44 = {
     getKey: ([secret, pubkey]) => [secret, pubkey].join(":"),
     getValue: ([secret, pubkey]: string[]) => nt44.v2.utils.getConversationKey(hexToBytes(secret), pubkey),
   }),
-  encrypt: (pubkey: string, secret: string, m: string) => nt44.v2.encrypt(m, nip44.getSharedSecret(secret, pubkey)),
-  decrypt: (pubkey: string, secret: string, m: string) => nt44.v2.decrypt(m, nip44.getSharedSecret(secret, pubkey)),
+  encrypt: (pubkey: string, secret: string, m: string) => nt44.v2.encrypt(m, nip44.getSharedSecret(secret, pubkey)!),
+  decrypt: (pubkey: string, secret: string, m: string) => nt44.v2.decrypt(m, nip44.getSharedSecret(secret, pubkey)!),
 }
 
 export type Sign = (event: StampedEvent) => Promise<SignedEvent>
