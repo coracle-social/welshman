@@ -50,7 +50,7 @@ export function cached<T, V, Args extends any[]>({
       cache.set(k, getValue(args))
     }
 
-    return cache.get(k)
+    return cache.get(k)!
   }
 
   get.cache = cache

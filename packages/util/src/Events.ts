@@ -103,10 +103,12 @@ export const hasValidSignature = cached<string, boolean, [SignedEvent]>({
   },
   getValue: ([e]: [SignedEvent]) => {
     try {
-      return verifyEvent(e)
+      verifyEvent(e)
     } catch (err) {
       return false
     }
+
+    return true
   },
 })
 
