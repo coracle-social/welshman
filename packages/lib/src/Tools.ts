@@ -25,33 +25,35 @@ export const identity = <T>(x: T, ...args: unknown[]) => x
 
 export const always = <T>(x: T, ...args: unknown[]) => () => x
 
-export const add = (x: number | Nil, y: number | Nil) => (x || 0) + (y || 0)
+export const num = (x: Maybe<number>) => x || 0
 
-export const sub = (x: number | Nil, y: number | Nil) => (x || 0) - (y || 0)
+export const add = (x: Maybe<number>, y: Maybe<number>) => num(x) + num(y)
 
-export const mul = (x: number | Nil, y: number | Nil) => (x || 0) * (y || 0)
+export const sub = (x: Maybe<number>, y: Maybe<number>) => num(x) - num(y)
 
-export const div = (x: number | Nil, y: number) => (x || 0) / y
+export const mul = (x: Maybe<number>, y: Maybe<number>) => num(x) * num(y)
 
-export const inc = (x: number | Nil) => add(x, 1)
+export const div = (x: Maybe<number>, y: number) => num(x) / y
 
-export const dec = (x: number | Nil) => sub(x, 1)
+export const inc = (x: Maybe<number>) => add(x, 1)
 
-export const lt = (x: number | Nil, y: number | Nil) => (x || 0) < (y || 0)
+export const dec = (x: Maybe<number>) => sub(x, 1)
 
-export const lte = (x: number | Nil, y: number | Nil) => (x || 0) <= (y || 0)
+export const lt = (x: Maybe<number>, y: Maybe<number>) => num(x) < num(y)
 
-export const gt = (x: number | Nil, y: number | Nil) => (x || 0) > (y || 0)
+export const lte = (x: Maybe<number>, y: Maybe<number>) => num(x) <= num(y)
 
-export const gte = (x: number | Nil, y: number | Nil) => (x || 0) >= (y || 0)
+export const gt = (x: Maybe<number>, y: Maybe<number>) => num(x) > num(y)
 
-export const max = (xs: number[]) => xs.reduce((a, b) => Math.max(a, b), 0)
+export const gte = (x: Maybe<number>, y: Maybe<number>) => num(x) >= num(y)
 
-export const min = (xs: number[]) => xs.reduce((a, b) => Math.min(a, b), 0)
+export const max = (xs: Maybe<number>[]) => xs.reduce((a: number, b) => Math.max(num(a), num(b)), 0)
 
-export const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0)
+export const min = (xs: Maybe<number>[]) => xs.reduce((a: number, b) => Math.min(num(a), num(b)), 0)
 
-export const avg = (xs: number[]) => sum(xs) / xs.length
+export const sum = (xs: Maybe<number>[]) => xs.reduce((a: number, b) => add(a, b), 0)
+
+export const avg = (xs: Maybe<number>[]) => sum(xs) / xs.length
 
 export const drop = <T>(n: number, xs: T[]) => xs.slice(n)
 
