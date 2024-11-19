@@ -55,9 +55,8 @@ export class Socket {
     }
 
     // If we're closed due to an error retry after a delay
-    if (Date.now() - this.lastError > 15_000) {
+    if (this.status === Error && Date.now() - this.lastError > 15_000) {
       this.status = New
-      this.lastError = 0
       this.cxn.emit(ConnectionEvent.Reset)
     }
 

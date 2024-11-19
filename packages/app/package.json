@@ -1,6 +1,6 @@
 {
   "name": "@welshman/app",
-  "version": "0.0.27",
+  "version": "0.0.29",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of svelte stores for use in building nostr client applications.",
@@ -34,7 +34,7 @@
     "@welshman/lib": "~0.0.25",
     "@welshman/feeds": "~0.0.25",
     "@welshman/dvm": "~0.0.10",
-    "@welshman/net": "~0.0.36",
+    "@welshman/net": "~0.0.38",
     "@welshman/signer": "~0.0.14",
     "@welshman/store": "~0.0.12",
     "@welshman/util": "~0.0.45",
