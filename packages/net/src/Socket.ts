@@ -26,6 +26,7 @@ const {
 } = SocketStatus
 
 export class Socket {
+  lastError = 0
   status = SocketStatus.New
   worker = new Worker<Message>()
   ws?: WebSocket
@@ -50,6 +51,13 @@ export class Socket {
     // If the socket is closed, reset
     if (this.status === Closed) {
       this.status = New
+      this.cxn.emit(ConnectionEvent.Reset)
+    }
+
+    // If we're closed due to an error retry after a delay
+    if (Date.now() - this.lastError > 15_000) {
+      this.status = New
+      this.lastError = 0
       this.cxn.emit(ConnectionEvent.Reset)
     }
 
@@ -94,6 +102,7 @@ export class Socket {
 
       this.ws.onerror = () => {
         this.status = Error
+        this.lastError = Date.now()
         this.cxn.emit(ConnectionEvent.Error)
       }
 

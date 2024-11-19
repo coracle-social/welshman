@@ -180,7 +180,10 @@ export class Router {
 
   Quote = (event: TrustedEvent, value: string, relays = []) => {
     const tag = event.tags.find(t => t[1] === value)
-    const scenarios: RouterScenario[] = []
+    const scenarios = [
+      this.ForPubkey(event.pubkey),
+      this.FromPubkey(event.pubkey),
+    ]
 
     if (tag?.[2] && isShareableRelayUrl(tag[2])) {
       scenarios.push(this.FromRelays([tag[2]]))
