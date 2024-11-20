@@ -65,6 +65,7 @@ export class Nip46Broker extends Emitter {
   #processing = false
   #connectResponse?: Nip46Response
   #queue: Nip46Request[] = []
+  #window?: Window
   #sub?: Subscription
 
   static initiate({url, name, image, perms, relays, abortController}: Nip46InitiateParams) {
@@ -248,7 +249,13 @@ export class Nip46Broker extends Emitter {
     })
 
     this.once(`auth-${id}`, response => {
-      window.open(response.error, "", "width=600,height=800,popup=yes")
+      if (!this.#window || this.#window.closed) {
+        const w = window.open(response.error, "", "width=600,height=800,popup=yes")
+
+        if (w) {
+          this.#window = w
+        }
+      }
     })
 
     return new Promise<Nip46ResponseWithResult>((resolve, reject) => {
