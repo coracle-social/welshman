@@ -290,6 +290,8 @@ export const hash = (s: string) =>
 
 export const splitAt = <T>(n: number, xs: T[]) => [xs.slice(0, n), xs.slice(n)]
 
+export const insert = <T>(n: number, x: T, xs: T[]) => [...xs.slice(0, n), x, ...xs.slice(n)]
+
 export const choice = <T>(xs: T[]): T => xs[Math.floor(xs.length * Math.random())]
 
 export const shuffle = <T>(xs: Iterable<T>): T[] => Array.from(xs).sort(() => Math.random() > 0.5 ? 1 : -1)
