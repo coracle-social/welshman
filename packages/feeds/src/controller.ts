@@ -128,7 +128,7 @@ export class FeedController {
         // Relays can't be relied upon to return events in descending order, do exponential
         // windowing to ensure we get the most recent stuff on first load, but eventually find it all
         if (count < limit) {
-          delta = delta * Math.round(10 - 9 * (Math.log(count + 1) / Math.log(limit + 1)))
+          delta = delta * Math.round(100 * (2 - inc(count) / inc(limit)))
           until = since
         }
 
