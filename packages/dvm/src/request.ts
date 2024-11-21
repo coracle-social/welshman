@@ -1,6 +1,7 @@
 import {Emitter, now} from '@welshman/lib'
-import type {TrustedEvent, SignedEvent} from '@welshman/util'
-import {subscribe, publish} from '@welshman/net'
+import type {TrustedEvent, SignedEvent, Filter} from '@welshman/util'
+import {getPubkeyTagValues} from '@welshman/util'
+import {subscribe, publish, SubscriptionEvent} from '@welshman/net'
 import type {Subscription, Publish} from '@welshman/net'
 
 export enum DVMEvent {
@@ -28,11 +29,19 @@ export const makeDvmRequest = (request: DVMRequestOptions) => {
   const {event, relays, timeout = 30_000, autoClose = true, reportProgress = true} = request
   const kind = event.kind + 1000
   const kinds = reportProgress ? [kind, 7000] : [kind]
-  const filters = [{kinds, since: now() - 60, "#e": [event.id]}]
+
+  // DVMs seem to no longer be responding to requests, but lots of events exist for their
+  // pubkeys. So query both, at least until people figure out how dvms are supposed to work
+  const filters: Filter[] = [
+    {kinds, authors: getPubkeyTagValues(event.tags)},
+    {kinds, since: now() - 60, "#e": [event.id]},
+  ]
+
   const sub = subscribe({relays, timeout, filters})
   const pub = publish({event, relays, timeout})
 
-  sub.emitter.on('event', (url: string, event: TrustedEvent) => {
+
+  sub.emitter.on(SubscriptionEvent.Event, (url: string, event: TrustedEvent) => {
     if (event.kind === 7000) {
       emitter.emit(DVMEvent.Progress, url, event)
     } else {

@@ -6,6 +6,7 @@ import {makeDvmRequest} from '@welshman/dvm'
 import {makeSecret, Nip01Signer} from '@welshman/signer'
 import {pubkey, signer} from './session'
 import {getFilterSelections} from './router'
+import {loadRelaySelections} from './relaySelections'
 import {wotGraph, maxWot, getFollows, getNetwork, getFollowers} from './wot'
 import {load} from './core'
 
@@ -21,7 +22,14 @@ export const request = async ({filters = [{}], relays = [], onEvent}: RequestOpt
 }
 
 export const requestDVM = async ({kind, onEvent, ...request}: DVMOpts) => {
-  const tags = [...request.tags || [], ["expiration", String(now() + 5)]]
+  // Make sure we know what relays to use for target dvms
+  if (request.tags && !request.relays) {
+    for (const pubkey of getPubkeyTagValues(request.tags)) {
+      await loadRelaySelections(pubkey)
+    }
+  }
+
+  const tags = [...request.tags || [], ["expiration", String(now() + 60)]]
   const $signer = signer.get() || new Nip01Signer(makeSecret())
   const event = await $signer.sign(createEvent(kind, {tags}))
   const relays =
