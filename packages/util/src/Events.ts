@@ -1,9 +1,15 @@
-import {verifiedSymbol} from 'nostr-tools'
-import {verifyEvent, getEventHash} from 'nostr-tools'
+import {initNostrWasm, type Nostr} from 'nostr-wasm'
+import {verifiedSymbol, getEventHash, verifyEvent} from 'nostr-tools'
 import {cached, pick, now} from '@welshman/lib'
 import {Tags} from './Tags'
 import {getAddress} from './Address'
 import {isEphemeralKind, isReplaceableKind, isPlainReplaceableKind, isParameterizedReplaceableKind} from './Kinds'
+
+let nw: Nostr
+
+initNostrWasm().then(nostrWasm => {
+  nw = nostrWasm
+})
 
 export type EventContent = {
   tags: string[][]
@@ -92,7 +98,7 @@ export const asUnwrappedEvent = (e: UnwrappedEvent): UnwrappedEvent =>
 export const asTrustedEvent = (e: TrustedEvent): TrustedEvent =>
   pick(['kind', 'tags', 'content', 'created_at', 'pubkey', 'id', 'sig', 'wrap'], e)
 
-export const hasValidSignature = cached<string, boolean, [SignedEvent]>({
+const _hasValidSignature = cached<string, boolean, [SignedEvent]>({
   maxSize: 10000,
   getKey: ([e]: [SignedEvent]) => {
     try {
@@ -103,7 +109,7 @@ export const hasValidSignature = cached<string, boolean, [SignedEvent]>({
   },
   getValue: ([e]: [SignedEvent]) => {
     try {
-      verifyEvent(e)
+      nw ? nw.verifyEvent(e) : verifyEvent(e)
     } catch (err) {
       return false
     }
@@ -111,6 +117,8 @@ export const hasValidSignature = cached<string, boolean, [SignedEvent]>({
     return true
   },
 })
+
+export const hasValidSignature = (e: SignedEvent) => e[verifiedSymbol] || _hasValidSignature(e)
 
 export const getIdentifier = (e: EventTemplate) => e.tags.find(t => t[0] === 'd')?.[1]
 
