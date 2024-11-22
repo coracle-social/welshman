@@ -145,7 +145,7 @@ export class Nip46Broker extends Emitter {
     super()
 
     this.#handler = params.handler
-    this.#algorithm = params.algorithm || 'nip04'
+    this.#algorithm = params.algorithm || 'nip44'
     this.#signer = new Nip01Signer(params.secret)
   }
 
