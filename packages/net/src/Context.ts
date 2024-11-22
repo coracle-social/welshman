@@ -1,5 +1,5 @@
-import {ctx, uniq, noop, always} from '@welshman/lib'
-import {matchFilters, unionFilters, isSignedEvent, hasValidSignature} from '@welshman/util'
+import {ctx, randomInt, uniq, noop, always} from '@welshman/lib'
+import {LOCAL_RELAY_URL, matchFilters, unionFilters, isSignedEvent, hasValidSignature} from '@welshman/util'
 import type {StampedEvent, SignedEvent, Filter, TrustedEvent} from '@welshman/util'
 import {Pool} from "./Pool"
 import {Executor} from "./Executor"
@@ -28,13 +28,34 @@ export const defaultOptimizeSubscriptions = (subs: Subscription[]) =>
       return {relays: [relay], filters}
     })
 
+export const eventValidationScores = new Map<string, number>()
+
+export const isEventValid = (url: string, event: TrustedEvent) => {
+  if (url === LOCAL_RELAY_URL) return true
+
+  const validCount = eventValidationScores.get(url) || 0
+
+  // The more events we've actually validated from this relay, the more we can trust it.
+  if (validCount > randomInt(100, 1000)) true
+
+  const isValid = isSignedEvent(event) && hasValidSignature(event)
+
+  // If the event was valid, increase the relay's score. If not, reset it
+  // Never validate less than 10% to make sure we're never totally checking out
+  if (!isValid || validCount < 900) {
+    eventValidationScores.set(url, isValid ? validCount + 1 : 0)
+  }
+
+  return isValid
+}
+
 export const getDefaultNetContext = (overrides: Partial<NetContext> = {}) => ({
   pool: new Pool(),
   authMode: AuthMode.Implicit,
   onEvent: noop,
   signEvent: noop,
   isDeleted: always(false),
-  isValid: (url: string, event: TrustedEvent) => isSignedEvent(event) && hasValidSignature(event),
+  isValid: isEventValid,
   getExecutor: (relays: string[]) => new Executor(new Relays(relays.map((relay: string) => ctx.net.pool.get(relay)))),
   matchFilters: (url: string, filters: Filter[], event: TrustedEvent) => matchFilters(filters, event),
   optimizeSubscriptions: defaultOptimizeSubscriptions,
