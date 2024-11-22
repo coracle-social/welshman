@@ -25,7 +25,7 @@ export const identity = <T>(x: T, ...args: unknown[]) => x
 
 export const always = <T>(x: T, ...args: unknown[]) => () => x
 
-export const not = (x: boolean, ...args: unknown[]) => !x
+export const not = (x: any, ...args: unknown[]) => !x
 
 export const num = (x: Maybe<number>) => x || 0
 

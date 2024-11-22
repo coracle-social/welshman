@@ -29,17 +29,10 @@ export const makeDvmRequest = (request: DVMRequestOptions) => {
   const {event, relays, timeout = 30_000, autoClose = true, reportProgress = true} = request
   const kind = event.kind + 1000
   const kinds = reportProgress ? [kind, 7000] : [kind]
-
-  // DVMs seem to no longer be responding to requests, but lots of events exist for their
-  // pubkeys. So query both, at least until people figure out how dvms are supposed to work
-  const filters: Filter[] = [
-    {kinds, authors: getPubkeyTagValues(event.tags)},
-    {kinds, since: now() - 60, "#e": [event.id]},
-  ]
+  const filters: Filter[] = [{kinds, since: now() - 60, "#e": [event.id]}]
 
   const sub = subscribe({relays, timeout, filters})
   const pub = publish({event, relays, timeout})
-
 
   sub.emitter.on(SubscriptionEvent.Event, (url: string, event: TrustedEvent) => {
     if (event.kind === 7000) {

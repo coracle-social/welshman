@@ -1,8 +1,8 @@
-import {ctx, now} from '@welshman/lib'
+import {ctx, nthEq, now} from '@welshman/lib'
 import {createEvent, getPubkeyTagValues} from '@welshman/util'
 import {Scope, FeedController} from '@welshman/feeds'
 import type {RequestOpts, FeedOptions, DVMOpts, Feed} from '@welshman/feeds'
-import {makeDvmRequest} from '@welshman/dvm'
+import {makeDvmRequest, DVMEvent} from '@welshman/dvm'
 import {makeSecret, Nip01Signer} from '@welshman/signer'
 import {pubkey, signer} from './session'
 import {getFilterSelections} from './router'
@@ -29,18 +29,35 @@ export const requestDVM = async ({kind, onEvent, ...request}: DVMOpts) => {
     }
   }
 
-  const tags = [...request.tags || [], ["expiration", String(now() + 60)]]
+  const tags = request.tags || []
   const $signer = signer.get() || new Nip01Signer(makeSecret())
-  const event = await $signer.sign(createEvent(kind, {tags}))
+  const pubkey = await $signer.getPubkey()
   const relays =
     request.relays
       ? ctx.app.router.FromRelays(request.relays).getUrls()
       : ctx.app.router.FromPubkeys(getPubkeyTagValues(tags)).getUrls()
 
+  if (!tags.some(nthEq(0, 'expiration'))) {
+    tags.push(["expiration", String(now() + 60)])
+  }
+
+  if (!tags.some(nthEq(0, 'relays'))) {
+    tags.push(["relays", ...relays])
+  }
+
+  if (!tags.some(nthEq(1, 'user'))) {
+    tags.push(["param", "user", pubkey])
+  }
+
+  if (!tags.some(nthEq(1, 'max_results'))) {
+    tags.push(["param", "max_results", "200"])
+  }
+
+  const event = await $signer.sign(createEvent(kind, {tags}))
   const req = makeDvmRequest({event, relays})
 
   await new Promise<void>(resolve => {
-    req.emitter.on("result", (url, event) => {
+    req.emitter.on(DVMEvent.Result, (url, event) => {
       onEvent(event)
       resolve()
     })
