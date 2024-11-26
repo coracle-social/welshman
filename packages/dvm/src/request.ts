@@ -1,6 +1,5 @@
 import {Emitter, now} from '@welshman/lib'
 import type {TrustedEvent, SignedEvent, Filter} from '@welshman/util'
-import {getPubkeyTagValues} from '@welshman/util'
 import {subscribe, publish, SubscriptionEvent} from '@welshman/net'
 import type {Subscription, Publish} from '@welshman/net'
 
