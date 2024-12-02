@@ -196,16 +196,16 @@ export class Nip46Request {
       }
 
       if (response.result === "auth_url") {
-        return popupManager.open(response.error!)
-      }
-
-      if (response.error) {
-        this.promise.reject(response as Nip46ResponseWithError)
+        popupManager.open(response.error!)
       } else {
-        this.promise.resolve(response as Nip46ResponseWithResult)
-      }
+        if (response.error) {
+          this.promise.reject(response as Nip46ResponseWithError)
+        } else {
+          this.promise.resolve(response as Nip46ResponseWithResult)
+        }
 
-      receiver.off(Nip46Event.Receive, onReceive)
+        receiver.off(Nip46Event.Receive, onReceive)
+      }
     }
 
     receiver.on(Nip46Event.Receive, onReceive)

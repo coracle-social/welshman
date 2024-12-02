@@ -1,7 +1,7 @@
 import {ctx, isNil} from "@welshman/lib"
 import {Repository, Relay, LOCAL_RELAY_URL, getFilterResultCardinality} from "@welshman/util"
 import type {TrustedEvent, Filter} from "@welshman/util"
-import {Tracker, subscribe as baseSubscribe} from "@welshman/net"
+import {Tracker, subscribe as baseSubscribe, SubscriptionEvent} from "@welshman/net"
 import type {SubscribeRequestWithHandlers} from "@welshman/net"
 import {custom} from "@welshman/store"
 
@@ -68,7 +68,7 @@ export const subscribe = (request: PartialSubscribeRequest) => {
   // Keep cached results async so the caller can set up handlers
   setTimeout(() => {
     for (const event of events) {
-      sub.emitter.emit("event", LOCAL_RELAY_URL, event)
+      sub.emitter.emit(SubscriptionEvent.Event, LOCAL_RELAY_URL, event)
     }
   })
 
@@ -80,6 +80,6 @@ export const load = (request: PartialSubscribeRequest) =>
     const sub = subscribe({closeOnEose: true, timeout: ctx.app.requestTimeout, ...request})
     const events: TrustedEvent[] = []
 
-    sub.emitter.on("event", (url: string, e: TrustedEvent) => events.push(e))
-    sub.emitter.on("complete", () => resolve(events))
+    sub.emitter.on(SubscriptionEvent.Event, (url: string, e: TrustedEvent) => events.push(e))
+    sub.emitter.on(SubscriptionEvent.Complete, () => resolve(events))
   })

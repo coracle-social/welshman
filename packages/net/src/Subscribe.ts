@@ -223,13 +223,8 @@ const _executeSubscription = (sub: Subscription) => {
   const executor = ctx.net.getExecutor(relays)
   const subs: {unsubscribe: () => void}[] = []
   const completedRelays = new Set()
-  const events: TrustedEvent[] = []
 
   // Hook up our events
-
-  emitter.on(SubscriptionEvent.Event, (url: string, event: TrustedEvent) => {
-    events.push(event)
-  })
 
   emitter.on(SubscriptionEvent.Eose, (url: string) => {
     completedRelays.add(url)
