@@ -1,7 +1,6 @@
 import {derived} from "svelte/store"
 import {cached, hash, omit, equals, assoc} from "@welshman/lib"
 import {withGetter, synced} from "@welshman/store"
-import {type Nip46Handler} from "@welshman/signer"
 import {Nip46Broker, Nip46Signer, Nip07Signer, Nip01Signer, Nip55Signer} from "@welshman/signer"
 
 export type SessionNip01 = {
@@ -19,7 +18,10 @@ export type SessionNip46 = {
   method: 'nip46'
   pubkey: string
   secret: string
-  handler: Nip46Handler
+  handler: {
+    pubkey: string
+    relays: string[]
+  }
 }
 
 export type SessionNip55 = {
@@ -28,12 +30,17 @@ export type SessionNip55 = {
   signer: string
 }
 
+export type SessionPubkey = {
+  method: 'pubkey'
+  pubkey: string
+}
 
 export type SessionAnyMethod =
   SessionNip01 |
   SessionNip07 |
   SessionNip46 |
-  SessionNip55
+  SessionNip55 |
+  SessionPubkey
 
 export type Session = SessionAnyMethod & Record<string, any>
 
@@ -78,8 +85,9 @@ export const getSigner = cached({
       case "nip46":
         return new Nip46Signer(
           Nip46Broker.get({
-            secret: session.secret!,
-            handler: session.handler!,
+            clientSecret: session.secret!,
+            relays: session.handler!.relays,
+            signerPubkey: session.handler!.pubkey,
           })
         )
       case "nip55":
