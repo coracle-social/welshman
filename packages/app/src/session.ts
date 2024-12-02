@@ -4,14 +4,38 @@ import {withGetter, synced} from "@welshman/store"
 import {type Nip46Handler} from "@welshman/signer"
 import {Nip46Broker, Nip46Signer, Nip07Signer, Nip01Signer, Nip55Signer} from "@welshman/signer"
 
-export type Session = {
-  method: string
+export type SessionNip01 = {
+  method: 'nip01'
   pubkey: string
-  token?: string
-  secret?: string
-  handler?: Nip46Handler
-  signer?: string
+  secret: string
 }
+
+export type SessionNip07 = {
+  method: 'nip07'
+  pubkey: string
+}
+
+export type SessionNip46 = {
+  method: 'nip46'
+  pubkey: string
+  secret: string
+  handler: Nip46Handler
+}
+
+export type SessionNip55 = {
+  method: 'nip55'
+  pubkey: string
+  signer: string
+}
+
+
+export type SessionAnyMethod =
+  SessionNip01 |
+  SessionNip07 |
+  SessionNip46 |
+  SessionNip55
+
+export type Session = SessionAnyMethod & Record<string, any>
 
 export const pubkey = withGetter(synced<string | null>("pubkey", null))
 
