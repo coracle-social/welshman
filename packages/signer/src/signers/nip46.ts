@@ -134,7 +134,7 @@ export class Nip46Sender extends Emitter {
 
   public send = async (request: Nip46Request) => {
     const {id, method, params} = request
-    const {relays, signerPubkey, algorithm = "nip44"} = this.params
+    const {relays, signerPubkey, algorithm = "nip04"} = this.params
 
     if (!signerPubkey) {
       throw new Error("Unable to send nip46 request without a signer pubkey")
