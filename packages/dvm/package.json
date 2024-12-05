@@ -33,7 +33,7 @@
   "dependencies": {
     "@welshman/lib": "~0.0.28",
     "@welshman/net": "~0.0.39",
-    "@welshman/util": "~0.0.46",
+    "@welshman/util": "~0.0.47",
     "nostr-tools": "^2.7.2"
   }
 }
