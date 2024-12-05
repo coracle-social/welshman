@@ -194,12 +194,12 @@ export const getTopicTags = (tags: string[][]) => tags.filter(t => ["t"].include
 export const getTopicTagValues = (tags: string[][]) => getTopicTags(tags).map(nth(1))
 
 export const getRelayTags = (tags: string[][]) =>
-  tags.filter(t => ["r", "relay"].includes(t[0]) && isRelayUrl(t[1]))
+  tags.filter(t => ["r", "relay"].includes(t[0]) && isRelayUrl(t[1] || ""))
 
 export const getRelayTagValues = (tags: string[][]) => getRelayTags(tags).map(nth(1))
 
 export const getGroupTags = (tags: string[][]) =>
-  tags.filter(t => ["h", "group"].includes(t[0]) && t[1] && isRelayUrl(t[2]))
+  tags.filter(t => ["h", "group"].includes(t[0]) && t[1] && isRelayUrl(t[2] || ""))
 
 export const getGroupTagValues = (tags: string[][]) => getGroupTags(tags).map(nth(1))
 

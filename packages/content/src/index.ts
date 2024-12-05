@@ -419,97 +419,129 @@ export const truncate = (
   return content
 }
 
-// Renderers
+// Renderer
 
-export type RenderOptions = {
-  entityBaseUrl?: string
-}
+export class Renderer {
+  private value = ""
 
-export const defaultRenderOptions = {
-  entityBaseUrl: 'https://njump.me/'
-}
-
-export class HTML {
-  constructor(readonly value: string) {
-    this.value = value
-  }
+  constructor(readonly options: RenderOptions) {}
 
   toString = () => this.value
 
-  static useDangerously = (value: string) => new HTML(value)
-
-  static useSafely = (value: string) => {
+  addText = (value: string) => {
     const element = document.createElement('div')
 
     element.innerText = value
 
-    return new HTML(element.innerHTML)
+    this.value += element.innerHTML
   }
 
-  static buildLink = (href: string, display: string) => {
+  addNewlines = (count: number) => {
+    for (let i = 0; i < count; i++) {
+      this.value += this.options.newline
+    }
+  }
+
+  addLink = (href: string, display: string) => {
+    this.value += this.options.renderLink(href, display)
+  }
+
+  addEntityLink = (entity: string) => {
+    this.addLink(this.options.entityBase + entity, this.options.renderEntity(entity))
+  }
+}
+
+export type RenderOptions = {
+  newline: string
+  entityBase: string
+  renderLink: (href: string, display: string) => string
+  renderEntity: (entity: string) => string
+}
+
+export const textRenderOptions = {
+  newline: '\n',
+  entityBase: '',
+  renderLink: (href: string, display: string) => href,
+  renderEntity: (entity: string) => entity.slice(0, 16) + '…',
+}
+
+export const htmlRenderOptions = {
+  newline: '\n',
+  entityBase: 'https://njump.me/',
+  renderLink: (href: string, display: string) => {
     const element = document.createElement('a')
 
     element.href = sanitizeUrl(href)
     element.target = "_blank"
     element.innerText = display
 
-    return HTML.useDangerously(element.outerHTML)
-  }
-
-  static buildEntityLink = (entity: string, options: RenderOptions) =>
-    HTML.buildLink(options.entityBaseUrl + entity, entity.slice(0, 16) + '…')
+    return element.outerHTML
+  },
+  renderEntity: (entity: string) => entity.slice(0, 16) + '…',
 }
 
-export const renderCashu = (parsed: ParsedCashu, options: RenderOptions) =>
-  HTML.useSafely(parsed.value)
+export const makeTextRenderer = (options: Partial<RenderOptions> = {}) =>
+  new Renderer({...textRenderOptions, ...options})
 
-export const renderCode = (parsed: ParsedCode, options: RenderOptions) =>
-  HTML.useSafely(parsed.value)
+export const makeHtmlRenderer = (options: Partial<RenderOptions> = {}) =>
+  new Renderer({...htmlRenderOptions, ...options})
 
-export const renderEllipsis = (parsed: ParsedEllipsis, options: RenderOptions) => "…"
+// Top level render methods
 
-export const renderInvoice = (parsed: ParsedInvoice, options: RenderOptions) =>
-  HTML.useSafely(parsed.value)
+export const renderCashu = (p: ParsedCashu, r: Renderer) => r.addText(p.value)
 
-export const renderLink = (parsed: ParsedLink, options: RenderOptions) => {
-  const href = parsed.value.url.toString()
-  const display = parsed.value.url.host + parsed.value.url.pathname
+export const renderCode = (p: ParsedCode, r: Renderer) => r.addText(p.value)
 
-  return HTML.buildLink(href, display)
-}
+export const renderEllipsis = (p: ParsedEllipsis, r: Renderer) => "…"
 
-export const renderNewline = (parsed: ParsedNewline, options: RenderOptions) =>
-  HTML.useSafely(Array.from(parsed.value).map(() => '<br />').join(''))
+export const renderInvoice = (p: ParsedInvoice, r: Renderer) => r.addText(p.value)
 
-export const renderText = (parsed: ParsedText, options: RenderOptions) =>
-  HTML.useSafely(parsed.value)
+export const renderLink = (p: ParsedLink, r: Renderer) =>
+  r.addLink(p.value.url.toString(), p.value.url.host + p.value.url.pathname)
 
-export const renderTopic = (parsed: ParsedTopic, options: RenderOptions) =>
-  HTML.useSafely(parsed.value)
+export const renderNewline = (p: ParsedNewline, r: Renderer) => r.addNewlines(Array.from(p.value).length)
 
-export const renderEvent = (parsed: ParsedEvent, options: RenderOptions) =>
-  HTML.buildEntityLink(nip19.neventEncode(parsed.value), options)
+export const renderText = (p: ParsedText, r: Renderer) => r.addText(p.value)
 
-export const renderProfile = (parsed: ParsedProfile, options: RenderOptions) =>
-  HTML.buildEntityLink(nip19.nprofileEncode(parsed.value), options)
+export const renderTopic = (p: ParsedTopic, r: Renderer) => r.addText(p.value)
 
-export const renderAddress = (parsed: ParsedAddress, options: RenderOptions) =>
-  HTML.buildEntityLink(nip19.naddrEncode(parsed.value), options)
+export const renderEvent = (p: ParsedEvent, r: Renderer) => r.addEntityLink(nip19.neventEncode(p.value))
 
-export const render = (parsed: Parsed, options: RenderOptions = {}) => {
-  options = {...defaultRenderOptions, ...options}
+export const renderProfile = (p: ParsedProfile, r: Renderer) => r.addEntityLink(nip19.nprofileEncode(p.value))
 
+export const renderAddress = (p: ParsedAddress, r: Renderer) => r.addEntityLink(nip19.naddrEncode(p.value))
+
+export const renderOne = (parsed: Parsed, renderer: Renderer) => {
   switch (parsed.type) {
-    case ParsedType.Address:    return renderAddress(parsed as ParsedAddress, options)
-    case ParsedType.Cashu:      return renderCashu(parsed as ParsedCashu, options)
-    case ParsedType.Code:       return renderCode(parsed as ParsedCode, options)
-    case ParsedType.Ellipsis:   return renderEllipsis(parsed as ParsedEllipsis, options)
-    case ParsedType.Event:      return renderEvent(parsed as ParsedEvent, options)
-    case ParsedType.Invoice:    return renderInvoice(parsed as ParsedInvoice, options)
-    case ParsedType.Link:       return renderLink(parsed as ParsedLink, options)
-    case ParsedType.Newline:    return renderNewline(parsed as ParsedNewline, options)
-    case ParsedType.Profile:    return renderProfile(parsed as ParsedProfile, options)
-    case ParsedType.Text:       return renderText(parsed as ParsedText, options)
-    case ParsedType.Topic:      return renderTopic(parsed as ParsedTopic, options)
+    case ParsedType.Address:    renderAddress(parsed as ParsedAddress, renderer);   break
+    case ParsedType.Cashu:      renderCashu(parsed as ParsedCashu, renderer);       break
+    case ParsedType.Code:       renderCode(parsed as ParsedCode, renderer);         break
+    case ParsedType.Ellipsis:   renderEllipsis(parsed as ParsedEllipsis, renderer); break
+    case ParsedType.Event:      renderEvent(parsed as ParsedEvent, renderer);       break
+    case ParsedType.Invoice:    renderInvoice(parsed as ParsedInvoice, renderer);   break
+    case ParsedType.Link:       renderLink(parsed as ParsedLink, renderer);         break
+    case ParsedType.Newline:    renderNewline(parsed as ParsedNewline, renderer);   break
+    case ParsedType.Profile:    renderProfile(parsed as ParsedProfile, renderer);   break
+    case ParsedType.Text:       renderText(parsed as ParsedText, renderer);         break
+    case ParsedType.Topic:      renderTopic(parsed as ParsedTopic, renderer);       break
   }
+
+  return renderer
 }
+
+export const renderMany = (parsed: Parsed[], renderer: Renderer) => {
+  for (const p of parsed) {
+    renderOne(p, renderer)
+  }
+
+  return renderer
+}
+
+export const render = (parsed: Parsed | Parsed[], renderer: Renderer) =>
+  Array.isArray(parsed) ? renderMany(parsed, renderer) : renderOne(parsed, renderer)
+
+export const renderAsText = (parsed: Parsed | Parsed[], options: Partial<RenderOptions> = {}) =>
+  render(parsed, makeTextRenderer(options))
+
+export const renderAsHtml = (parsed: Parsed | Parsed[], options: Partial<RenderOptions> = {}) =>
+  render(parsed, makeHtmlRenderer(options))
