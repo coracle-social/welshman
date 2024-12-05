@@ -107,9 +107,7 @@ export class Nip46Receiver extends Emitter {
           await sleep(3000)
         }
 
-        if (response.id) {
-          this.emit(Nip46Event.Receive, {...response, url, event} as Nip46Response)
-        }
+        this.emit(Nip46Event.Receive, {...response, url, event} as Nip46Response)
       })
 
       this.sub!.emitter.on(SubscriptionEvent.Complete, () => {
