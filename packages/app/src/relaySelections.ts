@@ -3,7 +3,8 @@ import {INBOX_RELAYS, RELAYS, normalizeRelayUrl, asDecryptedEvent, readList, get
 import type {TrustedEvent, PublishedList, List} from '@welshman/util'
 import type {SubscribeRequestWithHandlers} from "@welshman/net"
 import {deriveEventsMapped} from '@welshman/store'
-import {load, repository} from './core'
+import {repository} from './core'
+import {load} from './subscribe'
 import {collection} from './collection'
 
 export const getRelayUrls = (list?: List): string[] =>

@@ -1,41 +1,35 @@
 import {now, int, DAY, HOUR, MINUTE} from "@welshman/lib"
 
+export const LOCALE = new Intl.DateTimeFormat().resolvedOptions().locale
+
+export const TIMEZONE = new Date().toString().match(/GMT[^\s]+/)
+
 export const secondsToDate = (ts: number) => new Date(ts * 1000)
 
 export const dateToSeconds = (date: Date) => Math.round(date.valueOf() / 1000)
 
-export const getTimeZone = () => new Date().toString().match(/GMT[^\s]+/)
+export const createLocalDate = (dateString: any) => new Date(`${dateString} ${TIMEZONE}`)
 
-export const createLocalDate = (dateString: any) => new Date(`${dateString} ${getTimeZone()}`)
+export const timestampFormatter = new Intl.DateTimeFormat(LOCALE, {
+  dateStyle: "short",
+  timeStyle: "short",
+})
 
-export const getLocale = () => new Intl.DateTimeFormat().resolvedOptions().locale
+export const formatTimestamp = (ts: number) => timestampFormatter.format(secondsToDate(ts))
 
-export const formatTimestamp = (ts: number) => {
-  const formatter = new Intl.DateTimeFormat(getLocale(), {
-    dateStyle: "short",
-    timeStyle: "short",
-  })
+export const dateFormatter = new Intl.DateTimeFormat(LOCALE, {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+})
 
-  return formatter.format(secondsToDate(ts))
-}
+export const formatTimestampAsDate = (ts: number) => dateFormatter.format(secondsToDate(ts))
 
-export const formatTimestampAsDate = (ts: number) => {
-  const formatter = new Intl.DateTimeFormat(getLocale(), {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  })
+export const timeFormatter = new Intl.DateTimeFormat(LOCALE, {
+  timeStyle: "short",
+})
 
-  return formatter.format(secondsToDate(ts))
-}
-
-export const formatTimestampAsTime = (ts: number) => {
-  const formatter = new Intl.DateTimeFormat(getLocale(), {
-    timeStyle: "short",
-  })
-
-  return formatter.format(secondsToDate(ts))
-}
+export const formatTimestampAsTime = (ts: number) => timeFormatter.format(secondsToDate(ts))
 
 export const formatTimestampRelative = (ts: number) => {
   let unit

@@ -8,7 +8,7 @@ import {pubkey, signer} from './session'
 import {getFilterSelections} from './router'
 import {loadRelaySelections} from './relaySelections'
 import {wotGraph, maxWot, getFollows, getNetwork, getFollowers} from './wot'
-import {load} from './core'
+import {load} from './subscribe'
 
 export const request = async ({filters = [{}], relays = [], onEvent}: RequestOpts) => {
   if (relays.length > 0) {

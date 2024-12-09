@@ -3,7 +3,8 @@ import {readProfile, displayProfile, displayPubkey, PROFILE} from '@welshman/uti
 import type {SubscribeRequestWithHandlers} from "@welshman/net"
 import type {PublishedProfile} from "@welshman/util"
 import {deriveEventsMapped, withGetter} from '@welshman/store'
-import {repository, load} from './core'
+import {repository} from './core'
+import {load} from './subscribe'
 import {collection} from './collection'
 import {loadRelaySelections} from './relaySelections'
 

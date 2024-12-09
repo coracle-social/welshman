@@ -6,7 +6,7 @@ import {dec, sortBy} from '@welshman/lib'
 import {PROFILE} from '@welshman/util'
 import {throttled} from '@welshman/store'
 import type {PublishedProfile} from "@welshman/util"
-import {load} from './core'
+import {load} from './subscribe'
 import {wotGraph} from './wot'
 import {profiles} from './profiles'
 import {topics} from './topics'
