@@ -198,5 +198,51 @@ export const storageAdapters = {
       set: (events: TrustedEvent[]) => repository.load(events),
     }),
   }),
+  fromRepositoryAndTracker: (
+    repository: Repository,
+    tracker: Tracker,
+    options: StorageAdapterOptions = {}
+  ) => ({
+    options,
+    keyPath: 'id',
+    store: custom(setter => {
+      let onUpdate = () => {
+        const events = migrate(repository.dump(), options)
+
+        setter(
+          events.map(event => {
+            const relays = Array.from(tracker.getRelays(event.id))
+
+            return {id: event.id, event, relays}
+          })
+        )
+      }
+
+      if (options.throttle) {
+        onUpdate = throttle(options.throttle, onUpdate)
+      }
+
+      onUpdate()
+      tracker.on('update', onUpdate)
+      repository.on('update', onUpdate)
+
+      return () => {
+        tracker.off('update', onUpdate)
+      }
+    }, {
+      set: (items: {event: TrustedEvent, relays: string[]}[]) => {
+        const events: TrustedEvent[] = []
+        const relaysById = new Map<string, Set<string>>()
+
+        for (const {event, relays} of items) {
+          events.push(event)
+          relaysById.set(event.id, new Set(relays))
+        }
+
+        repository.load(events)
+        tracker.load(relaysById)
+      },
+    }),
+  })
 }
 
