@@ -1,4 +1,4 @@
-import {parseJson, append, nthEq} from "@welshman/lib"
+import {parseJson, nthEq} from "@welshman/lib"
 import {Address} from "./Address"
 import {uniqTags} from "./Tags"
 import {isShareableRelayUrl} from "./Relay"
