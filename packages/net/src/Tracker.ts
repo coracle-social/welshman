@@ -29,6 +29,13 @@ export class Tracker extends Emitter {
     this.emit('update')
   }
 
+  removeRelay = (eventId: string, relay: string) => {
+    this.relaysById.get(eventId)?.delete(relay)
+    this.idsByRelay.get(relay)?.delete(eventId)
+
+    this.emit('update')
+  }
+
   track = (eventId: string, relay: string) => {
     const seen = this.relaysById.has(eventId)
 

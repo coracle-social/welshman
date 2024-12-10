@@ -66,6 +66,9 @@ export type MergedThunk = {
   status: Readable<ThunkStatusByUrl>
 }
 
+export const isMergedThunk = (thunk: Thunk | MergedThunk): thunk is MergedThunk =>
+  Boolean((thunk as any).thunks)
+
 export const mergeThunks = (thunks: Thunk[]) => {
   const controller = new AbortController()
 
@@ -98,6 +101,16 @@ export const mergeThunks = (thunks: Thunk[]) => {
         return mergedStatus
       }
     )
+  }
+}
+
+export function* walkThunks(thunks: (Thunk | MergedThunk)[]): Iterable<Thunk> {
+  for (const thunk of thunks) {
+    if (isMergedThunk(thunk)) {
+      yield* walkThunks(thunk.thunks)
+    } else {
+      yield thunk
+    }
   }
 }
 
@@ -208,3 +221,4 @@ thunkWorker.addGlobalHandler((thunk: Thunk) => {
     })
   })
 })
+
