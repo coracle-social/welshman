@@ -68,10 +68,13 @@ export class Executor {
   }
 
   publish(event: SignedEvent, {verb = 'EVENT', onOk, onError}: PublishOpts = {}) {
-    const okListener = (url: string, id: string, ...payload: any[]) => {
+    const okListener = (url: string, id: string, ok: boolean, message: string) => {
       if (id === event.id) {
-        ctx.net.onEvent(url, event)
-        onOk?.(url, id, ...payload)
+        if (ok) {
+          ctx.net.onEvent(url, event)
+        }
+
+        onOk?.(url, id, ok, message)
       }
     }
 

@@ -17,8 +17,18 @@ export class Tracker extends Emitter {
   hasRelay = (eventId: string, relay: string) => this.relaysById.get(eventId)?.has(relay)
 
   addRelay = (eventId: string, relay: string) => {
-    const relays = this.relaysById.get(eventId) || new Set()
-    const ids = this.idsByRelay.get(relay) || new Set()
+    let relays = this.relaysById.get(eventId)
+    let ids = this.idsByRelay.get(relay)
+
+    if (relays?.has(relay) && ids?.has(eventId)) return
+
+    if (!relays) {
+      relays = new Set()
+    }
+
+    if (!ids) {
+      ids = new Set()
+    }
 
     relays.add(relay)
     ids.add(eventId)
@@ -30,8 +40,10 @@ export class Tracker extends Emitter {
   }
 
   removeRelay = (eventId: string, relay: string) => {
-    this.relaysById.get(eventId)?.delete(relay)
-    this.idsByRelay.get(relay)?.delete(eventId)
+    const didDeleteRelay = this.relaysById.get(eventId)?.delete(relay)
+    const didDeleteId = this.idsByRelay.get(relay)?.delete(eventId)
+
+    if (!didDeleteRelay && !didDeleteId) return
 
     this.emit('update')
   }
