@@ -137,8 +137,8 @@ export const storageAdapters = {
     keyPath: "key",
     store: adapter({
       store: throttled(options.throttle || 0, store),
-      forward: ($data: Record<string, T>) =>
-        migrate(Object.entries($data).map(([key, value]) => ({key, value})), options),
+      forward: (data: Record<string, T>) =>
+        migrate(Object.entries(data).map(([key, value]) => ({key, value})), options),
       backward: (data: {key: string, value: T}[]) =>
         fromPairs(data.map(({key, value}) => [key, value])),
     }),
@@ -148,8 +148,8 @@ export const storageAdapters = {
     keyPath: "key",
     store: adapter({
       store: throttled(options.throttle || 0, store),
-      forward: ($data: Map<string, T>) =>
-        migrate(Array.from($data.entries()).map(([key, value]) => ({key, value})), options),
+      forward: (data: Map<string, T>) =>
+        migrate(Array.from(data.entries()).map(([key, value]) => ({key, value})), options),
       backward: (data: {key: string, value: T}[]) =>
         new Map(data.map(({key, value}) => [key, value])),
     }),

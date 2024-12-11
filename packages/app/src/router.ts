@@ -260,7 +260,7 @@ export class RouterScenario {
 
   getPolicy = () => this.options.policy || addMaximalFallbacks
 
-  getLimit = () => this.options.limit || this.router.options.getLimit?.() || 10
+  getLimit = () => this.options.limit || this.router.options.getLimit?.() || 3
 
   getUrls = () => {
     const limit = this.getLimit()
@@ -366,7 +366,7 @@ export const makeRouter = (options: Partial<RouterOptions> = {}) =>
     getSearchRelays,
     getRelayQuality,
     getUserPubkey: () => pubkey.get(),
-    getLimit: () => 5,
+    getLimit: () => 3,
     ...options,
   })
 
