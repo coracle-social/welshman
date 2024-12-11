@@ -170,7 +170,7 @@ export const pullWithoutNegentropy = async ({relays, filters, onEvent}: PullWith
         relays,
         filters: filters.filter(f => lt(f.since, until)).map(assoc('until', until)),
         closeOnEose: true,
-        onClose: () => {
+        onComplete: () => {
           done = !anyResults
           resolve()
         },

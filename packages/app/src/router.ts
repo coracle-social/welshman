@@ -178,7 +178,7 @@ export class Router {
   Replies = (event: TrustedEvent) =>
     this.FromRelays(this.getRelaysForPubkey(event.pubkey, RelayMode.Read))
 
-  Quote = (event: TrustedEvent, value: string, relays = []) => {
+  Quote = (event: TrustedEvent, value: string, relays: string[] = []) => {
     const tag = event.tags.find(t => t[1] === value)
     const scenarios = [
       this.ForPubkey(event.pubkey),
