@@ -463,14 +463,13 @@ export const throttle = <F extends (...args: any[]) => any>(ms: number, f: F) =>
     return f
   }
 
-  let args: Parameters<F>
   let paused = false
-  let trailing = false
+  let nextArgs: Maybe<Parameters<F>>
 
   const unpause = () => {
-    if (trailing) {
-      f(...args)
-      trailing = false
+    if (nextArgs) {
+      f(...nextArgs)
+      nextArgs = undefined
     }
 
     paused = false
@@ -480,10 +479,9 @@ export const throttle = <F extends (...args: any[]) => any>(ms: number, f: F) =>
     if (!paused) {
       f(...thisArgs)
       paused = true
-      args = thisArgs
       setTimeout(unpause, ms)
     } else {
-      trailing = true
+      nextArgs = thisArgs
     }
   }
 }
