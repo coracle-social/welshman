@@ -34,7 +34,7 @@
     "@types/throttle-debounce": "^5.0.2",
     "@welshman/dvm": "~0.0.11",
     "@welshman/feeds": "~0.0.26",
-    "@welshman/lib": "~0.0.29",
+    "@welshman/lib": "~0.0.30",
     "@welshman/net": "~0.0.41",
     "@welshman/signer": "~0.0.16",
     "@welshman/store": "~0.0.13",

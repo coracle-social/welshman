@@ -297,7 +297,7 @@ export const choice = <T>(xs: T[]): T => xs[Math.floor(xs.length * Math.random()
 
 export const shuffle = <T>(xs: Iterable<T>): T[] => Array.from(xs).sort(() => Math.random() > 0.5 ? 1 : -1)
 
-export const samplo = <T>(n: number, xs: T[]) => shuffle(xs).slice(0, n)
+export const sample = <T>(n: number, xs: T[]) => shuffle(xs).slice(0, n)
 
 export const isIterable = (x: any) => Symbol.iterator in Object(x)
 
