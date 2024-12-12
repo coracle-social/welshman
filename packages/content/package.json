@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@braintree/sanitize-url": "^7.0.2",
-    "@welshman/lib": "~0.0.28",
+    "@welshman/lib": "~0.0.29",
     "nostr-tools": "^2.7.2"
   }
 }
