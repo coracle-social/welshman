@@ -1,4 +1,4 @@
-import {throttle} from 'throttle-debounce'
+import {throttle} from '@welshman/lib'
 import {Repository, Relay} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Tracker} from "@welshman/net"

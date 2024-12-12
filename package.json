@@ -6,5 +6,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/coracle-social/skiff.git"
+  },
+  "dependencies": {
+    "@types/throttle-debounce": "^5.0.2"
   }
 }

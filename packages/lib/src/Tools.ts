@@ -1,4 +1,3 @@
-import {throttle} from 'throttle-debounce'
 import {bech32, utf8} from "@scure/base"
 
 // Dealing with nil
@@ -298,7 +297,7 @@ export const choice = <T>(xs: T[]): T => xs[Math.floor(xs.length * Math.random()
 
 export const shuffle = <T>(xs: Iterable<T>): T[] => Array.from(xs).sort(() => Math.random() > 0.5 ? 1 : -1)
 
-export const sample = <T>(n: number, xs: T[]) => shuffle(xs).slice(0, n)
+export const samplo = <T>(n: number, xs: T[]) => shuffle(xs).slice(0, n)
 
 export const isIterable = (x: any) => Symbol.iterator in Object(x)
 
@@ -456,6 +455,36 @@ export const memoize = <T>(f: (...args: any[]) => T) => {
     }
 
     return result
+  }
+}
+
+export const throttle = <F extends (...args: any[]) => any>(ms: number, f: F) => {
+  if (ms === 0) {
+    return f
+  }
+
+  let args: Parameters<F>
+  let paused = false
+  let trailing = false
+
+  const unpause = () => {
+    if (trailing) {
+      f(...args)
+      trailing = false
+    }
+
+    paused = false
+  }
+
+  return (...thisArgs: Parameters<F>) => {
+    if (!paused) {
+      f(...thisArgs)
+      paused = true
+      args = thisArgs
+      setTimeout(unpause, ms)
+    } else {
+      trailing = true
+    }
   }
 }
 

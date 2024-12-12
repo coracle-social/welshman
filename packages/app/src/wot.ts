@@ -1,6 +1,5 @@
-import {throttle} from 'throttle-debounce'
 import {derived, writable} from 'svelte/store'
-import {max, addToMapKey, inc, dec} from '@welshman/lib'
+import {max, throttle, addToMapKey, inc, dec} from '@welshman/lib'
 import {getListTags, getPubkeyTagValues} from '@welshman/util'
 import {throttled, withGetter} from '@welshman/store'
 import {pubkey} from './session'

@@ -1,7 +1,6 @@
-import {throttle} from "throttle-debounce"
 import {derived, writable} from "svelte/store"
 import type {Readable, Writable, Subscriber, Unsubscriber} from "svelte/store"
-import {identity, ensurePlural, getJson, setJson, batch, partition, first} from "@welshman/lib"
+import {identity, throttle, ensurePlural, getJson, setJson, batch, partition, first} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import type {Repository} from "@welshman/util"
 import {matchFilters, getIdAndAddress, getIdFilters} from "@welshman/util"

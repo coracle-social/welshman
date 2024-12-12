@@ -1,5 +1,4 @@
-import {throttle} from 'throttle-debounce'
-import {Emitter, makePromise, defer, sleep, tryCatch, randomId, equals} from "@welshman/lib"
+import {Emitter, throttle, makePromise, defer, sleep, tryCatch, randomId, equals} from "@welshman/lib"
 import {createEvent, normalizeRelayUrl, TrustedEvent, StampedEvent, NOSTR_CONNECT} from "@welshman/util"
 import {subscribe, publish, Subscription, SubscriptionEvent} from "@welshman/net"
 import {ISigner, decrypt, hash, own} from '../util'

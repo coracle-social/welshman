@@ -31,9 +31,10 @@
     "typescript": "~5.1.6"
   },
   "dependencies": {
-    "@welshman/lib": "~0.0.28",
-    "@welshman/feeds": "~0.0.26",
+    "@types/throttle-debounce": "^5.0.2",
     "@welshman/dvm": "~0.0.10",
+    "@welshman/feeds": "~0.0.26",
+    "@welshman/lib": "~0.0.28",
     "@welshman/net": "~0.0.40",
     "@welshman/signer": "~0.0.16",
     "@welshman/store": "~0.0.12",

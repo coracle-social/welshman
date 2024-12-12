@@ -1,5 +1,4 @@
-import {throttle} from 'throttle-debounce'
-import {inc} from '@welshman/lib'
+import {inc, throttle} from '@welshman/lib'
 import {custom} from '@welshman/store'
 import {repository} from './core'
 

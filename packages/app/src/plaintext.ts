@@ -14,22 +14,26 @@ export const setPlaintext = (e: TrustedEvent, content: string) =>
 
 export const ensurePlaintext = async (e: TrustedEvent) => {
   if (e.content && !getPlaintext(e)) {
-    const $signer = getSigner(getSession(e.pubkey))
+    const $session = getSession(e.pubkey)
 
-    if ($signer) {
-      let result
+    if (!$session) return
 
-      try {
-        result = await decrypt($signer, e.pubkey, e.content)
-      } catch (e: any) {
-        if (!String(e).match(/invalid base64/)) {
-          throw e
-        }
+    const $signer = getSigner($session)
+
+    if (!$signer) return
+
+    let result
+
+    try {
+      result = await decrypt($signer, e.pubkey, e.content)
+    } catch (e: any) {
+      if (!String(e).match(/invalid base64/)) {
+        throw e
       }
+    }
 
-      if (result) {
-        setPlaintext(e, result)
-      }
+    if (result) {
+      setPlaintext(e, result)
     }
   }
 
