@@ -1,6 +1,6 @@
 import {verifiedSymbol, getEventHash, verifyEvent} from 'nostr-tools'
 import {cached, pick, now} from '@welshman/lib'
-import {Tags} from './Tags'
+import {getAncestorTagValues} from './Tags'
 import {getAddress} from './Address'
 import {isEphemeralKind, isReplaceableKind, isPlainReplaceableKind, isParameterizedReplaceableKind} from './Kinds'
 
@@ -128,8 +128,8 @@ export const isPlainReplaceable = (e: EventTemplate) => isPlainReplaceableKind(e
 export const isParameterizedReplaceable = (e: EventTemplate) => isParameterizedReplaceableKind(e.kind)
 
 export const isChildOf = (child: EventContent, parent: HashedEvent) => {
-  const {roots, replies} = Tags.fromEvent(child).ancestors()
-  const parentIds = (replies.exists() ? replies : roots).values().valueOf()
+  const {roots, replies} = getAncestorTagValues(child.tags)
+  const parentIds = replies.length > 0 ? replies : roots
 
   return getIdAndAddress(parent).some(x => parentIds.includes(x))
 }

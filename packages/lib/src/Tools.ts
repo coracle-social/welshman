@@ -1088,10 +1088,3 @@ export const hexToBech32 = (prefix: string, hex: string) =>
  */
 export const bech32ToHex = (b32: string) =>
   utf8.encode(bech32.fromWords(bech32.decode(b32, false).words))
-
-/** Extracts non-function property names from type */
-// https://github.com/microsoft/TypeScript/issues/4628#issuecomment-1147905253
-export type OmitStatics<T, S extends string> =
-    T extends {new(...args: infer A): infer R} ?
-        {new(...args: A): R}&Omit<T, S> :
-        Omit<T, S>;

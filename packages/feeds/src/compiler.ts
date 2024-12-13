@@ -1,6 +1,6 @@
 import {uniq, identity, flatten, pushToMapKey, intersection, tryCatch, now} from '@welshman/lib'
 import type {TrustedEvent, Filter} from '@welshman/util'
-import {Tags, intersectFilters, matchFilter, getAddress, getIdFilters, unionFilters} from '@welshman/util'
+import {intersectFilters, matchFilter, getAddress, getIdFilters, unionFilters} from '@welshman/util'
 import type {CreatedAtItem, RequestItem, ListItem, LabelItem, WOTItem, DVMItem, Scope, Feed, FeedOptions} from './core'
 import {getFeedArgs, feedsFromTags} from './utils'
 import {FeedType} from './core'
@@ -110,7 +110,7 @@ export class FeedCompiler {
         this.options.requestDVM({
           ...request,
           onEvent: async (e: TrustedEvent) => {
-            const tags = Tags.wrap(await tryCatch(() => JSON.parse(e.content)) || [])
+            const tags = await tryCatch(() => JSON.parse(e.content)) || []
 
             for (const feed of feedsFromTags(tags, mappings)) {
               feeds.push(feed)
@@ -231,7 +231,7 @@ export class FeedCompiler {
             const event = eventsByAddress.get(address)
 
             if (event) {
-              for (const feed of feedsFromTags(Tags.fromEvent(event), mappings)) {
+              for (const feed of feedsFromTags(event.tags, mappings)) {
                 feeds.push(feed)
               }
             }
@@ -271,7 +271,7 @@ export class FeedCompiler {
             }
           }
 
-          return feedsFromTags(Tags.wrap(tags), mappings)
+          return feedsFromTags(tags, mappings)
         })
       )
     )

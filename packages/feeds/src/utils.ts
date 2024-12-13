@@ -1,6 +1,6 @@
 import {ensureNumber} from '@welshman/lib'
 import type {Filter} from '@welshman/util'
-import {Tags} from '@welshman/util'
+import {getTagValues} from '@welshman/util'
 import {
   FeedType,
   Feed,
@@ -110,15 +110,13 @@ export const defaultTagFeedMappings: TagFeedMapping[] = [
   ['t', [FeedType.Tag, '#t']],
 ]
 
-export const feedsFromTags = (tags: Tags, mappings?: TagFeedMapping[]) => {
+export const feedsFromTags = (tags: string[][], mappings?: TagFeedMapping[]) => {
   const feeds = []
 
   for (const [tagName, templateFeed] of mappings || defaultTagFeedMappings) {
-    const filterTags = tags.whereKey(tagName)
+    let values: any[] = getTagValues(tagName, tags)
 
-    if (filterTags.exists()) {
-      let values: string[] | number[] = filterTags.values().valueOf()
-
+    if (values.length > 0) {
       if (isKindFeed(templateFeed)) {
         values = values.map(ensureNumber) as number[]
       }
@@ -130,7 +128,7 @@ export const feedsFromTags = (tags: Tags, mappings?: TagFeedMapping[]) => {
   return feeds
 }
 
-export const feedFromTags = (tags: Tags, mappings?: TagFeedMapping[]) =>
+export const feedFromTags = (tags: string[][], mappings?: TagFeedMapping[]) =>
   makeIntersectionFeed(...feedsFromTags(tags, mappings))
 
 export const feedsFromFilter = ({since, until, ...filter}: Filter) => {
