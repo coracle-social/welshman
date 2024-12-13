@@ -4,12 +4,15 @@ A nostr toolkit focused on creating highly a configurable client system, extract
 
 This is a monorepo which is split into several different packages:
 
-- [@welshman/lib](./packages/lib) - generic utility functions.
-- [@welshman/util](./packages/util) - various nostr-specific utilities.
-- [@welshman/net](./packages/net) - framework for interacting with relays.
-- [@welshman/content](./packages/content) - utilities for parsing and rendering notes.
-- [@welshman/feeds](./packages/feeds) - an interpreter for custom nostr feeds.
-- [@welshman/dvm](./packages/dvm) - utilities for creating and making request against dvms.
+- [@welshman/app](packages/app/README.MD) - a framework for building nostr apps
+- [@welshman/content](packages/content/README.MD) - utilities for parsing and rendering notes.
+- [@welshman/dvm](packages/dvm/README.MD) - utilities for creating and making request against dvms.
+- [@welshman/feeds](packages/feeds/README.MD) - an interpreter for custom nostr feeds.
+- [@welshman/lib](packages/lib/README.MD) - generic utility functions.
+- [@welshman/net](packages/net/README.MD) - framework for interacting with relays.
+- [@welshman/signer](packages/signer/README.MD) - signers and utilities for signing/encryption/decryption
+- [@welshman/store](packages/store/README.MD) - utilities for building svelte stores for welshman apps
+- [@welshman/util](packages/util/README.MD) - various nostr-specific utilities.
 
 # Linking
 
