@@ -1,12 +1,22 @@
+/** Symbol used to identify global handlers */
 const ANY = Symbol("worker/ANY")
 
+/** Configuration options for Worker */
 export type WorkerOpts<T> = {
+  /** Function to get key for message routing */
   getKey?: (x: T) => any
+  /** Function to determine if message processing should be deferred */
   shouldDefer?: (x: T) => boolean
+  /** Maximum number of messages to process in one batch */
   chunkSize?: number
+  /** Milliseconds to wait between processing batches */
   delay?: number
 }
 
+/**
+ * Worker for processing messages in batches with throttling
+ * @template T - Type of messages to process
+ */
 export class Worker<T> {
   buffer: T[] = []
   handlers: Map<any, Array<(x: T) => void>> = new Map()
@@ -63,23 +73,38 @@ export class Worker<T> {
     }
   }
 
+  /**
+   * Adds a message to the processing queue
+   * @param message - Message to process
+   */
   push = (message: T) => {
     this.buffer.push(message)
     this.#enqueueWork()
   }
 
+  /**
+   * Adds a handler for messages with specific key
+   * @param k - Key to handle
+   * @param handler - Function to process matching messages
+   */
   addHandler = (k: any, handler: (message: T) => void) => {
     this.handlers.set(k, (this.handlers.get(k) || []).concat(handler))
   }
 
+  /**
+   * Adds a handler for all messages
+   * @param handler - Function to process all messages
+   */
   addGlobalHandler = (handler: (message: T) => void) => {
     this.addHandler(ANY, handler)
   }
 
+  /** Removes all pending messages from the queue */
   clear() {
     this.buffer = []
   }
 
+  /** Pauses message processing */
   pause() {
     clearTimeout(this.#timeout)
 
@@ -87,6 +112,7 @@ export class Worker<T> {
     this.#timeout = undefined
   }
 
+  /** Resumes message processing */
   resume() {
     this.#paused = false
     this.#enqueueWork()

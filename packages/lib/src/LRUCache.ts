@@ -1,3 +1,8 @@
+/**
+ * Least Recently Used (LRU) cache implementation
+ * @template T - Type of cache keys
+ * @template U - Type of cache values
+ */
 export class LRUCache<T, U> {
   map = new Map<T, U>()
   keys: T[] = []
@@ -32,6 +37,12 @@ export class LRUCache<T, U> {
   }
 }
 
+/**
+ * Creates a memoized function with LRU caching
+ * @template T - Cache key type
+ * @template V - Cache value type
+ * @template Args - Function argument types
+ */
 export function cached<T, V, Args extends any[]>({
   maxSize,
   getKey,
@@ -60,6 +71,11 @@ export function cached<T, V, Args extends any[]>({
   return get
 }
 
+/**
+ * Creates a simple memoized function with default settings
+ * @template V - Cache value type
+ * @template Args - Function argument types
+ */
 export function simpleCache<V, Args extends any[]>(getValue: (args: Args) => V) {
   return cached({maxSize: 10**5, getKey: xs => xs.join(':'), getValue})
 }
