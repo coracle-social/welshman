@@ -222,7 +222,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
 
         // If this is a delete event, the tag value is an id or address. Track when it was
         // deleted so that replaceables can be restored.
-        if (event.kind === DELETE) {
+        if (event.kind === DELETE && ["a", "e"].includes(tag[0]) && tag[1]) {
           this.deletes.set(tag[1], Math.max(event.created_at, this.deletes.get(tag[1]) || 0))
 
           const deletedEvent = this.getEvent(tag[1])
