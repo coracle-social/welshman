@@ -44,11 +44,13 @@ export class Connection extends Emitter {
   emit = (type: ConnectionEvent, ...args: any[]) => super.emit(type, this, ...args)
 
   send = async (message: Message) => {
+    if (this.status !== Ready) {
+      throw new Error(`Attempted to send message on ${this.status} connection`)
+    }
+
     await this.socket.open()
 
-    if (this.status === Ready) {
-      this.sender.push(message)
-    }
+    this.sender.push(message)
   }
 
   close = async () => {

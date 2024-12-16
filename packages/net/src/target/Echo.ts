@@ -6,7 +6,7 @@ export class Echo extends Emitter {
     return []
   }
 
-  send(...payload: Message) {
+  async send(...payload: Message) {
     this.emit(...payload)
   }
 

@@ -14,8 +14,8 @@ export class Relay extends Emitter {
     return [this.connection]
   }
 
-  send(...payload: Message) {
-    this.connection.send(payload)
+  async send(...payload: Message) {
+    await this.connection.send(payload)
   }
 
   onMessage = (connection: Connection, [verb, ...payload]: Message) => {

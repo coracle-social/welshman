@@ -1,4 +1,4 @@
-import {ctx} from '@welshman/lib'
+import {ctx, noop} from '@welshman/lib'
 import type {Emitter} from '@welshman/lib'
 import type {SignedEvent, TrustedEvent, Filter} from '@welshman/util'
 import type {Message} from './Socket'
@@ -7,7 +7,7 @@ import {Negentropy, NegentropyStorageVector} from './Negentropy'
 
 export type Target = Emitter & {
   connections: Connection[]
-  send: (...args: Message) => void
+  send: (...args: Message) => Promise<void>
   cleanup: () => void
 }
 
@@ -58,7 +58,7 @@ export class Executor {
       unsubscribe: () => {
         if (closed) return
 
-        this.target.send("CLOSE", id)
+        this.target.send("CLOSE", id).catch(noop)
         this.target.off('EVENT', eventListener)
         this.target.off('EOSE', eoseListener)
 
@@ -132,7 +132,7 @@ export class Executor {
     const close = () => {
       if (closed) return
 
-      this.target.send('NEG-CLOSE', id)
+      this.target.send('NEG-CLOSE', id).catch(noop)
       this.target.off('NEG-MSG', msgListener)
       this.target.off('NEG-ERR', errListener)
 

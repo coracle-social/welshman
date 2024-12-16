@@ -247,10 +247,7 @@ const _executeSubscription = (sub: Subscription) => {
   emitter.on(SubscriptionEvent.Complete, () => {
     emitter.removeAllListeners()
     subs.forEach(sub => sub.unsubscribe())
-    executor.target.connections.forEach((c: Connection) => {
-      c.off(ConnectionEvent.Close, onClose)
-    })
-
+    executor.target.connections.forEach(c => c.off(ConnectionEvent.Close, onClose))
     executor.target.cleanup()
   })
 

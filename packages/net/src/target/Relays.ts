@@ -12,10 +12,8 @@ export class Relays extends Emitter {
     })
   }
 
-  send = (...payload: Message) => {
-    this.connections.forEach(connection => {
-      connection.send(payload)
-    })
+  async send(...payload: Message) {
+    await Promise.all(this.connections.map(c => c.send(payload)))
   }
 
   onMessage = (connection: Connection, [verb, ...payload]: Message) => {

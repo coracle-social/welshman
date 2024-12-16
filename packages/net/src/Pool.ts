@@ -3,14 +3,17 @@ import {Connection} from "./Connection"
 
 export class Pool extends Emitter {
   data: Map<string, Connection>
+
   constructor() {
     super()
 
     this.data = new Map()
   }
+
   has(url: string) {
     return this.data.has(url)
   }
+
   get(url: string): Connection {
     const oldConnection = this.data.get(url)
 
@@ -25,6 +28,7 @@ export class Pool extends Emitter {
 
     return newConnection
   }
+
   remove(url: string) {
     const connection = this.data.get(url)
 
@@ -34,6 +38,7 @@ export class Pool extends Emitter {
       this.data.delete(url)
     }
   }
+
   clear() {
     for (const url of this.data.keys()) {
       this.remove(url)

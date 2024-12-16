@@ -13,8 +13,8 @@ export class Local extends Emitter {
     return []
   }
 
-  send(...payload: Message) {
-    this.relay.send(...payload)
+  async send(...payload: Message) {
+    await this.relay.send(...payload)
   }
 
   onMessage = (...message: Message) => {

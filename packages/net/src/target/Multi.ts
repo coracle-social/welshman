@@ -15,8 +15,8 @@ export class Multi extends Emitter {
     return this.targets.flatMap(t => t.connections)
   }
 
-  send(...payload: Message) {
-    this.targets.forEach(t => t.send(...payload))
+  async send(...payload: Message) {
+    await Promise.all(this.targets.map(t => t.send(...payload)))
   }
 
   cleanup = () => {
