@@ -33,7 +33,7 @@ export class Pool extends Emitter {
     const connection = this.data.get(url)
 
     if (connection) {
-      connection.close()
+      connection.cleanup()
 
       this.data.delete(url)
     }

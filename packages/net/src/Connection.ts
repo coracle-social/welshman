@@ -9,12 +9,11 @@ import {ConnectionAuth} from './ConnectionAuth'
 import {ConnectionSender} from './ConnectionSender'
 
 export enum ConnectionStatus {
-  Ready = "ready",
+  Open = "open",
   Closed = "Closed",
-  Closing = "Closing",
 }
 
-const {Ready, Closed, Closing} = ConnectionStatus
+const {Open, Closed} = ConnectionStatus
 
 export class Connection extends Emitter {
   url: string
@@ -23,7 +22,7 @@ export class Connection extends Emitter {
   state: ConnectionState
   stats: ConnectionStats
   auth: ConnectionAuth
-  status = Ready
+  status = Open
 
   constructor(url: string) {
     super()
@@ -44,22 +43,27 @@ export class Connection extends Emitter {
   emit = (type: ConnectionEvent, ...args: any[]) => super.emit(type, this, ...args)
 
   send = async (message: Message) => {
-    if (this.status !== Ready) {
+    if (this.status !== Open) {
       throw new Error(`Attempted to send message on ${this.status} connection`)
     }
-
-    await this.socket.open()
 
     this.sender.push(message)
   }
 
-  close = async () => {
-    this.status = Closing
+  open = () => {
+    this.status = Open
+    this.socket.open()
+    this.sender.worker.resume()
+  }
 
-    await this.sender.close()
-    await this.socket.close()
-
+  close = () => {
     this.status = Closed
+    this.socket.close()
+    this.sender.worker.pause()
+  }
+
+  cleanup = () => {
+    this.close()
     this.removeAllListeners()
   }
 }

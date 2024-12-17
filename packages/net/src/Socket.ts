@@ -72,14 +72,13 @@ export class Socket {
   close = async () => {
     this.worker.pause()
     this.ws?.close()
+    this.ws = undefined
 
     // Allow the socket to start closing before waiting
     await sleep(100)
 
     // Wait for the socket to fully close
     await this.wait()
-
-    this.ws = undefined
   }
 
   send = async (message: Message) => {

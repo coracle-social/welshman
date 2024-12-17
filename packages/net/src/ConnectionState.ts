@@ -1,3 +1,4 @@
+import {sleep} from '@welshman/lib'
 import {AUTH_JOIN} from '@welshman/util'
 import type {SignedEvent, Filter} from '@welshman/util'
 import type {Message} from './Socket'
@@ -20,7 +21,7 @@ export class ConnectionState {
   pendingRequests = new Map<string, RequestState>()
 
   constructor(readonly cxn: Connection) {
-    cxn.on(ConnectionEvent.Send, (cxn: Connection, [verb, ...extra]: Message) => {
+    cxn.sender.worker.addGlobalHandler(([verb, ...extra]: Message) => {
       if (verb === 'REQ') {
         const [reqId, ...filters] = extra
 
@@ -36,11 +37,11 @@ export class ConnectionState {
       if (verb === 'EVENT') {
         const [event] = extra
 
-        this.pendingPublishes.set(event.id, {sent: Date.now(), event: event.id})
+        this.pendingPublishes.set(event.id, {sent: Date.now(), event})
       }
     })
 
-    cxn.on(ConnectionEvent.Receive, (cxn: Connection, [verb, ...extra]: Message) => {
+    cxn.socket.worker.addGlobalHandler(([verb, ...extra]: Message) => {
       if (verb === 'OK') {
         const [eventId, _ok, notice] = extra
         const pub = this.pendingPublishes.get(eventId)
@@ -79,12 +80,32 @@ export class ConnectionState {
             this.cxn.emit(ConnectionEvent.Notice, extra[1])
           }
         }
+
+        this.pendingRequests.delete(reqId)
       }
 
       if (verb === 'NOTICE') {
         const [notice] = extra
 
         this.cxn.emit(ConnectionEvent.Notice, notice)
+      }
+    })
+
+    // Whenever we reconnect, re-enqueue pending stuff. Delay this so that if a connection
+    // is flapping we're not sending too much noise.
+    cxn.on(ConnectionEvent.Close, async (cxn: Connection) => {
+      await sleep(10_000)
+
+      if (this.pendingRequests.size > 0 || this.pendingPublishes.size > 0) {
+        this.cxn.open()
+      }
+
+      for (const [reqId, req] of this.pendingRequests.entries()) {
+        this.cxn.send(['REQ', reqId, ...req.filters])
+      }
+
+      for (const [_, pub] of this.pendingPublishes.entries()) {
+        this.cxn.send(['EVENT', pub.event])
       }
     })
   }
