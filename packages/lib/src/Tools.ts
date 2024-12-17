@@ -62,6 +62,9 @@ export const always = <T>(x: T, ...args: unknown[]) => () => x
  */
 export const not = (x: any, ...args: unknown[]) => !x
 
+/** Returns a function that returns the boolean negation of the given function */
+export const complement = <T extends unknown[]>(f: (...args: T) => any) => (...args: T) => !f(...args)
+
 /** Converts a Maybe<number> to a number, defaulting to 0 */
 export const num = (x: Maybe<number>) => x || 0
 
@@ -527,6 +530,15 @@ export const nthEq = (i: number, v: any) => (xs: any[], ...args: unknown[]) => x
 /** Returns a function that checks if nth element does not equal value */
 export const nthNe = (i: number, v: any) => (xs: any[], ...args: unknown[]) => xs[i] !== v
 
+/** Returns a function that checks if key/value pairs of x match all pairs in spec */
+export const spec = (values: Record<string, any>) => (x: Record<string, any>) => {
+  for (const [k, v] of Object.entries(values)) {
+    if (x[k] !== v) return false
+  }
+
+  return true
+}
+
 /** Returns a function that checks equality with value */
 export const eq = <T>(v: T) => (x: T) => x === v
 
@@ -534,7 +546,7 @@ export const eq = <T>(v: T) => (x: T) => x === v
 export const ne = <T>(v: T) => (x: T) => x !== v
 
 /** Returns a function that gets property value from object */
-export const prop = (k: string) => <T>(x: Record<string, T>) => x[k]
+export const prop = <T>(k: string) => (x: Record<string, unknown>) => x[k] as T
 
 /** Returns a function that adds/updates property on object */
 export const assoc = <K extends string, T, U>(k: K, v: T) => (o: U) => ({...o, [k as K]: v}) as U & Record<K, T>
@@ -571,6 +583,9 @@ export const ensurePlural = <T>(x: T | T[]) => (x instanceof Array ? x : [x])
 
 /** Converts string or number to number */
 export const ensureNumber = (x: number | string) => parseFloat(x as string)
+
+/** Returns a function that gets property value from object */
+export const pluck = <T>(k: string, xs: Record<string, unknown>[]) => xs.map(x => x[k] as T)
 
 /**
  * Creates object from array of key-value pairs
