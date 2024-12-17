@@ -1,12 +1,12 @@
-import {Emitter} from '@welshman/lib'
-import {normalizeRelayUrl} from '@welshman/util'
-import {Socket} from './Socket'
-import type {Message} from './Socket'
-import {ConnectionEvent} from './ConnectionEvent'
-import {ConnectionState} from './ConnectionState'
-import {ConnectionStats} from './ConnectionStats'
-import {ConnectionAuth} from './ConnectionAuth'
-import {ConnectionSender} from './ConnectionSender'
+import {Emitter} from "@welshman/lib"
+import {normalizeRelayUrl} from "@welshman/util"
+import {Socket} from "./Socket.js"
+import type {Message} from "./Socket.js"
+import {ConnectionEvent} from "./ConnectionEvent.js"
+import {ConnectionState} from "./ConnectionState.js"
+import {ConnectionStats} from "./ConnectionStats.js"
+import {ConnectionAuth} from "./ConnectionAuth.js"
+import {ConnectionSender} from "./ConnectionSender.js"
 
 export enum ConnectionStatus {
   Open = "open",

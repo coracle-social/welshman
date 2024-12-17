@@ -1,4 +1,4 @@
-import type {EventContent, TrustedEvent, EventTemplate} from './Events'
+import type {EventContent, TrustedEvent, EventTemplate} from "./Events.js"
 
 export type Encrypt = (x: string) => Promise<string>
 
@@ -27,7 +27,10 @@ export class Encryptable<T extends EventTemplate> {
    * const eventTemplate = await encryptable.reconcile(myEncryptFunction)
    * ```
    */
-  constructor(readonly event: Partial<T>, readonly updates: EncryptableUpdates) {}
+  constructor(
+    readonly event: Partial<T>,
+    readonly updates: EncryptableUpdates,
+  ) {}
 
   /**
    * Encrypts plaintext updates and merges them into the event template.
@@ -49,7 +52,7 @@ export class Encryptable<T extends EventTemplate> {
           tag[1] = await encrypt(tag[1])
 
           return tag
-        })
+        }),
       )
     }
 

@@ -1,7 +1,7 @@
-import {Emitter, now} from '@welshman/lib'
-import type {TrustedEvent, SignedEvent, Filter} from '@welshman/util'
-import {subscribe, publish, SubscriptionEvent} from '@welshman/net'
-import type {Subscription, Publish} from '@welshman/net'
+import {Emitter, now} from "@welshman/lib"
+import type {TrustedEvent, SignedEvent, Filter} from "@welshman/util"
+import {subscribe, publish, SubscriptionEvent} from "@welshman/net"
+import type {Subscription, Publish} from "@welshman/net"
 
 export enum DVMEvent {
   Progress = "progress",
@@ -18,7 +18,7 @@ export type DVMRequestOptions = {
 
 export type DVMRequest = {
   request: DVMRequestOptions
-  emitter: Emitter,
+  emitter: Emitter
   sub: Subscription
   pub: Publish
 }

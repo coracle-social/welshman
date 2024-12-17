@@ -1,12 +1,12 @@
-import {MUTES, asDecryptedEvent, readList} from '@welshman/util'
-import {type TrustedEvent, type PublishedList} from '@welshman/util'
+import {MUTES, asDecryptedEvent, readList} from "@welshman/util"
+import {type TrustedEvent, type PublishedList} from "@welshman/util"
 import {type SubscribeRequestWithHandlers} from "@welshman/net"
-import {deriveEventsMapped} from '@welshman/store'
-import {repository} from './core'
-import {load} from './subscribe'
-import {collection} from './collection'
-import {ensurePlaintext} from './plaintext'
-import {loadRelaySelections} from './relaySelections'
+import {deriveEventsMapped} from "@welshman/store"
+import {repository} from "./core.js"
+import {load} from "./subscribe.js"
+import {collection} from "./collection.js"
+import {ensurePlaintext} from "./plaintext.js"
+import {loadRelaySelections} from "./relaySelections.js"
 
 export const mutes = deriveEventsMapped<PublishedList>(repository, {
   filters: [{kinds: [MUTES]}],
@@ -32,4 +32,3 @@ export const {
     await load({...request, filters: [{kinds: [MUTES], authors: [pubkey]}]})
   },
 })
-

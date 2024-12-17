@@ -1,15 +1,25 @@
-import {uniq, identity, flatten, pushToMapKey, intersection, tryCatch, now} from '@welshman/lib'
-import type {TrustedEvent, Filter} from '@welshman/util'
-import {intersectFilters, matchFilter, getAddress, getIdFilters, unionFilters} from '@welshman/util'
-import type {CreatedAtItem, RequestItem, ListItem, LabelItem, WOTItem, DVMItem, Scope, Feed, FeedOptions} from './core'
-import {getFeedArgs, feedsFromTags} from './utils'
-import {FeedType} from './core'
+import {uniq, identity, flatten, pushToMapKey, intersection, tryCatch, now} from "@welshman/lib"
+import type {TrustedEvent, Filter} from "@welshman/util"
+import {intersectFilters, matchFilter, getAddress, getIdFilters, unionFilters} from "@welshman/util"
+import type {
+  CreatedAtItem,
+  RequestItem,
+  ListItem,
+  LabelItem,
+  WOTItem,
+  DVMItem,
+  Scope,
+  Feed,
+  FeedOptions,
+} from "./core.js"
+import {getFeedArgs, feedsFromTags} from "./utils.js"
+import {FeedType} from "./core.js"
 
 export class FeedCompiler {
   constructor(readonly options: FeedOptions) {}
 
   canCompile(feed: Feed): boolean {
-    switch(feed[0]) {
+    switch (feed[0]) {
       case FeedType.Union:
       case FeedType.Intersection:
         return getFeedArgs(feed).every(f => this.canCompile(f))
@@ -34,22 +44,37 @@ export class FeedCompiler {
   }
 
   async compile(feed: Feed): Promise<RequestItem[]> {
-    switch(feed[0]) {
-      case FeedType.ID:           return this._compileFilter('ids', getFeedArgs(feed))
-      case FeedType.Kind:         return this._compileFilter('kinds', getFeedArgs(feed))
-      case FeedType.Author:       return this._compileFilter('authors', getFeedArgs(feed))
-      case FeedType.DVM:          return await this._compileDvms(getFeedArgs(feed))
-      case FeedType.Intersection: return await this._compileIntersection(getFeedArgs(feed))
-      case FeedType.List:         return await this._compileLists(getFeedArgs(feed))
-      case FeedType.Label:        return await this._compileLabels(getFeedArgs(feed))
-      case FeedType.Union:        return await this._compileUnion(getFeedArgs(feed))
-      case FeedType.Address:      return this._compileAddresses(getFeedArgs(feed))
-      case FeedType.CreatedAt:    return this._compileCreatedAt(getFeedArgs(feed))
-      case FeedType.Scope:        return this._compileScopes(getFeedArgs(feed))
-      case FeedType.Search:       return this._compileSearches(getFeedArgs(feed))
-      case FeedType.WOT:          return this._compileWot(getFeedArgs(feed))
-      case FeedType.Relay:        return [{relays: getFeedArgs(feed)}]
-      case FeedType.Global:       return [{filters: [{}]}]
+    switch (feed[0]) {
+      case FeedType.ID:
+        return this._compileFilter("ids", getFeedArgs(feed))
+      case FeedType.Kind:
+        return this._compileFilter("kinds", getFeedArgs(feed))
+      case FeedType.Author:
+        return this._compileFilter("authors", getFeedArgs(feed))
+      case FeedType.DVM:
+        return await this._compileDvms(getFeedArgs(feed))
+      case FeedType.Intersection:
+        return await this._compileIntersection(getFeedArgs(feed))
+      case FeedType.List:
+        return await this._compileLists(getFeedArgs(feed))
+      case FeedType.Label:
+        return await this._compileLabels(getFeedArgs(feed))
+      case FeedType.Union:
+        return await this._compileUnion(getFeedArgs(feed))
+      case FeedType.Address:
+        return this._compileAddresses(getFeedArgs(feed))
+      case FeedType.CreatedAt:
+        return this._compileCreatedAt(getFeedArgs(feed))
+      case FeedType.Scope:
+        return this._compileScopes(getFeedArgs(feed))
+      case FeedType.Search:
+        return this._compileSearches(getFeedArgs(feed))
+      case FeedType.WOT:
+        return this._compileWot(getFeedArgs(feed))
+      case FeedType.Relay:
+        return [{relays: getFeedArgs(feed)}]
+      case FeedType.Global:
+        return [{filters: [{}]}]
       case FeedType.Tag: {
         const [key, ...value] = getFeedArgs(feed)
 
@@ -99,7 +124,13 @@ export class FeedCompiler {
   }
 
   _compileWot(wotItems: WOTItem[]) {
-    return [{filters: wotItems.map(({min = 0, max = 1}) => ({authors: this.options.getPubkeysForWOTRange(min, max)}))}]
+    return [
+      {
+        filters: wotItems.map(({min = 0, max = 1}) => ({
+          authors: this.options.getPubkeysForWOTRange(min, max),
+        })),
+      },
+    ]
   }
 
   async _compileDvms(items: DVMItem[]): Promise<RequestItem[]> {
@@ -110,14 +141,14 @@ export class FeedCompiler {
         this.options.requestDVM({
           ...request,
           onEvent: async (e: TrustedEvent) => {
-            const tags = await tryCatch(() => JSON.parse(e.content)) || []
+            const tags = (await tryCatch(() => JSON.parse(e.content))) || []
 
             for (const feed of feedsFromTags(tags, mappings)) {
               feeds.push(feed)
             }
           },
-        })
-      )
+        }),
+      ),
     )
 
     return await this._compileUnion(feeds)
@@ -129,16 +160,15 @@ export class FeedCompiler {
     const result = []
 
     for (let {filters, relays} of head || []) {
-      const matchingGroups = tail.map(
-        items => items.filter(
-          it => (
-            (!relays || !it.relays || intersection(relays, it.relays).length > 0) &&
-            (!filters || !it.filters || intersectFilters([filters, it.filters]).length > 0)
-          )
+      const matchingGroups = tail
+        .map(items =>
+          items.filter(
+            it =>
+              (!relays || !it.relays || intersection(relays, it.relays).length > 0) &&
+              (!filters || !it.filters || intersectFilters([filters, it.filters]).length > 0),
+          ),
         )
-      ).filter(
-        items => items.length > 0
-      )
+        .filter(items => items.length > 0)
 
       if (matchingGroups.length < tail.length) {
         continue
@@ -190,7 +220,7 @@ export class FeedCompiler {
             }
           }
         }
-      })
+      }),
     )
 
     const items: RequestItem[] = []
@@ -238,8 +268,8 @@ export class FeedCompiler {
           }
 
           return feeds
-        })
-      )
+        }),
+      ),
     )
 
     return this._compileUnion(feeds)
@@ -254,8 +284,8 @@ export class FeedCompiler {
           relays,
           filters: [{kinds: [1985], ...filter}],
           onEvent: (e: TrustedEvent) => events.push(e),
-        })
-      )
+        }),
+      ),
     )
 
     const feeds = flatten(
@@ -272,8 +302,8 @@ export class FeedCompiler {
           }
 
           return feedsFromTags(tags, mappings)
-        })
-      )
+        }),
+      ),
     )
 
     return this._compileUnion(feeds)

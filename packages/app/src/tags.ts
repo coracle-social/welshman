@@ -1,8 +1,14 @@
-import {ctx} from '@welshman/lib'
-import {getAddress, isReplaceable, getAncestorTags, getPubkeyTagValues, getIdAndAddress} from '@welshman/util'
-import type {TrustedEvent} from '@welshman/util'
-import {displayProfileByPubkey} from './profiles'
-import {pubkey} from './session'
+import {ctx} from "@welshman/lib"
+import {
+  getAddress,
+  isReplaceable,
+  getAncestorTags,
+  getPubkeyTagValues,
+  getIdAndAddress,
+} from "@welshman/util"
+import type {TrustedEvent} from "@welshman/util"
+import {displayProfileByPubkey} from "./profiles.js"
+import {pubkey} from "./session.js"
 
 export const tagZapSplit = (pubkey: string, split = 1) => [
   "zap",
@@ -102,6 +108,3 @@ export const tagReactionTo = (event: TrustedEvent) => {
 
   return tags
 }
-
-
-

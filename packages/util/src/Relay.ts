@@ -1,8 +1,8 @@
-import {last, Emitter, normalizeUrl, sleep, stripProtocol} from '@welshman/lib'
-import {matchFilters} from './Filters'
-import type {Repository} from './Repository'
-import type {Filter} from './Filters'
-import type {HashedEvent, TrustedEvent} from './Events'
+import {last, Emitter, normalizeUrl, sleep, stripProtocol} from "@welshman/lib"
+import {matchFilters} from "./Filters.js"
+import type {Repository} from "./Repository.js"
+import type {Filter} from "./Filters.js"
+import type {HashedEvent, TrustedEvent} from "./Events.js"
 
 // Constants and types
 
@@ -31,8 +31,8 @@ export type RelayProfile = {
 // Utils related to bare urls
 
 export const isRelayUrl = (url: string) => {
-  if (!url.includes('://')) {
-    url = 'wss://' + url
+  if (!url.includes("://")) {
+    url = "wss://" + url
   }
 
   try {
@@ -47,16 +47,16 @@ export const isRelayUrl = (url: string) => {
 export const isShareableRelayUrl = (url: string) =>
   Boolean(
     isRelayUrl(url) &&
-    // Is it actually a websocket url and has a dot
-    url.match(/^wss:\/\/.+\..+/) &&
-    // Don't match stuff with a port number
-    !url.slice(6).match(/:\d+/) &&
-    // Don't match stuff with a numeric tld
-    !url.slice(6).match(/\.\d+\b/) &&
-    // Don't match raw ip addresses
-    !url.slice(6).match(/\d+\.\d+\.\d+\.\d+/) &&
-    // Skip nostr.wine's virtual relays
-    !url.slice(6).match(/\/npub/)
+      // Is it actually a websocket url and has a dot
+      url.match(/^wss:\/\/.+\..+/) &&
+      // Don't match stuff with a port number
+      !url.slice(6).match(/:\d+/) &&
+      // Don't match stuff with a numeric tld
+      !url.slice(6).match(/\.\d+\b/) &&
+      // Don't match raw ip addresses
+      !url.slice(6).match(/\d+\.\d+\.\d+\.\d+/) &&
+      // Skip nostr.wine's virtual relays
+      !url.slice(6).match(/\/npub/),
   )
 
 export const normalizeRelayUrl = (url: string) => {
@@ -78,7 +78,8 @@ export const normalizeRelayUrl = (url: string) => {
 
 export const displayRelayUrl = (url: string) => last(url.split("://")).replace(/\/$/, "")
 
-export const displayRelayProfile = (profile?: RelayProfile, fallback = "") => profile?.name || fallback
+export const displayRelayProfile = (profile?: RelayProfile, fallback = "") =>
+  profile?.name || fallback
 
 // In-memory relay implementation backed by Repository
 
@@ -90,10 +91,13 @@ export class Relay<E extends HashedEvent = TrustedEvent> extends Emitter {
   }
 
   send(type: string, ...message: any[]) {
-    switch(type) {
-      case 'EVENT': return this.handleEVENT(message as [E])
-      case 'CLOSE': return this.handleCLOSE(message as [string])
-      case 'REQ': return this.handleREQ(message as [string, ...Filter[]])
+    switch (type) {
+      case "EVENT":
+        return this.handleEVENT(message as [E])
+      case "CLOSE":
+        return this.handleCLOSE(message as [string])
+      case "REQ":
+        return this.handleREQ(message as [string, ...Filter[]])
     }
   }
 
@@ -101,13 +105,13 @@ export class Relay<E extends HashedEvent = TrustedEvent> extends Emitter {
     this.repository.publish(event)
 
     // Callers generally expect async relays
-    sleep(1).then(() => {
-      this.emit('OK', event.id, true, "")
+    void sleep(1).then(() => {
+      this.emit("OK", event.id, true, "")
 
       if (!this.repository.isDeleted(event)) {
         for (const [subId, filters] of this.subs.entries()) {
           if (matchFilters(filters, event)) {
-            this.emit('EVENT', subId, event)
+            this.emit("EVENT", subId, event)
           }
         }
       }
@@ -122,12 +126,12 @@ export class Relay<E extends HashedEvent = TrustedEvent> extends Emitter {
     this.subs.set(subId, filters)
 
     // Callers generally expect async relays
-    sleep(1).then(() => {
+    void sleep(1).then(() => {
       for (const event of this.repository.query(filters)) {
-        this.emit('EVENT', subId, event)
+        this.emit("EVENT", subId, event)
       }
 
-      this.emit('EOSE', subId)
+      this.emit("EOSE", subId)
     })
   }
 }

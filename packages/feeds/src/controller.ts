@@ -1,9 +1,9 @@
-import {inc, memoize, omitVals, max, min, now} from '@welshman/lib'
-import type {TrustedEvent, Filter} from '@welshman/util'
-import {EPOCH, trimFilters, guessFilterDelta} from '@welshman/util'
-import type {Feed, RequestItem, FeedOptions} from './core'
-import {FeedType} from './core'
-import {FeedCompiler} from './compiler'
+import {inc, memoize, omitVals, max, min, now} from "@welshman/lib"
+import type {TrustedEvent, Filter} from "@welshman/util"
+import {EPOCH, trimFilters, guessFilterDelta} from "@welshman/util"
+import type {Feed, RequestItem, FeedOptions} from "./core.js"
+import {FeedType} from "./core.js"
+import {FeedCompiler} from "./compiler.js"
 
 export class FeedController {
   compiler: FeedCompiler
@@ -26,7 +26,7 @@ export class FeedController {
       return this._getRequestsLoader(requestItems)
     }
 
-    switch(type) {
+    switch (type) {
       case FeedType.Difference:
         return this._getDifferenceLoader(feed as Feed[])
       case FeedType.Intersection:
@@ -45,8 +45,8 @@ export class FeedController {
     const seen = new Set()
     const exhausted = new Set()
     const loaders = await Promise.all(
-      requests.map(
-        request => this._getRequestLoader(request, {
+      requests.map(request =>
+        this._getRequestLoader(request, {
           onExhausted: () => exhausted.add(request),
           onEvent: e => {
             if (!seen.has(e.id)) {
@@ -54,8 +54,8 @@ export class FeedController {
               seen.add(e.id)
             }
           },
-        })
-      )
+        }),
+      ),
     )
 
     return async (limit: number) => {
@@ -75,8 +75,8 @@ export class FeedController {
       filters = [{}]
     }
 
-    const untils = filters.flatMap((filter: Filter) => filter.until ? [filter.until] : [])
-    const sinces = filters.flatMap((filter: Filter) => filter.since ? [filter.since] : [])
+    const untils = filters.flatMap((filter: Filter) => (filter.until ? [filter.until] : []))
+    const sinces = filters.flatMap((filter: Filter) => (filter.since ? [filter.since] : []))
     const maxUntil = untils.length === filters.length ? max(untils) : now()
     const minSince = sinces.length === filters.length ? min(sinces) : EPOCH
     const initialDelta = guessFilterDelta(filters)
@@ -110,15 +110,17 @@ export class FeedController {
 
       let count = 0
 
-      await request(omitVals([undefined], {
-        relays,
-        filters: trimFilters(requestFilters),
-        onEvent: (event: TrustedEvent) => {
-          count += 1
-          until = Math.min(until, event.created_at - 1)
-          onEvent?.(event)
-        },
-      }))
+      await request(
+        omitVals([undefined], {
+          relays,
+          filters: trimFilters(requestFilters),
+          onEvent: (event: TrustedEvent) => {
+            count += 1
+            until = Math.min(until, event.created_at - 1)
+            onEvent?.(event)
+          },
+        }),
+      )
 
       if (useWindowing) {
         if (since === minSince) {
@@ -149,20 +151,21 @@ export class FeedController {
     const seen = new Set()
 
     const controllers = await Promise.all(
-      feeds.map((thisFeed: Feed, i: number) =>
-        new FeedController({
-          ...options,
-          feed: thisFeed,
-          onExhausted: () => exhausted.add(i),
-          onEvent: (event: TrustedEvent) => {
-            if (i === 0) {
-              events.push(event)
-            } else {
-              skip.add(event.id)
-            }
-          },
-        })
-      )
+      feeds.map(
+        (thisFeed: Feed, i: number) =>
+          new FeedController({
+            ...options,
+            feed: thisFeed,
+            onExhausted: () => exhausted.add(i),
+            onEvent: (event: TrustedEvent) => {
+              if (i === 0) {
+                events.push(event)
+              } else {
+                skip.add(event.id)
+              }
+            },
+          }),
+      ),
     )
 
     return async (limit: number) => {
@@ -173,7 +176,7 @@ export class FeedController {
           }
 
           await controller.load(limit)
-        })
+        }),
       )
 
       for (const event of events.splice(0)) {
@@ -197,17 +200,18 @@ export class FeedController {
     const seen = new Set()
 
     const controllers = await Promise.all(
-      feeds.map((thisFeed: Feed, i: number) =>
-        new FeedController({
-          ...options,
-          feed: thisFeed,
-          onExhausted: () => exhausted.add(i),
-          onEvent: (event: TrustedEvent) => {
-            events.push(event)
-            counts.set(event.id, inc(counts.get(event.id)))
-          },
-        })
-      )
+      feeds.map(
+        (thisFeed: Feed, i: number) =>
+          new FeedController({
+            ...options,
+            feed: thisFeed,
+            onExhausted: () => exhausted.add(i),
+            onEvent: (event: TrustedEvent) => {
+              events.push(event)
+              counts.set(event.id, inc(counts.get(event.id)))
+            },
+          }),
+      ),
     )
 
     return async (limit: number) => {
@@ -218,7 +222,7 @@ export class FeedController {
           }
 
           await controller.load(limit)
-        })
+        }),
       )
 
       for (const event of events.splice(0)) {
@@ -240,19 +244,20 @@ export class FeedController {
     const seen = new Set()
 
     const controllers = await Promise.all(
-      feeds.map((thisFeed: Feed, i: number) =>
-        new FeedController({
-          ...options,
-          feed: thisFeed,
-          onExhausted: () => exhausted.add(i),
-          onEvent: (event: TrustedEvent) => {
-            if (!seen.has(event.id)) {
-              onEvent?.(event)
-              seen.add(event.id)
-            }
-          },
-        })
-      )
+      feeds.map(
+        (thisFeed: Feed, i: number) =>
+          new FeedController({
+            ...options,
+            feed: thisFeed,
+            onExhausted: () => exhausted.add(i),
+            onEvent: (event: TrustedEvent) => {
+              if (!seen.has(event.id)) {
+                onEvent?.(event)
+                seen.add(event.id)
+              }
+            },
+          }),
+      ),
     )
 
     return async (limit: number) => {
@@ -263,7 +268,7 @@ export class FeedController {
           }
 
           await controller.load(limit)
-        })
+        }),
       )
 
       if (exhausted.size === controllers.length) {

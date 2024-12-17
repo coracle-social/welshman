@@ -1,8 +1,13 @@
-import {verifiedSymbol, getEventHash, verifyEvent} from 'nostr-tools'
-import {cached, pick, now} from '@welshman/lib'
-import {getAncestorTagValues} from './Tags'
-import {getAddress} from './Address'
-import {isEphemeralKind, isReplaceableKind, isPlainReplaceableKind, isParameterizedReplaceableKind} from './Kinds'
+import {verifiedSymbol, getEventHash, verifyEvent} from "nostr-tools/pure"
+import {cached, pick, now} from "@welshman/lib"
+import {getAncestorTagValues} from "./Tags.js"
+import {getAddress} from "./Address.js"
+import {
+  isEphemeralKind,
+  isReplaceableKind,
+  isPlainReplaceableKind,
+  isParameterizedReplaceableKind,
+} from "./Kinds.js"
 
 export type EventContent = {
   tags: string[][]
@@ -46,8 +51,10 @@ export type CreateEventOpts = {
   created_at?: number
 }
 
-export const createEvent = (kind: number, {content = "", tags = [], created_at = now()}: CreateEventOpts) =>
-  ({kind, content, tags, created_at})
+export const createEvent = (
+  kind: number,
+  {content = "", tags = [], created_at = now()}: CreateEventOpts,
+) => ({kind, content, tags, created_at})
 
 export const isEventTemplate = (e: EventTemplate): e is EventTemplate =>
   Boolean(typeof e.kind === "number" && Array.isArray(e.tags) && typeof e.content === "string")
@@ -58,8 +65,7 @@ export const isStampedEvent = (e: StampedEvent): e is StampedEvent =>
 export const isOwnedEvent = (e: OwnedEvent): e is OwnedEvent =>
   Boolean(isStampedEvent(e) && e.pubkey)
 
-export const isHashedEvent = (e: HashedEvent): e is HashedEvent =>
-  Boolean(isOwnedEvent(e) && e.id)
+export const isHashedEvent = (e: HashedEvent): e is HashedEvent => Boolean(isOwnedEvent(e) && e.id)
 
 export const isSignedEvent = (e: TrustedEvent): e is SignedEvent =>
   Boolean(isHashedEvent(e) && e.sig)
@@ -71,25 +77,25 @@ export const isTrustedEvent = (e: TrustedEvent): e is TrustedEvent =>
   isSignedEvent(e) || isUnwrappedEvent(e)
 
 export const asEventTemplate = (e: EventTemplate): EventTemplate =>
-  pick(['kind', 'tags', 'content'], e)
+  pick(["kind", "tags", "content"], e)
 
 export const asStampedEvent = (e: StampedEvent): StampedEvent =>
-  pick(['kind', 'tags', 'content', 'created_at'], e)
+  pick(["kind", "tags", "content", "created_at"], e)
 
 export const asOwnedEvent = (e: OwnedEvent): OwnedEvent =>
-  pick(['kind', 'tags', 'content', 'created_at', 'pubkey'], e)
+  pick(["kind", "tags", "content", "created_at", "pubkey"], e)
 
 export const asHashedEvent = (e: HashedEvent): HashedEvent =>
-  pick(['kind', 'tags', 'content', 'created_at', 'pubkey', 'id'], e)
+  pick(["kind", "tags", "content", "created_at", "pubkey", "id"], e)
 
 export const asSignedEvent = (e: SignedEvent): SignedEvent =>
-  pick(['kind', 'tags', 'content', 'created_at', 'pubkey', 'id', 'sig'], e)
+  pick(["kind", "tags", "content", "created_at", "pubkey", "id", "sig"], e)
 
 export const asUnwrappedEvent = (e: UnwrappedEvent): UnwrappedEvent =>
-  pick(['kind', 'tags', 'content', 'created_at', 'pubkey', 'id', 'wrap'], e)
+  pick(["kind", "tags", "content", "created_at", "pubkey", "id", "wrap"], e)
 
 export const asTrustedEvent = (e: TrustedEvent): TrustedEvent =>
-  pick(['kind', 'tags', 'content', 'created_at', 'pubkey', 'id', 'sig', 'wrap'], e)
+  pick(["kind", "tags", "content", "created_at", "pubkey", "id", "sig", "wrap"], e)
 
 const _hasValidSignature = cached<string, boolean, [SignedEvent]>({
   maxSize: 10000,
@@ -97,7 +103,7 @@ const _hasValidSignature = cached<string, boolean, [SignedEvent]>({
     try {
       return [getEventHash(e), e.sig].join(":")
     } catch (err) {
-      return 'invalid'
+      return "invalid"
     }
   },
   getValue: ([e]: [SignedEvent]) => {
@@ -113,11 +119,12 @@ const _hasValidSignature = cached<string, boolean, [SignedEvent]>({
 
 export const hasValidSignature = (e: SignedEvent) => e[verifiedSymbol] || _hasValidSignature(e)
 
-export const getIdentifier = (e: EventTemplate) => e.tags.find(t => t[0] === 'd')?.[1]
+export const getIdentifier = (e: EventTemplate) => e.tags.find(t => t[0] === "d")?.[1]
 
-export const getIdOrAddress = (e: HashedEvent) => isReplaceable(e) ? getAddress(e) : e.id
+export const getIdOrAddress = (e: HashedEvent) => (isReplaceable(e) ? getAddress(e) : e.id)
 
-export const getIdAndAddress = (e: HashedEvent) => isReplaceable(e) ? [e.id, getAddress(e)] : [e.id]
+export const getIdAndAddress = (e: HashedEvent) =>
+  isReplaceable(e) ? [e.id, getAddress(e)] : [e.id]
 
 export const isEphemeral = (e: EventTemplate) => isEphemeralKind(e.kind)
 
@@ -125,7 +132,8 @@ export const isReplaceable = (e: EventTemplate) => isReplaceableKind(e.kind)
 
 export const isPlainReplaceable = (e: EventTemplate) => isPlainReplaceableKind(e.kind)
 
-export const isParameterizedReplaceable = (e: EventTemplate) => isParameterizedReplaceableKind(e.kind)
+export const isParameterizedReplaceable = (e: EventTemplate) =>
+  isParameterizedReplaceableKind(e.kind)
 
 export const isChildOf = (child: EventContent, parent: HashedEvent) => {
   const {roots, replies} = getAncestorTagValues(child.tags)

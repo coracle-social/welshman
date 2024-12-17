@@ -15,24 +15,19 @@
   "exports": {
     ".": {
       "types": "./build/src/index.d.ts",
-      "import": "./build/src/index.mjs",
-      "require": "./build/src/index.cjs"
+      "import": "./build/src/index.js",
+      "require": "./build/src/index.js"
     }
   },
   "scripts": {
     "pub": "npm run lint && npm run build && npm publish",
-    "build": "gts clean && tsc-multi",
+    "build": "gts clean && tsc",
     "lint": "gts lint",
     "fix": "gts fix"
   },
-  "devDependencies": {
-    "gts": "^5.0.1",
-    "tsc-multi": "^1.1.0",
-    "typescript": "~5.1.6"
-  },
   "dependencies": {
-    "@types/events": "^3.0.3",
     "@scure/base": "^1.1.6",
+    "@types/events": "^3.0.3",
     "events": "^3.3.0"
   }
 }

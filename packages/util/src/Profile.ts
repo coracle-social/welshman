@@ -1,8 +1,8 @@
-import {nip19} from "nostr-tools"
+import {npubEncode} from "nostr-tools/nip19"
 import {ellipsize, parseJson} from "@welshman/lib"
-import {TrustedEvent} from "./Events"
-import {getLnUrl} from './Zaps'
-import {PROFILE} from "./Kinds"
+import {TrustedEvent} from "./Events.js"
+import {getLnUrl} from "./Zaps.js"
+import {PROFILE} from "./Kinds.js"
 
 export type Profile = {
   name?: string
@@ -27,13 +27,15 @@ export const isPublishedProfile = (profile: Profile): profile is PublishedProfil
 
 export const makeProfile = (profile: Partial<Profile> = {}): Profile => {
   const address = profile.lud06 || profile.lud16
-  const lnurl = typeof address === 'string' ? getLnUrl(address) : null
+  const lnurl = typeof address === "string" ? getLnUrl(address) : null
 
   return lnurl ? {lnurl, ...profile} : profile
 }
 
-export const readProfile = (event: TrustedEvent): PublishedProfile =>
-  ({...makeProfile(parseJson(event.content) || {}), event})
+export const readProfile = (event: TrustedEvent): PublishedProfile => ({
+  ...makeProfile(parseJson(event.content) || {}),
+  event,
+})
 
 export const createProfile = ({event, ...profile}: Profile) => ({
   kind: PROFILE,
@@ -47,7 +49,7 @@ export const editProfile = ({event, ...profile}: PublishedProfile) => ({
 })
 
 export const displayPubkey = (pubkey: string) => {
-  const d = nip19.npubEncode(pubkey)
+  const d = npubEncode(pubkey)
 
   return d.slice(0, 8) + "…" + d.slice(-5)
 }

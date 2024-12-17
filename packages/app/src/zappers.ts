@@ -1,9 +1,19 @@
-import {writable, derived} from 'svelte/store'
-import {type Zapper} from '@welshman/util'
+import {writable, derived} from "svelte/store"
+import {type Zapper} from "@welshman/util"
 import {type SubscribeRequestWithHandlers} from "@welshman/net"
-import {ctx, identity, fetchJson, uniq, bech32ToHex, hexToBech32, tryCatch, batcher, postJson} from '@welshman/lib'
-import {collection} from './collection'
-import {deriveProfile} from './profiles'
+import {
+  ctx,
+  identity,
+  fetchJson,
+  uniq,
+  bech32ToHex,
+  hexToBech32,
+  tryCatch,
+  batcher,
+  postJson,
+} from "@welshman/lib"
+import {collection} from "./collection.js"
+import {deriveProfile} from "./profiles.js"
 
 export const zappers = writable<Zapper[]>([])
 
@@ -16,7 +26,9 @@ export const fetchZappers = async (lnurls: string[]) => {
     const hexUrls = lnurls.map(lnurl => tryCatch(() => bech32ToHex(lnurl))).filter(identity)
 
     if (hexUrls.length > 0) {
-      const res: any = await tryCatch(async () => await postJson(`${base}/zapper/info`, {lnurls: hexUrls}))
+      const res: any = await tryCatch(
+        async () => await postJson(`${base}/zapper/info`, {lnurls: hexUrls}),
+      )
 
       for (const {lnurl, info} of res?.data || []) {
         tryCatch(() => zappersByLnurl.set(hexToBech32("lnurl", lnurl), info))
@@ -29,7 +41,7 @@ export const fetchZappers = async (lnurls: string[]) => {
         const info = hexUrl ? await tryCatch(async () => await fetchJson(hexUrl)) : undefined
 
         return {lnurl, hexUrl, info}
-      })
+      }),
     )
 
     for (const {lnurl, info} of results) {
@@ -68,17 +80,16 @@ export const {
   }),
 })
 
-export const deriveZapperForPubkey = (pubkey: string, request: Partial<SubscribeRequestWithHandlers> = {}) =>
-  derived(
-    [zappersByLnurl, deriveProfile(pubkey, request)],
-    ([$zappersByLnurl, $profile]) => {
-      if (!$profile?.lnurl) {
-        return undefined
-      }
-
-      loadZapper($profile.lnurl)
-
-      return $zappersByLnurl.get($profile.lnurl)
+export const deriveZapperForPubkey = (
+  pubkey: string,
+  request: Partial<SubscribeRequestWithHandlers> = {},
+) =>
+  derived([zappersByLnurl, deriveProfile(pubkey, request)], ([$zappersByLnurl, $profile]) => {
+    if (!$profile?.lnurl) {
+      return undefined
     }
-  )
 
+    loadZapper($profile.lnurl)
+
+    return $zappersByLnurl.get($profile.lnurl)
+  })

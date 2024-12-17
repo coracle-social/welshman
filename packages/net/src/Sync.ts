@@ -1,7 +1,7 @@
-import {ctx, assoc, lt, groupBy, now, pushToMapKey, inc, flatten, chunk} from '@welshman/lib'
-import type {SignedEvent, TrustedEvent, Filter} from '@welshman/util'
-import {subscribe} from './Subscribe'
-import {publish} from './Publish'
+import {ctx, assoc, lt, groupBy, now, pushToMapKey, inc, flatten, chunk} from "@welshman/lib"
+import type {SignedEvent, TrustedEvent, Filter} from "@welshman/util"
+import {subscribe} from "./Subscribe.js"
+import {publish} from "./Publish.js"
 
 export type DiffOpts = {
   relays: string[]
@@ -19,11 +19,11 @@ export const diff = async ({relays, filters, events}: DiffOpts) => {
             const have = new Set<string>()
             const need = new Set<string>()
 
-            await new Promise<void>((resolve, reject) =>  {
+            await new Promise<void>((resolve, reject) => {
               executor.diff(filter, events, {
                 onClose: resolve,
-                onError: (_, message) => reject(message),
-                onMessage: (_, message) => {
+                onError: (url, message) => reject(message),
+                onMessage: (url, message) => {
                   for (const id of message.have) {
                     have.add(id)
                   }
@@ -36,29 +36,28 @@ export const diff = async ({relays, filters, events}: DiffOpts) => {
             })
 
             return {relay, have, need}
-          })
+          }),
         )
-      })
-    )
+      }),
+    ),
   )
 
-  return Array.from(groupBy(diff => diff.relay, diffs).entries())
-    .map(([relay, diffs]) => {
-      const have = new Set<string>()
-      const need = new Set<string>()
+  return Array.from(groupBy(diff => diff.relay, diffs).entries()).map(([relay, diffs]) => {
+    const have = new Set<string>()
+    const need = new Set<string>()
 
-      for (const diff of diffs) {
-        for (const id of diff.have) {
-          have.add(id)
-        }
-
-        for (const id of diff.need) {
-          need.add(id)
-        }
+    for (const diff of diffs) {
+      for (const id of diff.have) {
+        have.add(id)
       }
 
-      return {relay, have: Array.from(have), need: Array.from(need)}
-    })
+      for (const id of diff.need) {
+        need.add(id)
+      }
+    }
+
+    return {relay, have: Array.from(have), need: Array.from(need)}
+  })
 }
 
 export type PullOpts = {
@@ -103,9 +102,9 @@ export const pull = async ({relays, filters, events, onEvent}: PullOpts) => {
               },
             })
           })
-        })
+        }),
       )
-    })
+    }),
   )
 
   return result
@@ -133,7 +132,7 @@ export const push = async ({relays, filters, events}: PushOpts) => {
       if (relays) {
         await publish({event, relays}).result
       }
-    })
+    }),
   )
 }
 
@@ -156,7 +155,11 @@ export type PullWithoutNegentropyOpts = {
   onEvent?: (event: TrustedEvent) => void
 }
 
-export const pullWithoutNegentropy = async ({relays, filters, onEvent}: PullWithoutNegentropyOpts) => {
+export const pullWithoutNegentropy = async ({
+  relays,
+  filters,
+  onEvent,
+}: PullWithoutNegentropyOpts) => {
   let done = false
   let until = now() + 30
 
@@ -168,7 +171,7 @@ export const pullWithoutNegentropy = async ({relays, filters, onEvent}: PullWith
     await new Promise<void>(resolve => {
       subscribe({
         relays,
-        filters: filters.filter(f => lt(f.since, until)).map(assoc('until', until)),
+        filters: filters.filter(f => lt(f.since, until)).map(assoc("until", until)),
         closeOnEose: true,
         onComplete: () => {
           done = !anyResults
@@ -196,7 +199,7 @@ export const pushWithoutNegentropy = ({relays, events}: PushWithoutNegentropyOpt
   Promise.all(
     events.map(async event => {
       await publish({event, relays}).result
-    })
+    }),
   )
 
 export const syncWithoutNegentropy = async (opts: SyncOpts) => {

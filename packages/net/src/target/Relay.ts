@@ -1,7 +1,7 @@
-import {Emitter} from '@welshman/lib'
-import {ConnectionEvent} from '../ConnectionEvent'
-import type {Message} from '../Socket'
-import type {Connection} from '../Connection'
+import {Emitter} from "@welshman/lib"
+import {ConnectionEvent} from "../ConnectionEvent.js"
+import type {Message} from "../Socket.js"
+import type {Connection} from "../Connection.js"
 
 export class Relay extends Emitter {
   constructor(readonly connection: Connection) {

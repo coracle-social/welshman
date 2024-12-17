@@ -1,15 +1,21 @@
-import {ctx, randomInt, uniq, noop, always} from '@welshman/lib'
-import {LOCAL_RELAY_URL, matchFilters, unionFilters, isSignedEvent, hasValidSignature} from '@welshman/util'
-import type {StampedEvent, SignedEvent, Filter, TrustedEvent} from '@welshman/util'
-import {Pool} from "./Pool"
-import {Executor} from "./Executor"
-import {AuthMode} from "./ConnectionAuth"
-import {Relays} from "./target/Relays"
-import type {Subscription, RelaysAndFilters} from "./Subscribe"
+import {ctx, randomInt, uniq, noop, always} from "@welshman/lib"
+import {
+  LOCAL_RELAY_URL,
+  matchFilters,
+  unionFilters,
+  isSignedEvent,
+  hasValidSignature,
+} from "@welshman/util"
+import type {StampedEvent, SignedEvent, Filter, TrustedEvent} from "@welshman/util"
+import {Pool} from "./Pool.js"
+import {Executor} from "./Executor.js"
+import {AuthMode} from "./ConnectionAuth.js"
+import {Relays} from "./target/Relays.js"
+import type {Subscription, RelaysAndFilters} from "./Subscribe.js"
 
 export type NetContext = {
   pool: Pool
-  authMode: AuthMode,
+  authMode: AuthMode
   onEvent: (url: string, event: TrustedEvent) => void
   signEvent: (event: StampedEvent) => Promise<SignedEvent | undefined>
   getExecutor: (relays: string[]) => Executor
@@ -20,13 +26,12 @@ export type NetContext = {
 }
 
 export const defaultOptimizeSubscriptions = (subs: Subscription[]) =>
-  uniq(subs.flatMap(sub => sub.request.relays || []))
-    .map(relay => {
-      const relaySubs = subs.filter(sub => sub.request.relays.includes(relay))
-      const filters = unionFilters(relaySubs.flatMap(sub => sub.request.filters))
+  uniq(subs.flatMap(sub => sub.request.relays || [])).map(relay => {
+    const relaySubs = subs.filter(sub => sub.request.relays.includes(relay))
+    const filters = unionFilters(relaySubs.flatMap(sub => sub.request.filters))
 
-      return {relays: [relay], filters}
-    })
+    return {relays: [relay], filters}
+  })
 
 export const eventValidationScores = new Map<string, number>()
 
@@ -56,8 +61,10 @@ export const getDefaultNetContext = (overrides: Partial<NetContext> = {}) => ({
   signEvent: noop,
   isDeleted: always(false),
   isValid: isEventValid,
-  getExecutor: (relays: string[]) => new Executor(new Relays(relays.map((relay: string) => ctx.net.pool.get(relay)))),
-  matchFilters: (url: string, filters: Filter[], event: TrustedEvent) => matchFilters(filters, event),
+  getExecutor: (relays: string[]) =>
+    new Executor(new Relays(relays.map((relay: string) => ctx.net.pool.get(relay)))),
+  matchFilters: (url: string, filters: Filter[], event: TrustedEvent) =>
+    matchFilters(filters, event),
   optimizeSubscriptions: defaultOptimizeSubscriptions,
   ...overrides,
 })

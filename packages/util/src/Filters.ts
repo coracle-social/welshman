@@ -1,8 +1,19 @@
-import {matchFilter as nostrToolsMatchFilter} from 'nostr-tools'
-import {without, uniqBy, prop, mapVals, shuffle, avg, hash, groupBy, randomId, uniq} from '@welshman/lib'
-import type {HashedEvent, TrustedEvent, SignedEvent} from './Events'
-import {isReplaceableKind} from './Kinds'
-import {Address, getAddress} from './Address'
+import {matchFilter as nostrToolsMatchFilter} from "nostr-tools/filter"
+import {
+  without,
+  uniqBy,
+  prop,
+  mapVals,
+  shuffle,
+  avg,
+  hash,
+  groupBy,
+  randomId,
+  uniq,
+} from "@welshman/lib"
+import type {HashedEvent, TrustedEvent, SignedEvent} from "./Events.js"
+import {isReplaceableKind} from "./Kinds.js"
+import {Address, getAddress} from "./Address.js"
 
 export const EPOCH = 1609459200
 
@@ -58,12 +69,12 @@ export const getFilterId = (filter: Filter) => {
   const parts = []
   for (const k of keys) {
     const v = filter[k as keyof Filter]
-    const s = Array.isArray(v) ? v.join(',') : v
+    const s = Array.isArray(v) ? v.join(",") : v
 
-    parts.push([k, s].join(':'))
+    parts.push([k, s].join(":"))
   }
 
-  return hash(parts.join('|'))
+  return hash(parts.join("|"))
 }
 
 export const calculateFilterGroup = ({since, until, limit, search, ...filter}: Filter) => {
@@ -107,13 +118,13 @@ export const intersectFilters = (groups: Filter[][]) => {
         const f3: Filter = {}
 
         for (const k of uniq([...Object.keys(f1), ...Object.keys(f2)]) as (keyof Filter)[]) {
-          if (k === 'since' || k === 'limit') {
+          if (k === "since" || k === "limit") {
             f3[k] = Math.max(f1[k] || 0, f2[k] || 0)
-          } else if (k === 'until') {
+          } else if (k === "until") {
             f3[k] = Math.min(f1[k] || f2[k] || 0, f2[k] || f1[k] || 0)
-          } else if (k === 'search') {
+          } else if (k === "search") {
             if (f1[k] && f2[k] && f1[k] !== f2[k]) {
-              f3[k] = [f1[k], f2[k]].join(' ')
+              f3[k] = [f1[k], f2[k]].join(" ")
             } else {
               f3[k] = f1[k] || f2[k]
             }
@@ -186,7 +197,6 @@ export const getReplyFilters = (events: TrustedEvent[], filter: Filter = {}) => 
   return filters
 }
 
-
 export const addRepostFilters = (filters: Filter[]) =>
   filters.flatMap(original => {
     const filterChunk = [original]
@@ -239,6 +249,9 @@ export const getFilterResultCardinality = (filter: Filter) => {
 }
 
 export const trimFilter = (filter: Filter): Filter =>
-  mapVals(v => Array.isArray(v) && v.length > 1000 ? shuffle(v as string[]).slice(0, 1000) : v, filter) as Filter
+  mapVals(
+    v => (Array.isArray(v) && v.length > 1000 ? shuffle(v as string[]).slice(0, 1000) : v),
+    filter,
+  ) as Filter
 
 export const trimFilters = (filters: Filter[]) => filters.map(trimFilter)

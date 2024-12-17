@@ -1,5 +1,5 @@
-import {StampedEvent} from '@welshman/util'
-import {hash, own, Sign, ISigner, EncryptionImplementation} from '../util'
+import {StampedEvent} from "@welshman/util"
+import {hash, own, Sign, ISigner, EncryptionImplementation} from "../util.js"
 
 export type Nip07 = {
   signEvent: Sign
@@ -23,7 +23,10 @@ export class Nip07Signer implements ISigner {
     })
 
     // Recover from errors
-    this.#lock = promise.then(() => undefined, () => undefined)
+    this.#lock = promise.then(
+      () => undefined,
+      () => undefined,
+    )
 
     return promise
   }
@@ -50,4 +53,3 @@ export class Nip07Signer implements ISigner {
       this.#then(ext => ext.nip44.decrypt(pubkey, message)),
   }
 }
-

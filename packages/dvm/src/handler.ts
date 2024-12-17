@@ -1,8 +1,8 @@
-import {hexToBytes} from '@noble/hashes/utils'
-import {getPublicKey, finalizeEvent} from 'nostr-tools'
-import {now} from '@welshman/lib'
-import type {TrustedEvent, StampedEvent, Filter} from '@welshman/util'
-import {subscribe, publish} from '@welshman/net'
+import {hexToBytes} from "@noble/hashes/utils"
+import {getPublicKey, finalizeEvent} from "nostr-tools/pure"
+import {now} from "@welshman/lib"
+import type {TrustedEvent, StampedEvent, Filter} from "@welshman/util"
+import {subscribe, publish} from "@welshman/net"
 
 export type DVMHandler = {
   stop?: () => void
@@ -43,14 +43,14 @@ export class DVM {
         const filter: Filter = {kinds, since}
 
         if (requireMention) {
-          filter['#p'] = [getPublicKey(hexToBytes(sk))]
+          filter["#p"] = [getPublicKey(hexToBytes(sk))]
         }
 
         const filters = [filter]
         const sub = subscribe({relays, filters})
 
-        sub.emitter.on('event', (url: string, e: TrustedEvent) => this.onEvent(e))
-        sub.emitter.on('complete', () => resolve())
+        sub.emitter.on("event", (url: string, e: TrustedEvent) => this.onEvent(e))
+        sub.emitter.on("complete", () => resolve())
       })
     }
   }
@@ -79,29 +79,29 @@ export class DVM {
     this.seen.add(request.id)
 
     if (this.logEvents) {
-      console.info('Handling request', request)
+      console.info("Handling request", request)
     }
 
     for await (const event of handler.handleEvent(request)) {
       if (event.kind !== 7000) {
-        event.tags.push(['request', JSON.stringify(request)])
+        event.tags.push(["request", JSON.stringify(request)])
 
-        const inputTag = request.tags.find((t: string[]) => t[0] === 'i')
+        const inputTag = request.tags.find((t: string[]) => t[0] === "i")
 
         if (inputTag) {
           event.tags.push(inputTag)
         }
       }
 
-      event.tags.push(['p', request.pubkey])
-      event.tags.push(['e', request.id])
+      event.tags.push(["p", request.pubkey])
+      event.tags.push(["e", request.id])
 
       if (expireAfter) {
-        event.tags.push(['expiration', String(now() + expireAfter)])
+        event.tags.push(["expiration", String(now() + expireAfter)])
       }
 
       if (this.logEvents) {
-        console.info('Publishing event', event)
+        console.info("Publishing event", event)
       }
 
       this.publish(event)
@@ -113,7 +113,7 @@ export class DVM {
     const event = finalizeEvent(template, hexToBytes(sk))
 
     await new Promise<void>(resolve => {
-      publish({event, relays}).emitter.on('success', () => resolve())
+      publish({event, relays}).emitter.on("success", () => resolve())
     })
   }
 }

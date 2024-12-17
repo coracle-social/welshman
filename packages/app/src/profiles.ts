@@ -1,19 +1,19 @@
-import {derived, readable} from 'svelte/store'
-import {readProfile, displayProfile, displayPubkey, PROFILE} from '@welshman/util'
+import {derived, readable} from "svelte/store"
+import {readProfile, displayProfile, displayPubkey, PROFILE} from "@welshman/util"
 import type {SubscribeRequestWithHandlers} from "@welshman/net"
 import type {PublishedProfile} from "@welshman/util"
-import {deriveEventsMapped, withGetter} from '@welshman/store'
-import {repository} from './core'
-import {load} from './subscribe'
-import {collection} from './collection'
-import {loadRelaySelections} from './relaySelections'
+import {deriveEventsMapped, withGetter} from "@welshman/store"
+import {repository} from "./core.js"
+import {load} from "./subscribe.js"
+import {collection} from "./collection.js"
+import {loadRelaySelections} from "./relaySelections.js"
 
 export const profiles = withGetter(
   deriveEventsMapped<PublishedProfile>(repository, {
     filters: [{kinds: [PROFILE]}],
     eventToItem: readProfile,
     itemToEvent: item => item.event,
-  })
+  }),
 )
 
 export const {
@@ -45,9 +45,7 @@ export const {
 })
 
 export const displayProfileByPubkey = (pubkey: string | undefined) =>
-  pubkey
-    ? displayProfile(profilesByPubkey.get().get(pubkey), displayPubkey(pubkey))
-    : ""
+  pubkey ? displayProfile(profilesByPubkey.get().get(pubkey), displayPubkey(pubkey)) : ""
 
 export const deriveProfileDisplay = (pubkey: string | undefined) =>
   pubkey

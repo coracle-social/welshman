@@ -1,11 +1,20 @@
-import {uniq} from '@welshman/lib'
-import {INBOX_RELAYS, RELAYS, normalizeRelayUrl, asDecryptedEvent, readList, getListTags, getRelayTags, getRelayTagValues} from '@welshman/util'
-import type {TrustedEvent, PublishedList, List} from '@welshman/util'
+import {uniq} from "@welshman/lib"
+import {
+  INBOX_RELAYS,
+  RELAYS,
+  normalizeRelayUrl,
+  asDecryptedEvent,
+  readList,
+  getListTags,
+  getRelayTags,
+  getRelayTagValues,
+} from "@welshman/util"
+import type {TrustedEvent, PublishedList, List} from "@welshman/util"
 import type {SubscribeRequestWithHandlers} from "@welshman/net"
-import {deriveEventsMapped} from '@welshman/store'
-import {repository} from './core'
-import {load} from './subscribe'
-import {collection} from './collection'
+import {deriveEventsMapped} from "@welshman/store"
+import {repository} from "./core.js"
+import {load} from "./subscribe.js"
+import {collection} from "./collection.js"
 
 export const getRelayUrls = (list?: List): string[] =>
   uniq(getRelayTagValues(getListTags(list)).map(normalizeRelayUrl))
@@ -14,21 +23,20 @@ export const getReadRelayUrls = (list?: List): string[] =>
   uniq(
     getRelayTags(getListTags(list))
       .filter((t: string[]) => !t[2] || t[2] === "read")
-      .map((t: string[]) => normalizeRelayUrl(t[1]))
+      .map((t: string[]) => normalizeRelayUrl(t[1])),
   )
 
 export const getWriteRelayUrls = (list?: List): string[] =>
   uniq(
     getRelayTags(getListTags(list))
       .filter((t: string[]) => !t[2] || t[2] === "write")
-      .map((t: string[]) => normalizeRelayUrl(t[1]))
+      .map((t: string[]) => normalizeRelayUrl(t[1])),
   )
 
 export const relaySelections = deriveEventsMapped<PublishedList>(repository, {
   filters: [{kinds: [RELAYS]}],
   itemToEvent: item => item.event,
-  eventToItem: (event: TrustedEvent) =>
-    readList(asDecryptedEvent(event)),
+  eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
 })
 
 export const {
@@ -46,8 +54,7 @@ export const {
 export const inboxRelaySelections = deriveEventsMapped<PublishedList>(repository, {
   filters: [{kinds: [INBOX_RELAYS]}],
   itemToEvent: item => item.event,
-  eventToItem: (event: TrustedEvent) =>
-    readList(asDecryptedEvent(event)),
+  eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
 })
 
 export const {

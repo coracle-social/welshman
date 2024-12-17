@@ -1,6 +1,6 @@
-import type {Message} from './Socket'
-import type {Connection} from './Connection'
-import {ConnectionEvent} from './ConnectionEvent'
+import type {Message} from "./Socket.js"
+import type {Connection} from "./Connection.js"
+import {ConnectionEvent} from "./ConnectionEvent.js"
 
 export class ConnectionStats {
   openCount = 0
@@ -40,19 +40,19 @@ export class ConnectionStats {
     })
 
     cxn.on(ConnectionEvent.Send, (cxn: Connection, [verb]: Message) => {
-      if (verb === 'REQ') {
+      if (verb === "REQ") {
         this.requestCount++
         this.lastRequest = Date.now()
       }
 
-      if (verb === 'EVENT') {
+      if (verb === "EVENT") {
         this.publishCount++
         this.lastPublish = Date.now()
       }
     })
 
     cxn.on(ConnectionEvent.Receive, (cxn: Connection, [verb, ...extra]: Message) => {
-      if (verb === 'OK') {
+      if (verb === "OK") {
         const pub = this.cxn.state.pendingPublishes.get(extra[0])
 
         if (pub) {
@@ -66,16 +66,16 @@ export class ConnectionStats {
         }
       }
 
-      if (verb === 'AUTH') {
+      if (verb === "AUTH") {
         this.lastAuth = Date.now()
       }
 
-      if (verb === 'EVENT') {
+      if (verb === "EVENT") {
         this.eventCount++
         this.lastEvent = Date.now()
       }
 
-      if (verb === 'EOSE') {
+      if (verb === "EOSE") {
         const request = this.cxn.state.pendingRequests.get(extra[0])
 
         // Only count the first eose
@@ -85,13 +85,14 @@ export class ConnectionStats {
         }
       }
 
-      if (verb === 'NOTICE') {
+      if (verb === "NOTICE") {
         this.noticeCount++
       }
     })
   }
 
-  getRequestSpeed = () => this.eoseCount ? this.eoseTimer / this.eoseCount : 0
+  getRequestSpeed = () => (this.eoseCount ? this.eoseTimer / this.eoseCount : 0)
 
-  getPublishSpeed = () => this.publishSuccessCount ? this.publishTimer / this.publishSuccessCount : 0
+  getPublishSpeed = () =>
+    this.publishSuccessCount ? this.publishTimer / this.publishSuccessCount : 0
 }

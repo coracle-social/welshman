@@ -1,5 +1,5 @@
-import {nip19} from "nostr-tools"
-import {sanitizeUrl} from '@braintree/sanitize-url'
+import {decode, neventEncode, nprofileEncode, naddrEncode} from "nostr-tools/nip19"
+import {sanitizeUrl} from "@braintree/sanitize-url"
 
 const last = <T>(xs: T[], ...args: unknown[]) => xs[xs.length - 1]
 
@@ -33,7 +33,7 @@ type ProfilePointer = {
 
 export type ParseContext = {
   results: Parsed[]
-  content: string,
+  content: string
   tags: string[][]
 }
 
@@ -124,31 +124,36 @@ export type ParsedAddress = {
 }
 
 export type Parsed =
-  ParsedAddress |
-  ParsedCashu |
-  ParsedCode |
-  ParsedEllipsis |
-  ParsedEvent |
-  ParsedInvoice |
-  ParsedLink |
-  ParsedNewline |
-  ParsedProfile |
-  ParsedText |
-  ParsedTopic
+  | ParsedAddress
+  | ParsedCashu
+  | ParsedCode
+  | ParsedEllipsis
+  | ParsedEvent
+  | ParsedInvoice
+  | ParsedLink
+  | ParsedNewline
+  | ParsedProfile
+  | ParsedText
+  | ParsedTopic
 
 // Matchers
 
-export const isAddress  = (parsed: Parsed): parsed is ParsedAddress  => parsed.type === ParsedType.Address
-export const isCashu    = (parsed: Parsed): parsed is ParsedCashu    => parsed.type === ParsedType.Cashu
-export const isCode     = (parsed: Parsed): parsed is ParsedCode     => parsed.type === ParsedType.Code
-export const isEllipsis = (parsed: Parsed): parsed is ParsedEllipsis => parsed.type === ParsedType.Ellipsis
-export const isEvent    = (parsed: Parsed): parsed is ParsedEvent    => parsed.type === ParsedType.Event
-export const isInvoice  = (parsed: Parsed): parsed is ParsedInvoice  => parsed.type === ParsedType.Invoice
-export const isLink     = (parsed: Parsed): parsed is ParsedLink     => parsed.type === ParsedType.Link
-export const isNewline  = (parsed: Parsed): parsed is ParsedNewline  => parsed.type === ParsedType.Newline
-export const isProfile  = (parsed: Parsed): parsed is ParsedProfile  => parsed.type === ParsedType.Profile
-export const isText     = (parsed: Parsed): parsed is ParsedText     => parsed.type === ParsedType.Text
-export const isTopic    = (parsed: Parsed): parsed is ParsedTopic    => parsed.type === ParsedType.Topic
+export const isAddress = (parsed: Parsed): parsed is ParsedAddress =>
+  parsed.type === ParsedType.Address
+export const isCashu = (parsed: Parsed): parsed is ParsedCashu => parsed.type === ParsedType.Cashu
+export const isCode = (parsed: Parsed): parsed is ParsedCode => parsed.type === ParsedType.Code
+export const isEllipsis = (parsed: Parsed): parsed is ParsedEllipsis =>
+  parsed.type === ParsedType.Ellipsis
+export const isEvent = (parsed: Parsed): parsed is ParsedEvent => parsed.type === ParsedType.Event
+export const isInvoice = (parsed: Parsed): parsed is ParsedInvoice =>
+  parsed.type === ParsedType.Invoice
+export const isLink = (parsed: Parsed): parsed is ParsedLink => parsed.type === ParsedType.Link
+export const isNewline = (parsed: Parsed): parsed is ParsedNewline =>
+  parsed.type === ParsedType.Newline
+export const isProfile = (parsed: Parsed): parsed is ParsedProfile =>
+  parsed.type === ParsedType.Profile
+export const isText = (parsed: Parsed): parsed is ParsedText => parsed.type === ParsedType.Text
+export const isTopic = (parsed: Parsed): parsed is ParsedTopic => parsed.type === ParsedType.Topic
 
 // Parsers for known formats
 
@@ -157,7 +162,7 @@ export const parseAddress = (text: string, context: ParseContext): ParsedAddress
 
   if (naddr) {
     try {
-      const {data} = nip19.decode(fromNostrURI(naddr))
+      const {data} = decode(fromNostrURI(naddr))
 
       return {type: ParsedType.Address, value: data as AddressPointer, raw: naddr}
     } catch (e) {
@@ -195,10 +200,8 @@ export const parseEvent = (text: string, context: ParseContext): ParsedEvent | v
 
   if (entity) {
     try {
-      const {type, data} = nip19.decode(fromNostrURI(entity))
-      const value = type === "note"
-        ? {id: data as string, relays: []}
-        : data as EventPointer
+      const {type, data} = decode(fromNostrURI(entity))
+      const value = type === "note" ? {id: data as string, relays: []} : (data as EventPointer)
 
       return {type: ParsedType.Event, value, raw: entity}
     } catch (e) {
@@ -217,15 +220,16 @@ export const parseInvoice = (text: string, context: ParseContext): ParsedInvoice
 
 export const parseLink = (text: string, context: ParseContext): ParsedLink | void => {
   const prev = last(context.results)
-  const [link] = text.match(/^([a-z\+:]{2,30}:\/\/)?[-\.~\w]+\.[\w]{2,6}([^\s]*[^<>"'\.!,:\s\)\(]+)?/gi) || []
+  const [link] =
+    text.match(/^([a-z\+:]{2,30}:\/\/)?[-\.~\w]+\.[\w]{2,6}([^\s]*[^<>"'\.!,:\s\)\(]+)?/gi) || []
 
   // Skip url if it's just the end of a filepath or an ellipse
-  if (!link || prev?.type === ParsedType.Text && prev.value.endsWith("/") || link.match(/\.\./)) {
+  if (!link || (prev?.type === ParsedType.Text && prev.value.endsWith("/")) || link.match(/\.\./)) {
     return
   }
 
   // Skip it if it looks like an IP address but doesn't have a protocol
-  if (link.match(/\d+\.\d+/) && !link.includes('://')) {
+  if (link.match(/\d+\.\d+/) && !link.includes("://")) {
     return
   }
 
@@ -240,7 +244,7 @@ export const parseLink = (text: string, context: ParseContext): ParsedLink | voi
   const meta = Object.fromEntries(new URLSearchParams(url.hash.slice(1)).entries())
 
   for (const tag of context.tags) {
-    if (tag[0] === 'imeta' && tag.find(t => t.includes(`url ${link}`))) {
+    if (tag[0] === "imeta" && tag.find(t => t.includes(`url ${link}`))) {
       Object.assign(meta, Object.fromEntries(tag.slice(1).map((m: string) => m.split(" "))))
     }
   }
@@ -261,10 +265,9 @@ export const parseProfile = (text: string, context: ParseContext): ParsedProfile
 
   if (entity) {
     try {
-      const {type, data} = nip19.decode(fromNostrURI(entity.replace('@', '')))
-      const value = type === "npub"
-        ? {pubkey: data as string, relays: []}
-        : data as ProfilePointer
+      const {type, data} = decode(fromNostrURI(entity.replace("@", "")))
+      const value =
+        type === "npub" ? {pubkey: data as string, relays: []} : (data as ProfilePointer)
 
       return {type: ParsedType.Profile, value, raw: entity}
     } catch (e) {
@@ -282,10 +285,12 @@ export const parseTopic = (text: string, context: ParseContext): ParsedTopic | v
   }
 }
 
-
 // Parse other formats to known types
 
-export const parseLegacyMention = (text: string, context: ParseContext): ParsedProfile | ParsedEvent | void => {
+export const parseLegacyMention = (
+  text: string,
+  context: ParseContext,
+): ParsedProfile | ParsedEvent | void => {
   const mentionMatch = text.match(/^#\[(\d+)\]/i) || []
 
   if (mentionMatch) {
@@ -313,7 +318,7 @@ export const parsers = [
   parseEvent,
   parseCashu,
   parseInvoice,
-  parseLink
+  parseLink,
 ]
 
 export const parseNext = (raw: string, context: ParseContext): Parsed | void => {
@@ -371,12 +376,7 @@ type TruncateOpts = {
 
 export const truncate = (
   content: Parsed[],
-  {
-    minLength = 500,
-    maxLength = 700,
-    mediaLength = 200,
-    entityLength = 30,
-  }: TruncateOpts = {},
+  {minLength = 500, maxLength = 700, mediaLength = 200, entityLength = 30}: TruncateOpts = {},
 ) => {
   // Get a list of content sizes so we know where to truncate
   // Non-plaintext things might take up more or less room if rendered
@@ -429,7 +429,7 @@ export class Renderer {
   toString = () => this.value
 
   addText = (value: string) => {
-    const element = document.createElement('div')
+    const element = document.createElement("div")
 
     element.innerText = value
 
@@ -459,17 +459,17 @@ export type RenderOptions = {
 }
 
 export const textRenderOptions = {
-  newline: '\n',
-  entityBase: '',
+  newline: "\n",
+  entityBase: "",
   renderLink: (href: string, display: string) => href,
-  renderEntity: (entity: string) => entity.slice(0, 16) + '…',
+  renderEntity: (entity: string) => entity.slice(0, 16) + "…",
 }
 
 export const htmlRenderOptions = {
-  newline: '\n',
-  entityBase: 'https://njump.me/',
+  newline: "\n",
+  entityBase: "https://njump.me/",
   renderLink: (href: string, display: string) => {
-    const element = document.createElement('a')
+    const element = document.createElement("a")
 
     element.href = sanitizeUrl(href)
     element.target = "_blank"
@@ -477,7 +477,7 @@ export const htmlRenderOptions = {
 
     return element.outerHTML
   },
-  renderEntity: (entity: string) => entity.slice(0, 16) + '…',
+  renderEntity: (entity: string) => entity.slice(0, 16) + "…",
 }
 
 export const makeTextRenderer = (options: Partial<RenderOptions> = {}) =>
@@ -499,31 +499,56 @@ export const renderInvoice = (p: ParsedInvoice, r: Renderer) => r.addText(p.valu
 export const renderLink = (p: ParsedLink, r: Renderer) =>
   r.addLink(p.value.url.toString(), p.value.url.host + p.value.url.pathname)
 
-export const renderNewline = (p: ParsedNewline, r: Renderer) => r.addNewlines(Array.from(p.value).length)
+export const renderNewline = (p: ParsedNewline, r: Renderer) =>
+  r.addNewlines(Array.from(p.value).length)
 
 export const renderText = (p: ParsedText, r: Renderer) => r.addText(p.value)
 
 export const renderTopic = (p: ParsedTopic, r: Renderer) => r.addText(p.value)
 
-export const renderEvent = (p: ParsedEvent, r: Renderer) => r.addEntityLink(nip19.neventEncode(p.value))
+export const renderEvent = (p: ParsedEvent, r: Renderer) => r.addEntityLink(neventEncode(p.value))
 
-export const renderProfile = (p: ParsedProfile, r: Renderer) => r.addEntityLink(nip19.nprofileEncode(p.value))
+export const renderProfile = (p: ParsedProfile, r: Renderer) =>
+  r.addEntityLink(nprofileEncode(p.value))
 
-export const renderAddress = (p: ParsedAddress, r: Renderer) => r.addEntityLink(nip19.naddrEncode(p.value))
+export const renderAddress = (p: ParsedAddress, r: Renderer) =>
+  r.addEntityLink(naddrEncode(p.value))
 
 export const renderOne = (parsed: Parsed, renderer: Renderer) => {
   switch (parsed.type) {
-    case ParsedType.Address:    renderAddress(parsed as ParsedAddress, renderer);   break
-    case ParsedType.Cashu:      renderCashu(parsed as ParsedCashu, renderer);       break
-    case ParsedType.Code:       renderCode(parsed as ParsedCode, renderer);         break
-    case ParsedType.Ellipsis:   renderEllipsis(parsed as ParsedEllipsis, renderer); break
-    case ParsedType.Event:      renderEvent(parsed as ParsedEvent, renderer);       break
-    case ParsedType.Invoice:    renderInvoice(parsed as ParsedInvoice, renderer);   break
-    case ParsedType.Link:       renderLink(parsed as ParsedLink, renderer);         break
-    case ParsedType.Newline:    renderNewline(parsed as ParsedNewline, renderer);   break
-    case ParsedType.Profile:    renderProfile(parsed as ParsedProfile, renderer);   break
-    case ParsedType.Text:       renderText(parsed as ParsedText, renderer);         break
-    case ParsedType.Topic:      renderTopic(parsed as ParsedTopic, renderer);       break
+    case ParsedType.Address:
+      renderAddress(parsed as ParsedAddress, renderer)
+      break
+    case ParsedType.Cashu:
+      renderCashu(parsed as ParsedCashu, renderer)
+      break
+    case ParsedType.Code:
+      renderCode(parsed as ParsedCode, renderer)
+      break
+    case ParsedType.Ellipsis:
+      renderEllipsis(parsed as ParsedEllipsis, renderer)
+      break
+    case ParsedType.Event:
+      renderEvent(parsed as ParsedEvent, renderer)
+      break
+    case ParsedType.Invoice:
+      renderInvoice(parsed as ParsedInvoice, renderer)
+      break
+    case ParsedType.Link:
+      renderLink(parsed as ParsedLink, renderer)
+      break
+    case ParsedType.Newline:
+      renderNewline(parsed as ParsedNewline, renderer)
+      break
+    case ParsedType.Profile:
+      renderProfile(parsed as ParsedProfile, renderer)
+      break
+    case ParsedType.Text:
+      renderText(parsed as ParsedText, renderer)
+      break
+    case ParsedType.Topic:
+      renderTopic(parsed as ParsedTopic, renderer)
+      break
   }
 
   return renderer

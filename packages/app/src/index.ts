@@ -1,26 +1,36 @@
-export * from './context'
-export * from './core'
-export * from './collection'
-export * from './commands'
-export * from './feeds'
-export * from './freshness'
-export * from './follows'
-export * from './handles'
-export * from './mutes'
-export * from './plaintext'
-export * from './profiles'
-export * from './relays'
-export * from './relaySelections'
-export * from './router'
-export * from './search'
-export * from './session'
-export * from './storage'
-export * from './subscribe'
-export * from './sync'
-export * from './tags'
-export * from './thunk'
-export * from './topics'
-export * from './user'
-export * from './util'
-export * from './wot'
-export * from './zappers'
+export * from "./context.js"
+export * from "./core.js"
+export * from "./collection.js"
+export * from "./commands.js"
+export * from "./feeds.js"
+export * from "./freshness.js"
+export * from "./follows.js"
+export * from "./handles.js"
+export * from "./mutes.js"
+export * from "./plaintext.js"
+export * from "./profiles.js"
+export * from "./relays.js"
+export * from "./relaySelections.js"
+export * from "./router.js"
+export * from "./search.js"
+export * from "./session.js"
+export * from "./storage.js"
+export * from "./subscribe.js"
+export * from "./sync.js"
+export * from "./tags.js"
+export * from "./thunk.js"
+export * from "./topics.js"
+export * from "./user.js"
+export * from "./util.js"
+export * from "./wot.js"
+export * from "./zappers.js"
+
+import type {NetContext} from "@welshman/net"
+import type {AppContext} from "./context.js"
+
+declare module "@welshman/lib" {
+  interface Context {
+    net: NetContext
+    app: AppContext
+  }
+}

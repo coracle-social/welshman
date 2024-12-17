@@ -1,6 +1,6 @@
-import {writable} from 'svelte/store'
-import {assoc, batch} from '@welshman/lib'
-import {withGetter} from '@welshman/store'
+import {writable} from "svelte/store"
+import {assoc, batch} from "@welshman/lib"
+import {withGetter} from "@welshman/store"
 
 export type FreshnessUpdate = {
   ns: string
@@ -25,5 +25,5 @@ export const setFreshnessThrottled = batch(100, (updates: FreshnessUpdate[]) =>
     }
 
     return $freshness
-  })
+  }),
 )

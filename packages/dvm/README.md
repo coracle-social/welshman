@@ -29,11 +29,11 @@ req.emitter.on(DVMEvent.Result, (url, event) => console.log(event))
 # Handler example
 
 ```javascript
-const {bytesToHex} = require('@noble/hashes/utils')
-const {generateSecretKey} = require('nostr-tools')
-const {createEvent} = require('@welshman/util')
-const {subscribe} = require('@welshman/net')
-const {DVM} = require('@welshman/dvm')
+import {bytesToHex} from '@noble/hashes/utils'
+import {generateSecretKey} from 'nostr-tools'
+import {createEvent} from '@welshman/util'
+import {subscribe} from '@welshman/net'
+import {DVM} from '@welshman/dvm'
 
 // Your DVM's private key. Store this somewhere safe
 // const hexPrivateKey = bytesToHex(generateSecretKey())

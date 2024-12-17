@@ -1,9 +1,9 @@
-import {get} from 'svelte/store'
-import {ctx} from '@welshman/lib'
-import {addToListPublicly, removeFromList, makeList, FOLLOWS, MUTES} from '@welshman/util'
-import {userFollows, userMutes} from './user'
-import {nip44EncryptToSelf} from './session'
-import {publishThunk} from './thunk'
+import {get} from "svelte/store"
+import {ctx} from "@welshman/lib"
+import {addToListPublicly, removeFromList, makeList, FOLLOWS, MUTES} from "@welshman/util"
+import {userFollows, userMutes} from "./user.js"
+import {nip44EncryptToSelf} from "./session.js"
+import {publishThunk} from "./thunk.js"
 
 export const unfollow = async (value: string) => {
   const list = get(userFollows) || makeList({kind: FOLLOWS})
@@ -32,4 +32,3 @@ export const mute = async (tag: string[]) => {
 
   return publishThunk({event, relays: ctx.app.router.FromUser().getUrls()})
 }
-

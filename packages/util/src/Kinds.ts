@@ -1,12 +1,16 @@
-import {kinds} from 'nostr-tools'
-import {between} from '@welshman/lib'
+import {
+  isRegularKind,
+  isEphemeralKind,
+  isReplaceableKind as isPlainReplaceableKind,
+  isParameterizedReplaceableKind,
+} from "nostr-tools/kinds"
+import {between} from "@welshman/lib"
 
-export const isRegularKind = kinds.isRegularKind
-export const isEphemeralKind = kinds.isEphemeralKind
-export const isPlainReplaceableKind = kinds.isReplaceableKind
-export const isParameterizedReplaceableKind = kinds.isParameterizedReplaceableKind
+export {isRegularKind, isEphemeralKind, isPlainReplaceableKind, isParameterizedReplaceableKind}
+
 export const isReplaceableKind = (kind: number) =>
   isPlainReplaceableKind(kind) || isParameterizedReplaceableKind(kind)
+
 export const isDVMKind = (kind: number) => between([4999, 7001], kind)
 
 export const PROFILE = 0
@@ -162,4 +166,3 @@ export const GROUP_ADMINS = 39001
 export const DEPRECATED_RELAY_RECOMMENDATION = 2
 export const DEPRECATED_DIRECT_MESSAGE = 4
 export const DEPRECATED_NAMED_GENERIC = 30001
-

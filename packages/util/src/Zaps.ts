@@ -1,5 +1,5 @@
-import {hexToBech32, fromPairs} from '@welshman/lib'
-import type {TrustedEvent} from './Events'
+import {hexToBech32, fromPairs} from "@welshman/lib"
+import type {TrustedEvent} from "./Events.js"
 
 const DIVISORS = {
   m: BigInt(1e3),
@@ -71,7 +71,7 @@ export const getLnUrl = (address: string) => {
 
 export type Zapper = {
   lnurl: string
-  pubkey?: string,
+  pubkey?: string
   callback?: string
   minSendable?: number
   maxSendable?: number
@@ -81,7 +81,7 @@ export type Zapper = {
 
 export type Zap = {
   request: TrustedEvent
-  response: TrustedEvent,
+  response: TrustedEvent
   invoiceAmount: number
 }
 

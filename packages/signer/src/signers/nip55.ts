@@ -1,7 +1,7 @@
-import {SignedEvent, StampedEvent} from "@welshman/util"
-import {hash, own, ISigner} from "../util"
 import {NostrSignerPlugin, AppInfo} from "nostr-signer-capacitor-plugin"
-import {nip19} from "nostr-tools"
+import {decode} from "nostr-tools/nip19"
+import {SignedEvent, StampedEvent} from "@welshman/util"
+import {hash, own, ISigner} from "../util.js"
 
 export const getNip55 = async (): Promise<AppInfo[]> => {
   const {apps} = await NostrSignerPlugin.getInstalledSignerApps()
@@ -21,10 +21,11 @@ export class Nip55Signer implements ISigner {
     this.#initialize()
   }
 
-  async #initialize() {
+  #initialize() {
     if (!this.#packageNameSet) {
-      await this.#plugin.setPackageName({packageName: this.#packageName})
-      this.#packageNameSet = true
+      void this.#plugin.setPackageName({packageName: this.#packageName}).then(() => {
+        this.#packageNameSet = true
+      })
     }
   }
 
@@ -53,10 +54,10 @@ export class Nip55Signer implements ISigner {
         try {
           const {npub} = await signer.getPublicKey()
           this.#npub = npub
-          const {data} = nip19.decode(npub)
+          const {data} = decode(npub)
           this.#publicKey = data as string
         } catch (error) {
-          throw new Error(`Failed to get public key`)
+          throw new Error("Failed to get public key")
         }
       }
       return this.#publicKey

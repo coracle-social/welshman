@@ -1,4 +1,4 @@
-import {EventEmitter} from 'events'
+import {EventEmitter} from "events"
 
 /**
  * Extended EventEmitter that also emits all events to '*' listeners
@@ -12,7 +12,7 @@ export class Emitter extends EventEmitter {
    */
   emit(type: string, ...args: any[]) {
     const a = super.emit(type, ...args)
-    const b = super.emit('*', type, ...args)
+    const b = super.emit("*", type, ...args)
 
     return a && b
   }

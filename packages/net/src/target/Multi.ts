@@ -1,13 +1,13 @@
-import {Emitter} from '@welshman/lib'
-import type {Message} from '../Socket'
-import type {Target} from '../Executor'
+import {Emitter} from "@welshman/lib"
+import type {Message} from "../Socket.js"
+import type {Target} from "../Executor.js"
 
 export class Multi extends Emitter {
   constructor(readonly targets: Target[]) {
     super()
 
     targets.forEach(t => {
-      t.on('*', (verb, ...args) => this.emit(verb, ...args))
+      t.on("*", (verb, ...args) => this.emit(verb, ...args))
     })
   }
 

@@ -1,43 +1,39 @@
-import {derived} from 'svelte/store'
-import {pubkey} from './session'
-import {profilesByPubkey, loadProfile} from './profiles'
-import {followsByPubkey, loadFollows} from './follows'
-import {mutesByPubkey, loadMutes} from './mutes'
-import {relaySelectionsByPubkey, inboxRelaySelectionsByPubkey, loadRelaySelections, loadInboxRelaySelections} from './relaySelections'
-import {wotGraph} from './wot'
+import {derived} from "svelte/store"
+import {pubkey} from "./session.js"
+import {profilesByPubkey, loadProfile} from "./profiles.js"
+import {followsByPubkey, loadFollows} from "./follows.js"
+import {mutesByPubkey, loadMutes} from "./mutes.js"
+import {
+  relaySelectionsByPubkey,
+  inboxRelaySelectionsByPubkey,
+  loadRelaySelections,
+  loadInboxRelaySelections,
+} from "./relaySelections.js"
+import {wotGraph} from "./wot.js"
 
-export const userProfile = derived(
-  [profilesByPubkey, pubkey],
-  ([$profilesByPubkey, $pubkey]) => {
-    if (!$pubkey) return undefined
+export const userProfile = derived([profilesByPubkey, pubkey], ([$profilesByPubkey, $pubkey]) => {
+  if (!$pubkey) return undefined
 
-    loadProfile($pubkey)
+  loadProfile($pubkey)
 
-    return $profilesByPubkey.get($pubkey)
-  }
-)
+  return $profilesByPubkey.get($pubkey)
+})
 
-export const userFollows = derived(
-  [followsByPubkey, pubkey],
-  ([$followsByPubkey, $pubkey]) => {
-    if (!$pubkey) return undefined
+export const userFollows = derived([followsByPubkey, pubkey], ([$followsByPubkey, $pubkey]) => {
+  if (!$pubkey) return undefined
 
-    loadFollows($pubkey)
+  loadFollows($pubkey)
 
-    return $followsByPubkey.get($pubkey)
-  }
-)
+  return $followsByPubkey.get($pubkey)
+})
 
-export const userMutes = derived(
-  [mutesByPubkey, pubkey],
-  ([$mutesByPubkey, $pubkey]) => {
-    if (!$pubkey) return undefined
+export const userMutes = derived([mutesByPubkey, pubkey], ([$mutesByPubkey, $pubkey]) => {
+  if (!$pubkey) return undefined
 
-    loadMutes($pubkey)
+  loadMutes($pubkey)
 
-    return $mutesByPubkey.get($pubkey)
-  }
-)
+  return $mutesByPubkey.get($pubkey)
+})
 
 export const userRelaySelections = derived(
   [relaySelectionsByPubkey, pubkey],
@@ -47,7 +43,7 @@ export const userRelaySelections = derived(
     loadRelaySelections($pubkey)
 
     return $relaySelectionsByPubkey.get($pubkey)
-  }
+  },
 )
 
 export const userInboxRelaySelections = derived(
@@ -58,7 +54,7 @@ export const userInboxRelaySelections = derived(
     loadInboxRelaySelections($pubkey)
 
     return $inboxRelaySelectionsByPubkey.get($pubkey)
-  }
+  },
 )
 
 export const getUserWotScore = (tpk: string) => wotGraph.get().get(tpk) || 0

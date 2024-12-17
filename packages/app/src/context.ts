@@ -1,12 +1,15 @@
 import {partition} from "@welshman/lib"
-import {defaultOptimizeSubscriptions, getDefaultNetContext as originalGetDefaultNetContext} from "@welshman/net"
+import {
+  defaultOptimizeSubscriptions,
+  getDefaultNetContext as originalGetDefaultNetContext,
+} from "@welshman/net"
 import type {Subscription, RelaysAndFilters, NetContext} from "@welshman/net"
-import {LOCAL_RELAY_URL, isEphemeralKind, isDVMKind,  unionFilters} from "@welshman/util"
+import {LOCAL_RELAY_URL, isEphemeralKind, isDVMKind, unionFilters} from "@welshman/util"
 import type {TrustedEvent, StampedEvent} from "@welshman/util"
-import {tracker, repository} from './core'
-import {makeRouter, getFilterSelections} from './router'
-import {signer} from './session'
-import type {Router} from './router'
+import {tracker, repository} from "./core.js"
+import {makeRouter, getFilterSelections} from "./router.js"
+import {signer} from "./session.js"
+import type {Router} from "./router.js"
 
 export type AppContext = {
   router: Router
@@ -52,4 +55,3 @@ export const getDefaultAppContext = (overrides: Partial<AppContext> = {}) => ({
   requestTimeout: 3000,
   ...overrides,
 })
-

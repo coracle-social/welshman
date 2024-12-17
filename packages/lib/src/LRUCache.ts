@@ -77,5 +77,5 @@ export function cached<T, V, Args extends any[]>({
  * @template Args - Function argument types
  */
 export function simpleCache<V, Args extends any[]>(getValue: (args: Args) => V) {
-  return cached({maxSize: 10**5, getKey: xs => xs.join(':'), getValue})
+  return cached({maxSize: 10 ** 5, getKey: xs => xs.join(":"), getValue})
 }

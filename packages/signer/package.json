@@ -11,26 +11,26 @@
   "files": [
     "build"
   ],
+  "engines": {
+    "node": ">=10.x"
+  },
   "types": "./build/src/index.d.ts",
   "exports": {
     ".": {
       "types": "./build/src/index.d.ts",
-      "import": "./build/src/index.mjs",
-      "require": "./build/src/index.cjs"
+      "import": "./build/src/index.js",
+      "require": "./build/src/index.js"
     }
   },
   "scripts": {
     "pub": "npm run lint && npm run build && npm publish",
-    "build": "gts clean && tsc-multi",
+    "build": "gts clean && tsc",
     "lint": "gts lint",
     "fix": "gts fix"
   },
-  "devDependencies": {
-    "gts": "^5.0.1",
-    "tsc-multi": "^1.1.0",
-    "typescript": "~5.1.6"
-  },
   "dependencies": {
+    "@noble/curves": "^1.7.0",
+    "@noble/hashes": "^1.6.1",
     "@welshman/lib": "~0.0.33",
     "@welshman/net": "~0.0.41",
     "@welshman/util": "~0.0.50",

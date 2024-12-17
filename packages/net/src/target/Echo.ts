@@ -1,5 +1,5 @@
-import {Emitter} from '@welshman/lib'
-import type {Message} from '../Socket'
+import {Emitter} from "@welshman/lib"
+import type {Message} from "../Socket.js"
 
 export class Echo extends Emitter {
   get connections() {

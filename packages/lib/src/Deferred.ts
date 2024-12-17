@@ -9,10 +9,7 @@ export type CustomPromise<T, E> = Promise<T> & {
  * @returns Promise with typed error
  */
 export function makePromise<T, E>(
-  executor: (
-    resolve: (value: T | PromiseLike<T>) => void,
-    reject: (reason: E) => void
-  ) => void
+  executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason: E) => void) => void,
 ): CustomPromise<T, E> {
   return new Promise(executor) as CustomPromise<T, E>
 }
@@ -34,5 +31,5 @@ export const defer = <T, E = T>(): Deferred<T, E> => {
     reject = reject_
   })
 
-  return (Object.assign(p, {resolve, reject}) as unknown) as Deferred<T, E>
+  return Object.assign(p, {resolve, reject}) as unknown as Deferred<T, E>
 }

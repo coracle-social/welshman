@@ -4,18 +4,18 @@ import {withGetter, synced} from "@welshman/store"
 import {Nip46Broker, Nip46Signer, Nip07Signer, Nip01Signer, Nip55Signer} from "@welshman/signer"
 
 export type SessionNip01 = {
-  method: 'nip01'
+  method: "nip01"
   pubkey: string
   secret: string
 }
 
 export type SessionNip07 = {
-  method: 'nip07'
+  method: "nip07"
   pubkey: string
 }
 
 export type SessionNip46 = {
-  method: 'nip46'
+  method: "nip46"
   pubkey: string
   secret: string
   handler: {
@@ -25,22 +25,22 @@ export type SessionNip46 = {
 }
 
 export type SessionNip55 = {
-  method: 'nip55'
+  method: "nip55"
   pubkey: string
   signer: string
 }
 
 export type SessionPubkey = {
-  method: 'pubkey'
+  method: "pubkey"
   pubkey: string
 }
 
 export type SessionAnyMethod =
-  SessionNip01 |
-  SessionNip07 |
-  SessionNip46 |
-  SessionNip55 |
-  SessionPubkey
+  | SessionNip01
+  | SessionNip07
+  | SessionNip46
+  | SessionNip55
+  | SessionPubkey
 
 export type Session = SessionAnyMethod & Record<string, any>
 
@@ -88,14 +88,14 @@ export const getSigner = cached({
             clientSecret: session.secret!,
             relays: session.handler!.relays,
             signerPubkey: session.handler!.pubkey,
-          })
+          }),
         )
       case "nip55":
         return new Nip55Signer(session.signer!)
       default:
         return null
     }
-  }
+  },
 })
 
 export const signer = withGetter(derived(session, getSigner))

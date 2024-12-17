@@ -1,33 +1,26 @@
-import {ctx, sleep} from '@welshman/lib'
-import {CLIENT_AUTH, createEvent} from '@welshman/util'
-import {ConnectionEvent} from './ConnectionEvent'
-import type {Connection} from './Connection'
-import type {Message} from './Socket'
+import {ctx, sleep} from "@welshman/lib"
+import {CLIENT_AUTH, createEvent} from "@welshman/util"
+import {ConnectionEvent} from "./ConnectionEvent.js"
+import type {Connection} from "./Connection.js"
+import type {Message} from "./Socket.js"
 
 export enum AuthMode {
-  Implicit = 'implicit',
-  Explicit = 'explicit',
+  Implicit = "implicit",
+  Explicit = "explicit",
 }
 
 export enum AuthStatus {
-  None = 'none',
-  Requested = 'requested',
-  PendingSignature = 'pending_signature',
-  DeniedSignature = 'denied_signature',
-  PendingResponse = 'pending_response',
-  Forbidden = 'forbidden',
-  Ok = 'ok',
+  None = "none",
+  Requested = "requested",
+  PendingSignature = "pending_signature",
+  DeniedSignature = "denied_signature",
+  PendingResponse = "pending_response",
+  Forbidden = "forbidden",
+  Ok = "ok",
 }
 
-const {
-  None,
-  Requested,
-  PendingSignature,
-  DeniedSignature,
-  PendingResponse,
-  Forbidden,
-  Ok,
-} = AuthStatus
+const {None, Requested, PendingSignature, DeniedSignature, PendingResponse, Forbidden, Ok} =
+  AuthStatus
 
 export class ConnectionAuth {
   challenge: string | undefined
@@ -41,7 +34,7 @@ export class ConnectionAuth {
   }
 
   #onReceive = (cxn: Connection, [verb, ...extra]: Message) => {
-    if (verb === 'OK') {
+    if (verb === "OK") {
       const [id, ok, message] = extra
 
       if (id === this.request) {
@@ -50,7 +43,7 @@ export class ConnectionAuth {
       }
     }
 
-    if (verb === 'AUTH' && extra[0] !== this.challenge) {
+    if (verb === "AUTH" && extra[0] !== this.challenge) {
       this.challenge = extra[0]
       this.request = undefined
       this.message = undefined
@@ -81,8 +74,7 @@ export class ConnectionAuth {
     }
   }
 
-  waitForChallenge = async (timeout = 300) =>
-    this.waitFor(() => Boolean(this.challenge), timeout)
+  waitForChallenge = async (timeout = 300) => this.waitFor(() => Boolean(this.challenge), timeout)
 
   waitForResolution = async (timeout = 300) =>
     this.waitFor(() => [None, DeniedSignature, Forbidden, Ok].includes(this.status), timeout)
@@ -105,14 +97,11 @@ export class ConnectionAuth {
       ],
     })
 
-    const [event] = await Promise.all([
-      ctx.net.signEvent(template),
-      this.cxn.socket.open(),
-    ])
+    const [event] = await Promise.all([ctx.net.signEvent(template), this.cxn.socket.open()])
 
     if (event) {
       this.request = event.id
-      this.cxn.send(['AUTH', event])
+      this.cxn.send(["AUTH", event])
       this.status = PendingResponse
     } else {
       this.status = DeniedSignature

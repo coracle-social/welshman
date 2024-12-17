@@ -1,11 +1,11 @@
-import {writable, derived} from 'svelte/store'
-import {withGetter} from '@welshman/store'
-import {ctx, groupBy, indexBy, batch, now, ago, uniq, batcher, postJson} from '@welshman/lib'
+import {writable, derived} from "svelte/store"
+import {withGetter} from "@welshman/store"
+import {ctx, groupBy, indexBy, batch, now, ago, uniq, batcher, postJson} from "@welshman/lib"
 import type {RelayProfile} from "@welshman/util"
 import {normalizeRelayUrl, displayRelayUrl, displayRelayProfile} from "@welshman/util"
-import {ConnectionEvent} from '@welshman/net'
-import type {Connection, Message} from '@welshman/net'
-import {collection} from './collection'
+import {ConnectionEvent} from "@welshman/net"
+import type {Connection, Message} from "@welshman/net"
+import {collection} from "./collection.js"
 
 export type RelayStats = {
   first_seen: number
@@ -151,78 +151,108 @@ const updateRelayStats = batch(500, (updates: RelayStatsUpdate[]) => {
 })
 
 const onConnectionOpen = ({url}: Connection) =>
-  updateRelayStats([url, stats => {
-    stats.last_open = now()
-    stats.open_count++
-  }])
+  updateRelayStats([
+    url,
+    stats => {
+      stats.last_open = now()
+      stats.open_count++
+    },
+  ])
 
 const onConnectionClose = ({url}: Connection) =>
-  updateRelayStats([url, stats => {
-    stats.last_close = now()
-    stats.close_count++
-  }])
+  updateRelayStats([
+    url,
+    stats => {
+      stats.last_close = now()
+      stats.close_count++
+    },
+  ])
 
 const onConnectionSend = ({url}: Connection, [verb]: Message) => {
-  if (verb === 'REQ') {
-    updateRelayStats([url, stats => {
-      stats.request_count++
-      stats.last_request = now()
-    }])
-  } else if (verb === 'EVENT') {
-    updateRelayStats([url, stats => {
-      stats.publish_count++
-      stats.last_publish = now()
-    }])
+  if (verb === "REQ") {
+    updateRelayStats([
+      url,
+      stats => {
+        stats.request_count++
+        stats.last_request = now()
+      },
+    ])
+  } else if (verb === "EVENT") {
+    updateRelayStats([
+      url,
+      stats => {
+        stats.publish_count++
+        stats.last_publish = now()
+      },
+    ])
   }
 }
 
 const onConnectionReceive = ({url, state}: Connection, [verb, ...extra]: Message) => {
-  if (verb === 'OK') {
+  if (verb === "OK") {
     const [eventId, ok] = extra
     const pub = state.pendingPublishes.get(eventId)
 
-    updateRelayStats([url, stats => {
-      if (pub) {
-        stats.publish_timer += ago(pub.sent)
-      }
+    updateRelayStats([
+      url,
+      stats => {
+        if (pub) {
+          stats.publish_timer += ago(pub.sent)
+        }
 
-      if (ok) {
-        stats.publish_success_count++
-      } else {
-        stats.publish_failure_count++
-      }
-    }])
-  } else if (verb === 'AUTH') {
-    updateRelayStats([url, stats => {
-      stats.last_auth = now()
-    }])
-  } else if (verb === 'EVENT') {
-    updateRelayStats([url, stats => {
-      stats.event_count++
-      stats.last_event = now()
-    }])
-  } else if (verb === 'EOSE') {
+        if (ok) {
+          stats.publish_success_count++
+        } else {
+          stats.publish_failure_count++
+        }
+      },
+    ])
+  } else if (verb === "AUTH") {
+    updateRelayStats([
+      url,
+      stats => {
+        stats.last_auth = now()
+      },
+    ])
+  } else if (verb === "EVENT") {
+    updateRelayStats([
+      url,
+      stats => {
+        stats.event_count++
+        stats.last_event = now()
+      },
+    ])
+  } else if (verb === "EOSE") {
     const request = state.pendingRequests.get(extra[0])
 
     // Only count the first eose
     if (request && !request.eose) {
-      updateRelayStats([url, stats => {
-        stats.eose_count++
-        stats.eose_timer += now() - request.sent
-      }])
+      updateRelayStats([
+        url,
+        stats => {
+          stats.eose_count++
+          stats.eose_timer += now() - request.sent
+        },
+      ])
     }
-  } else if (verb === 'NOTICE') {
-    updateRelayStats([url, stats => {
-      stats.notice_count++
-    }])
+  } else if (verb === "NOTICE") {
+    updateRelayStats([
+      url,
+      stats => {
+        stats.notice_count++
+      },
+    ])
   }
 }
 
 const onConnectionError = ({url}: Connection) =>
-  updateRelayStats([url, stats => {
-    stats.last_error = now()
-    stats.recent_errors = uniq(stats.recent_errors.concat(now())).slice(-10)
-  }])
+  updateRelayStats([
+    url,
+    stats => {
+      stats.last_error = now()
+      stats.recent_errors = uniq(stats.recent_errors.concat(now())).slice(-10)
+    },
+  ])
 
 export const trackRelayStats = (connection: Connection) => {
   connection.on(ConnectionEvent.Open, onConnectionOpen)

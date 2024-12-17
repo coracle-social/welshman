@@ -1,12 +1,12 @@
-import {Emitter} from '@welshman/lib'
-import {Relay, LOCAL_RELAY_URL} from '@welshman/util'
-import type {Message} from '../Socket'
+import {Emitter} from "@welshman/lib"
+import {Relay, LOCAL_RELAY_URL} from "@welshman/util"
+import type {Message} from "../Socket.js"
 
 export class Local extends Emitter {
   constructor(readonly relay: Relay) {
     super()
 
-    relay.on('*', this.onMessage)
+    relay.on("*", this.onMessage)
   }
 
   get connections() {
@@ -25,6 +25,6 @@ export class Local extends Emitter {
 
   cleanup = () => {
     this.removeAllListeners()
-    this.relay.off('*', this.onMessage)
+    this.relay.off("*", this.onMessage)
   }
 }

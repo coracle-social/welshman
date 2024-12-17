@@ -1,7 +1,7 @@
-import {Emitter} from '@welshman/lib'
-import type {Message} from '../Socket'
-import type {Connection} from '../Connection'
-import {ConnectionEvent} from '../ConnectionEvent'
+import {Emitter} from "@welshman/lib"
+import type {Message} from "../Socket.js"
+import type {Connection} from "../Connection.js"
+import {ConnectionEvent} from "../ConnectionEvent.js"
 
 export class Relays extends Emitter {
   constructor(readonly connections: Connection[]) {
@@ -23,7 +23,7 @@ export class Relays extends Emitter {
   cleanup = () => {
     this.removeAllListeners()
     this.connections.forEach(connection => {
-      connection.off('receive', this.onMessage)
+      connection.off("receive", this.onMessage)
     })
   }
 }

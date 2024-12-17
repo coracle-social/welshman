@@ -1,13 +1,26 @@
-import {writable, derived, get} from 'svelte/store'
-import type {Writable, Readable} from 'svelte/store'
-import {Worker, identity, uniq, defer, sleep, assoc} from '@welshman/lib'
-import type {Deferred} from '@welshman/lib'
+import {writable, derived, get} from "svelte/store"
+import type {Writable, Readable} from "svelte/store"
+import {Worker, identity, uniq, defer, sleep, assoc} from "@welshman/lib"
+import type {Deferred} from "@welshman/lib"
 import {stamp, own, hash} from "@welshman/signer"
-import type {TrustedEvent, HashedEvent, EventTemplate, SignedEvent, StampedEvent, OwnedEvent} from '@welshman/util'
-import {isStampedEvent, isOwnedEvent, isHashedEvent, isUnwrappedEvent, isSignedEvent} from '@welshman/util'
+import type {
+  TrustedEvent,
+  HashedEvent,
+  EventTemplate,
+  SignedEvent,
+  StampedEvent,
+  OwnedEvent,
+} from "@welshman/util"
+import {
+  isStampedEvent,
+  isOwnedEvent,
+  isHashedEvent,
+  isUnwrappedEvent,
+  isSignedEvent,
+} from "@welshman/util"
 import {publish, PublishStatus} from "@welshman/net"
-import {repository, tracker} from './core'
-import {pubkey, getSession, getSigner} from './session'
+import {repository, tracker} from "./core.js"
+import {pubkey, getSession, getSigner} from "./session.js"
 
 const {Pending, Success, Failure, Timeout, Aborted} = PublishStatus
 
@@ -53,8 +66,8 @@ export const prepEvent = (event: ThunkEvent) => {
 export const makeThunk = (request: ThunkRequest) => {
   const event = prepEvent(request.event)
   const controller = new AbortController()
-  const result: Thunk['result'] = defer()
-  const status: Thunk['status'] = writable({})
+  const result: Thunk["result"] = defer()
+  const status: Thunk["status"] = writable({})
 
   return {event, request, controller, result, status}
 }
@@ -72,7 +85,7 @@ export const isMergedThunk = (thunk: Thunk | MergedThunk): thunk is MergedThunk 
 export const mergeThunks = (thunks: Thunk[]) => {
   const controller = new AbortController()
 
-  controller.signal.addEventListener('abort', () => {
+  controller.signal.addEventListener("abort", () => {
     for (const thunk of thunks) {
       thunk.controller.abort()
     }
@@ -99,8 +112,8 @@ export const mergeThunks = (thunks: Thunk[]) => {
         }
 
         return mergedStatus
-      }
-    )
+      },
+    ),
   }
 }
 
@@ -125,7 +138,7 @@ export const publishThunk = (request: ThunkRequest) => {
 
   thunks.update(assoc(thunk.event.id, thunk))
 
-  thunk.controller.signal.addEventListener('abort', () => {
+  thunk.controller.signal.addEventListener("abort", () => {
     repository.removeEvent(thunk.event.id)
   })
 
@@ -143,7 +156,7 @@ export const publishThunks = (requests: ThunkRequest[]) => {
 
     thunks.update(assoc(thunk.event.id, mergedThunk))
 
-    thunk.controller.signal.addEventListener('abort', () => {
+    thunk.controller.signal.addEventListener("abort", () => {
       repository.removeEvent(thunk.event.id)
     })
   }
@@ -221,4 +234,3 @@ thunkWorker.addGlobalHandler((thunk: Thunk) => {
     })
   })
 })
-

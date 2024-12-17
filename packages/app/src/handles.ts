@@ -1,8 +1,8 @@
-import {writable, derived} from 'svelte/store'
+import {writable, derived} from "svelte/store"
 import {type SubscribeRequestWithHandlers} from "@welshman/net"
-import {ctx, tryCatch, fetchJson, uniq, batcher, postJson, last} from '@welshman/lib'
-import {collection} from './collection'
-import {deriveProfile} from './profiles'
+import {ctx, tryCatch, fetchJson, uniq, batcher, postJson, last} from "@welshman/lib"
+import {collection} from "./collection.js"
+import {deriveProfile} from "./profiles.js"
 
 export type Handle = {
   nip05: string
@@ -18,10 +18,14 @@ export async function queryProfile(nip05: string) {
 
   if (!match) return undefined
 
-  const [_, name = '_', domain] = match
+  const [_, name = "_", domain] = match
 
   try {
-    const {names, relays = {}, nip46 = {}} = await fetchJson(`https://${domain}/.well-known/nostr.json?name=${name}`)
+    const {
+      names,
+      relays = {},
+      nip46 = {},
+    } = await fetchJson(`https://${domain}/.well-known/nostr.json?name=${name}`)
 
     const pubkey = names[name]
 
@@ -48,14 +52,19 @@ export const fetchHandles = async (nip05s: string[]) => {
 
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly
   if (base) {
-    const res: any = await tryCatch(async () => await postJson(`${base}/handle/info`, {handles: nip05s}))
+    const res: any = await tryCatch(
+      async () => await postJson(`${base}/handle/info`, {handles: nip05s}),
+    )
 
     for (const {handle: nip05, info} of res?.data || []) {
       handlesByNip05.set(nip05, info)
     }
   } else {
     const results = await Promise.all(
-      nip05s.map(async nip05 => ({nip05, info: await tryCatch(async () => await queryProfile(nip05))}))
+      nip05s.map(async nip05 => ({
+        nip05,
+        info: await tryCatch(async () => await queryProfile(nip05)),
+      })),
     )
 
     for (const {nip05, info} of results) {
@@ -94,21 +103,21 @@ export const {
   }),
 })
 
-export const deriveHandleForPubkey = (pubkey: string, request: Partial<SubscribeRequestWithHandlers> = {}) =>
-  derived(
-    [handlesByNip05, deriveProfile(pubkey, request)],
-    ([$handlesByNip05, $profile]) => {
-      if (!$profile?.nip05) {
-        return undefined
-      }
-
-      loadHandle($profile.nip05)
-
-      return $handlesByNip05.get($profile.nip05)
+export const deriveHandleForPubkey = (
+  pubkey: string,
+  request: Partial<SubscribeRequestWithHandlers> = {},
+) =>
+  derived([handlesByNip05, deriveProfile(pubkey, request)], ([$handlesByNip05, $profile]) => {
+    if (!$profile?.nip05) {
+      return undefined
     }
-  )
+
+    loadHandle($profile.nip05)
+
+    return $handlesByNip05.get($profile.nip05)
+  })
 
 export const displayNip05 = (nip05: string) =>
-  (nip05?.startsWith("_@") ? last(nip05.split("@")) : nip05)
+  nip05?.startsWith("_@") ? last(nip05.split("@")) : nip05
 
 export const displayHandle = (handle: Handle) => displayNip05(handle.nip05)

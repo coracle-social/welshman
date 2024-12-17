@@ -1,9 +1,9 @@
-import {sleep} from '@welshman/lib'
-import {AUTH_JOIN} from '@welshman/util'
-import type {SignedEvent, Filter} from '@welshman/util'
-import type {Message} from './Socket'
-import type {Connection} from './Connection'
-import {ConnectionEvent} from './ConnectionEvent'
+import {sleep} from "@welshman/lib"
+import {AUTH_JOIN} from "@welshman/util"
+import type {SignedEvent, Filter} from "@welshman/util"
+import type {Message} from "./Socket.js"
+import type {Connection} from "./Connection.js"
+import {ConnectionEvent} from "./ConnectionEvent.js"
 
 export type PublishState = {
   sent: number
@@ -22,19 +22,19 @@ export class ConnectionState {
 
   constructor(readonly cxn: Connection) {
     cxn.sender.worker.addGlobalHandler(([verb, ...extra]: Message) => {
-      if (verb === 'REQ') {
+      if (verb === "REQ") {
         const [reqId, ...filters] = extra
 
         this.pendingRequests.set(reqId, {filters, sent: Date.now()})
       }
 
-      if (verb === 'CLOSE') {
+      if (verb === "CLOSE") {
         const [reqId] = extra
 
         this.pendingRequests.delete(reqId)
       }
 
-      if (verb === 'EVENT') {
+      if (verb === "EVENT") {
         const [event] = extra
 
         this.pendingPublishes.set(event.id, {sent: Date.now(), event})
@@ -42,21 +42,21 @@ export class ConnectionState {
     })
 
     cxn.socket.worker.addGlobalHandler(([verb, ...extra]: Message) => {
-      if (verb === 'OK') {
+      if (verb === "OK") {
         const [eventId, _ok, notice] = extra
         const pub = this.pendingPublishes.get(eventId)
 
         if (!pub) return
 
         // Re-enqueue pending events when auth challenge is received
-        if (notice?.startsWith('auth-required:') && pub.event.kind !== AUTH_JOIN) {
-          this.cxn.send(['EVENT', pub.event])
+        if (notice?.startsWith("auth-required:") && pub.event.kind !== AUTH_JOIN) {
+          this.cxn.send(["EVENT", pub.event])
         } else {
           this.pendingPublishes.delete(eventId)
         }
       }
 
-      if (verb === 'EOSE') {
+      if (verb === "EOSE") {
         const [reqId] = extra
         const req = this.pendingRequests.get(reqId)
 
@@ -65,15 +65,15 @@ export class ConnectionState {
         }
       }
 
-      if (verb === 'CLOSED') {
+      if (verb === "CLOSED") {
         const [reqId] = extra
 
         // Re-enqueue pending reqs when auth challenge is received
-        if (extra[1]?.startsWith('auth-required:')) {
+        if (extra[1]?.startsWith("auth-required:")) {
           const req = this.pendingRequests.get(reqId)
 
           if (req) {
-            this.cxn.send(['REQ', reqId, ...req.filters])
+            this.cxn.send(["REQ", reqId, ...req.filters])
           }
 
           if (extra[1]) {
@@ -84,7 +84,7 @@ export class ConnectionState {
         this.pendingRequests.delete(reqId)
       }
 
-      if (verb === 'NOTICE') {
+      if (verb === "NOTICE") {
         const [notice] = extra
 
         this.cxn.emit(ConnectionEvent.Notice, notice)
@@ -101,11 +101,11 @@ export class ConnectionState {
       }
 
       for (const [reqId, req] of this.pendingRequests.entries()) {
-        this.cxn.send(['REQ', reqId, ...req.filters])
+        this.cxn.send(["REQ", reqId, ...req.filters])
       }
 
       for (const [_, pub] of this.pendingPublishes.entries()) {
-        this.cxn.send(['EVENT', pub.event])
+        this.cxn.send(["EVENT", pub.event])
       }
     })
   }

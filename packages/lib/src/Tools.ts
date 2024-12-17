@@ -15,7 +15,8 @@ export type Maybe<T> = T | undefined
  * @param f - Function to execute if x is defined
  * @returns Result of f(x) if x is defined, undefined otherwise
  */
-export const ifLet = <T>(x: T | undefined, f: (x: T) => void) => x === undefined ? undefined : f(x)
+export const ifLet = <T>(x: T | undefined, f: (x: T) => void) =>
+  x === undefined ? undefined : f(x)
 
 /** Function that does nothing and returns undefined */
 export const noop = (...args: unknown[]) => undefined
@@ -53,7 +54,10 @@ export const identity = <T>(x: T, ...args: unknown[]) => x
  * @param x - Value to return
  * @returns Function that returns x
  */
-export const always = <T>(x: T, ...args: unknown[]) => () => x
+export const always =
+  <T>(x: T, ...args: unknown[]) =>
+  () =>
+    x
 
 /**
  * Returns the logical NOT of a value
@@ -63,7 +67,10 @@ export const always = <T>(x: T, ...args: unknown[]) => () => x
 export const not = (x: any, ...args: unknown[]) => !x
 
 /** Returns a function that returns the boolean negation of the given function */
-export const complement = <T extends unknown[]>(f: (...args: T) => any) => (...args: T) => !f(...args)
+export const complement =
+  <T extends unknown[]>(f: (...args: T) => any) =>
+  (...args: T) =>
+    !f(...args)
 
 /** Converts a Maybe<number> to a number, defaulting to 0 */
 export const num = (x: Maybe<number>) => x || 0
@@ -227,17 +234,23 @@ export const mapVals = <V, U>(f: (v: V) => U, x: Record<string, V>) => {
  * Merges two objects, with left object taking precedence
  * @param a - Left object
  * @param b - Right object
- * @returns Merged object with a's properties overriding b's
+ * @returns Merged object with a"s properties overriding b"s
  */
-export const mergeLeft = <T extends Record<string, any>>(a: T, b: T) => ({...b, ...a})
+export const mergeLeft = <T extends Record<string, any>>(a: T, b: T) => ({
+  ...b,
+  ...a,
+})
 
 /**
  * Merges two objects, with right object taking precedence
  * @param a - Left object
  * @param b - Right object
- * @returns Merged object with b's properties overriding a's
+ * @returns Merged object with b"s properties overriding a"s
  */
-export const mergeRight = <T extends Record<string, any>>(a: T, b: T) => ({...a, ...b})
+export const mergeRight = <T extends Record<string, any>>(a: T, b: T) => ({
+  ...a,
+  ...b,
+})
 
 /**
  * Checks if a number is between two values (exclusive)
@@ -281,7 +294,10 @@ export const stripProtocol = (url: string) => url.replace(/.*:\/\//, "")
  * @param url - URL to format
  * @returns Formatted URL
  */
-export const displayUrl = (url: string) => stripProtocol(url).replace(/^(www\.)?/i, "").replace(/\/$/, "")
+export const displayUrl = (url: string) =>
+  stripProtocol(url)
+    .replace(/^(www\.)?/i, "")
+    .replace(/\/$/, "")
 
 /**
  * Extracts and formats domain from URL
@@ -302,7 +318,7 @@ export const sleep = (t: number) => new Promise(resolve => setTimeout(resolve, t
  * @param xs - Arrays to concatenate
  * @returns Combined array
  */
-export const concat = <T>(...xs: T[][]) => xs.flatMap(x => isNil(x) ? [] : x)
+export const concat = <T>(...xs: T[][]) => xs.flatMap(x => (isNil(x) ? [] : x))
 
 /**
  * Appends element to array
@@ -366,7 +382,7 @@ export const without = <T>(a: T[], b: T[]) => b.filter(x => !a.includes(x))
  * @param xs - Source array
  * @returns New array with element added or removed
  */
-export const toggle = <T>(x: T, xs: T[]) => xs.includes(x) ? remove(x, xs) : append(x, xs)
+export const toggle = <T>(x: T, xs: T[]) => (xs.includes(x) ? remove(x, xs) : append(x, xs))
 
 /**
  * Constrains number between min and max values
@@ -434,13 +450,13 @@ export const tryCatch = <T>(f: () => T, onError?: (e: Error) => void): T | undef
  * @param suffix - String to append if truncated
  * @returns Truncated string
  */
-export const ellipsize = (s: string, l: number, suffix = '...') => {
+export const ellipsize = (s: string, l: number, suffix = "...") => {
   if (s.length < l * 1.1) {
     return s
   }
 
-  while (s.length > l && s.includes(' ')) {
-    s = s.split(' ').slice(0, -1).join(' ')
+  while (s.length > l && s.includes(" ")) {
+    s = s.split(" ").slice(0, -1).join(" ")
   }
 
   return s + suffix
@@ -522,13 +538,22 @@ export const equals = (a: any, b: any) => {
 // Curried utils
 
 /** Returns a function that gets the nth element of an array */
-export const nth = (i: number) => <T>(xs: T[], ...args: unknown[]) => xs[i]
+export const nth =
+  (i: number) =>
+  <T>(xs: T[], ...args: unknown[]) =>
+    xs[i]
 
 /** Returns a function that checks if nth element equals value */
-export const nthEq = (i: number, v: any) => (xs: any[], ...args: unknown[]) => xs[i] === v
+export const nthEq =
+  (i: number, v: any) =>
+  (xs: any[], ...args: unknown[]) =>
+    xs[i] === v
 
 /** Returns a function that checks if nth element does not equal value */
-export const nthNe = (i: number, v: any) => (xs: any[], ...args: unknown[]) => xs[i] !== v
+export const nthNe =
+  (i: number, v: any) =>
+  (xs: any[], ...args: unknown[]) =>
+    xs[i] !== v
 
 /** Returns a function that checks if key/value pairs of x match all pairs in spec */
 export const spec = (values: Record<string, any>) => (x: Record<string, any>) => {
@@ -540,16 +565,28 @@ export const spec = (values: Record<string, any>) => (x: Record<string, any>) =>
 }
 
 /** Returns a function that checks equality with value */
-export const eq = <T>(v: T) => (x: T) => x === v
+export const eq =
+  <T>(v: T) =>
+  (x: T) =>
+    x === v
 
 /** Returns a function that checks inequality with value */
-export const ne = <T>(v: T) => (x: T) => x !== v
+export const ne =
+  <T>(v: T) =>
+  (x: T) =>
+    x !== v
 
 /** Returns a function that gets property value from object */
-export const prop = <T>(k: string) => (x: Record<string, unknown>) => x[k] as T
+export const prop =
+  <T>(k: string) =>
+  (x: Record<string, unknown>) =>
+    x[k] as T
 
 /** Returns a function that adds/updates property on object */
-export const assoc = <K extends string, T, U>(k: K, v: T) => (o: U) => ({...o, [k as K]: v}) as U & Record<K, T>
+export const assoc =
+  <K extends string, T, U>(k: K, v: T) =>
+  (o: U) =>
+    ({...o, [k as K]: v}) as U & Record<K, T>
 
 /** Generates a hash string from input string */
 export const hash = (s: string) =>
@@ -567,7 +604,8 @@ export const insert = <T>(n: number, x: T, xs: T[]) => [...xs.slice(0, n), x, ..
 export const choice = <T>(xs: T[]): T => xs[Math.floor(xs.length * Math.random())]
 
 /** Returns shuffled copy of iterable */
-export const shuffle = <T>(xs: Iterable<T>): T[] => Array.from(xs).sort(() => Math.random() > 0.5 ? 1 : -1)
+export const shuffle = <T>(xs: Iterable<T>): T[] =>
+  Array.from(xs).sort(() => (Math.random() > 0.5 ? 1 : -1))
 
 /** Returns n random elements from array */
 export const sample = <T>(n: number, xs: T[]) => shuffle(xs).slice(0, n)
@@ -576,7 +614,7 @@ export const sample = <T>(n: number, xs: T[]) => shuffle(xs).slice(0, n)
 export const isIterable = (x: any) => Symbol.iterator in Object(x)
 
 /** Ensures value is iterable by wrapping in array if needed */
-export const toIterable = (x: any) => isIterable(x) ? x : [x]
+export const toIterable = (x: any) => (isIterable(x) ? x : [x])
 
 /** Ensures value is array by wrapping if needed */
 export const ensurePlural = <T>(x: T | T[]) => (x instanceof Array ? x : [x])
@@ -893,7 +931,7 @@ export const batch = <T>(t: number, f: (xs: T[]) => void) => {
  * @returns Function that returns promise of result
  */
 export const batcher = <T, U>(t: number, execute: (request: T[]) => U[] | Promise<U[]>) => {
-  const queue: {request: T, resolve: (x: U) => void}[] = []
+  const queue: {request: T; resolve: (x: U) => void}[] = []
 
   const _execute = async () => {
     const items = queue.splice(0)

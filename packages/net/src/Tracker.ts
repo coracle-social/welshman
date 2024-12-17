@@ -1,4 +1,4 @@
-import {Emitter, addToMapKey} from '@welshman/lib'
+import {Emitter, addToMapKey} from "@welshman/lib"
 
 export class Tracker extends Emitter {
   relaysById = new Map<string, Set<string>>()
@@ -36,7 +36,7 @@ export class Tracker extends Emitter {
     this.relaysById.set(eventId, relays)
     this.idsByRelay.set(eventId, relays)
 
-    this.emit('update')
+    this.emit("update")
   }
 
   removeRelay = (eventId: string, relay: string) => {
@@ -45,7 +45,7 @@ export class Tracker extends Emitter {
 
     if (!didDeleteRelay && !didDeleteId) return
 
-    this.emit('update')
+    this.emit("update")
   }
 
   track = (eventId: string, relay: string) => {
@@ -62,7 +62,7 @@ export class Tracker extends Emitter {
     }
   }
 
-  load = (relaysById: Tracker['relaysById']) => {
+  load = (relaysById: Tracker["relaysById"]) => {
     this.relaysById.clear()
     this.idsByRelay.clear()
 
@@ -73,13 +73,13 @@ export class Tracker extends Emitter {
       }
     }
 
-    this.emit('update')
+    this.emit("update")
   }
 
   clear = () => {
     this.relaysById.clear()
     this.idsByRelay.clear()
 
-    this.emit('update')
+    this.emit("update")
   }
 }

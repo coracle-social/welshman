@@ -1,7 +1,7 @@
 import {fromPairs, last, first, parseJson} from "@welshman/lib"
-import {getAddress} from "./Address"
-import {getAddressTags, getKindTagValues} from "./Tags"
-import type {TrustedEvent} from "./Events"
+import {getAddress} from "./Address.js"
+import {getAddressTags, getKindTagValues} from "./Tags.js"
+import type {TrustedEvent} from "./Events.js"
 
 export type Handler = {
   kind: number
@@ -32,8 +32,12 @@ export const readHandlers = (event: TrustedEvent) => {
     return []
   }
 
-  return getKindTagValues(event.tags)
-    .map(kind => ({...normalizedMeta, kind, identifier, event})) as Handler[]
+  return getKindTagValues(event.tags).map(kind => ({
+    ...normalizedMeta,
+    kind,
+    identifier,
+    event,
+  })) as Handler[]
 }
 
 export const getHandlerKey = (handler: Handler) => `${handler.kind}:${getAddress(handler.event)}`

@@ -1,4 +1,4 @@
-import type {TrustedEvent, Filter} from '@welshman/util'
+import type {TrustedEvent, Filter} from "@welshman/util"
 
 export enum FeedType {
   Address = "address",
@@ -28,43 +28,43 @@ export enum Scope {
 }
 
 export type FilterFeedType =
-  FeedType.ID |
-  FeedType.Address |
-  FeedType.Author |
-  FeedType.Kind |
-  FeedType.Relay |
-  FeedType.Tag
+  | FeedType.ID
+  | FeedType.Address
+  | FeedType.Author
+  | FeedType.Kind
+  | FeedType.Relay
+  | FeedType.Tag
 
 export type TagFeedMapping = [string, Feed]
 
 export type DVMItem = {
-  kind: number,
-  tags?: string[][],
-  relays?: string[],
-  mappings?: TagFeedMapping[],
+  kind: number
+  tags?: string[][]
+  relays?: string[]
+  mappings?: TagFeedMapping[]
 }
 
 export type ListItem = {
-  addresses: string[],
-  mappings?: TagFeedMapping[],
+  addresses: string[]
+  mappings?: TagFeedMapping[]
 }
 
 export type LabelItem = {
-  relays?: string[],
+  relays?: string[]
   authors?: string[]
   [key: `#${string}`]: string[]
-  mappings?: TagFeedMapping[],
+  mappings?: TagFeedMapping[]
 }
 
 export type WOTItem = {
-  min?: number,
-  max?: number,
+  min?: number
+  max?: number
 }
 
 export type CreatedAtItem = {
-  since?: number,
-  until?: number,
-  relative?: string[],
+  since?: number
+  until?: number
+  relative?: string[]
 }
 
 export type AddressFeed = [type: FeedType.Address, ...addresses: string[]]
@@ -86,23 +86,23 @@ export type TagFeed = [type: FeedType.Tag, key: string, ...values: string[]]
 export type UnionFeed = [type: FeedType.Union, ...feeds: Feed[]]
 
 export type Feed =
-  AddressFeed |
-  AuthorFeed |
-  CreatedAtFeed |
-  DVMFeed |
-  DifferenceFeed |
-  IDFeed |
-  IntersectionFeed |
-  GlobalFeed |
-  KindFeed |
-  ListFeed |
-  LabelFeed |
-  WOTFeed |
-  RelayFeed |
-  ScopeFeed |
-  SearchFeed |
-  TagFeed |
-  UnionFeed
+  | AddressFeed
+  | AuthorFeed
+  | CreatedAtFeed
+  | DVMFeed
+  | DifferenceFeed
+  | IDFeed
+  | IntersectionFeed
+  | GlobalFeed
+  | KindFeed
+  | ListFeed
+  | LabelFeed
+  | WOTFeed
+  | RelayFeed
+  | ScopeFeed
+  | SearchFeed
+  | TagFeed
+  | UnionFeed
 
 export type RequestItem = {
   relays?: string[]
@@ -114,9 +114,9 @@ export type RequestOpts = RequestItem & {
 }
 
 export type DVMRequest = {
-  kind: number,
-  tags?: string[][],
-  relays?: string[],
+  kind: number
+  tags?: string[][]
+  relays?: string[]
 }
 
 export type DVMOpts = DVMRequest & {

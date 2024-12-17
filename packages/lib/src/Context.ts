@@ -1,4 +1,4 @@
-import type {Context} from '@welshman/lib'
+import type {Context} from "@welshman/lib"
 
 /**
  * A global context variable for configuring libraries and applications.

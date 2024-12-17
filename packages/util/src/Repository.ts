@@ -1,10 +1,10 @@
-import {flatten, Emitter, sortBy, inc, chunk, uniq, omit, now, range, identity} from '@welshman/lib'
-import {DELETE} from './Kinds'
-import {EPOCH, matchFilter} from './Filters'
-import {isReplaceable, isUnwrappedEvent} from './Events'
-import {getAddress} from './Address'
-import type {Filter} from './Filters'
-import type {TrustedEvent, HashedEvent} from './Events'
+import {flatten, Emitter, sortBy, inc, chunk, uniq, omit, now, range, identity} from "@welshman/lib"
+import {DELETE} from "./Kinds.js"
+import {EPOCH, matchFilter} from "./Filters.js"
+import {isReplaceable, isUnwrappedEvent} from "./Events.js"
+import {getAddress} from "./Address.js"
+import type {Filter} from "./Filters.js"
+import type {TrustedEvent, HashedEvent} from "./Events.js"
 
 export const DAY = 86400
 
@@ -69,22 +69,19 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
       removed.add(id)
     }
 
-    this.emit('update', {added, removed})
+    this.emit("update", {added, removed})
   }
 
   // API
 
   getEvent = (idOrAddress: string) => {
-    return idOrAddress.includes(':')
+    return idOrAddress.includes(":")
       ? this.eventsByAddress.get(idOrAddress)
       : this.eventsById.get(idOrAddress)
   }
 
   hasEvent = (event: E) => {
-    const duplicate = (
-      this.eventsById.get(event.id) ||
-      this.eventsByAddress.get(getAddress(event))
-    )
+    const duplicate = this.eventsById.get(event.id) || this.eventsByAddress.get(getAddress(event))
 
     return duplicate && duplicate.created_at >= event.created_at
   }
@@ -110,7 +107,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
       this._updateIndex(this.eventsByDay, getDay(event.created_at), undefined, event)
       this._updateIndex(this.eventsByAuthor, event.pubkey, undefined, event)
 
-      this.emit('update', {added: [], removed: [event.id]})
+      this.emit("update", {added: [], removed: [event.id]})
     }
   }
 
@@ -121,27 +118,28 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
 
       if (filter.ids) {
         events = filter.ids!.map(id => this.eventsById.get(id)).filter(identity) as E[]
-        filter = omit(['ids'], filter)
+        filter = omit(["ids"], filter)
       } else if (filter.authors) {
         events = uniq(filter.authors!.flatMap(pubkey => this.eventsByAuthor.get(pubkey) || []))
-        filter = omit(['authors'], filter)
+        filter = omit(["authors"], filter)
       } else if (filter.since || filter.until) {
         const sinceDay = getDay(filter.since || EPOCH)
         const untilDay = getDay(filter.until || now())
 
         events = uniq(
-          Array.from(range(sinceDay, inc(untilDay)))
-            .flatMap((day: number) => this.eventsByDay.get(day) || [])
+          Array.from(range(sinceDay, inc(untilDay))).flatMap(
+            (day: number) => this.eventsByDay.get(day) || [],
+          ),
         )
       } else {
         for (const [k, values] of Object.entries(filter)) {
-          if (!k.startsWith('#') || k.length !== 2) {
+          if (!k.startsWith("#") || k.length !== 2) {
             continue
           }
 
           filter = omit([k], filter)
           events = uniq(
-            (values as string[]).flatMap(v => this.eventsByTag.get(`${k[1]}:${v}`) || [])
+            (values as string[]).flatMap(v => this.eventsByTag.get(`${k[1]}:${v}`) || []),
           )
 
           break
@@ -218,7 +216,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
     // Update our tag indexes
     for (const tag of event.tags) {
       if (tag[0]?.length === 1) {
-        this._updateIndex(this.eventsByTag, tag.slice(0, 2).join(':'), event, duplicate)
+        this._updateIndex(this.eventsByTag, tag.slice(0, 2).join(":"), event, duplicate)
 
         // If this is a delete event, the tag value is an id or address. Track when it was
         // deleted so that replaceables can be restored.
@@ -235,7 +233,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
     }
 
     if (shouldNotify) {
-      this.emit('update', {added: [event], removed})
+      this.emit("update", {added: [event], removed})
     }
 
     return true

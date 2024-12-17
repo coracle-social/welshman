@@ -1,5 +1,5 @@
-import {Emitter} from '@welshman/lib'
-import {Connection} from "./Connection"
+import {Emitter} from "@welshman/lib"
+import {Connection} from "./Connection.js"
 
 export class Pool extends Emitter {
   data: Map<string, Connection>
@@ -24,7 +24,7 @@ export class Pool extends Emitter {
     const newConnection = new Connection(url)
 
     this.data.set(url, newConnection)
-    this.emit('init', newConnection)
+    this.emit("init", newConnection)
 
     return newConnection
   }

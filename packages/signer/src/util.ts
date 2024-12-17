@@ -1,8 +1,10 @@
-import {schnorr} from '@noble/curves/secp256k1'
-import {bytesToHex, hexToBytes} from '@noble/hashes/utils'
-import {nip04 as nt04, nip44 as nt44, generateSecretKey, getPublicKey, getEventHash} from "nostr-tools"
-import {cached, now} from '@welshman/lib'
-import {SignedEvent, HashedEvent, EventTemplate, StampedEvent, OwnedEvent} from '@welshman/util'
+import {schnorr} from "@noble/curves/secp256k1"
+import {bytesToHex, hexToBytes} from "@noble/hashes/utils"
+import * as nt04 from "nostr-tools/nip04"
+import * as nt44 from "nostr-tools/nip44"
+import {generateSecretKey, getPublicKey, getEventHash} from "nostr-tools/pure"
+import {cached, now} from "@welshman/lib"
+import {SignedEvent, HashedEvent, EventTemplate, StampedEvent, OwnedEvent} from "@welshman/util"
 
 export const makeSecret = () => bytesToHex(generateSecretKey())
 
@@ -24,17 +26,20 @@ export const sign = (event: HashedEvent, secret: string) => ({...event, sig: get
 export const nip04 = {
   detect: (m: string) => m.includes("?iv="),
   encrypt: (pubkey: string, secret: string, m: string) => nt04.encrypt(secret, pubkey, m),
-  decrypt: (pubkey: string, secret: string, m: string) =>  nt04.decrypt(secret, pubkey, m),
+  decrypt: (pubkey: string, secret: string, m: string) => nt04.decrypt(secret, pubkey, m),
 }
 
 export const nip44 = {
   getSharedSecret: cached({
     maxSize: 10000,
     getKey: ([secret, pubkey]) => [secret, pubkey].join(":"),
-    getValue: ([secret, pubkey]: string[]) => nt44.v2.utils.getConversationKey(hexToBytes(secret), pubkey),
+    getValue: ([secret, pubkey]: string[]) =>
+      nt44.v2.utils.getConversationKey(hexToBytes(secret), pubkey),
   }),
-  encrypt: (pubkey: string, secret: string, m: string) => nt44.v2.encrypt(m, nip44.getSharedSecret(secret, pubkey)!),
-  decrypt: (pubkey: string, secret: string, m: string) => nt44.v2.decrypt(m, nip44.getSharedSecret(secret, pubkey)!),
+  encrypt: (pubkey: string, secret: string, m: string) =>
+    nt44.v2.encrypt(m, nip44.getSharedSecret(secret, pubkey)!),
+  decrypt: (pubkey: string, secret: string, m: string) =>
+    nt44.v2.decrypt(m, nip44.getSharedSecret(secret, pubkey)!),
 }
 
 export type Sign = (event: StampedEvent) => Promise<SignedEvent>

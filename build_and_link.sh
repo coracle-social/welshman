@@ -2,8 +2,8 @@
 
 upstream=$1
 
+npm run fix -w @welshman/$upstream
 npm run build -w @welshman/$upstream
-npm run lint -w @welshman/$upstream
 
 for downstream in $(./get_packages.py); do
   n=@welshman/$upstream

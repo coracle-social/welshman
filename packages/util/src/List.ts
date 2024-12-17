@@ -1,9 +1,9 @@
 import {parseJson, nthEq} from "@welshman/lib"
-import {Address} from "./Address"
-import {uniqTags} from "./Tags"
-import {isShareableRelayUrl} from "./Relay"
-import {Encryptable, DecryptedEvent} from "./Encryptable"
-import type {EncryptableUpdates} from "./Encryptable"
+import {Address} from "./Address.js"
+import {uniqTags} from "./Tags.js"
+import {isShareableRelayUrl} from "./Relay.js"
+import {Encryptable, DecryptedEvent} from "./Encryptable.js"
+import type {EncryptableUpdates} from "./Encryptable.js"
 
 export type ListParams = {
   kind: number
@@ -19,8 +19,11 @@ export type PublishedList = Omit<List, "event"> & {
   event: DecryptedEvent
 }
 
-export const makeList = (list: ListParams & Partial<List>): List =>
-  ({publicTags: [], privateTags: [], ...list})
+export const makeList = (list: ListParams & Partial<List>): List => ({
+  publicTags: [],
+  privateTags: [],
+  ...list,
+})
 
 const isValidTag = (tag: string[]) => {
   if (tag[0] === "p") return tag[1]?.length === 64
@@ -41,8 +44,10 @@ export const readList = (event: DecryptedEvent): PublishedList => {
   return {event, kind: event.kind, publicTags, privateTags}
 }
 
-export const getListTags = (list: List | undefined) =>
-  [...list?.publicTags || [], ...list?.privateTags || []]
+export const getListTags = (list: List | undefined) => [
+  ...(list?.publicTags || []),
+  ...(list?.privateTags || []),
+]
 
 export const removeFromListByPredicate = (list: List, pred: (t: string[]) => boolean) => {
   const plaintext: EncryptableUpdates = {}

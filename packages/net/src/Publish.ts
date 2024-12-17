@@ -1,7 +1,7 @@
-import {ctx, Emitter, now, randomId, defer} from '@welshman/lib'
-import type {Deferred} from '@welshman/lib'
-import {asSignedEvent} from '@welshman/util'
-import type {SignedEvent} from '@welshman/util'
+import {ctx, Emitter, now, randomId, defer} from "@welshman/lib"
+import type {Deferred} from "@welshman/lib"
+import {asSignedEvent} from "@welshman/util"
+import type {SignedEvent} from "@welshman/util"
 
 export enum PublishStatus {
   Pending = "pending",
@@ -34,8 +34,8 @@ export const makePublish = (request: PublishRequest) => {
   const id = randomId()
   const created_at = now()
   const emitter = new Emitter()
-  const result: Publish['result'] = defer()
-  const status: Publish['status'] = new Map()
+  const result: Publish["result"] = defer()
+  const status: Publish["status"] = new Map()
 
   return {id, created_at, request, emitter, result, status}
 }
@@ -77,7 +77,7 @@ export const publish = (request: PublishRequest) => {
   const timeout = setTimeout(() => abort(PublishStatus.Timeout), request.timeout || 10_000)
 
   // If we have a signal, use it
-  request.signal?.addEventListener('abort', () => abort(PublishStatus.Aborted))
+  request.signal?.addEventListener("abort", () => abort(PublishStatus.Aborted))
 
   // Delegate to our executor
   const executorSub = executor.publish(event, {
@@ -96,4 +96,3 @@ export const publish = (request: PublishRequest) => {
 
   return pub
 }
-

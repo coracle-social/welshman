@@ -1,9 +1,15 @@
-import {ctx, Emitter, max, chunk, randomId, once, groupBy, uniq} from '@welshman/lib'
-import {LOCAL_RELAY_URL, matchFilters, normalizeRelayUrl, unionFilters, TrustedEvent} from '@welshman/util'
-import type {Filter} from '@welshman/util'
-import {Tracker} from "./Tracker"
-import {Connection} from './Connection'
-import {ConnectionEvent} from './ConnectionEvent'
+import {ctx, Emitter, max, chunk, randomId, once, groupBy, uniq} from "@welshman/lib"
+import {
+  LOCAL_RELAY_URL,
+  matchFilters,
+  normalizeRelayUrl,
+  unionFilters,
+  TrustedEvent,
+} from "@welshman/util"
+import type {Filter} from "@welshman/util"
+import {Tracker} from "./Tracker.js"
+import {Connection} from "./Connection.js"
+import {ConnectionEvent} from "./ConnectionEvent.js"
 
 // `subscribe` is a super function that handles batching subscriptions by merging
 // them based on parameters (filters and subscribe opts), then splits them by relay.
@@ -71,9 +77,9 @@ export const calculateSubscriptionGroup = (sub: Subscription) => {
 
   if (sub.request.timeout) parts.push(`timeout:${sub.request.timeout}`)
   if (sub.request.authTimeout) parts.push(`authTimeout:${sub.request.authTimeout}`)
-  if (sub.request.closeOnEose) parts.push('closeOnEose')
+  if (sub.request.closeOnEose) parts.push("closeOnEose")
 
-  return parts.join('|')
+  return parts.join("|")
 }
 
 export const mergeSubscriptions = (subs: Subscription[]) => {
@@ -85,7 +91,7 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
     closeOnEose: subs.every(sub => sub.request.closeOnEose),
   })
 
-  mergedSub.controller.signal.addEventListener('abort', () => {
+  mergedSub.controller.signal.addEventListener("abort", () => {
     for (const sub of subs) {
       sub.close()
     }
@@ -130,93 +136,92 @@ export const mergeSubscriptions = (subs: Subscription[]) => {
 }
 
 export const optimizeSubscriptions = (subs: Subscription[]) => {
-  return Array.from(groupBy(calculateSubscriptionGroup, subs).values())
-    .flatMap(group => {
-      const timeout = max(group.map(sub => sub.request.timeout || 0))
-      const authTimeout = max(group.map(sub => sub.request.authTimeout || 0))
-      const closeOnEose = group.every(sub => sub.request.closeOnEose)
-      const completedSubs = new Set<string>()
-      const abortedSubs = new Set<string>()
-      const closedSubs = new Set<string>()
-      const eosedSubs = new Set<string>()
-      const sentSubs = new Set<string>()
-      const mergedSubs: Subscription[] = []
+  return Array.from(groupBy(calculateSubscriptionGroup, subs).values()).flatMap(group => {
+    const timeout = max(group.map(sub => sub.request.timeout || 0))
+    const authTimeout = max(group.map(sub => sub.request.authTimeout || 0))
+    const closeOnEose = group.every(sub => sub.request.closeOnEose)
+    const completedSubs = new Set<string>()
+    const abortedSubs = new Set<string>()
+    const closedSubs = new Set<string>()
+    const eosedSubs = new Set<string>()
+    const sentSubs = new Set<string>()
+    const mergedSubs: Subscription[] = []
 
-      for (const {relays, filters} of ctx.net.optimizeSubscriptions(group)) {
-        for (const filter of filters) {
-          const mergedSub = makeSubscription({
-            filters: [filter],
-            relays,
-            timeout,
-            authTimeout,
-            closeOnEose
-          })
+    for (const {relays, filters} of ctx.net.optimizeSubscriptions(group)) {
+      for (const filter of filters) {
+        const mergedSub = makeSubscription({
+          filters: [filter],
+          relays,
+          timeout,
+          authTimeout,
+          closeOnEose,
+        })
 
-          for (const {id, controller, request} of group) {
-            const onAbort = () => {
-              abortedSubs.add(id)
+        for (const {id, controller, request} of group) {
+          const onAbort = () => {
+            abortedSubs.add(id)
 
-              if (abortedSubs.size === group.length) {
-                mergedSub.close()
-              }
+            if (abortedSubs.size === group.length) {
+              mergedSub.close()
             }
-
-            request.signal?.addEventListener('abort', onAbort)
-            controller.signal.addEventListener('abort', onAbort)
           }
 
-          mergedSub.emitter.on(SubscriptionEvent.Event, (url: string, event: TrustedEvent) => {
+          request.signal?.addEventListener("abort", onAbort)
+          controller.signal.addEventListener("abort", onAbort)
+        }
+
+        mergedSub.emitter.on(SubscriptionEvent.Event, (url: string, event: TrustedEvent) => {
+          for (const sub of group) {
+            if (matchFilters(sub.request.filters, event) && !sub.tracker.track(event.id, url)) {
+              sub.emitter.emit(SubscriptionEvent.Event, url, event)
+            }
+          }
+        })
+
+        // Pass events back to caller
+        const propagateEvent = (type: SubscriptionEvent) =>
+          mergedSub.emitter.on(type, (url: string, event: TrustedEvent) => {
             for (const sub of group) {
-              if (matchFilters(sub.request.filters, event) && !sub.tracker.track(event.id, url)) {
-                sub.emitter.emit(SubscriptionEvent.Event, url, event)
+              if (matchFilters(sub.request.filters, event)) {
+                sub.emitter.emit(type, url, event)
               }
             }
           })
 
-          // Pass events back to caller
-          const propagateEvent = (type: SubscriptionEvent) =>
-            mergedSub.emitter.on(type,  (url: string, event: TrustedEvent) => {
+        propagateEvent(SubscriptionEvent.Duplicate)
+        propagateEvent(SubscriptionEvent.DeletedEvent)
+        propagateEvent(SubscriptionEvent.Invalid)
+
+        const propagateFinality = (type: SubscriptionEvent, subIds: Set<string>) =>
+          mergedSub.emitter.on(type, (...args: any[]) => {
+            subIds.add(mergedSub.id)
+
+            // Wait for all subscriptions to complete before reporting finality to the caller.
+            // This is sub-optimal, but because we're outsourcing filter/relay optimization
+            // we can't make any assumptions about which caller subscriptions have completed
+            // at any given time.
+            if (subIds.size === mergedSubs.length) {
               for (const sub of group) {
-                if (matchFilters(sub.request.filters, event)) {
-                  sub.emitter.emit(type, url, event)
-                }
+                sub.emitter.emit(type, ...args)
               }
-            })
+            }
 
-          propagateEvent(SubscriptionEvent.Duplicate)
-          propagateEvent(SubscriptionEvent.DeletedEvent)
-          propagateEvent(SubscriptionEvent.Invalid)
+            if (type === SubscriptionEvent.Complete) {
+              mergedSub.emitter.removeAllListeners()
+            }
+          })
 
-          const propagateFinality = (type: SubscriptionEvent, subIds: Set<string>) =>
-            mergedSub.emitter.on(type, (...args: any[]) => {
-              subIds.add(mergedSub.id)
+        propagateFinality(SubscriptionEvent.Send, sentSubs)
+        propagateFinality(SubscriptionEvent.Eose, eosedSubs)
+        propagateFinality(SubscriptionEvent.Close, closedSubs)
+        propagateFinality(SubscriptionEvent.Complete, completedSubs)
 
-              // Wait for all subscriptions to complete before reporting finality to the caller.
-              // This is sub-optimal, but because we're outsourcing filter/relay optimization
-              // we can't make any assumptions about which caller subscriptions have completed
-              // at any given time.
-              if (subIds.size === mergedSubs.length) {
-                for (const sub of group) {
-                  sub.emitter.emit(type, ...args)
-                }
-              }
-
-              if (type === SubscriptionEvent.Complete) {
-                mergedSub.emitter.removeAllListeners()
-              }
-            })
-
-          propagateFinality(SubscriptionEvent.Send, sentSubs)
-          propagateFinality(SubscriptionEvent.Eose, eosedSubs)
-          propagateFinality(SubscriptionEvent.Close, closedSubs)
-          propagateFinality(SubscriptionEvent.Complete, completedSubs)
-
-          mergedSubs.push(mergedSub)
-        }
+        mergedSubs.push(mergedSub)
       }
+    }
 
-      return mergedSubs
-    })
+    return mergedSubs
+  })
 }
 
 const _executeSubscription = (sub: Subscription) => {
@@ -267,19 +272,17 @@ const _executeSubscription = (sub: Subscription) => {
     }
   }
 
-  const onEose = (url: string) =>
-    emitter.emit(SubscriptionEvent.Eose, url)
+  const onEose = (url: string) => emitter.emit(SubscriptionEvent.Eose, url)
 
-  const onClose = (connection: Connection) =>
-    emitter.emit(SubscriptionEvent.Close, connection.url)
+  const onClose = (connection: Connection) => emitter.emit(SubscriptionEvent.Close, connection.url)
 
   const onComplete = once(() => emitter.emit(SubscriptionEvent.Complete))
 
   // Listen for abort via caller signal
-  signal?.addEventListener('abort', onComplete)
+  signal?.addEventListener("abort", onComplete)
 
   // Listen for abort via our own internal signal
-  controller.signal.addEventListener('abort', onComplete)
+  controller.signal.addEventListener("abort", onComplete)
 
   // If we have a timeout, complete the subscription automatically
   if (timeout) setTimeout(onComplete, timeout + authTimeout)
@@ -297,7 +300,7 @@ const _executeSubscription = (sub: Subscription) => {
         if (authTimeout) {
           await connection.auth.attempt(authTimeout)
         }
-      })
+      }),
     ).then(() => {
       // If we send too many filters in a request relays will refuse to respond. REQs are rate
       // limited client-side by Connection, so this will throttle concurrent requests.
@@ -333,9 +336,7 @@ export const executeSubscriptionBatched = (() => {
 
   return (sub: Subscription) => {
     subs.push(sub)
-    timeouts.push(
-      setTimeout(executeAll, Math.max(16, sub.request.delay!)) as unknown as number
-    )
+    timeouts.push(setTimeout(executeAll, Math.max(16, sub.request.delay!)) as unknown as number)
   }
 })()
 
@@ -346,7 +347,13 @@ export type SubscribeRequestWithHandlers = SubscribeRequest & {
   onComplete?: () => void
 }
 
-export const subscribe = ({onEvent, onEose, onClose, onComplete, ...request}: SubscribeRequestWithHandlers) => {
+export const subscribe = ({
+  onEvent,
+  onEose,
+  onClose,
+  onComplete,
+  ...request
+}: SubscribeRequestWithHandlers) => {
   const sub: Subscription = makeSubscription({delay: 50, ...request})
 
   for (const relay of request.relays) {
@@ -362,7 +369,8 @@ export const subscribe = ({onEvent, onEose, onClose, onComplete, ...request}: Su
   }
 
   // Signature for onEvent is different from emitter signature for historical reasons and convenience
-  if (onEvent) sub.emitter.on(SubscriptionEvent.Event, (url: string, event: TrustedEvent) => onEvent(event))
+  if (onEvent)
+    sub.emitter.on(SubscriptionEvent.Event, (url: string, event: TrustedEvent) => onEvent(event))
   if (onEose) sub.emitter.on(SubscriptionEvent.Eose, onEose)
   if (onClose) sub.emitter.on(SubscriptionEvent.Close, onClose)
   if (onComplete) sub.emitter.on(SubscriptionEvent.Complete, onComplete)

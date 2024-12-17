@@ -1,6 +1,6 @@
 import {uniq, uniqBy, mapVals, nth, nthEq, ensurePlural} from "@welshman/lib"
-import {isRelayUrl, isShareableRelayUrl} from "./Relay"
-import {Address} from "./Address"
+import {isRelayUrl, isShareableRelayUrl} from "./Relay.js"
+import {Address} from "./Address.js"
 
 export const getTags = (types: string | string[], tags: string[][]) => {
   types = ensurePlural(types)
@@ -17,8 +17,7 @@ export const getTag = (types: string | string[], tags: string[][]) => {
 export const getTagValues = (types: string | string[], tags: string[][]) =>
   getTags(types, tags).map(nth(1))
 
-export const getTagValue = (types: string | string[], tags: string[][]) =>
-  getTag(types, tags)?.[1]
+export const getTagValue = (types: string | string[], tags: string[][]) => getTag(types, tags)?.[1]
 
 export const getEventTags = (tags: string[][]) =>
   tags.filter(t => ["e"].includes(t[0]) && t[1].length === 64)
@@ -37,7 +36,8 @@ export const getPubkeyTagValues = (tags: string[][]) => getPubkeyTags(tags).map(
 
 export const getTopicTags = (tags: string[][]) => tags.filter(nthEq(0, "t"))
 
-export const getTopicTagValues = (tags: string[][]) => getTopicTags(tags).map(t => t[1].replace(/^#/, ''))
+export const getTopicTagValues = (tags: string[][]) =>
+  getTopicTags(tags).map(t => t[1].replace(/^#/, ""))
 
 export const getRelayTags = (tags: string[][]) =>
   tags.filter(t => ["r", "relay"].includes(t[0]) && isRelayUrl(t[1] || ""))

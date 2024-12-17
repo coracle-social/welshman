@@ -1,19 +1,19 @@
 import Fuse from "fuse.js"
 import type {IFuseOptions, FuseResult} from "fuse.js"
-import {debounce} from 'throttle-debounce'
-import {derived} from 'svelte/store'
-import {dec, sortBy} from '@welshman/lib'
-import {PROFILE} from '@welshman/util'
-import {throttled} from '@welshman/store'
+import {debounce} from "throttle-debounce"
+import {derived} from "svelte/store"
+import {dec, sortBy} from "@welshman/lib"
+import {PROFILE} from "@welshman/util"
+import {throttled} from "@welshman/store"
 import type {PublishedProfile} from "@welshman/util"
-import {load} from './subscribe'
-import {wotGraph} from './wot'
-import {profiles} from './profiles'
-import {topics} from './topics'
-import type {Topic} from './topics'
-import {relays} from './relays'
-import type {Relay} from './relays'
-import {handlesByNip05} from './handles'
+import {load} from "./subscribe.js"
+import {wotGraph} from "./wot.js"
+import {profiles} from "./profiles.js"
+import {topics} from "./topics.js"
+import type {Topic} from "./topics.js"
+import {relays} from "./relays.js"
+import type {Relay} from "./relays.js"
+import {handlesByNip05} from "./handles.js"
 
 export type SearchOptions<V, T> = {
   getValue: (item: T) => V
@@ -65,12 +65,11 @@ export const profileSearch = derived(
   [throttled(800, profiles), throttled(800, handlesByNip05)],
   ([$profiles, $handlesByNip05]) => {
     // Remove invalid nip05's from profiles
-    const options = $profiles
-      .map(p => {
-        const isNip05Valid = !p.nip05 || $handlesByNip05.get(p.nip05)?.pubkey === p.event.pubkey
+    const options = $profiles.map(p => {
+      const isNip05Valid = !p.nip05 || $handlesByNip05.get(p.nip05)?.pubkey === p.event.pubkey
 
-        return isNip05Valid ? p : {...p, nip05: ""}
-      })
+      return isNip05Valid ? p : {...p, nip05: ""}
+    })
 
     return createSearch(options, {
       onSearch: searchProfiles,
@@ -93,7 +92,7 @@ export const profileSearch = derived(
         shouldSort: false,
       },
     })
-  }
+  },
 )
 
 export const topicSearch = derived(topics, $topics =>

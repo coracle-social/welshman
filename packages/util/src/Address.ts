@@ -1,4 +1,4 @@
-import {nip19} from "nostr-tools"
+import {decode, naddrEncode} from "nostr-tools/nip19"
 
 // Define this locally to avoid circular dependencies
 type AddressableEvent = {
@@ -12,7 +12,7 @@ export class Address {
     readonly kind: number,
     readonly pubkey: string,
     readonly identifier: string,
-    readonly relays: string[] = []
+    readonly relays: string[] = [],
   ) {}
 
   static isAddress(address: string) {
@@ -26,22 +26,21 @@ export class Address {
   }
 
   static fromNaddr(naddr: string) {
-    let type
-    let data = {} as any
+    let decoded: any
+
     try {
-      ({type, data} = nip19.decode(naddr) as {
-        type: "naddr"
-        data: any
-      })
+      decoded = decode(naddr)
     } catch (e) {
       // pass
     }
 
-    if (type !== "naddr") {
+    if (decoded?.type !== "naddr") {
       throw new Error(`Invalid naddr ${naddr}`)
     }
 
-    return new Address(data.kind, data.pubkey, data.identifier, data.relays)
+    const {kind, pubkey, identifier, relays} = decoded.data
+
+    return new Address(kind, pubkey, identifier, relays)
   }
 
   static fromEvent(event: AddressableEvent, relays: string[] = []) {
@@ -52,7 +51,7 @@ export class Address {
 
   toString = () => [this.kind, this.pubkey, this.identifier].join(":")
 
-  toNaddr = () => nip19.naddrEncode(this)
+  toNaddr = () => naddrEncode(this)
 }
 
 // Utils

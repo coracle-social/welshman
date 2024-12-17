@@ -49,35 +49,37 @@ export const initIndexedDbAdapter = async (name: string, adapter: IndexedDbAdapt
 
   adapter.store.set(prevRecords)
 
-  adapter.store.subscribe(
-    async (currentRecords: any[]) => {
-      if (dead.get()) {
-        return
-      }
+  adapter.store.subscribe(async (currentRecords: any[]) => {
+    if (dead.get()) {
+      return
+    }
 
-      const currentIds = new Set(currentRecords.map(item => item[adapter.keyPath]))
-      const removedRecords = prevRecords.filter(r => !currentIds.has(r[adapter.keyPath]))
+    const currentIds = new Set(currentRecords.map(item => item[adapter.keyPath]))
+    const removedRecords = prevRecords.filter(r => !currentIds.has(r[adapter.keyPath]))
 
-      const prevRecordsById = indexBy(item => item[adapter.keyPath], prevRecords)
-      const updatedRecords = currentRecords.filter(r => r !== prevRecordsById.get(r[adapter.keyPath]))
+    const prevRecordsById = indexBy(item => item[adapter.keyPath], prevRecords)
+    const updatedRecords = currentRecords.filter(r => r !== prevRecordsById.get(r[adapter.keyPath]))
 
-      prevRecords = currentRecords
+    prevRecords = currentRecords
 
-      if (updatedRecords.length > 0) {
-        await bulkPut(name, updatedRecords)
-      }
+    if (updatedRecords.length > 0) {
+      await bulkPut(name, updatedRecords)
+    }
 
-      if (removedRecords.length > 0) {
-        await bulkDelete(
-          name,
-          removedRecords.map(item => item[adapter.keyPath]),
-        )
-      }
-    },
-  )
+    if (removedRecords.length > 0) {
+      await bulkDelete(
+        name,
+        removedRecords.map(item => item[adapter.keyPath]),
+      )
+    }
+  })
 }
 
-export const initStorage = async (name: string, version: number, adapters: Record<string, IndexedDbAdapter>) => {
+export const initStorage = async (
+  name: string,
+  version: number,
+  adapters: Record<string, IndexedDbAdapter>,
+) => {
   if (!window.indexedDB) return
 
   window.addEventListener("beforeunload", () => closeStorage())
@@ -131,14 +133,20 @@ const migrate = (data: any[], options: StorageAdapterOptions) =>
   options.migrate ? options.migrate(data) : data
 
 export const storageAdapters = {
-  fromObjectStore: <T>(store: Writable<Record<string, T>>, options: StorageAdapterOptions = {}) => ({
+  fromObjectStore: <T>(
+    store: Writable<Record<string, T>>,
+    options: StorageAdapterOptions = {},
+  ) => ({
     options,
     keyPath: "key",
     store: adapter({
       store: throttled(options.throttle || 0, store),
       forward: (data: Record<string, T>) =>
-        migrate(Object.entries(data).map(([key, value]) => ({key, value})), options),
-      backward: (data: {key: string, value: T}[]) =>
+        migrate(
+          Object.entries(data).map(([key, value]) => ({key, value})),
+          options,
+        ),
+      backward: (data: {key: string; value: T}[]) =>
         fromPairs(data.map(({key, value}) => [key, value])),
     }),
   }),
@@ -148,100 +156,113 @@ export const storageAdapters = {
     store: adapter({
       store: throttled(options.throttle || 0, store),
       forward: (data: Map<string, T>) =>
-        migrate(Array.from(data.entries()).map(([key, value]) => ({key, value})), options),
-      backward: (data: {key: string, value: T}[]) =>
+        migrate(
+          Array.from(data.entries()).map(([key, value]) => ({key, value})),
+          options,
+        ),
+      backward: (data: {key: string; value: T}[]) =>
         new Map(data.map(({key, value}) => [key, value])),
     }),
   }),
   fromTracker: (tracker: Tracker, options: StorageAdapterOptions = {}) => ({
     options,
-    keyPath: 'key',
-    store: custom(setter => {
-      let onUpdate = () =>
-        setter(
-          migrate(
-            Array.from(tracker.relaysById.entries())
-              .map(([key, urls]) => ({key, value: Array.from(urls)})),
-            options
+    keyPath: "key",
+    store: custom(
+      setter => {
+        let onUpdate = () =>
+          setter(
+            migrate(
+              Array.from(tracker.relaysById.entries()).map(([key, urls]) => ({
+                key,
+                value: Array.from(urls),
+              })),
+              options,
+            ),
           )
-        )
 
-      if (options.throttle) {
-        onUpdate = throttle(options.throttle, onUpdate)
-      }
+        if (options.throttle) {
+          onUpdate = throttle(options.throttle, onUpdate)
+        }
 
-      onUpdate()
-      tracker.on('update', onUpdate)
+        onUpdate()
+        tracker.on("update", onUpdate)
 
-      return () => tracker.off('update', onUpdate)
-    }, {
-      set: (data: {key: string, value: string[]}[]) =>
-        tracker.load(new Map(data.map(({key, value}) => [key, new Set(value)]))),
-    }),
+        return () => tracker.off("update", onUpdate)
+      },
+      {
+        set: (data: {key: string; value: string[]}[]) =>
+          tracker.load(new Map(data.map(({key, value}) => [key, new Set(value)]))),
+      },
+    ),
   }),
   fromRepository: (repository: Repository, options: StorageAdapterOptions = {}) => ({
     options,
-    keyPath: 'id',
-    store: custom(setter => {
-      let onUpdate = () => setter(migrate(repository.dump(), options))
+    keyPath: "id",
+    store: custom(
+      setter => {
+        let onUpdate = () => setter(migrate(repository.dump(), options))
 
-      if (options.throttle) {
-        onUpdate = throttle(options.throttle, onUpdate)
-      }
+        if (options.throttle) {
+          onUpdate = throttle(options.throttle, onUpdate)
+        }
 
-      onUpdate()
-      repository.on('update', onUpdate)
+        onUpdate()
+        repository.on("update", onUpdate)
 
-      return () => repository.off('update', onUpdate)
-    }, {
-      set: (events: TrustedEvent[]) => repository.load(events),
-    }),
+        return () => repository.off("update", onUpdate)
+      },
+      {
+        set: (events: TrustedEvent[]) => repository.load(events),
+      },
+    ),
   }),
   fromRepositoryAndTracker: (
     repository: Repository,
     tracker: Tracker,
-    options: StorageAdapterOptions = {}
+    options: StorageAdapterOptions = {},
   ) => ({
     options,
-    keyPath: 'id',
-    store: custom(setter => {
-      let onUpdate = () => {
-        const events = migrate(repository.dump(), options)
+    keyPath: "id",
+    store: custom(
+      setter => {
+        let onUpdate = () => {
+          const events = migrate(repository.dump(), options)
 
-        setter(
-          events.map(event => {
-            const relays = Array.from(tracker.getRelays(event.id))
+          setter(
+            events.map(event => {
+              const relays = Array.from(tracker.getRelays(event.id))
 
-            return {id: event.id, event, relays}
-          })
-        )
-      }
-
-      if (options.throttle) {
-        onUpdate = throttle(options.throttle, onUpdate)
-      }
-
-      onUpdate()
-      tracker.on('update', onUpdate)
-      repository.on('update', onUpdate)
-
-      return () => {
-        tracker.off('update', onUpdate)
-      }
-    }, {
-      set: (items: {event: TrustedEvent, relays: string[]}[]) => {
-        const events: TrustedEvent[] = []
-        const relaysById = new Map<string, Set<string>>()
-
-        for (const {event, relays} of items) {
-          events.push(event)
-          relaysById.set(event.id, new Set(relays))
+              return {id: event.id, event, relays}
+            }),
+          )
         }
 
-        repository.load(events)
-        tracker.load(relaysById)
-      },
-    }),
-  })
-}
+        if (options.throttle) {
+          onUpdate = throttle(options.throttle, onUpdate)
+        }
 
+        onUpdate()
+        tracker.on("update", onUpdate)
+        repository.on("update", onUpdate)
+
+        return () => {
+          tracker.off("update", onUpdate)
+        }
+      },
+      {
+        set: (items: {event: TrustedEvent; relays: string[]}[]) => {
+          const events: TrustedEvent[] = []
+          const relaysById = new Map<string, Set<string>>()
+
+          for (const {event, relays} of items) {
+            events.push(event)
+            relaysById.set(event.id, new Set(relays))
+          }
+
+          repository.load(events)
+          tracker.load(relaysById)
+        },
+      },
+    ),
+  }),
+}

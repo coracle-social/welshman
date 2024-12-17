@@ -1,29 +1,19 @@
 import WebSocket from "isomorphic-ws"
-import {Worker, sleep} from '@welshman/lib'
-import {ConnectionEvent} from './ConnectionEvent'
-import type {Connection} from './Connection'
+import {Worker, sleep} from "@welshman/lib"
+import {ConnectionEvent} from "./ConnectionEvent.js"
+import type {Connection} from "./Connection.js"
 
 export type Message = [string, ...any[]]
 
 export enum SocketStatus {
-  New = 'new',
-  Open = 'open',
-  Opening = 'opening',
-  Closing = 'closing',
-  Closed = 'closed',
-  Error = 'error',
-  Invalid = 'invalid',
+  New = "new",
+  Open = "open",
+  Opening = "opening",
+  Closing = "closing",
+  Closed = "closed",
+  Error = "error",
+  Invalid = "invalid",
 }
-
-const {
-  New,
-  Open,
-  Opening,
-  Closing,
-  Closed,
-  Error,
-  Invalid,
-} = SocketStatus
 
 export class Socket {
   lastError = 0
@@ -39,7 +29,7 @@ export class Socket {
   }
 
   wait = async () => {
-    while ([Opening, Closing].includes(this.status)) {
+    while ([SocketStatus.Opening, SocketStatus.Closing].includes(this.status)) {
       await sleep(100)
     }
   }
@@ -49,19 +39,19 @@ export class Socket {
     await this.wait()
 
     // If the socket is closed, reset
-    if (this.status === Closed) {
-      this.status = New
+    if (this.status === SocketStatus.Closed) {
+      this.status = SocketStatus.New
       this.cxn.emit(ConnectionEvent.Reset)
     }
 
     // If we're closed due to an error retry after a delay
-    if (this.status === Error && Date.now() - this.lastError > 15_000) {
-      this.status = New
+    if (this.status === SocketStatus.Error && Date.now() - this.lastError > 15_000) {
+      this.status = SocketStatus.New
       this.cxn.emit(ConnectionEvent.Reset)
     }
 
     // If the socket is new, connect
-    if (this.status === New) {
+    if (this.status === SocketStatus.New) {
       this.#init()
     }
 
@@ -84,6 +74,10 @@ export class Socket {
   send = async (message: Message) => {
     await this.open()
 
+    if (!this.ws) {
+      throw new Error(`No websocket available when sending to ${this.cxn.url}`)
+    }
+
     this.cxn.emit(ConnectionEvent.Send, message)
     this.ws.send(JSON.stringify(message))
   }
@@ -91,42 +85,44 @@ export class Socket {
   #init = () => {
     try {
       this.ws = new WebSocket(this.cxn.url)
-      this.status = Opening
+      this.status = SocketStatus.Opening
 
       this.ws.onopen = () => {
-        this.status = Open
+        this.status = SocketStatus.Open
         this.cxn.emit(ConnectionEvent.Open)
       }
 
       this.ws.onerror = () => {
-        this.status = Error
+        this.status = SocketStatus.Error
         this.lastError = Date.now()
         this.cxn.emit(ConnectionEvent.Error)
       }
 
       this.ws.onclose = () => {
-        if (this.status !== Error) {
-          this.status = Closed
+        if (this.status !== SocketStatus.Error) {
+          this.status = SocketStatus.Closed
         }
 
         this.cxn.emit(ConnectionEvent.Close)
       }
 
-      this.ws.onmessage = (event: {data: string}) => {
+      this.ws.onmessage = (event: any) => {
+        const data = event.data as string
+
         try {
-          const message = JSON.parse(event.data as string)
+          const message = JSON.parse(data)
 
           if (Array.isArray(message)) {
             this.worker.push(message as Message)
           } else {
-            this.cxn.emit(ConnectionEvent.InvalidMessage, event.data)
+            this.cxn.emit(ConnectionEvent.InvalidMessage, data)
           }
         } catch (e) {
-          this.cxn.emit(ConnectionEvent.InvalidMessage, event.data)
+          this.cxn.emit(ConnectionEvent.InvalidMessage, data)
         }
       }
     } catch (e) {
-      this.status = Invalid
+      this.status = SocketStatus.Invalid
       this.cxn.emit(ConnectionEvent.InvalidUrl)
     }
   }

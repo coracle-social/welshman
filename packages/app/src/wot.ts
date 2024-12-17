@@ -1,10 +1,10 @@
-import {derived, writable} from 'svelte/store'
-import {max, throttle, addToMapKey, inc, dec} from '@welshman/lib'
-import {getListTags, getPubkeyTagValues} from '@welshman/util'
-import {throttled, withGetter} from '@welshman/store'
-import {pubkey} from './session'
-import {follows, followsByPubkey} from './follows'
-import {mutes, mutesByPubkey} from './mutes'
+import {derived, writable} from "svelte/store"
+import {max, throttle, addToMapKey, inc, dec} from "@welshman/lib"
+import {getListTags, getPubkeyTagValues} from "@welshman/util"
+import {throttled, withGetter} from "@welshman/store"
+import {pubkey} from "./session.js"
+import {follows, followsByPubkey} from "./follows.js"
+import {mutes, mutesByPubkey} from "./mutes.js"
 
 export const getFollows = (pubkey: string) =>
   getPubkeyTagValues(getListTags(followsByPubkey.get().get(pubkey)))
@@ -27,46 +27,38 @@ export const getNetwork = (pubkey: string) => {
   return Array.from(network)
 }
 
-
 export const followersByPubkey = withGetter(
-  derived(
-    throttled(1000, follows),
-    lists => {
-      const $followersByPubkey = new Map<string, Set<string>>()
+  derived(throttled(1000, follows), lists => {
+    const $followersByPubkey = new Map<string, Set<string>>()
 
-      for (const list of lists) {
-        for (const pubkey of getPubkeyTagValues(getListTags(list))) {
-          addToMapKey($followersByPubkey, pubkey, list.event.pubkey)
-        }
+    for (const list of lists) {
+      for (const pubkey of getPubkeyTagValues(getListTags(list))) {
+        addToMapKey($followersByPubkey, pubkey, list.event.pubkey)
       }
-
-      return $followersByPubkey
     }
-  )
+
+    return $followersByPubkey
+  }),
 )
 
 export const mutersByPubkey = withGetter(
-  derived(
-    throttled(1000, mutes),
-    lists => {
-      const $mutersByPubkey = new Map<string, Set<string>>()
+  derived(throttled(1000, mutes), lists => {
+    const $mutersByPubkey = new Map<string, Set<string>>()
 
-      for (const list of lists) {
-        for (const pubkey of getPubkeyTagValues(getListTags(list))) {
-          addToMapKey($mutersByPubkey, pubkey, list.event.pubkey)
-        }
+    for (const list of lists) {
+      for (const pubkey of getPubkeyTagValues(getListTags(list))) {
+        addToMapKey($mutersByPubkey, pubkey, list.event.pubkey)
       }
-
-      return $mutersByPubkey
     }
-  )
+
+    return $mutersByPubkey
+  }),
 )
 
 export const getFollowers = (pubkey: string) =>
   Array.from(followersByPubkey.get().get(pubkey) || [])
 
-export const getMuters = (pubkey: string) =>
-  Array.from(mutersByPubkey.get().get(pubkey) || [])
+export const getMuters = (pubkey: string) => Array.from(mutersByPubkey.get().get(pubkey) || [])
 
 export const getFollowsWhoFollow = (pubkey: string, target: string) =>
   getFollows(pubkey).filter(other => getFollows(other).includes(target))

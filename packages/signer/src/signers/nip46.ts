@@ -1,14 +1,29 @@
-import {Emitter, throttle, makePromise, defer, sleep, tryCatch, randomId, equals} from "@welshman/lib"
-import {createEvent, normalizeRelayUrl, TrustedEvent, StampedEvent, NOSTR_CONNECT} from "@welshman/util"
+import {
+  Emitter,
+  throttle,
+  makePromise,
+  defer,
+  sleep,
+  tryCatch,
+  randomId,
+  equals,
+} from "@welshman/lib"
+import {
+  createEvent,
+  normalizeRelayUrl,
+  TrustedEvent,
+  StampedEvent,
+  NOSTR_CONNECT,
+} from "@welshman/util"
 import {subscribe, publish, Subscription, SubscriptionEvent} from "@welshman/net"
-import {ISigner, decrypt, hash, own} from '../util'
-import {Nip01Signer} from './nip01'
+import {ISigner, EncryptionImplementation, decrypt, hash, own} from "../util.js"
+import {Nip01Signer} from "./nip01.js"
 
 export type Nip46Algorithm = "nip04" | "nip44"
 
 export enum Nip46Event {
-  Send = 'send',
-  Receive = 'receive',
+  Send = "send",
+  Receive = "receive",
 }
 
 export type Nip46BrokerParams = {
@@ -82,7 +97,10 @@ const popupManager = (() => {
 export class Nip46Receiver extends Emitter {
   public sub?: Subscription
 
-  constructor(public signer: ISigner, public params: Nip46BrokerParams) {
+  constructor(
+    public signer: ISigner,
+    public params: Nip46BrokerParams,
+  ) {
     super()
   }
 
@@ -125,7 +143,10 @@ export class Nip46Sender extends Emitter {
   public processing = false
   public queue: Nip46Request[] = []
 
-  constructor(public signer: ISigner, public params: Nip46BrokerParams) {
+  constructor(
+    public signer: ISigner,
+    public params: Nip46BrokerParams,
+  ) {
     super()
   }
 
@@ -160,7 +181,7 @@ export class Nip46Sender extends Emitter {
         try {
           await this.send(request)
         } catch (error: any) {
-          console.error(`nip46 error:`, error, request)
+          console.error("nip46 error:", error, request)
         }
       }
     } finally {
@@ -182,7 +203,10 @@ export class Nip46Request {
   id = randomId()
   promise = defer<Nip46ResponseWithResult, Nip46ResponseWithError>()
 
-  constructor(readonly method: string, readonly params: string[]) {}
+  constructor(
+    readonly method: string,
+    readonly params: string[],
+  ) {}
 
   listen = async (receiver: Nip46Receiver) => {
     await receiver.start()
@@ -251,7 +275,7 @@ export class Nip46Broker extends Emitter {
     const sender = new Nip46Sender(this.signer, this.params)
 
     sender.on(Nip46Event.Send, (data: any) => {
-      console.log('nip46 send:', data)
+      console.log("nip46 send:", data)
     })
 
     return sender
@@ -261,7 +285,7 @@ export class Nip46Broker extends Emitter {
     const receiver = new Nip46Receiver(this.signer, this.params)
 
     receiver.on(Nip46Event.Receive, (data: any) => {
-      console.log('nip46 receive:', data)
+      console.log("nip46 receive:", data)
     })
 
     return receiver
@@ -314,7 +338,7 @@ export class Nip46Broker extends Emitter {
       const _url = new URL(url)
 
       relays = _url.searchParams.getAll("relay") || []
-      signerPubkey = _url.hostname || _url.pathname.replace(/\//g, '')
+      signerPubkey = _url.hostname || _url.pathname.replace(/\//g, "")
       connectSecret = _url.searchParams.get("secret") || ""
     } catch {
       // pass
@@ -329,22 +353,24 @@ export class Nip46Broker extends Emitter {
     const params = new URLSearchParams({...meta, secret})
 
     for (const relay of this.params.relays) {
-      params.append('relay', relay)
+      params.append("relay", relay)
     }
 
     return `nostrconnect://${clientPubkey}?${params.toString()}`
   }
 
   waitForNostrconnect = (url: string, abort?: AbortController) => {
-    const secret = new URL(url).searchParams.get('secret')
+    const secret = new URL(url).searchParams.get("secret")
 
     return makePromise<Nip46ResponseWithResult, Nip46Response | undefined>((resolve, reject) => {
       const onReceive = (response: Nip46Response) => {
         if (["ack", secret].includes(response.result!)) {
           this.setParams({signerPubkey: response.event.pubkey})
 
-          if (response.result === 'ack') {
-            console.warn("Bunker responded to nostrconnect with 'ack', which can lead to session hijacking")
+          if (response.result === "ack") {
+            console.warn(
+              "Bunker responded to nostrconnect with 'ack', which can lead to session hijacking",
+            )
           }
 
           resolve(response as Nip46ResponseWithResult)
@@ -362,7 +388,7 @@ export class Nip46Broker extends Emitter {
       this.receiver.on(Nip46Event.Receive, onReceive)
       this.receiver.start()
 
-      abort?.signal.addEventListener('abort', () => {
+      abort?.signal.addEventListener("abort", () => {
         reject(undefined)
         cleanup()
       })
@@ -394,9 +420,21 @@ export class Nip46Broker extends Emitter {
 }
 
 export class Nip46Signer implements ISigner {
-  public pubkey?: string
+  pubkey?: string
+  nip04: EncryptionImplementation
+  nip44: EncryptionImplementation
 
-  constructor(public broker: Nip46Broker) {}
+  constructor(public broker: Nip46Broker) {
+    this.nip04 = {
+      encrypt: this.broker.nip04Encrypt,
+      decrypt: this.broker.nip04Decrypt,
+    }
+
+    this.nip44 = {
+      encrypt: this.broker.nip44Encrypt,
+      decrypt: this.broker.nip44Decrypt,
+    }
+  }
 
   getPubkey = async () => {
     if (!this.pubkey) {
@@ -408,14 +446,4 @@ export class Nip46Signer implements ISigner {
 
   sign = async (template: StampedEvent) =>
     this.broker.signEvent(hash(own(template, await this.getPubkey())))
-
-  nip04 = {
-    encrypt: this.broker.nip04Encrypt,
-    decrypt: this.broker.nip04Decrypt,
-  }
-
-  nip44 = {
-    encrypt: this.broker.nip44Encrypt,
-    decrypt: this.broker.nip44Decrypt,
-  }
 }

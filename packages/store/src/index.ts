@@ -1,6 +1,15 @@
 import {derived, writable} from "svelte/store"
 import type {Readable, Writable, Subscriber, Unsubscriber} from "svelte/store"
-import {identity, throttle, ensurePlural, getJson, setJson, batch, partition, first} from "@welshman/lib"
+import {
+  identity,
+  throttle,
+  ensurePlural,
+  getJson,
+  setJson,
+  batch,
+  partition,
+  first,
+} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import type {Repository} from "@welshman/util"
 import {matchFilters, getIdAndAddress, getIdFilters} from "@welshman/util"
@@ -59,7 +68,10 @@ export type CustomStoreOpts<T> = {
   set?: (x: T) => void
 }
 
-export const custom = <T>(start: Start<T>, opts: CustomStoreOpts<T> = {}): WritableWithGetter<T> => {
+export const custom = <T>(
+  start: Start<T>,
+  opts: CustomStoreOpts<T> = {},
+): WritableWithGetter<T> => {
   const subs: Subscriber<T>[] = []
 
   let value: T
@@ -118,9 +130,9 @@ export const adapter = <Source, Target>({
   forward,
   backward,
 }: {
-  store: Writable<Source>,
-  forward: (x: Source) => Target,
-  backward: (x: Target) => Source,
+  store: Writable<Source>
+  forward: (x: Source) => Target
+  backward: (x: Target) => Source
 }) => ({
   ...derived(store, forward),
   set: (x: Target) => store.set(backward(x)),
@@ -137,109 +149,118 @@ export type DeriveEventsMappedOptions<T> = {
   includeDeleted?: boolean
 }
 
-export const deriveEventsMapped = <T>(repository: Repository, {
-  filters,
-  eventToItem,
-  itemToEvent,
-  throttle = 0,
-  includeDeleted = false,
-}: DeriveEventsMappedOptions<T>) =>
-  custom<T[]>(setter => {
-    let data: T[] = []
-    const deferred = new Set()
+export const deriveEventsMapped = <T>(
+  repository: Repository,
+  {
+    filters,
+    eventToItem,
+    itemToEvent,
+    throttle = 0,
+    includeDeleted = false,
+  }: DeriveEventsMappedOptions<T>,
+) =>
+  custom<T[]>(
+    setter => {
+      let data: T[] = []
+      const deferred = new Set()
 
-    const defer = (event: TrustedEvent, promise: Promise<T | T[]>) => {
-      deferred.add(event.id)
+      const defer = (event: TrustedEvent, promise: Promise<T | T[]>) => {
+        deferred.add(event.id)
 
-      promise.then(items => {
-        if (deferred.has(event.id)) {
-          deferred.delete(event.id)
+        void promise.then(items => {
+          if (deferred.has(event.id)) {
+            deferred.delete(event.id)
 
+            for (const item of ensurePlural(items)) {
+              data.push(item)
+            }
+
+            setter(data)
+          }
+        })
+      }
+
+      for (const event of repository.query(filters, {includeDeleted})) {
+        const items = eventToItem(event)
+
+        if (!items) {
+          continue
+        }
+
+        if (items instanceof Promise) {
+          defer(event, items)
+        } else {
           for (const item of ensurePlural(items)) {
             data.push(item)
           }
-
-          setter(data)
-        }
-      })
-    }
-
-    for (const event of repository.query(filters, {includeDeleted})) {
-      const items = eventToItem(event)
-
-      if (!items) {
-        continue
-      }
-
-      if (items instanceof Promise) {
-        defer(event, items)
-      } else {
-        for (const item of ensurePlural(items)) {
-          data.push(item)
-        }
-      }
-    }
-
-    setter(data)
-
-    const onUpdate = batch(300, (updates: {added: TrustedEvent[]; removed: Set<string>}[]) => {
-      const removed = new Set()
-      const added = new Map()
-
-      // Apply updates in order
-      for (const update of updates) {
-        for (const event of update.added.values()) {
-          added.set(event.id, event)
-          removed.delete(event.id)
-        }
-
-        for (const id of update.removed) {
-          removed.add(id)
-          added.delete(id)
-          deferred.delete(id)
         }
       }
 
-      let dirty = false
-      for (const event of added.values()) {
-        if (matchFilters(filters, event)) {
-          const items = eventToItem(event)
+      setter(data)
 
-          if (items instanceof Promise) {
-            defer(event, items)
-          } else if (items) {
-            dirty = true
+      const onUpdate = batch(300, (updates: {added: TrustedEvent[]; removed: Set<string>}[]) => {
+        const removed = new Set()
+        const added = new Map()
 
-            for (const item of ensurePlural(items)) {
-              data.push(item as T)
+        // Apply updates in order
+        for (const update of updates) {
+          for (const event of update.added.values()) {
+            added.set(event.id, event)
+            removed.delete(event.id)
+          }
+
+          for (const id of update.removed) {
+            removed.add(id)
+            added.delete(id)
+            deferred.delete(id)
+          }
+        }
+
+        let dirty = false
+        for (const event of added.values()) {
+          if (matchFilters(filters, event)) {
+            const items = eventToItem(event)
+
+            if (items instanceof Promise) {
+              defer(event, items)
+            } else if (items) {
+              dirty = true
+
+              for (const item of ensurePlural(items)) {
+                data.push(item as T)
+              }
             }
           }
         }
-      }
 
-      if (!includeDeleted && removed.size > 0) {
-        const [deleted, ok] = partition(
-          (item: T) => getIdAndAddress(itemToEvent(item)).some((id: string) => removed.has(id)),
-          data,
-        )
+        if (!includeDeleted && removed.size > 0) {
+          const [deleted, ok] = partition(
+            (item: T) => getIdAndAddress(itemToEvent(item)).some((id: string) => removed.has(id)),
+            data,
+          )
 
-        if (deleted.length > 0) {
-          dirty = true
-          data = ok
+          if (deleted.length > 0) {
+            dirty = true
+            data = ok
+          }
         }
-      }
 
-      if (dirty) {
-        setter(data)
-      }
-    })
+        if (dirty) {
+          setter(data)
+        }
+      })
 
-    repository.on("update", onUpdate)
+      repository.on("update", onUpdate)
 
-    return () => repository.off("update", onUpdate)
-  }, {throttle})
+      return () => repository.off("update", onUpdate)
+    },
+    {throttle},
+  )
 
-export type DeriveEventsOptions<T> = Omit<DeriveEventsMappedOptions<T>, "itemToEvent" | "eventToItem">
+export type DeriveEventsOptions<T> = Omit<
+  DeriveEventsMappedOptions<T>,
+  "itemToEvent" | "eventToItem"
+>
 
 export const deriveEvents = <T>(repository: Repository, opts: DeriveEventsOptions<T>) =>
   deriveEventsMapped<TrustedEvent>(repository, {
@@ -254,7 +275,7 @@ export const deriveEvent = (repository: Repository, idOrAddress: string) =>
       filters: getIdFilters([idOrAddress]),
       includeDeleted: true,
     }),
-    first
+    first,
   )
 
 export const deriveIsDeleted = (repository: Repository, event: TrustedEvent) =>

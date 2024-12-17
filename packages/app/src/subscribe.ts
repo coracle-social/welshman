@@ -3,7 +3,7 @@ import {LOCAL_RELAY_URL, getFilterResultCardinality} from "@welshman/util"
 import type {TrustedEvent, Filter} from "@welshman/util"
 import {subscribe as baseSubscribe, SubscriptionEvent} from "@welshman/net"
 import type {SubscribeRequestWithHandlers} from "@welshman/net"
-import {repository} from './core'
+import {repository} from "./core.js"
 
 export type PartialSubscribeRequest = Partial<SubscribeRequestWithHandlers> & {filters: Filter[]}
 
