@@ -26,8 +26,6 @@
     "fix": "gts fix"
   },
   "dependencies": {
-    "@scure/base": "^1.1.6",
-    "@types/events": "^3.0.3",
-    "events": "^3.3.0"
+    "@scure/base": "^1.1.6"
   }
 }

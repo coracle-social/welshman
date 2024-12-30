@@ -9,6 +9,9 @@ export const isNil = (x: any) => [null, undefined].includes(x)
 /** Type representing an optional value */
 export type Maybe<T> = T | undefined
 
+/** Type that is shorthand for Record<string, T> */
+export type Obj<T = any> = Record<string, T>
+
 /**
  * Executes a function if the value is defined
  * @param x - The value to check
@@ -139,7 +142,7 @@ export const take = <T>(n: number, xs: T[]) => xs.slice(0, n)
  * @param x - Source object
  * @returns New object without specified keys
  */
-export const omit = <T extends Record<string, any>>(ks: string[], x: T) => {
+export const omit = <T extends Obj>(ks: string[], x: T) => {
   const r: T = {...x}
 
   for (const k of ks) {
@@ -155,8 +158,8 @@ export const omit = <T extends Record<string, any>>(ks: string[], x: T) => {
  * @param x - Source object
  * @returns New object without entries containing specified values
  */
-export const omitVals = <T extends Record<string, any>>(xs: any[], x: T) => {
-  const r: Record<string, any> = {}
+export const omitVals = <T extends Obj>(xs: any[], x: T) => {
+  const r: Obj = {}
 
   for (const [k, v] of Object.entries(x)) {
     if (!xs.includes(v)) {
@@ -173,7 +176,7 @@ export const omitVals = <T extends Record<string, any>>(xs: any[], x: T) => {
  * @param x - Source object
  * @returns New object with only specified keys
  */
-export const pick = <T extends Record<string, any>>(ks: string[], x: T) => {
+export const pick = <T extends Obj>(ks: string[], x: T) => {
   const r: T = {...x}
 
   for (const k of Object.keys(x)) {
@@ -204,8 +207,8 @@ export function* range(a: number, b: number, step = 1) {
  * @param x - Source object
  * @returns Object with transformed keys
  */
-export const mapKeys = <T extends Record<string, any>>(f: (v: string) => string, x: T) => {
-  const r: Record<string, any> = {}
+export const mapKeys = <T extends Obj>(f: (v: string) => string, x: T) => {
+  const r: Obj = {}
 
   for (const [k, v] of Object.entries(x)) {
     r[f(k)] = v
@@ -236,7 +239,7 @@ export const mapVals = <V, U>(f: (v: V) => U, x: Record<string, V>) => {
  * @param b - Right object
  * @returns Merged object with a"s properties overriding b"s
  */
-export const mergeLeft = <T extends Record<string, any>>(a: T, b: T) => ({
+export const mergeLeft = <T extends Obj>(a: T, b: T) => ({
   ...b,
   ...a,
 })
@@ -247,10 +250,28 @@ export const mergeLeft = <T extends Record<string, any>>(a: T, b: T) => ({
  * @param b - Right object
  * @returns Merged object with b"s properties overriding a"s
  */
-export const mergeRight = <T extends Record<string, any>>(a: T, b: T) => ({
+export const mergeRight = <T extends Obj>(a: T, b: T) => ({
   ...a,
   ...b,
 })
+
+/** Deep merge two objects, prioritizing the first argument. */
+export const deepMergeLeft = (a: Obj, b: Obj) => deepMergeRight(b, a)
+
+/** Deep merge two objects, prioritizing the second argument. */
+export const deepMergeRight = (a: Obj, b: Obj) => {
+  a = {...a}
+
+  for (const [k, v] of Object.entries(b)) {
+    if (isPojo(v) && isPojo(a[k])) {
+      a[k] = deepMergeRight(a[k], v)
+    } else {
+      a[k] = v
+    }
+  }
+
+  return a
+}
 
 /**
  * Checks if a number is between two values (exclusive)
@@ -556,7 +577,7 @@ export const nthNe =
     xs[i] !== v
 
 /** Returns a function that checks if key/value pairs of x match all pairs in spec */
-export const spec = (values: Record<string, any>) => (x: Record<string, any>) => {
+export const spec = (values: Obj) => (x: Obj) => {
   for (const [k, v] of Object.entries(values)) {
     if (x[k] !== v) return false
   }
@@ -1140,4 +1161,4 @@ export const hexToBech32 = (prefix: string, hex: string) =>
  * @returns Hex encoded string
  */
 export const bech32ToHex = (b32: string) =>
-  utf8.encode(bech32.fromWords(bech32.decode(b32, false).words))
+  utf8.encode(bech32.fromWords(bech32.decode(b32 as any, false).words))
