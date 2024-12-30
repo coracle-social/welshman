@@ -1,6 +1,6 @@
 {
   "name": "@welshman/util",
-  "version": "0.0.52",
+  "version": "0.0.53",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of nostr-related utilities.",
@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@types/ws": "^8.5.13",
-    "@welshman/lib": "~0.0.33",
+    "@welshman/lib": "~0.0.34",
     "nostr-tools": "^2.7.2"
   }
 }

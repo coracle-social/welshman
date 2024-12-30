@@ -1,6 +1,6 @@
 {
   "name": "@welshman/feeds",
-  "version": "0.0.27",
+  "version": "0.0.29",
   "author": "hodlbod",
   "license": "MIT",
   "description": "Utilities for building dynamic nostr feeds.",
@@ -26,7 +26,7 @@
     "fix": "gts fix"
   },
   "dependencies": {
-    "@welshman/lib": "~0.0.33",
-    "@welshman/util": "~0.0.50"
+    "@welshman/lib": "~0.0.34",
+    "@welshman/util": "~0.0.52"
   }
 }
