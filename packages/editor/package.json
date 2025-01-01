@@ -1,80 +1,80 @@
 {
-	"name": "@welshman/editor",
-	"version": "0.0.2",
-	"scripts": {
-		"pub": "npm run check && npm run build && npm publish",
-		"fix": "",
-		"dev": "vite dev",
-		"build": "vite build && npm run package",
-		"package": "svelte-kit sync && svelte-package && publint",
-		"prepublishOnly": "npm run package",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
-	},
-	"files": [
-		"dist",
-		"!dist/**/*.test.*",
-		"!dist/**/*.spec.*"
-	],
-	"sideEffects": [
-		"**/*.css"
-	],
-	"svelte": "./dist/index.js",
-	"types": "./dist/index.d.ts",
-	"type": "module",
-	"exports": {
-		".": {
-			"types": "./dist/index.d.ts",
-			"svelte": "./dist/index.js"
-		}
-	},
-	"peerDependencies": {
-		"@tiptap/core": "^2.9.1",
-		"@tiptap/extension-code": "^2.9.1",
-		"@tiptap/extension-code-block": "^2.9.1",
-		"@tiptap/extension-document": "^2.9.1",
-		"@tiptap/extension-dropcursor": "^2.9.1",
-		"@tiptap/extension-gapcursor": "^2.9.1",
-		"@tiptap/extension-hard-break": "^2.9.1",
-		"@tiptap/extension-history": "^2.9.1",
-		"@tiptap/extension-paragraph": "^2.9.1",
-		"@tiptap/extension-placeholder": "^2.9.1",
-		"@tiptap/extension-text": "^2.9.1",
-		"@tiptap/pm": "^2.9.1",
-		"@tiptap/suggestion": "^2.9.1",
-		"@welshman/lib": "^0.0.36",
-		"@welshman/util": "^0.0.53",
-		"nostr-editor": "github:cesardeazevedo/nostr-editor#d8dc03c",
-		"nostr-tools": "^2.8.1",
-		"svelte": "^4.0.0",
-		"svelte-tiptap": "^1.0.0"
-	},
-	"devDependencies": {
-		"@sveltejs/kit": "^2.0.0",
-		"@sveltejs/package": "^2.0.0",
-		"@sveltejs/vite-plugin-svelte": "^3.0.0",
-		"@tiptap/core": "^2.9.1",
-		"@tiptap/extension-code": "^2.9.1",
-		"@tiptap/extension-code-block": "^2.9.1",
-		"@tiptap/extension-document": "^2.9.1",
-		"@tiptap/extension-dropcursor": "^2.9.1",
-		"@tiptap/extension-gapcursor": "^2.9.1",
-		"@tiptap/extension-hard-break": "^2.9.1",
-		"@tiptap/extension-history": "^2.9.1",
-		"@tiptap/extension-paragraph": "^2.9.1",
-		"@tiptap/extension-placeholder": "^2.9.1",
-		"@tiptap/extension-text": "^2.9.1",
-		"@tiptap/pm": "^2.9.1",
-		"@welshman/lib": "^0.0.36",
-		"@welshman/util": "^0.0.53",
-		"nostr-editor": "github:cesardeazevedo/nostr-editor#d8dc03c",
-		"nostr-tools": "^2.10.4",
-		"publint": "^0.2.0",
-		"svelte": "^4.0.0",
-		"svelte-check": "^4.0.0",
-		"svelte-tiptap": "^1.0.0",
-		"tippy.js": "^6.0.0",
-		"typescript": "^5.0.0",
-		"vite": "^6.0.0"
-	}
+  "name": "@welshman/editor",
+  "version": "0.0.3",
+  "scripts": {
+    "pub": "npm run check && npm run build && npm publish",
+    "fix": "",
+    "dev": "vite dev",
+    "build": "vite build && npm run package",
+    "package": "svelte-kit sync && svelte-package && publint",
+    "prepublishOnly": "npm run package",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*",
+    "!dist/**/*.spec.*"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "svelte": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "svelte": "./dist/index.js"
+    }
+  },
+  "peerDependencies": {
+    "@tiptap/core": "^2.9.1",
+    "@tiptap/extension-code": "^2.9.1",
+    "@tiptap/extension-code-block": "^2.9.1",
+    "@tiptap/extension-document": "^2.9.1",
+    "@tiptap/extension-dropcursor": "^2.9.1",
+    "@tiptap/extension-gapcursor": "^2.9.1",
+    "@tiptap/extension-hard-break": "^2.9.1",
+    "@tiptap/extension-history": "^2.9.1",
+    "@tiptap/extension-paragraph": "^2.9.1",
+    "@tiptap/extension-placeholder": "^2.9.1",
+    "@tiptap/extension-text": "^2.9.1",
+    "@tiptap/pm": "^2.9.1",
+    "@tiptap/suggestion": "^2.9.1",
+    "@welshman/lib": "^0.0.36",
+    "@welshman/util": "^0.0.53",
+    "nostr-editor": "github:cesardeazevedo/nostr-editor#a211491c",
+    "nostr-tools": "^2.8.1",
+    "svelte": "^4.0.0",
+    "svelte-tiptap": "^1.0.0"
+  },
+  "devDependencies": {
+    "@sveltejs/kit": "^2.0.0",
+    "@sveltejs/package": "^2.0.0",
+    "@sveltejs/vite-plugin-svelte": "^3.0.0",
+    "@tiptap/core": "^2.9.1",
+    "@tiptap/extension-code": "^2.9.1",
+    "@tiptap/extension-code-block": "^2.9.1",
+    "@tiptap/extension-document": "^2.9.1",
+    "@tiptap/extension-dropcursor": "^2.9.1",
+    "@tiptap/extension-gapcursor": "^2.9.1",
+    "@tiptap/extension-hard-break": "^2.9.1",
+    "@tiptap/extension-history": "^2.9.1",
+    "@tiptap/extension-paragraph": "^2.9.1",
+    "@tiptap/extension-placeholder": "^2.9.1",
+    "@tiptap/extension-text": "^2.9.1",
+    "@tiptap/pm": "^2.9.1",
+    "@welshman/lib": "^0.0.36",
+    "@welshman/util": "^0.0.53",
+    "nostr-editor": "github:cesardeazevedo/nostr-editor#a211491c",
+    "nostr-tools": "^2.10.4",
+    "publint": "^0.2.0",
+    "svelte": "^4.0.0",
+    "svelte-check": "^4.0.0",
+    "svelte-tiptap": "^1.0.0",
+    "tippy.js": "^6.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^6.0.0"
+  }
 }
