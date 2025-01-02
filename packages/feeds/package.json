@@ -26,7 +26,7 @@
     "fix": "gts fix"
   },
   "dependencies": {
-    "@welshman/lib": "~0.0.34",
-    "@welshman/util": "~0.0.52"
+    "@welshman/lib": "~0.0.37",
+    "@welshman/util": "~0.0.54"
   }
 }
