@@ -83,8 +83,6 @@ export interface WelshmanOptions extends NostrOptions {
 }
 
 export const WelshmanExtension = NostrExtension.extend<WelshmanOptions>({
-  name: "welshman",
-
   // Return an empty object or else options can't be passed
   addOptions() {
     return {}
