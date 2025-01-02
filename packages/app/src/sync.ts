@@ -11,6 +11,9 @@ import {
 import {repository} from "./core.js"
 import {relaysByUrl} from "./relays.js"
 
+const query = (filters: Filter[]) =>
+  repository.query(filters, {shouldSort: filters.every(f => f.limit === undefined)})
+
 export const hasNegentropy = (url: string) => {
   const p = relaysByUrl.get().get(url)?.profile
 
@@ -26,7 +29,7 @@ export type AppSyncOpts = {
 }
 
 export const pull = async ({relays, filters}: AppSyncOpts) => {
-  const events = repository.query(filters)
+  const events = query(filters)
 
   await Promise.all(
     relays.map(async relay => {
@@ -38,7 +41,7 @@ export const pull = async ({relays, filters}: AppSyncOpts) => {
 }
 
 export const push = async ({relays, filters}: AppSyncOpts) => {
-  const events = repository.query(filters).filter(isSignedEvent)
+  const events = query(filters).filter(isSignedEvent)
 
   await Promise.all(
     relays.map(async relay => {
@@ -50,7 +53,7 @@ export const push = async ({relays, filters}: AppSyncOpts) => {
 }
 
 export const sync = async ({relays, filters}: AppSyncOpts) => {
-  const events = repository.query(filters).filter(isSignedEvent)
+  const events = query(filters).filter(isSignedEvent)
 
   await Promise.all(
     relays.map(async relay => {

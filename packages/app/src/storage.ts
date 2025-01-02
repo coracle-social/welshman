@@ -2,14 +2,20 @@ import {openDB, deleteDB} from "idb"
 import type {IDBPDatabase} from "idb"
 import {writable} from "svelte/store"
 import type {Unsubscriber, Writable} from "svelte/store"
-import {indexBy, throttle, fromPairs} from "@welshman/lib"
+import {indexBy, equals, throttle, fromPairs} from "@welshman/lib"
 import type {TrustedEvent, Repository} from "@welshman/util"
 import type {Tracker} from "@welshman/net"
 import {withGetter, adapter, throttled, custom} from "@welshman/store"
 
-export type IndexedDbAdapter = {
+export type StorageAdapterOptions = {
+  throttle?: number
+  migrate?: (items: any[]) => any[]
+}
+
+export type StorageAdapter = {
   keyPath: string
   store: Writable<any[]>
+  options: StorageAdapterOptions
 }
 
 export let db: IDBPDatabase
@@ -44,41 +50,45 @@ export const bulkDelete = async (name: string, ids: string[]) => {
   await tx.done
 }
 
-export const initIndexedDbAdapter = async (name: string, adapter: IndexedDbAdapter) => {
+export const initIndexedDbAdapter = async (name: string, adapter: StorageAdapter) => {
   let prevRecords = await getAll(name)
 
   adapter.store.set(prevRecords)
 
-  adapter.store.subscribe(async (currentRecords: any[]) => {
-    if (dead.get()) {
-      return
-    }
+  setTimeout(() => {
+    adapter.store.subscribe(async (currentRecords: any[]) => {
+      if (dead.get()) {
+        return
+      }
 
-    const currentIds = new Set(currentRecords.map(item => item[adapter.keyPath]))
-    const removedRecords = prevRecords.filter(r => !currentIds.has(r[adapter.keyPath]))
+      const currentIds = new Set(currentRecords.map(item => item[adapter.keyPath]))
+      const removedRecords = prevRecords.filter(r => !currentIds.has(r[adapter.keyPath]))
 
-    const prevRecordsById = indexBy(item => item[adapter.keyPath], prevRecords)
-    const updatedRecords = currentRecords.filter(r => r !== prevRecordsById.get(r[adapter.keyPath]))
-
-    prevRecords = currentRecords
-
-    if (updatedRecords.length > 0) {
-      await bulkPut(name, updatedRecords)
-    }
-
-    if (removedRecords.length > 0) {
-      await bulkDelete(
-        name,
-        removedRecords.map(item => item[adapter.keyPath]),
+      const prevRecordsById = indexBy(item => item[adapter.keyPath], prevRecords)
+      const updatedRecords = currentRecords.filter(
+        r => !equals(r, prevRecordsById.get(r[adapter.keyPath])),
       )
-    }
-  })
+
+      prevRecords = currentRecords
+
+      if (updatedRecords.length > 0) {
+        await bulkPut(name, updatedRecords)
+      }
+
+      if (removedRecords.length > 0) {
+        await bulkDelete(
+          name,
+          removedRecords.map(item => item[adapter.keyPath]),
+        )
+      }
+    })
+  }, adapter.options.throttle || 0)
 }
 
 export const initStorage = async (
   name: string,
   version: number,
-  adapters: Record<string, IndexedDbAdapter>,
+  adapters: Record<string, StorageAdapter>,
 ) => {
   if (!window.indexedDB) return
 
@@ -124,15 +134,19 @@ export const clearStorage = async () => {
   await deleteDB(db.name)
 }
 
-export type StorageAdapterOptions = {
-  throttle?: number
-  migrate?: (items: any[]) => any[]
-}
-
 const migrate = (data: any[], options: StorageAdapterOptions) =>
   options.migrate ? options.migrate(data) : data
 
 export const storageAdapters = {
+  fromCollectionStore: <T>(
+    keyPath: string,
+    store: Writable<T[]>,
+    options: StorageAdapterOptions = {},
+  ) => ({
+    options,
+    keyPath,
+    store: throttled(options.throttle || 0, store),
+  }),
   fromObjectStore: <T>(
     store: Writable<Record<string, T>>,
     options: StorageAdapterOptions = {},

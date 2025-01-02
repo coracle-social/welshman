@@ -111,9 +111,13 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
     }
   }
 
-  query = (filters: Filter[], {includeDeleted = false} = {}) => {
+  query = (filters: Filter[], {includeDeleted = false, shouldSort = true} = {}) => {
     const result: E[][] = []
     for (let filter of filters) {
+      if (filter.limit !== undefined && !shouldSort) {
+        throw new Error("Unable to skip sorting if limit is defined")
+      }
+
       let events: E[] = Array.from(this.eventsById.values())
 
       if (filter.ids) {
@@ -146,8 +150,10 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
         }
       }
 
+      const sorted = shouldSort ? sortBy((e: E) => -e.created_at, events) : events
+
       const chunk: E[] = []
-      for (const event of sortBy((e: E) => -e.created_at, events)) {
+      for (const event of sorted) {
         if (filter.limit && chunk.length >= filter.limit) {
           break
         }

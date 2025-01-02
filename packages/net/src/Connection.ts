@@ -47,6 +47,7 @@ export class Connection extends Emitter {
       throw new Error(`Attempted to send message on ${this.status} connection`)
     }
 
+    this.socket.open()
     this.sender.push(message)
   }
 
