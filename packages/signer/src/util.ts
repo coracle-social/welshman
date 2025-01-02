@@ -32,7 +32,7 @@ export const nip04 = {
 export const nip44 = {
   getSharedSecret: cached({
     maxSize: 10000,
-    getKey: ([secret, pubkey]) => [secret, pubkey].join(":"),
+    getKey: ([secret, pubkey]) => `${secret}:${pubkey}`,
     getValue: ([secret, pubkey]: string[]) =>
       nt44.v2.utils.getConversationKey(hexToBytes(secret), pubkey),
   }),

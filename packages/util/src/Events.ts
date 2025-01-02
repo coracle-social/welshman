@@ -101,7 +101,7 @@ const _hasValidSignature = cached<string, boolean, [SignedEvent]>({
   maxSize: 10000,
   getKey: ([e]: [SignedEvent]) => {
     try {
-      return [getEventHash(e), e.sig].join(":")
+      return `${getEventHash(e)}:${e.sig}`
     } catch (err) {
       return "invalid"
     }

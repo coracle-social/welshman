@@ -71,7 +71,7 @@ export const getFilterId = (filter: Filter) => {
     const v = filter[k as keyof Filter]
     const s = Array.isArray(v) ? v.join(",") : v
 
-    parts.push([k, s].join(":"))
+    parts.push(`${k}:${s}`)
   }
 
   return hash(parts.join("|"))

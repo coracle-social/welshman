@@ -49,7 +49,7 @@ export class Address {
     return new Address(event.kind, event.pubkey, identifier, relays)
   }
 
-  toString = () => [this.kind, this.pubkey, this.identifier].join(":")
+  toString = () => `${this.kind}:${this.pubkey}:${this.identifier}`
 
   toNaddr = () => naddrEncode(this)
 }

@@ -27,7 +27,7 @@ type SubscribeOpts = {onEvent?: EventCallback; onEose?: EoseCallback}
 type PublishOpts = {verb?: string; onOk?: OkCallback; onError?: ErrorCallback}
 type DiffOpts = {onError?: ErrorCallback; onMessage?: DiffMessageCallback; onClose?: CloseCallback}
 
-const createSubId = (prefix: string) => [prefix, Math.random().toString().slice(2, 10)].join("-")
+const createSubId = (prefix: string) => `${prefix}-${Math.random().toString().slice(2, 10)}`
 
 export class Executor {
   constructor(readonly target: Target) {}
