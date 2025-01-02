@@ -1,4 +1,4 @@
-import {flatten, Emitter, sortBy, inc, chunk, uniq, omit, now, range, identity} from "@welshman/lib"
+import {flatten, pluck, Emitter, sortBy, inc, chunk, uniq, omit, now, range} from "@welshman/lib"
 import {DELETE} from "./Kinds.js"
 import {EPOCH, matchFilter} from "./Filters.js"
 import {isReplaceable, isUnwrappedEvent} from "./Events.js"
@@ -17,6 +17,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
   eventsByTag = new Map<string, E[]>()
   eventsByDay = new Map<number, E[]>()
   eventsByAuthor = new Map<string, E[]>()
+  eventsByKind = new Map<number, E[]>()
   deletes = new Map<string, number>()
 
   constructor() {
@@ -40,6 +41,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
     this.eventsByTag.clear()
     this.eventsByDay.clear()
     this.eventsByAuthor.clear()
+    this.eventsByKind.clear()
     this.deletes.clear()
 
     const added = []
@@ -106,6 +108,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
 
       this._updateIndex(this.eventsByDay, getDay(event.created_at), undefined, event)
       this._updateIndex(this.eventsByAuthor, event.pubkey, undefined, event)
+      this._updateIndex(this.eventsByKind, event.kind, undefined, event)
 
       this.emit("update", {added: [], removed: [event.id]})
     }
@@ -113,43 +116,15 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
 
   query = (filters: Filter[], {includeDeleted = false, shouldSort = true} = {}) => {
     const result: E[][] = []
-    for (let filter of filters) {
-      if (filter.limit !== undefined && !shouldSort) {
+    for (const originalFilter of filters) {
+      if (originalFilter.limit !== undefined && !shouldSort) {
         throw new Error("Unable to skip sorting if limit is defined")
       }
 
-      let events: E[] = Array.from(this.eventsById.values())
-
-      if (filter.ids) {
-        events = filter.ids!.map(id => this.eventsById.get(id)).filter(identity) as E[]
-        filter = omit(["ids"], filter)
-      } else if (filter.authors) {
-        events = uniq(filter.authors!.flatMap(pubkey => this.eventsByAuthor.get(pubkey) || []))
-        filter = omit(["authors"], filter)
-      } else if (filter.since || filter.until) {
-        const sinceDay = getDay(filter.since || EPOCH)
-        const untilDay = getDay(filter.until || now())
-
-        events = uniq(
-          Array.from(range(sinceDay, inc(untilDay))).flatMap(
-            (day: number) => this.eventsByDay.get(day) || [],
-          ),
-        )
-      } else {
-        for (const [k, values] of Object.entries(filter)) {
-          if (!k.startsWith("#") || k.length !== 2) {
-            continue
-          }
-
-          filter = omit([k], filter)
-          events = uniq(
-            (values as string[]).flatMap(v => this.eventsByTag.get(`${k[1]}:${v}`) || []),
-          )
-
-          break
-        }
-      }
-
+      // Attempt to fulfill the query using one of our indexes. Fall back to all events.
+      const applied = this._applyAnyFilter(originalFilter)
+      const filter = applied?.filter || originalFilter
+      const events = applied ? this._getEvents(applied!.ids) : this.dump()
       const sorted = shouldSort ? sortBy((e: E) => -e.created_at, events) : events
 
       const chunk: E[] = []
@@ -218,6 +193,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
     // Update our timestamp and author indexes
     this._updateIndex(this.eventsByDay, getDay(event.created_at), event, duplicate)
     this._updateIndex(this.eventsByAuthor, event.pubkey, event, duplicate)
+    this._updateIndex(this.eventsByKind, event.kind, event, duplicate)
 
     // Update our tag indexes
     for (const tag of event.tags) {
@@ -253,7 +229,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
 
   // Utilities
 
-  _updateIndex<K>(m: Map<K, E[]>, k: K, add?: E, remove?: E) {
+  _updateIndex = <K>(m: Map<K, E[]>, k: K, add?: E, remove?: E) => {
     let a = m.get(k) || []
 
     if (remove) {
@@ -265,5 +241,102 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
     }
 
     m.set(k, a)
+  }
+
+  _getEvents = (ids: Iterable<string>) => {
+    const events: E[] = []
+
+    for (const id of ids) {
+      const event = this.eventsById.get(id)
+
+      if (event) {
+        events.push(event)
+      }
+    }
+
+    return events
+  }
+
+  _applyIdsFilter = (filter: Filter) => {
+    if (!filter.ids) return undefined
+
+    return {
+      filter: omit(["ids"], filter),
+      ids: new Set(filter.ids),
+    }
+  }
+
+  _applyAuthorsFilter = (filter: Filter) => {
+    if (!filter.authors) return undefined
+
+    const events = filter.authors.flatMap(pubkey => this.eventsByAuthor.get(pubkey) || [])
+
+    return {
+      filter: omit(["authors"], filter),
+      ids: new Set(pluck<string>("id", events)),
+    }
+  }
+
+  _applyTagsFilter = (filter: Filter) => {
+    for (const [k, values] of Object.entries(filter)) {
+      if (!k.startsWith("#") || k.length !== 2) {
+        continue
+      }
+
+      const ids = new Set<string>()
+
+      for (const v of values as string[]) {
+        for (const event of this.eventsByTag.get(`${k[1]}:${v}`) || []) {
+          ids.add(event.id)
+        }
+      }
+
+      return {filter: omit([k], filter), ids}
+    }
+
+    return undefined
+  }
+
+  _applyKindsFilter = (filter: Filter) => {
+    if (!filter.kinds) return undefined
+
+    const events = filter.kinds.flatMap(kind => this.eventsByKind.get(kind) || [])
+
+    return {
+      filter: omit(["kinds"], filter),
+      ids: new Set(pluck<string>("id", events)),
+    }
+  }
+
+  _applyDaysFilter = (filter: Filter) => {
+    if (!filter.since && !filter.until) return undefined
+
+    const sinceDay = getDay(filter.since || EPOCH)
+    const untilDay = getDay(filter.until || now())
+    const days = Array.from(range(sinceDay, inc(untilDay)))
+    const events = days.flatMap((day: number) => this.eventsByDay.get(day) || [])
+    const ids = new Set(pluck<string>("id", events))
+
+    return {filter, ids}
+  }
+
+  _applyAnyFilter = (filter: Filter) => {
+    const matchers = [
+      this._applyIdsFilter,
+      this._applyAuthorsFilter,
+      this._applyTagsFilter,
+      this._applyKindsFilter,
+      this._applyDaysFilter,
+    ]
+
+    for (const matcher of matchers) {
+      const result = matcher(filter)
+
+      if (result) {
+        return result
+      }
+    }
+
+    return undefined
   }
 }
