@@ -125,7 +125,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
       const applied = this._applyAnyFilter(originalFilter)
       const filter = applied?.filter || originalFilter
       const events = applied ? this._getEvents(applied!.ids) : this.dump()
-      const sorted = shouldSort ? sortBy((e: E) => -e.created_at, events) : events
+      const sorted = this._sortEvents(shouldSort && Boolean(filter.limit), events)
 
       const chunk: E[] = []
       for (const event of sorted) {
@@ -145,7 +145,10 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
       result.push(chunk)
     }
 
-    return uniq(flatten(result))
+    // Only re-sort if we had multiple filters, or if our single filter wasn't sorted
+    const shouldSortAll = shouldSort && (filters.length > 1 || !filters[0]?.limit)
+
+    return this._sortEvents(shouldSortAll, uniq(flatten(result)))
   }
 
   publish = (event: E, {shouldNotify = true} = {}): boolean => {
@@ -228,6 +231,9 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
   isDeleted = (event: E) => this.isDeletedByAddress(event) || this.isDeletedById(event)
 
   // Utilities
+
+  _sortEvents = (shouldSort: boolean, events: E[]) =>
+    shouldSort ? sortBy(e => -e.created_at, events) : events
 
   _updateIndex = <K>(m: Map<K, E[]>, k: K, add?: E, remove?: E) => {
     let a = m.get(k) || []
