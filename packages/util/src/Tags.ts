@@ -1,5 +1,5 @@
-import {uniq, uniqBy, mapVals, nth, nthEq, ensurePlural} from "@welshman/lib"
-import {isRelayUrl, isShareableRelayUrl} from "./Relay.js"
+import {uniqBy, mapVals, nth, nthEq, ensurePlural} from "@welshman/lib"
+import {isRelayUrl} from "./Relay.js"
 import {Address} from "./Address.js"
 
 export const getTags = (types: string | string[], tags: string[][]) => {
@@ -92,9 +92,6 @@ export const getAncestorTags = (tags: string[][]) => {
 
 export const getAncestorTagValues = (tags: string[][]) =>
   mapVals(tags => tags.map(nth(1)), getAncestorTags(tags))
-
-export const getRelayHints = (tags: string[][]) =>
-  uniq(tags.flatMap(t => t.slice(2).filter(isShareableRelayUrl)))
 
 export const uniqTags = (tags: string[][]) => uniqBy(t => t.join(":"), tags)
 

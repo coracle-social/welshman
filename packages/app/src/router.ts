@@ -20,6 +20,7 @@ import {
 } from "@welshman/lib"
 import {
   getFilterId,
+  isRelayUrl,
   isShareableRelayUrl,
   PROFILE,
   RELAYS,
@@ -225,6 +226,7 @@ export class Router {
 export type RouterScenarioOptions = {
   policy?: FallbackPolicy
   limit?: number
+  allowLocal?: boolean
 }
 
 export class RouterScenario {
@@ -255,6 +257,8 @@ export class RouterScenario {
 
   limit = (limit: number) => this.clone({limit})
 
+  allowLocal = (allowLocal: boolean) => this.clone({allowLocal})
+
   weight = (scale: number) =>
     this.update(selection => ({...selection, weight: selection.weight * scale}))
 
@@ -269,11 +273,9 @@ export class RouterScenario {
 
     for (const {weight, relays} of this.selections) {
       for (const relay of relays) {
-        if (!isShareableRelayUrl(relay)) {
-          continue
+        if (this.options.allowLocal ? isRelayUrl(relay) : isShareableRelayUrl(relay)) {
+          relayWeights.set(relay, add(weight, relayWeights.get(relay)))
         }
-
-        relayWeights.set(relay, add(weight, relayWeights.get(relay)))
       }
     }
 

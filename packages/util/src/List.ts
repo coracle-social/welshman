@@ -1,7 +1,7 @@
 import {parseJson, nthEq} from "@welshman/lib"
 import {Address} from "./Address.js"
 import {uniqTags} from "./Tags.js"
-import {isShareableRelayUrl} from "./Relay.js"
+import {isRelayUrl} from "./Relay.js"
 import {Encryptable, DecryptedEvent} from "./Encryptable.js"
 import type {EncryptableUpdates} from "./Encryptable.js"
 
@@ -30,8 +30,8 @@ const isValidTag = (tag: string[]) => {
   if (tag[0] === "e") return tag[1]?.length === 64
   if (tag[0] === "a") return Address.isAddress(tag[1] || "")
   if (tag[0] === "t") return tag[1]?.length > 0
-  if (tag[0] === "r") return isShareableRelayUrl(tag[1])
-  if (tag[0] === "relay") return isShareableRelayUrl(tag[1])
+  if (tag[0] === "r") return isRelayUrl(tag[1])
+  if (tag[0] === "relay") return isRelayUrl(tag[1])
 
   return true
 }

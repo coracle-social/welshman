@@ -35,6 +35,10 @@ export const isRelayUrl = (url: string) => {
     url = "wss://" + url
   }
 
+  if (!url.match(/^wss?:\/\//)) {
+    return false
+  }
+
   try {
     new URL(url)
   } catch (e) {
@@ -44,20 +48,16 @@ export const isRelayUrl = (url: string) => {
   return true
 }
 
+export const isOnionUrl = (url: string) => Boolean(stripProtocol(url).match(/^[a-z2-7]{56}.onion$/))
+
+export const isLocalhostUrl = (url: string) => Boolean(stripProtocol(url).match(/^localhost:/))
+
+export const isLocalUrl = (url: string) => Boolean(url.match(/\.local(:[\d]+)?\/?$/))
+
+export const isIPAddress = (url: string) => Boolean(url.match(/\d+\.\d+\.\d+\.\d+/))
+
 export const isShareableRelayUrl = (url: string) =>
-  Boolean(
-    isRelayUrl(url) &&
-      // Is it actually a websocket url and has a dot
-      url.match(/^wss:\/\/.+\..+/) &&
-      // Don't match stuff with a port number
-      !url.slice(6).match(/:\d+/) &&
-      // Don't match stuff with a numeric tld
-      !url.slice(6).match(/\.\d+\b/) &&
-      // Don't match raw ip addresses
-      !url.slice(6).match(/\d+\.\d+\.\d+\.\d+/) &&
-      // Skip nostr.wine's virtual relays
-      !url.slice(6).match(/\/npub/),
-  )
+  Boolean(isRelayUrl(url) && !isLocalUrl(url) && !isLocalhostUrl(url))
 
 export const normalizeRelayUrl = (url: string) => {
   const prefix = url.match(/^wss?:\/\//)?.[0] || "wss://"
