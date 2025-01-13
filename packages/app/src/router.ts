@@ -21,6 +21,9 @@ import {
 import {
   getFilterId,
   isRelayUrl,
+  isOnionUrl,
+  isLocalUrl,
+  isIPAddress,
   isShareableRelayUrl,
   PROFILE,
   RELAYS,
@@ -227,6 +230,7 @@ export type RouterScenarioOptions = {
   policy?: FallbackPolicy
   limit?: number
   allowLocal?: boolean
+  allowOnion?: boolean
 }
 
 export class RouterScenario {
@@ -259,6 +263,8 @@ export class RouterScenario {
 
   allowLocal = (allowLocal: boolean) => this.clone({allowLocal})
 
+  allowOnion = (allowOnion: boolean) => this.clone({allowOnion})
+
   weight = (scale: number) =>
     this.update(selection => ({...selection, weight: selection.weight * scale}))
 
@@ -273,9 +279,11 @@ export class RouterScenario {
 
     for (const {weight, relays} of this.selections) {
       for (const relay of relays) {
-        if (this.options.allowLocal ? isRelayUrl(relay) : isShareableRelayUrl(relay)) {
-          relayWeights.set(relay, add(weight, relayWeights.get(relay)))
-        }
+        if (!isRelayUrl(relay)) continue
+        if (!this.options.allowOnion && isOnionUrl(relay)) continue
+        if (!this.options.allowLocal && isLocalUrl(relay)) continue
+
+        relayWeights.set(relay, add(weight, relayWeights.get(relay)))
       }
     }
 
@@ -320,6 +328,10 @@ export const getRelayQuality = (url: string) => {
     if (relay.stats.recent_errors.filter(n => n > ago(HOUR)).length > 5) return 0
     if (relay.stats.recent_errors.filter(n => n > ago(DAY)).length > 20) return 0
     if (relay.stats.recent_errors.filter(n => n > ago(WEEK)).length > 100) return 0
+  }
+
+  if (isIPAddress(url)) {
+    return 0.5
   }
 
   return 1

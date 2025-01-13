@@ -25,6 +25,7 @@ export const THREAD = 11
 export const SEAL = 13
 export const DIRECT_MESSAGE = 14
 export const GENERIC_REPOST = 16
+export const PICTURE_FIRST = 20
 export const CHANNEL_CREATE = 40
 export const CHANNEL_UPDATE = 41
 export const CHANNEL_MESSAGE = 42

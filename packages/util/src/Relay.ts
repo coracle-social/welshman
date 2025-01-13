@@ -39,6 +39,10 @@ export const isRelayUrl = (url: string) => {
     return false
   }
 
+  if (!url.match(/\./)) {
+    return false
+  }
+
   try {
     new URL(url)
   } catch (e) {
@@ -48,16 +52,14 @@ export const isRelayUrl = (url: string) => {
   return true
 }
 
-export const isOnionUrl = (url: string) => Boolean(stripProtocol(url).match(/^[a-z2-7]{56}.onion$/))
+export const isOnionUrl = (url: string) => Boolean(stripProtocol(url).match(/^[a-z2-7]{56}.onion/))
 
-export const isLocalhostUrl = (url: string) => Boolean(stripProtocol(url).match(/^localhost:/))
-
-export const isLocalUrl = (url: string) => Boolean(url.match(/\.local(:[\d]+)?\/?$/))
+export const isLocalUrl = (url: string) =>
+  Boolean(url.match(/\.local(:[\d]+)?\/?$/) || stripProtocol(url).match(/^localhost:/))
 
 export const isIPAddress = (url: string) => Boolean(url.match(/\d+\.\d+\.\d+\.\d+/))
 
-export const isShareableRelayUrl = (url: string) =>
-  Boolean(isRelayUrl(url) && !isLocalUrl(url) && !isLocalhostUrl(url))
+export const isShareableRelayUrl = (url: string) => Boolean(isRelayUrl(url) && !isLocalUrl(url))
 
 export const normalizeRelayUrl = (url: string) => {
   const prefix = url.match(/^wss?:\/\//)?.[0] || "wss://"
