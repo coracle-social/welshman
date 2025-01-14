@@ -1102,7 +1102,9 @@ export const fetchJson = async (url: string, opts: FetchOpts = {}) => {
     opts.headers = {}
   }
 
-  opts.headers["Accept"] = "application/json"
+  if (!opts.headers["Accept"]) {
+    opts.headers["Accept"] = "application/json"
+  }
 
   const res = await fetch(url, opts as RequestInit)
   const json = await res.json()

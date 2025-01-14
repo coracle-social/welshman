@@ -62,7 +62,7 @@ export const isIPAddress = (url: string) => Boolean(url.match(/\d+\.\d+\.\d+\.\d
 export const isShareableRelayUrl = (url: string) => Boolean(isRelayUrl(url) && !isLocalUrl(url))
 
 export const normalizeRelayUrl = (url: string) => {
-  const prefix = url.match(/^wss?:\/\//)?.[0] || "wss://"
+  const prefix = url.match(/^wss?:\/\//)?.[0] || (isOnionUrl(url) ? "ws://" : "wss://")
 
   // Use our library to normalize
   url = normalizeUrl(url, {stripHash: true, stripAuthentication: false})

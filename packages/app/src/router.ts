@@ -231,6 +231,7 @@ export type RouterScenarioOptions = {
   limit?: number
   allowLocal?: boolean
   allowOnion?: boolean
+  allowInsecure?: boolean
 }
 
 export class RouterScenario {
@@ -265,6 +266,8 @@ export class RouterScenario {
 
   allowOnion = (allowOnion: boolean) => this.clone({allowOnion})
 
+  allowInsecure = (allowInsecure: boolean) => this.clone({allowInsecure})
+
   weight = (scale: number) =>
     this.update(selection => ({...selection, weight: selection.weight * scale}))
 
@@ -276,12 +279,14 @@ export class RouterScenario {
     const limit = this.getLimit()
     const fallbackPolicy = this.getPolicy()
     const relayWeights = new Map<string, number>()
+    const {allowOnion, allowLocal, allowInsecure} = this.options
 
     for (const {weight, relays} of this.selections) {
       for (const relay of relays) {
         if (!isRelayUrl(relay)) continue
-        if (!this.options.allowOnion && isOnionUrl(relay)) continue
-        if (!this.options.allowLocal && isLocalUrl(relay)) continue
+        if (!allowOnion && isOnionUrl(relay)) continue
+        if (!allowLocal && isLocalUrl(relay)) continue
+        if (!allowInsecure && relay.startsWith("ws://") && !isOnionUrl(relay)) continue
 
         relayWeights.set(relay, add(weight, relayWeights.get(relay)))
       }
