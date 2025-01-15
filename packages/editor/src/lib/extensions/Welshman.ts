@@ -52,7 +52,7 @@ export type EmptyOptions = object
 
 export type WelshmanExtensionOptions = {
   bolt11?: false
-  breakOrSubmit: ChildExtensionOptions<BreakOrSubmitOptions>
+  breakOrSubmit?: ChildExtensionOptions<BreakOrSubmitOptions>
   codeInline?: ChildExtensionOptions<CodeInlineOptions>
   codeBlock?: ChildExtensionOptions<CodeBlockOptions>
   document?: false
