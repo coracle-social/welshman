@@ -35,13 +35,14 @@ export const isRelayUrl = (url: string) => {
     url = "wss://" + url
   }
 
-  if (!url.match(/^wss?:\/\//)) {
-    return false
-  }
+  // Skip non-ws urls
+  if (!url.match(/^wss?:\/\//)) return false
 
-  if (!url.match(/\./)) {
-    return false
-  }
+  // Skip urls with a slash before the dot
+  if (url.match(/\\.*\./)) return false
+
+  // Skip urls without a dot
+  if (!url.match(/\./)) return false
 
   try {
     new URL(url)

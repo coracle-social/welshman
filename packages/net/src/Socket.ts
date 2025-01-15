@@ -122,6 +122,7 @@ export class Socket {
         }
       }
     } catch (e) {
+      this.lastError = Date.now()
       this.status = SocketStatus.Invalid
       this.cxn.emit(ConnectionEvent.InvalidUrl)
     }

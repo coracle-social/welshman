@@ -327,19 +327,30 @@ export class RouterScenario {
 export const getRelayQuality = (url: string) => {
   const relay = relaysByUrl.get().get(url)
 
+  // Skip non-relays entirely
+  if (!isRelayUrl(url)) return 0
+
+  // If we have recent errors, skip it
   if (relay?.stats) {
-    if (relay.stats.recent_errors.filter(n => n > ago(5)).length > 0) return 0
-    if (relay.stats.recent_errors.filter(n => n > ago(MINUTE)).length > 1) return 0
-    if (relay.stats.recent_errors.filter(n => n > ago(HOUR)).length > 5) return 0
-    if (relay.stats.recent_errors.filter(n => n > ago(DAY)).length > 20) return 0
-    if (relay.stats.recent_errors.filter(n => n > ago(WEEK)).length > 100) return 0
+    if (relay.stats.recent_errors.filter(n => n > ago(MINUTE)).length > 0) return 0
+    if (relay.stats.recent_errors.filter(n => n > ago(HOUR)).length > 3) return 0
+    if (relay.stats.recent_errors.filter(n => n > ago(DAY)).length > 10) return 0
+    if (relay.stats.recent_errors.filter(n => n > ago(WEEK)).length > 50) return 0
   }
 
-  if (isIPAddress(url)) {
-    return 0.5
+  // Prefer stuff we're connected to
+  if (ctx.net.pool.has(url)) return 1
+
+  // Prefer stuff we've connected to in the past
+  if (relay?.stats) return 0.9
+
+  // If it's not weird url give it an ok score
+  if (!isIPAddress(url) && !isLocalUrl(url) && !isOnionUrl(url) && !url.startsWith("ws://")) {
+    return 0.8
   }
 
-  return 1
+  // Default to a "meh" score
+  return 0.7
 }
 
 export const getPubkeyRelays = (pubkey: string, mode?: string) => {
