@@ -2,6 +2,7 @@ import {derived} from "svelte/store"
 import {pubkey} from "./session.js"
 import {profilesByPubkey, loadProfile} from "./profiles.js"
 import {followsByPubkey, loadFollows} from "./follows.js"
+import {loadPins, pinsByPubkey} from "./pins.js"
 import {mutesByPubkey, loadMutes} from "./mutes.js"
 import {
   relaySelectionsByPubkey,
@@ -33,6 +34,13 @@ export const userMutes = derived([mutesByPubkey, pubkey], ([$mutesByPubkey, $pub
   loadMutes($pubkey)
 
   return $mutesByPubkey.get($pubkey)
+})
+
+export const userPins = derived([pinsByPubkey, pubkey], ([$pinsByPubkey, $pubkey]) => {
+  if (!$pubkey) return undefined
+
+  loadPins($pubkey)
+  return $pinsByPubkey.get($pubkey)
 })
 
 export const userRelaySelections = derived(
