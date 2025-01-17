@@ -54,7 +54,15 @@ export const getKindTags = (tags: string[][]) =>
 
 export const getKindTagValues = (tags: string[][]) => getKindTags(tags).map(t => parseInt(t[1]))
 
-export const getAncestorTags = (tags: string[][]) => {
+export const getAncestorTagsNip22 = (tags: string[][]) => {
+  const roots = tags.filter(t => ["A", "E", "P", "K"].includes(t[0]))
+  const replies = tags.filter(t => ["a", "e", "p", "k"].includes(t[0]))
+
+  // nip22 does not support mentions
+  return {roots, replies, mentions: []}
+}
+
+export const getAncestorTagsNip10 = (tags: string[][]) => {
   const validTags = tags.filter(t => ["a", "e", "q"].includes(t[0]))
   const mentionTags = validTags.filter(nthEq(0, "q"))
   const roots: string[][] = []
@@ -88,6 +96,14 @@ export const getAncestorTags = (tags: string[][]) => {
   mentionTags.forEach((t: string[]) => mentions.push(t))
 
   return {roots, replies, mentions}
+}
+
+export const getAncestorTags = (tags: string[][]) => {
+  if (tags.some(t => ["A", "E"].includes(t[0]))) {
+    return getAncestorTagsNip22(tags)
+  } else {
+    return getAncestorTagsNip10(tags)
+  }
 }
 
 export const getAncestorTagValues = (tags: string[][]) =>
