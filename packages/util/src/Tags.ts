@@ -54,7 +54,17 @@ export const getKindTags = (tags: string[][]) =>
 
 export const getKindTagValues = (tags: string[][]) => getKindTags(tags).map(t => parseInt(t[1]))
 
-export const getAncestorTags = (tags: string[][]) => {
+export const getCommentTags = (tags: string[][]) => {
+  const roots = tags.filter(t => ["A", "E", "P", "K"].includes(t[0]))
+  const replies = tags.filter(t => ["a", "e", "p", "k"].includes(t[0]))
+
+  return {roots, replies}
+}
+
+export const getCommentTagValues = (tags: string[][]) =>
+  mapVals(tags => tags.map(nth(1)), getCommentTags(tags))
+
+export const getReplyTags = (tags: string[][]) => {
   const validTags = tags.filter(t => ["a", "e", "q"].includes(t[0]))
   const mentionTags = validTags.filter(nthEq(0, "q"))
   const roots: string[][] = []
@@ -90,8 +100,8 @@ export const getAncestorTags = (tags: string[][]) => {
   return {roots, replies, mentions}
 }
 
-export const getAncestorTagValues = (tags: string[][]) =>
-  mapVals(tags => tags.map(nth(1)), getAncestorTags(tags))
+export const getReplyTagValues = (tags: string[][]) =>
+  mapVals(tags => tags.map(nth(1)), getReplyTags(tags))
 
 export const uniqTags = (tags: string[][]) => uniqBy(t => t.join(":"), tags)
 

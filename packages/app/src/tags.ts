@@ -1,10 +1,10 @@
-import {ctx} from "@welshman/lib"
+import {ctx, remove, nthEq} from "@welshman/lib"
 import {
   getAddress,
   isReplaceable,
-  getAncestorTags,
+  getReplyTags,
   getPubkeyTagValues,
-  getIdAndAddress,
+  isReplaceableKind,
 } from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {displayProfileByPubkey} from "./profiles.js"
@@ -35,25 +35,14 @@ export const tagEvent = (event: TrustedEvent, mark = "") => {
   return tags
 }
 
-export const tagReplyTo = (event: TrustedEvent) => {
-  const $pubkey = pubkey.get()
-  const tagValues = getIdAndAddress(event)
-  const tags: string[][] = []
+export const tagEventPubkeys = (event: TrustedEvent) =>
+  remove(pubkey.get()!, [event.pubkey, ...getPubkeyTagValues(event.tags)]).map(tagPubkey)
 
-  // Mention the event's author
-  if (event.pubkey !== $pubkey) {
-    tags.push(tagPubkey(event.pubkey))
-  }
-
-  // Inherit p-tag mentions
-  for (const pubkey of getPubkeyTagValues(event.tags)) {
-    if (pubkey !== $pubkey) {
-      tags.push(tagPubkey(pubkey))
-    }
-  }
+export const tagEventForReply = (event: TrustedEvent) => {
+  const tags = tagEventPubkeys(event)
 
   // Based on NIP 10 legacy tags, order is root, mentions, reply
-  const {roots, replies, mentions} = getAncestorTags(event.tags)
+  const {roots, replies, mentions} = getReplyTags(event.tags)
 
   // Root comes first
   if (roots.length > 0) {
@@ -66,12 +55,9 @@ export const tagReplyTo = (event: TrustedEvent) => {
     }
   }
 
-  // Make sure we don't repeat any tag values
-  const isRepeated = (v: string) => tagValues.includes(v) || tags.find(t => t[1] === v)
-
   // Inherit mentions
   for (const t of mentions) {
-    if (!isRepeated(t[1])) {
+    if (!tags.some(nthEq(1, t[1]))) {
       tags.push([...t.slice(0, 3), "mention"])
     }
   }
@@ -79,21 +65,73 @@ export const tagReplyTo = (event: TrustedEvent) => {
   // Inherit replies if they weren't already included
   if (roots.length > 0) {
     for (const t of replies) {
-      if (!isRepeated(t[1])) {
+      if (!tags.some(nthEq(1, t[1]))) {
         tags.push([...t.slice(0, 3), "mention"])
       }
     }
   }
 
-  // Add a/e-tags for the event event
-  for (const t of tagEvent(event, replies.length > 0 ? "reply" : "root")) {
-    tags.push(t)
+  // Finally, tag the event itself
+  const mark = replies.length > 0 ? "reply" : "root"
+  const hint = ctx.app.router.Event(event).getUrl()
+
+  // e-tag the event
+  tags.push(["e", event.id, hint, mark, event.pubkey])
+
+  // a-tag the event
+  if (isReplaceable(event)) {
+    tags.push(["a", getAddress(event), hint, mark, event.pubkey])
   }
 
   return tags
 }
 
-export const tagReactionTo = (event: TrustedEvent) => {
+export const tagEventForComment = (event: TrustedEvent) => {
+  const pubkeyHint = ctx.app.router.FromPubkey(event.pubkey).getUrl()
+  const eventHint = ctx.app.router.Event(event).getUrl()
+  const address = getAddress(event)
+  const tags = tagEventPubkeys(event)
+  const seenRoots = new Set<string>()
+
+  for (const [raw, ...tag] of event.tags) {
+    const T = raw.toUpperCase()
+    const t = raw.toLowerCase()
+
+    if (!["k", "e", "a", "i", "p"].includes(t)) {
+      continue
+    }
+
+    if (seenRoots.has(T)) {
+      tags.push([t, ...tag])
+    } else {
+      tags.push([T, ...tag])
+      seenRoots.add(T)
+    }
+  }
+
+  if (seenRoots.size === 0) {
+    tags.push(["K", String(event.kind)])
+    tags.push(["P", event.pubkey, pubkeyHint])
+    tags.push(["E", event.id, eventHint, event.pubkey])
+
+    if (isReplaceableKind(event.kind)) {
+      tags.push(["A", address, eventHint, event.pubkey])
+    }
+  }
+
+  tags.push(["k", String(event.kind)])
+  tags.push(["p", event.pubkey, pubkeyHint])
+  tags.push(["e", event.id, eventHint, event.pubkey])
+
+  if (isReplaceableKind(event.kind)) {
+    tags.push(["a", address, eventHint, event.pubkey])
+  }
+
+  return tags
+}
+
+export const tagEventForReaction = (event: TrustedEvent) => {
+  const hint = ctx.app.router.Event(event).getUrl()
   const tags: string[][] = []
 
   // Mention the event's author
@@ -101,9 +139,11 @@ export const tagReactionTo = (event: TrustedEvent) => {
     tags.push(tagPubkey(event.pubkey))
   }
 
-  // Add a/e-tags for the event
-  for (const t of tagEvent(event, "root")) {
-    tags.push(t)
+  tags.push(["k", String(event.kind)])
+  tags.push(["e", event.id, hint])
+
+  if (isReplaceable(event)) {
+    tags.push(["a", getAddress(event), hint])
   }
 
   return tags

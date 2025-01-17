@@ -1,8 +1,9 @@
 import {verifiedSymbol, getEventHash, verifyEvent} from "nostr-tools/pure"
-import {cached, pick, now} from "@welshman/lib"
-import {getAncestorTagValues} from "./Tags.js"
-import {getAddress} from "./Address.js"
+import {cached, mapVals, first, pick, now} from "@welshman/lib"
+import {getReplyTagValues, getCommentTagValues} from "./Tags.js"
+import {getAddress, Address} from "./Address.js"
 import {
+  COMMENT,
   isEphemeralKind,
   isReplaceableKind,
   isPlainReplaceableKind,
@@ -135,9 +136,41 @@ export const isPlainReplaceable = (e: EventTemplate) => isPlainReplaceableKind(e
 export const isParameterizedReplaceable = (e: EventTemplate) =>
   isParameterizedReplaceableKind(e.kind)
 
-export const isChildOf = (child: EventContent, parent: HashedEvent) => {
-  const {roots, replies} = getAncestorTagValues(child.tags)
-  const parentIds = replies.length > 0 ? replies : roots
+export const getAncestors = ({kind, tags}: EventTemplate) =>
+  kind === COMMENT ? getCommentTagValues(tags) : getReplyTagValues(tags)
 
-  return getIdAndAddress(parent).some(x => parentIds.includes(x))
+export const getParentIdsAndAddrs = (event: EventTemplate) => {
+  const {roots, replies} = getAncestors(event)
+
+  return replies.length > 0 ? replies : roots
+}
+
+export const getParentIdOrAddr = (event: EventTemplate) => first(getParentIdsAndAddrs(event))
+
+export const getParentIds = (event: EventTemplate) => {
+  const {roots, replies} = mapVals(
+    ids => ids.filter(id => !Address.isAddress(id)),
+    getAncestors(event),
+  )
+
+  return replies.length > 0 ? replies : roots
+}
+
+export const getParentId = (event: EventTemplate) => first(getParentIds(event))
+
+export const getParentAddrs = (event: EventTemplate) => {
+  const {roots, replies} = mapVals(
+    ids => ids.filter(id => Address.isAddress(id)),
+    getAncestors(event),
+  )
+
+  return replies.length > 0 ? replies : roots
+}
+
+export const getParentAddr = (event: EventTemplate) => first(getParentAddrs(event))
+
+export const isChildOf = (child: EventTemplate, parent: HashedEvent) => {
+  const idsAndAddrs = getParentIdsAndAddrs(child)
+
+  return getIdAndAddress(parent).some(x => idsAndAddrs.includes(x))
 }

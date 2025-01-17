@@ -25,12 +25,14 @@ import {
   isLocalUrl,
   isIPAddress,
   isShareableRelayUrl,
+  COMMENT,
   PROFILE,
   RELAYS,
   INBOX_RELAYS,
   FOLLOWS,
   WRAP,
-  getAncestorTags,
+  getReplyTags,
+  getCommentTags,
   getPubkeyTagValues,
   normalizeRelayUrl,
 } from "@welshman/util"
@@ -191,8 +193,13 @@ export class Router {
   }
 
   EventAncestors = (event: TrustedEvent, type: "mentions" | "replies" | "roots") => {
+    const ancestorTags =
+      event.kind === COMMENT ? getCommentTags(event.tags) : getReplyTags(event.tags)
+
+    const tags: string[][] = (ancestorTags as any)[type] || []
+
     return this.scenario(
-      getAncestorTags(event.tags)[type].flatMap(([_, value, relay, pubkey]) => {
+      tags.flatMap(([_, value, relay, pubkey]) => {
         const selections = [makeSelection(this.ForUser().getUrls(), 0.5)]
 
         if (pubkey) {
