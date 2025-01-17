@@ -1,6 +1,6 @@
 {
   "name": "@welshman/editor",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "scripts": {
     "pub": "npm run check && npm run build && npm publish",
     "fix": "",
