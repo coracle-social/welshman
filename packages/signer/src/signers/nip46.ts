@@ -29,6 +29,7 @@ export enum Nip46Event {
 export type Nip46BrokerParams = {
   relays: string[]
   clientSecret: string
+  connectSecret?: string
   signerPubkey?: string
   algorithm?: Nip46Algorithm
 }
@@ -261,6 +262,26 @@ export class Nip46Broker extends Emitter {
     return singleton
   }
 
+  // Static utility methods
+
+  static parseBunkerUrl = (url: string) => {
+    let connectSecret = ""
+    let signerPubkey = ""
+    let relays: string[] = []
+
+    try {
+      const _url = new URL(url)
+
+      relays = _url.searchParams.getAll("relay") || []
+      signerPubkey = _url.hostname || _url.pathname.replace(/\//g, "")
+      connectSecret = _url.searchParams.get("secret") || ""
+    } catch {
+      // pass
+    }
+
+    return {signerPubkey, connectSecret, relays: relays.map(normalizeRelayUrl)}
+  }
+
   // Expose params without exposing params
 
   hasParams(params: Nip46BrokerParams) {
@@ -329,24 +350,6 @@ export class Nip46Broker extends Emitter {
 
   // Methods for initiating a connection
 
-  parseBunkerUrl = (url: string) => {
-    let connectSecret = ""
-    let signerPubkey = ""
-    let relays: string[] = []
-
-    try {
-      const _url = new URL(url)
-
-      relays = _url.searchParams.getAll("relay") || []
-      signerPubkey = _url.hostname || _url.pathname.replace(/\//g, "")
-      connectSecret = _url.searchParams.get("secret") || ""
-    } catch {
-      // pass
-    }
-
-    return {signerPubkey, connectSecret, relays: relays.map(normalizeRelayUrl)}
-  }
-
   makeNostrconnectUrl = async (meta: Record<string, string> = {}) => {
     const clientPubkey = await this.signer.getPubkey()
     const secret = Math.random().toString(36).substring(7)
@@ -393,6 +396,26 @@ export class Nip46Broker extends Emitter {
         cleanup()
       })
     })
+  }
+
+  // Methods for serializing a connection
+
+  getBunkerUrl = () => {
+    if (!this.params.signerPubkey) {
+      throw new Error("Attempted to get a bunker url with no signerPubkey")
+    }
+
+    const params = new URLSearchParams()
+
+    for (const relay of this.params.relays) {
+      params.append("relay", relay)
+    }
+
+    if (this.params.connectSecret) {
+      params.set("secret", this.params.connectSecret)
+    }
+
+    return "bunker://" + this.params.signerPubkey + "?" + params.toString()
   }
 
   // Normal NIP 46 methods
