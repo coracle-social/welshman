@@ -678,8 +678,8 @@ export const fromPairs = <T>(pairs: [k?: string, v?: T, ...args: unknown[]][]) =
  * @param x - Object to filter
  * @returns Object with only values that pass predicate
  */
-export const filterVals = (f: (v: any) => boolean, x: Record<string, any>) => {
-  const r = {} as Record<string, any>
+export const filterVals = <T extends Record<string, any>>(f: (v: any) => boolean, x: T) => {
+  const r = {} as T
 
   for (const k in x) {
     if (f(x[k])) {
