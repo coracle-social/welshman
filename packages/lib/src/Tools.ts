@@ -414,6 +414,15 @@ export const toggle = <T>(x: T, xs: T[]) => (xs.includes(x) ? remove(x, xs) : ap
 export const clamp = ([min, max]: [number, number], n: number) => Math.min(max, Math.max(min, n))
 
 /**
+ * Round a number to the nearest float precision
+ * @param precision - Number of decimal places
+ * @param x - Number to round
+ * @returns Formatted number
+ */
+export const round = (precision: number, x: number) =>
+  Math.round(x * Math.pow(10, precision)) / Math.pow(10, precision)
+
+/**
  * Safely parses JSON string
  * @param json - JSON string to parse
  * @returns Parsed object or null if invalid
@@ -657,6 +666,24 @@ export const fromPairs = <T>(pairs: [k?: string, v?: T, ...args: unknown[]][]) =
   for (const [k, v] of pairs) {
     if (k && v) {
       r[k] = v
+    }
+  }
+
+  return r
+}
+
+/**
+ * Filters object values based on predicate
+ * @param f - Function to test values
+ * @param x - Object to filter
+ * @returns Object with only values that pass predicate
+ */
+export const filterVals = <T extends Record<string, any>>(f: (v: any) => boolean, x: T) => {
+  const r = {} as T
+
+  for (const k in x) {
+    if (f(x[k])) {
+      r[k] = x[k]
     }
   }
 
