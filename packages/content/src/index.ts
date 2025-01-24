@@ -45,6 +45,7 @@ export enum ParsedType {
   Event = "event",
   Invoice = "invoice",
   Link = "link",
+  LinkGrid = "link-grid",
   Newline = "newline",
   Profile = "profile",
   Text = "text",
@@ -81,10 +82,19 @@ export type ParsedLinkValue = {
   isMedia: boolean
 }
 
+export type ParsedLinkGridValue = {
+  links: ParsedLinkValue[]
+}
+
 export type ParsedLink = {
   type: ParsedType.Link
   value: ParsedLinkValue
   raw: string
+}
+
+export type ParsedLinkGrid = {
+  type: ParsedType.LinkGrid
+  value: ParsedLinkGridValue
 }
 
 export type ParsedNewline = {
@@ -131,6 +141,7 @@ export type Parsed =
   | ParsedEvent
   | ParsedInvoice
   | ParsedLink
+  | ParsedLinkGrid
   | ParsedNewline
   | ParsedProfile
   | ParsedText
@@ -148,6 +159,8 @@ export const isEvent = (parsed: Parsed): parsed is ParsedEvent => parsed.type ==
 export const isInvoice = (parsed: Parsed): parsed is ParsedInvoice =>
   parsed.type === ParsedType.Invoice
 export const isLink = (parsed: Parsed): parsed is ParsedLink => parsed.type === ParsedType.Link
+export const isLinkGrid = (parsed: Parsed): parsed is ParsedLinkGrid =>
+  parsed.type === ParsedType.LinkGrid
 export const isNewline = (parsed: Parsed): parsed is ParsedNewline =>
   parsed.type === ParsedType.Newline
 export const isProfile = (parsed: Parsed): parsed is ParsedProfile =>
@@ -383,6 +396,7 @@ export const truncate = (
   const sizes = content.map((parsed: Parsed) => {
     switch (parsed.type) {
       case ParsedType.Link:
+      case ParsedType.LinkGrid:
       case ParsedType.Cashu:
       case ParsedType.Invoice:
         return mediaLength
@@ -417,6 +431,45 @@ export const truncate = (
   })
 
   return content
+}
+
+function isImage(parsed: Parsed) {
+  return isLink(parsed) && parsed.value.url.toString().match(/\.(jpe?g|png|gif|webp)$/)
+}
+
+export const reduceLinks = (content: Parsed[]) => {
+  let images: ParsedLinkGridValue = {links: []}
+  let newLine: ParsedNewline | null = null
+  let emptyText: ParsedText | null = null
+  const parsedContent = []
+
+  for (const parsed of content) {
+    if (isImage(parsed)) {
+      images.links.push(parsed.value as ParsedLinkValue)
+    } else {
+      if (images.links.length && isNewline(parsed)) {
+        newLine = parsed
+      } else if (images.links.length && isText(parsed) && !parsed.value.trim()) {
+        emptyText = parsed
+      } else if (images.links.length) {
+        parsedContent.push({type: ParsedType.LinkGrid, value: {...images}})
+        if (newLine) {
+          parsedContent.push(newLine)
+          newLine = null
+        } else if (emptyText) {
+          parsedContent.push(emptyText)
+          emptyText = null
+        }
+        images.links = []
+      } else {
+        parsedContent.push(parsed)
+      }
+    }
+  }
+  if (images.links.length) {
+    parsedContent.push({type: ParsedType.LinkGrid, value: images})
+  }
+  return parsedContent
 }
 
 // Renderer
