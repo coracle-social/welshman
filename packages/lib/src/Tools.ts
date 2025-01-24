@@ -586,13 +586,23 @@ export const nthNe =
     xs[i] !== v
 
 /** Returns a function that checks if key/value pairs of x match all pairs in spec */
-export const spec = (values: Obj) => (x: Obj) => {
-  for (const [k, v] of Object.entries(values)) {
-    if (x[k] !== v) return false
-  }
+export const spec =
+  (values: Obj | Array<any>) =>
+  (x: Obj | Array<any>, ...args: unknown[]) => {
+    if (Array.isArray(values)) {
+      for (let i = 0; i < values.length; i++) {
+        if ((x as Array<any>)[i] !== values[i]) {
+          return false
+        }
+      }
+    } else {
+      for (const [k, v] of Object.entries(values)) {
+        if ((x as Obj)[k] !== v) return false
+      }
+    }
 
-  return true
-}
+    return true
+  }
 
 /** Returns a function that checks equality with value */
 export const eq =
