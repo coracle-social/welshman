@@ -40,7 +40,7 @@ export const subscribe = (request: PartialSubscribeRequest) => {
   // Keep cached results async so the caller can set up handlers
   setTimeout(() => {
     for (const event of events) {
-      sub.emitter.emit(SubscriptionEvent.Event, LOCAL_RELAY_URL, event)
+      sub.emit(SubscriptionEvent.Event, LOCAL_RELAY_URL, event)
     }
   })
 
@@ -52,6 +52,6 @@ export const load = (request: PartialSubscribeRequest) =>
     const sub = subscribe({closeOnEose: true, timeout: ctx.app.requestTimeout, ...request})
     const events: TrustedEvent[] = []
 
-    sub.emitter.on(SubscriptionEvent.Event, (url: string, e: TrustedEvent) => events.push(e))
-    sub.emitter.on(SubscriptionEvent.Complete, () => resolve(events))
+    sub.on(SubscriptionEvent.Event, (url: string, e: TrustedEvent) => events.push(e))
+    sub.on(SubscriptionEvent.Complete, () => resolve(events))
   })

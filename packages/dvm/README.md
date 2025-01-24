@@ -53,7 +53,7 @@ const sub = subscribe({
 })
 
 // Push event ids to our suggestions
-sub.emitter.on('event', (url, e) => tags.push(["e", e.id, url]))
+sub.on('event', (url, e) => tags.push(["e", e.id, url]))
 
 const dvm = new DVM({
   // The private key used to sign events

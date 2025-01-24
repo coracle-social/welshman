@@ -49,8 +49,8 @@ export class DVM {
         const filters = [filter]
         const sub = subscribe({relays, filters})
 
-        sub.emitter.on("event", (url: string, e: TrustedEvent) => this.onEvent(e))
-        sub.emitter.on("complete", () => resolve())
+        sub.on("event", (url: string, e: TrustedEvent) => this.onEvent(e))
+        sub.on("complete", () => resolve())
       })
     }
   }

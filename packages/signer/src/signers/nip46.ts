@@ -114,9 +114,9 @@ export class Nip46Receiver extends Emitter {
     this.sub = subscribe({relays: this.params.relays, filters})
 
     return new Promise<void>(resolve => {
-      this.sub!.emitter.on(SubscriptionEvent.Send, resolve)
+      this.sub!.on(SubscriptionEvent.Send, resolve)
 
-      this.sub!.emitter.on(SubscriptionEvent.Event, async (url: string, event: TrustedEvent) => {
+      this.sub!.on(SubscriptionEvent.Event, async (url: string, event: TrustedEvent) => {
         const json = await decrypt(this.signer, event.pubkey, event.content)
         const response = tryCatch(() => JSON.parse(json)) || {}
 
@@ -128,7 +128,7 @@ export class Nip46Receiver extends Emitter {
         this.emit(Nip46Event.Receive, {...response, url, event} as Nip46Response)
       })
 
-      this.sub!.emitter.on(SubscriptionEvent.Complete, () => {
+      this.sub!.on(SubscriptionEvent.Complete, () => {
         this.sub = undefined
       })
     })

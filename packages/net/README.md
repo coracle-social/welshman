@@ -18,7 +18,7 @@ const sub = subscribe({
   timeout: 10000,
 })
 
-sub.emitter.on(SubscriptionEvent.Event, (url: string, event: TrustedEvent) => {
+sub.on(SubscriptionEvent.Event, (url: string, event: TrustedEvent) => {
   console.log(url, event)
   sub.close()
 })
