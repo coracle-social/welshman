@@ -1,6 +1,6 @@
 {
   "name": "@welshman/dvm",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of utilities for building nostr DVMs.",
@@ -28,7 +28,7 @@
   "dependencies": {
     "@noble/hashes": "^1.6.1",
     "@welshman/lib": "~0.0.37",
-    "@welshman/net": "~0.0.45",
+    "@welshman/net": "~0.0.46",
     "@welshman/util": "~0.0.58",
     "nostr-tools": "^2.7.2"
   }

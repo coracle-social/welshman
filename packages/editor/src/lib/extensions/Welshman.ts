@@ -147,7 +147,6 @@ export const WelshmanExtension = NostrExtension.extend<WelshmanOptions>({
           group: "inline",
         },
         extend: {
-          renderText: (props: any) => toNostrURI(props.node.attrs.nevent),
           addNodeView: () => SvelteNodeViewRenderer(EditEvent),
         },
       },
@@ -157,13 +156,11 @@ export const WelshmanExtension = NostrExtension.extend<WelshmanOptions>({
           group: "inline",
         },
         extend: {
-          renderText: (props: any) => toNostrURI(props.node.attrs.naddr),
           addNodeView: () => SvelteNodeViewRenderer(EditEvent),
         },
       },
       nprofile: {
         extend: {
-          renderText: (props: any) => toNostrURI(props.node.attrs.nprofile),
           addNodeView: () => SvelteNodeViewRenderer(EditMention),
         },
       },

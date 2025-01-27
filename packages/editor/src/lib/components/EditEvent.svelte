@@ -9,6 +9,6 @@
 
 <NodeViewWrapper as="span">
   <button class="tiptap-object {selected ? 'tiptap-active' : ''}">
-    {fromNostrURI(node.attrs.nevent).slice(0, 16)}...
+    {fromNostrURI(node.attrs.bech32).slice(0, 16)}...
   </button>
 </NodeViewWrapper>
