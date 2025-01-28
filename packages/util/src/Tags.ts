@@ -103,6 +103,6 @@ export const getReplyTags = (tags: string[][]) => {
 export const getReplyTagValues = (tags: string[][]) =>
   mapVals(tags => tags.map(nth(1)), getReplyTags(tags))
 
-export const uniqTags = (tags: string[][]) => uniqBy(t => t.join(":"), tags)
+export const uniqTags = (tags: string[][]) => uniqBy(t => t.slice(0, 2).join(":"), tags)
 
 export const tagsFromIMeta = (imeta: string[]) => imeta.map((m: string) => m.split(" "))

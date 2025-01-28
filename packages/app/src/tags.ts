@@ -1,4 +1,4 @@
-import {ctx, remove, nthEq} from "@welshman/lib"
+import {ctx, uniq, remove, nthEq} from "@welshman/lib"
 import {
   getAddress,
   isReplaceable,
@@ -36,7 +36,7 @@ export const tagEvent = (event: TrustedEvent, mark = "") => {
 }
 
 export const tagEventPubkeys = (event: TrustedEvent) =>
-  remove(pubkey.get()!, [event.pubkey, ...getPubkeyTagValues(event.tags)]).map(tagPubkey)
+  uniq(remove(pubkey.get()!, [event.pubkey, ...getPubkeyTagValues(event.tags)])).map(tagPubkey)
 
 export const tagEventForQuote = (event: TrustedEvent) => [
   "q",
