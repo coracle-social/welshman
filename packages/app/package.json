@@ -33,7 +33,7 @@
     "@welshman/net": "~0.0.46",
     "@welshman/signer": "~0.0.19",
     "@welshman/store": "~0.0.15",
-    "@welshman/util": "~0.0.58",
+    "@welshman/util": "~0.0.59",
     "fuse.js": "^7.0.0",
     "idb": "^8.0.0",
     "svelte": "^4.2.18",

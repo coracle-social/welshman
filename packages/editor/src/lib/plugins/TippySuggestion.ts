@@ -5,6 +5,7 @@ import tippy from "tippy.js"
 import {nprofileEncode} from "nostr-tools/nip19"
 // @ts-ignore
 import type {Editor} from "svelte-tiptap"
+import {makeNProfileAttrs} from 'nostr-editor'
 import {PluginKey} from "@tiptap/pm/state"
 import Suggestion from "@tiptap/suggestion"
 import Suggestions from "../components/Suggestions.svelte"
@@ -137,9 +138,9 @@ export const MentionSuggestion = (options: MentionSuggestionOptions) =>
     name: "nprofile",
     select: (pubkey: string, props: any) => {
       const relays = options.getRelays(pubkey)
-      const nprofile = nprofileEncode({pubkey, relays})
+      const bech32 = nprofileEncode({pubkey, relays})
 
-      return props.command({pubkey, relays, nprofile})
+      return props.command(makeNProfileAttrs(bech32, {}))
     },
     ...options,
   })

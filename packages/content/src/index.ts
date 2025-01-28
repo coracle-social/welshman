@@ -211,7 +211,7 @@ export const parseEvent = (text: string, context: ParseContext): ParsedEvent | v
 }
 
 export const parseInvoice = (text: string, context: ParseContext): ParsedInvoice | void => {
-  const [value] = text.match(/^ln(lnbc|lnurl)[\d\w]{50,1000}/i) || []
+  const [value] = text.match(/^ln(bc|url)[0-9a-z]{10,}/i) || []
 
   if (value) {
     return {type: ParsedType.Invoice, value, raw: value}

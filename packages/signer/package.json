@@ -33,7 +33,7 @@
     "@noble/hashes": "^1.6.1",
     "@welshman/lib": "~0.0.37",
     "@welshman/net": "~0.0.46",
-    "@welshman/util": "~0.0.58",
+    "@welshman/util": "~0.0.59",
     "nostr-tools": "^2.7.2"
   },
   "peerDependencies": {

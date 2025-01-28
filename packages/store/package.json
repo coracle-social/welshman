@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@welshman/lib": "~0.0.37",
-    "@welshman/util": "~0.0.58",
+    "@welshman/util": "~0.0.59",
     "svelte": "^4.2.18"
   }
 }
