@@ -1,6 +1,6 @@
 {
   "name": "@welshman/editor",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "scripts": {
     "pub": "npm run check && npm run build && npm publish",
     "fix": "",
@@ -44,7 +44,7 @@
     "@tiptap/suggestion": "^2.9.1",
     "@welshman/lib": "~0.0.36",
     "@welshman/util": "~0.0.53",
-    "nostr-editor": "^0.0.4-pre.6",
+    "nostr-editor": "^0.0.4-pre.7",
     "nostr-tools": "^2.8.1",
     "svelte": "^4.0.0",
     "svelte-tiptap": "^1.0.0"
@@ -67,7 +67,7 @@
     "@tiptap/pm": "^2.9.1",
     "@welshman/lib": "~0.0.36",
     "@welshman/util": "~0.0.53",
-    "nostr-editor": "^0.0.4-pre.6",
+    "nostr-editor": "^0.0.4-pre.7",
     "nostr-tools": "^2.10.4",
     "publint": "^0.2.0",
     "svelte": "^4.0.0",

@@ -38,6 +38,13 @@ export const tagEvent = (event: TrustedEvent, mark = "") => {
 export const tagEventPubkeys = (event: TrustedEvent) =>
   remove(pubkey.get()!, [event.pubkey, ...getPubkeyTagValues(event.tags)]).map(tagPubkey)
 
+export const tagEventForQuote = (event: TrustedEvent) => [
+  "q",
+  event.id,
+  ctx.app.router.Event(event).getUrl(),
+  event.pubkey,
+]
+
 export const tagEventForReply = (event: TrustedEvent) => {
   const tags = tagEventPubkeys(event)
 
