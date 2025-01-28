@@ -492,7 +492,7 @@ export const renderCashu = (p: ParsedCashu, r: Renderer) => r.addText(p.value)
 
 export const renderCode = (p: ParsedCode, r: Renderer) => r.addText(p.value)
 
-export const renderEllipsis = (p: ParsedEllipsis, r: Renderer) => "…"
+export const renderEllipsis = (p: ParsedEllipsis, r: Renderer) => r.addText("…")
 
 export const renderInvoice = (p: ParsedInvoice, r: Renderer) => r.addText(p.value)
 
