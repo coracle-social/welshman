@@ -622,11 +622,17 @@ export const prop =
   (x: Record<string, unknown>) =>
     x[k] as T
 
-/** Returns a function that adds/updates property on object */
+/** Returns a function that adds/updates a property on object */
 export const assoc =
   <K extends string, T, U>(k: K, v: T) =>
   (o: U) =>
     ({...o, [k as K]: v}) as U & Record<K, T>
+
+/** Returns a function that removes a property on object */
+export const dissoc =
+  <K extends string, T extends Obj>(k: K) =>
+  (o: T) =>
+    omit([k], o)
 
 /** Generates a hash string from input string */
 export const hash = (s: string) =>

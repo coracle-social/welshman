@@ -1,6 +1,6 @@
 import {writable, derived, get} from "svelte/store"
 import type {Writable, Readable} from "svelte/store"
-import {Worker, identity, uniq, defer, sleep, assoc} from "@welshman/lib"
+import {Worker, dissoc, identity, uniq, defer, sleep, assoc} from "@welshman/lib"
 import type {Deferred} from "@welshman/lib"
 import {stamp, own, hash} from "@welshman/signer"
 import type {
@@ -162,6 +162,12 @@ export const publishThunks = (requests: ThunkRequest[]) => {
   }
 
   return mergedThunk
+}
+
+export const abortThunk = (thunk: Thunk) => {
+  thunk.controller.abort()
+  thunks.update(dissoc(thunk.event.id))
+  repository.removeEvent(thunk.event.id)
 }
 
 export const thunkWorker = new Worker<Thunk>()
