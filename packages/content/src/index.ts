@@ -95,6 +95,7 @@ export type ParsedLink = {
 export type ParsedLinkGrid = {
   type: ParsedType.LinkGrid
   value: ParsedLinkGridValue
+  raw: string
 }
 
 export type ParsedNewline = {
@@ -159,6 +160,8 @@ export const isEvent = (parsed: Parsed): parsed is ParsedEvent => parsed.type ==
 export const isInvoice = (parsed: Parsed): parsed is ParsedInvoice =>
   parsed.type === ParsedType.Invoice
 export const isLink = (parsed: Parsed): parsed is ParsedLink => parsed.type === ParsedType.Link
+export const isImage = (parsed: Parsed): parsed is ParsedLink =>
+  isLink(parsed) && Boolean(parsed.value.url.toString().match(/\.(jpe?g|png|gif|webp)$/))
 export const isLinkGrid = (parsed: Parsed): parsed is ParsedLinkGrid =>
   parsed.type === ParsedType.LinkGrid
 export const isNewline = (parsed: Parsed): parsed is ParsedNewline =>
@@ -433,41 +436,35 @@ export const truncate = (
   return content
 }
 
-function isImage(parsed: Parsed) {
-  return isLink(parsed) && parsed.value.url.toString().match(/\.(jpe?g|png|gif|webp)$/)
-}
-
 export const reduceLinks = (content: Parsed[]) => {
-  let images: ParsedLinkGridValue = {links: []}
+  let images: URL[] = []
   let newLine: ParsedNewline | null = null
   let emptyText: ParsedText | null = null
   const parsedContent = []
 
   for (const parsed of content) {
     if (isImage(parsed)) {
-      images.links.push(parsed.value as ParsedLinkValue)
-    } else {
-      if (images.links.length && isNewline(parsed)) {
-        newLine = parsed
-      } else if (images.links.length && isText(parsed) && !parsed.value.trim()) {
-        emptyText = parsed
-      } else if (images.links.length) {
-        parsedContent.push({type: ParsedType.LinkGrid, value: {...images}})
-        if (newLine) {
-          parsedContent.push(newLine)
-          newLine = null
-        } else if (emptyText) {
-          parsedContent.push(emptyText)
-          emptyText = null
-        }
-        images.links = []
-      } else {
-        parsedContent.push(parsed)
+      images.push((parsed.value as ParsedLinkValue).url)
+    } else if (images.length && isNewline(parsed)) {
+      newLine = parsed
+    } else if (images.length && isText(parsed) && !parsed.value.trim()) {
+      emptyText = parsed
+    } else if (images.length) {
+      parsedContent.push({type: ParsedType.LinkGrid, value: {links: [...images]}})
+      if (newLine) {
+        parsedContent.push(newLine)
+        newLine = null
+      } else if (emptyText) {
+        parsedContent.push(emptyText)
+        emptyText = null
       }
+      images = []
+    } else {
+      parsedContent.push(parsed)
     }
   }
-  if (images.links.length) {
-    parsedContent.push({type: ParsedType.LinkGrid, value: images})
+  if (images.length) {
+    parsedContent.push({type: ParsedType.LinkGrid, value: {links: [...images]}})
   }
   return parsedContent
 }
