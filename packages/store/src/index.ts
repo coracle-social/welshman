@@ -19,7 +19,7 @@ import type {Filter, TrustedEvent} from "@welshman/util"
 
 export const synced = <T>(key: string, defaultValue: T) => {
   const init = getJson(key)
-  const store = writable<T>(init === null ? defaultValue : init)
+  const store = writable<T>(init === undefined ? defaultValue : init)
 
   store.subscribe((value: T) => setJson(key, value))
 
