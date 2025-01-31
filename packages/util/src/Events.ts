@@ -54,7 +54,7 @@ export type CreateEventOpts = {
 
 export const createEvent = (
   kind: number,
-  {content = "", tags = [], created_at = now()}: CreateEventOpts,
+  {content = "", tags = [], created_at = now()}: CreateEventOpts = {},
 ) => ({kind, content, tags, created_at})
 
 export const isEventTemplate = (e: EventTemplate): e is EventTemplate =>
