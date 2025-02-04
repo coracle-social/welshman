@@ -55,8 +55,11 @@ export const collection = <T, LoadArgs extends any[]>({
 
     try {
       await promise
-    } finally {
       pending.delete(key)
+    } catch (e) {
+      // pending.delete(key)
+    } finally {
+      // If the load fails, remove the pending promise so we can try again
     }
 
     const fresh = indexStore.get().get(key)

@@ -1,0 +1,23 @@
+{
+  "extends": "./node_modules/gts/tsconfig-google.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "baseUrl": ".",
+    "outDir": "build",
+    "esModuleInterop": true,
+    // "module": "nodenext",
+    "skipLibCheck": true,
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "paths": {
+      "@welshman/app": ["packages/app/src"],
+      "@welshman/content": ["packages/content/src"],
+      "@welshman/dvm": ["packages/dvm/src"],
+      "@welshman/feeds": ["packages/feeds/src"],
+      "@welshman/lib": ["packages/lib/src"],
+      "@welshman/net": ["packages/net/src"],
+      "@welshman/signer": ["packages/signer/src"],
+      "@welshman/store": ["packages/store/src"],
+      "@welshman/util": ["packages/util/src"]
+    }
+  }
+}
