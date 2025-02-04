@@ -141,6 +141,7 @@ export const closeStorage = async () => {
 export const clearStorage = async () => {
   await closeStorage()
   await deleteDB(db.name)
+  db = undefined // force initStorage to run again
 }
 
 const migrate = (data: any[], options: StorageAdapterOptions) =>

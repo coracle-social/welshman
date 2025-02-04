@@ -4,7 +4,6 @@ import {Repository} from "@welshman/util"
 import {Tracker} from "@welshman/net"
 import {
   initStorage,
-  closeStorage,
   clearStorage,
   storageAdapters,
   dead,
@@ -25,7 +24,7 @@ describe("storage", () => {
 
   afterEach(async () => {
     vi.useRealTimers()
-    await closeStorage()
+    await clearStorage()
     // Clean up the test database
     await new Promise((resolve, reject) => {
       const req = indexedDB.deleteDatabase(DB_NAME)
@@ -99,9 +98,12 @@ describe("storage", () => {
 
       store.update(items => items.filter(item => item.id !== "1"))
 
+      await vi.runAllTimersAsync()
+
       const itemsPromise = getAll("items")
       await vi.runAllTimersAsync()
       const items = await itemsPromise
+      await vi.runAllTimersAsync()
 
       expect(items).toHaveLength(1)
       expect(items[0]).toEqual({id: "2", value: "test2"})

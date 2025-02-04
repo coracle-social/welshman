@@ -4,6 +4,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {follow, mute, pin, unfollow, unmute, unpin} from "../src/commands"
 import * as thunkModule from "../src/thunk"
 import {thunkWorker} from "../src/thunk"
+import {repository} from "../src/core"
 
 vi.mock(import("@welshman/lib"), async importOriginal => ({
   ...(await importOriginal()),
@@ -48,6 +49,8 @@ describe("commands", () => {
     vi.resetModules()
     // Clear any cached data
     vi.clearAllMocks()
+
+    repository.load([])
   })
 
   afterEach(() => {
@@ -64,6 +67,7 @@ describe("commands", () => {
     it("should create new follows list if none exists", async () => {
       const publishThunkSpy = vi.spyOn(thunkModule, "publishThunk")
       await follow(["p", pubkey1])
+      await vi.runAllTimersAsync()
 
       expect(publishThunkSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -84,6 +88,8 @@ describe("commands", () => {
       await vi.runAllTimersAsync()
 
       await follow(["p", pubkey2])
+
+      await vi.runAllTimersAsync()
 
       expect(publishThunkSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -126,6 +132,8 @@ describe("commands", () => {
 
       await mute(["p", pubkey1])
 
+      await vi.runAllTimersAsync()
+
       expect(publishThunkSpy).toHaveBeenCalledWith({
         event: expect.objectContaining({
           kind: MUTES,
@@ -143,6 +151,8 @@ describe("commands", () => {
       await vi.runAllTimersAsync()
 
       await mute(["p", pubkey2])
+
+      await vi.runAllTimersAsync()
 
       expect(publishThunkSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -184,6 +194,8 @@ describe("commands", () => {
       const publishThunkSpy = vi.spyOn(thunkModule, "publishThunk")
       await pin(["e", event1])
 
+      await vi.runAllTimersAsync()
+
       expect(publishThunkSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           event: expect.objectContaining({
@@ -203,6 +215,8 @@ describe("commands", () => {
       await vi.runAllTimersAsync()
 
       await pin(["e", event2])
+
+      await vi.runAllTimersAsync()
 
       expect(publishThunkSpy).toHaveBeenCalledWith(
         expect.objectContaining({

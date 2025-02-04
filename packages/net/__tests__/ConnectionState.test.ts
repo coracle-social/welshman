@@ -25,7 +25,7 @@ describe("ConnectionState", () => {
       const filters = [{kinds: [1]}]
 
       connection.sender.worker.push(["REQ", reqId, ...filters])
-      vi.advanceTimersByTime(50)
+      await vi.advanceTimersByTimeAsync(50)
 
       expect(state.pendingRequests.has(reqId)).toBe(true)
       expect(state.pendingRequests.get(reqId)).toEqual({
@@ -43,7 +43,7 @@ describe("ConnectionState", () => {
       })
 
       connection.socket.worker.push(["CLOSED", reqId])
-      vi.advanceTimersByTime(50)
+      await vi.advanceTimersByTimeAsync(50)
 
       expect(state.pendingRequests.has(reqId)).toBe(false)
     })
@@ -56,7 +56,7 @@ describe("ConnectionState", () => {
       })
 
       connection.socket.worker.push(["EOSE", reqId])
-      vi.advanceTimersByTime(50)
+      await vi.advanceTimersByTimeAsync(50)
 
       expect(state.pendingRequests.get(reqId)?.eose).toBe(true)
     })
@@ -67,7 +67,7 @@ describe("ConnectionState", () => {
       const event = {id: "event123", kind: 1}
 
       connection.sender.worker.push(["EVENT", event])
-      vi.advanceTimersByTime(50)
+      await vi.advanceTimersByTimeAsync(50)
 
       expect(state.pendingPublishes.has(event.id)).toBeTruthy()
       expect(state.pendingPublishes.get(event.id)).toEqual({
@@ -84,7 +84,7 @@ describe("ConnectionState", () => {
       })
 
       connection.socket.worker.push(["OK", eventId, true])
-      vi.advanceTimersByTime(50)
+      await vi.advanceTimersByTimeAsync(50)
 
       expect(state.pendingPublishes.has(eventId)).toBe(false)
     })
@@ -97,7 +97,7 @@ describe("ConnectionState", () => {
       })
 
       connection.socket.worker.push(["OK", event.id, false, "auth-required:challenge123"])
-      vi.advanceTimersByTime(50)
+      await vi.advanceTimersByTimeAsync(50)
 
       // Event should still be in pending publishes
       expect(state.pendingPublishes.has(event.id)).toBe(true)
@@ -113,7 +113,7 @@ describe("ConnectionState", () => {
       })
 
       connection.socket.worker.push(["OK", event.id, false, "auth-required:challenge123"])
-      vi.advanceTimersByTime(50)
+      await vi.advanceTimersByTimeAsync(50)
 
       // Event should be removed from pending publishes
       expect(state.pendingPublishes.has(event.id)).toBe(false)
@@ -128,7 +128,7 @@ describe("ConnectionState", () => {
       connection.on(ConnectionEvent.Notice, noticeSpy)
 
       connection.socket.worker.push(["NOTICE", "test notice"])
-      vi.advanceTimersByTime(50)
+      await vi.advanceTimersByTimeAsync(50)
 
       expect(noticeSpy).toHaveBeenCalledWith(connection, "test notice")
     })
@@ -138,7 +138,7 @@ describe("ConnectionState", () => {
       connection.on(ConnectionEvent.Notice, noticeSpy)
 
       connection.socket.worker.push(["CLOSED", "req123", "auth-required:challenge123"])
-      vi.advanceTimersByTime(50)
+      await vi.advanceTimersByTimeAsync(50)
 
       expect(noticeSpy).toHaveBeenCalledWith(connection, "auth-required:challenge123")
     })

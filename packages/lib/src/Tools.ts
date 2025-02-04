@@ -1021,13 +1021,13 @@ export const batcher = <T, U>(t: number, execute: (request: T[]) => U[] | Promis
     const items = queue.splice(0)
     const results = await execute(items.map(item => item.request))
 
-    if (results.length !== items.length) {
-      results.forEach(async (r, i) =>
-        items[i].reject("Execute must return a result for each request"),
-      )
-    }
-
-    results.forEach(async (r, i) => items[i].resolve(await r))
+    results.forEach(async (r, i) => {
+      if (results.length === items.length) {
+        items[i].resolve(await r)
+      } else {
+        items[i].reject("Execute must return a result for each request")
+      }
+    })
   }
 
   return (request: T): Promise<U> =>

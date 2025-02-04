@@ -185,16 +185,30 @@ thunkWorker.addGlobalHandler((thunk: Thunk) => {
 
   // Avoid making this function async so multiple publishes can run concurrently
   Promise.resolve().then(async () => {
+    const fail = (message: string) => {
+      const status = new Map<string, ThunkStatus>()
+
+      for (const url of thunk.request.relays) {
+        status.set(url, {status: PublishStatus.Failed, message})
+      }
+
+      thunk.status.set(status)
+    }
+
     // If the event was already signed, leave it alone. Otherwise, sign it now. This is to
     // decrease apparent latency in the UI that results from waiting for remote signers
     if (!isSignedEvent(event)) {
       const signer = getSigner(getSession(event.pubkey))
 
       if (!signer) {
-        return console.warn(`No signer found for ${event.pubkey}`)
+        return fail(`No signer found for ${event.pubkey}`)
       }
 
-      event = await signer.sign(event)
+      try {
+        event = await signer.sign(event)
+      } catch (e) {
+        return fail(e.toString())
+      }
     }
 
     // We're guaranteed to have a signed event at this point
