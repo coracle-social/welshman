@@ -1,6 +1,10 @@
 node_modules
-docs
 dist
 build
 .vscode
 .svelte-kit
+docs/.vitepress/dist
+docs/.vitepress/cached
+docs/.vitepress/cache
+docs/reference
+docs/**/*.html
