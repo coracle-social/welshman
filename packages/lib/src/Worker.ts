@@ -1,3 +1,5 @@
+import {remove} from "./Tools.js"
+
 /** Symbol used to identify global handlers */
 const ANY = Symbol("worker/ANY")
 
@@ -92,11 +94,34 @@ export class Worker<T> {
   }
 
   /**
+   * Removes a handler for messages with specific key
+   * @param k - Key to handle
+   * @param handler - Function to process matching messages
+   */
+  removeHandler = (k: any, handler: (message: T) => void) => {
+    const newHandlers = remove(handler, this.handlers.get(k) || [])
+
+    if (newHandlers.length > 0) {
+      this.handlers.set(k, newHandlers)
+    } else {
+      this.handlers.delete(k)
+    }
+  }
+
+  /**
    * Adds a handler for all messages
    * @param handler - Function to process all messages
    */
   addGlobalHandler = (handler: (message: T) => void) => {
     this.addHandler(ANY, handler)
+  }
+
+  /**
+   * Removes a handler for all messages
+   * @param handler - Function to process all messages
+   */
+  removeGlobalHandler = (handler: (message: T) => void) => {
+    this.removeHandler(ANY, handler)
   }
 
   /** Removes all pending messages from the queue */
