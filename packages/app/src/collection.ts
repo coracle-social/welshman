@@ -55,6 +55,8 @@ export const collection = <T, LoadArgs extends any[]>({
 
     try {
       await promise
+    } catch (e) {
+      console.warn(`Failed to load ${name} item ${key}`, e)
     } finally {
       pending.delete(key)
     }

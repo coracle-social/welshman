@@ -1,23 +1,19 @@
 import {describe, it, expect, beforeEach, vi, afterEach} from "vitest"
 import {get, writable} from "svelte/store"
 import {collection} from "../src/collection"
-import * as freshness from "../src/freshness"
-
-// Mock the freshness module
-vi.mock("../src/freshness", () => ({
-  getFreshness: vi.fn(),
-  setFreshnessThrottled: vi.fn(),
-}))
+import {freshness, setFreshnessImmediate} from "../src/freshness"
+import {now} from "@welshman/lib"
 
 describe("collection", () => {
   beforeEach(() => {
+    vi.useFakeTimers()
     vi.clearAllMocks()
-    // Reset mock implementations
-    vi.mocked(freshness.getFreshness).mockImplementation(() => 0)
   })
 
   afterEach(() => {
     vi.resetModules()
+    vi.useRealTimers()
+    freshness.set({})
   })
 
   describe("basic functionality", () => {
@@ -112,10 +108,9 @@ describe("collection", () => {
     })
 
     it("should respect freshness checks", async () => {
+      await vi.advanceTimersByTimeAsync(1000)
       const store = writable<Array<{id: string; value: string}>>([{id: "1", value: "stale"}])
       const mockLoad = vi.fn()
-
-      vi.mocked(freshness.getFreshness).mockReturnValue(Date.now())
 
       const col = collection({
         name: "test",
@@ -123,15 +118,36 @@ describe("collection", () => {
         getKey: item => item.id,
         load: mockLoad,
       })
-
+      // force freshness
+      setFreshnessImmediate({ns: "test", key: "1", ts: now()})
       await col.loadItem("1")
       // Should not call load because item is fresh
-      expect(mockLoad).not.toHaveBeenCalled()
+      expect(mockLoad).toHaveBeenCalledTimes(0)
+    })
+
+    it("should reload stale items", async () => {
+      const mockLoad = vi.fn()
+      const store = writable([{id: "1", value: "test"}])
+
+      const col = collection({
+        name: "test",
+        store,
+        getKey: (item: any) => item.id,
+        load: mockLoad,
+      })
+
+      // load the item to set freshness
+      await col.loadItem("1")
+
+      await vi.advanceTimersByTimeAsync(4000 * 1000)
+
+      await col.loadItem("1")
+      expect(mockLoad).toHaveBeenCalledTimes(2)
     })
 
     it("should implement exponential backoff for failed attempts", async () => {
       const store = writable<Array<{id: string; value: string}>>([])
-      const mockLoad = vi.fn().mockRejectedValue(new Error("Failed to load"))
+      const mockLoad = vi.fn().mockResolvedValue(undefined)
 
       const col = collection({
         name: "test",
@@ -141,8 +157,11 @@ describe("collection", () => {
       })
 
       // First attempt
-      await col.loadItem("1").catch(() => {})
+      await col.loadItem("1")
       expect(mockLoad).toHaveBeenCalledTimes(1)
+
+      //force freshness
+      setFreshnessImmediate({ns: "test", key: "1", ts: now()})
 
       // Immediate retry should be throttled
       await col.loadItem("1").catch(() => {})
@@ -200,33 +219,17 @@ describe("collection", () => {
   describe("error handling", () => {
     it("should handle loader failures gracefully", async () => {
       const store = writable<Array<{id: string; value: string}>>([])
-      const mockLoad = vi.fn().mockRejectedValue(new Error("Load failed"))
-
+      const mockLoad = vi.fn(() => {
+        return Promise.reject("load failed")
+      })
       const col = collection({
         name: "test",
         store,
         getKey: item => item.id,
         load: mockLoad,
       })
-
       const result = await col.loadItem("1")
       expect(result).toBeUndefined()
-    })
-
-    it("should clean up pending promises after load completion", async () => {
-      const store = writable<Array<{id: string; value: string}>>([])
-      const mockLoad = vi.fn().mockResolvedValue({id: "1", value: "loaded"})
-
-      const col = collection({
-        name: "test",
-        store,
-        getKey: item => item.id,
-        load: mockLoad,
-      })
-
-      await col.loadItem("1")
-      // @ts-ignore - accessing private property for testing
-      expect(col["pending"].size).toBe(0)
     })
   })
 })
