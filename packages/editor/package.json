@@ -1,80 +1,48 @@
 {
   "name": "@welshman/editor",
-  "version": "0.0.10",
-  "scripts": {
-    "pub": "npm run check && npm run build && npm publish",
-    "fix": "",
-    "dev": "vite dev",
-    "build": "vite build && npm run package",
-    "package": "svelte-kit sync && svelte-package && publint",
-    "prepublishOnly": "npm run package",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+  "version": "0.0.11-pre.1",
+  "author": "hodlbod",
+  "license": "MIT",
+  "description": "A batteries-included nostr editor.",
+  "publishConfig": {
+    "access": "public"
   },
-  "files": [
-    "dist",
-    "!dist/**/*.test.*",
-    "!dist/**/*.spec.*"
-  ],
-  "sideEffects": [
-    "**/*.css"
-  ],
-  "svelte": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "type": "module",
+  "files": [
+    "build"
+  ],
+  "types": "./build/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "svelte": "./dist/index.js"
+      "types": "./build/src/index.d.ts",
+      "import": "./build/src/index.js",
+      "require": "./build/src/index.js"
     }
   },
-  "peerDependencies": {
-    "@tiptap/core": "^2.9.1",
-    "@tiptap/extension-code": "^2.9.1",
-    "@tiptap/extension-code-block": "^2.9.1",
-    "@tiptap/extension-document": "^2.9.1",
-    "@tiptap/extension-dropcursor": "^2.9.1",
-    "@tiptap/extension-gapcursor": "^2.9.1",
-    "@tiptap/extension-hard-break": "^2.9.1",
-    "@tiptap/extension-history": "^2.9.1",
-    "@tiptap/extension-paragraph": "^2.9.1",
-    "@tiptap/extension-placeholder": "^2.9.1",
-    "@tiptap/extension-text": "^2.9.1",
-    "@tiptap/pm": "^2.9.1",
-    "@tiptap/suggestion": "^2.9.1",
-    "@welshman/lib": "~0.0.36",
-    "@welshman/util": "~0.0.53",
-    "nostr-editor": "^0.0.4-pre.8",
-    "nostr-tools": "^2.8.1",
-    "svelte": "^4.0.0",
-    "svelte-tiptap": "^1.0.0"
+  "scripts": {
+    "pub": "npm run lint && npm run build && npm publish",
+    "build": "gts clean && tsc",
+    "lint": "gts lint",
+    "fix": "gts fix"
   },
-  "devDependencies": {
-    "@sveltejs/kit": "^2.0.0",
-    "@sveltejs/package": "^2.0.0",
-    "@sveltejs/vite-plugin-svelte": "^3.0.0",
-    "@tiptap/core": "^2.9.1",
-    "@tiptap/extension-code": "^2.9.1",
-    "@tiptap/extension-code-block": "^2.9.1",
-    "@tiptap/extension-document": "^2.9.1",
-    "@tiptap/extension-dropcursor": "^2.9.1",
-    "@tiptap/extension-gapcursor": "^2.9.1",
-    "@tiptap/extension-hard-break": "^2.9.1",
-    "@tiptap/extension-history": "^2.9.1",
-    "@tiptap/extension-paragraph": "^2.9.1",
-    "@tiptap/extension-placeholder": "^2.9.1",
-    "@tiptap/extension-text": "^2.9.1",
-    "@tiptap/pm": "^2.9.1",
-    "@welshman/lib": "~0.0.36",
-    "@welshman/util": "~0.0.53",
-    "nostr-editor": "^0.0.4-pre.7",
+  "dependencies": {
+    "@tiptap/core": "^2.11.5",
+    "@tiptap/extension-code": "^2.11.5",
+    "@tiptap/extension-code-block": "^2.11.5",
+    "@tiptap/extension-document": "^2.11.5",
+    "@tiptap/extension-dropcursor": "^2.11.5",
+    "@tiptap/extension-gapcursor": "^2.11.5",
+    "@tiptap/extension-hard-break": "^2.11.5",
+    "@tiptap/extension-history": "^2.11.5",
+    "@tiptap/extension-paragraph": "^2.11.5",
+    "@tiptap/extension-placeholder": "^2.11.5",
+    "@tiptap/extension-text": "^2.11.5",
+    "@tiptap/pm": "^2.11.5",
+    "@tiptap/suggestion": "^2.11.5",
+    "@welshman/lib": "^0.0.39",
+    "@welshman/util": "^0.0.60",
+    "nostr-editor": "^0.0.4-pre.12",
     "nostr-tools": "^2.10.4",
-    "publint": "^0.2.0",
-    "svelte": "^4.0.0",
-    "svelte-check": "^4.0.0",
-    "svelte-tiptap": "^1.0.0",
-    "tippy.js": "^6.0.0",
-    "typescript": "^5.0.0",
-    "vite": "^6.0.0"
+    "tippy.js": "^6.3.7"
   }
 }

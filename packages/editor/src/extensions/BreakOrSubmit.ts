@@ -17,7 +17,7 @@ export const BreakOrSubmit = HardBreak.extend<BreakOrSubmitOptions>({
 
         return true
       },
-      "Enter": () => {
+      Enter: () => {
         if (this.options.aggressive) {
           this.options.submit()
 

@@ -1,7 +1,5 @@
 import type {StampedEvent, SignedEvent} from "@welshman/util"
-import {toNostrURI} from "@welshman/util"
 import {deepMergeLeft} from "@welshman/lib"
-import {SvelteNodeViewRenderer} from "svelte-tiptap"
 import type {Extensions, AnyExtension} from "@tiptap/core"
 import {CodeBlock} from "@tiptap/extension-code-block"
 import type {CodeBlockOptions} from "@tiptap/extension-code-block"
@@ -39,7 +37,7 @@ import {
 import {WordCount} from "./WordCount.js"
 import {CodeInline, type CodeInlineOptions} from "./CodeInline.js"
 import {BreakOrSubmit, type BreakOrSubmitOptions} from "./BreakOrSubmit.js"
-import {EditBolt11, EditMedia, EditEvent, EditMention} from "../components/index.js"
+import {MentionNodeView, Bolt11NodeView, MediaNodeView, EventNodeView} from "../nodeviews/index.js"
 
 export type ChildExtensionOptions<C = any, E = any> =
   | false
@@ -116,7 +114,7 @@ export const WelshmanExtension = NostrExtension.extend<WelshmanOptions>({
           group: "inline",
         },
         extend: {
-          addNodeView: () => SvelteNodeViewRenderer(EditBolt11),
+          addNodeView: () => Bolt11NodeView,
         },
       },
       image: {
@@ -127,7 +125,7 @@ export const WelshmanExtension = NostrExtension.extend<WelshmanOptions>({
           defaultUploadType,
         },
         extend: {
-          addNodeView: () => SvelteNodeViewRenderer(EditMedia),
+          addNodeView: () => MediaNodeView,
         },
       },
       video: {
@@ -138,7 +136,7 @@ export const WelshmanExtension = NostrExtension.extend<WelshmanOptions>({
           defaultUploadType,
         },
         extend: {
-          addNodeView: () => SvelteNodeViewRenderer(EditMedia),
+          addNodeView: () => MediaNodeView,
         },
       },
       nevent: {
@@ -147,7 +145,7 @@ export const WelshmanExtension = NostrExtension.extend<WelshmanOptions>({
           group: "inline",
         },
         extend: {
-          addNodeView: () => SvelteNodeViewRenderer(EditEvent),
+          addNodeView: () => EventNodeView,
         },
       },
       naddr: {
@@ -156,12 +154,12 @@ export const WelshmanExtension = NostrExtension.extend<WelshmanOptions>({
           group: "inline",
         },
         extend: {
-          addNodeView: () => SvelteNodeViewRenderer(EditEvent),
+          addNodeView: () => EventNodeView,
         },
       },
       nprofile: {
         extend: {
-          addNodeView: () => SvelteNodeViewRenderer(EditMention),
+          addNodeView: () => MentionNodeView,
         },
       },
       breakOrSubmit: {
