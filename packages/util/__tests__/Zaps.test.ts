@@ -4,10 +4,10 @@ import type {TrustedEvent} from "../src/Events"
 import {now} from "@welshman/lib"
 
 describe("Zaps", () => {
-  const recipient = "000000789abcdef0000000789abcdef0000000789abcdef0000000789abcdef"
-  const zapper = "deadbeef789abcdef000000789abcdef000000789abcdef000000789abc00"
+  const recipient = "dd".repeat(32)
+  const zapper = "ee".repeat(32)
   // nostrPubkey is the pubkey the ln server will use to sign zap receipt events
-  const nostrPubkey = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+  const nostrPubkey = "ff".repeat(32)
   const currentTime = now()
 
   beforeEach(() => {
