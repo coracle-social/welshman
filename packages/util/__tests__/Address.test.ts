@@ -1,11 +1,11 @@
 import {describe, it, expect} from "vitest"
-import {Address, getAddress} from "../src/Address"
 import {decode, naddrEncode} from "nostr-tools/nip19"
-
-const pub = "00000000000000000000000000000000000000000000000000000000deadbeef"
-const identifier = "identifier456"
+import {Address, getAddress} from "../src/Address"
 
 describe("Address", () => {
+  const pub = "ee".repeat(32)
+  const identifier = "identifier"
+
   describe("constructor", () => {
     it("should create an Address instance with required properties", () => {
       const address = new Address(1, pub, identifier)

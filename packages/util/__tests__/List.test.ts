@@ -18,9 +18,9 @@ describe("List", () => {
     vi.clearAllMocks()
   })
 
-  const pubkey = "0000000789abcdef0000000789abcdef0000000789abcdef0000000789abcdef"
+  const pubkey = "ee".repeat(32)
   const validEventId = "ff".repeat(32)
-  const address = "30023:000000789abcdef0000000789abcdef0000000789abcdef0000000789abcdef:test"
+  const address = `30023:${pubkey}:test`
   const currentTime = now()
 
   const createDecryptedEvent = (overrides = {}): DecryptedEvent => ({
