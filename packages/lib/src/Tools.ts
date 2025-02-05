@@ -202,6 +202,17 @@ export function* range(a: number, b: number, step = 1) {
 }
 
 /**
+ * Yields indexed items
+ * @param items - A collection of items
+ * @yields tuples of [index, item]
+ */
+export function* enumerate<T>(items: T[]) {
+  for (let i = 0; i < items.length; i += 1) {
+    yield [i, items[i]] as [number, T]
+  }
+}
+
+/**
  * Creates new object with transformed keys
  * @param f - Function to transform keys
  * @param x - Source object
