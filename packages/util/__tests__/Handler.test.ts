@@ -9,7 +9,7 @@ describe("Handler", () => {
     vi.clearAllMocks()
   })
 
-  const pubkey = "ee".repeat(32)
+  const pubkey = "000000789abcdef0000000789abcdef0000000789abcdef0000000789abcdef"
   const id = "ff".repeat(32)
   const currentTime = now()
 

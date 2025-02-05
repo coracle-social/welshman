@@ -1,8 +1,7 @@
-import {MUTES} from "@welshman/util"
-import {now} from "@welshman/lib"
 import {describe, it, expect, vi, beforeEach} from "vitest"
 import {Encryptable, asDecryptedEvent} from "../src/Encryptable"
 import type {OwnedEvent, TrustedEvent} from "../src/Events"
+import {now} from "@welshman/lib"
 
 describe("Encryptable", () => {
   beforeEach(() => {
@@ -12,14 +11,14 @@ describe("Encryptable", () => {
   const mockEncrypt = vi.fn(async (text: string) => `encrypted:${text}`)
 
   // Realistic Nostr values
-  const pub = "ee".repeat(32)
+  const validPubkey = "000000789abcdef0000000789abcdef0000000789abcdef0000000789abcdef"
   const currentTime = now()
 
   describe("constructor", () => {
     it("should create an instance with minimal event template", () => {
       const event: Partial<OwnedEvent> = {
-        kind: MUTES,
-        pubkey: pub,
+        kind: 10000,
+        pubkey: validPubkey,
         created_at: currentTime,
       }
       const encryptable = new Encryptable(event, {})
@@ -30,15 +29,15 @@ describe("Encryptable", () => {
 
     it("should create an instance with full event template", () => {
       const event: OwnedEvent = {
-        kind: MUTES,
-        pubkey: pub,
+        kind: 10000,
+        pubkey: validPubkey,
         created_at: currentTime,
         content: "original encrypted content",
-        tags: [["p", pub]],
+        tags: [["p", validPubkey]],
       }
       const updates = {
         content: JSON.stringify({list: ["item1", "item2"]}),
-        tags: [["p", pub, "wss://relay.example.com"]],
+        tags: [["p", validPubkey, "wss://relay.example.com"]],
       }
       const encryptable = new Encryptable(event, updates)
 
@@ -50,12 +49,12 @@ describe("Encryptable", () => {
   describe("reconcile", () => {
     it("should encrypt content updates", async () => {
       const event: Partial<OwnedEvent> = {
-        kind: MUTES,
-        pubkey: pub,
+        kind: 10000,
+        pubkey: validPubkey,
         created_at: currentTime,
       }
       const updates = {
-        content: JSON.stringify({muted: [pub]}),
+        content: JSON.stringify({muted: [validPubkey]}),
       }
       const encryptable = new Encryptable(event, updates)
 
@@ -67,46 +66,46 @@ describe("Encryptable", () => {
 
     it("should encrypt tag updates", async () => {
       const event: Partial<OwnedEvent> = {
-        kind: MUTES,
-        pubkey: pub,
+        kind: 10000,
+        pubkey: validPubkey,
         created_at: currentTime,
       }
       const updates = {
-        tags: [["p", pub, "wss://relay.example.com"]],
+        tags: [["p", validPubkey, "wss://relay.example.com"]],
       }
       const encryptable = new Encryptable(event, updates)
 
       const result = await encryptable.reconcile(mockEncrypt)
 
-      expect(result.tags[0][1]).toBe(`encrypted:${pub}`)
-      expect(mockEncrypt).toHaveBeenCalledWith(pub)
+      expect(result.tags[0][1]).toBe(`encrypted:${validPubkey}`)
+      expect(mockEncrypt).toHaveBeenCalledWith(validPubkey)
     })
 
     it("should handle both content and tag updates", async () => {
       const event: Partial<OwnedEvent> = {
-        kind: MUTES,
-        pubkey: pub,
+        kind: 10000,
+        pubkey: validPubkey,
         created_at: currentTime,
       }
       const updates = {
-        content: JSON.stringify({muted: [pub]}),
-        tags: [["p", pub, "wss://relay.example.com"]],
+        content: JSON.stringify({muted: [validPubkey]}),
+        tags: [["p", validPubkey, "wss://relay.example.com"]],
       }
       const encryptable = new Encryptable(event, updates)
 
       const result = await encryptable.reconcile(mockEncrypt)
 
       expect(result.content).toBe(`encrypted:${updates.content}`)
-      expect(result.tags[0][1]).toBe(`encrypted:${pub}`)
+      expect(result.tags[0][1]).toBe(`encrypted:${validPubkey}`)
       expect(mockEncrypt).toHaveBeenCalledTimes(2)
     })
 
     it("should preserve original content when no updates", async () => {
       const event: OwnedEvent = {
-        kind: MUTES,
-        pubkey: pub,
+        kind: 10000,
+        pubkey: validPubkey,
         created_at: currentTime,
-        content: JSON.stringify({originalList: [pub]}),
+        content: JSON.stringify({originalList: [validPubkey]}),
         tags: [],
       }
       const encryptable = new Encryptable(event, {})
@@ -119,11 +118,11 @@ describe("Encryptable", () => {
 
     it("should preserve original tags when no updates", async () => {
       const event: OwnedEvent = {
-        kind: MUTES,
-        pubkey: pub,
+        kind: 10000,
+        pubkey: validPubkey,
         created_at: currentTime,
         content: "",
-        tags: [["p", pub, "wss://relay.example.com"]],
+        tags: [["p", validPubkey, "wss://relay.example.com"]],
       }
       const encryptable = new Encryptable(event, {})
 
@@ -139,15 +138,15 @@ describe("Encryptable", () => {
       const event: TrustedEvent = {
         id: "ff".repeat(32),
         sig: "00".repeat(64),
-        kind: MUTES,
-        pubkey: pub,
+        kind: 10000,
+        pubkey: validPubkey,
         created_at: currentTime,
         content: "encrypted content",
         tags: [],
       }
       const plaintext = {
-        content: JSON.stringify({muted: [pub]}),
-        tags: [["p", pub, "wss://relay.example.com"]],
+        content: JSON.stringify({muted: [validPubkey]}),
+        tags: [["p", validPubkey, "wss://relay.example.com"]],
       }
 
       const result = asDecryptedEvent(event, plaintext)
@@ -162,8 +161,8 @@ describe("Encryptable", () => {
       const event: TrustedEvent = {
         id: "ff".repeat(32),
         sig: "00".repeat(64),
-        kind: MUTES,
-        pubkey: pub,
+        kind: 10000,
+        pubkey: validPubkey,
         created_at: currentTime,
         content: "encrypted content",
         tags: [],
@@ -184,12 +183,12 @@ describe("Encryptable", () => {
         throw new Error("Encryption failed")
       }
       const event: Partial<OwnedEvent> = {
-        kind: MUTES,
-        pubkey: pub,
+        kind: 10000,
+        pubkey: validPubkey,
         created_at: currentTime,
       }
       const updates = {
-        content: JSON.stringify({muted: [pub]}),
+        content: JSON.stringify({muted: [validPubkey]}),
       }
       const encryptable = new Encryptable(event, updates)
 
@@ -205,13 +204,13 @@ describe("Encryptable", () => {
       }
 
       const event: Partial<OwnedEvent> = {
-        kind: MUTES,
-        pubkey: pub,
+        kind: 10000,
+        pubkey: validPubkey,
         created_at: currentTime,
       }
       const updates = {
-        content: JSON.stringify({muted: [pub]}),
-        tags: [["p", pub]],
+        content: JSON.stringify({muted: [validPubkey]}),
+        tags: [["p", validPubkey]],
       }
       const encryptable = new Encryptable(event, updates)
 

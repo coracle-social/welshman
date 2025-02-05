@@ -20,7 +20,7 @@ describe("Profile", () => {
   })
 
   // Realistic Nostr data
-  const pubkey = "ee".repeat(32)
+  const pubkey = "0000000789abcdef0000000789abcdef0000000789abcdef0000000789abcdef"
   const id = "ff".repeat(32)
   const sig = "00".repeat(64)
   const currentTime = now()

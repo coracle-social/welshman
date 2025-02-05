@@ -1,14 +1,19 @@
 import {now} from "@welshman/lib"
-import {describe, it, expect} from "vitest"
+import {describe, it, vi, expect, beforeEach} from "vitest"
 import {verifiedSymbol} from "nostr-tools/pure"
 import * as Events from "../src/Events"
 import {COMMENT} from "../src/Kinds"
 
 describe("Events", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   // Realistic Nostr data
-  const pubkey = "ee".repeat(32)
-  const sig = "ee".repeat(64)
-  const id = "ff".repeat(32)
+  const pubkey = "000000789abcdef0000000789abcdef0000000789abcdef0000000789abcdef"
+  const invalidSig =
+    "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+  const invalidId = "ff".repeat(32)
   const currentTime = now()
 
   const createBaseEvent = () => ({
@@ -29,12 +34,12 @@ describe("Events", () => {
 
   const createHashedEvent = () => ({
     ...createOwnedEvent(),
-    id: id,
+    id: invalidId,
   })
 
   const createSignedEvent = () => ({
     ...createHashedEvent(),
-    sig: sig,
+    sig: invalidSig,
   })
 
   const createCommentEvent = (parentId: string) => ({
@@ -151,7 +156,7 @@ describe("Events", () => {
     it("should convert to SignedEvent", () => {
       const trustedEvent = {
         ...createHashedEvent(),
-        sig: sig,
+        sig: invalidSig,
         wrap: createSignedEvent(),
       }
       const result = Events.asSignedEvent(trustedEvent)
@@ -162,7 +167,7 @@ describe("Events", () => {
     it("should convert to UnwrappedEvent", () => {
       const trustedEvent = {
         ...createHashedEvent(),
-        sig: sig,
+        sig: invalidSig,
         wrap: createSignedEvent(),
       }
       const result = Events.asUnwrappedEvent(trustedEvent)
@@ -173,7 +178,7 @@ describe("Events", () => {
     it("should convert to TrustedEvent", () => {
       const trustedEvent = {
         ...createHashedEvent(),
-        sig: sig,
+        sig: invalidSig,
         wrap: createSignedEvent(),
       }
       const result = Events.asTrustedEvent(trustedEvent)
@@ -190,8 +195,8 @@ describe("Events", () => {
 
       // Clear verifiedSymbol and use verify the actual signature
       delete event[verifiedSymbol]
-      // the signature is invalid, but the sig validity is not checked here
-      expect(Events.hasValidSignature(event)).toBe(true)
+      // the signature is fake, it should fail
+      expect(Events.hasValidSignature(event)).toBe(false)
     })
   })
 
@@ -221,14 +226,14 @@ describe("Events", () => {
     })
 
     it("should get parent IDs", () => {
-      const parentId = id
+      const parentId = invalidId
       const event = createCommentEvent(parentId)
       expect(Events.getParentIds(event)).toContain(parentId)
     })
 
     it("should get parent addresses", () => {
       const event = {
-        ...createCommentEvent(id),
+        ...createCommentEvent(invalidId),
         tags: [["e", "30023:pubkey:identifier", "", "root"]],
       }
       expect(Events.getParentAddrs(event)[0]).toMatch(/^\d+:/)
@@ -263,14 +268,14 @@ describe("Events", () => {
 
   describe("ancestor handling", () => {
     it("should get ancestors for comments", () => {
-      const parentId = id
+      const parentId = invalidId
       const event = createCommentEvent(parentId)
       const ancestors = Events.getAncestors(event)
       expect(ancestors.roots).toContain(parentId)
     })
 
     it("should get ancestors for replies", () => {
-      const parentId = id
+      const parentId = invalidId
       const event = createReplyEvent(parentId)
       const ancestors = Events.getAncestors(event)
       expect(ancestors.roots).toContain(parentId)
