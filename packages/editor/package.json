@@ -1,6 +1,6 @@
 {
   "name": "@welshman/editor",
-  "version": "0.0.11-pre.1",
+  "version": "0.0.11-pre.4",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A batteries-included nostr editor.",
@@ -17,11 +17,12 @@
       "types": "./build/src/index.d.ts",
       "import": "./build/src/index.js",
       "require": "./build/src/index.js"
-    }
+    },
+    "./index.css": "./build/src/index.css"
   },
   "scripts": {
     "pub": "npm run lint && npm run build && npm publish",
-    "build": "gts clean && tsc",
+    "build": "gts clean && tsc && cp src/index.css build/src/index.css",
     "lint": "gts lint",
     "fix": "gts fix"
   },
