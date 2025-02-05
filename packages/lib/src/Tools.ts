@@ -874,6 +874,7 @@ export const chunk = <T>(chunkLength: number, xs: T[]) => {
       current.push(item)
     } else {
       result.push(current.splice(0))
+      current.push(item)
     }
   }
 
