@@ -1,14 +1,10 @@
 import {now} from "@welshman/lib"
-import {describe, it, vi, expect, beforeEach} from "vitest"
+import {describe, it, expect} from "vitest"
 import {verifiedSymbol} from "nostr-tools/pure"
 import * as Events from "../src/Events"
 import {COMMENT} from "../src/Kinds"
 
 describe("Events", () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
   // Realistic Nostr data
   const pubkey = "ee".repeat(32)
   const sig = "ee".repeat(64)
