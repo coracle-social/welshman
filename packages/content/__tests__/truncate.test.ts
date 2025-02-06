@@ -37,10 +37,9 @@ describe("Content Truncation", () => {
       mediaLength: 250,
     })
     // @check expected? incrementing currentSize before the check would make this test pass
-    // expect(result).toHaveLength(3) // text + link + ellipsis
+    // expect(result[result.length - 1].type).toBe(ParsedType.Ellipsis) // ellipsis
 
-    // actual
-    expect(result).toHaveLength(2) // text + ellipsis
+    expect(result).toHaveLength(2) // text + link = 300 + 250 = 550
   })
 
   it("should account for entityLength in nostr entity calculations", () => {
@@ -61,10 +60,9 @@ describe("Content Truncation", () => {
       entityLength: 30,
     })
     // @check expected? incrementing currentSize before the check would make this test pass
-    // expect(result).toHaveLength(3) // text + profile + ellipsis
+    // expect(result[result.length - 1].type).toBe(ParsedType.Ellipsis) // ellipsis
 
-    // actual
-    expect(result).toHaveLength(2) // text + ellipsis
+    expect(result).toHaveLength(2) // text + profile
   })
 
   it("should handle mixed content types correctly", () => {
