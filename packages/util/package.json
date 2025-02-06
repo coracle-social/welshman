@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@types/ws": "^8.5.13",
-    "@welshman/lib": "~0.0.37",
+    "@welshman/lib": "~0.0.40",
     "nostr-tools": "^2.7.2"
   }
 }
