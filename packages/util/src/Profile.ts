@@ -57,11 +57,11 @@ export const displayPubkey = (pubkey: string) => {
 export const displayProfile = (profile?: Profile, fallback = "") => {
   const {display_name, name, event} = profile || {}
 
-  if (name) return ellipsize(name, 60)
-  if (display_name) return ellipsize(display_name, 60)
-  if (event) return displayPubkey(event.pubkey)
+  if (name) return ellipsize(name, 60).trim()
+  if (display_name) return ellipsize(display_name, 60).trim()
+  if (event) return displayPubkey(event.pubkey).trim()
 
-  return fallback
+  return fallback.trim()
 }
 
 export const profileHasName = (profile?: Profile) => Boolean(profile?.name || profile?.display_name)
