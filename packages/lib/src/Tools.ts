@@ -112,7 +112,13 @@ export const gte = (x: Maybe<number>, y: Maybe<number>) => num(x) >= num(y)
 export const max = (xs: Maybe<number>[]) => xs.reduce((a: number, b) => Math.max(num(a), num(b)), 0)
 
 /** Returns minimum value in array, handling undefined values */
-export const min = (xs: Maybe<number>[]) => xs.reduce((a: number, b) => Math.min(num(a), num(b)), 0)
+export const min = (xs: Maybe<number>[]) => {
+  const [head, ...tail] = xs.filter(x => !isNil(x))
+
+  if (tail.length === 0) return head || 0
+
+  return tail.reduce((a: number, b) => Math.min(a, b), head)
+}
 
 /** Returns sum of array values, handling undefined values */
 export const sum = (xs: Maybe<number>[]) => xs.reduce((a: number, b) => add(a, b), 0)
