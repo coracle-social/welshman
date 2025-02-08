@@ -79,7 +79,6 @@ export type ParsedInvoice = {
 export type ParsedLinkValue = {
   url: URL
   meta: Record<string, string>
-  isMedia: boolean
 }
 
 export type ParsedLinkGridValue = {
@@ -265,7 +264,7 @@ export const parseLink = (text: string, context: ParseContext): ParsedLink | voi
     }
   }
 
-  return {type: ParsedType.Link, value: {url, meta, isMedia: urlIsMedia(url.pathname)}, raw: link}
+  return {type: ParsedType.Link, value: {url, meta}, raw: link}
 }
 
 export const parseNewline = (text: string, context: ParseContext): ParsedNewline | void => {
@@ -436,21 +435,22 @@ export const truncate = (
   return content
 }
 
-export const reduceLinks = (content: Parsed[]) => {
-  let images: URL[] = []
+export const reduceLinks = (content: Parsed[]): Parsed[] => {
+  let links: ParsedLinkValue[] = []
   let newLine: ParsedNewline | null = null
   let emptyText: ParsedText | null = null
   const parsedContent = []
 
   for (const parsed of content) {
     if (isImage(parsed)) {
-      images.push((parsed.value as ParsedLinkValue).url)
-    } else if (images.length && isNewline(parsed)) {
+      links.push(parsed.value)
+    } else if (links.length && isNewline(parsed)) {
       newLine = parsed
-    } else if (images.length && isText(parsed) && !parsed.value.trim()) {
+    } else if (links.length && isText(parsed) && !parsed.value.trim()) {
       emptyText = parsed
-    } else if (images.length) {
-      parsedContent.push({type: ParsedType.LinkGrid, value: {links: [...images]}})
+    } else if (links.length) {
+      parsedContent.push({type: ParsedType.LinkGrid, value: {links}, raw: ""} as ParsedLinkGrid)
+
       if (newLine) {
         parsedContent.push(newLine)
         newLine = null
@@ -458,14 +458,17 @@ export const reduceLinks = (content: Parsed[]) => {
         parsedContent.push(emptyText)
         emptyText = null
       }
-      images = []
+
+      links = []
     } else {
       parsedContent.push(parsed)
     }
   }
-  if (images.length) {
-    parsedContent.push({type: ParsedType.LinkGrid, value: {links: [...images]}})
+
+  if (links.length) {
+    parsedContent.push({type: ParsedType.LinkGrid, value: {links}, raw: ""} as ParsedLinkGrid)
   }
+
   return parsedContent
 }
 
