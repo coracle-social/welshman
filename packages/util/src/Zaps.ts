@@ -48,6 +48,8 @@ export const getInvoiceAmount = (bolt11: string) => {
 }
 
 export const getLnUrl = (address: string) => {
+  address = address.toLowerCase()
+
   if (address.startsWith("lnurl1")) {
     return address
   }
