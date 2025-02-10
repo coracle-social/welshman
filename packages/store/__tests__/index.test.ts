@@ -219,7 +219,6 @@ describe("Store utilities", () => {
         const [[_, callback]] = mockRepository.on.mock.calls
 
         callback({
-          added: new Set(),
           removed: new Set([mockEvent.id]),
         })
 
