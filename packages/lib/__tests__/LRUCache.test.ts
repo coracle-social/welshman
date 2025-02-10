@@ -34,19 +34,19 @@ describe("Caches", () => {
       })
 
       it("should update access order on get", () => {
-        cache.set("a", 1)
-        cache.set("b", 2)
-        cache.set("c", 3)
+        cache.set("a", 1) // keys = [a]
+        cache.set("b", 2) // keys = [a, b]
+        cache.set("c", 3) // keys = [a, b, c]
 
-        cache.get("b") // Move 'a' to most recently used
-        cache.get("b")
-        cache.get("b")
-        cache.get("b")
-        cache.set("d", 4)
+        cache.get("a") // keys = [a, b, c, a]
+        cache.get("a") // keys = [a, b, c, a, a]
+        cache.get("a") // keys = [a, b, c, a, a, a] size at limit (maxSize * 2 = 6)
+        cache.get("a") // keys = [a, b, c, a] keys is over limit, only the first 4 are kept, last 3 "a"s are evicted
+        cache.set("d", 4) // keys = [b, c, a, d], a was removed from the map despite being accessed last
 
         // @todo clarify with @staab the intended behavior
-        // expect(cache.has("b")).toBe(false) // 'b' should be evicted
-        // expect(cache.has("a")).toBe(true)
+        // "a" was recently accessed, it should not be evicted
+        // expect(cache.has("a")).toBe(true) // 'a' should be present
       })
     })
   })
