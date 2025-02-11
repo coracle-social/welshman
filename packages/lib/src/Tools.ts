@@ -113,7 +113,7 @@ export const max = (xs: Maybe<number>[]) => xs.reduce((a: number, b) => Math.max
 
 /** Returns minimum value in array, handling undefined values */
 export const min = (xs: Maybe<number>[]) => {
-  const [head, ...tail] = xs.filter(x => !isNil(x))
+  const [head, ...tail] = xs.filter(x => !isNil(x)) as number[]
 
   if (tail.length === 0) return head || 0
 
