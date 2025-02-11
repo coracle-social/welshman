@@ -436,40 +436,34 @@ export const truncate = (
 }
 
 export const reduceLinks = (content: Parsed[]): Parsed[] => {
-  let links: ParsedLinkValue[] = []
-  let newLine: ParsedNewline | null = null
-  let emptyText: ParsedText | null = null
-  const parsedContent = []
+  const result: Parsed[] = []
+  const buffer: ParsedLinkValue[] = []
 
   for (const parsed of content) {
-    if (isImage(parsed)) {
-      links.push(parsed.value)
-    } else if (links.length && isNewline(parsed)) {
-      newLine = parsed
-    } else if (links.length && isText(parsed) && !parsed.value.trim()) {
-      emptyText = parsed
-    } else if (links.length) {
-      parsedContent.push({type: ParsedType.LinkGrid, value: {links}, raw: ""} as ParsedLinkGrid)
+    const prev = last(result)
 
-      if (newLine) {
-        parsedContent.push(newLine)
-        newLine = null
-      } else if (emptyText) {
-        parsedContent.push(emptyText)
-        emptyText = null
-      }
-
-      links = []
-    } else {
-      parsedContent.push(parsed)
+    // If we have a link and we're in our own block, start a grid
+    if (isLink(parsed) && (!prev || isNewline(prev))) {
+      buffer.push(parsed.value)
+      continue
     }
+
+    if (isNewline(parsed) && buffer.length > 0) {
+      continue
+    }
+
+    if (buffer.length > 0) {
+      result.push({type: ParsedType.LinkGrid, value: {links: buffer.splice(0)}, raw: ""})
+    }
+
+    result.push(parsed)
   }
 
-  if (links.length) {
-    parsedContent.push({type: ParsedType.LinkGrid, value: {links}, raw: ""} as ParsedLinkGrid)
+  if (buffer.length > 0) {
+    result.push({type: ParsedType.LinkGrid, value: {links: buffer.splice(0)}, raw: ""})
   }
 
-  return parsedContent
+  return result
 }
 
 // Renderer
