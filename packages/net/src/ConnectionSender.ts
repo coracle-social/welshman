@@ -29,7 +29,7 @@ export class ConnectionSender {
         if (![AuthStatus.None, AuthStatus.Ok].includes(cxn.auth.status)) return true
 
         // Limit concurrent requests
-        if (verb === "REQ") return cxn.state.pendingRequests.size >= 8
+        if (verb === "REQ") return cxn.state.pendingRequests.size >= 50
 
         return false
       },
