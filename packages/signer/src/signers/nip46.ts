@@ -104,7 +104,8 @@ export class Nip46Receiver extends Emitter {
   ) {
     super()
   }
-
+  // start listening to the remote signer for incoming events
+  // broadcast any event returned by the remote signer
   start = async () => {
     if (this.sub) return
 
@@ -150,7 +151,7 @@ export class Nip46Sender extends Emitter {
   ) {
     super()
   }
-
+  // send a request to the remote signer, emitting the request and the pub
   public send = async (request: Nip46Request) => {
     const {id, method, params} = request
     const {relays, signerPubkey, algorithm = "nip44"} = this.params
@@ -168,6 +169,7 @@ export class Nip46Sender extends Emitter {
     this.emit(Nip46Event.Send, {...request, pub})
   }
 
+  // process the queue of requests
   public process = async () => {
     if (this.processing) {
       return
@@ -190,6 +192,7 @@ export class Nip46Sender extends Emitter {
     }
   }
 
+  // enqueue a request to the queue and process it
   enqueue = (request: Nip46Request) => {
     this.queue.push(request)
     this.process()
@@ -200,6 +203,7 @@ export class Nip46Sender extends Emitter {
   }
 }
 
+// NIP 46 request object constructor
 export class Nip46Request {
   id = randomId()
   promise = defer<Nip46ResponseWithResult, Nip46ResponseWithError>()
@@ -209,6 +213,7 @@ export class Nip46Request {
     readonly params: string[],
   ) {}
 
+  // listen for a response from the remote signer and resolve/reject the in class promise
   listen = async (receiver: Nip46Receiver) => {
     await receiver.start()
 
@@ -233,6 +238,7 @@ export class Nip46Request {
     receiver.on(Nip46Event.Receive, onReceive)
   }
 
+  // send the request to the remote signer
   send = async (sender: Nip46Sender) => {
     sender.enqueue(this)
   }
