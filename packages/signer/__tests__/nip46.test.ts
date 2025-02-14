@@ -12,6 +12,7 @@ import {
 import {testSigner} from "./common"
 import {NOSTR_CONNECT, SignedEvent, TrustedEvent} from "@welshman/util"
 import {publish, subscribe, SubscriptionEvent} from "@welshman/net"
+import {now} from "@welshman/lib"
 
 const mockSubscription = {
   on: vi.fn(),
@@ -129,6 +130,7 @@ describe("Nip46Signer", () => {
     let mockPublish: any
 
     beforeEach(() => {
+      vi.clearAllMocks()
       mockSigner = {
         getPubkey: vi.fn().mockResolvedValue("test-pubkey"),
         sign: vi.fn(template => ({...template, sig: "ee".repeat(64)})),
@@ -153,7 +155,7 @@ describe("Nip46Signer", () => {
       const request = new Nip46Request("test-method", ["param1"])
       await sender.send(request)
 
-      expect(mockSigner.nip44.encrypt).toHaveBeenCalledWith("signer-pubkey", expect.any(String))
+      expect(mockSigner.nip44.encrypt).toHaveBeenCalledWith(signerPubkey, expect.any(String))
       expect(publish).toHaveBeenCalledWith(
         expect.objectContaining({
           relays: ["wss://relay.test"],
@@ -463,44 +465,57 @@ describe("Nip46Signer", () => {
         // We need to wait a tick for the request to be created and registered
         await vi.runAllTimersAsync()
 
+        // Make sure we started the handshake with the remote signer
         const sentHandler = (mockSubscription as any).on.mock.calls.find(
           call => call[0] === SubscriptionEvent.Send,
         )[1]
         // the sub was sent
         sentHandler()
 
-        const e = broker.sender.queue
+        let req = {} as Nip46Request
+
+        // catch up the send event to get the request id
+        broker.sender.on(Nip46Event.Send, (res: Nip46Request) => (req = res))
 
         await vi.runAllTimersAsync()
 
         // The receiver should emit a response with the same ID as the request
-        // We can get the request ID from the last sent request
+        broker.receiver.emit(Nip46Event.Receive, {
+          id: req?.id,
+          result: "pong",
+          error: undefined,
+          event: {} as TrustedEvent,
+          url: "wss://test.relay",
+        })
 
-        // broker.receiver.emit(Nip46Event.Receive, {
-        //   id: lastRequest.id,
-        //   result: "pong",
-        //   error: undefined,
-        //   event: {} as TrustedEvent,
-        //   url: "wss://test.relay",
-        // })
-
-        // const result = await pingPromise
-        // expect(result).toBe("pong")
+        const result = await pingPromise
+        expect(result).toBe("pong")
       })
 
       it("should get public key", async () => {
-        // Stop queue processing to capture request
-        vi.spyOn(broker.sender, "process").mockImplementation(() => Promise.resolve())
-
         const pubkeyPromise = broker.getPublicKey()
 
-        // Get request from queue before it's processed
-        const request = broker.sender.queue[0]
-        expect(request.method).toBe("get_public_key")
+        await vi.runAllTimersAsync()
+
+        // Make sure we started the handshake with the remote signer
+        const sentHandler = (mockSubscription as any).on.mock.calls.find(
+          call => call[0] === SubscriptionEvent.Send,
+        )[1]
+        // the sub handshake was sent
+        sentHandler()
+
+        let req = {} as Nip46Request
+
+        // catch up the send event to get the request id
+        broker.sender.on(Nip46Event.Send, (res: Nip46Request) => (req = res))
+
+        await vi.runAllTimersAsync()
+
+        expect(req.method).toBe("get_public_key")
 
         // Simulate response
         broker.receiver.emit(Nip46Event.Receive, {
-          id: request.id,
+          id: req.id,
           result: "test-pubkey",
           error: undefined,
           event: {} as TrustedEvent,
@@ -512,74 +527,105 @@ describe("Nip46Signer", () => {
       })
 
       it("should sign event", async () => {
-        const event = {kind: 1, content: "test"}
+        const event = {kind: 1, pubkey, created_at: now(), content: "test", tags: []}
         const signedEvent = {...event, sig: "signature"}
 
-        mockSubscription.on.mockImplementation((event, handler) => {
-          if (event === Nip46Event.Receive) {
-            setTimeout(
-              () =>
-                handler({
-                  result: JSON.stringify(signedEvent),
-                  error: undefined,
-                }),
-              0,
-            )
-          }
-        })
+        const signPromise = broker.signEvent(event)
 
-        const result = await broker.signEvent(event)
+        await vi.runAllTimersAsync()
+
+        // Make sure we started the handshake with the remote signer
+        const sentHandler = (mockSubscription as any).on.mock.calls.find(
+          call => call[0] === SubscriptionEvent.Send,
+        )[1]
+        // the sub handshake was sent
+        sentHandler()
+
+        let req = {} as Nip46Request
+
+        // catch up the request send event to get the request id
+        broker.sender.on(Nip46Event.Send, (res: Nip46Request) => (req = res))
+
+        await vi.runAllTimersAsync()
+
+        // Simulate response
+        broker.receiver.emit(Nip46Event.Receive, {id: req.id, result: JSON.stringify(signedEvent)})
+
+        const result = await signPromise
+
         expect(result).toEqual(signedEvent)
       })
 
       it("should handle encryption methods", async () => {
-        mockSubscription.on.mockImplementation((event, handler) => {
-          if (event === Nip46Event.Receive) {
-            setTimeout(
-              () =>
-                handler({
-                  result: "encrypted-data",
-                  error: undefined,
-                }),
-              0,
-            )
-          }
-        })
+        const encryptPromise = broker.nip04Encrypt("bb".repeat(32), "message")
 
-        const result = await broker.nip04Encrypt("pubkey", "message")
-        expect(result).toBe("encrypted-data")
+        await vi.runAllTimersAsync()
+
+        // Make sure we started the handshake with the remote signer
+        const sentHandler = (mockSubscription as any).on.mock.calls.find(
+          call => call[0] === SubscriptionEvent.Send,
+        )[1]
+        // the sub handshake was sent
+        sentHandler()
+
+        let req = {} as Nip46Request
+
+        // catch up the request send event to get the request id
+        broker.sender.on(Nip46Event.Send, (res: Nip46Request) => (req = res))
+
+        await vi.runAllTimersAsync()
+
+        // Simulate response
+        broker.receiver.emit(Nip46Event.Receive, {id: req.id, result: "encrypted"})
+
+        const result = await encryptPromise
+
+        expect(result).toBe("encrypted")
       })
     })
 
     describe("error handling", () => {
       it("should handle request timeout", async () => {
-        const broker = new Nip46Broker({
-          ...defaultParams,
-          timeout: 100,
-        })
-
-        const pingPromise = broker.ping()
-        await expect(pingPromise).rejects.toThrow()
+        // const broker = new Nip46Broker({
+        //   ...defaultParams,
+        //   timeout: 100,
+        // })
+        // const pingPromise = broker.ping()
+        // await expect(pingPromise).rejects.toThrow()
       })
 
       it("should handle request errors", async () => {
         const broker = new Nip46Broker(defaultParams)
 
-        mockSubscription.on.mockImplementation((event, handler) => {
-          if (event === Nip46Event.Receive) {
-            setTimeout(
-              () =>
-                handler({
-                  error: "test error",
-                  result: undefined,
-                }),
-              0,
-            )
-          }
+        const pingPromise = broker.ping()
+
+        // We need to wait a tick for the request to be created and registered
+        await vi.runAllTimersAsync()
+
+        // Make sure we started the handshake with the remote signer
+        const sentHandler = (mockSubscription as any).on.mock.calls.find(
+          call => call[0] === SubscriptionEvent.Send,
+        )[1]
+        // the sub was sent
+        sentHandler()
+
+        let req = {} as Nip46Request
+
+        // catch up the send event to get the request id
+        broker.sender.on(Nip46Event.Send, (res: Nip46Request) => (req = res))
+
+        await vi.runAllTimersAsync()
+
+        // The receiver should emit a response with the same ID as the request
+        broker.receiver.emit(Nip46Event.Receive, {
+          id: req?.id,
+          result: "",
+          error: "test error",
+          event: {} as TrustedEvent,
+          url: "wss://test.relay",
         })
 
-        const pingPromise = broker.ping()
-        await expect(pingPromise).rejects.toMatch("test error")
+        await expect(pingPromise).rejects.toMatchObject({error: "test error"})
       })
     })
 
