@@ -31,6 +31,7 @@ export const CHANNEL_UPDATE = 41
 export const CHANNEL_MESSAGE = 42
 export const CHANNEL_HIDE_MESSAGE = 43
 export const CHANNEL_MUTE_USER = 44
+export const VANISH = 62
 export const BID = 1021
 export const BID_CONFIRMATION = 1022
 export const OTS = 1040
