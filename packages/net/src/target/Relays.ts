@@ -23,7 +23,7 @@ export class Relays extends Emitter {
   cleanup = () => {
     this.removeAllListeners()
     this.connections.forEach(connection => {
-      connection.off("receive", this.onMessage)
+      connection.off(ConnectionEvent.Receive, this.onMessage)
     })
   }
 }
