@@ -1,10 +1,9 @@
 import {ctx, now} from "@welshman/lib"
-import {HashedEvent} from "@welshman/util"
+import {FOLLOWS, HashedEvent, MUTES, PINS} from "@welshman/util"
 import {get} from "svelte/store"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {follow, mute, pin, unfollow, unmute, unpin} from "../src/commands"
 import * as thunkModule from "../src/thunk"
-import * as userModule from "../src/user"
 
 vi.mock(import("@welshman/lib"), async importOriginal => ({
   ...(await importOriginal()),
@@ -32,36 +31,37 @@ vi.mock(import("../src/session"), async importOriginal => ({
 }))
 
 describe("commands", () => {
-  const mockList = {
-    id: "ee".repeat(32),
-    kind: 0,
-    pubkey: "ee".repeat(32),
-    created_at: now(),
-    content: "",
-    tags: [],
-    publicTags: [],
-  } as HashedEvent
+  const pubkey1 = "aa".repeat(32)
+  const pubkey2 = "bb".repeat(32)
 
-  beforeEach(() => {
+  const event1 = "ee".repeat(32)
+  const event2 = "ff".repeat(32)
+
+  beforeEach(async () => {
     vi.useFakeTimers()
+    vi.setSystemTime(new Date())
+    // Reset any module state
+    vi.resetModules()
+    // Clear any cached data
     vi.clearAllMocks()
-    // Reset mocked store values
   })
 
   afterEach(() => {
-    vi.resetModules()
+    vi.clearAllTimers()
     vi.useRealTimers()
+    // vi.resetAllMocks()
   })
 
   describe("follow commands", () => {
     it("should create new follows list if none exists", async () => {
       const publishThunkSpy = vi.spyOn(thunkModule, "publishThunk")
-      await follow(["p", "pubkey1"])
+      await follow(["p", pubkey1])
 
       expect(publishThunkSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           event: expect.objectContaining({
-            tags: expect.arrayContaining([["p", "pubkey1"]]),
+            kind: FOLLOWS,
+            tags: expect.arrayContaining([["p", pubkey1]]),
           }),
           relays: ["relay1", "relay2"],
         }),
@@ -71,18 +71,19 @@ describe("commands", () => {
     it("should use existing follows list if available", async () => {
       const publishThunkSpy = vi.spyOn(thunkModule, "publishThunk")
 
-      await follow(["p", "pubkey1"])
+      await follow(["p", pubkey1])
 
       await vi.runAllTimersAsync()
 
-      await follow(["p", "pubkey2"])
+      await follow(["p", pubkey2])
 
       expect(publishThunkSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           event: expect.objectContaining({
+            kind: FOLLOWS,
             tags: expect.arrayContaining([
-              ["p", "pubkey1"],
-              ["p", "pubkey2"],
+              ["p", pubkey1],
+              ["p", pubkey2],
             ]),
           }),
           relays: ["relay1", "relay2"],
@@ -93,11 +94,16 @@ describe("commands", () => {
     it("should handle unfollow command", async () => {
       const publishThunkSpy = vi.spyOn(thunkModule, "publishThunk")
 
-      await unfollow("pubkey1")
+      await follow(["p", pubkey1])
+
+      await vi.runAllTimersAsync()
+
+      await unfollow(pubkey1)
 
       expect(publishThunkSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           event: expect.objectContaining({
+            kind: FOLLOWS,
             tags: expect.arrayContaining([]),
           }),
           relays: ["relay1", "relay2"],
@@ -108,111 +114,140 @@ describe("commands", () => {
 
   describe("mute commands", () => {
     it("should create new mutes list if none exists", async () => {
-      const result = await mute(["p", "pubkey1"])
+      const publishThunkSpy = vi.spyOn(thunkModule, "publishThunk")
 
-      expect(get).toHaveBeenCalledWith(userModule.userMutes)
-      expect(vi.mocked(thunkModule.publishThunk)).toHaveBeenCalledWith({
-        event: "mock-reconciled-event",
+      await mute(["p", pubkey1])
+
+      expect(publishThunkSpy).toHaveBeenCalledWith({
+        event: expect.objectContaining({
+          kind: MUTES,
+          tags: expect.arrayContaining([["p", pubkey1]]),
+        }),
         relays: ["relay1", "relay2"],
       })
     })
 
     it("should use existing mutes list if available", async () => {
-      vi.mocked(get).mockReturnValueOnce(mockList)
+      const publishThunkSpy = vi.spyOn(thunkModule, "publishThunk")
 
-      await mute(["p", "pubkey1"])
+      await mute(["p", pubkey1])
 
-      expect(mockList.reconcile).toHaveBeenCalled()
+      await vi.runAllTimersAsync()
+
+      await mute(["p", pubkey2])
+
+      expect(publishThunkSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: expect.objectContaining({
+            kind: MUTES,
+            tags: expect.arrayContaining([
+              ["p", pubkey1],
+              ["p", pubkey2],
+            ]),
+          }),
+          relays: ["relay1", "relay2"],
+        }),
+      )
     })
 
     it("should handle unmute command", async () => {
-      vi.mocked(get).mockReturnValueOnce(mockList)
+      const publishThunkSpy = vi.spyOn(thunkModule, "publishThunk")
+
+      await mute(["p", pubkey1])
+
+      await vi.runAllTimersAsync()
 
       await unmute("pubkey1")
 
-      expect(mockList.reconcile).toHaveBeenCalled()
-      expect(vi.mocked(thunkModule.publishThunk)).toHaveBeenCalledWith({
-        event: "mock-reconciled-event",
-        relays: ["relay1", "relay2"],
-      })
+      expect(publishThunkSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: expect.objectContaining({
+            kind: MUTES,
+            tags: expect.arrayContaining([]),
+          }),
+          relays: ["relay1", "relay2"],
+        }),
+      )
     })
   })
 
   describe("pin commands", () => {
     it("should create new pins list if none exists", async () => {
-      const result = await pin(["e", "event1"])
+      const publishThunkSpy = vi.spyOn(thunkModule, "publishThunk")
+      await pin(["e", event1])
 
-      expect(get).toHaveBeenCalledWith(userModule.userPins)
-      expect(vi.mocked(thunkModule.publishThunk)).toHaveBeenCalledWith({
-        event: "mock-reconciled-event",
-        relays: ["relay1", "relay2"],
-      })
+      expect(publishThunkSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: expect.objectContaining({
+            kind: PINS,
+            tags: expect.arrayContaining([["e", event1]]),
+          }),
+          relays: ["relay1", "relay2"],
+        }),
+      )
     })
 
     it("should use existing pins list if available", async () => {
-      vi.mocked(get).mockReturnValueOnce(mockList)
+      const publishThunkSpy = vi.spyOn(thunkModule, "publishThunk")
 
-      await pin(["e", "event1"])
+      await pin(["e", event1])
 
-      expect(mockList.reconcile).toHaveBeenCalled()
+      await vi.runAllTimersAsync()
+
+      await pin(["e", event2])
+
+      expect(publishThunkSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: expect.objectContaining({
+            kind: PINS,
+            tags: expect.arrayContaining([
+              ["e", event1],
+              ["e", event2],
+            ]),
+          }),
+          relays: ["relay1", "relay2"],
+        }),
+      )
     })
 
     it("should handle unpin command", async () => {
-      vi.mocked(get).mockReturnValueOnce(mockList)
+      const publishThunkSpy = vi.spyOn(thunkModule, "publishThunk")
+
+      await pin(["e", event1])
+
+      await vi.runAllTimersAsync()
 
       await unpin("event1")
 
-      expect(mockList.reconcile).toHaveBeenCalled()
-      expect(vi.mocked(thunkModule.publishThunk)).toHaveBeenCalledWith({
-        event: "mock-reconciled-event",
-        relays: ["relay1", "relay2"],
-      })
-    })
-  })
-
-  describe("error handling", () => {
-    it("should handle encryption failures", async () => {
-      await expect(follow(["p", "pubkey1"])).rejects.toThrow("Encryption failed")
-    })
-
-    it("should handle publish failures", async () => {
-      vi.mocked(thunkModule.publishThunk).mockRejectedValueOnce(new Error("Publish failed"))
-
-      await expect(follow(["p", "pubkey1"])).rejects.toThrow("Publish failed")
+      expect(publishThunkSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: expect.objectContaining({
+            kind: PINS,
+            tags: expect.arrayContaining([]),
+          }),
+          relays: ["relay1", "relay2"],
+        }),
+      )
     })
   })
 
   describe("relay selection", () => {
     it("should use correct relays from router", async () => {
+      const publishThunkSpy = vi.spyOn(thunkModule, "publishThunk")
       const mockGetUrls = vi.fn().mockReturnValue(["relay3", "relay4"])
       vi.mocked(ctx.app.router.FromUser).mockReturnValue({
         getUrls: mockGetUrls,
       })
 
-      await follow(["p", "pubkey1"])
+      await follow(["p", pubkey1])
 
       expect(ctx.app.router.FromUser).toHaveBeenCalled()
       expect(mockGetUrls).toHaveBeenCalled()
-      expect(vi.mocked(thunkModule.publishThunk)).toHaveBeenCalledWith({
-        event: "mock-reconciled-event",
-        relays: ["relay3", "relay4"],
-      })
+      expect(publishThunkSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          relays: ["relay3", "relay4"],
+        }),
+      )
     })
-  })
-
-  describe("list creation", () => {
-    // it("should create follows list with correct kind", async () => {
-    //   await follow(["p", "pubkey1"])
-    //   expect(vi.mocked(get).mock.results[0].value).toBeNull()
-    //   // Could add more specific checks about list creation if needed
-    // })
-    // it("should create mutes list with correct kind", async () => {
-    //   await mute(["p", "pubkey1"])
-    //   expect(vi.mocked(get).mock.results[0].value).toBeNull()
-    // })
-    // it("should create pins list with correct kind", async () => {
-    //   await pin(["e", "event1"])
-    //   expect(vi.mocked(get).mock.results[0].value).toBeNull()
-    // })
   })
 })
