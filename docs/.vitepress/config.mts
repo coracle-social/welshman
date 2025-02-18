@@ -31,6 +31,7 @@ export default defineConfig({
           {text: "Commands", link: "/app/commands"},
           {text: "Subscription", link: "/app/subscription"},
           {text: "Publish (Thunks)", link: "/app/thunks"},
+          {text: "Feed", link: "/app/feed"},
           {text: "Tag utilities", link: "/app/tags"},
           {text: "Topics", link: "/app/topics"},
           {text: "Web of Trust", link: "/app/wot"},
