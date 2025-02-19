@@ -38,7 +38,16 @@ export const bulkPut = async (name: string, data: any[]) => {
   const tx = db.transaction(name, "readwrite")
   const store = tx.objectStore(name)
 
-  await Promise.all(data.map(item => store.put(item)))
+  await Promise.all(
+    data.map(item => {
+      try {
+        store.put(item)
+      } catch (e) {
+        console.error(e, item)
+      }
+    }),
+  )
+
   await tx.done
 }
 
