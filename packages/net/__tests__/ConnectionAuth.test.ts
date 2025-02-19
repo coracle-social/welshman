@@ -251,7 +251,7 @@ describe("ConnectionAuth", () => {
 
       // 2 loops (2 * 100ms) in the waitForChallenge before timeout
       // 1 loop in waitForResolution as it reach the condition immediately
-      await vi.advanceTimersByTimeAsync(300)
+      await vi.advanceTimersByTimeAsync(100)
 
       await attemptPromise
 
