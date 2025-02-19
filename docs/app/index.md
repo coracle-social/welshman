@@ -1,38 +1,76 @@
 # @welshman/app
 
-The complete application framework powering [Coracle.social](https://coracle.social) and [Flotilla.social](https://flotilla.social). Provides everything needed to build a full-featured nostr client with:
+A comprehensive framework for building nostr clients, powering production applications like [Coracle](https://coracle.social) and [Flotilla](https://flotilla.social). It provides a complete toolkit for managing events, subscriptions, user data, and relay connections.
 
-## Core Features
+## Who is it for?
 
-1. **Session Management**
-```typescript
-// Real world example of handling NIP-07, NIP-46 logins
-```
+- Developers building full-featured nostr clients
+- Applications needing robust event handling
+- Projects using Svelte (though core features work without it)
+- Anyone wanting production-tested nostr infrastructure
 
-2. **Relay Router**
-```typescript
-// Example of smart relay selection for different operations
-```
+## Core Systems
 
-3. **Storage & Sync**
-- IndexedDB integration
+### [Context](./context.md)
+- Global configuration
+- App settings
+- Network settings
+
+### [Storage](./storage.md)
 - Event caching
-- Profile caching
-- Relay stats tracking
+- IndexedDB persistence
+- Change tracking
+- Data synchronization
 
-4. **State Management**
-- Profiles
-- Follows/Mutes
-- Relay selections
-- Zappers
-- Lists
+### [Router](./router.md)
+- Smart relay selection
+- Connection quality tracking
+- Subscription optimization
+- Fallback strategies
 
-5. **Command System**
-- Follow/Unfollow
-- Mute/Unmute
-- Pin/Unpin
+### [Session](./session.md)
+- User authentication (NIP-01, NIP-07, NIP-46, NIP-55)
+- Session persistence
+- Encryption
 
-6. **Feed Management**
-- Dynamic feed compilation
+### [Collection](./collection.md)
+- `Svelte` store management
+- Indexing/Caching
+- Loading
+
+### [Commands](./commands.md)
+- High-level actions (follow, mute, pin)
+- Automatic relay selection
+- Request status tracking
+
+### [Subscription](./subscription.md)
+- Event subscription
+- Optimistic updates
+- Cache integration
+
+### [Publish (Thunks)](./thunks.md)
+- Publish status tracking
+- Soft undo support
+- Request status tracking
+- Automatic relay selection
+
+### [Feed](./feed.md)
+- Dynamic feed composition
+- Thread loading
+- Content discovery
 - DVM integration
-- NIP-65 relay selection
+
+### [Tag utilities](./tags.md)
+- Event references and user mentions
+- Thread construction
+- Reply chains
+- Relay hints
+
+### [Topics](./topics.md)
+- Hashtag tracking
+- Content organization
+
+### [Web of Trust](./wot.md)
+- Trust scoring
+- Graph analysis
+- Content filtering

@@ -37,6 +37,22 @@ export default defineConfig({
           {text: "Web of Trust", link: "/app/wot"},
         ],
       },
+      {
+        text: "@welshman/net",
+        link: "/net/",
+        items: [
+          {text: "Context", link: "/net/context"},
+          {text: "Executor", link: "/net/executor"},
+          {text: "Subscribe", link: "/net/subscribe"},
+          {text: "Publish", link: "/net/publish"},
+          {text: "Sync", link: "/net/sync"},
+          {text: "Pool", link: "/net/pool"},
+          {text: "Targets", link: "/net/targets"},
+          {text: "Tracker", link: "/net/tracker"},
+          {text: "Connection", link: "/net/connection"},
+          {text: "Socket", link: "/net/socket"},
+        ],
+      },
     ],
 
     socialLinks: [{icon: "github", link: "https://github.com/vuejs/vitepress"}],
