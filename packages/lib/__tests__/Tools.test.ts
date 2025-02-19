@@ -139,10 +139,8 @@ describe("Tools", () => {
         // Advance timer to trigger batch processing
         await vi.advanceTimersByTimeAsync(100)
 
-        // Batch should be processed once with all items
         expect(processBatch).toHaveBeenCalledTimes(2)
 
-        // @todo clarify the intended behaviour and see if throttle should be called with a setTimeout
         expect(processBatch).toHaveBeenCalledWith(["a"])
         expect(processBatch).toHaveBeenCalledWith(["b", "c"])
       })
@@ -154,26 +152,22 @@ describe("Tools", () => {
         // First batch
         batchFn("a")
         batchFn("b")
+        batchFn("c")
 
         await vi.advanceTimersByTimeAsync(100)
 
         // Second batch
-        batchFn("c")
         batchFn("d")
+        batchFn("e")
+        batchFn("f")
 
         await vi.advanceTimersByTimeAsync(100)
 
-        // @check, expected behaviour?
-        // expect(processBatch).toHaveBeenCalledTimes(2)
-        // expect(processBatch).toHaveBeenNthCalledWith(1, ["a", "b"])
-        // expect(processBatch).toHaveBeenNthCalledWith(2, ["c", "d"])
-
-        // actual behaviour
         expect(processBatch).toHaveBeenCalledTimes(4)
         expect(processBatch).toHaveBeenCalledWith(["a"])
-        expect(processBatch).toHaveBeenCalledWith(["b"])
-        expect(processBatch).toHaveBeenCalledWith(["c"])
+        expect(processBatch).toHaveBeenCalledWith(["b", "c"])
         expect(processBatch).toHaveBeenCalledWith(["d"])
+        expect(processBatch).toHaveBeenCalledWith(["e", "f"])
       })
     })
 
@@ -224,17 +218,13 @@ describe("Tools", () => {
           async (requests: number[]) => [requests[0] * 2], // Return fewer results than requests
         )
 
-        try {
-          const batchFn = T.batcher(100, executeFn)
+        const batchFn = T.batcher(100, executeFn)
 
-          batchFn(1)
-          batchFn(2)
+        const batchPromise = Promise.all([batchFn(1), batchFn(2)])
 
-          await vi.advanceTimersByTimeAsync(200)
-        } catch (error) {
-          // @check can't catch this error, promise do not rejects and keeps hanging forever
-          expect(error).toThrow("Execute must return a result for each request")
-        }
+        await vi.advanceTimersByTimeAsync(200)
+
+        await expect(batchPromise).rejects.toThrow("Execute must return a result for each request")
       })
     })
 
