@@ -38,15 +38,16 @@ describe("Caches", () => {
         cache.set("b", 2) // keys = [a, b]
         cache.set("c", 3) // keys = [a, b, c]
 
-        cache.get("a") // keys = [a, b, c, a]
-        cache.get("a") // keys = [a, b, c, a, a]
-        cache.get("a") // keys = [a, b, c, a, a, a] size at limit (maxSize * 2 = 6)
-        cache.get("a") // keys = [a, b, c, a] keys is over limit, only the first 4 are kept, last 3 "a"s are evicted
-        cache.set("d", 4) // keys = [b, c, a, d], a was removed from the map despite being accessed last
+        cache.get("b") // keys = [a, b, c, b]
+        cache.get("b") // keys = [a, b, c, b, b]
+        cache.get("b") // keys = [a, b, c, b, b, b] size at limit (maxSize * 2 = 6)
+        cache.get("a") // keys = [b, b, a] keys is over limit, only the 3 last are kept
+        cache.set("d", 4) // keys = [b, b, a, d],
 
         // @todo clarify with @staab the intended behavior
         // "a" was recently accessed, it should not be evicted
-        // expect(cache.has("a")).toBe(true) // 'a' should be present
+        expect(cache.has("a")).toBe(true) // 'a' should be present
+        expect(cache.has("b")).toBe(false) // 'b' should be evicted
       })
     })
   })
