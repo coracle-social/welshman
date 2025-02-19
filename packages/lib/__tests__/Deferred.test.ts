@@ -1,5 +1,5 @@
-import {describe, it, expect, beforeEach, vi} from "vitest"
-import {makePromise, defer} from "../src/Deferred"
+import {describe, expect, it} from "vitest"
+import {defer, makePromise} from "../src/Deferred"
 
 describe("Deferred", () => {
   const pubkey = "ee".repeat(32)
