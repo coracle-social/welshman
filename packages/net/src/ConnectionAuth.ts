@@ -69,7 +69,7 @@ export class ConnectionAuth {
       if (condition()) {
         break
       }
-      await sleep(Math.min(100, Math.ceil(timeout / 3)))
+      await sleep(100)
     }
   }
 
