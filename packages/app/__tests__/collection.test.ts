@@ -218,16 +218,18 @@ describe("collection", () => {
 
   describe("error handling", () => {
     it("should handle loader failures gracefully", async () => {
-      // const store = writable<Array<{id: string; value: string}>>([])
-      // const mockLoad = vi.fn().mockRejectedValue(new Error("Load failed"))
-      // const col = collection({
-      //   name: "test",
-      //   store,
-      //   getKey: item => item.id,
-      //   load: mockLoad,
-      // })
-      // const result = await col.loadItem("1")
-      // expect(result).toBeUndefined()
+      const store = writable<Array<{id: string; value: string}>>([])
+      const mockLoad = vi.fn(() => {
+        return Promise.reject("load failed")
+      })
+      const col = collection({
+        name: "test",
+        store,
+        getKey: item => item.id,
+        load: mockLoad,
+      })
+      const result = await col.loadItem("1")
+      expect(result).toBeUndefined()
     })
   })
 })
