@@ -41,7 +41,7 @@ export const isEventValid = (url: string, event: TrustedEvent) => {
   const validCount = eventValidationScores.get(url) || 0
 
   // The more events we've actually validated from this relay, the more we can trust it.
-  if (validCount > randomInt(100, 1000)) true
+  if (validCount > randomInt(100, 1000)) return true
 
   const isValid = isSignedEvent(event) && hasValidSignature(event)
 

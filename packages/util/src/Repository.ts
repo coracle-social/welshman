@@ -168,7 +168,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
     const duplicate = this.eventsByAddress.get(address)
 
     if (duplicate) {
-      // If our event is older than the duplicate, we're done
+      // If our event is younger than the duplicate, we're done
       if (event.created_at <= duplicate.created_at) {
         return false
       }

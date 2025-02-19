@@ -34,7 +34,7 @@ export class Tracker extends Emitter {
     ids.add(eventId)
 
     this.relaysById.set(eventId, relays)
-    this.idsByRelay.set(eventId, relays)
+    this.idsByRelay.set(relay, ids)
 
     this.emit("update")
   }
