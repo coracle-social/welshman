@@ -66,11 +66,10 @@ export class ConnectionAuth {
     const start = Date.now()
 
     while (Date.now() - timeout <= start) {
-      await sleep(100)
-
       if (condition()) {
         break
       }
+      await sleep(100)
     }
   }
 
