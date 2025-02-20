@@ -28,8 +28,12 @@ export class Socket {
     })
   }
 
-  wait = async () => {
-    while ([SocketStatus.Opening, SocketStatus.Closing].includes(this.status)) {
+  wait = async (timeout = 300) => {
+    const start = Date.now()
+    while (
+      Date.now() - timeout <= start &&
+      [SocketStatus.Opening, SocketStatus.Closing].includes(this.status)
+    ) {
       await sleep(100)
     }
   }

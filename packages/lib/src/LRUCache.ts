@@ -20,7 +20,7 @@ export class LRUCache<T, U> {
       this.keys.push(k as T)
 
       if (this.keys.length > this.maxSize * 2) {
-        this.keys.splice(-this.maxSize)
+        this.keys = this.keys.splice(-this.maxSize)
       }
     }
 

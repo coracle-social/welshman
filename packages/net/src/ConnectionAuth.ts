@@ -66,11 +66,10 @@ export class ConnectionAuth {
     const start = Date.now()
 
     while (Date.now() - timeout <= start) {
-      await sleep(100)
-
       if (condition()) {
         break
       }
+      await sleep(Math.min(100, Math.ceil(timeout / 3)))
     }
   }
 
@@ -110,12 +109,12 @@ export class ConnectionAuth {
 
   attempt = async (timeout = 300) => {
     await this.cxn.socket.open()
-    await this.waitForChallenge(timeout)
+    await this.waitForChallenge(Math.ceil(timeout / 2))
 
     if (this.status === Requested) {
       await this.respond()
     }
 
-    await this.waitForResolution(timeout)
+    await this.waitForResolution(Math.ceil(timeout / 2))
   }
 }

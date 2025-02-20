@@ -874,6 +874,7 @@ export const chunk = <T>(chunkLength: number, xs: T[]) => {
       current.push(item)
     } else {
       result.push(current.splice(0))
+      current.push(item)
     }
   }
 
@@ -991,6 +992,8 @@ export const throttleWithValue = <T>(ms: number, f: () => T) => {
 
 /**
  * Creates batching function that collects items
+ * this function does not delay execution, if a series of items is passed in sequence
+ * the first item will be processed immediately, and the rest will be batched
  * @param t - Time window for batching
  * @param f - Function to process batch
  * @returns Function that adds items to batch
@@ -1012,26 +1015,28 @@ export const batch = <T>(t: number, f: (xs: T[]) => void) => {
  * @returns Function that returns promise of result
  */
 export const batcher = <T, U>(t: number, execute: (request: T[]) => U[] | Promise<U[]>) => {
-  const queue: {request: T; resolve: (x: U) => void}[] = []
+  const queue: {request: T; resolve: (x: U) => void; reject: (reason?: string) => void}[] = []
 
   const _execute = async () => {
     const items = queue.splice(0)
     const results = await execute(items.map(item => item.request))
 
     if (results.length !== items.length) {
-      throw new Error("Execute must return a result for each request")
+      results.forEach(async (r, i) =>
+        items[i].reject("Execute must return a result for each request"),
+      )
     }
 
     results.forEach(async (r, i) => items[i].resolve(await r))
   }
 
   return (request: T): Promise<U> =>
-    new Promise(resolve => {
+    new Promise((resolve, reject) => {
       if (queue.length === 0) {
         setTimeout(_execute, t)
       }
 
-      queue.push({request, resolve})
+      queue.push({request, resolve, reject})
     })
 }
 
