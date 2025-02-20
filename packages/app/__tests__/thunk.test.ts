@@ -73,6 +73,8 @@ describe("thunk", () => {
     vi.useRealTimers()
     vi.resetModules()
     thunkWorker.clear()
+    thunkWorker.pause() // clear timeout
+    thunkWorker.resume()
   })
 
   describe("prepEvent", () => {
