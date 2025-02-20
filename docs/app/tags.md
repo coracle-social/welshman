@@ -55,7 +55,7 @@ const createReply = async (parent: TrustedEvent, content: string) => {
 All tag creators:
 - Add appropriate relay hints using the router
 - Handle replaceable/parameterized events
-- Follow NIP-10 conventions for threading
+- Follow adequate NIP-10/NIP-22 conventions for threading
 - Include metadata like usernames
 - Deduplicate references
 - Preserve tag order
@@ -65,6 +65,5 @@ The tagging system is crucial for:
 - Event reactions
 - User mentions
 - Zap splits
-- Relay hints
 
 Tag utilities ensure consistent and correct tag creation across the application while integrating with the router for relay hints.

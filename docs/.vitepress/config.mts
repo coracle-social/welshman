@@ -38,6 +38,35 @@ export default defineConfig({
         ],
       },
       {
+        text: "@welshman/feeds",
+        link: "/feeds/",
+        // items: [
+        //   {text: "Introduction", link: "/feeds/introduction"},
+        //   {text: "Feeds", link: "/feeds/feeds"},
+        //   {text: "Feed types", link: "/feeds/feed-types"},
+        //   {text: "Feed utilities", link: "/feeds/feed-utilities"},
+        // ],
+      },
+      {
+        text: "@welshman/signer",
+        link: "/signer/",
+        items: [
+          {text: "NIP-01", link: "/signer/nip-01"},
+          {text: "NIP-07", link: "/signer/nip-07"},
+          {text: "NIP-46", link: "/signer/nip-46"},
+          {text: "NIP-55", link: "/signer/nip-55"},
+          {text: "NIP-59", link: "/signer/nip-59"},
+        ],
+      },
+      {
+        text: "@welshman/store",
+        link: "/store/",
+        items: [
+          {text: "Basic utilities", link: "/store/basic"},
+          {text: "Event stores", link: "/store/events"},
+        ],
+      },
+      {
         text: "@welshman/net",
         link: "/net/",
         items: [
