@@ -1,9 +1,9 @@
-import {ctx, now} from "@welshman/lib"
-import {FOLLOWS, HashedEvent, MUTES, PINS} from "@welshman/util"
-import {get} from "svelte/store"
+import {ctx} from "@welshman/lib"
+import {FOLLOWS, MUTES, PINS} from "@welshman/util"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {follow, mute, pin, unfollow, unmute, unpin} from "../src/commands"
 import * as thunkModule from "../src/thunk"
+import {thunkWorker} from "../src/thunk"
 
 vi.mock(import("@welshman/lib"), async importOriginal => ({
   ...(await importOriginal()),
@@ -14,6 +14,10 @@ vi.mock(import("@welshman/lib"), async importOriginal => ({
           getUrls: vi.fn().mockReturnValue(["relay1", "relay2"]),
         }),
       },
+    },
+    net: {
+      getExecutor: vi.fn(),
+      optimizeSubscriptions: vi.fn().mockReturnValue([]),
     },
   },
 }))
@@ -49,6 +53,10 @@ describe("commands", () => {
   afterEach(() => {
     vi.clearAllTimers()
     vi.useRealTimers()
+
+    thunkWorker.clear()
+    thunkWorker.pause()
+    thunkWorker.resume()
     // vi.resetAllMocks()
   })
 
