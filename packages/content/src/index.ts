@@ -448,9 +448,9 @@ export const reduceLinks = (content: Parsed[]): Parsed[] => {
       continue
     }
 
-    if (isNewline(parsed) && buffer.length > 0) {
-      continue
-    }
+    // Ignore newlines and empty space if we're building a grid
+    if (isNewline(parsed) && buffer.length > 0) continue
+    if (isText(parsed) && !parsed.value.trim() && buffer.length > 0) continue
 
     if (buffer.length > 0) {
       result.push({type: ParsedType.LinkGrid, value: {links: buffer.splice(0)}, raw: ""})
