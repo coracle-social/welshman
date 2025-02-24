@@ -40,12 +40,20 @@ export default defineConfig({
       {
         text: "@welshman/feeds",
         link: "/feeds/",
-        // items: [
-        //   {text: "Introduction", link: "/feeds/introduction"},
-        //   {text: "Feeds", link: "/feeds/feeds"},
-        //   {text: "Feed types", link: "/feeds/feed-types"},
-        //   {text: "Feed utilities", link: "/feeds/feed-utilities"},
-        // ],
+        items: [
+          {text: "Core", link: "/feeds/core"},
+          {text: "Utilities", link: "/feeds/utils"},
+          {text: "Compiler", link: "/feeds/compiler"},
+          {text: "Controller", link: "/feeds/controller"},
+        ],
+      },
+      {
+        text: "@welshman/content",
+        link: "/content/",
+        items: [
+          {text: "Parser", link: "/content/parser"},
+          {text: "Renderer", link: "/content/renderer"},
+        ],
       },
       {
         text: "@welshman/signer",
@@ -67,6 +75,19 @@ export default defineConfig({
         ],
       },
       {
+        text: "@welshman/dvm",
+        link: "/dvm/",
+        items: [
+          {text: "Handler", link: "/dvm/handler"},
+          {text: "Request", link: "/dvm/request"},
+        ],
+      },
+      {
+        text: "@welshman/editor",
+        link: "/editor/",
+        items: [],
+      },
+      {
         text: "@welshman/net",
         link: "/net/",
         items: [
@@ -80,6 +101,32 @@ export default defineConfig({
           {text: "Tracker", link: "/net/tracker"},
           {text: "Connection", link: "/net/connection"},
           {text: "Socket", link: "/net/socket"},
+        ],
+      },
+      {
+        text: "@welshman/lib",
+        link: "/lib/",
+        items: [
+          {text: "Utilities", link: "/lib/tools"},
+          {text: "LRU cache", link: "/lib/lru"},
+          {text: "Worker", link: "/lib/worker"},
+          {text: "Deferred", link: "/lib/deferred"},
+        ],
+      },
+      {
+        text: "@welshman/util",
+        link: "/util/",
+        items: [
+          {text: "Address", link: "/util/address"},
+          {text: "Kinds", link: "/util/kinds"},
+          {text: "Encryptable", link: "/util/encryptable"},
+          {text: "Events", link: "/util/events"},
+          {text: "Filters", link: "/util/filters"},
+          {text: "Handlers", link: "/util/handlers"},
+          {text: "Links", link: "/util/links"},
+          {text: "Profile", link: "/util/profile"},
+          {text: "Relay", link: "/util/relay"},
+          {text: "Repository", link: "/util/repository"},
         ],
       },
     ],
