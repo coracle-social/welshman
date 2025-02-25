@@ -338,4 +338,4 @@ const dvmFeed: Feed = [
 ]
 ```
 
-This core module provides the foundation for building complex, type-safe feed definitions that can be executed by the feed controller.
+This core module provides the foundation for building complex, type-safe feed definitions that can be executed by the [feed controller](/feeds/controller).

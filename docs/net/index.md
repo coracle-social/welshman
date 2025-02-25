@@ -2,62 +2,18 @@
 
 Core networking layer for nostr applications, handling relay connections, message management, and event delivery.
 
-## Who is it for?
+## What's Included
 
-- Developers needing low-level nostr networking
-- Applications managing custom relay connections
-- Projects requiring fine-grained subscription control
-- Anyone building relay-aware nostr tools
+- **Connection Management** - WebSocket lifecycle and relay connections
+- **Subscription System** - Event filtering and subscription handling
+- **Publishing Tools** - Event broadcasting with status tracking
+- **Sync Utilities** - NIP-77 (negentropy) event synchronization
+- **Connection Pool** - Shared relay connection management
+- **Targets** - Flexible message routing strategies
+- **Event Tracking** - Monitor which relays have seen events
 
-## Core Systems
+## Installation
 
-### [Context](./context.md)
-- Global network configuration
-
-### [Executor](./executor.md)
-- Message execution
-- Target management
-- Event routing
-- Subscription handling
-
-### [Subscribe](./subscribe.md)
-- Subscription management
-- Event filtering
-- EOSE handling
-- Connection sharing
-
-### [Publish](./publish.md)
-- Event publishing
-- Status tracking
-- Relay selection
-- Error handling
-
-### [Sync](./sync.md)
-- Event synchronization
-- NIP-77 (negentropy)
-- Repository syncing
-- Relay consistency
-
-### [Pool](./pool.md)
-- Connection pooling
-- Relay management
-- Connection reuse
-- State tracking
-
-### [Targets](./targets.md)
-- Message routing
-- Single or multi relay connection
-- Local relay support
-
-### [Connection](./connection.md)
-- WebSocket management
-- Connection state tracking
-- Message queuing
-- Error handling
-
-### [Socket](./socket.md)
-- Optimized socket implementation
-- Built-in Nostr parsing
-
-Each system provides low-level building blocks that can be composed for different networking needs.
-The package is framework-agnostic and focuses purely on nostr networking concerns.
+```bash
+npm install @welshman/net
+```
