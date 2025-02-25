@@ -9,13 +9,16 @@
   },
   "devDependencies": {
     "gts": "^6.0.2",
-    "typedoc": "^0.27.4",
+    "typedoc": "^0.27.9",
+    "typedoc-plugin-markdown": "^4.4.2",
+    "typedoc-vitepress-theme": "^1.1.2",
     "typescript": "^5.6.3",
     "vitepress": "^1.6.3"
   },
   "scripts": {
+    "predocs": "typedoc",
     "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
+    "docs:build": "npx typedoc && vitepress build docs",
     "docs:preview": "vitepress preview docs"
   }
 }

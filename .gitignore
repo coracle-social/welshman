@@ -4,4 +4,6 @@ build
 .vscode
 .svelte-kit
 docs/.vitepress/dist
+docs/.vitepress/cached
 docs/.vitepress/cache
+docs/reference
