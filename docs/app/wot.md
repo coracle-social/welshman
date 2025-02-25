@@ -1,40 +1,63 @@
-# Web of Trust (WOT)
+# Web of Trust (WOT) Module
 
-The WOT system provides a reactive way to calculate trust scores based on follows and mutes within a user's network. It helps determine content relevance and user reputation.
+The `wot.ts` module provides utilities for implementing a Web of Trust system within Nostr applications. This system analyzes social connections (follows and mutes) to build a reputation graph that can be used for content filtering, user scoring, and discovery.
+
+## Core Concepts
+
+- **Follow Trust**: Users gain positive reputation when followed by those in your network
+- **Mute Distrust**: Users lose reputation when muted by those in your network
+- **WOT Graph**: A reactive weighted directed graph representing trust relationships
+- **Contextual Scoring**: Reputation scores that adapt based on user's social graph
+
+## API Reference
+
+### Social Graph Navigation
 
 ```typescript
-import {
-  wotGraph,         // Map of pubkey -> score
-  maxWot,           // Highest score in graph
-  getWotScore,      // Get score for pubkey
-  deriveUserWotScore, // Reactive score for pubkey
+// Get users followed by a specific pubkey
+getFollows(pubkey: string): string[]
 
-  // Helper functions
-  getFollows,       // Get user's follows
-  getMutes,         // Get user's mutes
-  getFollowers,     // Get user's followers
-  getMuters,        // Get who muted user
-  getNetwork,       // Get extended network
-} from '@welshman/app'
+// Get users who have muted a specific pubkey
+getMutes(pubkey: string): string[]
 
-// Get user's trust score
-const score = getWotScore(pubkey)
+// Get followers of a specific pubkey
+getFollowers(pubkey: string): string[]
 
-// React to score changes
-$: score = $deriveUserWotScore(pubkey)
+// Get users who have muted a specific pubkey
+getMuters(pubkey: string): string[]
 
-// Get follows who follow target
-const mutualFollows = getFollowsWhoFollow(userPubkey, targetPubkey)
-
-// Get follows who muted target
-const mutedBy = getFollowsWhoMute(userPubkey, targetPubkey)
+// Get the extended network (follows-of-follows) for a pubkey
+getNetwork(pubkey: string): string[]
 ```
 
-The WOT system:
-- Updates automatically as follows/mutes change
-- Considers both direct and indirect relationships
-- Provides normalized scores (0-1)
-- Handles network effects
-- Is used for content ranking and filtering
+### Trust Analysis
 
-Think of it as a trust scoring system that helps determine what content and users are most relevant to the current user.
+```typescript
+// Get follows of a user who also follow a target
+getFollowsWhoFollow(pubkey: string, target: string): string[]
+
+// Get follows of a user who have muted a target
+getFollowsWhoMute(pubkey: string, target: string): string[]
+
+// Calculate trust score between users
+getWotScore(pubkey: string, target: string): number
+```
+
+### Reactive Stores
+
+```typescript
+// Map of follower lists by pubkey
+followersByPubkey: Readable<Map<string, Set<string>>>
+
+// Map of muter lists by pubkey
+mutersByPubkey: Readable<Map<string, Set<string>>>
+
+// The full WOT graph with scores (pubkey → score)
+wotGraph: Readable<Map<string, number>>
+
+// The maximum WOT score in the graph
+maxWot: Readable<number>
+
+// Derive the WOT score for a specific user
+deriveUserWotScore(targetPubkey: string): Readable<number>
+```

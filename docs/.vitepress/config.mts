@@ -127,6 +127,7 @@ export default defineConfig({
           {text: "Tag utilities", link: "/app/tags"},
           {text: "Topics", link: "/app/topics"},
           {text: "Web of Trust", link: "/app/wot"},
+          {text: "Stores and Loaders", link: "/app/storesandloaders"},
         ],
       },
     ],
