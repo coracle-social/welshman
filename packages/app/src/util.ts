@@ -2,7 +2,7 @@ import {now, int, DAY, HOUR, MINUTE} from "@welshman/lib"
 
 export const LOCALE = new Intl.DateTimeFormat().resolvedOptions().locale
 
-export const TIMEZONE = new Date().toString().match(/GMT[^\s]+/)
+export const TIMEZONE = new Date().toString().match(/GMT[^\s]+/)![0]
 
 export const secondsToDate = (ts: number) => new Date(ts * 1000)
 
