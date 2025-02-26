@@ -75,7 +75,7 @@ export const complement =
   (...args: T) =>
     !f(...args)
 
-/** Converts a Maybe<number> to a number, defaulting to 0 */
+/** Converts a `Maybe<number>` to a number, defaulting to 0 */
 export const num = (x: Maybe<number>) => x || 0
 
 /** Adds two numbers, handling undefined values */

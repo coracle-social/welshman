@@ -5,6 +5,7 @@ import typeDocSidebar from "../reference/typedoc-sidebar.json"
 export default defineConfig({
   title: "Welshman",
   description: "The official Welshman documentation",
+  ignoreDeadLinks: true,
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
