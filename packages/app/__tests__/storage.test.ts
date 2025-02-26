@@ -1,17 +1,8 @@
-import {describe, it, expect, vi, beforeEach, afterEach} from "vitest"
-import {writable, get} from "svelte/store"
-import {Repository} from "@welshman/util"
 import {Tracker} from "@welshman/net"
-import {
-  initStorage,
-  closeStorage,
-  clearStorage,
-  storageAdapters,
-  dead,
-  getAll,
-  bulkPut,
-  bulkDelete,
-} from "../src/storage"
+import {Repository} from "@welshman/util"
+import {writable} from "svelte/store"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
+import {clearStorage, db, dead, getAll, initStorage, storageAdapters} from "../src/storage"
 
 describe("storage", () => {
   const DB_NAME = "test-db"
@@ -25,13 +16,8 @@ describe("storage", () => {
 
   afterEach(async () => {
     vi.useRealTimers()
-    await closeStorage()
-    // Clean up the test database
-    await new Promise((resolve, reject) => {
-      const req = indexedDB.deleteDatabase(DB_NAME)
-      req.onsuccess = () => resolve(undefined)
-      req.onerror = () => reject(req.error)
-    })
+
+    await clearStorage()
   })
 
   describe("basic operations", () => {
@@ -41,7 +27,9 @@ describe("storage", () => {
         items: storageAdapters.fromCollectionStore("id", store),
       }
 
-      initStorage(DB_NAME, DB_VERSION, adapters)
+      if (!db) {
+        initStorage(DB_NAME, DB_VERSION, adapters)
+      }
 
       await vi.runAllTimersAsync()
 
@@ -50,9 +38,12 @@ describe("storage", () => {
         {id: "2", value: "test2"},
       ])
 
+      await vi.runAllTimersAsync()
+
       const itemsPromise = getAll("items")
       await vi.runAllTimersAsync()
       const items = await itemsPromise
+      await vi.runAllTimersAsync()
 
       expect(items).toHaveLength(2)
       expect(items).toContainEqual({id: "1", value: "test1"})
@@ -65,14 +56,22 @@ describe("storage", () => {
         items: storageAdapters.fromCollectionStore("id", store),
       }
 
-      initStorage(DB_NAME, DB_VERSION, adapters)
+      if (!db) {
+        initStorage(DB_NAME, DB_VERSION, adapters)
+      }
 
       await vi.runAllTimersAsync()
 
       // init storage with the first item
       store.set([{id: "1", value: "test1"}])
 
+      await vi.runAllTimersAsync()
+
       store.update(items => [...items, {id: "2", value: "test2"}])
+
+      await vi.runAllTimersAsync()
+
+      vi.advanceTimersToNextFrame()
 
       const itemsPromise = getAll("items")
       await vi.runAllTimersAsync()
@@ -87,8 +86,9 @@ describe("storage", () => {
       const adapters = {
         items: storageAdapters.fromCollectionStore("id", store),
       }
-
-      initStorage(DB_NAME, DB_VERSION, adapters)
+      if (!db) {
+        initStorage(DB_NAME, DB_VERSION, adapters)
+      }
 
       await vi.runAllTimersAsync()
 
@@ -115,7 +115,9 @@ describe("storage", () => {
         events: storageAdapters.fromRepository(repository),
       }
 
-      initStorage(DB_NAME, DB_VERSION, adapters)
+      if (!db) {
+        initStorage(DB_NAME, DB_VERSION, adapters)
+      }
 
       await vi.runAllTimersAsync()
 
@@ -144,7 +146,9 @@ describe("storage", () => {
         relays: storageAdapters.fromTracker(tracker),
       }
 
-      initStorage(DB_NAME, DB_VERSION, adapters)
+      if (!db) {
+        initStorage(DB_NAME, DB_VERSION, adapters)
+      }
       await vi.runAllTimersAsync()
 
       tracker.track("event1", "relay1")
@@ -186,7 +190,9 @@ describe("storage", () => {
         },
       }
 
-      initStorage(DB_NAME, DB_VERSION, adapters)
+      if (!db) {
+        initStorage(DB_NAME, DB_VERSION, adapters)
+      }
 
       await vi.runAllTimersAsync()
 
