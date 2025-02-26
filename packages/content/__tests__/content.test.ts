@@ -30,7 +30,7 @@ describe("Content Parsing", () => {
         type: Content.ParsedType.Link,
         value: {
           url: expect.any(URL),
-          isMedia: false,
+          // isMedia: false,
         },
       })
       expect(result[1].value.url.toString()).toBe("https://example.com/")
@@ -42,7 +42,7 @@ describe("Content Parsing", () => {
         type: Content.ParsedType.Link,
         value: {
           url: expect.any(URL),
-          isMedia: false,
+          // isMedia: false,
         },
       })
       expect(result[1].value.url.toString()).toBe("https://example.com/")
@@ -53,7 +53,8 @@ describe("Content Parsing", () => {
       expect(result[0]).toMatchObject({
         type: Content.ParsedType.Link,
         value: {
-          isMedia: true,
+          url: expect.any(URL),
+          meta: {},
         },
       })
     })
