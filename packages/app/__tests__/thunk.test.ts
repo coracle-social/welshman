@@ -18,7 +18,7 @@ import {
 
 // Mock dependencies
 vi.mock("@welshman/net", () => ({
-  publish: vi.fn(),
+  publish: vi.fn().mockReturnValue({emitter: {on: vi.fn()}}),
   PublishStatus: {
     Pending: "pending",
     Success: "success",
@@ -269,7 +269,7 @@ describe("thunkWorker", async () => {
 
   it("should handle publish failures", async () => {
     const mockSigner = {
-      sign: vi.fn().mockRejectedValue(new Error("Signing failed")),
+      sign: vi.fn().mockRejectedValue("Signing failed"),
     }
     vi.mocked(sessionModule.getSigner).mockReturnValue(mockSigner)
 

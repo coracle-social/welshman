@@ -176,7 +176,7 @@ describe("Target implementations", () => {
       relays.cleanup()
 
       connections.forEach(conn => {
-        expect(conn.off).toHaveBeenCalledWith("receive", onMessage)
+        expect(conn.off).toHaveBeenCalledWith("receive:message", onMessage)
       })
     })
 

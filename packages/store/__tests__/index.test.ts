@@ -219,6 +219,7 @@ describe("Store utilities", () => {
         const [[_, callback]] = mockRepository.on.mock.calls
 
         callback({
+          added: [{id: "2"} as TrustedEvent],
           removed: new Set([mockEvent.id]),
         })
 
