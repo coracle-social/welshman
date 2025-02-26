@@ -42,7 +42,6 @@ export class ConnectionSender {
       if (verb === "CLOSE" && !cxn.state.pendingRequests.has(message[1])) {
         return
       }
-
       cxn.socket.send(message)
     })
   }

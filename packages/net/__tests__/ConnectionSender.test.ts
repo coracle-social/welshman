@@ -12,7 +12,7 @@ describe("ConnectionSender", () => {
   beforeEach(() => {
     vi.useFakeTimers()
     connection = new Connection("wss://test.relay/")
-    connection.socket.send = vi.fn().mockResolvedValue(undefined)
+    connection.socket.send = vi.fn()
     connection.socket.open = vi.fn().mockResolvedValue(undefined)
     connection.socket.status = SocketStatus.Open
     connection.send = vi.fn().mockResolvedValue(undefined)
@@ -28,7 +28,7 @@ describe("ConnectionSender", () => {
     it("should not defer CLOSE messages", async () => {
       // First send a REQ message to set up the pending request
       const reqId = "subscription-id"
-      sender.push([
+      connection.sender.push([
         "REQ",
         reqId,
         {
@@ -37,10 +37,12 @@ describe("ConnectionSender", () => {
       ] as Message)
       const message: Message = ["CLOSE", reqId]
       // there is a setTimeout in the worker, so we need to advance timers
-      vi.advanceTimersByTime(50)
-      sender.push(message)
+      await vi.advanceTimersByTimeAsync(50)
+
+      connection.sender.push(message)
       // there is a setTimeout in the worker, so we need to advance timers
-      vi.advanceTimersByTime(50)
+      await vi.advanceTimersByTimeAsync(150)
+
       expect(connection.socket.send).toHaveBeenCalledWith(message)
     })
 
@@ -96,8 +98,8 @@ describe("ConnectionSender", () => {
     it("should defer REQ messages when too many pending requests", () => {
       connection.socket.status = SocketStatus.Open
       connection.auth.status = AuthStatus.Ok
-      // Set up 8 pending requests
-      for (let i = 0; i < 8; i++) {
+      // Set up 50 pending requests
+      for (let i = 0; i < 50; i++) {
         connection.state.pendingRequests.set(`req${i}`, {
           filters: [],
           sent: Date.now(),
@@ -191,7 +193,7 @@ describe("ConnectionSender", () => {
       ]
 
       messages.forEach(msg => sender.push(msg))
-      vi.advanceTimersByTime(50)
+      await vi.advanceTimersByTimeAsync(50)
 
       const sendCalls = connection.socket.send.mock.calls
       expect(sendCalls.map(call => call[0])).toEqual(messages)
