@@ -186,10 +186,10 @@ thunkWorker.addGlobalHandler((thunk: Thunk) => {
   // Avoid making this function async so multiple publishes can run concurrently
   Promise.resolve().then(async () => {
     const fail = (message: string) => {
-      const status = new Map<string, ThunkStatus>()
+      const status: ThunkStatusByUrl = {}
 
       for (const url of thunk.request.relays) {
-        status.set(url, {status: PublishStatus.Failed, message})
+        status[url] = {status: PublishStatus.Failure, message}
       }
 
       thunk.status.set(status)
@@ -207,7 +207,7 @@ thunkWorker.addGlobalHandler((thunk: Thunk) => {
       try {
         event = await signer.sign(event)
       } catch (e) {
-        return fail(e.toString())
+        return fail(String(e))
       }
     }
 

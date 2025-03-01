@@ -18,14 +18,14 @@ export type StorageAdapter = {
   options: StorageAdapterOptions
 }
 
-export let db: IDBPDatabase
+export let db: IDBPDatabase | undefined
 
 export const dead = withGetter(writable(false))
 
 export const subs: Unsubscriber[] = []
 
 export const getAll = async (name: string) => {
-  const tx = db.transaction(name, "readwrite")
+  const tx = db!.transaction(name, "readwrite")
   const store = tx.objectStore(name)
   const result = await store.getAll()
 
@@ -35,7 +35,7 @@ export const getAll = async (name: string) => {
 }
 
 export const bulkPut = async (name: string, data: any[]) => {
-  const tx = db.transaction(name, "readwrite")
+  const tx = db!.transaction(name, "readwrite")
   const store = tx.objectStore(name)
 
   await Promise.all(
@@ -52,7 +52,7 @@ export const bulkPut = async (name: string, data: any[]) => {
 }
 
 export const bulkDelete = async (name: string, ids: string[]) => {
-  const tx = db.transaction(name, "readwrite")
+  const tx = db!.transaction(name, "readwrite")
   const store = tx.objectStore(name)
 
   await Promise.all(ids.map(id => store.delete(id)))
@@ -139,9 +139,11 @@ export const closeStorage = async () => {
 }
 
 export const clearStorage = async () => {
-  await closeStorage()
-  await deleteDB(db.name)
-  db = undefined // force initStorage to run again
+  if (db) {
+    await closeStorage()
+    await deleteDB(db.name)
+    db = undefined // force initStorage to run again in tests
+  }
 }
 
 const migrate = (data: any[], options: StorageAdapterOptions) =>
