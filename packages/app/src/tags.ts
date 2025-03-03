@@ -97,22 +97,13 @@ export const tagEventForComment = (event: TrustedEvent) => {
   const pubkeyHint = ctx.app.router.FromPubkey(event.pubkey).getUrl()
   const eventHint = ctx.app.router.Event(event).getUrl()
   const address = getAddress(event)
-  const tags = tagEventPubkeys(event)
   const seenRoots = new Set<string>()
+  const tags: string[][] = []
 
-  for (const [raw, ...tag] of event.tags) {
-    const T = raw.toUpperCase()
-    const t = raw.toLowerCase()
-
-    if (!["k", "e", "a", "i", "p"].includes(t)) {
-      continue
-    }
-
-    if (seenRoots.has(T)) {
+  for (const [t, ...tag] of event.tags) {
+    if (["K", "E", "A", "I", "P"].includes(t)) {
       tags.push([t, ...tag])
-    } else {
-      tags.push([T, ...tag])
-      seenRoots.add(T)
+      seenRoots.add(t)
     }
   }
 

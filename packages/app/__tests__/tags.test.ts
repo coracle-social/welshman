@@ -262,10 +262,14 @@ describe("tags", () => {
       }
       const result = tagEventForComment(eventWithMultipleRoots)
 
-      // First root should be uppercase
-      expect(result.some(tag => tag[0] === "E" && tag[1] === id1)).toBe(true)
-      // Subsequent roots should be lowercase
-      expect(result.some(tag => tag[0] === "e" && tag[1] === id2)).toBe(true)
+      expect(result).toEqual([
+        ["K", String(NOTE)],
+        ["P", pubkey, "pubkey-relay-url"],
+        ["E", id, "event-relay-url", pubkey],
+        ["k", String(NOTE)],
+        ["p", pubkey, "pubkey-relay-url"],
+        ["e", id, "event-relay-url", pubkey],
+      ])
     })
 
     it("should handle events with mixed tag types", () => {
@@ -282,18 +286,16 @@ describe("tags", () => {
       }
       const result = tagEventForComment(eventWithMixedTags)
 
-      // Should propagate root tags (e, p, i, a) to uppercase
-      expect(result.some(tag => tag[0] === "E" && tag[1] === id)).toBe(true)
-      expect(result.some(tag => tag[0] === "P" && tag[1] === pubkey1)).toBe(true)
-      expect(result.some(tag => tag[0] === "I" && tag[1] === id1)).toBe(true)
-      expect(result.some(tag => tag[0] === "A" && tag[1] === "some-address")).toBe(true)
-
-      // Should include parent variants in lowercase
-      expect(result.some(tag => tag[0] === "e" && tag[1] === id)).toBe(true)
-      expect(result.some(tag => tag[0] === "p" && tag[1] === pubkey1)).toBe(true)
-
-      // Should not include non-relevant tags
-      expect(result.some(tag => tag[0] === "custom")).toBe(false)
+      expect(result).toEqual([
+        ["K", String(MUTES)],
+        ["P", pubkey, "pubkey-relay-url"],
+        ["E", id, "event-relay-url", pubkey],
+        ["A", getAddress(eventWithMixedTags), "event-relay-url", pubkey],
+        ["k", String(MUTES)],
+        ["p", pubkey, "pubkey-relay-url"],
+        ["e", id, "event-relay-url", pubkey],
+        ["a", getAddress(eventWithMixedTags), "event-relay-url", pubkey],
+      ])
     })
 
     it("should add event metadata tags when no root tags exist", () => {
