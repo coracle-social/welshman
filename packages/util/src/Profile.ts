@@ -26,10 +26,23 @@ export const isPublishedProfile = (profile: Profile): profile is PublishedProfil
   Boolean(profile.event)
 
 export const makeProfile = (profile: Partial<Profile> = {}): Profile => {
-  const address = profile.lud06 || profile.lud16
-  const lnurl = typeof address === "string" ? getLnUrl(address) : null
+  if (typeof profile.lud06 === "string") {
+    const lnurl = getLnUrl(profile.lud06)
 
-  return lnurl ? {lnurl, ...profile} : profile
+    if (lnurl) {
+      profile = {...profile, lnurl}
+    }
+  }
+
+  if (typeof profile.lud16 === "string") {
+    const lnurl = getLnUrl(profile.lud16)
+
+    if (lnurl) {
+      profile = {...profile, lnurl}
+    }
+  }
+
+  return profile
 }
 
 export const readProfile = (event: TrustedEvent): PublishedProfile => ({
