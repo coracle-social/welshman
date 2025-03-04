@@ -1,6 +1,6 @@
 {
   "name": "@welshman/content",
-  "version": "0.0.19",
+  "version": "0.1.0",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of utilities for parsing nostr note content.",
@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@braintree/sanitize-url": "^7.0.2",
-    "@welshman/lib": "~0.0.40",
+    "@welshman/lib": "^0.1.0",
     "nostr-tools": "^2.7.2"
   }
 }

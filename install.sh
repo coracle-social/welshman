@@ -15,7 +15,7 @@ for downstream in $(./get_packages.py); do
   v=$(jq '.dependencies["'$n'"] // empty' $f)
 
   if [[ ! -z $v ]]; then
-    jq '.dependencies["'$n'"]="'~$version'"' $f > $f.tmp
+    jq '.dependencies["'$n'"]="'^$version'"' $f > $f.tmp
     mv $f.tmp $f
     mkdir -p packages/$downstream/node_modules/@welshman
   fi

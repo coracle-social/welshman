@@ -1,6 +1,6 @@
 {
   "name": "@welshman/store",
-  "version": "0.0.16",
+  "version": "0.1.0",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of utilities based on svelte/store for use with welshman",
@@ -26,8 +26,8 @@
     "fix": "gts fix"
   },
   "dependencies": {
-    "@welshman/lib": "~0.0.40",
-    "@welshman/util": "~0.0.59",
+    "@welshman/lib": "^0.1.0",
+    "@welshman/util": "^0.1.0",
     "svelte": "^4.2.18"
   }
 }
