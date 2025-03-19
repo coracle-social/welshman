@@ -421,15 +421,13 @@ export const truncate = (
   // Otherwise, truncate more then necessary so that when the user expands the note
   // they have more than just a tiny bit to look at. Truncating a single word is annoying.
   sizes.every((size, i) => {
-    currentSize += size
-
     if (currentSize > minLength) {
-      content = content
-        .slice(0, Math.max(1, i)) // do not truncate the first element in profit of an ellipsis
-        .concat({type: ParsedType.Ellipsis, value: "…", raw: ""})
+      content = content.slice(0, i).concat({type: ParsedType.Ellipsis, value: "…", raw: ""})
 
       return false
     }
+
+    currentSize += size
 
     return true
   })
@@ -478,7 +476,7 @@ export class Renderer {
   toString = () => this.value
 
   addText = (value: string) => {
-    const element = document.createElement("div")
+    const element = this.options.createElement("div")
 
     element.innerText = value
 
@@ -505,11 +503,15 @@ export type RenderOptions = {
   entityBase: string
   renderLink: (href: string, display: string) => string
   renderEntity: (entity: string) => string
+  createElement: (tag: string) => any
 }
+
+const createElement = (tag: string) => document.createElement(tag) as any
 
 export const textRenderOptions = {
   newline: "\n",
   entityBase: "",
+  createElement,
   renderLink: (href: string, display: string) => href,
   renderEntity: (entity: string) => entity.slice(0, 16) + "…",
 }
@@ -517,8 +519,9 @@ export const textRenderOptions = {
 export const htmlRenderOptions = {
   newline: "\n",
   entityBase: "https://njump.me/",
-  renderLink: (href: string, display: string) => {
-    const element = document.createElement("a")
+  createElement,
+  renderLink(href: string, display: string) {
+    const element = this.createElement("a")
 
     element.href = sanitizeUrl(href)
     element.target = "_blank"
