@@ -1,15 +1,15 @@
 import {remove} from "@welshman/lib"
 import {normalizeRelayUrl} from "@welshman/util"
-import {ISocket, makeSocket} from "./socket.js"
+import {Socket, makeSocket} from "./socket.js"
 
-export type PoolSubscription = (socket: ISocket) => void
+export type PoolSubscription = (socket: Socket) => void
 
 export type PoolOptions = {
-  makeSocket?: (url: string) => ISocket
+  makeSocket?: (url: string) => Socket
 }
 
 export class Pool {
-  _data = new Map<string, ISocket>()
+  _data = new Map<string, Socket>()
   _subs: PoolSubscription[] = []
 
   constructor(readonly options: PoolOptions) {}
@@ -26,7 +26,7 @@ export class Pool {
     return makeSocket(url)
   }
 
-  get(_url: string): ISocket {
+  get(_url: string): Socket {
     const url = normalizeRelayUrl(_url)
     const oldSocket = this._data.get(url)
 
