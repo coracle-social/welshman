@@ -1,6 +1,7 @@
-import type {SignedEvent} from "@welshman/util"
+import {sleep} from "@welshman/lib"
+import type {SignedEvent, StampedEvent} from "@welshman/util"
 import {makeEvent, CLIENT_AUTH} from "@welshman/util"
-import type {ISocket} from "./socket.js"
+import {Socket, SocketStatus, SocketUnsubscriber} from "./socket.js"
 
 export const makeAuthEvent = (url: string, challenge: string) =>
   makeEvent(CLIENT_AUTH, {
@@ -10,16 +11,139 @@ export const makeAuthEvent = (url: string, challenge: string) =>
     ],
   })
 
+export enum AuthStatus {
+  None = "auth:status:none",
+  Requested = "auth:status:requested",
+  PendingSignature = "auth:status:pending_signature",
+  DeniedSignature = "auth:status:denied_signature",
+  PendingResponse = "auth:status:pending_response",
+  Forbidden = "auth:status:forbidden",
+  Ok = "auth:status:ok",
+}
+
 export type AuthResult = {
   ok: boolean
   reason?: string
 }
 
-export const authenticate = (socket: ISocket, event: SignedEvent) =>
-  new Promise(resolve => {
-    socket.send(["AUTH", event])
+export type AuthManagerOptions = {
+  sign: (event: StampedEvent) => Promise<SignedEvent>
+  eager?: boolean
+}
 
-    socket.onOk(([id, ok = false, reason = ""]) => {
-      if (id === event.id) resolve({ok, reason})
-    })
-  })
+export class AuthManager {
+  challenge: string | undefined
+  request: string | undefined
+  message: string | undefined
+  status = AuthStatus.None
+  _unsubscribers: SocketUnsubscriber[] = []
+
+  constructor(
+    readonly socket: Socket,
+    readonly options: AuthManagerOptions,
+  ) {
+    this._unsubscribers.push(
+      socket.onOk(([id, ok, message]) => {
+        if (id === this.request) {
+          this.message = message
+
+          if (ok) {
+            this.status = AuthStatus.Ok
+          } else {
+            this.status = AuthStatus.Forbidden
+          }
+        }
+      }),
+    )
+
+    this._unsubscribers.push(
+      socket.onAuth(([challenge]) => {
+        this.challenge = challenge
+        this.request = undefined
+        this.message = undefined
+        this.status = AuthStatus.Requested
+
+        if (this.options.eager) {
+          this.respond()
+        }
+      }),
+    )
+
+    this._unsubscribers.push(
+      socket.onStatus(status => {
+        if (status === SocketStatus.Closed) {
+          this.challenge = undefined
+          this.request = undefined
+          this.message = undefined
+          this.status = AuthStatus.None
+        }
+      }),
+    )
+  }
+
+  async waitFor(condition: () => boolean, timeout = 300) {
+    const start = Date.now()
+
+    while (Date.now() - timeout <= start) {
+      if (condition()) {
+        break
+      }
+
+      await sleep(Math.min(100, Math.ceil(timeout / 3)))
+    }
+  }
+
+  async waitForChallenge(timeout = 300) {
+    await this.waitFor(() => Boolean(this.challenge), timeout)
+  }
+
+  async waitForResolution(timeout = 300) {
+    await this.waitFor(
+      () =>
+        [AuthStatus.None, AuthStatus.DeniedSignature, AuthStatus.Forbidden, AuthStatus.Ok].includes(
+          this.status,
+        ),
+      timeout,
+    )
+  }
+
+  async attempt(timeout = 300) {
+    await this.socket.attemptToOpen()
+    await this.waitForChallenge(Math.ceil(timeout / 2))
+
+    if (this.status === AuthStatus.Requested) {
+      await this.respond()
+    }
+
+    await this.waitForResolution(Math.ceil(timeout / 2))
+  }
+
+  async respond() {
+    if (!this.challenge) {
+      throw new Error("Attempted to authenticate with no challenge")
+    }
+
+    if (this.status !== AuthStatus.Requested) {
+      throw new Error(`Attempted to authenticate when auth is already ${this.status}`)
+    }
+
+    this.status = AuthStatus.PendingSignature
+
+    const template = makeAuthEvent(this.socket.url, this.challenge)
+    const event = await this.options.sign(template)
+
+    if (event) {
+      this.request = event.id
+      this.socket.send(["AUTH", event])
+      this.status = AuthStatus.PendingResponse
+    } else {
+      this.status = AuthStatus.DeniedSignature
+    }
+  }
+
+  cleanup() {
+    for (const cb of this._unsubscribers) {
+      cb()
+    }
+  }
+}
