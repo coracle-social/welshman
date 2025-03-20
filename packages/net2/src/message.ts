@@ -1,5 +1,7 @@
 import type {SignedEvent} from "@welshman/util"
 
+// relay -> client
+
 export enum RelayMessageType {
   Auth = "AUTH",
   Event = "EVENT",
@@ -36,3 +38,7 @@ export const isRelayEoseMessage = (m: RelayMessage): m is RelayEoseMessage =>
 
 export const isRelayOkMessage = (m: RelayMessage): m is RelayOkMessage =>
   m[0] === RelayMessageType.Ok
+
+// client -> relay
+
+export type ClientMessage = any[]

@@ -1,11 +1,12 @@
 import WebSocket from "isomorphic-ws"
-import {remove, TaskQueue} from "@welshman/lib"
+import {remove, now, ago, TaskQueue} from "@welshman/lib"
 import type {
   RelayMessage,
   RelayAuthPayload,
   RelayEosePayload,
   RelayEventPayload,
   RelayOkPayload,
+  ClientMessage,
 } from "./message.js"
 import {
   isRelayAuthMessage,
@@ -70,7 +71,9 @@ export const isSocketStatusEvent = (event: SocketEvent): event is SocketStatusEv
 export const isSocketMessageEvent = (event: SocketEvent): event is SocketMessageEvent =>
   event.type === SocketEventType.Message
 
-export type SocketSubscriber = (event: SocketEvent) => void
+export type SocketSendSubscriber = (message: ClientMessage) => void
+
+export type SocketRecvSubscriber = (event: SocketEvent) => void
 
 export type SocketUnsubscriber = () => void
 
@@ -78,8 +81,9 @@ export interface ISocket {
   open(): void
   close(): void
   cleanup(): void
-  send(...message: any[]): void
-  subscribe(cb: SocketSubscriber): SocketUnsubscriber
+  send(message: ClientMessage): void
+  onSend(cb: SocketSendSubscriber): SocketUnsubscriber
+  subscribe(cb: SocketRecvSubscriber): SocketUnsubscriber
   onError(cb: (error: string) => void): SocketUnsubscriber
   onStatus(cb: (status: SocketStatus) => void): SocketUnsubscriber
   onMessage(cb: (message: RelayMessage) => void): SocketUnsubscriber
@@ -92,14 +96,27 @@ export interface ISocket {
 
 export class Socket implements ISocket {
   _ws?: WebSocket
-  _subs: SocketSubscriber[] = []
-  _queue: TaskQueue<SocketEvent>
+  _sendSubs: SocketSendSubscriber[] = []
+  _recvSubs: SocketRecvSubscriber[] = []
+  _sendQueue: TaskQueue<ClientMessage>
+  _recvQueue: TaskQueue<SocketEvent>
 
   constructor(readonly url: string) {
-    this._queue = new TaskQueue<SocketEvent>({
+    this._sendQueue = new TaskQueue<ClientMessage>({
+      batchSize: 50,
+      processItem: (message: ClientMessage) => {
+        this._ws?.send(JSON.stringify(message))
+
+        for (const cb of this._sendSubs) {
+          cb(message)
+        }
+      },
+    })
+
+    this._recvQueue = new TaskQueue<SocketEvent>({
       batchSize: 50,
       processItem: (event: SocketEvent) => {
-        for (const cb of this._subs) {
+        for (const cb of this._recvSubs) {
           cb(event)
         }
       },
@@ -107,12 +124,26 @@ export class Socket implements ISocket {
   }
 
   open = () => {
+    if (this._ws) {
+      throw new Error("Attempted to open a websocket that has not been closed")
+    }
+
     try {
       this._ws = new WebSocket(this.url)
-      this._queue.push(makeSocketStatusEvent(SocketStatus.Opening))
-      this._ws.onopen = () => this._queue.push(makeSocketStatusEvent(SocketStatus.Open))
-      this._ws.onerror = () => this._queue.push(makeSocketStatusEvent(SocketStatus.Error))
-      this._ws.onclose = () => this._queue.push(makeSocketStatusEvent(SocketStatus.Closed))
+      this._recvQueue.push(makeSocketStatusEvent(SocketStatus.Opening))
+
+      this._ws.onopen = () => this._recvQueue.push(makeSocketStatusEvent(SocketStatus.Open))
+
+      this._ws.onerror = () => {
+        this._recvQueue.push(makeSocketStatusEvent(SocketStatus.Error))
+        this._ws = undefined
+      }
+
+      this._ws.onclose = () => {
+        this._recvQueue.push(makeSocketStatusEvent(SocketStatus.Closed))
+        this._ws = undefined
+      }
+
       this._ws.onmessage = (event: any) => {
         const data = event.data as string
 
@@ -120,16 +151,22 @@ export class Socket implements ISocket {
           const message = JSON.parse(data)
 
           if (Array.isArray(message)) {
-            this._queue.push(makeSocketMessageEvent(message as RelayMessage))
+            this._recvQueue.push(makeSocketMessageEvent(message as RelayMessage))
           } else {
-            this._queue.push(makeSocketErrorEvent("Invalid message received"))
+            this._recvQueue.push(makeSocketErrorEvent("Invalid message received"))
           }
         } catch (e) {
-          this._queue.push(makeSocketErrorEvent("Invalid message received"))
+          this._recvQueue.push(makeSocketErrorEvent("Invalid message received"))
         }
       }
     } catch (e) {
-      this._queue.push(makeSocketStatusEvent(SocketStatus.Invalid))
+      this._recvQueue.push(makeSocketStatusEvent(SocketStatus.Invalid))
+    }
+  }
+
+  attemptToOpen = () => {
+    if (!this._ws) {
+      this.open()
     }
   }
 
@@ -140,19 +177,29 @@ export class Socket implements ISocket {
 
   cleanup = () => {
     this.close()
-    this._subs = []
-    this._queue.clear()
+    this._recvSubs = []
+    this._recvQueue.clear()
+    this._sendSubs = []
+    this._sendQueue.clear()
   }
 
-  send = (...message: any[]) => {
-    this._ws?.send(JSON.stringify(message))
+  send = (message: ClientMessage) => {
+    this._sendQueue.push(message)
   }
 
-  subscribe = (cb: SocketSubscriber) => {
-    this._subs.push(cb)
+  onSend = (cb: SocketSendSubscriber) => {
+    this._sendSubs.push(cb)
 
     return () => {
-      this._subs = remove(cb, this._subs)
+      this._sendSubs = remove(cb, this._sendSubs)
+    }
+  }
+
+  subscribe = (cb: SocketRecvSubscriber) => {
+    this._recvSubs.push(cb)
+
+    return () => {
+      this._recvSubs = remove(cb, this._recvSubs)
     }
   }
 
@@ -223,4 +270,56 @@ export class Socket implements ISocket {
       },
     })
   }
+}
+
+export const socketPolicySendWhenOpen = (socket: Socket) => {
+  // Pause sending messages when the socket isn't open
+  const unsubscribe = socket.onStatus(newStatus => {
+    if (newStatus === SocketStatus.Open) {
+      socket._sendQueue.start()
+    } else {
+      socket._sendQueue.stop()
+    }
+  })
+
+  return unsubscribe
+}
+
+export const socketPolicyConnectOnSend = (socket: Socket) => {
+  let lastError = 0
+  let currentStatus = SocketStatus.Closed
+
+  const unsubscribeOnStatus = socket.onStatus(newStatus => {
+    // Keep track of the most recent error
+    if (newStatus === SocketStatus.Error) {
+      lastError = now()
+    }
+
+    // Keep track of the current status
+    currentStatus = newStatus
+  })
+
+  const unsubscribeOnSend = socket.onSend(message => {
+    // When a new message is sent, make sure the socket is open (unless there was a recent error)
+    if (currentStatus === SocketStatus.Closed && now() - lastError < ago(30)) {
+      socket.open()
+    }
+  })
+
+  return () => {
+    unsubscribeOnStatus()
+    unsubscribeOnSend()
+  }
+}
+
+export const defaultSocketPolicies = [socketPolicySendWhenOpen, socketPolicyConnectOnSend]
+
+export const makeSocket = (url: string, policies = defaultSocketPolicies) => {
+  const socket = new Socket(url)
+
+  for (const applyPolicy of defaultSocketPolicies) {
+    applyPolicy(socket)
+  }
+
+  return socket
 }

@@ -7,19 +7,21 @@ export type TaskQueueOptions<Item> = {
 
 export class TaskQueue<Item> {
   items: Item[] = []
+  isPaused = false
   isProcessing = false
 
   constructor(readonly options: TaskQueueOptions<Item>) {}
 
   push(item: Item) {
     this.items.push(item)
-
-    if (!this.isProcessing) {
-      this.processBatch()
-    }
+    this.process()
   }
 
-  async processBatch() {
+  async process() {
+    if (this.isProcessing || this.isPaused) {
+      return
+    }
+
     this.isProcessing = true
 
     for (const item of this.items.splice(0, this.options.batchSize)) {
@@ -30,13 +32,22 @@ export class TaskQueue<Item> {
       }
     }
 
+    this.isProcessing = false
+
     if (this.items.length > 0) {
       await yieldThread()
 
-      this.processBatch()
-    } else {
-      this.isProcessing = false
+      this.process()
     }
+  }
+
+  stop() {
+    this.isPaused = true
+  }
+
+  start() {
+    this.isPaused = false
+    this.process()
   }
 
   clear() {
