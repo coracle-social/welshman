@@ -33,7 +33,6 @@
     "@welshman/lib": "~0.0.40",
     "@welshman/util": "~0.0.59",
     "isomorphic-ws": "^5.0.0",
-    "rxjs": "^7.8.1",
     "ws": "^8.16.0"
   }
 }

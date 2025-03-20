@@ -46,16 +46,18 @@ export type TrustedEvent = HashedEvent & {
   [verifiedSymbol]?: boolean
 }
 
-export type CreateEventOpts = {
+export type MakeEventOpts = {
   content?: string
   tags?: string[][]
   created_at?: number
 }
 
-export const createEvent = (
+export const makeEvent = (
   kind: number,
-  {content = "", tags = [], created_at = now()}: CreateEventOpts = {},
+  {content = "", tags = [], created_at = now()}: MakeEventOpts = {},
 ) => ({kind, content, tags, created_at})
+
+export const createEvent = makeEvent
 
 export const isEventTemplate = (e: EventTemplate): e is EventTemplate =>
   Boolean(typeof e.kind === "number" && Array.isArray(e.tags) && typeof e.content === "string")

@@ -352,6 +352,24 @@ export const displayDomain = (url: string) => displayUrl(first(url.split(/[\/\?]
 export const sleep = (t: number) => new Promise(resolve => setTimeout(resolve, t))
 
 /**
+ * Creates a microtask that yields to other tasks in the event loop
+ * @returns Promise that resolves after yielding
+ */
+export const yieldThread = () => {
+  if (
+    typeof window !== "undefined" &&
+    "scheduler" in window &&
+    "yield" in (window as any).scheduler
+  ) {
+    return (window as any).scheduler.yield()
+  }
+
+  return new Promise<void>(resolve => {
+    setTimeout(resolve, 0)
+  })
+}
+
+/**
  * Concatenates multiple arrays, filtering out null/undefined
  * @param xs - Arrays to concatenate
  * @returns Combined array
