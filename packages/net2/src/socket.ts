@@ -77,24 +77,7 @@ export type SocketRecvSubscriber = (event: SocketEvent) => void
 
 export type SocketUnsubscriber = () => void
 
-export interface ISocket {
-  open(): void
-  close(): void
-  cleanup(): void
-  send(message: ClientMessage): void
-  onSend(cb: SocketSendSubscriber): SocketUnsubscriber
-  subscribe(cb: SocketRecvSubscriber): SocketUnsubscriber
-  onError(cb: (error: string) => void): SocketUnsubscriber
-  onStatus(cb: (status: SocketStatus) => void): SocketUnsubscriber
-  onMessage(cb: (message: RelayMessage) => void): SocketUnsubscriber
-  onAuth(cb: (message: RelayAuthPayload) => void): SocketUnsubscriber
-  onEose(cb: (message: RelayEosePayload) => void): SocketUnsubscriber
-  onEvent(cb: (message: RelayEventPayload) => void): SocketUnsubscriber
-  onOk(cb: (message: RelayOkPayload) => void): SocketUnsubscriber
-  wrap(overrides: Partial<ISocket>): ISocket
-}
-
-export class Socket implements ISocket {
+export class Socket {
   _ws?: WebSocket
   _sendSubs: SocketSendSubscriber[] = []
   _recvSubs: SocketRecvSubscriber[] = []
@@ -259,9 +242,9 @@ export class Socket implements ISocket {
     })
   }
 
-  wrap = (overrides: Partial<ISocket>): ISocket => {
+  wrap = (overrides: Partial<Socket>): Socket => {
     return new Proxy(this, {
-      get: (target, prop: keyof ISocket) => {
+      get: (target, prop: keyof Socket) => {
         if (prop in overrides) {
           return overrides[prop]
         }
