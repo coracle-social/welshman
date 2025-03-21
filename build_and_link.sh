@@ -11,8 +11,8 @@ for downstream in $(./get_packages.py); do
   v=$(jq '.dependencies["'$n'"] // empty' $f)
 
   if [[ ! -z $v ]]; then
-    mkdir -p packages/$downstream/node_modules/@welshman
-    cp -r packages/$upstream/build packages/$downstream/node_modules/@welshman/build
-    cp -r packages/$upstream/build node_modules/@welshman/build
+    mkdir -p packages/$downstream/node_modules/@welshman/$upstream
+    cp -r packages/$upstream/build packages/$downstream/node_modules/@welshman/$upstream > /dev/null 2>&1
+    cp -r packages/$upstream/build node_modules/@welshman/$upstream > /dev/null 2>&1
   fi
 done
