@@ -1,57 +1,61 @@
-import {eq, on, call} from "@welshman/lib"
-import {Relay} from "@welshman/util"
+import EventEmitter from "events"
+import TypedEventEmitter, {EventMap} from "typed-emitter"
+import {call, on} from "@welshman/lib"
+import {Relay, LOCAL_RELAY_URL} from "@welshman/util"
 import {RelayMessage, ClientMessage} from "./message.js"
-import {Socket} from "./socket.js"
+import {Socket, SocketEventType} from "./socket.js"
+
+type TypedEmitter<T extends EventMap> = TypedEventEmitter.default<T>
 
 type Unsubscriber = () => void
 
-const trackUnsubscribers = (all: Unsubscriber[], local: Unsubscriber[]) => {
-  all.push(...local)
-
-  return () => {
-    local.forEach(call)
-
-    for (const f of local) {
-      all.splice(all.findIndex(eq(f)), 1)
-    }
-  }
+export enum AdapterEventType {
+  Receive = "adapter:event:receive",
 }
 
-type RelayMessageSub = (message: RelayMessage) => void
-
-export interface IAdapter {
-  sockets: Socket[]
-  send(message: ClientMessage): void
-  onMessage(cb: RelayMessageSub): Unsubscriber
+export type AdapterEvents = {
+  [AdapterEventType.Receive]: (message: RelayMessage, url: string) => void
 }
 
-export class SocketsAdapter implements IAdapter {
+export abstract class BaseAdapter extends (EventEmitter as new () => TypedEmitter<AdapterEvents>) {
   _unsubscribers: Unsubscriber[] = []
 
-  constructor(readonly sockets: Socket[]) {}
-
-  send(message: ClientMessage) {
-    for (const socket of this.sockets) {
-      socket.send(message)
-    }
-  }
-
-  onMessage(cb: RelayMessageSub) {
-    return trackUnsubscribers(
-      this._unsubscribers,
-      this.sockets.map(s => s.onMessage(cb)),
-    )
-  }
+  abstract sockets: Socket[]
+  abstract send(message: ClientMessage): void
 
   cleanup() {
     this._unsubscribers.splice(0).forEach(call)
   }
 }
 
-export class LocalAdapter {
-  _unsubscribers: Unsubscriber[] = []
+export class SocketsAdapter extends BaseAdapter {
+  constructor(readonly sockets: Socket[]) {
+    super()
 
-  constructor(readonly relay: Relay) {}
+    this._unsubscribers = sockets.map(socket => {
+      return on(socket, SocketEventType.Receive, (message: RelayMessage, url: string) => {
+        this.emit(AdapterEventType.Receive, message, url)
+      })
+    })
+  }
+
+  send(message: ClientMessage) {
+    for (const socket of this.sockets) {
+      socket.send(message)
+    }
+  }
+}
+
+export class LocalAdapter extends BaseAdapter {
+  constructor(readonly relay: Relay) {
+    super()
+
+    this._unsubscribers = [
+      on(relay, "*", (...message: RelayMessage) => {
+        this.emit(AdapterEventType.Receive, message, LOCAL_RELAY_URL)
+      }),
+    ]
+  }
 
   get sockets() {
     return []
@@ -62,22 +66,18 @@ export class LocalAdapter {
 
     this.relay.send(type, ...rest)
   }
-
-  onMessage(cb: RelayMessageSub) {
-    return trackUnsubscribers(this._unsubscribers, [
-      on(this.relay, "*", (...args: any[]) => cb(args)),
-    ])
-  }
-
-  cleanup() {
-    this._unsubscribers.splice(0).forEach(call)
-  }
 }
 
-export class MultiAdapter {
-  _unsubscribers: Unsubscriber[] = []
+export class MultiAdapter extends BaseAdapter {
+  constructor(readonly adapters: BaseAdapter[]) {
+    super()
 
-  constructor(readonly adapters: IAdapter[]) {}
+    this._unsubscribers = adapters.map(adapter => {
+      return on(adapter, AdapterEventType.Receive, (message: RelayMessage, url: string) => {
+        this.emit(AdapterEventType.Receive, message, url)
+      })
+    })
+  }
 
   get sockets() {
     return this.adapters.flatMap(t => t.sockets)
@@ -87,16 +87,5 @@ export class MultiAdapter {
     for (const adapter of this.adapters) {
       adapter.send(message)
     }
-  }
-
-  onMessage(cb: RelayMessageSub) {
-    return trackUnsubscribers(
-      this._unsubscribers,
-      this.adapters.map(a => a.onMessage(cb)),
-    )
-  }
-
-  cleanup() {
-    this._unsubscribers.splice(0).forEach(call)
   }
 }

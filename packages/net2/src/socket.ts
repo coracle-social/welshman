@@ -1,6 +1,10 @@
 import WebSocket from "isomorphic-ws"
-import {remove, now, ago, TaskQueue} from "@welshman/lib"
+import EventEmitter from "events"
+import TypedEventEmitter, {EventMap} from "typed-emitter"
+import {on, now, ago, TaskQueue} from "@welshman/lib"
 import type {RelayMessage, ClientMessage} from "./message.js"
+
+type TypedEmitter<T extends EventMap> = TypedEventEmitter.default<T>
 
 export enum SocketStatus {
   Open = "socket:status:open",
@@ -14,81 +18,39 @@ export enum SocketStatus {
 export enum SocketEventType {
   Error = "socket:event:error",
   Status = "socket:event:status",
-  Message = "socket:event:message",
+  Send = "socket:event:send",
+  Receive = "socket:event:receive",
 }
 
-export type SocketErrorEvent = {
-  type: SocketEventType.Error
-  error: string
+export type SocketEvents = {
+  [SocketEventType.Error]: (error: string, url: string) => void
+  [SocketEventType.Status]: (status: SocketStatus, url: string) => void
+  [SocketEventType.Send]: (message: ClientMessage, url: string) => void
+  [SocketEventType.Receive]: (message: RelayMessage, url: string) => void
 }
-
-export type SocketStatusEvent = {
-  type: SocketEventType.Status
-  status: SocketStatus
-}
-
-export type SocketMessageEvent = {
-  type: SocketEventType.Message
-  message: RelayMessage
-}
-
-export type SocketEvent = SocketErrorEvent | SocketStatusEvent | SocketMessageEvent
-
-export const makeSocketErrorEvent = (error: string): SocketErrorEvent => ({
-  type: SocketEventType.Error,
-  error,
-})
-
-export const makeSocketStatusEvent = (status: SocketStatus): SocketStatusEvent => ({
-  type: SocketEventType.Status,
-  status,
-})
-
-export const makeSocketMessageEvent = (message: RelayMessage): SocketMessageEvent => ({
-  type: SocketEventType.Message,
-  message,
-})
-
-export const isSocketErrorEvent = (event: SocketEvent): event is SocketErrorEvent =>
-  event.type === SocketEventType.Error
-
-export const isSocketStatusEvent = (event: SocketEvent): event is SocketStatusEvent =>
-  event.type === SocketEventType.Status
-
-export const isSocketMessageEvent = (event: SocketEvent): event is SocketMessageEvent =>
-  event.type === SocketEventType.Message
-
-export type SocketSendSubscriber = (message: ClientMessage) => void
-
-export type SocketRecvSubscriber = (event: SocketEvent) => void
 
 export type SocketUnsubscriber = () => void
 
-export class Socket {
+export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents>) {
   _ws?: WebSocket
-  _sendSubs: SocketSendSubscriber[] = []
-  _recvSubs: SocketRecvSubscriber[] = []
   _sendQueue: TaskQueue<ClientMessage>
-  _recvQueue: TaskQueue<SocketEvent>
+  _recvQueue: TaskQueue<RelayMessage>
 
   constructor(readonly url: string) {
+    super()
+
     this._sendQueue = new TaskQueue<ClientMessage>({
       batchSize: 50,
       processItem: (message: ClientMessage) => {
         this._ws?.send(JSON.stringify(message))
-
-        for (const cb of this._sendSubs) {
-          cb(message)
-        }
+        this.emit(SocketEventType.Send, message, this.url)
       },
     })
 
-    this._recvQueue = new TaskQueue<SocketEvent>({
+    this._recvQueue = new TaskQueue<RelayMessage>({
       batchSize: 50,
-      processItem: (event: SocketEvent) => {
-        for (const cb of this._recvSubs) {
-          cb(event)
-        }
+      processItem: (message: RelayMessage) => {
+        this.emit(SocketEventType.Receive, message, this.url)
       },
     })
   }
@@ -100,17 +62,17 @@ export class Socket {
 
     try {
       this._ws = new WebSocket(this.url)
-      this._recvQueue.push(makeSocketStatusEvent(SocketStatus.Opening))
+      this.emit(SocketEventType.Status, SocketStatus.Opening, this.url)
 
-      this._ws.onopen = () => this._recvQueue.push(makeSocketStatusEvent(SocketStatus.Open))
+      this._ws.onopen = () => this.emit(SocketEventType.Status, SocketStatus.Open, this.url)
 
       this._ws.onerror = () => {
-        this._recvQueue.push(makeSocketStatusEvent(SocketStatus.Error))
+        this.emit(SocketEventType.Status, SocketStatus.Error, this.url)
         this._ws = undefined
       }
 
       this._ws.onclose = () => {
-        this._recvQueue.push(makeSocketStatusEvent(SocketStatus.Closed))
+        this.emit(SocketEventType.Status, SocketStatus.Closed, this.url)
         this._ws = undefined
       }
 
@@ -121,16 +83,16 @@ export class Socket {
           const message = JSON.parse(data)
 
           if (Array.isArray(message)) {
-            this._recvQueue.push(makeSocketMessageEvent(message as RelayMessage))
+            this._recvQueue.push(message as RelayMessage)
           } else {
-            this._recvQueue.push(makeSocketErrorEvent("Invalid message received"))
+            this.emit(SocketEventType.Error, "Invalid message received", this.url)
           }
         } catch (e) {
-          this._recvQueue.push(makeSocketErrorEvent("Invalid message received"))
+          this.emit(SocketEventType.Error, "Invalid message received", this.url)
         }
       }
     } catch (e) {
-      this._recvQueue.push(makeSocketStatusEvent(SocketStatus.Invalid))
+      this.emit(SocketEventType.Status, SocketStatus.Invalid, this.url)
     }
   }
 
@@ -147,60 +109,18 @@ export class Socket {
 
   cleanup = () => {
     this.close()
-    this._recvSubs = []
     this._recvQueue.clear()
-    this._sendSubs = []
     this._sendQueue.clear()
   }
 
   send = (message: ClientMessage) => {
     this._sendQueue.push(message)
   }
-
-  onSend = (cb: SocketSendSubscriber) => {
-    this._sendSubs.push(cb)
-
-    return () => {
-      this._sendSubs = remove(cb, this._sendSubs)
-    }
-  }
-
-  subscribe = (cb: SocketRecvSubscriber) => {
-    this._recvSubs.push(cb)
-
-    return () => {
-      this._recvSubs = remove(cb, this._recvSubs)
-    }
-  }
-
-  onError = (cb: (error: string) => void) => {
-    return this.subscribe((event: SocketEvent) => {
-      if (isSocketErrorEvent(event)) {
-        cb(event.error)
-      }
-    })
-  }
-
-  onStatus = (cb: (status: SocketStatus) => void) => {
-    return this.subscribe((event: SocketEvent) => {
-      if (isSocketStatusEvent(event)) {
-        cb(event.status)
-      }
-    })
-  }
-
-  onMessage = (cb: (message: RelayMessage) => void) => {
-    return this.subscribe((event: SocketEvent) => {
-      if (isSocketMessageEvent(event)) {
-        cb(event.message)
-      }
-    })
-  }
 }
 
 export const socketPolicySendWhenOpen = (socket: Socket) => {
   // Pause sending messages when the socket isn't open
-  const unsubscribe = socket.onStatus(newStatus => {
+  const unsubscribe = on(socket, SocketEventType.Status, newStatus => {
     if (newStatus === SocketStatus.Open) {
       socket._sendQueue.start()
     } else {
@@ -215,7 +135,7 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
   let lastError = 0
   let currentStatus = SocketStatus.Closed
 
-  const unsubscribeOnStatus = socket.onStatus(newStatus => {
+  const unsubscribeOnStatus = on(socket, SocketEventType.Status, (newStatus: SocketStatus) => {
     // Keep track of the most recent error
     if (newStatus === SocketStatus.Error) {
       lastError = now()
@@ -225,7 +145,7 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
     currentStatus = newStatus
   })
 
-  const unsubscribeOnSend = socket.onSend(message => {
+  const unsubscribeOnSend = on(socket, SocketEventType.Send, (message: ClientMessage) => {
     // When a new message is sent, make sure the socket is open (unless there was a recent error)
     if (currentStatus === SocketStatus.Closed && now() - lastError < ago(30)) {
       socket.open()
