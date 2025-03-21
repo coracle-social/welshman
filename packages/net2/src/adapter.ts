@@ -3,9 +3,7 @@ import {call, on} from "@welshman/lib"
 import {Relay, LOCAL_RELAY_URL} from "@welshman/util"
 import {RelayMessage, ClientMessage} from "./message.js"
 import {Socket, SocketEventType} from "./socket.js"
-import {TypedEmitter} from "./util.js"
-
-type Unsubscriber = () => void
+import {TypedEmitter, Unsubscriber} from "./util.js"
 
 export enum AdapterEventType {
   Receive = "adapter:event:receive",
@@ -18,6 +16,7 @@ export type AdapterEvents = {
 export abstract class AbstractAdapter extends (EventEmitter as new () => TypedEmitter<AdapterEvents>) {
   _unsubscribers: Unsubscriber[] = []
 
+  abstract urls: string[]
   abstract sockets: Socket[]
   abstract send(message: ClientMessage): void
 
@@ -37,6 +36,10 @@ export class SocketsAdapter extends AbstractAdapter {
     })
   }
 
+  get urls() {
+    return this.sockets.map(socket => socket.url)
+  }
+
   send(message: ClientMessage) {
     for (const socket of this.sockets) {
       socket.send(message)
@@ -53,6 +56,10 @@ export class LocalAdapter extends AbstractAdapter {
         this.emit(AdapterEventType.Receive, message, LOCAL_RELAY_URL)
       }),
     ]
+  }
+
+  get urls() {
+    return [LOCAL_RELAY_URL]
   }
 
   get sockets() {
@@ -75,6 +82,10 @@ export class MultiAdapter extends AbstractAdapter {
         this.emit(AdapterEventType.Receive, message, url)
       })
     })
+  }
+
+  get urls() {
+    return this.adapters.flatMap(t => t.urls)
   }
 
   get sockets() {

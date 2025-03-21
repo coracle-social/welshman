@@ -3,8 +3,8 @@ import {on, call, sleep} from "@welshman/lib"
 import type {SignedEvent, StampedEvent} from "@welshman/util"
 import {makeEvent, CLIENT_AUTH} from "@welshman/util"
 import {isRelayAuth, isClientAuth, isRelayOk, RelayMessage} from "./message.js"
-import {Socket, SocketStatus, SocketEventType, SocketUnsubscriber} from "./socket.js"
-import {TypedEmitter} from "./util.js"
+import {Socket, SocketStatus, SocketEventType} from "./socket.js"
+import {TypedEmitter, Unsubscriber} from "./util.js"
 
 export const makeAuthEvent = (url: string, challenge: string) =>
   makeEvent(CLIENT_AUTH, {
@@ -42,7 +42,7 @@ export class AuthState extends (EventEmitter as new () => TypedEmitter<AuthState
   request: string | undefined
   details: string | undefined
   status = AuthStatus.None
-  _unsubscribers: SocketUnsubscriber[] = []
+  _unsubscribers: Unsubscriber[] = []
 
   constructor(readonly socket: Socket) {
     super()

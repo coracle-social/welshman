@@ -29,8 +29,6 @@ export type SocketEvents = {
   [SocketEventType.Receive]: (message: RelayMessage, url: string) => void
 }
 
-export type SocketUnsubscriber = () => void
-
 export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents>) {
   _ws?: WebSocket
   _sendQueue: TaskQueue<ClientMessage>
