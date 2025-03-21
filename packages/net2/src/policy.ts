@@ -76,7 +76,7 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
   let lastError = 0
   let currentStatus = SocketStatus.Closed
 
-  const unsubscribeOnStatus = on(socket, SocketEventType.Status, (newStatus: SocketStatus) => {
+  const unsubscribeStatus = on(socket, SocketEventType.Status, (newStatus: SocketStatus) => {
     // Keep track of the most recent error
     if (newStatus === SocketStatus.Error) {
       lastError = now()
@@ -86,7 +86,7 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
     currentStatus = newStatus
   })
 
-  const unsubscribeOnSend = on(socket, SocketEventType.Send, (message: ClientMessage) => {
+  const unsubscribeSend = on(socket, SocketEventType.Send, (message: ClientMessage) => {
     // When a new message is sent, make sure the socket is open (unless there was a recent error)
     if (currentStatus === SocketStatus.Closed && now() - lastError < ago(30)) {
       socket.open()
@@ -94,8 +94,32 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
   })
 
   return () => {
-    unsubscribeOnStatus()
-    unsubscribeOnSend()
+    unsubscribeStatus()
+    unsubscribeSend()
+  }
+}
+
+export const socketPolicyCloseOnTimeout = (socket: Socket) => {
+  let lastActivity = 0
+
+  const unsubscribeSend = on(socket, SocketEventType.Send, (message: ClientMessage) => {
+    lastActivity = now()
+  })
+
+  const unsubscribeReceive = on(socket, SocketEventType.Receive, (message: ClientMessage) => {
+    lastActivity = now()
+  })
+
+  const interval = setInterval(() => {
+    if (lastActivity < ago(30)) {
+      socket.close()
+    }
+  }, 3000)
+
+  return () => {
+    unsubscribeSend()
+    unsubscribeReceive()
+    clearInterval(interval)
   }
 }
 
@@ -103,4 +127,5 @@ export const defaultSocketPolicies = [
   socketPolicySendWhenOpen,
   socketPolicyDeferOnAuth,
   socketPolicyConnectOnSend,
+  socketPolicyCloseOnTimeout,
 ]
