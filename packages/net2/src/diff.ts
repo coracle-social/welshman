@@ -1,7 +1,7 @@
 import {EventEmitter} from "events"
 import {on, randomId} from "@welshman/lib"
 import {SignedEvent, Filter} from "@welshman/util"
-import {RelayMessage, isRelayNegErrMessage, isRelayNegMsgMessage} from "./message.js"
+import {RelayMessage, isRelayNegErr, isRelayNegMsg} from "./message.js"
 import {AbstractAdapter, AdapterEventType} from "./adapter.js"
 import {Negentropy, NegentropyStorageVector} from "./negentropy.js"
 import {TypedEmitter} from "./util.js"
@@ -43,7 +43,7 @@ export class Diff extends (EventEmitter as new () => TypedEmitter<DiffEvents>) {
       adapter,
       AdapterEventType.Receive,
       async (message: RelayMessage, url: string) => {
-        if (isRelayNegMsgMessage(message)) {
+        if (isRelayNegMsg(message)) {
           const [_, negid, msg] = message
 
           if (negid === this._id) {
@@ -59,7 +59,7 @@ export class Diff extends (EventEmitter as new () => TypedEmitter<DiffEvents>) {
           }
         }
 
-        if (isRelayNegErrMessage(message)) {
+        if (isRelayNegErr(message)) {
           const [_, negid, msg] = message
 
           if (negid === this._id) {

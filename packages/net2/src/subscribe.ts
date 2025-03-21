@@ -1,7 +1,7 @@
 import {EventEmitter} from "events"
 import {on, randomId} from "@welshman/lib"
 import {Filter, SignedEvent} from "@welshman/util"
-import {RelayMessage, isRelayEventMessage, isRelayEoseMessage} from "./message.js"
+import {RelayMessage, isRelayEvent, isRelayEose} from "./message.js"
 import {AbstractAdapter, AdapterEventType} from "./adapter.js"
 import {TypedEmitter} from "./util.js"
 
@@ -30,7 +30,7 @@ export class Subscribe extends (EventEmitter as new () => TypedEmitter<Subscribe
       adapter,
       AdapterEventType.Receive,
       (message: RelayMessage, url: string) => {
-        if (isRelayEventMessage(message)) {
+        if (isRelayEvent(message)) {
           const [_, id, event] = message
 
           if (id === this._id) {
@@ -38,7 +38,7 @@ export class Subscribe extends (EventEmitter as new () => TypedEmitter<Subscribe
           }
         }
 
-        if (isRelayEoseMessage(message)) {
+        if (isRelayEose(message)) {
           const [_, id] = message
 
           if (id === this._id) {
