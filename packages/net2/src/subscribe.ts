@@ -1,7 +1,7 @@
 import {EventEmitter} from "events"
-import {on, call, randomId} from "@welshman/lib"
+import {on, call, randomId, yieldThread} from "@welshman/lib"
 import {Filter, matchFilter, SignedEvent} from "@welshman/util"
-import {RelayMessage, isRelayEvent, isRelayEose} from "./message.js"
+import {RelayMessage, ClientMessageType, isRelayEvent, isRelayEose} from "./message.js"
 import {AbstractAdapter, AdapterEventType} from "./adapter.js"
 import {SocketEventType, SocketStatus} from "./socket.js"
 import {TypedEmitter, Unsubscriber} from "./util.js"
@@ -40,26 +40,28 @@ export type SubscriptionOptions = {
 export class Subscription extends (EventEmitter as new () => TypedEmitter<SubscriptionEvents>) {
   _id = `REQ-${randomId().slice(0, 8)}`
   _unsubscribers: Unsubscriber[] = []
+  _done = new Set<string>()
   _closed = false
 
   constructor(readonly options: SubscriptionOptions) {
     super()
 
-    const done = new Set<string>()
-    const urls = new Set(options.adapter.urls)
+    // Get our unique urls so we know when we're done
+    const urls = new Set(this.options.adapter.urls)
 
+    // Listen for event/eose messages from the adapter
     this._unsubscribers.push(
-      on(options.adapter, AdapterEventType.Receive, (message: RelayMessage, url: string) => {
+      on(this.options.adapter, AdapterEventType.Receive, (message: RelayMessage, url: string) => {
         if (isRelayEvent(message)) {
           const [_, id, event] = message
 
           if (id !== this._id) return
 
-          if (options.tracker?.track(event.id, url)) {
+          if (this.options.tracker?.track(event.id, url)) {
             this.emit(SubscriptionEventType.Duplicate, event, url)
-          } else if (options.verifyEvent?.(event) === false) {
+          } else if (this.options.verifyEvent?.(event) === false) {
             this.emit(SubscriptionEventType.Invalid, event, url)
-          } else if (!matchFilter(options.filter, event)) {
+          } else if (!matchFilter(this.options.filter, event)) {
             this.emit(SubscriptionEventType.Filtered, event, url)
           } else {
             this.emit(SubscriptionEventType.Event, event, url)
@@ -72,9 +74,9 @@ export class Subscription extends (EventEmitter as new () => TypedEmitter<Subscr
           if (id === this._id) {
             this.emit(SubscriptionEventType.Eose, url)
 
-            done.add(url)
+            this._done.add(url)
 
-            if (options.autoClose && done.size === urls.size) {
+            if (this.options.autoClose && this._done.size === urls.size) {
               this.close()
             }
           }
@@ -82,15 +84,16 @@ export class Subscription extends (EventEmitter as new () => TypedEmitter<Subscr
       }),
     )
 
-    for (const socket of options.adapter.sockets) {
+    // Listen to disconnects from any sockets
+    for (const socket of this.options.adapter.sockets) {
       this._unsubscribers.push(
         on(socket, SocketEventType.Status, (status: SocketStatus) => {
           if (![SocketStatus.Open, SocketStatus.Opening].includes(status)) {
             this.emit(SubscriptionEventType.Disconnect, socket.url)
 
-            done.add(socket.url)
+            this._done.add(socket.url)
 
-            if (options.autoClose && done.size === urls.size) {
+            if (this.options.autoClose && this._done.size === urls.size) {
               this.close()
             }
           }
@@ -98,17 +101,25 @@ export class Subscription extends (EventEmitter as new () => TypedEmitter<Subscr
       )
     }
 
-    if (options.timeout) {
-      setTimeout(() => this.close(), options.timeout)
-    }
-
-    if (options.events) {
-      for (const [k, listener] of Object.entries(options.events)) {
+    // Register listeners
+    if (this.options.events) {
+      for (const [k, listener] of Object.entries(this.options.events)) {
         this.on(k as keyof SubscriptionEvents, listener)
       }
     }
 
-    options.adapter.send(["REQ", this._id, options.filter])
+    // Autostart asynchronously so the caller can set up listeners
+    yieldThread().then(this.open)
+  }
+
+  open = () => {
+    // Timeout our subscription
+    if (this.options.timeout) {
+      setTimeout(() => this.close(), this.options.timeout)
+    }
+
+    // Send our request
+    this.options.adapter.send([ClientMessageType.Req, this._id, this.options.filter])
   }
 
   close() {
@@ -116,6 +127,7 @@ export class Subscription extends (EventEmitter as new () => TypedEmitter<Subscr
 
     this.options.adapter.send(["CLOSE", this._id])
     this.emit(SubscriptionEventType.Close)
+    this.options.adapter.cleanup()
     this.removeAllListeners()
     this._unsubscribers.map(call)
     this._closed = true

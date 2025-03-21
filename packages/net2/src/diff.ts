@@ -1,7 +1,13 @@
 import {EventEmitter} from "events"
 import {on, randomId} from "@welshman/lib"
 import {SignedEvent, Filter} from "@welshman/util"
-import {RelayMessage, isRelayNegErr, isRelayNegMsg} from "./message.js"
+import {
+  RelayMessage,
+  isRelayNegErr,
+  isRelayNegMsg,
+  RelayMessageType,
+  ClientMessageType,
+} from "./message.js"
 import {AbstractAdapter, AdapterEventType} from "./adapter.js"
 import {Negentropy, NegentropyStorageVector} from "./negentropy.js"
 import {TypedEmitter} from "./util.js"
@@ -52,7 +58,7 @@ export class Diff extends (EventEmitter as new () => TypedEmitter<DiffEvents>) {
             this.emit(DiffEventType.Message, {have, need}, url)
 
             if (newMsg) {
-              adapter.send(["NEG-MSG", this._id, newMsg])
+              adapter.send([RelayMessageType.NegMsg, this._id, newMsg])
             } else {
               this.close()
             }
@@ -70,17 +76,17 @@ export class Diff extends (EventEmitter as new () => TypedEmitter<DiffEvents>) {
     )
 
     neg.initiate().then((msg: string) => {
-      adapter.send(["NEG-OPEN", this._id, filter, msg])
+      adapter.send([ClientMessageType.NegOpen, this._id, filter, msg])
     })
   }
 
   close() {
     if (this._closed) return
 
-    this.adapter.send(["NEG-CLOSE", this._id])
+    this.adapter.send([ClientMessageType.NegClose, this._id])
     this.emit(DiffEventType.Close)
+    this.removeAllListeners()
     this._unsubscriber()
-
     this._closed = true
   }
 }
