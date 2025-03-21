@@ -1,4 +1,4 @@
-import type {SignedEvent} from "@welshman/util"
+import type {SignedEvent, Filter} from "@welshman/util"
 
 // relay -> client
 
@@ -53,35 +53,51 @@ export const isRelayOk = (m: RelayMessage): m is RelayOk => m[0] === RelayMessag
 
 export enum ClientMessageType {
   Auth = "AUTH",
+  Close = "CLOSE",
   Event = "EVENT",
   NegClose = "NEG-CLOSE",
+  NegOpen = "NEG-OPEN",
   Req = "REQ",
 }
 
 export type ClientMessage = any[]
 
-export type ClientAuthPayload = []
+export type ClientAuthPayload = [string]
 
-export type ClientEventPayload = []
+export type ClientClosePayload = [string]
 
-export type ClientNegClosePayload = []
+export type ClientEventPayload = [SignedEvent]
 
-export type ClientReqPayload = []
+export type ClientNegClosePayload = [string]
 
-export type ClientAuth = [ClientMessageType.Req, ...ClientAuthPayload]
+export type ClientNegOpenPayload = [string, Filter, string]
 
-export type ClientEvent = [ClientMessageType.Req, ...ClientEventPayload]
+export type ClientReqPayload = [string, Filter]
 
-export type ClientNegClose = [ClientMessageType.Req, ...ClientNegClosePayload]
+export type ClientAuth = [ClientMessageType.Auth, ...ClientAuthPayload]
+
+export type ClientClose = [ClientMessageType.Close, ...ClientClosePayload]
+
+export type ClientEvent = [ClientMessageType.Event, ...ClientEventPayload]
+
+export type ClientNegClose = [ClientMessageType.NegClose, ...ClientNegClosePayload]
+
+export type ClientNegOpen = [ClientMessageType.NegOpen, ...ClientNegOpenPayload]
 
 export type ClientReq = [ClientMessageType.Req, ...ClientReqPayload]
 
 export const isClientAuth = (m: ClientMessage): m is ClientAuth => m[0] === ClientMessageType.Auth
+
+export const isClientClose = (m: ClientMessage): m is ClientClose =>
+  m[0] === ClientMessageType.Close
 
 export const isClientEvent = (m: ClientMessage): m is ClientEvent =>
   m[0] === ClientMessageType.Event
 
 export const isClientNegClose = (m: ClientMessage): m is ClientNegClose =>
   m[0] === ClientMessageType.NegClose
+
+export const isClientNegOpen = (m: ClientMessage): m is ClientNegOpen =>
+  m[0] === ClientMessageType.NegOpen
 
 export const isClientReq = (m: ClientMessage): m is ClientReq => m[0] === ClientMessageType.Req

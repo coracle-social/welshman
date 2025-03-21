@@ -1,4 +1,4 @@
-import {yieldThread} from "./Tools.js"
+import {remove, yieldThread} from "./Tools.js"
 
 export type TaskQueueOptions<Item> = {
   batchSize: number
@@ -17,12 +17,18 @@ export class TaskQueue<Item> {
     this.process()
   }
 
+  remove(item: Item) {
+    this.items = remove(item, this.items)
+  }
+
   async process() {
-    if (this.isProcessing || this.isPaused) {
+    if (this.isProcessing || this.isPaused || this.items.length == 0) {
       return
     }
 
     this.isProcessing = true
+
+    await yieldThread()
 
     for (const item of this.items.splice(0, this.options.batchSize)) {
       try {
@@ -35,8 +41,6 @@ export class TaskQueue<Item> {
     this.isProcessing = false
 
     if (this.items.length > 0) {
-      await yieldThread()
-
       this.process()
     }
   }

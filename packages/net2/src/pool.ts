@@ -1,6 +1,17 @@
 import {remove} from "@welshman/lib"
 import {normalizeRelayUrl} from "@welshman/util"
-import {Socket, makeSocket} from "./socket.js"
+import {Socket} from "./socket.js"
+import {defaultSocketPolicies} from "./policy.js"
+
+export const makeSocket = (url: string, policies = defaultSocketPolicies) => {
+  const socket = new Socket(url)
+
+  for (const applyPolicy of defaultSocketPolicies) {
+    applyPolicy(socket)
+  }
+
+  return socket
+}
 
 export type PoolSubscription = (socket: Socket) => void
 

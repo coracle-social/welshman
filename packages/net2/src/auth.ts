@@ -1,8 +1,10 @@
-import {on, sleep} from "@welshman/lib"
+import EventEmitter from "events"
+import {on, call, sleep} from "@welshman/lib"
 import type {SignedEvent, StampedEvent} from "@welshman/util"
 import {makeEvent, CLIENT_AUTH} from "@welshman/util"
-import {isRelayAuth, isRelayOk, RelayMessage} from "./message.js"
+import {isRelayAuth, isClientAuth, isRelayOk, RelayMessage} from "./message.js"
 import {Socket, SocketStatus, SocketEventType, SocketUnsubscriber} from "./socket.js"
+import {TypedEmitter} from "./util.js"
 
 export const makeAuthEvent = (url: string, challenge: string) =>
   makeEvent(CLIENT_AUTH, {
@@ -27,22 +29,24 @@ export type AuthResult = {
   reason?: string
 }
 
-export type AuthManagerOptions = {
-  sign: (event: StampedEvent) => Promise<SignedEvent>
-  eager?: boolean
+export enum AuthStateEventType {
+  Status = "auth:state:event:status",
 }
 
-export class AuthManager {
+export type AuthStateEvents = {
+  [AuthStateEventType.Status]: (status: AuthStatus) => void
+}
+
+export class AuthState extends (EventEmitter as new () => TypedEmitter<AuthStateEvents>) {
   challenge: string | undefined
   request: string | undefined
   details: string | undefined
   status = AuthStatus.None
   _unsubscribers: SocketUnsubscriber[] = []
 
-  constructor(
-    readonly socket: Socket,
-    readonly options: AuthManagerOptions,
-  ) {
+  constructor(readonly socket: Socket) {
+    super()
+
     this._unsubscribers.push(
       on(socket, SocketEventType.Receive, (message: RelayMessage) => {
         if (isRelayOk(message)) {
@@ -52,9 +56,9 @@ export class AuthManager {
             this.details = details
 
             if (ok) {
-              this.status = AuthStatus.Ok
+              this.setStatus(AuthStatus.Ok)
             } else {
-              this.status = AuthStatus.Forbidden
+              this.setStatus(AuthStatus.Forbidden)
             }
           }
         }
@@ -65,11 +69,15 @@ export class AuthManager {
           this.challenge = challenge
           this.request = undefined
           this.details = undefined
-          this.status = AuthStatus.Requested
+          this.setStatus(AuthStatus.Requested)
+        }
+      }),
+    )
 
-          if (this.options.eager) {
-            this.respond()
-          }
+    this._unsubscribers.push(
+      on(socket, SocketEventType.Enqueue, (message: RelayMessage) => {
+        if (isClientAuth(message)) {
+          this.setStatus(AuthStatus.PendingResponse)
         }
       }),
     )
@@ -80,10 +88,41 @@ export class AuthManager {
           this.challenge = undefined
           this.request = undefined
           this.details = undefined
-          this.status = AuthStatus.None
+          this.setStatus(AuthStatus.None)
         }
       }),
     )
+  }
+
+  setStatus(status: AuthStatus) {
+    this.status = status
+    this.emit(AuthStateEventType.Status, status)
+  }
+
+  cleanup() {
+    this.removeAllListeners()
+    this._unsubscribers.forEach(call)
+  }
+}
+
+export type AuthManagerOptions = {
+  sign: (event: StampedEvent) => Promise<SignedEvent>
+  eager?: boolean
+}
+
+export class AuthManager {
+  state: AuthState
+
+  constructor(
+    readonly socket: Socket,
+    readonly options: AuthManagerOptions,
+  ) {
+    this.state = new AuthState(socket)
+    this.state.on(AuthStateEventType.Status, (status: string) => {
+      if (status === AuthStatus.Requested && options.eager) {
+        this.respond()
+      }
+    })
   }
 
   async waitFor(condition: () => boolean, timeout = 300) {
@@ -99,14 +138,14 @@ export class AuthManager {
   }
 
   async waitForChallenge(timeout = 300) {
-    await this.waitFor(() => Boolean(this.challenge), timeout)
+    await this.waitFor(() => Boolean(this.state.challenge), timeout)
   }
 
   async waitForResolution(timeout = 300) {
     await this.waitFor(
       () =>
         [AuthStatus.None, AuthStatus.DeniedSignature, AuthStatus.Forbidden, AuthStatus.Ok].includes(
-          this.status,
+          this.state.status,
         ),
       timeout,
     )
@@ -116,7 +155,7 @@ export class AuthManager {
     await this.socket.attemptToOpen()
     await this.waitForChallenge(Math.ceil(timeout / 2))
 
-    if (this.status === AuthStatus.Requested) {
+    if (this.state.status === AuthStatus.Requested) {
       await this.respond()
     }
 
@@ -124,31 +163,28 @@ export class AuthManager {
   }
 
   async respond() {
-    if (!this.challenge) {
+    if (!this.state.challenge) {
       throw new Error("Attempted to authenticate with no challenge")
     }
 
-    if (this.status !== AuthStatus.Requested) {
-      throw new Error(`Attempted to authenticate when auth is already ${this.status}`)
+    if (this.state.status !== AuthStatus.Requested) {
+      throw new Error(`Attempted to authenticate when auth is already ${this.state.status}`)
     }
 
-    this.status = AuthStatus.PendingSignature
+    this.state.setStatus(AuthStatus.PendingSignature)
 
-    const template = makeAuthEvent(this.socket.url, this.challenge)
+    const template = makeAuthEvent(this.socket.url, this.state.challenge)
     const event = await this.options.sign(template)
 
     if (event) {
-      this.request = event.id
+      this.state.request = event.id
       this.socket.send(["AUTH", event])
-      this.status = AuthStatus.PendingResponse
     } else {
-      this.status = AuthStatus.DeniedSignature
+      this.state.setStatus(AuthStatus.DeniedSignature)
     }
   }
 
   cleanup() {
-    for (const cb of this._unsubscribers) {
-      cb()
-    }
+    this.state.cleanup()
   }
 }
