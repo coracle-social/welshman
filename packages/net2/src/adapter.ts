@@ -1,11 +1,9 @@
 import EventEmitter from "events"
-import TypedEventEmitter, {EventMap} from "typed-emitter"
 import {call, on} from "@welshman/lib"
 import {Relay, LOCAL_RELAY_URL} from "@welshman/util"
 import {RelayMessage, ClientMessage} from "./message.js"
 import {Socket, SocketEventType} from "./socket.js"
-
-type TypedEmitter<T extends EventMap> = TypedEventEmitter.default<T>
+import {TypedEmitter} from "./util.js"
 
 type Unsubscriber = () => void
 
@@ -17,7 +15,7 @@ export type AdapterEvents = {
   [AdapterEventType.Receive]: (message: RelayMessage, url: string) => void
 }
 
-export abstract class BaseAdapter extends (EventEmitter as new () => TypedEmitter<AdapterEvents>) {
+export abstract class AbstractAdapter extends (EventEmitter as new () => TypedEmitter<AdapterEvents>) {
   _unsubscribers: Unsubscriber[] = []
 
   abstract sockets: Socket[]
@@ -28,7 +26,7 @@ export abstract class BaseAdapter extends (EventEmitter as new () => TypedEmitte
   }
 }
 
-export class SocketsAdapter extends BaseAdapter {
+export class SocketsAdapter extends AbstractAdapter {
   constructor(readonly sockets: Socket[]) {
     super()
 
@@ -46,7 +44,7 @@ export class SocketsAdapter extends BaseAdapter {
   }
 }
 
-export class LocalAdapter extends BaseAdapter {
+export class LocalAdapter extends AbstractAdapter {
   constructor(readonly relay: Relay) {
     super()
 
@@ -68,8 +66,8 @@ export class LocalAdapter extends BaseAdapter {
   }
 }
 
-export class MultiAdapter extends BaseAdapter {
-  constructor(readonly adapters: BaseAdapter[]) {
+export class MultiAdapter extends AbstractAdapter {
+  constructor(readonly adapters: AbstractAdapter[]) {
     super()
 
     this._unsubscribers = adapters.map(adapter => {
