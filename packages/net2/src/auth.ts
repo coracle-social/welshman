@@ -1,7 +1,7 @@
 import {on, sleep} from "@welshman/lib"
 import type {SignedEvent, StampedEvent} from "@welshman/util"
 import {makeEvent, CLIENT_AUTH} from "@welshman/util"
-import {isRelayAuthMessage, isRelayOkMessage, RelayMessage} from "./message.js"
+import {isRelayAuth, isRelayOk, RelayMessage} from "./message.js"
 import {Socket, SocketStatus, SocketEventType, SocketUnsubscriber} from "./socket.js"
 
 export const makeAuthEvent = (url: string, challenge: string) =>
@@ -45,7 +45,7 @@ export class AuthManager {
   ) {
     this._unsubscribers.push(
       on(socket, SocketEventType.Receive, (message: RelayMessage) => {
-        if (isRelayOkMessage(message)) {
+        if (isRelayOk(message)) {
           const [_, id, ok, details] = message
 
           if (id === this.request) {
@@ -59,7 +59,7 @@ export class AuthManager {
           }
         }
 
-        if (isRelayAuthMessage(message)) {
+        if (isRelayAuth(message)) {
           const [_, challenge] = message
 
           this.challenge = challenge

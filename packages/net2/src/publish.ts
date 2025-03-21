@@ -1,7 +1,7 @@
 import {EventEmitter} from "events"
 import {on} from "@welshman/lib"
 import {SignedEvent} from "@welshman/util"
-import {RelayMessage, isRelayOkMessage} from "./message.js"
+import {RelayMessage, isRelayOk} from "./message.js"
 import {AbstractAdapter, AdapterEventType} from "./adapter.js"
 import {TypedEmitter} from "./util.js"
 
@@ -27,7 +27,7 @@ export class Publish extends (EventEmitter as new () => TypedEmitter<PublishEven
       adapter,
       AdapterEventType.Receive,
       (message: RelayMessage, url: string) => {
-        if (isRelayOkMessage(message)) {
+        if (isRelayOk(message)) {
           const [_, id, ok, detail] = message
 
           if (id === event.id) {

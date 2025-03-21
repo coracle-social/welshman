@@ -11,6 +11,8 @@ export enum RelayMessageType {
   Ok = "OK",
 }
 
+export type RelayMessage = any[]
+
 export type RelayAuthPayload = [string]
 
 export type RelayEosePayload = [string, SignedEvent]
@@ -23,41 +25,31 @@ export type RelayNegMsgPayload = [string, string]
 
 export type RelayOkPayload = [string, boolean, string]
 
-export type RelayAuthMessage = [RelayMessageType.Auth, ...RelayAuthPayload]
+export type RelayAuth = [RelayMessageType.Auth, ...RelayAuthPayload]
 
-export type RelayEoseMessage = [RelayMessageType.Eose, ...RelayEosePayload]
+export type RelayEose = [RelayMessageType.Eose, ...RelayEosePayload]
 
-export type RelayEventMessage = [RelayMessageType.Event, ...RelayEventPayload]
+export type RelayEvent = [RelayMessageType.Event, ...RelayEventPayload]
 
-export type RelayNegErrMessage = [RelayMessageType.NegErr, ...RelayNegErrPayload]
+export type RelayNegErr = [RelayMessageType.NegErr, ...RelayNegErrPayload]
 
-export type RelayNegMsgMessage = [RelayMessageType.NegMsg, ...RelayNegMsgPayload]
+export type RelayNegMsg = [RelayMessageType.NegMsg, ...RelayNegMsgPayload]
 
-export type RelayOkMessage = [RelayMessageType.Ok, ...RelayOkPayload]
+export type RelayOk = [RelayMessageType.Ok, ...RelayOkPayload]
 
-export type RelayMessage = any[]
+export const isRelayAuth = (m: RelayMessage): m is RelayAuth => m[0] === RelayMessageType.Auth
 
-export const isRelayAuthMessage = (m: RelayMessage): m is RelayAuthMessage =>
-  m[0] === RelayMessageType.Auth
+export const isRelayEose = (m: RelayMessage): m is RelayEose => m[0] === RelayMessageType.Eose
 
-export const isRelayEoseMessage = (m: RelayMessage): m is RelayEoseMessage =>
-  m[0] === RelayMessageType.Eose
+export const isRelayEvent = (m: RelayMessage): m is RelayEvent => m[0] === RelayMessageType.Event
 
-export const isRelayEventMessage = (m: RelayMessage): m is RelayEventMessage =>
-  m[0] === RelayMessageType.Event
+export const isRelayNegErr = (m: RelayMessage): m is RelayNegErr => m[0] === RelayMessageType.NegErr
 
-export const isRelayNegErrMessage = (m: RelayMessage): m is RelayNegErrMessage =>
-  m[0] === RelayMessageType.NegErr
+export const isRelayNegMsg = (m: RelayMessage): m is RelayNegMsg => m[0] === RelayMessageType.NegMsg
 
-export const isRelayNegMsgMessage = (m: RelayMessage): m is RelayNegMsgMessage =>
-  m[0] === RelayMessageType.NegMsg
-
-export const isRelayOkMessage = (m: RelayMessage): m is RelayOkMessage =>
-  m[0] === RelayMessageType.Ok
+export const isRelayOk = (m: RelayMessage): m is RelayOk => m[0] === RelayMessageType.Ok
 
 // client -> relay
-
-export type ClientMessage = any[]
 
 export enum ClientMessageType {
   Auth = "AUTH",
@@ -65,3 +57,31 @@ export enum ClientMessageType {
   NegClose = "NEG-CLOSE",
   Req = "REQ",
 }
+
+export type ClientMessage = any[]
+
+export type ClientAuthPayload = []
+
+export type ClientEventPayload = []
+
+export type ClientNegClosePayload = []
+
+export type ClientReqPayload = []
+
+export type ClientAuth = [ClientMessageType.Req, ...ClientAuthPayload]
+
+export type ClientEvent = [ClientMessageType.Req, ...ClientEventPayload]
+
+export type ClientNegClose = [ClientMessageType.Req, ...ClientNegClosePayload]
+
+export type ClientReq = [ClientMessageType.Req, ...ClientReqPayload]
+
+export const isClientAuth = (m: ClientMessage): m is ClientAuth => m[0] === ClientMessageType.Auth
+
+export const isClientEvent = (m: ClientMessage): m is ClientEvent =>
+  m[0] === ClientMessageType.Event
+
+export const isClientNegClose = (m: ClientMessage): m is ClientNegClose =>
+  m[0] === ClientMessageType.NegClose
+
+export const isClientReq = (m: ClientMessage): m is ClientReq => m[0] === ClientMessageType.Req
