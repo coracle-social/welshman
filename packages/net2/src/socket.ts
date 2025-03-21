@@ -1,10 +1,8 @@
 import WebSocket from "isomorphic-ws"
 import EventEmitter from "events"
-import TypedEventEmitter, {EventMap} from "typed-emitter"
 import {on, now, ago, TaskQueue} from "@welshman/lib"
-import type {RelayMessage, ClientMessage} from "./message.js"
-
-type TypedEmitter<T extends EventMap> = TypedEventEmitter.default<T>
+import {RelayMessage, ClientMessage} from "./message.js"
+import {TypedEmitter} from "./util.js"
 
 export enum SocketStatus {
   Open = "socket:status:open",
