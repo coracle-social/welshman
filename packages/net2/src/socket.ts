@@ -1,6 +1,6 @@
 import WebSocket from "isomorphic-ws"
 import EventEmitter from "events"
-import {on, now, ago, TaskQueue} from "@welshman/lib"
+import {TaskQueue} from "@welshman/lib"
 import {RelayMessage, ClientMessage} from "./message.js"
 import {TypedEmitter} from "./util.js"
 
@@ -17,6 +17,7 @@ export enum SocketEventType {
   Error = "socket:event:error",
   Status = "socket:event:status",
   Send = "socket:event:send",
+  Enqueue = "socket:event:enqueue",
   Receive = "socket:event:receive",
 }
 
@@ -24,6 +25,7 @@ export type SocketEvents = {
   [SocketEventType.Error]: (error: string, url: string) => void
   [SocketEventType.Status]: (status: SocketStatus, url: string) => void
   [SocketEventType.Send]: (message: ClientMessage, url: string) => void
+  [SocketEventType.Enqueue]: (message: ClientMessage, url: string) => void
   [SocketEventType.Receive]: (message: RelayMessage, url: string) => void
 }
 
@@ -113,57 +115,6 @@ export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents
 
   send = (message: ClientMessage) => {
     this._sendQueue.push(message)
+    this.emit(SocketEventType.Enqueue, message, this.url)
   }
-}
-
-export const socketPolicySendWhenOpen = (socket: Socket) => {
-  // Pause sending messages when the socket isn't open
-  const unsubscribe = on(socket, SocketEventType.Status, newStatus => {
-    if (newStatus === SocketStatus.Open) {
-      socket._sendQueue.start()
-    } else {
-      socket._sendQueue.stop()
-    }
-  })
-
-  return unsubscribe
-}
-
-export const socketPolicyConnectOnSend = (socket: Socket) => {
-  let lastError = 0
-  let currentStatus = SocketStatus.Closed
-
-  const unsubscribeOnStatus = on(socket, SocketEventType.Status, (newStatus: SocketStatus) => {
-    // Keep track of the most recent error
-    if (newStatus === SocketStatus.Error) {
-      lastError = now()
-    }
-
-    // Keep track of the current status
-    currentStatus = newStatus
-  })
-
-  const unsubscribeOnSend = on(socket, SocketEventType.Send, (message: ClientMessage) => {
-    // When a new message is sent, make sure the socket is open (unless there was a recent error)
-    if (currentStatus === SocketStatus.Closed && now() - lastError < ago(30)) {
-      socket.open()
-    }
-  })
-
-  return () => {
-    unsubscribeOnStatus()
-    unsubscribeOnSend()
-  }
-}
-
-export const defaultSocketPolicies = [socketPolicySendWhenOpen, socketPolicyConnectOnSend]
-
-export const makeSocket = (url: string, policies = defaultSocketPolicies) => {
-  const socket = new Socket(url)
-
-  for (const applyPolicy of defaultSocketPolicies) {
-    applyPolicy(socket)
-  }
-
-  return socket
 }
