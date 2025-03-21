@@ -109,6 +109,7 @@ export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents
     this.close()
     this._recvQueue.clear()
     this._sendQueue.clear()
+    this.removeAllListeners()
   }
 
   send = (message: ClientMessage) => {

@@ -21,6 +21,7 @@ export abstract class AbstractAdapter extends (EventEmitter as new () => TypedEm
   abstract send(message: ClientMessage): void
 
   cleanup() {
+    this.removeAllListeners()
     this._unsubscribers.splice(0).forEach(call)
   }
 }
