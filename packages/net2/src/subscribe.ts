@@ -52,10 +52,10 @@ export class Subscribe extends (EventEmitter as new () => TypedEmitter<Subscribe
   }
 
   close() {
-    if (!this._closed) {
-      this.adapter.send(["CLOSE", this._id])
-      this._unsubscriber()
-      this._closed = true
-    }
+    if (this._closed) return
+
+    this.adapter.send(["CLOSE", this._id])
+    this._unsubscriber()
+    this._closed = true
   }
 }
