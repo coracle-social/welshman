@@ -1,6 +1,7 @@
 import {sleep} from "@welshman/lib"
 import type {SignedEvent, StampedEvent} from "@welshman/util"
 import {makeEvent, CLIENT_AUTH} from "@welshman/util"
+import {isRelayAuthMessage, isRelayOkMessage, RelayMessage} from "./message.js"
 import {Socket, SocketStatus, SocketUnsubscriber} from "./socket.js"
 
 export const makeAuthEvent = (url: string, challenge: string) =>
@@ -34,7 +35,7 @@ export type AuthManagerOptions = {
 export class AuthManager {
   challenge: string | undefined
   request: string | undefined
-  message: string | undefined
+  details: string | undefined
   status = AuthStatus.None
   _unsubscribers: SocketUnsubscriber[] = []
 
@@ -43,28 +44,32 @@ export class AuthManager {
     readonly options: AuthManagerOptions,
   ) {
     this._unsubscribers.push(
-      socket.onOk(([id, ok, message]) => {
-        if (id === this.request) {
-          this.message = message
+      socket.onMessage((message: RelayMessage) => {
+        if (isRelayOkMessage(message)) {
+          const [_, id, ok, details] = message
 
-          if (ok) {
-            this.status = AuthStatus.Ok
-          } else {
-            this.status = AuthStatus.Forbidden
+          if (id === this.request) {
+            this.details = details
+
+            if (ok) {
+              this.status = AuthStatus.Ok
+            } else {
+              this.status = AuthStatus.Forbidden
+            }
           }
         }
-      }),
-    )
 
-    this._unsubscribers.push(
-      socket.onAuth(([challenge]) => {
-        this.challenge = challenge
-        this.request = undefined
-        this.message = undefined
-        this.status = AuthStatus.Requested
+        if (isRelayAuthMessage(message)) {
+          const [_, challenge] = message
 
-        if (this.options.eager) {
-          this.respond()
+          this.challenge = challenge
+          this.request = undefined
+          this.details = undefined
+          this.status = AuthStatus.Requested
+
+          if (this.options.eager) {
+            this.respond()
+          }
         }
       }),
     )
@@ -74,7 +79,7 @@ export class AuthManager {
         if (status === SocketStatus.Closed) {
           this.challenge = undefined
           this.request = undefined
-          this.message = undefined
+          this.details = undefined
           this.status = AuthStatus.None
         }
       }),

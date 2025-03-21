@@ -1,19 +1,6 @@
 import WebSocket from "isomorphic-ws"
 import {remove, now, ago, TaskQueue} from "@welshman/lib"
-import type {
-  RelayMessage,
-  RelayAuthPayload,
-  RelayEosePayload,
-  RelayEventPayload,
-  RelayOkPayload,
-  ClientMessage,
-} from "./message.js"
-import {
-  isRelayAuthMessage,
-  isRelayEoseMessage,
-  isRelayEventMessage,
-  isRelayOkMessage,
-} from "./message.js"
+import type {RelayMessage, ClientMessage} from "./message.js"
 
 export enum SocketStatus {
   Open = "socket:status:open",
@@ -207,50 +194,6 @@ export class Socket {
       if (isSocketMessageEvent(event)) {
         cb(event.message)
       }
-    })
-  }
-
-  onAuth = (cb: (message: RelayAuthPayload) => void) => {
-    return this.onMessage((message: RelayMessage) => {
-      if (isRelayAuthMessage(message)) {
-        cb(message.slice(1) as RelayAuthPayload)
-      }
-    })
-  }
-
-  onEose = (cb: (message: RelayEosePayload) => void) => {
-    return this.onMessage((message: RelayMessage) => {
-      if (isRelayEoseMessage(message)) {
-        cb(message.slice(1) as RelayEosePayload)
-      }
-    })
-  }
-
-  onEvent = (cb: (message: RelayEventPayload) => void) => {
-    return this.onMessage((message: RelayMessage) => {
-      if (isRelayEventMessage(message)) {
-        cb(message.slice(1) as RelayEventPayload)
-      }
-    })
-  }
-
-  onOk = (cb: (message: RelayOkPayload) => void) => {
-    return this.onMessage((message: RelayMessage) => {
-      if (isRelayOkMessage(message)) {
-        cb(message.slice(1) as RelayOkPayload)
-      }
-    })
-  }
-
-  wrap = (overrides: Partial<Socket>): Socket => {
-    return new Proxy(this, {
-      get: (target, prop: keyof Socket) => {
-        if (prop in overrides) {
-          return overrides[prop]
-        }
-
-        return target[prop]
-      },
     })
   }
 }
