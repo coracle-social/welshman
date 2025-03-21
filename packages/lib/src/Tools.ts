@@ -936,6 +936,13 @@ export const once = (f: (...args: any) => void) => {
 }
 
 /**
+ * Calls a function
+ * @param f - Function to call
+ * @returns Whatever f returns
+ */
+export const call = <T>(f: () => T, ...args: unknown[]) => f()
+
+/**
  * Memoizes function results based on arguments
  * @param f - Function to memoize
  * @returns Memoized function
@@ -1108,6 +1115,30 @@ export const pushToMapKey = <K, T>(m: Map<K, T[]>, k: K, v: T) => {
 
   a.push(v)
   m.set(k, a)
+}
+
+/**
+ * A generic type-safe event listener function that auto-detects the appropriate methods
+ * for adding and removing event listeners.
+ *
+ * @param target - The event target object with add/remove listener methods
+ * @param eventName - The name of the event to listen for
+ * @param callback - The callback function to execute when the event occurs
+ * @returns A function that removes the event listener when called
+ */
+export const on = <EventName extends string, Args extends any[]>(
+  target: {
+    on: (event: EventName, handler: (...args: Args) => any, ...rest: any[]) => any
+    off: (event: EventName, handler: (...args: Args) => any, ...rest: any[]) => any
+  },
+  eventName: EventName,
+  callback: (...args: Args) => void,
+): (() => void) => {
+  target.on(eventName, callback)
+
+  return () => {
+    target.off(eventName, callback)
+  }
 }
 
 /**
