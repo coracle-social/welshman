@@ -30,7 +30,7 @@ export type AuthResult = {
 }
 
 export enum AuthStateEventType {
-  Status = "auth:state:event:status",
+  Status = "auth:event:status",
 }
 
 export type AuthStateEvents = {
@@ -72,17 +72,11 @@ export class AuthState extends (EventEmitter as new () => TypedEmitter<AuthState
           this.setStatus(AuthStatus.Requested)
         }
       }),
-    )
-
-    this._unsubscribers.push(
       on(socket, SocketEventType.Enqueue, (message: RelayMessage) => {
         if (isClientAuth(message)) {
           this.setStatus(AuthStatus.PendingResponse)
         }
       }),
-    )
-
-    this._unsubscribers.push(
       on(socket, SocketEventType.Status, (status: SocketStatus) => {
         if (status === SocketStatus.Closed) {
           this.challenge = undefined

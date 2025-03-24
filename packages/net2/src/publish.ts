@@ -25,7 +25,7 @@ export type PublishOptions = {
   adapter: AbstractAdapter
   event: SignedEvent
   timeout?: number
-  events?: Partial<PublishEvents>
+  on?: Partial<PublishEvents>
 }
 
 export class Publish extends (EventEmitter as new () => TypedEmitter<PublishEvents>) {
@@ -63,8 +63,8 @@ export class Publish extends (EventEmitter as new () => TypedEmitter<PublishEven
     )
 
     // Register handlers
-    if (this.options.events) {
-      for (const [k, listener] of Object.entries(this.options.events)) {
+    if (this.options.on) {
+      for (const [k, listener] of Object.entries(this.options.on)) {
         this.on(k as keyof PublishEvents, listener)
       }
     }
