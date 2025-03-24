@@ -206,8 +206,8 @@ thunkWorker.addGlobalHandler((thunk: Thunk) => {
 
       try {
         event = await signer.sign(event)
-      } catch (e) {
-        return fail(String(e))
+      } catch (e: any) {
+        return fail(String(e.error || e))
       }
     }
 

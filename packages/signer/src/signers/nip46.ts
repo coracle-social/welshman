@@ -433,8 +433,13 @@ export class Nip46Broker extends Emitter {
   createAccount = (username: string, domain: string, perms = "") =>
     this.send("create_account", [username, domain, "", perms])
 
-  connect = async (connectSecret = "", perms = "") =>
-    this.send("connect", [await this.signer.getPubkey(), connectSecret, perms])
+  connect = async (connectSecret = "", perms = "") => {
+    if (!this.params.signerPubkey) {
+      throw new Error("Attempted to `connect` with no signerPubkey")
+    }
+
+    return this.send("connect", [this.params.signerPubkey, connectSecret, perms])
+  }
 
   signEvent = async (event: StampedEvent) =>
     JSON.parse(await this.send("sign_event", [JSON.stringify(event)]))
