@@ -22,7 +22,7 @@ export class TaskQueue<Item> {
   }
 
   async process() {
-    if (this.isProcessing || this.isPaused || this.items.length == 0) {
+    if (this.isProcessing || this.isPaused || this.items.length === 0) {
       return
     }
 

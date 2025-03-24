@@ -34,7 +34,7 @@ export type SubscriptionOptions = {
   timeout?: number
   tracker?: Tracker
   verifyEvent?: (event: SignedEvent) => boolean
-  events?: Partial<SubscriptionEvents>
+  on?: Partial<SubscriptionEvents>
 }
 
 export class Subscription extends (EventEmitter as new () => TypedEmitter<SubscriptionEvents>) {
@@ -102,8 +102,8 @@ export class Subscription extends (EventEmitter as new () => TypedEmitter<Subscr
     }
 
     // Register listeners
-    if (this.options.events) {
-      for (const [k, listener] of Object.entries(this.options.events)) {
+    if (this.options.on) {
+      for (const [k, listener] of Object.entries(this.options.on)) {
         this.on(k as keyof SubscriptionEvents, listener)
       }
     }

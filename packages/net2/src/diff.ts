@@ -24,29 +24,32 @@ export type DiffEvents = {
   [DiffEventType.Close]: () => void
 }
 
+export type DiffOptions = {
+  filter: Filter
+  events: SignedEvent[]
+  adapter: AbstractAdapter
+  on?: Partial<DiffEvents>
+}
+
 export class Diff extends (EventEmitter as new () => TypedEmitter<DiffEvents>) {
   _id = `NEG-${randomId().slice(0, 8)}`
   _unsubscriber: () => void
   _closed = false
 
-  constructor(
-    readonly adapter: AbstractAdapter,
-    readonly events: SignedEvent[],
-    readonly filter: Filter,
-  ) {
+  constructor(readonly options: DiffOptions) {
     super()
 
     const storage = new NegentropyStorageVector()
     const neg = new Negentropy(storage, 50_000)
 
-    for (const event of events) {
+    for (const event of this.options.events) {
       storage.insert(event.created_at, event.id)
     }
 
     storage.seal()
 
     this._unsubscriber = on(
-      adapter,
+      this.options.adapter,
       AdapterEventType.Receive,
       async (message: RelayMessage, url: string) => {
         if (isRelayNegMsg(message)) {
@@ -58,7 +61,7 @@ export class Diff extends (EventEmitter as new () => TypedEmitter<DiffEvents>) {
             this.emit(DiffEventType.Message, {have, need}, url)
 
             if (newMsg) {
-              adapter.send([RelayMessageType.NegMsg, this._id, newMsg])
+              this.options.adapter.send([RelayMessageType.NegMsg, this._id, newMsg])
             } else {
               this.close()
             }
@@ -75,15 +78,22 @@ export class Diff extends (EventEmitter as new () => TypedEmitter<DiffEvents>) {
       },
     )
 
+    // Register listeners
+    if (this.options.on) {
+      for (const [k, listener] of Object.entries(this.options.on)) {
+        this.on(k as keyof DiffEvents, listener)
+      }
+    }
+
     neg.initiate().then((msg: string) => {
-      adapter.send([ClientMessageType.NegOpen, this._id, filter, msg])
+      this.options.adapter.send([ClientMessageType.NegOpen, this._id, this.options.filter, msg])
     })
   }
 
   close() {
     if (this._closed) return
 
-    this.adapter.send([ClientMessageType.NegClose, this._id])
+    this.options.adapter.send([ClientMessageType.NegClose, this._id])
     this.emit(DiffEventType.Close)
     this.removeAllListeners()
     this._unsubscriber()
