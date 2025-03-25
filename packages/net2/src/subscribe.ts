@@ -35,7 +35,6 @@ export type SubscriptionOptions = {
   tracker?: Tracker
   autoClose?: boolean
   verifyEvent?: (event: SignedEvent) => boolean
-  on?: Partial<SubscriptionEvents>
 }
 
 export class Subscription extends (EventEmitter as new () => TypedEmitter<SubscriptionEvents>) {
@@ -96,13 +95,6 @@ export class Subscription extends (EventEmitter as new () => TypedEmitter<Subscr
           }
         }),
       )
-    }
-
-    // Register listeners
-    if (this.options.on) {
-      for (const [k, listener] of Object.entries(this.options.on)) {
-        this.on(k as keyof SubscriptionEvents, listener)
-      }
     }
 
     // Autostart asynchronously so the caller can set up listeners
