@@ -1,8 +1,6 @@
 import WebSocket from "isomorphic-ws"
-import {call} from "@welshman/lib"
 import {Subject, observeOn, asapScheduler, Observable} from "rxjs"
 import {RelayMessage, ClientMessage} from "./message.js"
-import {Unsubscriber} from "./util.js"
 
 export enum SocketStatus {
   Open = "socket:status:open",
@@ -13,7 +11,7 @@ export enum SocketStatus {
   Invalid = "socket:status:invalid",
 }
 
-export type SocketPolicy = (socket: Socket) => Unsubscriber
+export type SocketPolicy = (socket: Socket) => void
 
 export class Socket {
   _ws?: WebSocket
@@ -21,7 +19,6 @@ export class Socket {
   _statusSubject = new Subject<SocketStatus>()
   _sendSubject = new Subject<ClientMessage>()
   _recvSubject = new Subject<RelayMessage>()
-  _unsubscribers: Unsubscriber[] = []
 
   error$ = this._errorSubject.asObservable()
   status$ = this._statusSubject.asObservable()
@@ -37,7 +34,7 @@ export class Socket {
     })
 
     for (const policy of policies) {
-      this._unsubscribers.push(policy(this))
+      policy(this)
     }
   }
 
@@ -101,7 +98,6 @@ export class Socket {
     this._recvSubject.complete()
     this._errorSubject.complete()
     this._statusSubject.complete()
-    this._unsubscribers.forEach(call)
   }
 
   send = (message: ClientMessage) => {
