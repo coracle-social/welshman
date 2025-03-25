@@ -21,6 +21,8 @@ export enum PublishEventType {
   Complete = "publish:event:complete",
 }
 
+// Unicast
+
 export type UnicastEvents = {
   [PublishEventType.Success]: (id: string, detail: string) => void
   [PublishEventType.Failure]: (id: string, detail: string) => void
@@ -71,11 +73,6 @@ export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEven
       },
     )
 
-    // Autostart asynchronously so the caller can set up listeners
-    yieldThread().then(this.start)
-  }
-
-  start = () => {
     // Set timeout
     sleep(this.options.timeout || 10_000).then(() => {
       if (this.status === PublishStatus.Pending) {
@@ -86,8 +83,10 @@ export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEven
       this.cleanup()
     })
 
-    // Send the message
-    this._adapter.send([ClientMessageType.Event, event])
+    // Start asynchronously so the caller can set up listeners
+    yieldThread().then(() => {
+      this._adapter.send([ClientMessageType.Event, event])
+    })
   }
 
   abort = () => {
@@ -106,6 +105,8 @@ export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEven
   }
 }
 
+// Multicast
+
 export type MulticastEvents = {
   [PublishEventType.Success]: (id: string, detail: string, url: string) => void
   [PublishEventType.Failure]: (id: string, detail: string, url: string) => void
@@ -114,11 +115,8 @@ export type MulticastEvents = {
   [PublishEventType.Complete]: () => void
 }
 
-export type MulticastOptions = {
-  event: SignedEvent
+export type MulticastOptions = Omit<UnicastOptions, "relay"> & {
   relays: string[]
-  context: AdapterContext
-  timeout?: number
 }
 
 export class Multicast extends (EventEmitter as new () => TypedEmitter<MulticastEvents>) {
@@ -181,4 +179,8 @@ export class Multicast extends (EventEmitter as new () => TypedEmitter<Multicast
   }
 }
 
-export const publish = (options: MulticastOptions) => new Multicast(options)
+// Convenience functions
+
+export const unicast = (options: UnicastOptions) => new Unicast(options)
+
+export const multicast = (options: MulticastOptions) => new Multicast(options)

@@ -11,8 +11,8 @@ import {
 } from "./message.js"
 import {getAdapter, AdapterContext, AbstractAdapter, AdapterEventType} from "./adapter.js"
 import {Negentropy, NegentropyStorageVector} from "./negentropy.js"
-import {subscribe, SubscriptionEventType} from "./subscribe.js"
-import {publish, PublishEventType} from "./publish.js"
+import {unireq, RequestEventType} from "./request.js"
+import {multicast, PublishEventType} from "./publish.js"
 
 export enum DifferenceEventType {
   Message = "difference:event:message",
@@ -204,10 +204,10 @@ export const pull = async ({context, ...options}: PullOptions) => {
       return Promise.all(
         chunk(500, allIds).map(ids => {
           return new Promise<void>(resolve => {
-            const sub = subscribe({relay, context, filter: {ids}, autoClose: true})
+            const req = unireq({relay, context, filter: {ids}, autoClose: true})
 
-            sub.on(SubscriptionEventType.Close, resolve)
-            sub.on(SubscriptionEventType.Event, event => result.push(event))
+            req.on(RequestEventType.Close, resolve)
+            req.on(RequestEventType.Event, event => result.push(event))
           })
         }),
       )
@@ -236,7 +236,7 @@ export const push = async ({context, events, ...options}: PushOptions) => {
 
       if (relays) {
         new Promise<void>(resolve => {
-          publish({event, relays, context}).on(PublishEventType.Complete, resolve)
+          multicast({event, relays, context}).on(PublishEventType.Complete, resolve)
         })
       }
     }),
