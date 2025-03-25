@@ -1,10 +1,11 @@
+import {Subscription} from "rxjs"
 import {EventEmitter} from "events"
-import {on, call, randomId, yieldThread} from "@welshman/lib"
+import {randomId, yieldThread} from "@welshman/lib"
 import {Filter, matchFilter, SignedEvent} from "@welshman/util"
-import {RelayMessage, ClientMessageType, isRelayEvent, isRelayEose} from "./message.js"
-import {getAdapter, AdapterContext, AbstractAdapter, AdapterEventType} from "./adapter.js"
-import {SocketEventType, SocketStatus} from "./socket.js"
-import {TypedEmitter, Unsubscriber} from "./util.js"
+import {ClientMessageType, isRelayEvent, isRelayEose} from "./message.js"
+import {getAdapter, AdapterContext, Adapter} from "./adapter.js"
+import {SocketStatus} from "./socket.js"
+import {TypedEmitter} from "./util.js"
 import {Tracker} from "./tracker.js"
 
 export enum RequestEventType {
@@ -41,8 +42,8 @@ export type UnireqOptions = {
 
 export class Unireq extends (EventEmitter as new () => TypedEmitter<UnireqEvents>) {
   _id = `REQ-${randomId().slice(0, 8)}`
-  _unsubscribers: Unsubscriber[] = []
-  _adapter: AbstractAdapter
+  _subscriptions: Subscription[] = []
+  _adapter: Adapter
   _closed = false
 
   constructor(readonly options: UnireqOptions) {
@@ -52,8 +53,8 @@ export class Unireq extends (EventEmitter as new () => TypedEmitter<UnireqEvents
     this._adapter = getAdapter(this.options.relay, this.options.context)
 
     // Listen for event/eose messages from the adapter
-    this._unsubscribers.push(
-      on(this._adapter, AdapterEventType.Receive, (message: RelayMessage, url: string) => {
+    this._subscriptions.push(
+      this._adapter.recv$.subscribe(({message, url}) => {
         if (isRelayEvent(message)) {
           const [_, id, event] = message
 
@@ -86,8 +87,8 @@ export class Unireq extends (EventEmitter as new () => TypedEmitter<UnireqEvents
 
     // Listen to disconnects from any sockets
     for (const socket of this._adapter.sockets) {
-      this._unsubscribers.push(
-        on(socket, SocketEventType.Status, (status: SocketStatus) => {
+      this._subscriptions.push(
+        socket.status$.subscribe((status: SocketStatus) => {
           if (![SocketStatus.Open, SocketStatus.Opening].includes(status)) {
             this.emit(RequestEventType.Disconnect)
 
@@ -116,8 +117,7 @@ export class Unireq extends (EventEmitter as new () => TypedEmitter<UnireqEvents
     this._adapter.send(["CLOSE", this._id])
     this.emit(RequestEventType.Close)
     this.removeAllListeners()
-    this._unsubscribers.map(call)
-    this._adapter.cleanup()
+    this._subscriptions.forEach(sub => sub.unsubscribe())
     this._closed = true
   }
 }

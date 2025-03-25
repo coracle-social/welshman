@@ -1,8 +1,9 @@
+import {Subscription} from "rxjs"
 import {EventEmitter} from "events"
-import {on, fromPairs, sleep, yieldThread} from "@welshman/lib"
+import {fromPairs, sleep, yieldThread} from "@welshman/lib"
 import {SignedEvent} from "@welshman/util"
-import {RelayMessage, ClientMessageType, isRelayOk} from "./message.js"
-import {AbstractAdapter, AdapterEventType, AdapterContext, getAdapter} from "./adapter.js"
+import {ClientMessageType, isRelayOk} from "./message.js"
+import {Adapter, AdapterContext, getAdapter} from "./adapter.js"
 import {TypedEmitter} from "./util.js"
 
 export enum PublishStatus {
@@ -41,8 +42,8 @@ export type UnicastOptions = {
 export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEvents>) {
   status = PublishStatus.Pending
 
-  _unsubscriber: () => void
-  _adapter: AbstractAdapter
+  _subscription: Subscription
+  _adapter: Adapter
 
   constructor(readonly options: UnicastOptions) {
     super()
@@ -51,27 +52,23 @@ export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEven
     this._adapter = getAdapter(this.options.relay, this.options.context)
 
     // Listen for Unicast result
-    this._unsubscriber = on(
-      this._adapter,
-      AdapterEventType.Receive,
-      (message: RelayMessage, url: string) => {
-        if (isRelayOk(message)) {
-          const [_, id, ok, detail] = message
+    this._subscription = this._adapter.recv$.subscribe(({message, url}) => {
+      if (isRelayOk(message)) {
+        const [_, id, ok, detail] = message
 
-          if (id !== this.options.event.id) return
+        if (id !== this.options.event.id) return
 
-          if (ok) {
-            this.status = PublishStatus.Success
-            this.emit(PublishEventType.Success, id, detail)
-          } else {
-            this.status = PublishStatus.Failure
-            this.emit(PublishEventType.Failure, id, detail)
-          }
-
-          this.cleanup()
+        if (ok) {
+          this.status = PublishStatus.Success
+          this.emit(PublishEventType.Success, id, detail)
+        } else {
+          this.status = PublishStatus.Failure
+          this.emit(PublishEventType.Failure, id, detail)
         }
-      },
-    )
+
+        this.cleanup()
+      }
+    })
 
     // Set timeout
     sleep(this.options.timeout || 10_000).then(() => {
@@ -99,9 +96,8 @@ export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEven
 
   cleanup = () => {
     this.emit(PublishEventType.Complete)
+    this._subscription.unsubscribe()
     this.removeAllListeners()
-    this._adapter.cleanup()
-    this._unsubscriber()
   }
 }
 

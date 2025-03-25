@@ -1,15 +1,10 @@
+import {Subscription} from "rxjs"
 import {EventEmitter} from "events"
-import {on, sleep, randomId, groupBy, pushToMapKey, inc, flatten, chunk} from "@welshman/lib"
+import {sleep, randomId, groupBy, pushToMapKey, inc, flatten, chunk} from "@welshman/lib"
 import {SignedEvent, Filter} from "@welshman/util"
 import {TypedEmitter} from "./util.js"
-import {
-  RelayMessage,
-  isRelayNegErr,
-  isRelayNegMsg,
-  RelayMessageType,
-  ClientMessageType,
-} from "./message.js"
-import {getAdapter, AdapterContext, AbstractAdapter, AdapterEventType} from "./adapter.js"
+import {isRelayNegErr, isRelayNegMsg, RelayMessageType, ClientMessageType} from "./message.js"
+import {getAdapter, AdapterContext, Adapter} from "./adapter.js"
 import {Negentropy, NegentropyStorageVector} from "./negentropy.js"
 import {unireq, RequestEventType} from "./request.js"
 import {multicast, PublishEventType} from "./publish.js"
@@ -38,8 +33,8 @@ export class Difference extends (EventEmitter as new () => TypedEmitter<Differen
   need = new Set<string>()
 
   _id = `NEG-${randomId().slice(0, 8)}`
-  _unsubscriber: () => void
-  _adapter: AbstractAdapter
+  _subscription: Subscription
+  _adapter: Adapter
   _closed = false
 
   constructor(readonly options: DifferenceOptions) {
@@ -59,41 +54,37 @@ export class Difference extends (EventEmitter as new () => TypedEmitter<Differen
     storage.seal()
 
     // Add listeners
-    this._unsubscriber = on(
-      this._adapter,
-      AdapterEventType.Receive,
-      async (message: RelayMessage, url: string) => {
-        if (isRelayNegMsg(message)) {
-          const [_, negid, msg] = message
+    this._subscription = this._adapter.recv$.subscribe(async ({message, url}) => {
+      if (isRelayNegMsg(message)) {
+        const [_, negid, msg] = message
 
-          if (negid === this._id) {
-            const [newMsg, have, need] = await neg.reconcile(msg)
+        if (negid === this._id) {
+          const [newMsg, have, need] = await neg.reconcile(msg)
 
-            for (const id of have) {
-              this.have.add(id)
-            }
+          for (const id of have) {
+            this.have.add(id)
+          }
 
-            for (const id of need) {
-              this.need.add(id)
-            }
+          for (const id of need) {
+            this.need.add(id)
+          }
 
-            this.emit(DifferenceEventType.Message, {have, need}, url)
+          this.emit(DifferenceEventType.Message, {have, need}, url)
 
-            if (newMsg) {
-              this._adapter.send([RelayMessageType.NegMsg, this._id, newMsg])
-            }
+          if (newMsg) {
+            this._adapter.send([RelayMessageType.NegMsg, this._id, newMsg])
           }
         }
+      }
 
-        if (isRelayNegErr(message)) {
-          const [_, negid, msg] = message
+      if (isRelayNegErr(message)) {
+        const [_, negid, msg] = message
 
-          if (negid === this._id) {
-            this.emit(DifferenceEventType.Error, msg, url)
-          }
+        if (negid === this._id) {
+          this.emit(DifferenceEventType.Error, msg, url)
         }
-      },
-    )
+      }
+    })
 
     neg.initiate().then((msg: string) => {
       this._adapter.send([ClientMessageType.NegOpen, this._id, this.options.filter, msg])
@@ -105,9 +96,8 @@ export class Difference extends (EventEmitter as new () => TypedEmitter<Differen
 
     this._adapter.send([ClientMessageType.NegClose, this._id])
     this.emit(DifferenceEventType.Close)
+    this._subscription.unsubscribe()
     this.removeAllListeners()
-    this._adapter.cleanup()
-    this._unsubscriber()
     this._closed = true
   }
 }

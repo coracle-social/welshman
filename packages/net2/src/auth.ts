@@ -1,10 +1,9 @@
-import EventEmitter from "events"
-import {on, call, sleep} from "@welshman/lib"
+import {Subject} from "rxjs"
+import {sleep} from "@welshman/lib"
 import type {SignedEvent, StampedEvent} from "@welshman/util"
 import {makeEvent, CLIENT_AUTH} from "@welshman/util"
 import {isRelayAuth, isClientAuth, isRelayOk, RelayMessage} from "./message.js"
-import {Socket, SocketStatus, SocketEventType} from "./socket.js"
-import {TypedEmitter, Unsubscriber} from "./util.js"
+import {Socket, SocketStatus} from "./socket.js"
 
 export const makeAuthEvent = (url: string, challenge: string) =>
   makeEvent(CLIENT_AUTH, {
@@ -29,26 +28,18 @@ export type AuthResult = {
   reason?: string
 }
 
-export enum AuthStateEventType {
-  Status = "auth:event:status",
-}
-
-export type AuthStateEvents = {
-  [AuthStateEventType.Status]: (status: AuthStatus) => void
-}
-
-export class AuthState extends (EventEmitter as new () => TypedEmitter<AuthStateEvents>) {
+export class AuthState extends Subject<AuthStatus> {
+  _subscriptions: any[]
   challenge: string | undefined
   request: string | undefined
   details: string | undefined
   status = AuthStatus.None
-  _unsubscribers: Unsubscriber[] = []
 
   constructor(readonly socket: Socket) {
     super()
 
-    this._unsubscribers.push(
-      on(socket, SocketEventType.Receive, (message: RelayMessage) => {
+    this._subscriptions = [
+      socket.recv$.subscribe((message: RelayMessage) => {
         if (isRelayOk(message)) {
           const [_, id, ok, details] = message
 
@@ -72,12 +63,12 @@ export class AuthState extends (EventEmitter as new () => TypedEmitter<AuthState
           this.setStatus(AuthStatus.Requested)
         }
       }),
-      on(socket, SocketEventType.Enqueue, (message: RelayMessage) => {
+      socket.send$.subscribe((message: RelayMessage) => {
         if (isClientAuth(message)) {
           this.setStatus(AuthStatus.PendingResponse)
         }
       }),
-      on(socket, SocketEventType.Status, (status: SocketStatus) => {
+      socket.status$.subscribe((status: SocketStatus) => {
         if (status === SocketStatus.Closed) {
           this.challenge = undefined
           this.request = undefined
@@ -85,17 +76,12 @@ export class AuthState extends (EventEmitter as new () => TypedEmitter<AuthState
           this.setStatus(AuthStatus.None)
         }
       }),
-    )
+    ]
   }
 
   setStatus(status: AuthStatus) {
     this.status = status
-    this.emit(AuthStateEventType.Status, status)
-  }
-
-  cleanup() {
-    this.removeAllListeners()
-    this._unsubscribers.forEach(call)
+    this.next(status)
   }
 }
 
@@ -112,7 +98,7 @@ export class AuthManager {
     readonly options: AuthManagerOptions,
   ) {
     this.state = new AuthState(socket)
-    this.state.on(AuthStateEventType.Status, (status: string) => {
+    this.state.subscribe((status: string) => {
       if (status === AuthStatus.Requested && options.eager) {
         this.respond()
       }
@@ -178,7 +164,7 @@ export class AuthManager {
     }
   }
 
-  cleanup() {
-    this.state.cleanup()
+  complete() {
+    this.state.complete()
   }
 }

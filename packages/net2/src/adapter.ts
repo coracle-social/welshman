@@ -1,40 +1,28 @@
-import EventEmitter from "events"
-import {call, on} from "@welshman/lib"
+import {map, share, Observable} from "rxjs"
 import {Relay, LOCAL_RELAY_URL, isRelayUrl} from "@welshman/util"
 import {RelayMessage, ClientMessage} from "./message.js"
-import {Socket, SocketEventType} from "./socket.js"
-import {TypedEmitter, Unsubscriber} from "./util.js"
+import {Socket} from "./socket.js"
 import {Pool} from "./pool.js"
 
-export enum AdapterEventType {
-  Receive = "adapter:event:receive",
+export type AdapterMessage = {
+  message: RelayMessage
+  url: string
 }
 
-export type AdapterEvents = {
-  [AdapterEventType.Receive]: (message: RelayMessage, url: string) => void
+export interface Adapter {
+  urls: string[]
+  sockets: Socket[]
+  send(message: ClientMessage): void
+  recv$: Observable<AdapterMessage>
 }
 
-export abstract class AbstractAdapter extends (EventEmitter as new () => TypedEmitter<AdapterEvents>) {
-  _unsubscribers: Unsubscriber[] = []
+export class SocketAdapter implements Adapter {
+  recv$: Observable<AdapterMessage>
 
-  abstract urls: string[]
-  abstract sockets: Socket[]
-  abstract send(message: ClientMessage): void
-
-  cleanup() {
-    this.removeAllListeners()
-    this._unsubscribers.splice(0).forEach(call)
-  }
-}
-
-export class SocketAdapter extends AbstractAdapter {
   constructor(readonly socket: Socket) {
-    super()
-
-    this._unsubscribers.push(
-      on(socket, SocketEventType.Receive, (message: RelayMessage, url: string) => {
-        this.emit(AdapterEventType.Receive, message, url)
-      }),
+    this.recv$ = socket.recv$.pipe(
+      map(message => ({message, url: socket.url})),
+      share(),
     )
   }
 
@@ -51,15 +39,21 @@ export class SocketAdapter extends AbstractAdapter {
   }
 }
 
-export class LocalAdapter extends AbstractAdapter {
-  constructor(readonly relay: Relay) {
-    super()
+export class LocalAdapter implements Adapter {
+  recv$: Observable<AdapterMessage>
 
-    this._unsubscribers.push(
-      on(relay, "*", (...message: RelayMessage) => {
-        this.emit(AdapterEventType.Receive, message, LOCAL_RELAY_URL)
-      }),
-    )
+  constructor(readonly relay: Relay) {
+    this.recv$ = new Observable<AdapterMessage>(subscriber => {
+      const handler = (...message: RelayMessage) => {
+        subscriber.next({message, url: LOCAL_RELAY_URL})
+      }
+
+      relay.on("*", handler)
+
+      return () => {
+        relay.off("*", handler)
+      }
+    }).pipe(share())
   }
 
   get sockets() {
@@ -72,7 +66,6 @@ export class LocalAdapter extends AbstractAdapter {
 
   send(message: ClientMessage) {
     const [type, ...rest] = message
-
     this.relay.send(type, ...rest)
   }
 }
@@ -80,7 +73,7 @@ export class LocalAdapter extends AbstractAdapter {
 export type AdapterContext = {
   pool?: Pool
   relay?: Relay
-  getAdapter?: (url: string, context: AdapterContext) => AbstractAdapter
+  getAdapter?: (url: string, context: AdapterContext) => Adapter
 }
 
 export const getAdapter = (url: string, context: AdapterContext) => {

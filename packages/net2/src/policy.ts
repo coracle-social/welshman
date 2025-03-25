@@ -1,4 +1,5 @@
-import {on, call, sleep, spec, ago, now} from "@welshman/lib"
+import {filter} from "rxjs"
+import {sleep, nth, ago, now} from "@welshman/lib"
 import {AUTH_JOIN} from "@welshman/util"
 import {
   ClientMessage,
@@ -6,66 +7,77 @@ import {
   isClientClose,
   isClientEvent,
   isClientReq,
-  ClientMessageType,
   RelayMessage,
   isRelayOk,
   isRelayClosed,
 } from "./message.js"
-import {Socket, SocketStatus, SocketEventType} from "./socket.js"
-import {AuthState, AuthStatus, AuthStateEventType} from "./auth.js"
+import {Socket, SocketStatus} from "./socket.js"
+import {AuthState, AuthStatus} from "./auth.js"
+import {pauseController} from "./util.js"
 
 // Pause sending messages when the socket isn't open
 export const socketPolicySendWhenOpen = (socket: Socket) => {
-  const unsubscribers = [
-    on(socket, SocketEventType.Status, (newStatus: SocketStatus) => {
-      if (newStatus === SocketStatus.Open) {
-        socket._sendQueue.start()
+  const send$ = socket.send$
+  const controller = pauseController<ClientMessage>()
+
+  socket.send$ = send$.pipe(controller.operator)
+
+  const subscriptions = [
+    socket.status$.subscribe((status: SocketStatus) => {
+      if (status === SocketStatus.Open) {
+        controller.resume()
       } else {
-        socket._sendQueue.stop()
+        controller.pause()
       }
     }),
   ]
 
-  return () => unsubscribers.forEach(call)
+  return () => {
+    socket.send$ = send$
+    subscriptions.forEach(sub => sub.unsubscribe())
+  }
 }
 
 export const socketPolicyDeferOnAuth = (socket: Socket) => {
+  const send$ = socket.send$
   const buffer: ClientMessage[] = []
   const authState = new AuthState(socket)
   const okStatuses = [AuthStatus.None, AuthStatus.Ok]
 
-  const unsubscribers = [
-    // Pause sending certain messages when we're not authenticated
-    on(socket, SocketEventType.Enqueue, (message: ClientMessage) => {
-      // If we're closing a request, but it never got sent, remove both from the queue
-      // Otherwise, always send CLOSE
-      if (isClientClose(message)) {
-        const req = buffer.find(spec([ClientMessageType.Req, message[1]]))
-
-        if (req) {
-          socket._sendQueue.remove(req)
-          socket._sendQueue.remove(message)
-        }
-
-        return
-      }
-
+  // Defer sending certain messages when we're not authenticated
+  socket.send$ = send$.pipe(
+    filter(message => {
       // Always allow sending auth
-      if (isClientAuth(message)) return
+      if (isClientAuth(message)) return true
 
       // Always allow sending join requests
-      if (isClientEvent(message) && message[1].kind === AUTH_JOIN) return
+      if (isClientEvent(message) && message[1].kind === AUTH_JOIN) return true
 
       // If we're not ok, remove the message and save it for later
       if (!okStatuses.includes(authState.status)) {
         buffer.push(message)
-        socket._sendQueue.remove(message)
+
+        return false
       }
+
+      return true
     }),
+  )
+
+  const subscriptions = [
     // Send buffered messages when we get successful auth
-    on(authState, AuthStateEventType.Status, (status: AuthStatus) => {
-      if (okStatuses.includes(status) && buffer.length > 0) {
+    authState.subscribe((status: AuthStatus) => {
+      if (okStatuses.includes(status)) {
+        const reqs = new Set(buffer.filter(isClientReq).map(nth(1)))
+        const closed = new Set(buffer.filter(isClientClose).map(nth(1)))
+
         for (const message of buffer.splice(0)) {
+          // Skip requests that were closed before they were sent
+          if (isClientReq(message) && closed.has(message[1])) continue
+
+          // Skip closes for requests that were never sent
+          if (isClientClose(message) && reqs.has(message[1])) continue
+
           socket.send(message)
         }
       }
@@ -73,8 +85,9 @@ export const socketPolicyDeferOnAuth = (socket: Socket) => {
   ]
 
   return () => {
-    unsubscribers.forEach(call)
-    authState.cleanup()
+    socket.send$ = send$
+    authState.complete()
+    subscriptions.forEach(sub => sub.unsubscribe())
   }
 }
 
@@ -82,9 +95,9 @@ export const socketPolicyRetryAuthRequired = (socket: Socket) => {
   const retried = new Set<string>()
   const pending = new Map<string, ClientMessage>()
 
-  const unsubscribers = [
+  const subscriptions = [
     // Watch outgoing events and requests and keep a copy
-    on(socket, SocketEventType.Send, (message: ClientMessage) => {
+    socket.send$.subscribe((message: ClientMessage) => {
       if (isClientEvent(message)) {
         const [_, event] = message
 
@@ -102,7 +115,7 @@ export const socketPolicyRetryAuthRequired = (socket: Socket) => {
       }
     }),
     // If a message is rejected with auth-required, re-enqueue it one time
-    on(socket, SocketEventType.Receive, (message: RelayMessage) => {
+    socket.recv$.subscribe((message: RelayMessage) => {
       if (isRelayOk(message)) {
         const [_, id, ok, detail] = message
         const pendingMessage = pending.get(id)
@@ -129,15 +142,17 @@ export const socketPolicyRetryAuthRequired = (socket: Socket) => {
     }),
   ]
 
-  return () => unsubscribers.forEach(call)
+  return () => {
+    subscriptions.forEach(sub => sub.unsubscribe())
+  }
 }
 
 export const socketPolicyConnectOnSend = (socket: Socket) => {
   let lastError = 0
   let currentStatus = SocketStatus.Closed
 
-  const unsubscribers = [
-    on(socket, SocketEventType.Status, (newStatus: SocketStatus) => {
+  const subscriptions = [
+    socket.status$.subscribe((newStatus: SocketStatus) => {
       // Keep track of the most recent error
       if (newStatus === SocketStatus.Error) {
         lastError = now()
@@ -146,25 +161,27 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
       // Keep track of the current status
       currentStatus = newStatus
     }),
-    on(socket, SocketEventType.Send, (message: ClientMessage) => {
-      // When a new message is sent, make sure the socket is open (unless there was a recent error)
-      if (currentStatus === SocketStatus.Closed && now() - lastError < ago(30)) {
-        socket.open()
+    socket.send$.subscribe(() => {
+      // When a new message is sent, make sure the socket is open (delaying in case of a recent error)
+      if (currentStatus === SocketStatus.Closed) {
+        setTimeout(() => socket.open(), Math.max(0, 30 - (now() - lastError)))
       }
     }),
   ]
 
-  return () => unsubscribers.forEach(call)
+  return () => {
+    subscriptions.forEach(sub => sub.unsubscribe())
+  }
 }
 
 export const socketPolicyCloseOnTimeout = (socket: Socket) => {
   let lastActivity = 0
 
-  const unsubscribers = [
-    on(socket, SocketEventType.Send, (message: ClientMessage) => {
+  const subscriptions = [
+    socket.send$.subscribe(() => {
       lastActivity = now()
     }),
-    on(socket, SocketEventType.Receive, (message: RelayMessage) => {
+    socket.recv$.subscribe(() => {
       lastActivity = now()
     }),
   ]
@@ -176,7 +193,7 @@ export const socketPolicyCloseOnTimeout = (socket: Socket) => {
   }, 3000)
 
   return () => {
-    unsubscribers.forEach(call)
+    subscriptions.forEach(sub => sub.unsubscribe())
     clearInterval(interval)
   }
 }
@@ -186,8 +203,8 @@ export const socketPolicyReopenActive = (socket: Socket) => {
 
   let lastOpen = 0
 
-  const unsubscribers = [
-    on(socket, SocketEventType.Status, (newStatus: SocketStatus) => {
+  const subscriptions = [
+    socket.status$.subscribe((newStatus: SocketStatus) => {
       // Keep track of the most recent error
       if (newStatus === SocketStatus.Open) {
         lastOpen = Date.now()
@@ -202,7 +219,7 @@ export const socketPolicyReopenActive = (socket: Socket) => {
         })
       }
     }),
-    on(socket, SocketEventType.Send, (message: ClientMessage) => {
+    socket.send$.subscribe((message: ClientMessage) => {
       if (isClientEvent(message)) {
         pending.set(message[1].id, message)
       }
@@ -215,14 +232,16 @@ export const socketPolicyReopenActive = (socket: Socket) => {
         pending.delete(message[1])
       }
     }),
-    on(socket, SocketEventType.Receive, (message: RelayMessage) => {
+    socket.recv$.subscribe((message: RelayMessage) => {
       if (isRelayClosed(message) || isRelayOk(message)) {
         pending.delete(message[1])
       }
     }),
   ]
 
-  return () => unsubscribers.forEach(call)
+  return () => {
+    subscriptions.forEach(sub => sub.unsubscribe())
+  }
 }
 
 export const defaultSocketPolicies = [

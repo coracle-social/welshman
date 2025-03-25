@@ -1,8 +1,8 @@
 import WebSocket from "isomorphic-ws"
-import EventEmitter from "events"
-import {TaskQueue} from "@welshman/lib"
+import {call} from "@welshman/lib"
+import {Subject, observeOn, asapScheduler, Observable} from "rxjs"
 import {RelayMessage, ClientMessage} from "./message.js"
-import {TypedEmitter} from "./util.js"
+import {Unsubscriber} from "./util.js"
 
 export enum SocketStatus {
   Open = "socket:status:open",
@@ -13,44 +13,32 @@ export enum SocketStatus {
   Invalid = "socket:status:invalid",
 }
 
-export enum SocketEventType {
-  Error = "socket:event:error",
-  Status = "socket:event:status",
-  Send = "socket:event:send",
-  Enqueue = "socket:event:enqueue",
-  Receive = "socket:event:receive",
-}
+export type SocketPolicy = (socket: Socket) => Unsubscriber
 
-export type SocketEvents = {
-  [SocketEventType.Error]: (error: string, url: string) => void
-  [SocketEventType.Status]: (status: SocketStatus, url: string) => void
-  [SocketEventType.Send]: (message: ClientMessage, url: string) => void
-  [SocketEventType.Enqueue]: (message: ClientMessage, url: string) => void
-  [SocketEventType.Receive]: (message: RelayMessage, url: string) => void
-}
-
-export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents>) {
+export class Socket {
   _ws?: WebSocket
-  _sendQueue: TaskQueue<ClientMessage>
-  _recvQueue: TaskQueue<RelayMessage>
+  _errorSubject = new Subject<string>()
+  _statusSubject = new Subject<SocketStatus>()
+  _sendSubject = new Subject<ClientMessage>()
+  _recvSubject = new Subject<RelayMessage>()
+  _unsubscribers: Unsubscriber[] = []
 
-  constructor(readonly url: string) {
-    super()
+  error$ = this._errorSubject.asObservable()
+  status$ = this._statusSubject.asObservable()
+  send$: Observable<ClientMessage> = this._sendSubject.asObservable().pipe(observeOn(asapScheduler))
+  recv$ = this._recvSubject.asObservable().pipe(observeOn(asapScheduler))
 
-    this._sendQueue = new TaskQueue<ClientMessage>({
-      batchSize: 50,
-      processItem: (message: ClientMessage) => {
-        this._ws?.send(JSON.stringify(message))
-        this.emit(SocketEventType.Send, message, this.url)
-      },
+  constructor(
+    readonly url: string,
+    policies: SocketPolicy[] = [],
+  ) {
+    this.send$.subscribe((message: ClientMessage) => {
+      this._ws?.send(JSON.stringify(message))
     })
 
-    this._recvQueue = new TaskQueue<RelayMessage>({
-      batchSize: 50,
-      processItem: (message: RelayMessage) => {
-        this.emit(SocketEventType.Receive, message, this.url)
-      },
-    })
+    for (const policy of policies) {
+      this._unsubscribers.push(policy(this))
+    }
   }
 
   open = () => {
@@ -60,17 +48,19 @@ export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents
 
     try {
       this._ws = new WebSocket(this.url)
-      this.emit(SocketEventType.Status, SocketStatus.Opening, this.url)
+      this._statusSubject.next(SocketStatus.Opening)
 
-      this._ws.onopen = () => this.emit(SocketEventType.Status, SocketStatus.Open, this.url)
+      this._ws.onopen = () => {
+        this._statusSubject.next(SocketStatus.Open)
+      }
 
       this._ws.onerror = () => {
-        this.emit(SocketEventType.Status, SocketStatus.Error, this.url)
+        this._statusSubject.next(SocketStatus.Error)
         this._ws = undefined
       }
 
       this._ws.onclose = () => {
-        this.emit(SocketEventType.Status, SocketStatus.Closed, this.url)
+        this._statusSubject.next(SocketStatus.Closed)
         this._ws = undefined
       }
 
@@ -81,16 +71,16 @@ export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents
           const message = JSON.parse(data)
 
           if (Array.isArray(message)) {
-            this._recvQueue.push(message as RelayMessage)
+            this._recvSubject.next(message as RelayMessage)
           } else {
-            this.emit(SocketEventType.Error, "Invalid message received", this.url)
+            this._errorSubject.next("Invalid message received")
           }
         } catch (e) {
-          this.emit(SocketEventType.Error, "Invalid message received", this.url)
+          this._errorSubject.next("Invalid message received")
         }
       }
     } catch (e) {
-      this.emit(SocketEventType.Status, SocketStatus.Invalid, this.url)
+      this._statusSubject.next(SocketStatus.Invalid)
     }
   }
 
@@ -105,15 +95,16 @@ export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents
     this._ws = undefined
   }
 
-  cleanup = () => {
+  complete = () => {
     this.close()
-    this._recvQueue.clear()
-    this._sendQueue.clear()
-    this.removeAllListeners()
+    this._sendSubject.complete()
+    this._recvSubject.complete()
+    this._errorSubject.complete()
+    this._statusSubject.complete()
+    this._unsubscribers.forEach(call)
   }
 
   send = (message: ClientMessage) => {
-    this._sendQueue.push(message)
-    this.emit(SocketEventType.Enqueue, message, this.url)
+    this._sendSubject.next(message)
   }
 }
