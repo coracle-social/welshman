@@ -12,7 +12,7 @@ import {
 import {getAdapter, AdapterContext, AbstractAdapter, AdapterEventType} from "./adapter.js"
 import {Negentropy, NegentropyStorageVector} from "./negentropy.js"
 import {subscribe, SubscriptionEventType} from "./subscribe.js"
-import {publish, PublishEventType} from "./publish.js"
+import {publish, PublicationEventType} from "./publish.js"
 
 export enum DifferenceEventType {
   Message = "difference:event:message",
@@ -31,7 +31,6 @@ export type DifferenceOptions = {
   filter: Filter
   events: SignedEvent[]
   context: AdapterContext
-  on?: Partial<DifferenceEvents>
 }
 
 export class Difference extends (EventEmitter as new () => TypedEmitter<DifferenceEvents>) {
@@ -95,13 +94,6 @@ export class Difference extends (EventEmitter as new () => TypedEmitter<Differen
         }
       },
     )
-
-    // Register listeners
-    if (this.options.on) {
-      for (const [k, listener] of Object.entries(this.options.on)) {
-        this.on(k as keyof DifferenceEvents, listener)
-      }
-    }
 
     neg.initiate().then((msg: string) => {
       this._adapter.send([ClientMessageType.NegOpen, this._id, this.options.filter, msg])
@@ -212,7 +204,7 @@ export const pull = async ({context, ...options}: PullOptions) => {
       return Promise.all(
         chunk(500, allIds).map(ids => {
           return new Promise<void>(resolve => {
-            const sub = subscribe({relay, filter: {ids}, context, autoClose: true})
+            const sub = subscribe({relay, context, filter: {ids}, autoClose: true})
 
             sub.on(SubscriptionEventType.Close, resolve)
             sub.on(SubscriptionEventType.Event, event => result.push(event))
@@ -247,7 +239,9 @@ export const push = async ({context, events, ...options}: PushOptions) => {
           relays.map(
             relay =>
               new Promise<void>(resolve => {
-                publish({event, relay, context}).on(PublishEventType.Complete, resolve)
+                const pub = publish({event, relay, context})
+
+                pub.on(PublicationEventType.Complete, resolve)
               }),
           ),
         )

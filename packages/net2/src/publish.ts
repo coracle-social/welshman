@@ -5,48 +5,51 @@ import {RelayMessage, ClientMessageType, isRelayOk} from "./message.js"
 import {AbstractAdapter, AdapterEventType, AdapterContext, getAdapter} from "./adapter.js"
 import {TypedEmitter} from "./util.js"
 
-export enum PublishStatus {
-  Pending = "publish:status:pending",
-  Success = "publish:status:success",
-  Failure = "publish:status:failure",
-  Timeout = "publish:status:timeout",
-  Aborted = "publish:status:aborted",
+export enum PublicationStatus {
+  Pending = "publication:status:pending",
+  Success = "publication:status:success",
+  Failure = "publication:status:failure",
+  Timeout = "publication:status:timeout",
+  Aborted = "publication:status:aborted",
 }
 
-export enum PublishEventType {
-  Complete = "publish:status:complete",
+export enum PublicationEventType {
+  Success = "publication:event:success",
+  Failure = "publication:event:failure",
+  Timeout = "publication:event:timeout",
+  Aborted = "publication:event:aborted",
+  Complete = "publication:event:complete",
 }
 
-export type PublishEvents = {
-  [PublishStatus.Success]: (id: string, detail: string, url: string) => void
-  [PublishStatus.Failure]: (id: string, detail: string, url: string) => void
-  [PublishStatus.Timeout]: () => void
-  [PublishStatus.Aborted]: () => void
-  [PublishEventType.Complete]: () => void
+export type PublicationEvents = {
+  [PublicationEventType.Success]: (id: string, detail: string, url: string) => void
+  [PublicationEventType.Failure]: (id: string, detail: string, url: string) => void
+  [PublicationEventType.Timeout]: () => void
+  [PublicationEventType.Aborted]: () => void
+  [PublicationEventType.Complete]: () => void
 }
 
-export type PublishOptions = {
+export type PublicationOptions = {
   relay: string
   event: SignedEvent
   context: AdapterContext
   timeout?: number
-  on?: Partial<PublishEvents>
 }
 
-export class Publish extends (EventEmitter as new () => TypedEmitter<PublishEvents>) {
-  status = PublishStatus.Pending
+export class Publication extends (EventEmitter as new () => TypedEmitter<PublicationEvents>) {
+  status = PublicationStatus.Pending
 
   _done = new Set<string>()
   _unsubscriber: () => void
   _adapter: AbstractAdapter
 
-  constructor(readonly options: PublishOptions) {
+  constructor(readonly options: PublicationOptions) {
     super()
 
     // Set up our adapter
     this._adapter = getAdapter(this.options.relay, this.options.context)
 
-    // Listen for publish result
+    // Listen for Publication result
     this._unsubscriber = on(
       this._adapter,
       AdapterEventType.Receive,
@@ -57,24 +60,17 @@ export class Publish extends (EventEmitter as new () => TypedEmitter<PublishEven
           if (id !== this.options.event.id) return
 
           if (ok) {
-            this.status = PublishStatus.Success
-            this.emit(PublishStatus.Success, id, detail, url)
+            this.status = PublicationStatus.Success
+            this.emit(PublicationEventType.Success, id, detail, url)
           } else {
-            this.status = PublishStatus.Failure
-            this.emit(PublishStatus.Failure, id, detail, url)
+            this.status = PublicationStatus.Failure
+            this.emit(PublicationEventType.Failure, id, detail, url)
           }
 
           this.cleanup()
         }
       },
     )
-
-    // Register handlers
-    if (this.options.on) {
-      for (const [k, listener] of Object.entries(this.options.on)) {
-        this.on(k as keyof PublishEvents, listener)
-      }
-    }
 
     // Autostart asynchronously so the caller can set up listeners
     yieldThread().then(this.start)
@@ -83,32 +79,32 @@ export class Publish extends (EventEmitter as new () => TypedEmitter<PublishEven
   start = () => {
     // Set timeout
     sleep(this.options.timeout || 10_000).then(() => {
-      if (this.status === PublishStatus.Pending) {
-        this.status = PublishStatus.Timeout
-        this.emit(PublishStatus.Timeout)
+      if (this.status === PublicationStatus.Pending) {
+        this.status = PublicationStatus.Timeout
+        this.emit(PublicationEventType.Timeout)
       }
 
       this.cleanup()
     })
 
-    // Send the publish message
+    // Send the Publication message
     this._adapter.send([ClientMessageType.Event, event])
   }
 
   abort = () => {
-    if (this.status === PublishStatus.Pending) {
-      this.status = PublishStatus.Aborted
-      this.emit(PublishStatus.Aborted)
+    if (this.status === PublicationStatus.Pending) {
+      this.status = PublicationStatus.Aborted
+      this.emit(PublicationEventType.Aborted)
       this.cleanup()
     }
   }
 
   cleanup = () => {
-    this.emit(PublishEventType.Complete)
+    this.emit(PublicationEventType.Complete)
     this.removeAllListeners()
     this._adapter.cleanup()
     this._unsubscriber()
   }
 }
 
-export const publish = (options: PublishOptions) => new Publish(options)
+export const publish = (options: PublicationOptions) => new Publication(options)
