@@ -1,5 +1,5 @@
 import WebSocket from "isomorphic-ws"
-import {Subject, observeOn, asapScheduler, Observable} from "rxjs"
+import {Subject, Subscription, takeUntil, observeOn, asapScheduler} from "rxjs"
 import {RelayMessage, ClientMessage} from "./message.js"
 
 export enum SocketStatus {
@@ -11,19 +11,21 @@ export enum SocketStatus {
   Invalid = "socket:status:invalid",
 }
 
-export type SocketPolicy = (socket: Socket) => void
+export type SocketPolicy = (socket: Socket) => Subscription
 
 export class Socket {
   _ws?: WebSocket
+  _subs: Subscription[] = []
+  _destroy$ = new Subject<void>()
   _errorSubject = new Subject<string>()
   _statusSubject = new Subject<SocketStatus>()
   _sendSubject = new Subject<ClientMessage>()
   _recvSubject = new Subject<RelayMessage>()
 
-  error$ = this._errorSubject.asObservable()
-  status$ = this._statusSubject.asObservable()
-  send$: Observable<ClientMessage> = this._sendSubject.asObservable().pipe(observeOn(asapScheduler))
-  recv$ = this._recvSubject.asObservable().pipe(observeOn(asapScheduler))
+  error$ = this._errorSubject.asObservable().pipe(takeUntil(this._destroy$))
+  status$ = this._statusSubject.asObservable().pipe(takeUntil(this._destroy$))
+  send$ = this._sendSubject.asObservable().pipe(observeOn(asapScheduler), takeUntil(this._destroy$))
+  recv$ = this._recvSubject.asObservable().pipe(observeOn(asapScheduler), takeUntil(this._destroy$))
 
   constructor(
     readonly url: string,
@@ -34,7 +36,7 @@ export class Socket {
     })
 
     for (const policy of policies) {
-      policy(this)
+      this._subs.push(policy(this))
     }
   }
 
@@ -92,12 +94,15 @@ export class Socket {
     this._ws = undefined
   }
 
-  complete = () => {
+  destroy = () => {
     this.close()
+    this._destroy$.next()
+    this._destroy$.complete()
     this._sendSubject.complete()
     this._recvSubject.complete()
     this._errorSubject.complete()
     this._statusSubject.complete()
+    this._subs.forEach(sub => sub.unsubscribe())
   }
 
   send = (message: ClientMessage) => {

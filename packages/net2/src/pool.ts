@@ -58,7 +58,7 @@ export class Pool {
     const socket = this._data.get(url)
 
     if (socket) {
-      socket.complete()
+      socket.destroy()
 
       this._data.delete(url)
     }

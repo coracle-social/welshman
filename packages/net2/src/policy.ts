@@ -1,4 +1,4 @@
-import {filter} from "rxjs"
+import {filter, Subscription} from "rxjs"
 import {sleep, nth, ago, now} from "@welshman/lib"
 import {AUTH_JOIN} from "@welshman/util"
 import {
@@ -22,7 +22,7 @@ export const socketPolicySendWhenOpen = (socket: Socket) => {
 
   socket.send$ = send$.pipe(controller.operator)
 
-  socket.status$.subscribe((status: SocketStatus) => {
+  return socket.status$.subscribe((status: SocketStatus) => {
     if (status === SocketStatus.Open) {
       controller.resume()
     } else {
@@ -58,7 +58,7 @@ export const socketPolicyDeferOnAuth = (socket: Socket) => {
   )
 
   // Send buffered messages when we get successful auth
-  authState.subscribe((status: AuthStatus) => {
+  return authState.subscribe((status: AuthStatus) => {
     if (okStatuses.includes(status)) {
       const reqs = new Set(buffer.filter(isClientReq).map(nth(1)))
       const closed = new Set(buffer.filter(isClientClose).map(nth(1)))
@@ -79,77 +79,94 @@ export const socketPolicyDeferOnAuth = (socket: Socket) => {
 export const socketPolicyRetryAuthRequired = (socket: Socket) => {
   const retried = new Set<string>()
   const pending = new Map<string, ClientMessage>()
+  const subscription = new Subscription()
 
   // Watch outgoing events and requests and keep a copy
-  socket.send$.subscribe((message: ClientMessage) => {
-    if (isClientEvent(message)) {
-      const [_, event] = message
+  subscription.add(
+    socket.send$.subscribe((message: ClientMessage) => {
+      if (isClientEvent(message)) {
+        const [_, event] = message
 
-      if (!retried.has(event.id) && event.kind !== AUTH_JOIN) {
-        pending.set(event.id, message)
+        if (!retried.has(event.id) && event.kind !== AUTH_JOIN) {
+          pending.set(event.id, message)
+        }
       }
-    }
 
-    if (isClientReq(message)) {
-      const [_, id] = message
+      if (isClientReq(message)) {
+        const [_, id] = message
 
-      if (!retried.has(id)) {
-        pending.set(id, message)
+        if (!retried.has(id)) {
+          pending.set(id, message)
+        }
       }
-    }
-  })
+    }),
+  )
 
   // If a message is rejected with auth-required, re-enqueue it one time
-  socket.recv$.subscribe((message: RelayMessage) => {
-    if (isRelayOk(message)) {
-      const [_, id, ok, detail] = message
-      const pendingMessage = pending.get(id)
+  subscription.add(
+    socket.recv$.subscribe((message: RelayMessage) => {
+      if (isRelayOk(message)) {
+        const [_, id, ok, detail] = message
+        const pendingMessage = pending.get(id)
 
-      if (pendingMessage && !ok && detail?.startsWith("auth-required:")) {
-        socket.send(pendingMessage)
-        retried.add(id)
+        if (pendingMessage && !ok && detail?.startsWith("auth-required:")) {
+          socket.send(pendingMessage)
+          retried.add(id)
+        }
+
+        pending.delete(id)
       }
 
-      pending.delete(id)
-    }
+      if (isRelayClosed(message)) {
+        const [_, id, detail] = message
+        const pendingMessage = pending.get(id)
 
-    if (isRelayClosed(message)) {
-      const [_, id, detail] = message
-      const pendingMessage = pending.get(id)
+        if (pendingMessage && detail?.startsWith("auth-required:")) {
+          socket.send(pendingMessage)
+          retried.add(id)
+        }
 
-      if (pendingMessage && detail?.startsWith("auth-required:")) {
-        socket.send(pendingMessage)
-        retried.add(id)
+        pending.delete(id)
       }
+    }),
+  )
 
-      pending.delete(id)
-    }
-  })
+  return subscription
 }
 
 export const socketPolicyConnectOnSend = (socket: Socket) => {
+  const subscription = new Subscription()
+
   let lastError = 0
   let currentStatus = SocketStatus.Closed
 
-  socket.status$.subscribe((newStatus: SocketStatus) => {
-    // Keep track of the most recent error
-    if (newStatus === SocketStatus.Error) {
-      lastError = now()
-    }
+  subscription.add(
+    socket.status$.subscribe((newStatus: SocketStatus) => {
+      // Keep track of the most recent error
+      if (newStatus === SocketStatus.Error) {
+        lastError = now()
+      }
 
-    // Keep track of the current status
-    currentStatus = newStatus
-  })
+      // Keep track of the current status
+      currentStatus = newStatus
+    }),
+  )
 
-  socket.send$.subscribe(() => {
-    // When a new message is sent, make sure the socket is open (delaying in case of a recent error)
-    if (currentStatus === SocketStatus.Closed) {
-      setTimeout(() => socket.open(), Math.max(0, 30 - (now() - lastError)))
-    }
-  })
+  subscription.add(
+    socket.send$.subscribe(() => {
+      // When a new message is sent, make sure the socket is open (delaying in case of a recent error)
+      if (currentStatus === SocketStatus.Closed) {
+        setTimeout(() => socket.open(), Math.max(0, 30 - (now() - lastError)))
+      }
+    }),
+  )
+
+  return subscription
 }
 
 export const socketPolicyCloseOnTimeout = (socket: Socket) => {
+  const subscription = new Subscription()
+
   let lastActivity = 0
 
   const interval = setInterval(() => {
@@ -158,60 +175,75 @@ export const socketPolicyCloseOnTimeout = (socket: Socket) => {
     }
   }, 3000)
 
-  socket.send$.subscribe(() => {
-    lastActivity = now()
-  })
-
-  socket.recv$.subscribe({
-    next: () => {
+  subscription.add(
+    socket.send$.subscribe(() => {
       lastActivity = now()
-    },
-    complete: () => {
-      clearInterval(interval)
-    },
-  })
+    }),
+  )
+
+  subscription.add(
+    socket.recv$.subscribe({
+      next: () => {
+        lastActivity = now()
+      },
+      complete: () => {
+        clearInterval(interval)
+      },
+    }),
+  )
+
+  return subscription
 }
 
 export const socketPolicyReopenActive = (socket: Socket) => {
+  const subscription = new Subscription()
   const pending = new Map<string, ClientMessage>()
 
   let lastOpen = 0
 
-  socket.status$.subscribe((newStatus: SocketStatus) => {
-    // Keep track of the most recent error
-    if (newStatus === SocketStatus.Open) {
-      lastOpen = Date.now()
-    }
+  subscription.add(
+    socket.status$.subscribe((newStatus: SocketStatus) => {
+      // Keep track of the most recent error
+      if (newStatus === SocketStatus.Open) {
+        lastOpen = Date.now()
+      }
 
-    // If the socket closed and we have no error, reopen it but don't flap
-    if (newStatus === SocketStatus.Closed && pending.size) {
-      sleep(Math.max(0, 30_000 - (Date.now() - lastOpen))).then(() => {
-        for (const message of pending.values()) {
-          socket.send(message)
-        }
-      })
-    }
-  })
+      // If the socket closed and we have no error, reopen it but don't flap
+      if (newStatus === SocketStatus.Closed && pending.size) {
+        sleep(Math.max(0, 30_000 - (Date.now() - lastOpen))).then(() => {
+          for (const message of pending.values()) {
+            socket.send(message)
+          }
+        })
+      }
+    }),
+  )
 
-  socket.send$.subscribe((message: ClientMessage) => {
-    if (isClientEvent(message)) {
-      pending.set(message[1].id, message)
-    }
+  subscription.add(
+    socket.send$.subscribe((message: ClientMessage) => {
+      if (isClientEvent(message)) {
+        pending.set(message[1].id, message)
+      }
 
-    if (isClientReq(message)) {
-      pending.set(message[1], message)
-    }
+      if (isClientReq(message)) {
+        pending.set(message[1], message)
+      }
 
-    if (isClientClose(message)) {
-      pending.delete(message[1])
-    }
-  })
+      if (isClientClose(message)) {
+        pending.delete(message[1])
+      }
+    }),
+  )
 
-  socket.recv$.subscribe((message: RelayMessage) => {
-    if (isRelayClosed(message) || isRelayOk(message)) {
-      pending.delete(message[1])
-    }
-  })
+  subscription.add(
+    socket.recv$.subscribe((message: RelayMessage) => {
+      if (isRelayClosed(message) || isRelayOk(message)) {
+        pending.delete(message[1])
+      }
+    }),
+  )
+
+  return subscription
 }
 
 export const defaultSocketPolicies = [
