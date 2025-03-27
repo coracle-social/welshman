@@ -421,13 +421,14 @@ export const truncate = (
   // Otherwise, truncate more then necessary so that when the user expands the note
   // they have more than just a tiny bit to look at. Truncating a single word is annoying.
   sizes.every((size, i) => {
+    currentSize += size
+
     if (currentSize > minLength) {
-      content = content.slice(0, i).concat({type: ParsedType.Ellipsis, value: "…", raw: ""})
+      content = content.slice(0, Math.max(1, i)).concat({type: ParsedType.Ellipsis, value: "…", raw: ""})
 
       return false
     }
 
-    currentSize += size
 
     return true
   })
