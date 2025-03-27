@@ -58,6 +58,7 @@ export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEven
         if (isRelayOk(message)) {
           const [_, id, ok, detail] = message
 
+
           if (id !== this.options.event.id) return
 
           if (ok) {
@@ -85,7 +86,7 @@ export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEven
 
     // Start asynchronously so the caller can set up listeners
     yieldThread().then(() => {
-      this._adapter.send([ClientMessageType.Event, event])
+      this._adapter.send([ClientMessageType.Event, this.options.event])
     })
   }
 
@@ -159,6 +160,7 @@ export class Multicast extends (EventEmitter as new () => TypedEmitter<Multicast
 
         if (this._completed.size === relays.length) {
           this.emit(PublishEventType.Complete)
+          this.cleanup()
         }
       })
 
@@ -173,9 +175,7 @@ export class Multicast extends (EventEmitter as new () => TypedEmitter<Multicast
   }
 
   cleanup() {
-    for (const child of this._children) {
-      child.cleanup()
-    }
+    this.removeAllListeners()
   }
 }
 
