@@ -1,4 +1,5 @@
 import {EventEmitter} from "events"
+import {verifyEvent as nostrToolsVerifyEvent} from 'nostr-tools'
 import {on, call, randomId, yieldThread} from "@welshman/lib"
 import {Filter, matchFilter, SignedEvent} from "@welshman/util"
 import {RelayMessage, ClientMessageType, isRelayEvent, isRelayEose} from "./message.js"
@@ -6,6 +7,14 @@ import {getAdapter, AdapterContext, AbstractAdapter, AdapterEventType} from "./a
 import {SocketEventType, SocketStatus} from "./socket.js"
 import {TypedEmitter, Unsubscriber} from "./util.js"
 import {Tracker} from "./tracker.js"
+
+export const defaultVerifyEvent = (event: SignedEvent) => {
+  try {
+    return nostrToolsVerifyEvent(event)
+  } catch (e) {
+    return false
+  }
+}
 
 export enum RequestEventType {
   Close = "request:event:close",
@@ -48,6 +57,10 @@ export class Unireq extends (EventEmitter as new () => TypedEmitter<UnireqEvents
   constructor(readonly options: UnireqOptions) {
     super()
 
+    const tracker = options.tracker || new Tracker()
+
+    const verifyEvent = options.verifyEvent || defaultVerifyEvent
+
     // Set up our adapter
     this._adapter = getAdapter(this.options.relay, this.options.context)
 
@@ -59,9 +72,9 @@ export class Unireq extends (EventEmitter as new () => TypedEmitter<UnireqEvents
 
           if (id !== this._id) return
 
-          if (this.options.tracker?.track(event.id, url)) {
+          if (tracker.track(event.id, url)) {
             this.emit(RequestEventType.Duplicate, event)
-          } else if (this.options.verifyEvent?.(event) === false) {
+          } else if (verifyEvent?.(event) === false) {
             this.emit(RequestEventType.Invalid, event)
           } else if (!matchFilter(this.options.filter, event)) {
             this.emit(RequestEventType.Filtered, event)
@@ -145,8 +158,10 @@ export class Multireq extends (EventEmitter as new () => TypedEmitter<MultireqEv
   constructor({relays, ...options}: MultireqOptions) {
     super()
 
+    const tracker = new Tracker()
+
     for (const relay of relays) {
-      const req = new Unireq({relay, ...options})
+      const req = new Unireq({relay, tracker, ...options})
 
       req.on(RequestEventType.Event, (event: SignedEvent) => {
         this.emit(RequestEventType.Event, event, relay)
