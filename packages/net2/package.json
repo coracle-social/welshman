@@ -23,11 +23,7 @@
     "pub": "npm run lint && npm run build && npm publish",
     "build": "gts clean && tsc",
     "lint": "gts lint",
-    "fix": "gts fix",
-    "test": "mocha"
-  },
-  "devDependencies": {
-    "mocha": "^10.7.3"
+    "fix": "gts fix"
   },
   "dependencies": {
     "@welshman/lib": "^0.1.0",
