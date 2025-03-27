@@ -6,7 +6,7 @@ import {defaultSocketPolicies} from "./policy.js"
 export const makeSocket = (url: string, policies = defaultSocketPolicies) => {
   const socket = new Socket(url)
 
-  for (const applyPolicy of defaultSocketPolicies) {
+  for (const applyPolicy of policies) {
     applyPolicy(socket)
   }
 
