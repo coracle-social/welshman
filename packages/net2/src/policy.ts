@@ -17,18 +17,20 @@ import {pauseController} from "./util.js"
 
 // Pause sending messages when the socket isn't open
 export const socketPolicySendWhenOpen = (socket: Socket) => {
-  const send$ = socket.send$
   const controller = pauseController<ClientMessage>()
 
-  socket.send$ = send$.pipe(controller.operator)
-
-  return socket.status$.subscribe((status: SocketStatus) => {
-    if (status === SocketStatus.Open) {
-      controller.resume()
-    } else {
-      controller.pause()
-    }
-  })
+  return {
+    tx: [
+      controller.operator,
+      tap((status: SocketStatus) => {
+        if (status === SocketStatus.Open) {
+          controller.resume()
+        } else {
+          controller.pause()
+        }
+      }),
+    ],
+  }
 }
 
 export const socketPolicyDeferOnAuth = (socket: Socket) => {

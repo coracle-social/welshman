@@ -24,7 +24,13 @@ export class Pool {
       return this.options.makeSocket(url)
     }
 
-    return new Socket(url, defaultSocketPolicies)
+    const socket = new Socket(url)
+
+    for (const policy of defaultSocketPolicies) {
+      socket.applyPolicy(policy(socket))
+    }
+
+    return socket
   }
 
   get(_url: string): Socket {
