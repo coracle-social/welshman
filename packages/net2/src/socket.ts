@@ -62,15 +62,20 @@ export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents
       this._ws = new WebSocket(this.url)
       this.emit(SocketEventType.Status, SocketStatus.Opening, this.url)
 
-      this._ws.onopen = () => this.emit(SocketEventType.Status, SocketStatus.Open, this.url)
+      this._ws.onopen = () => {
+        this.emit(SocketEventType.Status, SocketStatus.Open, this.url)
+        this._sendQueue.start()
+      }
 
       this._ws.onerror = () => {
         this.emit(SocketEventType.Status, SocketStatus.Error, this.url)
+        this._sendQueue.stop()
         this._ws = undefined
       }
 
       this._ws.onclose = () => {
         this.emit(SocketEventType.Status, SocketStatus.Closed, this.url)
+        this._sendQueue.stop()
         this._ws = undefined
       }
 

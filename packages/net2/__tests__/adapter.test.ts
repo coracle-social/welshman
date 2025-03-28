@@ -6,39 +6,35 @@ import { Pool } from "../src/pool"
 import { ClientMessage, RelayMessage } from "../src/message"
 import EventEmitter from "events"
 
-vi.mock("@welshman/lib", () => ({
-  on: (target: any, eventName: string, callback: Function) => {
-    target.on(eventName, callback)
-    return () => target.off(eventName, callback)
-  },
-  call: (fn: Function) => fn()
-}))
+vi.mock('isomorphic-ws', () => {
+  const WebSocket = vi.fn(function () {
+    setTimeout(() => this.onopen())
+  })
 
-vi.mock("../src/socket")
-vi.mock("@welshman/util", () => ({
-  Relay: vi.fn(() => new EventEmitter()),
-  LOCAL_RELAY_URL: "local://welshman.relay/",
-  isRelayUrl: vi.fn((url) => url.startsWith("wss://"))
-}))
+  WebSocket.prototype.send = vi.fn()
+
+  WebSocket.prototype.close = vi.fn(function () {
+    this.onclose()
+  })
+
+  return { default: WebSocket }
+})
 
 describe("SocketAdapter", () => {
   let socket: Socket
   let adapter: SocketAdapter
 
   beforeEach(() => {
-    const mockSocket = new EventEmitter()
-    Object.assign(mockSocket, {
-      url: "wss://test.relay",
-      send: vi.fn(),
-      removeAllListeners: vi.fn()
-    })
-    socket = mockSocket as unknown as Socket
+    vi.useFakeTimers()
+    socket = new Socket('wss://test.relay')
     adapter = new SocketAdapter(socket)
   })
 
   afterEach(() => {
-    adapter.cleanup()
     vi.clearAllMocks()
+    vi.useRealTimers()
+    socket.cleanup()
+    adapter.cleanup()
   })
 
   it("should initialize with correct socket", () => {
@@ -51,17 +47,18 @@ describe("SocketAdapter", () => {
     const receiveSpy = vi.fn()
     adapter.on(AdapterEventType.Receive, receiveSpy)
 
-    const message: RelayMessage = ["EVENT", "123", { id: "123", kind: 1, content: "", tags: [], pubkey: "", sig: "" }]
+    const message: RelayMessage = ["EVENT", "123", { id: "123", kind: 1 }]
     socket.emit(SocketEventType.Receive, message, "wss://test.relay")
 
     expect(receiveSpy).toHaveBeenCalledWith(message, "wss://test.relay")
   })
 
   it("should send messages to socket", () => {
-    const message: ClientMessage = ["EVENT", { id: "123", kind: 1, content: "", tags: [], pubkey: "", sig: "" }]
+    const sendSpy = vi.spyOn(socket, 'send')
+    const message: ClientMessage = ["EVENT", { id: "123", kind: 1 }]
     adapter.send(message)
 
-    expect(socket.send).toHaveBeenCalledWith(message)
+    expect(sendSpy).toHaveBeenCalledWith(message)
   })
 
   it("should cleanup properly", () => {
@@ -100,14 +97,14 @@ describe("LocalAdapter", () => {
     const receiveSpy = vi.fn()
     adapter.on(AdapterEventType.Receive, receiveSpy)
 
-    const message: RelayMessage = ["EVENT", "123", { id: "123", kind: 1, content: "", tags: [], pubkey: "", sig: "" }]
+    const message: RelayMessage = ["EVENT", "123", { id: "123", kind: 1 }]
     relay.emit("*", ...message)
 
     expect(receiveSpy).toHaveBeenCalledWith(message, LOCAL_RELAY_URL)
   })
 
   it("should send messages to relay", () => {
-    const message: ClientMessage = ["EVENT", { id: "123", kind: 1, content: "", tags: [], pubkey: "", sig: "" }]
+    const message: ClientMessage = ["EVENT", { id: "123", kind: 1 }]
     adapter.send(message)
 
     expect(relay.send).toHaveBeenCalledWith("EVENT", message[1])
@@ -147,7 +144,6 @@ describe("getAdapter", () => {
   })
 
   it("should throw error for invalid relay URL", () => {
-    vi.mocked(isRelayUrl).mockReturnValue(false)
     expect(() => getAdapter("invalid-url", {})).toThrow("Invalid relay url invalid-url")
   })
 
@@ -158,7 +154,6 @@ describe("getAdapter", () => {
 
   it("should throw error for remote relay URL without pool context", () => {
     const url = "wss://test.relay"
-    vi.mocked(isRelayUrl).mockReturnValue(true)
     expect(() => getAdapter(url, {})).toThrow(`Unable to get socket for ${url}`)
   })
 

@@ -1,36 +1,35 @@
 import { sleep } from "@welshman/lib"
-import WebSocket from "isomorphic-ws"
+import WebSocket from 'isomorphic-ws'
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Socket, SocketStatus, SocketEventType } from "../src/socket"
 import { ClientMessage, RelayMessage } from "../src/message"
 
-vi.mock("isomorphic-ws")
+vi.mock('isomorphic-ws', () => {
+  const WebSocket = vi.fn(function () {
+    setTimeout(() => this.onopen())
+  })
+
+  WebSocket.prototype.send = vi.fn()
+
+  WebSocket.prototype.close = vi.fn(function () {
+    this.onclose()
+  })
+
+  return { default: WebSocket }
+})
 
 describe("Socket", () => {
   let socket: Socket
-  let mockWs: any
 
   beforeEach(() => {
     vi.useFakeTimers()
-    vi.clearAllMocks()
-
-    mockWs = {
-      close: vi.fn(),
-      send: vi.fn(),
-      onopen: null,
-      onclose: null,
-      onerror: null,
-      onmessage: null,
-    }
-
-    vi.mocked(WebSocket).mockImplementation(() => mockWs)
-
     socket = new Socket("wss://test.relay")
   })
 
   afterEach(() => {
-    socket.cleanup()
+    vi.clearAllMocks()
     vi.useRealTimers()
+    socket.cleanup()
   })
 
   it("should initialize with correct url", () => {
@@ -44,16 +43,10 @@ describe("Socket", () => {
 
       socket.open()
 
-      expect(WebSocket).toHaveBeenCalledWith("wss://test.relay")
+      expect(socket._ws).toBeDefined()
       expect(statusSpy).toHaveBeenCalledWith(SocketStatus.Opening, "wss://test.relay")
-    })
 
-    it("should emit open status when connection opens", () => {
-      const statusSpy = vi.fn()
-      socket.on(SocketEventType.Status, statusSpy)
-
-      socket.open()
-      mockWs.onopen()
+      vi.runAllTimers()
 
       expect(statusSpy).toHaveBeenCalledWith(SocketStatus.Open, "wss://test.relay")
     })
@@ -83,10 +76,12 @@ describe("Socket", () => {
       socket.on(SocketEventType.Status, statusSpy)
 
       socket.open()
-      socket.close()
-      mockWs.onclose()
 
-      expect(mockWs.close).toHaveBeenCalled()
+      const ws = socket._ws
+
+      socket.close()
+
+      expect(ws.close).toHaveBeenCalled()
       expect(statusSpy).toHaveBeenCalledWith(SocketStatus.Closed, "wss://test.relay")
     })
   })
@@ -96,26 +91,25 @@ describe("Socket", () => {
       const enqueueSpy = vi.fn()
       socket.on(SocketEventType.Enqueue, enqueueSpy)
 
-      const message: ClientMessage = ["EVENT", { id: "123", kind: 1, content: "", tags: [], pubkey: "", sig: "" }]
+      const message: ClientMessage = ["EVENT", { id: "123", kind: 1 }]
       socket.send(message)
 
       expect(enqueueSpy).toHaveBeenCalledWith(message, "wss://test.relay")
     })
 
-    it("should send queued messages when socket is open", async () => {
+    it("should send messages when socket is open", async () => {
       const sendSpy = vi.fn()
       socket.on(SocketEventType.Send, sendSpy)
 
       socket.open()
-      mockWs.onopen()
+      socket._ws.onopen()
 
-      const message: ClientMessage = ["EVENT", { id: "123", kind: 1, content: "", tags: [], pubkey: "", sig: "" }]
+      const message: ClientMessage = ["EVENT", { id: "123", kind: 1 }]
       socket.send(message)
 
-      // Allow task queue to process
       await vi.runAllTimers()
 
-      expect(mockWs.send).toHaveBeenCalledWith(JSON.stringify(message))
+      expect(socket._ws.send).toHaveBeenCalledWith(JSON.stringify(message))
       expect(sendSpy).toHaveBeenCalledWith(message, "wss://test.relay")
     })
   })
@@ -126,8 +120,8 @@ describe("Socket", () => {
       socket.on(SocketEventType.Receive, receiveSpy)
 
       socket.open()
-      const message: RelayMessage = ["EVENT", "123", { id: "123", kind: 1, content: "", tags: [], pubkey: "", sig: "" }]
-      mockWs.onmessage({ data: JSON.stringify(message) })
+      const message: RelayMessage = ["EVENT", "123", { id: "123", kind: 1 }]
+      socket._ws.onmessage({ data: JSON.stringify(message) })
 
       // Allow task queue to process
       await vi.runAllTimers()
@@ -140,7 +134,7 @@ describe("Socket", () => {
       socket.on(SocketEventType.Error, errorSpy)
 
       socket.open()
-      mockWs.onmessage({ data: "invalid json" })
+      socket._ws.onmessage({ data: "invalid json" })
 
       expect(errorSpy).toHaveBeenCalledWith("Invalid message received", "wss://test.relay")
     })
@@ -150,7 +144,7 @@ describe("Socket", () => {
       socket.on(SocketEventType.Error, errorSpy)
 
       socket.open()
-      mockWs.onmessage({ data: JSON.stringify({ not: "an array" }) })
+      socket._ws.onmessage({ data: JSON.stringify({ not: "an array" }) })
 
       expect(errorSpy).toHaveBeenCalledWith("Invalid message received", "wss://test.relay")
     })
@@ -159,9 +153,12 @@ describe("Socket", () => {
   describe("cleanup", () => {
     it("should close socket and clear queues", () => {
       socket.open()
+
+      const ws = socket._ws
+
       socket.cleanup()
 
-      expect(mockWs.close).toHaveBeenCalled()
+      expect(ws.close).toHaveBeenCalled()
       expect(socket.listenerCount(SocketEventType.Send)).toBe(0)
     })
   })
@@ -172,7 +169,7 @@ describe("Socket", () => {
       socket.on(SocketEventType.Status, statusSpy)
 
       socket.open()
-      mockWs.onerror()
+      socket._ws.onerror()
 
       expect(statusSpy).toHaveBeenCalledWith(SocketStatus.Error, "wss://test.relay")
     })

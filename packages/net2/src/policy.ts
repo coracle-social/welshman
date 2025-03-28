@@ -14,21 +14,11 @@ import {
 import {Socket, SocketStatus, SocketEventType} from "./socket.js"
 import {AuthState, AuthStatus, AuthStateEventType} from "./auth.js"
 
-// Pause sending messages when the socket isn't open
-export const socketPolicySendWhenOpen = (socket: Socket) => {
-  const unsubscribers = [
-    on(socket, SocketEventType.Status, (newStatus: SocketStatus) => {
-      if (newStatus === SocketStatus.Open) {
-        socket._sendQueue.start()
-      } else {
-        socket._sendQueue.stop()
-      }
-    }),
-  ]
-
-  return () => unsubscribers.forEach(call)
-}
-
+/**
+ * Defers sending messages when a challenge has been presented and not answered yet
+ * @param socket - a Socket object
+ * @return a cleanup function
+ */
 export const socketPolicyDeferOnAuth = (socket: Socket) => {
   const buffer: ClientMessage[] = []
   const authState = new AuthState(socket)
@@ -78,6 +68,11 @@ export const socketPolicyDeferOnAuth = (socket: Socket) => {
   }
 }
 
+/**
+ * Re-enqueues event/req messages once if rejected due to auth-required
+ * @param socket - a Socket object
+ * @return a cleanup function
+ */
 export const socketPolicyRetryAuthRequired = (socket: Socket) => {
   const retried = new Set<string>()
   const pending = new Map<string, ClientMessage>()
@@ -132,6 +127,11 @@ export const socketPolicyRetryAuthRequired = (socket: Socket) => {
   return () => unsubscribers.forEach(call)
 }
 
+/**
+ * Auto-connects a closed socket when a message is sent unless there was a recent error
+ * @param socket - a Socket object
+ * @return a cleanup function
+ */
 export const socketPolicyConnectOnSend = (socket: Socket) => {
   let lastError = 0
   let currentStatus = SocketStatus.Closed
@@ -146,9 +146,9 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
       // Keep track of the current status
       currentStatus = newStatus
     }),
-    on(socket, SocketEventType.Send, (message: ClientMessage) => {
+    on(socket, SocketEventType.Enqueue, (message: ClientMessage) => {
       // When a new message is sent, make sure the socket is open (unless there was a recent error)
-      if (currentStatus === SocketStatus.Closed && now() - lastError < ago(30)) {
+      if (currentStatus === SocketStatus.Closed && lastError < ago(30)) {
         socket.open()
       }
     }),
@@ -157,8 +157,13 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
   return () => unsubscribers.forEach(call)
 }
 
+/**
+ * Auto-closes a socket after 30 seconds of inactivity
+ * @param socket - a Socket object
+ * @return a cleanup function
+ */
 export const socketPolicyCloseOnTimeout = (socket: Socket) => {
-  let lastActivity = 0
+  let lastActivity = now()
 
   const unsubscribers = [
     on(socket, SocketEventType.Send, (message: ClientMessage) => {
@@ -170,7 +175,7 @@ export const socketPolicyCloseOnTimeout = (socket: Socket) => {
   ]
 
   const interval = setInterval(() => {
-    if (lastActivity < ago(30)) {
+    if (socket.status === SocketStatus.Open && lastActivity < ago(30)) {
       socket.close()
     }
   }, 3000)
@@ -181,6 +186,11 @@ export const socketPolicyCloseOnTimeout = (socket: Socket) => {
   }
 }
 
+/**
+ * Automatically re-opens a socket if there are active requests or publishes
+ * @param socket - a Socket object
+ * @return a cleanup function
+ */
 export const socketPolicyReopenActive = (socket: Socket) => {
   const pending = new Map<string, ClientMessage>()
 
@@ -226,7 +236,6 @@ export const socketPolicyReopenActive = (socket: Socket) => {
 }
 
 export const defaultSocketPolicies = [
-  socketPolicySendWhenOpen,
   socketPolicyDeferOnAuth,
   socketPolicyRetryAuthRequired,
   socketPolicyConnectOnSend,

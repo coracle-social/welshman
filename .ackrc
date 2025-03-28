@@ -1,6 +1,6 @@
 --ignore-dir=docs
 --ignore-dir=dist
 --ignore-dir=build
---ignore-dir=__tests__
+# --ignore-dir=__tests__
 --ignore-dir=.svelte-kit
 --ignore-file=match:yarn.lock

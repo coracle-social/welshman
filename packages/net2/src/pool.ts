@@ -23,10 +23,10 @@ export class Pool {
   _data = new Map<string, Socket>()
   _subs: PoolSubscription[] = []
 
-  constructor(readonly options: PoolOptions) {}
+  constructor(readonly options: PoolOptions = {}) {}
 
   has(url: string) {
-    return this._data.has(url)
+    return this._data.has(normalizeRelayUrl(url))
   }
 
   makeSocket(url: string) {
