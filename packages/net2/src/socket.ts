@@ -30,6 +30,8 @@ export type SocketEvents = {
 }
 
 export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents>) {
+  readonly status = SocketStatus.Closed
+
   _ws?: WebSocket
   _sendQueue: TaskQueue<ClientMessage>
   _recvQueue: TaskQueue<RelayMessage>
@@ -50,6 +52,10 @@ export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents
       processItem: (message: RelayMessage) => {
         this.emit(SocketEventType.Receive, message, this.url)
       },
+    })
+
+    this.on(SocketEventType.Status, (status: SocketStatus) => {
+      this.status = status
     })
   }
 

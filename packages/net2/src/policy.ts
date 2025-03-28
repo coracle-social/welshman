@@ -194,7 +194,7 @@ export const socketPolicyCloseOnTimeout = (socket: Socket) => {
 export const socketPolicyReopenActive = (socket: Socket) => {
   const pending = new Map<string, ClientMessage>()
 
-  let lastOpen = 0
+  let lastOpen = Date.now()
 
   const unsubscribers = [
     on(socket, SocketEventType.Status, (newStatus: SocketStatus) => {
@@ -205,7 +205,9 @@ export const socketPolicyReopenActive = (socket: Socket) => {
 
       // If the socket closed and we have no error, reopen it but don't flap
       if (newStatus === SocketStatus.Closed && pending.size) {
+        console.log('1')
         sleep(Math.max(0, 30_000 - (Date.now() - lastOpen))).then(() => {
+          console.log('2')
           for (const message of pending.values()) {
             socket.send(message)
           }
