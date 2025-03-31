@@ -48,7 +48,7 @@ export const {
   store: relaySelections,
   getKey: relaySelections => relaySelections.event.pubkey,
   load: async (pubkey: string, request: Partial<MultiRequestOptions> = {}) => {
-    const router = Router.getInstance()
+    const router = Router.get()
 
     await load({
       relays: router.merge([router.Index(), router.FromPubkey(pubkey)]).getUrls(),
@@ -73,7 +73,7 @@ export const {
   store: inboxRelaySelections,
   getKey: inboxRelaySelections => inboxRelaySelections.event.pubkey,
   load: async (pubkey: string, request: Partial<MultiRequestOptions> = {}) => {
-    const router = Router.getInstance()
+    const router = Router.get()
 
     await load({
       relays: router.merge([router.Index(), router.FromPubkey(pubkey)]).getUrls(),

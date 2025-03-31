@@ -1,6 +1,6 @@
 import {describe, it, expect, vi, beforeEach, afterEach} from "vitest"
 import {writable, get} from "svelte/store"
-import {Repository} from "@welshman/util"
+import {Repository} from "@welshman/relay"
 import {Tracker} from "@welshman/net"
 import {
   initStorage,

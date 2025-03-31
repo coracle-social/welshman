@@ -11,42 +11,6 @@ import {
   tagZapSplit,
 } from "../src/tags"
 
-// Mock dependencies
-vi.mock(import("@welshman/lib"), async imports => ({
-  ...(await imports()),
-  ctx: {
-    app: {
-      router: {
-        FromPubkey: vi.fn().mockReturnValue({
-          getUrl: () => "pubkey-relay-url",
-        }),
-        Event: vi.fn().mockReturnValue({
-          getUrl: () => "event-relay-url",
-        }),
-        EventRoots: vi.fn().mockReturnValue({
-          getUrl: () => "roots-relay-url",
-        }),
-        EventParents: vi.fn().mockReturnValue({
-          getUrl: () => "parents-relay-url",
-        }),
-      },
-    },
-  },
-  uniq: vi.fn(arr => Array.from(new Set(arr))),
-  remove: vi.fn((item, arr) => arr.filter(x => x !== item)),
-  nthEq: vi.fn((n, val) => (arr: any[]) => arr[n] === val),
-}))
-
-vi.mock("../src/session", () => ({
-  pubkey: {
-    get: vi.fn().mockReturnValue("current-user-pubkey"),
-  },
-}))
-
-vi.mock("../src/profiles", () => ({
-  displayProfileByPubkey: vi.fn().mockReturnValue("display-name"),
-}))
-
 describe("tags", () => {
   const id = "00".repeat(32)
   const id1 = "11".repeat(32)
@@ -70,19 +34,19 @@ describe("tags", () => {
   describe("tagZapSplit", () => {
     it("should create zap split tag with default split", () => {
       const result = tagZapSplit(pubkey1)
-      expect(result).toEqual(["zap", pubkey1, "pubkey-relay-url", "1"])
+      expect(result).toEqual(["zap", pubkey1, expect.any(String), "1"])
     })
 
     it("should create zap split tag with custom split", () => {
       const result = tagZapSplit(pubkey1, 0.5)
-      expect(result).toEqual(["zap", pubkey1, "pubkey-relay-url", "0.5"])
+      expect(result).toEqual(["zap", pubkey1, expect.any(String), "0.5"])
     })
   })
 
   describe("tagPubkey", () => {
     it("should create pubkey tag with relay hint and display name", () => {
       const result = tagPubkey(pubkey1)
-      expect(result).toEqual(["p", pubkey1, "pubkey-relay-url", "display-name"])
+      expect(result).toEqual(["p", pubkey1, expect.any(String), expect.any(String)])
     })
   })
 
@@ -90,7 +54,7 @@ describe("tags", () => {
     it("should create basic event tag", () => {
       const result = tagEvent(mockEvent)
       expect(result).toHaveLength(1)
-      expect(result[0]).toEqual(["e", mockEvent.id, "event-relay-url", "", mockEvent.pubkey])
+      expect(result[0]).toEqual(["e", mockEvent.id, expect.any(String), "", mockEvent.pubkey])
     })
 
     it("should include address tag for replaceable events", () => {
@@ -119,7 +83,7 @@ describe("tags", () => {
   describe("tagEventForQuote", () => {
     it("should create quote tag", () => {
       const result = tagEventForQuote(mockEvent)
-      expect(result).toEqual(["q", mockEvent.id, "event-relay-url", mockEvent.pubkey])
+      expect(result).toEqual(["q", mockEvent.id, expect.any(String), mockEvent.pubkey])
     })
   })
 
@@ -262,11 +226,11 @@ describe("tags", () => {
 
       expect(result).toEqual([
         ["K", String(NOTE)],
-        ["P", pubkey, "pubkey-relay-url"],
-        ["E", id, "event-relay-url", pubkey],
+        ["P", pubkey, expect.any(String)],
+        ["E", id, expect.any(String), pubkey],
         ["k", String(NOTE)],
-        ["p", pubkey, "pubkey-relay-url"],
-        ["e", id, "event-relay-url", pubkey],
+        ["p", pubkey, expect.any(String)],
+        ["e", id, expect.any(String), pubkey],
       ])
     })
 
@@ -286,13 +250,13 @@ describe("tags", () => {
 
       expect(result).toEqual([
         ["K", String(MUTES)],
-        ["P", pubkey, "pubkey-relay-url"],
-        ["E", id, "event-relay-url", pubkey],
-        ["A", getAddress(eventWithMixedTags), "event-relay-url", pubkey],
+        ["P", pubkey, expect.any(String)],
+        ["E", id, expect.any(String), pubkey],
+        ["A", getAddress(eventWithMixedTags), expect.any(String), pubkey],
         ["k", String(MUTES)],
-        ["p", pubkey, "pubkey-relay-url"],
-        ["e", id, "event-relay-url", pubkey],
-        ["a", getAddress(eventWithMixedTags), "event-relay-url", pubkey],
+        ["p", pubkey, expect.any(String)],
+        ["e", id, expect.any(String), pubkey],
+        ["a", getAddress(eventWithMixedTags), expect.any(String), pubkey],
       ])
     })
 

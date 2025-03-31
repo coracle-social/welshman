@@ -1,9 +1,7 @@
-import {now} from "@welshman/lib"
-import {getAddress} from "@welshman/util"
 import {describe, it, vi, expect, beforeEach} from "vitest"
+import {now} from "@welshman/lib"
+import {getAddress, TrustedEvent, DELETE, MUTES} from "@welshman/util"
 import {Repository} from "../src/Repository"
-import type {TrustedEvent} from "../src/Events"
-import {DELETE, MUTES} from "../src/Kinds"
 
 describe("Repository", () => {
   beforeEach(() => {

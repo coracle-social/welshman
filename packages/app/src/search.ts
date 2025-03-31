@@ -56,7 +56,7 @@ export const searchProfiles = debounce(500, (search: string) => {
   if (search.length > 2) {
     load({
       filter: {kinds: [PROFILE], search},
-      relays: Router.getInstance().Search().getUrls(),
+      relays: Router.get().Search().getUrls(),
     })
   }
 })

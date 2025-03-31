@@ -194,7 +194,7 @@ export class Router {
     Object.assign(globalRouterOptions, options)
   }
 
-  static getInstance() {
+  static get() {
     return new Router(globalRouterOptions)
   }
 
@@ -422,7 +422,7 @@ export const getFilterSelectionsForSearch = (filter: Filter) => {
 
   const relays = globalRouterOptions.getSearchRelays?.() || []
 
-  return [{filter, scenario: Router.getInstance().FromRelays(relays).weight(10)}]
+  return [{filter, scenario: Router.get().FromRelays(relays).weight(10)}]
 }
 
 export const getFilterSelectionsForWraps = (filter: Filter) => {
@@ -431,7 +431,7 @@ export const getFilterSelectionsForWraps = (filter: Filter) => {
   return [
     {
       filter: {...filter, kinds: [WRAP]},
-      scenario: Router.getInstance().UserInbox(),
+      scenario: Router.get().UserInbox(),
     },
   ]
 }
@@ -446,7 +446,7 @@ export const getFilterSelectionsForIndexedKinds = (filter: Filter) => {
   return [
     {
       filter: {...filter, kinds},
-      scenario: Router.getInstance().FromRelays(relays),
+      scenario: Router.get().FromRelays(relays),
     },
   ]
 }
@@ -458,12 +458,12 @@ export const getFilterSelectionsForAuthors = (filter: Filter) => {
 
   return chunks(chunkCount, filter.authors).map(authors => ({
     filter: {...filter, authors},
-    scenario: Router.getInstance().FromPubkeys(authors),
+    scenario: Router.get().FromPubkeys(authors),
   }))
 }
 
 export const getFilterSelectionsForUser = (filter: Filter) => [
-  {filter, scenario: Router.getInstance().ForUser().weight(0.2)},
+  {filter, scenario: Router.get().ForUser().weight(0.2)},
 ]
 
 export const defaultFilterSelectionRules = [
@@ -493,7 +493,7 @@ export const getFilterSelections = (
   const result = []
 
   for (const [id, filter] of filtersById.entries()) {
-    const scenario = Router.getInstance().merge(scenariosById.get(id) || [])
+    const scenario = Router.get().merge(scenariosById.get(id) || [])
 
     result.push({filters: [filter], relays: scenario.getUrls()})
   }

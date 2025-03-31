@@ -27,7 +27,7 @@ export const {
   load: async (pubkey: string, request: Partial<MultiRequestOptions> = {}) => {
     await loadRelaySelections(pubkey, request)
 
-    const router = Router.getInstance()
+    const router = Router.get()
     const filter = {kinds: [PROFILE], authors: [pubkey]}
     const relays = router.merge([router.Index(), router.FromPubkey(pubkey)]).getUrls()
 

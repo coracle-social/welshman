@@ -39,8 +39,8 @@ export const requestDVM = async ({kind, onEvent, ...request}: DVMOpts) => {
   const $signer = signer.get() || new Nip01Signer(makeSecret())
   const pubkey = await $signer.getPubkey()
   const relays = request.relays
-    ? Router.getInstance().FromRelays(request.relays).getUrls()
-    : Router.getInstance().FromPubkeys(getPubkeyTagValues(tags)).getUrls()
+    ? Router.get().FromRelays(request.relays).getUrls()
+    : Router.get().FromPubkeys(getPubkeyTagValues(tags)).getUrls()
 
   if (!tags.some(nthEq(0, "expiration"))) {
     tags.push(["expiration", String(now() + 60)])

@@ -31,7 +31,7 @@ export const {
     await loadRelaySelections(pubkey, request)
 
     const filter = {kinds: [MUTES], authors: [pubkey]}
-    const relays = Router.getInstance().FromPubkey(pubkey).getUrls()
+    const relays = Router.get().FromPubkey(pubkey).getUrls()
 
     await load({relays, ...request, filter})
   },

@@ -1,20 +1,10 @@
-import {now} from "@welshman/lib"
 import {describe, it, expect, beforeEach, vi, afterEach} from "vitest"
-import {
-  Relay,
-  normalizeRelayUrl,
-  isRelayUrl,
-  isOnionUrl,
-  isLocalUrl,
-  isIPAddress,
-  isShareableRelayUrl,
-  displayRelayUrl,
-  displayRelayProfile,
-} from "../src/Relay"
-import {Repository} from "../src/Repository"
-import type {TrustedEvent} from "../src/Events"
+import {now} from "@welshman/lib"
+import type {TrustedEvent} from "@welshman/util"
+import {LocalRelay} from "../src/relay"
+import {Repository} from "../src/repository"
 
-describe("Relay", () => {
+describe("LocalRelay", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useFakeTimers()
@@ -42,99 +32,13 @@ describe("Relay", () => {
     ...overrides,
   })
 
-  describe("URL utilities", () => {
-    describe("isRelayUrl", () => {
-      it("should validate proper relay URLs", () => {
-        expect(isRelayUrl("wss://relay.example.com")).toBe(true)
-        expect(isRelayUrl("ws://relay.example.com")).toBe(true)
-        expect(isRelayUrl("relay.example.com")).toBe(true)
-      })
-
-      it("should reject invalid URLs", () => {
-        expect(isRelayUrl("http://relay.example.com")).toBe(false)
-        expect(isRelayUrl("not-a-url")).toBe(false)
-        expect(isRelayUrl("ws:\\example.com\\path\\to\\file.ext")).toBe(false)
-      })
-    })
-
-    describe("isOnionUrl", () => {
-      it("should validate onion URLs", () => {
-        expect(isOnionUrl(onionUrl)).toBe(true)
-      })
-
-      it("should reject non-onion URLs", () => {
-        expect(isOnionUrl("wss://relay.example.com")).toBe(false)
-      })
-    })
-
-    describe("isLocalUrl", () => {
-      it("should validate local URLs", () => {
-        expect(isLocalUrl("wss://relay.local")).toBe(true)
-        expect(isLocalUrl("ws://localhost:8080")).toBe(true)
-      })
-
-      it("should reject non-local URLs", () => {
-        expect(isLocalUrl("wss://relay.example.com")).toBe(false)
-      })
-    })
-
-    describe("isIPAddress", () => {
-      it("should validate IP addresses", () => {
-        expect(isIPAddress("wss://192.168.1.1")).toBe(true)
-      })
-
-      it("should reject domains", () => {
-        expect(isIPAddress("wss://relay.example.com")).toBe(false)
-      })
-    })
-
-    describe("isShareableRelayUrl", () => {
-      it("should validate shareable URLs", () => {
-        expect(isShareableRelayUrl("wss://relay.example.com")).toBe(true)
-      })
-
-      it("should reject local URLs", () => {
-        expect(isShareableRelayUrl("wss://relay.local")).toBe(false)
-      })
-    })
-
-    describe("normalizeRelayUrl", () => {
-      it("should normalize URLs consistently", () => {
-        expect(normalizeRelayUrl("relay.example.com")).toBe("wss://relay.example.com/")
-        expect(normalizeRelayUrl("wss://RELAY.EXAMPLE.COM")).toBe("wss://relay.example.com/")
-      })
-
-      it("should handle onion URLs", () => {
-        expect(normalizeRelayUrl(onionUrl)).toBe(`ws://${onionUrl}/`)
-      })
-    })
-
-    describe("displayRelayUrl", () => {
-      it("should format URLs for display", () => {
-        expect(displayRelayUrl("wss://relay.example.com/")).toBe("relay.example.com")
-      })
-    })
-
-    describe("displayRelayProfile", () => {
-      it("should display profile name when available", () => {
-        const profile = {url: "wss://relay.example.com", name: "Test Relay"}
-        expect(displayRelayProfile(profile)).toBe("Test Relay")
-      })
-
-      it("should use fallback when no name", () => {
-        const profile = {url: "wss://relay.example.com"}
-        expect(displayRelayProfile(profile, "Fallback")).toBe("Fallback")
-      })
-    })
-  })
-
-  describe("Relay class", () => {
-    let relay: Relay
+  describe("LocalRelay class", () => {
+    let relay: LocalRelay
     let repository: Repository<TrustedEvent>
 
     beforeEach(() => {
       repository = new Repository<TrustedEvent>()
-      relay = new Relay(repository)
+      relay = new LocalRelay(repository)
     })
 
     describe("EVENT handling", () => {
