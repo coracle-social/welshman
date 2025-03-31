@@ -15,7 +15,7 @@ import {
   StampedEvent,
   NOSTR_CONNECT,
 } from "@welshman/util"
-import {multireq, multicast, Multireq, RequestEvent, AdapterContext} from "@welshman/net"
+import {MultiRequest, MultiPublish, RequestEvent, AdapterContext} from "@welshman/net"
 import {ISigner, EncryptionImplementation, decrypt, hash, own} from "../util.js"
 import {Nip01Signer} from "./nip01.js"
 
@@ -97,7 +97,7 @@ const popupManager = (() => {
 })()
 
 export class Nip46Receiver extends Emitter {
-  public sub?: Multireq
+  public sub?: MultiRequest
 
   constructor(
     public signer: ISigner,
@@ -114,9 +114,7 @@ export class Nip46Receiver extends Emitter {
     const userPubkey = await this.signer.getPubkey()
     const filter = {kinds: [NOSTR_CONNECT], "#p": [userPubkey]}
 
-    this.sub = multireq({relays, filter, context})
-
-    this.sub.on(RequestEvent.Send, resolve)
+    this.sub = new MultiRequest({relays, filter, context})
 
     this.sub.on(RequestEvent.Event, async (event: TrustedEvent, url: string) => {
       const json = await decrypt(this.signer, event.pubkey, event.content)
@@ -164,7 +162,7 @@ export class Nip46Sender extends Emitter {
     const content = await this.signer[algorithm].encrypt(signerPubkey, payload)
     const template = createEvent(NOSTR_CONNECT, {content, tags: [["p", signerPubkey]]})
     const event = await this.signer.sign(template)
-    const pub = multicast({relays, event, context})
+    const pub = new MultiPublish({relays, event, context})
 
     this.emit(Nip46Event.Send, {...request, pub})
   }
