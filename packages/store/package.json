@@ -28,6 +28,7 @@
   "dependencies": {
     "@welshman/lib": "^0.1.0",
     "@welshman/util": "^0.1.0",
+    "@welshman/relay": "^0.1.0",
     "svelte": "^4.2.18"
   }
 }

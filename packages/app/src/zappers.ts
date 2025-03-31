@@ -1,6 +1,6 @@
 import {writable, derived} from "svelte/store"
-import {type Zapper} from "@welshman/util"
-import {type SubscribeRequestWithHandlers} from "@welshman/net"
+import {Zapper} from "@welshman/util"
+import {MultiRequestOptions} from "@welshman/net"
 import {
   ctx,
   identity,
@@ -80,10 +80,7 @@ export const {
   }),
 })
 
-export const deriveZapperForPubkey = (
-  pubkey: string,
-  request: Partial<SubscribeRequestWithHandlers> = {},
-) =>
+export const deriveZapperForPubkey = (pubkey: string, request: Partial<MultiRequestOptions> = {}) =>
   derived([zappersByLnurl, deriveProfile(pubkey, request)], ([$zappersByLnurl, $profile]) => {
     if (!$profile?.lnurl) {
       return undefined

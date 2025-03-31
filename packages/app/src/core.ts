@@ -1,10 +1,9 @@
 import {throttle} from "@welshman/lib"
 import {Repository, Relay} from "@welshman/util"
-import type {TrustedEvent} from "@welshman/util"
 import {Tracker} from "@welshman/net"
 import {custom} from "@welshman/store"
 
-export const repository = new Repository<TrustedEvent>()
+export const repository = Repository.getSingleton()
 
 export const relay = new Relay(repository)
 

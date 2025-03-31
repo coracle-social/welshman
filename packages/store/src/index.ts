@@ -10,10 +10,9 @@ import {
   partition,
   first,
 } from "@welshman/lib"
-import type {Maybe} from "@welshman/lib"
-import type {Repository} from "@welshman/util"
-import {matchFilters, getIdAndAddress, getIdFilters} from "@welshman/util"
-import type {Filter, TrustedEvent} from "@welshman/util"
+import {Maybe} from "@welshman/lib"
+import {Repository} from "@welshman/relay"
+import {matchFilters, getIdAndAddress, getIdFilters, Filter, TrustedEvent} from "@welshman/util"
 
 // Sync with localstorage
 

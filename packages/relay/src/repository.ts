@@ -1,14 +1,33 @@
-import {flatten, pluck, Emitter, sortBy, inc, chunk, uniq, omit, now, range} from "@welshman/lib"
-import {DELETE} from "./Kinds.js"
-import {EPOCH, matchFilter} from "./Filters.js"
-import {isReplaceable, isUnwrappedEvent} from "./Events.js"
-import {getAddress} from "./Address.js"
-import type {Filter} from "./Filters.js"
-import type {TrustedEvent, HashedEvent} from "./Events.js"
+import {
+  DAY,
+  Emitter,
+  flatten,
+  pluck,
+  sortBy,
+  inc,
+  chunk,
+  uniq,
+  omit,
+  now,
+  range,
+} from "@welshman/lib"
+import {
+  DELETE,
+  EPOCH,
+  matchFilter,
+  isReplaceable,
+  isUnwrappedEvent,
+  getAddress,
+  Filter,
+  TrustedEvent,
+  HashedEvent,
+} from "@welshman/util"
 
-export const DAY = 86400
+export const LOCAL_RELAY_URL = "local://welshman.relay/"
 
 const getDay = (ts: number) => Math.floor(ts / DAY)
+
+export let repositorySingleton: Repository<TrustedEvent>
 
 export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
   eventsById = new Map<string, E>()
@@ -19,6 +38,14 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
   eventsByAuthor = new Map<string, E[]>()
   eventsByKind = new Map<number, E[]>()
   deletes = new Map<string, number>()
+
+  static getSingleton() {
+    if (!repositorySingleton) {
+      repositorySingleton = new Repository()
+    }
+
+    return repositorySingleton
+  }
 
   constructor() {
     super()

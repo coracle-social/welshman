@@ -1,6 +1,7 @@
 import EventEmitter from "events"
 import {call, on} from "@welshman/lib"
-import {Relay, LOCAL_RELAY_URL, isRelayUrl} from "@welshman/util"
+import {isRelayUrl} from "@welshman/util"
+import {LocalRelay, LOCAL_RELAY_URL, Repository} from "@welshman/relay"
 import {RelayMessage, ClientMessage} from "./message.js"
 import {Socket, SocketEvent} from "./socket.js"
 import {TypedEmitter, Unsubscriber} from "./util.js"
@@ -52,7 +53,7 @@ export class SocketAdapter extends AbstractAdapter {
 }
 
 export class LocalAdapter extends AbstractAdapter {
-  constructor(readonly relay: Relay) {
+  constructor(readonly relay: LocalRelay) {
     super()
 
     this._unsubscribers.push(
@@ -91,7 +92,7 @@ export class EmptyAdapter extends AbstractAdapter {
 
 export type AdapterContext = {
   pool?: Pool
-  relay?: Relay
+  relay?: LocalRelay
   getAdapter?: (url: string, context: AdapterContext) => AbstractAdapter
 }
 
@@ -105,7 +106,9 @@ export const getAdapter = (url: string, context: AdapterContext = {}) => {
   }
 
   if (url === LOCAL_RELAY_URL) {
-    return context.relay ? new LocalAdapter(context.relay) : new EmptyAdapter()
+    const relay = context.relay || new LocalRelay(Repository.getSingleton())
+
+    return new LocalAdapter(relay)
   }
 
   if (isRelayUrl(url)) {

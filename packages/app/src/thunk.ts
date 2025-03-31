@@ -18,7 +18,7 @@ import {
   isUnwrappedEvent,
   isSignedEvent,
 } from "@welshman/util"
-import {publish, PublishStatus} from "@welshman/net"
+import {MultiPublish, PublishStatus} from "@welshman/net"
 import {repository, tracker} from "./core.js"
 import {pubkey, getSession, getSigner} from "./session.js"
 
@@ -225,7 +225,7 @@ thunkWorker.addGlobalHandler((thunk: Thunk) => {
     }
 
     // Send it off
-    const pub = publish({event: signedEvent, relays: thunk.request.relays})
+    const pub = new MultiPublish({event: signedEvent, relays: thunk.request.relays})
 
     // Copy the signature over since we had deferred it
     const savedEvent = repository.getEvent(signedEvent.id) as SignedEvent

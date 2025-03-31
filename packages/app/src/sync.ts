@@ -35,7 +35,9 @@ export const pull = async ({relays, filters}: AppSyncOpts) => {
     relays.map(async relay => {
       await (hasNegentropy(relay)
         ? basePull({filters, events, relays: [relay]})
-        : pullWithoutNegentropy({filters, relays: [relay]}))
+        : new Promise(resolve => {
+            new SingleRequest({filters, relay, closeOnEose: true}).on(RequestEvent.Close, resolve)
+          })
     }),
   )
 }
@@ -47,19 +49,10 @@ export const push = async ({relays, filters}: AppSyncOpts) => {
     relays.map(async relay => {
       await (hasNegentropy(relay)
         ? basePush({filters, events, relays: [relay]})
-        : pushWithoutNegentropy({events, relays: [relay]}))
+        : new Promise(resolve => {
+            new SinglePublish({events, relay}).on(PublishEvent.Complete, resolve)
+          }))
     }),
   )
-}
 
-export const sync = async ({relays, filters}: AppSyncOpts) => {
-  const events = query(filters).filter(isSignedEvent)
 
-  await Promise.all(
-    relays.map(async relay => {
-      await (hasNegentropy(relay)
-        ? baseSync({filters, events, relays: [relay]})
-        : syncWithoutNegentropy({filters, events, relays: [relay]}))
-    }),
-  )
-}
