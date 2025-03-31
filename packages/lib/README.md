@@ -5,7 +5,7 @@ Some general-purpose utilities for use in @welshman apps.
 Includes:
 
 - LRU cache implementation
-- Worker for throttling work to avoid locking up the UI
+- TaskQueue for throttling work to avoid locking up the UI
 - URL normalization (taken from normalize-url)
 - A global `ctx` variable which can be used for global configuration
 - CustomPromise, which provides an error type, and `defer` utility
