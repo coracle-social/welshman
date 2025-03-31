@@ -21,9 +21,9 @@ export enum PublishEvent {
   Complete = "publish:event:complete",
 }
 
-// Unicast
+// SinglePublish
 
-export type UnicastEvents = {
+export type SinglePublishEvents = {
   [PublishEvent.Success]: (id: string, detail: string) => void
   [PublishEvent.Failure]: (id: string, detail: string) => void
   [PublishEvent.Timeout]: () => void
@@ -31,26 +31,26 @@ export type UnicastEvents = {
   [PublishEvent.Complete]: () => void
 }
 
-export type UnicastOptions = {
+export type SinglePublishOptions = {
   event: SignedEvent
   relay: string
   context?: AdapterContext
   timeout?: number
 }
 
-export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEvents>) {
+export class SinglePublish extends (EventEmitter as new () => TypedEmitter<SinglePublishEvents>) {
   status = PublishStatus.Pending
 
   _unsubscriber: () => void
   _adapter: AbstractAdapter
 
-  constructor(readonly options: UnicastOptions) {
+  constructor(readonly options: SinglePublishOptions) {
     super()
 
     // Set up our adapter
     this._adapter = getAdapter(this.options.relay, this.options.context)
 
-    // Listen for Unicast result
+    // Listen for SinglePublish result
     this._unsubscriber = on(
       this._adapter,
       AdapterEvent.Receive,
@@ -105,9 +105,9 @@ export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEven
   }
 }
 
-// Multicast
+// MultiPublish
 
-export type MulticastEvents = {
+export type MultiPublishEvents = {
   [PublishEvent.Success]: (id: string, detail: string, url: string) => void
   [PublishEvent.Failure]: (id: string, detail: string, url: string) => void
   [PublishEvent.Timeout]: (url: string) => void
@@ -115,23 +115,23 @@ export type MulticastEvents = {
   [PublishEvent.Complete]: () => void
 }
 
-export type MulticastOptions = Omit<UnicastOptions, "relay"> & {
+export type MultiPublishOptions = Omit<SinglePublishOptions, "relay"> & {
   relays: string[]
 }
 
-export class Multicast extends (EventEmitter as new () => TypedEmitter<MulticastEvents>) {
+export class MultiPublish extends (EventEmitter as new () => TypedEmitter<MultiPublishEvents>) {
   status: Record<string, PublishStatus>
 
-  _children: Unicast[] = []
+  _children: SinglePublish[] = []
   _completed = new Set<string>()
 
-  constructor({relays, ...options}: MulticastOptions) {
+  constructor({relays, ...options}: MultiPublishOptions) {
     super()
 
     this.status = fromPairs(relays.map(relay => [relay, PublishStatus.Pending]))
 
     for (const relay of relays) {
-      const unicast = new Unicast({relay, ...options})
+      const unicast = new SinglePublish({relay, ...options})
 
       unicast.on(PublishEvent.Success, (id: string, detail: string) => {
         this.status[relay] = unicast.status
@@ -177,9 +177,3 @@ export class Multicast extends (EventEmitter as new () => TypedEmitter<Multicast
     this.removeAllListeners()
   }
 }
-
-// Convenience functions
-
-export const unicast = (options: UnicastOptions) => new Unicast(options)
-
-export const multicast = (options: MulticastOptions) => new Multicast(options)

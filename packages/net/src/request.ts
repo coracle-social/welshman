@@ -26,9 +26,9 @@ export enum RequestEvent {
   Invalid = "request:event:invalid",
 }
 
-// Unireq
+// SingleRequest
 
-export type UnireqEvents = {
+export type SingleRequestEvents = {
   [RequestEvent.Event]: (event: SignedEvent) => void
   [RequestEvent.Invalid]: (event: SignedEvent) => void
   [RequestEvent.Filtered]: (event: SignedEvent) => void
@@ -38,7 +38,7 @@ export type UnireqEvents = {
   [RequestEvent.Eose]: () => void
 }
 
-export type UnireqOptions = {
+export type SingleRequestOptions = {
   relay: string
   filter: Filter
   context?: AdapterContext
@@ -48,13 +48,13 @@ export type UnireqOptions = {
   verifyEvent?: (event: SignedEvent) => boolean
 }
 
-export class Unireq extends (EventEmitter as new () => TypedEmitter<UnireqEvents>) {
+export class SingleRequest extends (EventEmitter as new () => TypedEmitter<SingleRequestEvents>) {
   _id = `REQ-${randomId().slice(0, 8)}`
   _unsubscribers: Unsubscriber[] = []
   _adapter: AbstractAdapter
   _closed = false
 
-  constructor(readonly options: UnireqOptions) {
+  constructor(readonly options: SingleRequestOptions) {
     super()
 
     const tracker = options.tracker || new Tracker()
@@ -135,9 +135,9 @@ export class Unireq extends (EventEmitter as new () => TypedEmitter<UnireqEvents
   }
 }
 
-// Multireq
+// MultiRequest
 
-export type MultireqEvents = {
+export type MultiRequestEvents = {
   [RequestEvent.Event]: (event: SignedEvent, url: string) => void
   [RequestEvent.Invalid]: (event: SignedEvent, url: string) => void
   [RequestEvent.Filtered]: (event: SignedEvent, url: string) => void
@@ -147,21 +147,21 @@ export type MultireqEvents = {
   [RequestEvent.Close]: () => void
 }
 
-export type MultireqOptions = Omit<UnireqOptions, "relay"> & {
+export type MultiRequestOptions = Omit<SingleRequestOptions, "relay"> & {
   relays: string[]
 }
 
-export class Multireq extends (EventEmitter as new () => TypedEmitter<MultireqEvents>) {
-  _children: Unireq[] = []
+export class MultiRequest extends (EventEmitter as new () => TypedEmitter<MultiRequestEvents>) {
+  _children: SingleRequest[] = []
   _closed = new Set<string>()
 
-  constructor({relays, ...options}: MultireqOptions) {
+  constructor({relays, ...options}: MultiRequestOptions) {
     super()
 
     const tracker = new Tracker()
 
     for (const relay of relays) {
-      const req = new Unireq({relay, tracker, ...options})
+      const req = new SingleRequest({relay, tracker, ...options})
 
       req.on(RequestEvent.Event, (event: SignedEvent) => {
         this.emit(RequestEvent.Event, event, relay)
@@ -205,9 +205,3 @@ export class Multireq extends (EventEmitter as new () => TypedEmitter<MultireqEv
     }
   }
 }
-
-// Convenience functions
-
-export const unireq = (options: UnireqOptions) => new Unireq(options)
-
-export const multireq = (options: MultireqOptions) => new Multireq(options)

@@ -2,7 +2,7 @@ import {hexToBytes} from "@noble/hashes/utils"
 import {getPublicKey, finalizeEvent} from "nostr-tools/pure"
 import {now} from "@welshman/lib"
 import {TrustedEvent, StampedEvent, Filter} from "@welshman/util"
-import {multireq, multicast, PublishEvent, RequestEvent, AdapterContext} from "@welshman/net"
+import {MultiRequest, MultiPublish, PublishEvent, RequestEvent, AdapterContext} from "@welshman/net"
 
 export type DVMHandler = {
   stop?: () => void
@@ -47,10 +47,10 @@ export class DVM {
           filter["#p"] = [getPublicKey(hexToBytes(sk))]
         }
 
-        const sub = multireq({relays, filter, context})
+        const req = new MultiRequest({relays, filter, context})
 
-        sub.on(RequestEvent.Event, (e: TrustedEvent, url: string) => this.onEvent(e))
-        sub.on(RequestEvent.Close, () => resolve())
+        req.on(RequestEvent.Event, (e: TrustedEvent, url: string) => this.onEvent(e))
+        req.on(RequestEvent.Close, () => resolve())
       })
     }
   }
@@ -113,7 +113,7 @@ export class DVM {
     const event = finalizeEvent(template, hexToBytes(sk))
 
     await new Promise<void>(resolve => {
-      multicast({event, relays, context}).on(PublishEvent.Complete, resolve)
+      new MultiPublish({event, relays, context}).on(PublishEvent.Complete, resolve)
     })
   }
 }
