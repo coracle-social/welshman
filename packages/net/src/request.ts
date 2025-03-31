@@ -1,7 +1,13 @@
 import {EventEmitter} from "events"
 import {verifyEvent as nostrToolsVerifyEvent} from "nostr-tools/pure"
-import {on, call, randomId, yieldThread} from "@welshman/lib"
-import {Filter, matchFilter, TrustedEvent, getFilterResultCardinality} from "@welshman/util"
+import {on, call, randomId, yieldThread, pushToMapKey, batcher} from "@welshman/lib"
+import {
+  Filter,
+  unionFilters,
+  matchFilter,
+  TrustedEvent,
+  getFilterResultCardinality,
+} from "@welshman/util"
 import {RelayMessage, ClientMessageType, isRelayEvent, isRelayEose} from "./message.js"
 import {getAdapter, AdapterContext, AbstractAdapter, AdapterEvent} from "./adapter.js"
 import {SocketEvent, SocketStatus} from "./socket.js"
@@ -208,23 +214,53 @@ export class MultiRequest extends (EventEmitter as new () => TypedEmitter<MultiR
 
 /**
  * A convenience function which returns a promise of events from a request.
- * It may return early if filter cardinality is known.
+ * It may return early if filter cardinality is known, and it delays requests by
+ * 200 in order to implement batching
  * @param options - MultiRequestOptions
  * @returns - a promise containing an array of TrustedEvents
  */
-export const load = (options: MultiRequestOptions) =>
-  new Promise(resolve => {
-    const cardinality = getFilterResultCardinality(options.filter)
-    const req = new MultiRequest({timeout: 5000, ...options, autoClose: true})
-    const events: TrustedEvent[] = []
+export const load = batcher(200, async (requests: MultiRequestOptions[]) => {
+  const filtersByRelay = new Map<string, Filter[]>()
 
-    req.on(RequestEvent.Event, (event: TrustedEvent) => {
-      events.push(event)
+  for (const {filter, relays} of requests) {
+    for (const relay of relays) {
+      pushToMapKey(filtersByRelay, relay, filter)
+    }
+  }
 
-      if (events.length === cardinality) {
-        resolve(events)
-      }
-    })
+  const tracker = new Tracker()
+  const events: TrustedEvent[] = []
 
-    req.on(RequestEvent.Close, () => resolve(events))
-  })
+  await Promise.all(
+    Array.from(filtersByRelay).map(async ([relay, filters]) => {
+      await Promise.all(
+        unionFilters(filters).map(filter => {
+          new Promise<void>(resolve => {
+            const cardinality = getFilterResultCardinality(filter)
+            const req = new MultiRequest({
+              filter,
+              tracker,
+              relays: [relay],
+              timeout: 5000,
+              autoClose: true,
+            })
+
+            let count = 0
+
+            req.on(RequestEvent.Event, (event: TrustedEvent) => {
+              events.push(event)
+
+              if (++count === cardinality) {
+                resolve()
+              }
+            })
+
+            req.on(RequestEvent.Close, () => resolve())
+          })
+        }),
+      )
+    }),
+  )
+
+  return requests.map(r => events.filter(event => matchFilter(r.filter, event)))
+})

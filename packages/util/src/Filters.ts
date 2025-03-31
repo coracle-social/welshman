@@ -245,7 +245,7 @@ export const getFilterResultCardinality = (filter: Filter) => {
     return filter.ids.length
   }
 
-  return null
+  return undefined
 }
 
 export const trimFilter = (filter: Filter): Filter =>

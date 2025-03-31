@@ -14,7 +14,7 @@ import {
   isUnwrappedEvent,
   isSignedEvent,
 } from "@welshman/util"
-import {MultiPublish, PublishStatus, PublishEvent} from "@welshman/net"
+import {MultiPublish, AdapterContext, PublishStatus, PublishEvent} from "@welshman/net"
 import {repository, tracker} from "./core.js"
 import {pubkey, getSession, getSigner} from "./session.js"
 
@@ -26,7 +26,7 @@ export type ThunkRequest = {
   event: ThunkEvent
   relays: string[]
   delay?: number
-  context?: AdapterContext,
+  context?: AdapterContext
 }
 
 export type ThunkStatus = {
