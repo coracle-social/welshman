@@ -1,10 +1,11 @@
 import {openDB, deleteDB} from "idb"
-import type {IDBPDatabase} from "idb"
+import {IDBPDatabase} from "idb"
 import {writable} from "svelte/store"
-import type {Unsubscriber, Writable} from "svelte/store"
+import {Unsubscriber, Writable} from "svelte/store"
 import {indexBy, equals, throttle, fromPairs} from "@welshman/lib"
-import type {TrustedEvent, Repository} from "@welshman/util"
-import type {Tracker} from "@welshman/net"
+import {TrustedEvent} from "@welshman/util"
+import {Repository} from "@welshman/relay"
+import {Tracker} from "@welshman/net"
 import {withGetter, adapter, throttled, custom} from "@welshman/store"
 
 export type StorageAdapterOptions = {

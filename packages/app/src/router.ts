@@ -1,13 +1,11 @@
 import {
   intersection,
+  mergeLeft,
   first,
-  throttleWithValue,
   clamp,
   sortBy,
   shuffle,
   pushToMapKey,
-  ctx,
-  always,
   inc,
   add,
   ago,
@@ -35,9 +33,10 @@ import {
   getCommentTags,
   getPubkeyTagValues,
   normalizeRelayUrl,
+  TrustedEvent,
+  Filter,
 } from "@welshman/util"
-import type {TrustedEvent, Filter} from "@welshman/util"
-import type {RelaysAndFilters} from "@welshman/net"
+import {Pool} from "@welshman/net"
 import {pubkey} from "./session.js"
 import {
   relaySelectionsByPubkey,
@@ -46,9 +45,14 @@ import {
   getWriteRelayUrls,
   getRelayUrls,
 } from "./relaySelections.js"
-import {relays, relaysByUrl} from "./relays.js"
+import {relaysByUrl} from "./relays.js"
 
 export const INDEXED_KINDS = [PROFILE, RELAYS, INBOX_RELAYS, FOLLOWS]
+
+export type RelaysAndFilters = {
+  relays: string[]
+  filters: Filter[]
+}
 
 export enum RelayMode {
   Read = "read",
@@ -75,7 +79,7 @@ export type RouterOptions = {
    * Retrieves fallback relays, for use when no other relays can be selected.
    * @returns An array of relay URLs as strings.
    */
-  getFallbackRelays: () => string[]
+  getFallbackRelays?: () => string[]
 
   /**
    * Retrieves relays that index profiles and relay selections.
@@ -124,8 +128,79 @@ export const addMinimalFallbacks = (count: number, limit: number) => (count > 0 
 
 export const addMaximalFallbacks = (count: number, limit: number) => limit - count
 
+// Default router options
+
+export const getRelayQuality = (url: string) => {
+  const relay = relaysByUrl.get().get(url)
+
+  // Skip non-relays entirely
+  if (!isRelayUrl(url)) return 0
+
+  // If we have recent errors, skip it
+  if (relay?.stats) {
+    if (relay.stats.recent_errors.filter(n => n > ago(MINUTE)).length > 0) return 0
+    if (relay.stats.recent_errors.filter(n => n > ago(HOUR)).length > 3) return 0
+    if (relay.stats.recent_errors.filter(n => n > ago(DAY)).length > 10) return 0
+    if (relay.stats.recent_errors.filter(n => n > ago(WEEK)).length > 50) return 0
+  }
+
+  // Prefer stuff we're connected to
+  if (Pool.getSingleton().has(url)) return 1
+
+  // Prefer stuff we've connected to in the past
+  if (relay?.stats) return 0.9
+
+  // If it's not weird url give it an ok score
+  if (!isIPAddress(url) && !isLocalUrl(url) && !isOnionUrl(url) && !url.startsWith("ws://")) {
+    return 0.8
+  }
+
+  // Default to a "meh" score
+  return 0.7
+}
+
+export const getPubkeyRelays = (pubkey: string, mode?: string) => {
+  const $relaySelections = relaySelectionsByPubkey.get()
+  const $inboxSelections = inboxRelaySelectionsByPubkey.get()
+
+  switch (mode) {
+    case RelayMode.Read:
+      return getReadRelayUrls($relaySelections.get(pubkey))
+    case RelayMode.Write:
+      return getWriteRelayUrls($relaySelections.get(pubkey))
+    case RelayMode.Inbox:
+      return getRelayUrls($inboxSelections.get(pubkey))
+    default:
+      return getRelayUrls($relaySelections.get(pubkey))
+  }
+}
+
+export const globalRouterOptions: RouterOptions = {
+  getRelayQuality,
+  getPubkeyRelays,
+  getFallbackRelays: () => ["wss://relay.damus.io/", "wss://nos.lol/"],
+  getIndexerRelays: () => ["wss://purplepag.es/", "wss://relay.nostr.band/"],
+  getSearchRelays: () => ["wss://relay.nostr.band/", "wss://nostr.wine/"],
+  getUserPubkey: () => pubkey.get(),
+  getLimit: () => 3,
+}
+
+// Router class
+
 export class Router {
-  constructor(readonly options: RouterOptions) {}
+  readonly options: RouterOptions
+
+  static configure(options: RouterOptions) {
+    Object.assign(globalRouterOptions, options)
+  }
+
+  static getInstance() {
+    return new Router(globalRouterOptions)
+  }
+
+  constructor(options: RouterOptions) {
+    this.options = mergeLeft(options, globalRouterOptions)
+  }
 
   // Utilities derived from options
 
@@ -151,6 +226,10 @@ export class Router {
   // Routing scenarios
 
   FromRelays = (relays: string[]) => this.scenario([makeSelection(relays)])
+
+  Search = () => this.FromRelays(this.options.getSearchRelays?.() || [])
+
+  Index = () => this.FromRelays(this.options.getIndexerRelays?.() || [])
 
   ForUser = () => this.FromRelays(this.getRelaysForUser(RelayMode.Read))
 
@@ -304,8 +383,7 @@ export class RouterScenario {
     }
 
     const scoreRelay = (relay: string) => {
-      const {getRelayQuality = always(1)} = this.router.options
-      const quality = getRelayQuality(relay)
+      const quality = this.router.options.getRelayQuality?.(relay) || 1
       const weight = relayWeights.get(relay)!
 
       // Log the weight, since it's a straight count which ends up over-weighting hubs.
@@ -320,7 +398,7 @@ export class RouterScenario {
     )
 
     const fallbacksNeeded = fallbackPolicy(relays.length, limit)
-    const allFallbackRelays = this.router.options.getFallbackRelays()
+    const allFallbackRelays: string[] = this.router.options.getFallbackRelays?.() || []
     const fallbackRelays = shuffle(allFallbackRelays).slice(0, fallbacksNeeded)
 
     for (const fallbackRelay of fallbackRelays) {
@@ -333,80 +411,6 @@ export class RouterScenario {
   getUrl = () => first(this.getUrls())
 }
 
-// Default router options
-
-export const getRelayQuality = (url: string) => {
-  const relay = relaysByUrl.get().get(url)
-
-  // Skip non-relays entirely
-  if (!isRelayUrl(url)) return 0
-
-  // If we have recent errors, skip it
-  if (relay?.stats) {
-    if (relay.stats.recent_errors.filter(n => n > ago(MINUTE)).length > 0) return 0
-    if (relay.stats.recent_errors.filter(n => n > ago(HOUR)).length > 3) return 0
-    if (relay.stats.recent_errors.filter(n => n > ago(DAY)).length > 10) return 0
-    if (relay.stats.recent_errors.filter(n => n > ago(WEEK)).length > 50) return 0
-  }
-
-  // Prefer stuff we're connected to
-  if (ctx.net.pool.has(url)) return 1
-
-  // Prefer stuff we've connected to in the past
-  if (relay?.stats) return 0.9
-
-  // If it's not weird url give it an ok score
-  if (!isIPAddress(url) && !isLocalUrl(url) && !isOnionUrl(url) && !url.startsWith("ws://")) {
-    return 0.8
-  }
-
-  // Default to a "meh" score
-  return 0.7
-}
-
-export const getPubkeyRelays = (pubkey: string, mode?: string) => {
-  const $relaySelections = relaySelectionsByPubkey.get()
-  const $inboxSelections = inboxRelaySelectionsByPubkey.get()
-
-  switch (mode) {
-    case RelayMode.Read:
-      return getReadRelayUrls($relaySelections.get(pubkey))
-    case RelayMode.Write:
-      return getWriteRelayUrls($relaySelections.get(pubkey))
-    case RelayMode.Inbox:
-      return getRelayUrls($inboxSelections.get(pubkey))
-    default:
-      return getRelayUrls($relaySelections.get(pubkey))
-  }
-}
-
-export const getIndexerRelays = () => ctx.app.indexerRelays || getFallbackRelays()
-
-export const getFallbackRelays = throttleWithValue(300, () =>
-  sortBy(r => -getRelayQuality(r.url), relays.get())
-    .slice(0, 30)
-    .map(r => r.url),
-)
-
-export const getSearchRelays = throttleWithValue(300, () =>
-  sortBy(r => -getRelayQuality(r.url), relays.get())
-    .filter(r => r.profile?.supported_nips?.includes(50))
-    .slice(0, 30)
-    .map(r => r.url),
-)
-
-export const makeRouter = (options: Partial<RouterOptions> = {}) =>
-  new Router({
-    getPubkeyRelays,
-    getIndexerRelays,
-    getFallbackRelays,
-    getSearchRelays,
-    getRelayQuality,
-    getUserPubkey: () => pubkey.get(),
-    getLimit: () => 3,
-    ...options,
-  })
-
 // Infer relay selections from filters
 
 type FilterScenario = {filter: Filter; scenario: RouterScenario}
@@ -416,9 +420,9 @@ type FilterSelectionRule = (filter: Filter) => FilterScenario[]
 export const getFilterSelectionsForSearch = (filter: Filter) => {
   if (!filter.search) return []
 
-  const relays = ctx.app.router.options.getSearchRelays?.() || []
+  const relays = globalRouterOptions.getSearchRelays?.() || []
 
-  return [{filter, scenario: ctx.app.router.FromRelays(relays).weight(10)}]
+  return [{filter, scenario: Router.getInstance().FromRelays(relays).weight(10)}]
 }
 
 export const getFilterSelectionsForWraps = (filter: Filter) => {
@@ -427,7 +431,7 @@ export const getFilterSelectionsForWraps = (filter: Filter) => {
   return [
     {
       filter: {...filter, kinds: [WRAP]},
-      scenario: ctx.app.router.UserInbox(),
+      scenario: Router.getInstance().UserInbox(),
     },
   ]
 }
@@ -437,12 +441,12 @@ export const getFilterSelectionsForIndexedKinds = (filter: Filter) => {
 
   if (kinds.length === 0) return []
 
-  const relays = ctx.app.router.options.getIndexerRelays?.() || []
+  const relays = globalRouterOptions.getIndexerRelays?.() || []
 
   return [
     {
       filter: {...filter, kinds},
-      scenario: ctx.app.router.FromRelays(relays),
+      scenario: Router.getInstance().FromRelays(relays),
     },
   ]
 }
@@ -454,12 +458,12 @@ export const getFilterSelectionsForAuthors = (filter: Filter) => {
 
   return chunks(chunkCount, filter.authors).map(authors => ({
     filter: {...filter, authors},
-    scenario: ctx.app.router.FromPubkeys(authors),
+    scenario: Router.getInstance().FromPubkeys(authors),
   }))
 }
 
 export const getFilterSelectionsForUser = (filter: Filter) => [
-  {filter, scenario: ctx.app.router.ForUser().weight(0.2)},
+  {filter, scenario: Router.getInstance().ForUser().weight(0.2)},
 ]
 
 export const defaultFilterSelectionRules = [
@@ -489,7 +493,7 @@ export const getFilterSelections = (
   const result = []
 
   for (const [id, filter] of filtersById.entries()) {
-    const scenario = ctx.app.router.merge(scenariosById.get(id) || [])
+    const scenario = Router.getInstance().merge(scenariosById.get(id) || [])
 
     result.push({filters: [filter], relays: scenario.getUrls()})
   }

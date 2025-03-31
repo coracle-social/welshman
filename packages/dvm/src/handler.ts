@@ -49,8 +49,8 @@ export class DVM {
 
         const req = new MultiRequest({relays, filter, context})
 
-        req.on(RequestEvent.Event, (e: TrustedEvent, url: string) => this.onEvent(e))
-        req.on(RequestEvent.Close, () => resolve())
+        req.on(RequestEvent.Event, this.onEvent)
+        req.on(RequestEvent.Close, resolve)
       })
     }
   }

@@ -1,8 +1,9 @@
 import {writable, derived} from "svelte/store"
-import {type SubscribeRequestWithHandlers} from "@welshman/net"
-import {ctx, tryCatch, fetchJson, uniq, batcher, postJson, last} from "@welshman/lib"
+import {MultiRequestOptions} from "@welshman/net"
+import {tryCatch, fetchJson, uniq, batcher, postJson, last} from "@welshman/lib"
 import {collection} from "./collection.js"
 import {deriveProfile} from "./profiles.js"
+import {AppContext} from "./context.js"
 
 export type Handle = {
   nip05: string
@@ -47,7 +48,7 @@ export async function queryProfile(nip05: string) {
 export const handles = writable<Handle[]>([])
 
 export const fetchHandles = async (nip05s: string[]) => {
-  const base = ctx.app.dufflepudUrl!
+  const base = AppContext.dufflepudUrl!
   const handlesByNip05 = new Map<string, Handle>()
 
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly
@@ -103,10 +104,7 @@ export const {
   }),
 })
 
-export const deriveHandleForPubkey = (
-  pubkey: string,
-  request: Partial<SubscribeRequestWithHandlers> = {},
-) =>
+export const deriveHandleForPubkey = (pubkey: string, request: Partial<MultiRequestOptions> = {}) =>
   derived([handlesByNip05, deriveProfile(pubkey, request)], ([$handlesByNip05, $profile]) => {
     if (!$profile?.nip05) {
       return undefined

@@ -1,9 +1,9 @@
 import {MUTES, asDecryptedEvent, readList} from "@welshman/util"
-import {type TrustedEvent, type PublishedList} from "@welshman/util"
-import {type SubscribeRequestWithHandlers} from "@welshman/net"
+import {TrustedEvent, PublishedList} from "@welshman/util"
+import {load, MultiRequestOptions} from "@welshman/net"
 import {deriveEventsMapped} from "@welshman/store"
 import {repository} from "./core.js"
-import {load} from "./subscribe.js"
+import {Router} from "./router.js"
 import {collection} from "./collection.js"
 import {ensurePlaintext} from "./plaintext.js"
 import {loadRelaySelections} from "./relaySelections.js"
@@ -27,8 +27,12 @@ export const {
   name: "mutes",
   store: mutes,
   getKey: mute => mute.event.pubkey,
-  load: async (pubkey: string, request: Partial<SubscribeRequestWithHandlers> = {}) => {
+  load: async (pubkey: string, request: Partial<MultiRequestOptions> = {}) => {
     await loadRelaySelections(pubkey, request)
-    await load({...request, filters: [{kinds: [MUTES], authors: [pubkey]}]})
+
+    const filter = {kinds: [MUTES], authors: [pubkey]}
+    const relays = Router.getInstance().FromPubkey(pubkey).getUrls()
+
+    await load({relays, ...request, filter})
   },
 })

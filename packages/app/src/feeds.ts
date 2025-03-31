@@ -1,20 +1,29 @@
-import {ctx, nthEq, now} from "@welshman/lib"
+import {nthEq, now} from "@welshman/lib"
 import {createEvent, getPubkeyTagValues} from "@welshman/util"
-import {Scope, FeedController} from "@welshman/feeds"
-import type {RequestOpts, FeedOptions, DVMOpts, Feed} from "@welshman/feeds"
+import {MultiRequest, RequestEvent} from "@welshman/net"
+import {Scope, FeedController, RequestOpts, FeedOptions, DVMOpts, Feed} from "@welshman/feeds"
 import {makeDvmRequest, DVMEvent} from "@welshman/dvm"
 import {makeSecret, Nip01Signer} from "@welshman/signer"
 import {pubkey, signer} from "./session.js"
-import {getFilterSelections} from "./router.js"
+import {Router, getFilterSelections} from "./router.js"
 import {loadRelaySelections} from "./relaySelections.js"
 import {wotGraph, maxWot, getFollows, getNetwork, getFollowers} from "./wot.js"
-import {load} from "./subscribe.js"
 
 export const request = async ({filters = [{}], relays = [], onEvent}: RequestOpts) => {
   if (relays.length > 0) {
-    await load({onEvent, filters, relays})
+    await Promise.all(
+      filters.map(
+        filter =>
+          new Promise<void>(resolve => {
+            const sub = new MultiRequest({filter, relays, timeout: 5000, autoClose: true})
+
+            sub.on(RequestEvent.Event, onEvent)
+            sub.on(RequestEvent.Close, resolve)
+          }),
+      ),
+    )
   } else {
-    await Promise.all(getFilterSelections(filters).map(opts => load({onEvent, ...opts})))
+    await Promise.all(getFilterSelections(filters).map(opts => request({...opts, onEvent})))
   }
 }
 
@@ -30,8 +39,8 @@ export const requestDVM = async ({kind, onEvent, ...request}: DVMOpts) => {
   const $signer = signer.get() || new Nip01Signer(makeSecret())
   const pubkey = await $signer.getPubkey()
   const relays = request.relays
-    ? ctx.app.router.FromRelays(request.relays).getUrls()
-    : ctx.app.router.FromPubkeys(getPubkeyTagValues(tags)).getUrls()
+    ? Router.getInstance().FromRelays(request.relays).getUrls()
+    : Router.getInstance().FromPubkeys(getPubkeyTagValues(tags)).getUrls()
 
   if (!tags.some(nthEq(0, "expiration"))) {
     tags.push(["expiration", String(now() + 60)])

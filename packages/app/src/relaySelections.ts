@@ -9,11 +9,11 @@ import {
   getRelayTags,
   getRelayTagValues,
 } from "@welshman/util"
-import type {TrustedEvent, PublishedList, List} from "@welshman/util"
-import type {SubscribeRequestWithHandlers} from "@welshman/net"
+import {TrustedEvent, PublishedList, List} from "@welshman/util"
+import {load, MultiRequestOptions} from "@welshman/net"
 import {deriveEventsMapped} from "@welshman/store"
 import {repository} from "./core.js"
-import {load} from "./subscribe.js"
+import {Router} from "./router.js"
 import {collection} from "./collection.js"
 
 export const getRelayUrls = (list?: List): string[] =>
@@ -47,8 +47,15 @@ export const {
   name: "relaySelections",
   store: relaySelections,
   getKey: relaySelections => relaySelections.event.pubkey,
-  load: (pubkey: string, request: Partial<SubscribeRequestWithHandlers> = {}) =>
-    load({...request, filters: [{kinds: [RELAYS], authors: [pubkey]}]}),
+  load: async (pubkey: string, request: Partial<MultiRequestOptions> = {}) => {
+    const router = Router.getInstance()
+
+    await load({
+      relays: router.merge([router.Index(), router.FromPubkey(pubkey)]).getUrls(),
+      ...request,
+      filter: {kinds: [RELAYS], authors: [pubkey]},
+    })
+  },
 })
 
 export const inboxRelaySelections = deriveEventsMapped<PublishedList>(repository, {
@@ -65,6 +72,13 @@ export const {
   name: "inboxRelaySelections",
   store: inboxRelaySelections,
   getKey: inboxRelaySelections => inboxRelaySelections.event.pubkey,
-  load: (pubkey: string, request: Partial<SubscribeRequestWithHandlers> = {}) =>
-    load({...request, filters: [{kinds: [INBOX_RELAYS], authors: [pubkey]}]}),
+  load: async (pubkey: string, request: Partial<MultiRequestOptions> = {}) => {
+    const router = Router.getInstance()
+
+    await load({
+      relays: router.merge([router.Index(), router.FromPubkey(pubkey)]).getUrls(),
+      ...request,
+      filter: {kinds: [INBOX_RELAYS], authors: [pubkey]},
+    })
+  },
 })

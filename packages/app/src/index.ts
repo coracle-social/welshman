@@ -16,7 +16,6 @@ export * from "./router.js"
 export * from "./search.js"
 export * from "./session.js"
 export * from "./storage.js"
-export * from "./subscribe.js"
 export * from "./sync.js"
 export * from "./tags.js"
 export * from "./thunk.js"
@@ -25,13 +24,3 @@ export * from "./user.js"
 export * from "./util.js"
 export * from "./wot.js"
 export * from "./zappers.js"
-
-import type {NetContext} from "@welshman/net"
-import type {AppContext} from "./context.js"
-
-declare module "@welshman/lib" {
-  interface Context {
-    net: NetContext
-    app: AppContext
-  }
-}

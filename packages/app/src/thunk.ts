@@ -1,24 +1,20 @@
-import {writable, derived, get} from "svelte/store"
-import type {Writable, Readable} from "svelte/store"
-import {Worker, dissoc, identity, uniq, defer, sleep, assoc} from "@welshman/lib"
-import type {Deferred} from "@welshman/lib"
+import {Writable, Readable, writable, derived, get} from "svelte/store"
+import {Deferred, Worker, dissoc, identity, uniq, defer, sleep, assoc} from "@welshman/lib"
 import {stamp, own, hash} from "@welshman/signer"
-import type {
+import {
   TrustedEvent,
   HashedEvent,
   EventTemplate,
   SignedEvent,
   StampedEvent,
   OwnedEvent,
-} from "@welshman/util"
-import {
   isStampedEvent,
   isOwnedEvent,
   isHashedEvent,
   isUnwrappedEvent,
   isSignedEvent,
 } from "@welshman/util"
-import {MultiPublish, PublishStatus} from "@welshman/net"
+import {MultiPublish, PublishStatus, PublishEvent} from "@welshman/net"
 import {repository, tracker} from "./core.js"
 import {pubkey, getSession, getSigner} from "./session.js"
 
@@ -235,22 +231,27 @@ thunkWorker.addGlobalHandler((thunk: Thunk) => {
       savedEvent.sig = signedEvent.sig
     }
 
-    const completed = new Set()
+    pub.on(PublishEvent.Success, (id: string, message: string, url: string) => {
+      tracker.track(id, url)
+      thunk.status.update(assoc(url, {status: PublishStatus.Success, message}))
+    })
 
-    pub.emitter.on("*", async (status: PublishStatus, url: string, message = "") => {
-      thunk.status.update(assoc(url, {status, message}))
+    pub.on(PublishEvent.Failure, (id: string, message: string, url: string) => {
+      thunk.status.update(assoc(url, {status: PublishStatus.Failure, message}))
+    })
 
-      if (status !== PublishStatus.Pending) {
-        completed.add(url)
-      }
+    pub.on(PublishEvent.Timeout, (url: string) => {
+      thunk.status.update(assoc(url, {status: PublishStatus.Timeout, message: "Publish timed out"}))
+    })
 
-      if (status === PublishStatus.Success) {
-        tracker.track(signedEvent.id, url)
-      }
+    pub.on(PublishEvent.Aborted, (url: string) => {
+      thunk.status.update(
+        assoc(url, {status: PublishStatus.Aborted, message: "Publish was aborted"}),
+      )
+    })
 
-      if (completed.size === thunk.request.relays.length) {
-        thunk.result.resolve(get(thunk.status))
-      }
+    pub.on(PublishEvent.Complete, () => {
+      thunk.result.resolve(get(thunk.status))
     })
   })
 })

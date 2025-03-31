@@ -1,18 +1,15 @@
-import Fuse from "fuse.js"
-import type {IFuseOptions, FuseResult} from "fuse.js"
+import Fuse, {IFuseOptions, FuseResult} from "fuse.js"
 import {debounce} from "throttle-debounce"
 import {derived} from "svelte/store"
 import {dec, sortBy} from "@welshman/lib"
-import {PROFILE} from "@welshman/util"
+import {PROFILE, PublishedProfile} from "@welshman/util"
+import {load} from "@welshman/net"
 import {throttled} from "@welshman/store"
-import type {PublishedProfile} from "@welshman/util"
-import {load} from "./subscribe.js"
 import {wotGraph} from "./wot.js"
 import {profiles} from "./profiles.js"
-import {topics} from "./topics.js"
-import type {Topic} from "./topics.js"
-import {relays} from "./relays.js"
-import type {Relay} from "./relays.js"
+import {topics, Topic} from "./topics.js"
+import {relays, Relay} from "./relays.js"
+import {Router} from "./router.js"
 import {handlesByNip05} from "./handles.js"
 
 export type SearchOptions<V, T> = {
@@ -57,7 +54,10 @@ export const createSearch = <V, T>(options: T[], opts: SearchOptions<V, T>): Sea
 
 export const searchProfiles = debounce(500, (search: string) => {
   if (search.length > 2) {
-    load({filters: [{kinds: [PROFILE], search}]})
+    load({
+      filter: {kinds: [PROFILE], search},
+      relays: Router.getInstance().Search().getUrls(),
+    })
   }
 })
 

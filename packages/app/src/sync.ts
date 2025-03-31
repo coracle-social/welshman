@@ -1,12 +1,12 @@
 import type {Filter} from "@welshman/util"
-import {isSignedEvent} from "@welshman/util"
+import {isSignedEvent, SignedEvent} from "@welshman/util"
 import {
   push as basePush,
   pull as basePull,
-  sync as baseSync,
-  pushWithoutNegentropy,
-  pullWithoutNegentropy,
-  syncWithoutNegentropy,
+  PublishEvent,
+  RequestEvent,
+  SinglePublish,
+  SingleRequest,
 } from "@welshman/net"
 import {repository} from "./core.js"
 import {relaysByUrl} from "./relays.js"
@@ -29,15 +29,23 @@ export type AppSyncOpts = {
 }
 
 export const pull = async ({relays, filters}: AppSyncOpts) => {
-  const events = query(filters)
+  const events = query(filters).filter(isSignedEvent)
 
   await Promise.all(
     relays.map(async relay => {
       await (hasNegentropy(relay)
         ? basePull({filters, events, relays: [relay]})
-        : new Promise(resolve => {
-            new SingleRequest({filters, relay, closeOnEose: true}).on(RequestEvent.Close, resolve)
-          })
+        : Promise.all(
+            filters.map(
+              filter =>
+                new Promise<void>(resolve => {
+                  new SingleRequest({filter, relay, autoClose: true}).on(
+                    RequestEvent.Close,
+                    resolve,
+                  )
+                }),
+            ),
+          ))
     }),
   )
 }
@@ -49,10 +57,14 @@ export const push = async ({relays, filters}: AppSyncOpts) => {
     relays.map(async relay => {
       await (hasNegentropy(relay)
         ? basePush({filters, events, relays: [relay]})
-        : new Promise(resolve => {
-            new SinglePublish({events, relay}).on(PublishEvent.Complete, resolve)
-          }))
+        : Promise.all(
+            events.map(
+              (event: SignedEvent) =>
+                new Promise<void>(resolve => {
+                  new SinglePublish({event, relay}).on(PublishEvent.Complete, resolve)
+                }),
+            ),
+          ))
     }),
   )
-
-
+}

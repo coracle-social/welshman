@@ -1,14 +1,14 @@
 import {EventEmitter} from "events"
 import {verifyEvent as nostrToolsVerifyEvent} from "nostr-tools/pure"
 import {on, call, randomId, yieldThread} from "@welshman/lib"
-import {Filter, matchFilter, SignedEvent} from "@welshman/util"
+import {Filter, matchFilter, TrustedEvent, getFilterResultCardinality} from "@welshman/util"
 import {RelayMessage, ClientMessageType, isRelayEvent, isRelayEose} from "./message.js"
 import {getAdapter, AdapterContext, AbstractAdapter, AdapterEvent} from "./adapter.js"
 import {SocketEvent, SocketStatus} from "./socket.js"
 import {TypedEmitter, Unsubscriber} from "./util.js"
 import {Tracker} from "./tracker.js"
 
-export const defaultVerifyEvent = (event: SignedEvent) => {
+export const defaultVerifyEvent = (event: any) => {
   try {
     return nostrToolsVerifyEvent(event)
   } catch (e) {
@@ -29,10 +29,10 @@ export enum RequestEvent {
 // SingleRequest
 
 export type SingleRequestEvents = {
-  [RequestEvent.Event]: (event: SignedEvent) => void
-  [RequestEvent.Invalid]: (event: SignedEvent) => void
-  [RequestEvent.Filtered]: (event: SignedEvent) => void
-  [RequestEvent.Duplicate]: (event: SignedEvent) => void
+  [RequestEvent.Event]: (event: TrustedEvent) => void
+  [RequestEvent.Invalid]: (event: any) => void
+  [RequestEvent.Filtered]: (event: TrustedEvent) => void
+  [RequestEvent.Duplicate]: (event: TrustedEvent) => void
   [RequestEvent.Disconnect]: () => void
   [RequestEvent.Close]: () => void
   [RequestEvent.Eose]: () => void
@@ -45,7 +45,7 @@ export type SingleRequestOptions = {
   timeout?: number
   tracker?: Tracker
   autoClose?: boolean
-  verifyEvent?: (event: SignedEvent) => boolean
+  verifyEvent?: (event: any) => boolean
 }
 
 export class SingleRequest extends (EventEmitter as new () => TypedEmitter<SingleRequestEvents>) {
@@ -138,10 +138,10 @@ export class SingleRequest extends (EventEmitter as new () => TypedEmitter<Singl
 // MultiRequest
 
 export type MultiRequestEvents = {
-  [RequestEvent.Event]: (event: SignedEvent, url: string) => void
-  [RequestEvent.Invalid]: (event: SignedEvent, url: string) => void
-  [RequestEvent.Filtered]: (event: SignedEvent, url: string) => void
-  [RequestEvent.Duplicate]: (event: SignedEvent, url: string) => void
+  [RequestEvent.Event]: (event: TrustedEvent, url: string) => void
+  [RequestEvent.Invalid]: (event: TrustedEvent, url: string) => void
+  [RequestEvent.Filtered]: (event: TrustedEvent, url: string) => void
+  [RequestEvent.Duplicate]: (event: TrustedEvent, url: string) => void
   [RequestEvent.Disconnect]: (url: string) => void
   [RequestEvent.Eose]: (url: string) => void
   [RequestEvent.Close]: () => void
@@ -163,19 +163,19 @@ export class MultiRequest extends (EventEmitter as new () => TypedEmitter<MultiR
     for (const relay of relays) {
       const req = new SingleRequest({relay, tracker, ...options})
 
-      req.on(RequestEvent.Event, (event: SignedEvent) => {
+      req.on(RequestEvent.Event, (event: TrustedEvent) => {
         this.emit(RequestEvent.Event, event, relay)
       })
 
-      req.on(RequestEvent.Invalid, (event: SignedEvent) => {
+      req.on(RequestEvent.Invalid, (event: TrustedEvent) => {
         this.emit(RequestEvent.Invalid, event, relay)
       })
 
-      req.on(RequestEvent.Filtered, (event: SignedEvent) => {
+      req.on(RequestEvent.Filtered, (event: TrustedEvent) => {
         this.emit(RequestEvent.Filtered, event, relay)
       })
 
-      req.on(RequestEvent.Duplicate, (event: SignedEvent) => {
+      req.on(RequestEvent.Duplicate, (event: TrustedEvent) => {
         this.emit(RequestEvent.Duplicate, event, relay)
       })
 
@@ -205,3 +205,26 @@ export class MultiRequest extends (EventEmitter as new () => TypedEmitter<MultiR
     }
   }
 }
+
+/**
+ * A convenience function which returns a promise of events from a request.
+ * It may return early if filter cardinality is known.
+ * @param options - MultiRequestOptions
+ * @returns - a promise containing an array of TrustedEvents
+ */
+export const load = (options: MultiRequestOptions) =>
+  new Promise(resolve => {
+    const cardinality = getFilterResultCardinality(options.filter)
+    const req = new MultiRequest({timeout: 5000, ...options, autoClose: true})
+    const events: TrustedEvent[] = []
+
+    req.on(RequestEvent.Event, (event: TrustedEvent) => {
+      events.push(event)
+
+      if (events.length === cardinality) {
+        resolve(events)
+      }
+    })
+
+    req.on(RequestEvent.Close, () => resolve(events))
+  })

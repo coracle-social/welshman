@@ -1,11 +1,11 @@
 import {writable, derived} from "svelte/store"
 import {withGetter} from "@welshman/store"
-import {ctx, groupBy, indexBy, batch, now, ago, uniq, batcher, postJson} from "@welshman/lib"
-import type {RelayProfile} from "@welshman/util"
+import {groupBy, indexBy, batch, now, uniq, batcher, postJson} from "@welshman/lib"
+import {RelayProfile} from "@welshman/util"
 import {normalizeRelayUrl, displayRelayUrl, displayRelayProfile} from "@welshman/util"
-import {ConnectionEvent} from "@welshman/net"
-import type {Connection, Message} from "@welshman/net"
+import {Socket, SocketStatus, SocketEvent, ClientMessage, RelayMessage} from "@welshman/net"
 import {collection} from "./collection.js"
+import {AppContext} from "./context.js"
 
 export type RelayStats = {
   first_seen: number
@@ -22,11 +22,9 @@ export type RelayStats = {
   last_request: number
   last_event: number
   last_auth: number
-  publish_timer: number
   publish_success_count: number
   publish_failure_count: number
   eose_count: number
-  eose_timer: number
   notice_count: number
 }
 
@@ -45,11 +43,9 @@ export const makeRelayStats = (): RelayStats => ({
   last_request: 0,
   last_event: 0,
   last_auth: 0,
-  publish_timer: 0,
   publish_success_count: 0,
   publish_failure_count: 0,
   eose_count: 0,
-  eose_timer: 0,
   notice_count: 0,
 })
 
@@ -69,7 +65,7 @@ export const relaysByPubkey = derived(relays, $relays =>
 )
 
 export const fetchRelayProfiles = async (urls: string[]) => {
-  const base = ctx.app.dufflepudUrl!
+  const base = AppContext.dufflepudUrl
 
   if (!base) {
     throw new Error("ctx.app.dufflepudUrl is required to fetch relay metadata")
@@ -150,25 +146,7 @@ const updateRelayStats = batch(500, (updates: RelayStatsUpdate[]) => {
   })
 })
 
-const onConnectionOpen = ({url}: Connection) =>
-  updateRelayStats([
-    url,
-    stats => {
-      stats.last_open = now()
-      stats.open_count++
-    },
-  ])
-
-const onConnectionClose = ({url}: Connection) =>
-  updateRelayStats([
-    url,
-    stats => {
-      stats.last_close = now()
-      stats.close_count++
-    },
-  ])
-
-const onConnectionSend = ({url}: Connection, [verb]: Message) => {
+const onSocketSend = ([verb]: ClientMessage, url: string) => {
   if (verb === "REQ") {
     updateRelayStats([
       url,
@@ -188,18 +166,13 @@ const onConnectionSend = ({url}: Connection, [verb]: Message) => {
   }
 }
 
-const onConnectionReceive = ({url, state}: Connection, [verb, ...extra]: Message) => {
+const onSocketReceive = ([verb, ...extra]: RelayMessage, url: string) => {
   if (verb === "OK") {
-    const [eventId, ok] = extra
-    const pub = state.pendingPublishes.get(eventId)
+    const [_, ok] = extra
 
     updateRelayStats([
       url,
       stats => {
-        if (pub) {
-          stats.publish_timer += ago(pub.sent)
-        }
-
         if (ok) {
           stats.publish_success_count++
         } else {
@@ -223,18 +196,12 @@ const onConnectionReceive = ({url, state}: Connection, [verb, ...extra]: Message
       },
     ])
   } else if (verb === "EOSE") {
-    const request = state.pendingRequests.get(extra[0])
-
-    // Only count the first eose
-    if (request && !request.eose) {
-      updateRelayStats([
-        url,
-        stats => {
-          stats.eose_count++
-          stats.eose_timer += now() - request.sent
-        },
-      ])
-    }
+    updateRelayStats([
+      url,
+      stats => {
+        stats.eose_count++
+      },
+    ])
   } else if (verb === "NOTICE") {
     updateRelayStats([
       url,
@@ -245,7 +212,29 @@ const onConnectionReceive = ({url, state}: Connection, [verb, ...extra]: Message
   }
 }
 
-const onConnectionError = ({url}: Connection) =>
+const onSocketStatus = (status: string, url: string) => {
+  if (status === SocketStatus.Open) {
+    updateRelayStats([
+      url,
+      stats => {
+        stats.last_open = now()
+        stats.open_count++
+      },
+    ])
+  }
+
+  if (status === SocketStatus.Closed) {
+    updateRelayStats([
+      url,
+      stats => {
+        stats.last_close = now()
+        stats.close_count++
+      },
+    ])
+  }
+}
+
+const onSocketError = (error: string, url: string) =>
   updateRelayStats([
     url,
     stats => {
@@ -254,18 +243,16 @@ const onConnectionError = ({url}: Connection) =>
     },
   ])
 
-export const trackRelayStats = (connection: Connection) => {
-  connection.on(ConnectionEvent.Open, onConnectionOpen)
-  connection.on(ConnectionEvent.Close, onConnectionClose)
-  connection.on(ConnectionEvent.Send, onConnectionSend)
-  connection.on(ConnectionEvent.Receive, onConnectionReceive)
-  connection.on(ConnectionEvent.Error, onConnectionError)
+export const trackRelayStats = (socket: Socket) => {
+  socket.on(SocketEvent.Send, onSocketSend)
+  socket.on(SocketEvent.Receive, onSocketReceive)
+  socket.on(SocketEvent.Status, onSocketStatus)
+  socket.on(SocketEvent.Error, onSocketError)
 
   return () => {
-    connection.off(ConnectionEvent.Open, onConnectionOpen)
-    connection.off(ConnectionEvent.Close, onConnectionClose)
-    connection.off(ConnectionEvent.Send, onConnectionSend)
-    connection.off(ConnectionEvent.Receive, onConnectionReceive)
-    connection.off(ConnectionEvent.Error, onConnectionError)
+    socket.off(SocketEvent.Send, onSocketSend)
+    socket.off(SocketEvent.Receive, onSocketReceive)
+    socket.off(SocketEvent.Status, onSocketStatus)
+    socket.off(SocketEvent.Error, onSocketError)
   }
 }

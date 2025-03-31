@@ -2,7 +2,6 @@ import {writable, derived} from "svelte/store"
 import {Zapper} from "@welshman/util"
 import {MultiRequestOptions} from "@welshman/net"
 import {
-  ctx,
   identity,
   fetchJson,
   uniq,
@@ -14,11 +13,12 @@ import {
 } from "@welshman/lib"
 import {collection} from "./collection.js"
 import {deriveProfile} from "./profiles.js"
+import {AppContext} from "./context.js"
 
 export const zappers = writable<Zapper[]>([])
 
 export const fetchZappers = async (lnurls: string[]) => {
-  const base = ctx.app.dufflepudUrl!
+  const base = AppContext.dufflepudUrl
   const zappersByLnurl = new Map<string, Zapper>()
 
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly

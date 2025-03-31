@@ -1,4 +1,4 @@
-import {ctx, uniq, remove, nthEq} from "@welshman/lib"
+import {uniq, remove, nthEq} from "@welshman/lib"
 import {
   getAddress,
   isReplaceable,
@@ -9,23 +9,24 @@ import {
 import type {TrustedEvent} from "@welshman/util"
 import {displayProfileByPubkey} from "./profiles.js"
 import {pubkey} from "./session.js"
+import {Router} from "./router.js"
 
 export const tagZapSplit = (pubkey: string, split = 1) => [
   "zap",
   pubkey,
-  ctx.app.router.FromPubkey(pubkey).getUrl(),
+  Router.getInstance().FromPubkey(pubkey).getUrl(),
   String(split),
 ]
 
 export const tagPubkey = (pubkey: string, ...args: unknown[]) => [
   "p",
   pubkey,
-  ctx.app.router.FromPubkey(pubkey).getUrl(),
+  Router.getInstance().FromPubkey(pubkey).getUrl(),
   displayProfileByPubkey(pubkey),
 ]
 
 export const tagEvent = (event: TrustedEvent, mark = "") => {
-  const url = ctx.app.router.Event(event).getUrl()
+  const url = Router.getInstance().Event(event).getUrl()
   const tags = [["e", event.id, url, mark, event.pubkey]]
 
   if (isReplaceable(event)) {
@@ -41,7 +42,7 @@ export const tagEventPubkeys = (event: TrustedEvent) =>
 export const tagEventForQuote = (event: TrustedEvent) => [
   "q",
   event.id,
-  ctx.app.router.Event(event).getUrl(),
+  Router.getInstance().Event(event).getUrl(),
   event.pubkey,
 ]
 
@@ -54,11 +55,11 @@ export const tagEventForReply = (event: TrustedEvent) => {
   // Root comes first
   if (roots.length > 0) {
     for (const t of roots) {
-      tags.push([...t.slice(0, 2), ctx.app.router.EventRoots(event).getUrl(), "root"])
+      tags.push([...t.slice(0, 2), Router.getInstance().EventRoots(event).getUrl(), "root"])
     }
   } else {
     for (const t of replies) {
-      tags.push([...t.slice(0, 2), ctx.app.router.EventParents(event).getUrl(), "root"])
+      tags.push([...t.slice(0, 2), Router.getInstance().EventParents(event).getUrl(), "root"])
     }
   }
 
@@ -80,7 +81,7 @@ export const tagEventForReply = (event: TrustedEvent) => {
 
   // Finally, tag the event itself
   const mark = replies.length > 0 ? "reply" : "root"
-  const hint = ctx.app.router.Event(event).getUrl()
+  const hint = Router.getInstance().Event(event).getUrl()
 
   // e-tag the event
   tags.push(["e", event.id, hint, mark, event.pubkey])
@@ -94,8 +95,8 @@ export const tagEventForReply = (event: TrustedEvent) => {
 }
 
 export const tagEventForComment = (event: TrustedEvent) => {
-  const pubkeyHint = ctx.app.router.FromPubkey(event.pubkey).getUrl()
-  const eventHint = ctx.app.router.Event(event).getUrl()
+  const pubkeyHint = Router.getInstance().FromPubkey(event.pubkey).getUrl()
+  const eventHint = Router.getInstance().Event(event).getUrl()
   const address = getAddress(event)
   const seenRoots = new Set<string>()
   const tags: string[][] = []
@@ -129,7 +130,7 @@ export const tagEventForComment = (event: TrustedEvent) => {
 }
 
 export const tagEventForReaction = (event: TrustedEvent) => {
-  const hint = ctx.app.router.Event(event).getUrl()
+  const hint = Router.getInstance().Event(event).getUrl()
   const tags: string[][] = []
 
   // Mention the event's author

@@ -1,10 +1,10 @@
 import {derived, readable} from "svelte/store"
 import {readProfile, displayProfile, displayPubkey, PROFILE} from "@welshman/util"
-import type {SubscribeRequestWithHandlers} from "@welshman/net"
-import type {PublishedProfile} from "@welshman/util"
+import {load, MultiRequestOptions} from "@welshman/net"
+import {PublishedProfile} from "@welshman/util"
 import {deriveEventsMapped, withGetter} from "@welshman/store"
 import {repository} from "./core.js"
-import {load} from "./subscribe.js"
+import {Router} from "./router.js"
 import {collection} from "./collection.js"
 import {loadRelaySelections} from "./relaySelections.js"
 
@@ -24,23 +24,14 @@ export const {
   name: "profiles",
   store: profiles,
   getKey: profile => profile.event.pubkey,
-  load: async (pubkey: string, request: Partial<SubscribeRequestWithHandlers> = {}) => {
-    const filters = [{kinds: [PROFILE], authors: [pubkey]}]
+  load: async (pubkey: string, request: Partial<MultiRequestOptions> = {}) => {
+    await loadRelaySelections(pubkey, request)
 
-    // Attempt to load the user profile right away, regardless of whether we have relays,
-    // since profiles are crucial to UX
-    load({...request, filters})
+    const router = Router.getInstance()
+    const filter = {kinds: [PROFILE], authors: [pubkey]}
+    const relays = router.merge([router.Index(), router.FromPubkey(pubkey)]).getUrls()
 
-    // Load relay selections as quickly as possible, moving on to retrying profiles with
-    // better selections the moment we have a result, even if it's outdated
-    await new Promise<void>(resolve => {
-      loadRelaySelections(pubkey, {
-        onEvent: () => resolve(),
-        onComplete: () => resolve(),
-      })
-    })
-
-    await load({...request, filters})
+    await load({relays, ...request, filter})
   },
 })
 

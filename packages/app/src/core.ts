@@ -1,11 +1,11 @@
 import {throttle} from "@welshman/lib"
-import {Repository, Relay} from "@welshman/util"
+import {Repository, LocalRelay} from "@welshman/relay"
 import {Tracker} from "@welshman/net"
 import {custom} from "@welshman/store"
 
 export const repository = Repository.getSingleton()
 
-export const relay = new Relay(repository)
+export const relay = new LocalRelay(repository)
 
 export const tracker = new Tracker()
 

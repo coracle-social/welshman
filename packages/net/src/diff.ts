@@ -207,7 +207,7 @@ export const pull = async ({context, ...options}: PullOptions) => {
             const req = new SingleRequest({relay, context, filter: {ids}, autoClose: true})
 
             req.on(RequestEvent.Close, resolve)
-            req.on(RequestEvent.Event, event => result.push(event))
+            req.on(RequestEvent.Event, event => result.push(event as SignedEvent))
           })
         }),
       )
