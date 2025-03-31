@@ -206,8 +206,6 @@ describe("tags", () => {
 
       // a[0] should be the address of the replaceable event
       expect(a[0][1]).toBe(getAddress(replaceableEvent))
-
-      console.log(result)
     })
   })
 

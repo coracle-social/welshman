@@ -1,30 +1,12 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { EventEmitter } from "events"
-import { Unicast, Multicast, PublishEvent, PublishStatus, unicast, multicast } from "../src/publish"
-import { AbstractAdapter, AdapterEvent } from "../src/adapter"
+import { SinglePublish, MultiPublish, PublishEvent, PublishStatus, } from "../src/publish"
+import { AbstractAdapter, AdapterEvent, MockAdapter } from "../src/adapter"
 import { ClientMessageType, RelayMessage } from "../src/message"
 import { SignedEvent, makeEvent } from "@welshman/util"
 import { Nip01Signer } from '@welshman/signer'
 
-class MockAdapter extends AbstractAdapter {
-  constructor(readonly url: string, readonly send) {
-    super()
-  }
-
-  get sockets() {
-    return []
-  }
-
-  get urls() {
-    return [this.url]
-  }
-
-  receive = (message: RelayMessage) => {
-    this.emit(AdapterEvent.Receive, message, this.url)
-  }
-}
-
-describe("Unicast", () => {
+describe("SinglePublish", () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -39,7 +21,7 @@ describe("Unicast", () => {
     const signer = Nip01Signer.ephemeral()
     const event = await signer.sign(makeEvent(1))
 
-    const pub = unicast({
+    const pub = new SinglePublish({
       relay: '1',
       context: {getAdapter: () => adapter},
       event,
@@ -72,7 +54,7 @@ describe("Unicast", () => {
     const signer = Nip01Signer.ephemeral()
     const event = await signer.sign(makeEvent(1))
 
-    const pub = unicast({
+    const pub = new SinglePublish({
       relay: '1',
       context: {getAdapter: () => adapter},
       event,
@@ -105,7 +87,7 @@ describe("Unicast", () => {
     const signer = Nip01Signer.ephemeral()
     const event = await signer.sign(makeEvent(1))
 
-    const pub = unicast({
+    const pub = new SinglePublish({
       relay: '1',
       context: {getAdapter: () => adapter},
       event,
@@ -139,7 +121,7 @@ describe("Unicast", () => {
     const signer = Nip01Signer.ephemeral()
     const event = await signer.sign(makeEvent(1))
 
-    const pub = unicast({
+    const pub = new SinglePublish({
       relay: '1',
       context: {getAdapter: () => adapter},
       event,
@@ -170,7 +152,7 @@ describe("Unicast", () => {
   })
 })
 
-describe("Multicast", () => {
+describe("MultiPublish", () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -189,7 +171,7 @@ describe("Multicast", () => {
     const signer = Nip01Signer.ephemeral()
     const event = await signer.sign(makeEvent(1))
 
-    const pub = multicast({
+    const pub = new MultiPublish({
       event,
       relays: ['1', '2', '3'],
       context: {

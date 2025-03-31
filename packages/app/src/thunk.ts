@@ -26,6 +26,7 @@ export type ThunkRequest = {
   event: ThunkEvent
   relays: string[]
   delay?: number
+  context?: AdapterContext,
 }
 
 export type ThunkStatus = {
@@ -221,7 +222,11 @@ thunkWorker.addGlobalHandler((thunk: Thunk) => {
     }
 
     // Send it off
-    const pub = new MultiPublish({event: signedEvent, relays: thunk.request.relays})
+    const pub = new MultiPublish({
+      event: signedEvent,
+      relays: thunk.request.relays,
+      context: thunk.request.context,
+    })
 
     // Copy the signature over since we had deferred it
     const savedEvent = repository.getEvent(signedEvent.id) as SignedEvent

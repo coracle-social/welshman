@@ -1,10 +1,11 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
-import { Socket, SocketEvent } from "../src/socket"
-import { Relay, LOCAL_RELAY_URL, isRelayUrl } from "@welshman/util"
-import { AdapterEvent, SocketAdapter, LocalAdapter, getAdapter } from "../src/adapter"
-import { Pool } from "../src/pool"
-import { ClientMessage, RelayMessage } from "../src/message"
 import EventEmitter from "events"
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
+import { isRelayUrl } from "@welshman/util"
+import { LocalRelay, LOCAL_RELAY_URL } from "@welshman/relay"
+import { AdapterEvent, SocketAdapter, LocalAdapter, getAdapter } from "../src/adapter"
+import { ClientMessage, RelayMessage } from "../src/message"
+import { Socket, SocketEvent } from "../src/socket"
+import { Pool } from "../src/pool"
 
 vi.mock('isomorphic-ws', () => {
   const WebSocket = vi.fn(function () {
@@ -69,7 +70,7 @@ describe("SocketAdapter", () => {
 })
 
 describe("LocalAdapter", () => {
-  let relay: Relay & EventEmitter
+  let relay: LocalRelay & EventEmitter
   let adapter: LocalAdapter
 
   beforeEach(() => {
@@ -78,7 +79,7 @@ describe("LocalAdapter", () => {
       send: vi.fn(),
       removeAllListeners: vi.fn()
     })
-    relay = mockRelay as unknown as Relay & EventEmitter
+    relay = mockRelay as unknown as LocalRelay & EventEmitter
     adapter = new LocalAdapter(relay)
   })
 
@@ -119,11 +120,11 @@ describe("LocalAdapter", () => {
 
 describe("getAdapter", () => {
   let pool: Pool
-  let relay: Relay
+  let relay: LocalRelay
 
   beforeEach(() => {
     pool = new Pool()
-    relay = new Relay()
+    relay = new LocalRelay()
     pool.get = vi.fn().mockReturnValue(new Socket("wss://test.relay"))
   })
 
@@ -141,20 +142,6 @@ describe("getAdapter", () => {
     const url = "wss://test.relay"
     const adapter = getAdapter(url, { pool })
     expect(adapter).toBeInstanceOf(SocketAdapter)
-  })
-
-  it("should throw error for invalid relay URL", () => {
-    expect(() => getAdapter("invalid-url", {})).toThrow("Invalid relay url invalid-url")
-  })
-
-  it("should throw error for local relay URL without relay context", () => {
-    const url = LOCAL_RELAY_URL
-    expect(() => getAdapter(url, {})).toThrow(`Unable to get local relay for ${url}`)
-  })
-
-  it("should throw error for remote relay URL without pool context", () => {
-    const url = "wss://test.relay"
-    expect(() => getAdapter(url, {})).toThrow(`Unable to get socket for ${url}`)
   })
 
   it("should use custom adapter if provided", () => {

@@ -78,16 +78,25 @@ export class LocalAdapter extends AbstractAdapter {
   }
 }
 
-export class EmptyAdapter extends AbstractAdapter {
+export class MockAdapter extends AbstractAdapter {
+  constructor(
+    readonly url: string,
+    readonly send: (message: ClientMessage) => void,
+  ) {
+    super()
+  }
+
   get sockets() {
     return []
   }
 
   get urls() {
-    return []
+    return [this.url]
   }
 
-  send(message: ClientMessage) {}
+  receive = (message: RelayMessage) => {
+    this.emit(AdapterEvent.Receive, message, this.url)
+  }
 }
 
 export type AdapterContext = {

@@ -2,27 +2,9 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { Nip01Signer } from '@welshman/signer'
 import { LOCAL_RELAY_URL, makeEvent } from '@welshman/util'
 import { ClientMessageType, RelayMessage } from "../src/message"
-import { AdapterContext, AbstractAdapter, AdapterEvent } from "../src/adapter"
-import { unireq, multireq, RequestEvent } from "../src/request"
+import { AdapterContext, AbstractAdapter, AdapterEvent, MockAdapter } from "../src/adapter"
+import { SingleRequest, MultiRequest, RequestEvent } from "../src/request"
 import { Tracker } from "../src/tracker"
-
-class MockAdapter extends AbstractAdapter {
-  constructor(readonly url: string, readonly send) {
-    super()
-  }
-
-  get sockets() {
-    return []
-  }
-
-  get urls() {
-    return [this.url]
-  }
-
-  receive = (message: RelayMessage) => {
-    this.emit(AdapterEvent.Receive, message, this.url)
-  }
-}
 
 describe("Unireq", () => {
   beforeEach(() => {
@@ -36,7 +18,7 @@ describe("Unireq", () => {
   it("everything basically works", async () => {
     const sendSpy = vi.fn()
     const adapter = new MockAdapter('1', sendSpy)
-    const req = unireq({
+    const req = new SingleRequest({
       relay: 'whatever',
       filter: {kinds: [1]},
       context: {getAdapter: () => adapter},
@@ -100,7 +82,7 @@ describe("Multireq", () => {
     const adapter1 = new MockAdapter('1', send1Spy)
     const send2Spy = vi.fn()
     const adapter2 = new MockAdapter('2', send2Spy)
-    const req = multireq({
+    const req = new MultiRequest({
       autoClose: true,
       relays: ['1', '2'],
       filter: {kinds: [1]},
