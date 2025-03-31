@@ -1,125 +1,130 @@
-import {Pool} from "../src/Pool"
-import {Connection} from "../src/Connection"
-import {vi, describe, it, expect, beforeEach} from "vitest"
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
+import { Socket } from "../src/socket"
+import { Pool, makeSocket } from "../src/pool"
+import { normalizeRelayUrl } from "@welshman/util"
 
-// Mock Connection class
-vi.mock("../src/Connection", () => ({
-  Connection: vi.fn().mockImplementation(url => ({
-    url,
-    cleanup: vi.fn(),
-  })),
-}))
+vi.mock('isomorphic-ws', () => {
+  const WebSocket = vi.fn(function () {
+    setTimeout(() => this.onopen())
+  })
+
+  WebSocket.prototype.send = vi.fn()
+
+  WebSocket.prototype.close = vi.fn(function () {
+    this.onclose()
+  })
+
+  return { default: WebSocket }
+})
 
 describe("Pool", () => {
   let pool: Pool
 
   beforeEach(() => {
-    vi.clearAllMocks()
     pool = new Pool()
   })
 
-  describe("initialization", () => {
-    it("should initialize with empty data map", () => {
-      expect(pool.data.size).toBe(0)
-    })
+  afterEach(() => {
+    vi.clearAllMocks()
   })
 
   describe("has", () => {
-    it("should return false for non-existent connection", () => {
+    it("should return false for non-existent socket", () => {
       expect(pool.has("wss://test.relay")).toBe(false)
     })
 
-    it("should return true for existing connection", () => {
-      pool.get("wss://test.relay")
+    it("should return true for existing socket, normalizing the url", () => {
+      pool.get("wss://test.relay/")
       expect(pool.has("wss://test.relay")).toBe(true)
     })
   })
 
   describe("get", () => {
-    it("should create new connection if none exists", () => {
-      const connection = pool.get("wss://test.relay")
+    it("should create new socket if none exists, normalizing the relay url", () => {
+      const socket = pool.get("wss://test.relay")
 
-      expect(Connection).toHaveBeenCalledWith("wss://test.relay")
-      expect(pool.data.get("wss://test.relay")).toBe(connection)
+      expect(socket.url).toEqual("wss://test.relay/")
     })
 
-    it("should emit init event for new connections", () => {
-      const initSpy = vi.fn()
-      pool.on("init", initSpy)
+    it("should return existing socket if it exists", () => {
+      const firstSocket = pool.get("wss://test.relay")
+      const secondSocket = pool.get("wss://test.relay")
 
-      const connection = pool.get("wss://test.relay")
-
-      expect(initSpy).toHaveBeenCalledWith(connection)
+      expect(firstSocket).toBe(secondSocket)
     })
+  })
 
-    it("should return existing connection if it exists", () => {
-      const firstConnection = pool.get("wss://test.relay")
-      const secondConnection = pool.get("wss://test.relay")
+  describe("subscribe", () => {
+    it("should notify subscribers of new sockets", () => {
+      const sub1 = vi.fn()
+      const sub2 = vi.fn()
 
-      expect(Connection).toHaveBeenCalledTimes(1)
-      expect(firstConnection).toBe(secondConnection)
-    })
-
-    it("should not emit init event for existing connections", () => {
-      const initSpy = vi.fn()
+      pool.subscribe(sub1)
+      pool.subscribe(sub2)
       pool.get("wss://test.relay")
 
-      pool.on("init", initSpy)
+      expect(sub1).toHaveBeenCalledTimes(1)
+      expect(sub2).toHaveBeenCalledTimes(1)
+    })
+
+    it("should not notify subscribers for existing sockets", () => {
       pool.get("wss://test.relay")
 
-      expect(initSpy).not.toHaveBeenCalled()
+      const sub = vi.fn()
+      pool.subscribe(sub)
+      pool.get("wss://test.relay")
+
+      expect(sub).not.toHaveBeenCalled()
+    })
+
+    it("should add subscription", () => {
+      const sub = vi.fn()
+      pool.subscribe(sub)
+      expect(pool._subs).toContain(sub)
+    })
+
+    it("should return unsubscribe function", () => {
+      const sub = vi.fn()
+      const unsubscribe = pool.subscribe(sub)
+
+      unsubscribe()
+
+      expect(pool._subs).not.toContain(sub)
     })
   })
 
   describe("remove", () => {
-    it("should remove existing connection", () => {
-      const connection = pool.get("wss://test.relay")
-      pool.remove("wss://test.relay")
+    it("should remove and cleanup existing socket", () => {
+      const mockSocket = { url: "wss://test.relay", cleanup: vi.fn() }
 
-      expect(pool.has("wss://test.relay")).toBe(false)
-      expect(connection.cleanup).toHaveBeenCalled()
+      pool._data.set(mockSocket.url, mockSocket)
+      pool.remove(mockSocket.url)
+
+      expect(mockSocket.cleanup).toHaveBeenCalled()
+      expect(pool._data.has(mockSocket.url)).toBe(false)
     })
 
-    it("should do nothing for non-existent connection", () => {
+    it("should do nothing for non-existent socket", () => {
       pool.remove("wss://test.relay")
-      expect(pool.has("wss://test.relay")).toBe(false)
-    })
-
-    it("should cleanup connection before removal", () => {
-      const connection = pool.get("wss://test.relay")
-      pool.remove("wss://test.relay")
-
-      const spy = vi.spyOn(pool.data, "delete")
-
-      expect(connection.cleanup).toHaveBeenCalled()
+      expect(pool._data.has("wss://test.relay")).toBe(false)
     })
   })
 
   describe("clear", () => {
-    it("should remove all connections", () => {
-      const urls = ["wss://test1.relay", "wss://test2.relay", "wss://test3.relay"]
+    it("should remove all sockets", () => {
+      const urls = ["wss://test1.relay", "wss://test2.relay"]
+      const mockSockets = urls.map(url => ({ url, cleanup: vi.fn() }))
 
-      // Create multiple connections
-      urls.forEach(url => pool.get(url))
-      expect(pool.data.size).toBe(3)
+      for (const mockSocket of mockSockets) {
+        pool._data.set(mockSocket.url, mockSocket)
+      }
 
       pool.clear()
-      expect(pool.data.size).toBe(0)
-    })
 
-    it("should cleanup all connections", () => {
-      const urls = ["wss://test1.relay", "wss://test2.relay", "wss://test3.relay"]
-
-      const connections = urls.map(url => pool.get(url))
-      pool.clear()
-
-      connections.forEach(connection => {
-        expect(connection.cleanup).toHaveBeenCalled()
+      expect(pool._data.size).toBe(0)
+      mockSockets.forEach(socket => {
+        expect(socket.cleanup).toHaveBeenCalled()
       })
-    })
-
-    it("should do nothing on empty pool", () => {
-      expect(() => pool.clear()).not.toThrow()
     })
   })
 })

@@ -1,46 +1,81 @@
-import {Emitter} from "@welshman/lib"
-import {Connection} from "./Connection.js"
+import {remove} from "@welshman/lib"
+import {normalizeRelayUrl} from "@welshman/util"
+import {Socket} from "./socket.js"
+import {defaultSocketPolicies} from "./policy.js"
 
-export class Pool extends Emitter {
-  data: Map<string, Connection>
+export const makeSocket = (url: string, policies = defaultSocketPolicies) => {
+  const socket = new Socket(url)
 
-  constructor() {
-    super()
-
-    this.data = new Map()
+  for (const applyPolicy of policies) {
+    applyPolicy(socket)
   }
+
+  return socket
+}
+
+export type PoolSubscription = (socket: Socket) => void
+
+export type PoolOptions = {
+  makeSocket?: (url: string) => Socket
+}
+
+export class Pool {
+  _data = new Map<string, Socket>()
+  _subs: PoolSubscription[] = []
+
+  constructor(readonly options: PoolOptions = {}) {}
 
   has(url: string) {
-    return this.data.has(url)
+    return this._data.has(normalizeRelayUrl(url))
   }
 
-  get(url: string): Connection {
-    const oldConnection = this.data.get(url)
-
-    if (oldConnection) {
-      return oldConnection
+  makeSocket(url: string) {
+    if (this.options.makeSocket) {
+      return this.options.makeSocket(url)
     }
 
-    const newConnection = new Connection(url)
+    return makeSocket(url)
+  }
 
-    this.data.set(url, newConnection)
-    this.emit("init", newConnection)
+  get(_url: string): Socket {
+    const url = normalizeRelayUrl(_url)
+    const oldSocket = this._data.get(url)
 
-    return newConnection
+    if (oldSocket) {
+      return oldSocket
+    }
+
+    const socket = this.makeSocket(url)
+
+    this._data.set(url, socket)
+
+    for (const cb of this._subs) {
+      cb(socket)
+    }
+
+    return socket
+  }
+
+  subscribe(cb: PoolSubscription) {
+    this._subs.push(cb)
+
+    return () => {
+      this._subs = remove(cb, this._subs)
+    }
   }
 
   remove(url: string) {
-    const connection = this.data.get(url)
+    const socket = this._data.get(url)
 
-    if (connection) {
-      connection.cleanup()
+    if (socket) {
+      socket.cleanup()
 
-      this.data.delete(url)
+      this._data.delete(url)
     }
   }
 
   clear() {
-    for (const url of this.data.keys()) {
+    for (const url of this._data.keys()) {
       this.remove(url)
     }
   }

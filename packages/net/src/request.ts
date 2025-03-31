@@ -1,5 +1,5 @@
 import {EventEmitter} from "events"
-import {verifyEvent as nostrToolsVerifyEvent} from 'nostr-tools'
+import {verifyEvent as nostrToolsVerifyEvent} from "nostr-tools/pure"
 import {on, call, randomId, yieldThread} from "@welshman/lib"
 import {Filter, matchFilter, SignedEvent} from "@welshman/util"
 import {RelayMessage, ClientMessageType, isRelayEvent, isRelayEose} from "./message.js"

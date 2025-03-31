@@ -1,98 +1,185 @@
-import {ctx, Emitter, now, randomId, defer} from "@welshman/lib"
-import type {Deferred} from "@welshman/lib"
-import {asSignedEvent} from "@welshman/util"
-import type {SignedEvent} from "@welshman/util"
+import {EventEmitter} from "events"
+import {on, fromPairs, sleep, yieldThread} from "@welshman/lib"
+import {SignedEvent} from "@welshman/util"
+import {RelayMessage, ClientMessageType, isRelayOk} from "./message.js"
+import {AbstractAdapter, AdapterEventType, AdapterContext, getAdapter} from "./adapter.js"
+import {TypedEmitter} from "./util.js"
 
 export enum PublishStatus {
-  Pending = "pending",
-  Success = "success",
-  Failure = "failure",
-  Timeout = "timeout",
-  Aborted = "aborted",
+  Pending = "publish:status:pending",
+  Success = "publish:status:success",
+  Failure = "publish:status:failure",
+  Timeout = "publish:status:timeout",
+  Aborted = "publish:status:aborted",
 }
 
-export type PublishStatusMap = Map<string, PublishStatus>
+export enum PublishEventType {
+  Success = "publish:event:success",
+  Failure = "publish:event:failure",
+  Timeout = "publish:event:timeout",
+  Aborted = "publish:event:aborted",
+  Complete = "publish:event:complete",
+}
 
-export type PublishRequest = {
+// Unicast
+
+export type UnicastEvents = {
+  [PublishEventType.Success]: (id: string, detail: string) => void
+  [PublishEventType.Failure]: (id: string, detail: string) => void
+  [PublishEventType.Timeout]: () => void
+  [PublishEventType.Aborted]: () => void
+  [PublishEventType.Complete]: () => void
+}
+
+export type UnicastOptions = {
   event: SignedEvent
-  relays: string[]
-  signal?: AbortSignal
+  relay: string
+  context: AdapterContext
   timeout?: number
-  verb?: "EVENT" | "AUTH"
 }
 
-export type Publish = {
-  id: string
-  created_at: number
-  emitter: Emitter
-  request: PublishRequest
-  status: PublishStatusMap
-  result: Deferred<PublishStatusMap>
-}
+export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEvents>) {
+  status = PublishStatus.Pending
 
-export const makePublish = (request: PublishRequest) => {
-  const id = randomId()
-  const created_at = now()
-  const emitter = new Emitter()
-  const result: Publish["result"] = defer()
-  const status: Publish["status"] = new Map()
+  _unsubscriber: () => void
+  _adapter: AbstractAdapter
 
-  return {id, created_at, request, emitter, result, status}
-}
+  constructor(readonly options: UnicastOptions) {
+    super()
 
-export const publish = (request: PublishRequest) => {
-  const pub = makePublish(request)
-  const event = asSignedEvent(request.event)
-  const executor = ctx.net.getExecutor(request.relays)
+    // Set up our adapter
+    this._adapter = getAdapter(this.options.relay, this.options.context)
 
-  const abort = (reason: PublishStatus) => {
-    for (const [url, status] of pub.status.entries()) {
-      if (status === PublishStatus.Pending) {
-        pub.emitter.emit(reason, url)
+    // Listen for Unicast result
+    this._unsubscriber = on(
+      this._adapter,
+      AdapterEventType.Receive,
+      (message: RelayMessage, url: string) => {
+        if (isRelayOk(message)) {
+          const [_, id, ok, detail] = message
+
+          if (id !== this.options.event.id) return
+
+          if (ok) {
+            this.status = PublishStatus.Success
+            this.emit(PublishEventType.Success, id, detail)
+          } else {
+            this.status = PublishStatus.Failure
+            this.emit(PublishEventType.Failure, id, detail)
+          }
+
+          this.cleanup()
+        }
+      },
+    )
+
+    // Set timeout
+    sleep(this.options.timeout || 10_000).then(() => {
+      if (this.status === PublishStatus.Pending) {
+        this.status = PublishStatus.Timeout
+        this.emit(PublishEventType.Timeout)
       }
+
+      this.cleanup()
+    })
+
+    // Start asynchronously so the caller can set up listeners
+    yieldThread().then(() => {
+      this._adapter.send([ClientMessageType.Event, this.options.event])
+    })
+  }
+
+  abort = () => {
+    if (this.status === PublishStatus.Pending) {
+      this.status = PublishStatus.Aborted
+      this.emit(PublishEventType.Aborted)
+      this.cleanup()
     }
   }
 
-  // Listen to updates and keep status up to date. Every time there's an update, check to
-  // see if we're done. If we are, clean everything up
-  pub.emitter.on("*", (status: PublishStatus, url: string) => {
-    pub.status.set(url, status)
-
-    if (Array.from(pub.status.values()).every((s: PublishStatus) => s !== PublishStatus.Pending)) {
-      clearTimeout(timeout)
-      executorSub.unsubscribe()
-      executor.target.cleanup()
-      pub.result.resolve(pub.status)
-    }
-  })
-
-  // Start everything off as pending. Do it asynchronously to avoid breaking caller assumptions
-  setTimeout(() => {
-    for (const relay of request.relays) {
-      pub.emitter.emit(PublishStatus.Pending, relay)
-    }
-  })
-
-  // Give up after a specified time
-  const timeout = setTimeout(() => abort(PublishStatus.Timeout), request.timeout || 10_000)
-
-  // If we have a signal, use it
-  request.signal?.addEventListener("abort", () => abort(PublishStatus.Aborted))
-
-  // Delegate to our executor
-  const executorSub = executor.publish(event, {
-    verb: request.verb || "EVENT",
-    onOk: (url: string, eventId: string, ok: boolean, message: string) => {
-      if (ok) {
-        pub.emitter.emit(PublishStatus.Success, url, message)
-      } else {
-        pub.emitter.emit(PublishStatus.Failure, url, message)
-      }
-    },
-    onError: (url: string) => {
-      pub.emitter.emit(PublishStatus.Failure, url)
-    },
-  })
-
-  return pub
+  cleanup = () => {
+    this.emit(PublishEventType.Complete)
+    this.removeAllListeners()
+    this._adapter.cleanup()
+    this._unsubscriber()
+  }
 }
+
+// Multicast
+
+export type MulticastEvents = {
+  [PublishEventType.Success]: (id: string, detail: string, url: string) => void
+  [PublishEventType.Failure]: (id: string, detail: string, url: string) => void
+  [PublishEventType.Timeout]: (url: string) => void
+  [PublishEventType.Aborted]: (url: string) => void
+  [PublishEventType.Complete]: () => void
+}
+
+export type MulticastOptions = Omit<UnicastOptions, "relay"> & {
+  relays: string[]
+}
+
+export class Multicast extends (EventEmitter as new () => TypedEmitter<MulticastEvents>) {
+  status: Record<string, PublishStatus>
+
+  _children: Unicast[] = []
+  _completed = new Set<string>()
+
+  constructor({relays, ...options}: MulticastOptions) {
+    super()
+
+    this.status = fromPairs(relays.map(relay => [relay, PublishStatus.Pending]))
+
+    for (const relay of relays) {
+      const unicast = new Unicast({relay, ...options})
+
+      unicast.on(PublishEventType.Success, (id: string, detail: string) => {
+        this.status[relay] = unicast.status
+        this.emit(PublishEventType.Success, id, detail, relay)
+      })
+
+      unicast.on(PublishEventType.Failure, (id: string, detail: string) => {
+        this.status[relay] = unicast.status
+        this.emit(PublishEventType.Failure, id, detail, relay)
+      })
+
+      unicast.on(PublishEventType.Timeout, () => {
+        this.status[relay] = unicast.status
+        this.emit(PublishEventType.Timeout, relay)
+      })
+
+      unicast.on(PublishEventType.Aborted, () => {
+        this.status[relay] = unicast.status
+        this.emit(PublishEventType.Aborted, relay)
+      })
+
+      unicast.on(PublishEventType.Complete, () => {
+        this._completed.add(relay)
+        this.status[relay] = unicast.status
+
+        if (this._completed.size === relays.length) {
+          this.emit(PublishEventType.Complete)
+          this.cleanup()
+        }
+      })
+
+      this._children.push(unicast)
+    }
+  }
+
+  abort() {
+    for (const child of this._children) {
+      child.abort()
+    }
+  }
+
+  cleanup() {
+    this.removeAllListeners()
+  }
+}
+
+// Convenience functions
+
+export const unicast = (options: UnicastOptions) => new Unicast(options)
+
+export const multicast = (options: MulticastOptions) => new Multicast(options)

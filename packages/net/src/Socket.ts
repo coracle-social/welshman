@@ -1,134 +1,130 @@
 import WebSocket from "isomorphic-ws"
-import {Worker, sleep} from "@welshman/lib"
-import {ConnectionEvent} from "./ConnectionEvent.js"
-import type {Connection} from "./Connection.js"
-
-export type Message = [string, ...any[]]
+import EventEmitter from "events"
+import {TaskQueue} from "@welshman/lib"
+import {RelayMessage, ClientMessage} from "./message.js"
+import {TypedEmitter} from "./util.js"
 
 export enum SocketStatus {
-  New = "new",
-  Open = "open",
-  Opening = "opening",
-  Closing = "closing",
-  Closed = "closed",
-  Error = "error",
-  Invalid = "invalid",
+  Open = "socket:status:open",
+  Opening = "socket:status:opening",
+  Closing = "socket:status:closing",
+  Closed = "socket:status:closed",
+  Error = "socket:status:error",
+  Invalid = "socket:status:invalid",
 }
 
-export class Socket {
-  lastError = 0
-  status = SocketStatus.New
-  worker = new Worker<Message>()
-  ws?: WebSocket
+export enum SocketEventType {
+  Error = "socket:event:error",
+  Status = "socket:event:status",
+  Send = "socket:event:send",
+  Enqueue = "socket:event:enqueue",
+  Receive = "socket:event:receive",
+}
 
-  constructor(readonly cxn: Connection) {
-    // Use a worker to throttle incoming data
-    this.worker.addGlobalHandler((message: Message) => {
-      this.cxn.emit(ConnectionEvent.Receive, message)
+export type SocketEvents = {
+  [SocketEventType.Error]: (error: string, url: string) => void
+  [SocketEventType.Status]: (status: SocketStatus, url: string) => void
+  [SocketEventType.Send]: (message: ClientMessage, url: string) => void
+  [SocketEventType.Enqueue]: (message: ClientMessage, url: string) => void
+  [SocketEventType.Receive]: (message: RelayMessage, url: string) => void
+}
+
+export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents>) {
+  status = SocketStatus.Closed
+
+  _ws?: WebSocket
+  _sendQueue: TaskQueue<ClientMessage>
+  _recvQueue: TaskQueue<RelayMessage>
+
+  constructor(readonly url: string) {
+    super()
+
+    this._sendQueue = new TaskQueue<ClientMessage>({
+      batchSize: 50,
+      processItem: (message: ClientMessage) => {
+        this._ws?.send(JSON.stringify(message))
+        this.emit(SocketEventType.Send, message, this.url)
+      },
+    })
+
+    this._recvQueue = new TaskQueue<RelayMessage>({
+      batchSize: 50,
+      processItem: (message: RelayMessage) => {
+        this.emit(SocketEventType.Receive, message, this.url)
+      },
+    })
+
+    this.on(SocketEventType.Status, (status: SocketStatus) => {
+      this.status = status
     })
   }
 
-  wait = async (timeout = 300) => {
-    const start = Date.now()
-    while (
-      Date.now() - timeout <= start &&
-      [SocketStatus.Opening, SocketStatus.Closing].includes(this.status)
-    ) {
-      await sleep(100)
-    }
-  }
-
-  open = async () => {
-    // If we're in a provisional state, wait
-    await this.wait()
-
-    // If the socket is closed, reset
-    if (this.status === SocketStatus.Closed) {
-      this.status = SocketStatus.New
-      this.cxn.emit(ConnectionEvent.Reset)
+  open = () => {
+    if (this._ws) {
+      throw new Error("Attempted to open a websocket that has not been closed")
     }
 
-    // If we're closed due to an error retry after a delay
-    if (this.status === SocketStatus.Error && Date.now() - this.lastError > 15_000) {
-      this.status = SocketStatus.New
-      this.cxn.emit(ConnectionEvent.Reset)
-    }
-
-    // If the socket is new, connect
-    if (this.status === SocketStatus.New) {
-      this.#init()
-    }
-
-    // Wait until we're connected (or fail to connect)
-    await this.wait()
-  }
-
-  close = async () => {
-    this.worker.pause()
-    this.ws?.close()
-    this.ws = undefined
-
-    // Allow the socket to start closing before waiting
-    await sleep(100)
-
-    // Wait for the socket to fully close
-    await this.wait()
-  }
-
-  send = async (message: Message) => {
-    await this.open()
-
-    if (!this.ws) {
-      throw new Error(`No websocket available when sending to ${this.cxn.url}`)
-    }
-
-    this.cxn.emit(ConnectionEvent.Send, message)
-    this.ws.send(JSON.stringify(message))
-  }
-
-  #init = () => {
     try {
-      this.ws = new WebSocket(this.cxn.url)
-      this.status = SocketStatus.Opening
+      this._ws = new WebSocket(this.url)
+      this.emit(SocketEventType.Status, SocketStatus.Opening, this.url)
 
-      this.ws.onopen = () => {
-        this.status = SocketStatus.Open
-        this.cxn.emit(ConnectionEvent.Open)
+      this._ws.onopen = () => {
+        this.emit(SocketEventType.Status, SocketStatus.Open, this.url)
+        this._sendQueue.start()
       }
 
-      this.ws.onerror = () => {
-        this.status = SocketStatus.Error
-        this.lastError = Date.now()
-        this.cxn.emit(ConnectionEvent.Error)
+      this._ws.onerror = () => {
+        this.emit(SocketEventType.Status, SocketStatus.Error, this.url)
+        this._sendQueue.stop()
+        this._ws = undefined
       }
 
-      this.ws.onclose = () => {
-        if (this.status !== SocketStatus.Error) {
-          this.status = SocketStatus.Closed
-        }
-
-        this.cxn.emit(ConnectionEvent.Close)
+      this._ws.onclose = () => {
+        this.emit(SocketEventType.Status, SocketStatus.Closed, this.url)
+        this._sendQueue.stop()
+        this._ws = undefined
       }
 
-      this.ws.onmessage = (event: any) => {
+      this._ws.onmessage = (event: any) => {
         const data = event.data as string
 
         try {
           const message = JSON.parse(data)
 
           if (Array.isArray(message)) {
-            this.worker.push(message as Message)
+            this._recvQueue.push(message as RelayMessage)
           } else {
-            this.cxn.emit(ConnectionEvent.InvalidMessage, data)
+            this.emit(SocketEventType.Error, "Invalid message received", this.url)
           }
         } catch (e) {
-          this.cxn.emit(ConnectionEvent.InvalidMessage, data)
+          this.emit(SocketEventType.Error, "Invalid message received", this.url)
         }
       }
     } catch (e) {
-      this.lastError = Date.now()
-      this.status = SocketStatus.Invalid
-      this.cxn.emit(ConnectionEvent.InvalidUrl)
+      this.emit(SocketEventType.Status, SocketStatus.Invalid, this.url)
     }
+  }
+
+  attemptToOpen = () => {
+    if (!this._ws) {
+      this.open()
+    }
+  }
+
+  close = () => {
+    this._ws?.close()
+    this._ws = undefined
+  }
+
+  cleanup = () => {
+    this.close()
+    this._recvQueue.clear()
+    this._sendQueue.clear()
+    this.removeAllListeners()
+  }
+
+  send = (message: ClientMessage) => {
+    this._sendQueue.push(message)
+    this.emit(SocketEventType.Enqueue, message, this.url)
   }
 }

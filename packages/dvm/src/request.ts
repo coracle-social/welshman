@@ -1,7 +1,13 @@
 import {Emitter, now} from "@welshman/lib"
-import type {TrustedEvent, SignedEvent, Filter} from "@welshman/util"
-import {subscribe, publish, SubscriptionEvent} from "@welshman/net"
-import type {Subscription, Publish} from "@welshman/net"
+import {TrustedEvent, SignedEvent, Filter} from "@welshman/util"
+import {
+  multireq,
+  multicast,
+  Multireq,
+  Multicast,
+  RequestEventType,
+  AdapterContext,
+} from "@welshman/net"
 
 export enum DVMEvent {
   Progress = "progress",
@@ -11,6 +17,7 @@ export enum DVMEvent {
 export type DVMRequestOptions = {
   event: SignedEvent
   relays: string[]
+  context: AdapterContext
   timeout?: number
   autoClose?: boolean
   reportProgress?: boolean
@@ -19,21 +26,28 @@ export type DVMRequestOptions = {
 export type DVMRequest = {
   request: DVMRequestOptions
   emitter: Emitter
-  sub: Subscription
-  pub: Publish
+  sub: Multireq
+  pub: Multicast
 }
 
 export const makeDvmRequest = (request: DVMRequestOptions) => {
   const emitter = new Emitter()
-  const {event, relays, timeout = 30_000, autoClose = true, reportProgress = true} = request
+  const {
+    event,
+    relays,
+    context,
+    timeout = 30_000,
+    autoClose = true,
+    reportProgress = true,
+  } = request
   const kind = event.kind + 1000
   const kinds = reportProgress ? [kind, 7000] : [kind]
-  const filters: Filter[] = [{kinds, since: now() - 60, "#e": [event.id]}]
+  const filter: Filter = {kinds, since: now() - 60, "#e": [event.id]}
 
-  const sub = subscribe({relays, timeout, filters})
-  const pub = publish({event, relays, timeout})
+  const sub = multireq({relays, filter, timeout, context})
+  const pub = multicast({relays, event, timeout, context})
 
-  sub.on(SubscriptionEvent.Event, (url: string, event: TrustedEvent) => {
+  sub.on(RequestEventType.Event, (event: TrustedEvent, url: string) => {
     if (event.kind === 7000) {
       emitter.emit(DVMEvent.Progress, url, event)
     } else {

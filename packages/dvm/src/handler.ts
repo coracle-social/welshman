@@ -1,8 +1,14 @@
 import {hexToBytes} from "@noble/hashes/utils"
 import {getPublicKey, finalizeEvent} from "nostr-tools/pure"
 import {now} from "@welshman/lib"
-import type {TrustedEvent, StampedEvent, Filter} from "@welshman/util"
-import {subscribe, publish} from "@welshman/net"
+import {TrustedEvent, StampedEvent, Filter} from "@welshman/util"
+import {
+  multireq,
+  multicast,
+  PublishEventType,
+  RequestEventType,
+  AdapterContext,
+} from "@welshman/net"
 
 export type DVMHandler = {
   stop?: () => void
@@ -14,6 +20,7 @@ export type CreateDVMHandler = (dvm: DVM) => DVMHandler
 export type DVMOpts = {
   sk: string
   relays: string[]
+  context: AdapterContext
   handlers: Record<string, CreateDVMHandler>
   expireAfter?: number
   requireMention?: boolean
@@ -34,7 +41,7 @@ export class DVM {
   async start() {
     this.active = true
 
-    const {sk, relays, requireMention = false} = this.opts
+    const {sk, relays, context, requireMention = false} = this.opts
 
     while (this.active) {
       await new Promise<void>(resolve => {
@@ -46,11 +53,10 @@ export class DVM {
           filter["#p"] = [getPublicKey(hexToBytes(sk))]
         }
 
-        const filters = [filter]
-        const sub = subscribe({relays, filters})
+        const sub = multireq({relays, filter, context})
 
-        sub.on("event", (url: string, e: TrustedEvent) => this.onEvent(e))
-        sub.on("complete", () => resolve())
+        sub.on(RequestEventType.Event, (e: TrustedEvent, url: string) => this.onEvent(e))
+        sub.on(RequestEventType.Close, () => resolve())
       })
     }
   }
@@ -109,11 +115,11 @@ export class DVM {
   }
 
   async publish(template: StampedEvent) {
-    const {sk, relays} = this.opts
+    const {sk, relays, context} = this.opts
     const event = finalizeEvent(template, hexToBytes(sk))
 
     await new Promise<void>(resolve => {
-      publish({event, relays}).emitter.on("success", () => resolve())
+      multicast({event, relays, context}).on(PublishEventType.Complete, resolve)
     })
   }
 }

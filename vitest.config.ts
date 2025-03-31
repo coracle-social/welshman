@@ -20,7 +20,6 @@ export default defineConfig({
       "@welshman/feeds": resolve(__dirname, "packages/feeds/src"),
       "@welshman/lib": resolve(__dirname, "packages/lib/src"),
       "@welshman/net": resolve(__dirname, "packages/net/src"),
-      "@welshman/net2": resolve(__dirname, "packages/net2/src"),
       "@welshman/signer": resolve(__dirname, "packages/signer/src"),
       "@welshman/store": resolve(__dirname, "packages/store/src"),
       "@welshman/util": resolve(__dirname, "packages/util/src"),

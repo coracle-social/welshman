@@ -424,11 +424,12 @@ export const truncate = (
     currentSize += size
 
     if (currentSize > minLength) {
-      content = content.slice(0, Math.max(1, i)).concat({type: ParsedType.Ellipsis, value: "…", raw: ""})
+      content = content
+        .slice(0, Math.max(1, i))
+        .concat({type: ParsedType.Ellipsis, value: "…", raw: ""})
 
       return false
     }
-
 
     return true
   })

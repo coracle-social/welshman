@@ -1,244 +1,195 @@
-import {sleep} from "@welshman/lib"
-import WebSocket from "isomorphic-ws"
-import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
-import {ConnectionEvent} from "../src/ConnectionEvent"
-import {Message, Socket, SocketStatus} from "../src/Socket"
+import { sleep } from "@welshman/lib"
+import WebSocket from 'isomorphic-ws'
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { Socket, SocketStatus, SocketEventType } from "../src/socket"
+import { ClientMessage, RelayMessage } from "../src/message"
 
-// Mock dependencies
-vi.mock("isomorphic-ws")
-// vi.mock("@welshman/lib", async importOriginal => {
-//   return {
-//     ...(await importOriginal()),
-//     // sleep: vi.fn().mockResolvedValue(undefined),
-//   }
-// })
+vi.mock('isomorphic-ws', () => {
+  const WebSocket = vi.fn(function () {
+    setTimeout(() => this.onopen())
+  })
+
+  WebSocket.prototype.send = vi.fn()
+
+  WebSocket.prototype.close = vi.fn(function () {
+    this.onclose()
+  })
+
+  return { default: WebSocket }
+})
 
 describe("Socket", () => {
   let socket: Socket
-  let mockConnection: any
-  let mockWs: any
 
   beforeEach(() => {
     vi.useFakeTimers()
-    // Reset mocks
-    vi.clearAllMocks()
-
-    // Setup mock connection
-    mockConnection = {
-      url: "wss://test.relay",
-      emit: vi.fn(),
-    }
-
-    // Setup mock WebSocket
-    mockWs = {
-      close: vi.fn(),
-      send: vi.fn(),
-      onopen: null,
-      onclose: null,
-      onerror: null,
-      onmessage: null,
-    }
-    vi.mocked(WebSocket).mockImplementation(() => mockWs)
-
-    socket = new Socket(mockConnection)
+    socket = new Socket("wss://test.relay")
   })
 
   afterEach(() => {
+    vi.clearAllMocks()
     vi.useRealTimers()
+    socket.cleanup()
   })
 
-  describe("initialization", () => {
-    it("should initialize with New status", () => {
-      expect(socket.status).toBe(SocketStatus.New)
-    })
-
-    it("should setup worker handler", () => {
-      const message = ["EVENT", {id: "123"}] as Message
-      socket.worker.push(message)
-      // workers batch messages every 50ms
-      vi.advanceTimersByTime(50)
-
-      expect(mockConnection.emit).toHaveBeenCalledWith(ConnectionEvent.Receive, message)
-    })
+  it("should initialize with correct url", () => {
+    expect(socket.url).toBe("wss://test.relay")
   })
 
   describe("open", () => {
-    it("should initialize WebSocket connection", async () => {
-      socket.open()
-      // wait for 2 timeout on wait
-      await vi.advanceTimersByTimeAsync(10_000 * 2)
-      expect(WebSocket).toHaveBeenCalledWith("wss://test.relay")
-      expect(socket.status).toBe(SocketStatus.Opening)
-    })
+    it("should create websocket and emit opening status", () => {
+      const statusSpy = vi.fn()
+      socket.on(SocketEventType.Status, statusSpy)
 
-    // @check this test
-    it("should handle successful connection", async () => {
-      socket.open()
-      await vi.advanceTimersByTimeAsync(10_000)
-
-      mockWs.onopen()
-
-      expect(socket.status).toBe(SocketStatus.Open)
-      expect(mockConnection.emit).toHaveBeenCalledWith(ConnectionEvent.Open)
-    })
-
-    it("should handle connection error (parallel)", async () => {
-      await Promise.all([
-        socket.open(),
-        vi.advanceTimersByTimeAsync(1000),
-        new Promise((resolve, reject) => setTimeout(() => resolve(mockWs.onerror()), 1000)),
-      ])
-
-      expect(socket.status).toBe(SocketStatus.Error)
-      expect(socket.lastError).toBe(Date.now())
-      expect(mockConnection.emit).toHaveBeenCalledWith(ConnectionEvent.Error)
-    })
-
-    it("should retry after error timeout", async () => {
-      // Simulate initial error
-      socket.status = SocketStatus.Error
-      socket.lastError = Date.now() - 16000 // More than 15 seconds ago
-
-      // @check awaiting socket open remains hanging as no socket callback is called
-      // to change the socket status
-      // await socket.open()
       socket.open()
 
-      await vi.advanceTimersToNextTimerAsync()
+      expect(socket._ws).toBeDefined()
+      expect(statusSpy).toHaveBeenCalledWith(SocketStatus.Opening, "wss://test.relay")
 
-      expect(WebSocket).toHaveBeenCalled()
-      expect(mockConnection.emit).toHaveBeenCalledWith(ConnectionEvent.Reset)
+      vi.runAllTimers()
+
+      expect(statusSpy).toHaveBeenCalledWith(SocketStatus.Open, "wss://test.relay")
     })
 
-    it("should not retry before error timeout", async () => {
-      // Simulate recent error
-      socket.status = SocketStatus.Error
-      socket.lastError = Date.now() - 5000 // Less than 15 seconds ago
+    it("should throw error if socket already exists", () => {
+      socket.open()
+      expect(() => socket.open()).toThrow("Attempted to open a websocket that has not been closed")
+    })
 
-      await socket.open()
+    it("should emit invalid status on invalid URL", () => {
+      const statusSpy = vi.fn()
+      socket.on(SocketEventType.Status, statusSpy)
 
-      expect(WebSocket).not.toHaveBeenCalled()
+      vi.mocked(WebSocket).mockImplementationOnce(() => {
+        throw new Error()
+      })
+
+      socket.open()
+
+      expect(statusSpy).toHaveBeenCalledWith(SocketStatus.Invalid, "wss://test.relay")
     })
   })
 
   describe("close", () => {
-    it("should close WebSocket connection", async () => {
-      socket.ws = mockWs
-      socket.close()
+    it("should close websocket and emit closed status", () => {
+      const statusSpy = vi.fn()
+      socket.on(SocketEventType.Status, statusSpy)
 
-      expect(mockWs.close).toHaveBeenCalled()
-      expect(socket.ws).toBeUndefined()
-    })
-
-    it("should pause worker", async () => {
-      const pauseSpy = vi.spyOn(socket.worker, "pause")
-      socket.close()
-
-      expect(pauseSpy).toHaveBeenCalled()
-    })
-
-    it("should handle normal close", async () => {
       socket.open()
-      await vi.advanceTimersToNextTimerAsync()
-      mockWs.onclose()
 
-      expect(socket.status).toBe(SocketStatus.Closed)
-      expect(mockConnection.emit).toHaveBeenCalledWith(ConnectionEvent.Close)
+      const ws = socket._ws
+
+      socket.close()
+
+      expect(ws.close).toHaveBeenCalled()
+      expect(statusSpy).toHaveBeenCalledWith(SocketStatus.Closed, "wss://test.relay")
     })
   })
 
   describe("send", () => {
-    it("should send message through WebSocket", async () => {
-      const message = ["EVENT", {id: "123"}] as Message
+    it("should queue messages and emit enqueue event", () => {
+      const enqueueSpy = vi.fn()
+      socket.on(SocketEventType.Enqueue, enqueueSpy)
 
-      // Setup open connection
-      socket.open()
-      await vi.advanceTimersToNextTimerAsync()
-      mockWs.onopen()
+      const message: ClientMessage = ["EVENT", { id: "123", kind: 1 }]
+      socket.send(message)
 
-      await socket.send(message)
-
-      expect(mockWs.send).toHaveBeenCalledWith(JSON.stringify(message))
-      expect(mockConnection.emit).toHaveBeenCalledWith(ConnectionEvent.Send, message)
+      expect(enqueueSpy).toHaveBeenCalledWith(message, "wss://test.relay")
     })
 
-    it("should throw if no WebSocket available", () => {
-      const message = ["EVENT", {id: "123"}] as Message
-      socket.ws = undefined
-      // unreachable code
-      // expect(socket.send(message)).rejects.toThrow()
+    it("should send messages when socket is open", async () => {
+      const sendSpy = vi.fn()
+      socket.on(SocketEventType.Send, sendSpy)
+
+      socket.open()
+      socket._ws.onopen()
+
+      const message: ClientMessage = ["EVENT", { id: "123", kind: 1 }]
+      socket.send(message)
+
+      await vi.runAllTimers()
+
+      expect(socket._ws.send).toHaveBeenCalledWith(JSON.stringify(message))
+      expect(sendSpy).toHaveBeenCalledWith(message, "wss://test.relay")
     })
   })
 
-  describe("message handling", () => {
-    it("should handle valid messages", async () => {
-      const validMessage = ["EVENT", {id: "123"}]
+  describe("receive", () => {
+    it("should handle valid relay messages", async () => {
+      const receiveSpy = vi.fn()
+      socket.on(SocketEventType.Receive, receiveSpy)
 
       socket.open()
-      await vi.advanceTimersToNextTimerAsync()
+      const message: RelayMessage = ["EVENT", "123", { id: "123", kind: 1 }]
+      socket._ws.onmessage({ data: JSON.stringify(message) })
 
-      mockWs.onmessage({data: JSON.stringify(validMessage)})
+      // Allow task queue to process
+      await vi.runAllTimers()
 
-      await vi.advanceTimersToNextTimerAsync()
-
-      expect(mockConnection.emit).toHaveBeenCalledWith(ConnectionEvent.Receive, validMessage)
+      expect(receiveSpy).toHaveBeenCalledWith(message, "wss://test.relay")
     })
 
-    it("should handle non-array messages", async () => {
-      const invalidMessage = {type: "EVENT"}
+    it("should emit error on invalid JSON", () => {
+      const errorSpy = vi.fn()
+      socket.on(SocketEventType.Error, errorSpy)
 
       socket.open()
-      await vi.advanceTimersToNextTimerAsync()
-      mockWs.onmessage({data: JSON.stringify(invalidMessage)})
+      socket._ws.onmessage({ data: "invalid json" })
 
-      expect(mockConnection.emit).toHaveBeenCalledWith(
-        ConnectionEvent.InvalidMessage,
-        JSON.stringify(invalidMessage),
-      )
+      expect(errorSpy).toHaveBeenCalledWith("Invalid message received", "wss://test.relay")
     })
 
-    it("should handle invalid JSON", async () => {
-      const invalidJson = "invalid json"
+    it("should emit error on non-array message", () => {
+      const errorSpy = vi.fn()
+      socket.on(SocketEventType.Error, errorSpy)
 
       socket.open()
-      await vi.advanceTimersToNextTimerAsync()
-      mockWs.onmessage({data: invalidJson})
+      socket._ws.onmessage({ data: JSON.stringify({ not: "an array" }) })
 
-      expect(mockConnection.emit).toHaveBeenCalledWith(ConnectionEvent.InvalidMessage, invalidJson)
+      expect(errorSpy).toHaveBeenCalledWith("Invalid message received", "wss://test.relay")
     })
   })
 
-  describe("wait", () => {
-    it("should wait for provisional states to resolve", async () => {
-      socket.status = SocketStatus.Opening
-      const waitPromise = socket.wait()
+  describe("cleanup", () => {
+    it("should close socket and clear queues", () => {
+      socket.open()
 
-      // Change status after delay
-      setTimeout(() => {
-        socket.status = SocketStatus.Open
-      }, 200)
+      const ws = socket._ws
 
-      await vi.advanceTimersByTimeAsync(200)
-      await waitPromise
+      socket.cleanup()
 
-      expect(socket.status).toBe(SocketStatus.Open)
+      expect(ws.close).toHaveBeenCalled()
+      expect(socket.listenerCount(SocketEventType.Send)).toBe(0)
     })
   })
 
   describe("error handling", () => {
-    it("should handle invalid URLs", async () => {
-      vi.mocked(WebSocket).mockImplementationOnce(() => {
-        throw new Error("Invalid URL")
-      })
+    it("should emit error status on websocket error", () => {
+      const statusSpy = vi.fn()
+      socket.on(SocketEventType.Status, statusSpy)
 
-      const now = Date.now()
-      vi.setSystemTime(now)
+      socket.open()
+      socket._ws.onerror()
 
-      await socket.open()
+      expect(statusSpy).toHaveBeenCalledWith(SocketStatus.Error, "wss://test.relay")
+    })
+  })
 
-      expect(socket.status).toBe(SocketStatus.Invalid)
-      expect(socket.lastError).toBe(now)
-      expect(mockConnection.emit).toHaveBeenCalledWith(ConnectionEvent.InvalidUrl)
+  describe("attemptToOpen", () => {
+    it("should open socket if not already open", () => {
+      const openSpy = vi.spyOn(socket, "open")
+
+      socket.attemptToOpen()
+      expect(openSpy).toHaveBeenCalled()
+    })
+
+    it("should not open socket if already open", () => {
+      const openSpy = vi.spyOn(socket, "open")
+
+      socket.open()
+      socket.attemptToOpen()
+
+      expect(openSpy).toHaveBeenCalledTimes(1)
     })
   })
 })

@@ -1,184 +1,228 @@
-import {ctx} from "@welshman/lib"
-import type {SignedEvent} from "@welshman/util"
-import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
-import {makePublish, publish, PublishStatus} from "../src/Publish"
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
+import { EventEmitter } from "events"
+import { Unicast, Multicast, PublishEventType, PublishStatus, unicast, multicast } from "../src/publish"
+import { AbstractAdapter, AdapterEventType } from "../src/adapter"
+import { ClientMessageType, RelayMessage } from "../src/message"
+import { SignedEvent, makeEvent } from "@welshman/util"
+import { Nip01Signer } from '@welshman/signer'
 
-// Mock dependencies
-vi.mock("@welshman/lib", async importOriginal => {
-  return {
-    ...(await importOriginal()),
-    randomId: () => "test-id",
-    now: () => 1000,
-    defer: () => ({
-      resolve: vi.fn(),
-      reject: vi.fn(),
-      promise: Promise.resolve(),
-    }),
+class MockAdapter extends AbstractAdapter {
+  constructor(readonly url: string, readonly send) {
+    super()
   }
-})
 
-vi.mock("@welshman/util", () => ({
-  asSignedEvent: vi.fn(event => event),
-}))
+  get sockets() {
+    return []
+  }
 
-describe("Publish", () => {
-  let mockExecutor: any
-  let mockExecutorSub: any
+  get urls() {
+    return [this.url]
+  }
 
+  receive = (message: RelayMessage) => {
+    this.emit(AdapterEventType.Receive, message, this.url)
+  }
+}
+
+describe("Unicast", () => {
   beforeEach(() => {
     vi.useFakeTimers()
-
-    mockExecutorSub = {
-      unsubscribe: vi.fn(),
-    }
-
-    mockExecutor = {
-      publish: vi.fn().mockReturnValue(mockExecutorSub),
-      target: {
-        cleanup: vi.fn(),
-      },
-    }
-
-    ctx.net = {
-      ...ctx.net,
-      getExecutor: vi.fn().mockReturnValue(mockExecutor),
-    }
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  describe("makePublish", () => {
-    it("should create publish object with correct properties", () => {
-      const request = {
-        event: {id: "event123"} as SignedEvent,
-        relays: ["relay1"],
-      }
+  it("success works", async () => {
+    const sendSpy = vi.fn()
+    const adapter = new MockAdapter('1', sendSpy)
+    const signer = Nip01Signer.ephemeral()
+    const event = await signer.sign(makeEvent(1))
 
-      const pub = makePublish(request)
-
-      expect(pub).toEqual({
-        id: "test-id",
-        created_at: 1000,
-        request,
-        emitter: expect.any(Object),
-        result: expect.any(Object),
-        status: expect.any(Map),
-      })
+    const pub = unicast({
+      relay: '1',
+      context: {getAdapter: () => adapter},
+      event,
     })
+
+    const successSpy = vi.fn()
+    const failureSpy = vi.fn()
+    const completeSpy = vi.fn()
+
+    pub.on(PublishEventType.Success, successSpy)
+    pub.on(PublishEventType.Failure, failureSpy)
+    pub.on(PublishEventType.Complete, completeSpy)
+
+    await vi.advanceTimersByTimeAsync(200)
+
+    expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Event, event])
+
+    adapter.receive(["OK", event.id, true, "hi"])
+
+    await vi.runAllTimers()
+
+    expect(successSpy).toHaveBeenCalledWith(event.id, "hi")
+    expect(failureSpy).not.toHaveBeenCalled()
+    expect(completeSpy).toHaveBeenCalled()
   })
 
-  describe("publish", () => {
-    const event = {id: "event123"} as SignedEvent
-    const relays = ["relay1", "relay2"]
+  it("failure works", async () => {
+    const sendSpy = vi.fn()
+    const adapter = new MockAdapter('1', sendSpy)
+    const signer = Nip01Signer.ephemeral()
+    const event = await signer.sign(makeEvent(1))
 
-    it("should initialize publish with pending status", async () => {
-      const pub = publish({event, relays})
-
-      await vi.advanceTimersToNextTimerAsync()
-
-      relays.forEach(relay => {
-        expect(pub.status.get(relay)).toBe(PublishStatus.Pending)
-      })
+    const pub = unicast({
+      relay: '1',
+      context: {getAdapter: () => adapter},
+      event,
     })
 
-    it("should delegate to executor with correct parameters", () => {
-      publish({event, relays})
+    const successSpy = vi.fn()
+    const failureSpy = vi.fn()
+    const completeSpy = vi.fn()
 
-      expect(ctx.net.getExecutor).toHaveBeenCalledWith(relays)
-      expect(mockExecutor.publish).toHaveBeenCalledWith(
-        event,
-        expect.objectContaining({
-          verb: "EVENT",
-          onOk: expect.any(Function),
-          onError: expect.any(Function),
-        }),
-      )
+    pub.on(PublishEventType.Success, successSpy)
+    pub.on(PublishEventType.Failure, failureSpy)
+    pub.on(PublishEventType.Complete, completeSpy)
+
+    await vi.advanceTimersByTimeAsync(200)
+
+    expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Event, event])
+
+    adapter.receive(["OK", event.id, false, "hi"])
+
+    await vi.runAllTimers()
+
+    expect(successSpy).not.toHaveBeenCalled()
+    expect(failureSpy).toHaveBeenCalledWith(event.id, "hi")
+    expect(completeSpy).toHaveBeenCalled()
+  })
+
+  it("timeout works", async () => {
+    const sendSpy = vi.fn()
+    const adapter = new MockAdapter('1', sendSpy)
+    const signer = Nip01Signer.ephemeral()
+    const event = await signer.sign(makeEvent(1))
+
+    const pub = unicast({
+      relay: '1',
+      context: {getAdapter: () => adapter},
+      event,
     })
 
-    it("should handle successful publish", async () => {
-      const pub = publish({event, relays})
-      await vi.runAllTimersAsync()
+    const successSpy = vi.fn()
+    const failureSpy = vi.fn()
+    const completeSpy = vi.fn()
+    const timeoutSpy = vi.fn()
 
-      const onOk = mockExecutor.publish.mock.calls[0][1].onOk
-      onOk("relay1", event.id, true, "success")
+    pub.on(PublishEventType.Success, successSpy)
+    pub.on(PublishEventType.Failure, failureSpy)
+    pub.on(PublishEventType.Complete, completeSpy)
+    pub.on(PublishEventType.Timeout, timeoutSpy)
 
-      expect(pub.status.get("relay1")).toBe(PublishStatus.Success)
+    await vi.runAllTimers(200)
+
+    expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Event, event])
+
+    await vi.runAllTimers()
+
+    expect(successSpy).not.toHaveBeenCalled()
+    expect(failureSpy).not.toHaveBeenCalled(event.id, "hi")
+    expect(completeSpy).toHaveBeenCalled()
+    expect(timeoutSpy).toHaveBeenCalled()
+  })
+
+  it("abort works", async () => {
+    const sendSpy = vi.fn()
+    const adapter = new MockAdapter('1', sendSpy)
+    const signer = Nip01Signer.ephemeral()
+    const event = await signer.sign(makeEvent(1))
+
+    const pub = unicast({
+      relay: '1',
+      context: {getAdapter: () => adapter},
+      event,
     })
 
-    it("should handle failed publish", async () => {
-      const pub = publish({event, relays})
-      await vi.runAllTimersAsync()
+    const successSpy = vi.fn()
+    const failureSpy = vi.fn()
+    const completeSpy = vi.fn()
+    const abortSpy = vi.fn()
 
-      const onOk = mockExecutor.publish.mock.calls[0][1].onOk
-      onOk("relay1", event.id, false, "failed")
+    pub.on(PublishEventType.Success, successSpy)
+    pub.on(PublishEventType.Failure, failureSpy)
+    pub.on(PublishEventType.Complete, completeSpy)
+    pub.on(PublishEventType.Timeout, abortSpy)
 
-      expect(pub.status.get("relay1")).toBe(PublishStatus.Failure)
+    await vi.runAllTimers(200)
+
+    expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Event, event])
+
+    pub.abort()
+
+    await vi.runAllTimers()
+
+    expect(successSpy).not.toHaveBeenCalled()
+    expect(failureSpy).not.toHaveBeenCalled(event.id, "hi")
+    expect(completeSpy).toHaveBeenCalled()
+    expect(abortSpy).toHaveBeenCalled()
+  })
+})
+
+describe("Multicast", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("should all basically work", async () => {
+    const send1Spy = vi.fn()
+    const adapter1 = new MockAdapter('1', send1Spy)
+    const send2Spy = vi.fn()
+    const adapter2 = new MockAdapter('2', send2Spy)
+    const send3Spy = vi.fn()
+    const adapter3 = new MockAdapter('3', send3Spy)
+    const signer = Nip01Signer.ephemeral()
+    const event = await signer.sign(makeEvent(1))
+
+    const pub = multicast({
+      event,
+      relays: ['1', '2', '3'],
+      context: {
+        getAdapter: (url: string) => {
+          switch(url) {
+            case '1': return adapter1
+            case '2': return adapter2
+            case '3': return adapter3
+            default: throw new Error(`Unknown relay: ${url}`)
+          }
+        },
+      }
     })
 
-    it("should handle publish errors", async () => {
-      const pub = publish({event, relays})
-      await vi.runAllTimersAsync()
+    const successSpy = vi.fn()
+    const failureSpy = vi.fn()
+    const completeSpy = vi.fn()
+    const timeoutSpy = vi.fn()
 
-      const onError = mockExecutor.publish.mock.calls[0][1].onError
-      onError("relay1")
+    pub.on(PublishEventType.Success, successSpy)
+    pub.on(PublishEventType.Failure, failureSpy)
+    pub.on(PublishEventType.Complete, completeSpy)
+    pub.on(PublishEventType.Timeout, timeoutSpy)
 
-      expect(pub.status.get("relay1")).toBe(PublishStatus.Failure)
-    })
+    adapter1.receive(["OK", event.id, true, "hi"])
+    adapter2.receive(["OK", event.id, false, "hi"])
 
-    it("should handle timeout", async () => {
-      const pub = publish({event, relays, timeout: 5000})
-      await vi.runAllTimersAsync()
 
-      relays.forEach(relay => {
-        expect(pub.status.get(relay)).toBe(PublishStatus.Timeout)
-      })
-    })
+    await vi.runAllTimers()
 
-    it("should handle abort signal", async () => {
-      const controller = new AbortController()
-      const pub = publish({event, relays, signal: controller.signal})
-      await vi.advanceTimersToNextTimerAsync()
-
-      controller.abort()
-
-      relays.forEach(relay => {
-        expect(pub.status.get(relay)).toBe(PublishStatus.Aborted)
-      })
-    })
-
-    it("should cleanup when all relays complete", async () => {
-      const pub = publish({event, relays})
-      await vi.runAllTimersAsync()
-
-      const onOk = mockExecutor.publish.mock.calls[0][1].onOk
-
-      // Complete all relays
-      relays.forEach(relay => {
-        onOk(relay, event.id, true, "success")
-      })
-
-      expect(mockExecutorSub.unsubscribe).toHaveBeenCalled()
-      expect(mockExecutor.target.cleanup).toHaveBeenCalled()
-      expect(pub.result.resolve).toHaveBeenCalledWith(pub.status)
-    })
-
-    it("should use custom verb if provided", () => {
-      const pub = publish({event, relays, verb: "AUTH"})
-
-      expect(mockExecutor.publish.mock.calls[0][1].verb).toBe("AUTH")
-    })
-
-    it("should use default timeout if not specified", async () => {
-      const pub = publish({event, relays})
-
-      // Advance to default timeout
-      await vi.advanceTimersByTimeAsync(10_000)
-
-      relays.forEach(relay => {
-        expect(pub.status.get(relay)).toBe(PublishStatus.Timeout)
-      })
-    })
+    expect(successSpy).toHaveBeenCalledWith(event.id, "hi", "1")
+    expect(failureSpy).toHaveBeenCalledWith(event.id, "hi", "2")
+    expect(completeSpy).toHaveBeenCalledTimes(1)
+    expect(timeoutSpy).toHaveBeenCalledWith("3")
   })
 })
