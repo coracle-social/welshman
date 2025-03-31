@@ -2,16 +2,16 @@ import EventEmitter from "events"
 import {call, on} from "@welshman/lib"
 import {Relay, LOCAL_RELAY_URL, isRelayUrl} from "@welshman/util"
 import {RelayMessage, ClientMessage} from "./message.js"
-import {Socket, SocketEventType} from "./socket.js"
+import {Socket, SocketEvent} from "./socket.js"
 import {TypedEmitter, Unsubscriber} from "./util.js"
 import {Pool} from "./pool.js"
 
-export enum AdapterEventType {
+export enum AdapterEvent {
   Receive = "adapter:event:receive",
 }
 
 export type AdapterEvents = {
-  [AdapterEventType.Receive]: (message: RelayMessage, url: string) => void
+  [AdapterEvent.Receive]: (message: RelayMessage, url: string) => void
 }
 
 export abstract class AbstractAdapter extends (EventEmitter as new () => TypedEmitter<AdapterEvents>) {
@@ -32,8 +32,8 @@ export class SocketAdapter extends AbstractAdapter {
     super()
 
     this._unsubscribers.push(
-      on(socket, SocketEventType.Receive, (message: RelayMessage, url: string) => {
-        this.emit(AdapterEventType.Receive, message, url)
+      on(socket, SocketEvent.Receive, (message: RelayMessage, url: string) => {
+        this.emit(AdapterEvent.Receive, message, url)
       }),
     )
   }
@@ -57,7 +57,7 @@ export class LocalAdapter extends AbstractAdapter {
 
     this._unsubscribers.push(
       on(relay, "*", (...message: RelayMessage) => {
-        this.emit(AdapterEventType.Receive, message, LOCAL_RELAY_URL)
+        this.emit(AdapterEvent.Receive, message, LOCAL_RELAY_URL)
       }),
     )
   }
@@ -77,13 +77,25 @@ export class LocalAdapter extends AbstractAdapter {
   }
 }
 
+export class EmptyAdapter extends AbstractAdapter {
+  get sockets() {
+    return []
+  }
+
+  get urls() {
+    return []
+  }
+
+  send(message: ClientMessage) {}
+}
+
 export type AdapterContext = {
   pool?: Pool
   relay?: Relay
   getAdapter?: (url: string, context: AdapterContext) => AbstractAdapter
 }
 
-export const getAdapter = (url: string, context: AdapterContext) => {
+export const getAdapter = (url: string, context: AdapterContext = {}) => {
   if (context.getAdapter) {
     const adapter = context.getAdapter(url, context)
 
@@ -93,19 +105,13 @@ export const getAdapter = (url: string, context: AdapterContext) => {
   }
 
   if (url === LOCAL_RELAY_URL) {
-    if (!context.relay) {
-      throw new Error(`Unable to get local relay for ${url}`)
-    }
-
-    return new LocalAdapter(context.relay)
+    return context.relay ? new LocalAdapter(context.relay) : new EmptyAdapter()
   }
 
   if (isRelayUrl(url)) {
-    if (!context.pool) {
-      throw new Error(`Unable to get socket for ${url}`)
-    }
+    const pool = context.pool || Pool.getSingleton()
 
-    return new SocketAdapter(context.pool.get(url))
+    return new SocketAdapter(pool.get(url))
   }
 
   throw new Error(`Invalid relay url ${url}`)

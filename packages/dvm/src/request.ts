@@ -1,13 +1,6 @@
 import {Emitter, now} from "@welshman/lib"
 import {TrustedEvent, SignedEvent, Filter} from "@welshman/util"
-import {
-  multireq,
-  multicast,
-  Multireq,
-  Multicast,
-  RequestEventType,
-  AdapterContext,
-} from "@welshman/net"
+import {multireq, multicast, Multireq, Multicast, RequestEvent, AdapterContext} from "@welshman/net"
 
 export enum DVMEvent {
   Progress = "progress",
@@ -17,10 +10,10 @@ export enum DVMEvent {
 export type DVMRequestOptions = {
   event: SignedEvent
   relays: string[]
-  context: AdapterContext
   timeout?: number
   autoClose?: boolean
   reportProgress?: boolean
+  context?: AdapterContext
 }
 
 export type DVMRequest = {
@@ -47,7 +40,7 @@ export const makeDvmRequest = (request: DVMRequestOptions) => {
   const sub = multireq({relays, filter, timeout, context})
   const pub = multicast({relays, event, timeout, context})
 
-  sub.on(RequestEventType.Event, (event: TrustedEvent, url: string) => {
+  sub.on(RequestEvent.Event, (event: TrustedEvent, url: string) => {
     if (event.kind === 7000) {
       emitter.emit(DVMEvent.Progress, url, event)
     } else {

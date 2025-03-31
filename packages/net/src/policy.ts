@@ -11,8 +11,8 @@ import {
   isRelayOk,
   isRelayClosed,
 } from "./message.js"
-import {Socket, SocketStatus, SocketEventType} from "./socket.js"
-import {AuthState, AuthStatus, AuthStateEventType} from "./auth.js"
+import {Socket, SocketStatus, SocketEvent} from "./socket.js"
+import {AuthState, AuthStatus, AuthStateEvent} from "./auth.js"
 
 /**
  * Defers sending messages when a challenge has been presented and not answered yet
@@ -26,7 +26,7 @@ export const socketPolicyDeferOnAuth = (socket: Socket) => {
 
   const unsubscribers = [
     // Pause sending certain messages when we're not authenticated
-    on(socket, SocketEventType.Enqueue, (message: ClientMessage) => {
+    on(socket, SocketEvent.Enqueue, (message: ClientMessage) => {
       // If we're closing a request, but it never got sent, remove both from the queue
       // Otherwise, always send CLOSE
       if (isClientClose(message)) {
@@ -53,7 +53,7 @@ export const socketPolicyDeferOnAuth = (socket: Socket) => {
       }
     }),
     // Send buffered messages when we get successful auth
-    on(authState, AuthStateEventType.Status, (status: AuthStatus) => {
+    on(authState, AuthStateEvent.Status, (status: AuthStatus) => {
       if (okStatuses.includes(status) && buffer.length > 0) {
         for (const message of buffer.splice(0)) {
           socket.send(message)
@@ -79,7 +79,7 @@ export const socketPolicyRetryAuthRequired = (socket: Socket) => {
 
   const unsubscribers = [
     // Watch outgoing events and requests and keep a copy
-    on(socket, SocketEventType.Send, (message: ClientMessage) => {
+    on(socket, SocketEvent.Send, (message: ClientMessage) => {
       if (isClientEvent(message)) {
         const [_, event] = message
 
@@ -97,7 +97,7 @@ export const socketPolicyRetryAuthRequired = (socket: Socket) => {
       }
     }),
     // If a message is rejected with auth-required, re-enqueue it one time
-    on(socket, SocketEventType.Receive, (message: RelayMessage) => {
+    on(socket, SocketEvent.Receive, (message: RelayMessage) => {
       if (isRelayOk(message)) {
         const [_, id, ok, detail] = message
         const pendingMessage = pending.get(id)
@@ -137,7 +137,7 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
   let currentStatus = SocketStatus.Closed
 
   const unsubscribers = [
-    on(socket, SocketEventType.Status, (newStatus: SocketStatus) => {
+    on(socket, SocketEvent.Status, (newStatus: SocketStatus) => {
       // Keep track of the most recent error
       if (newStatus === SocketStatus.Error) {
         lastError = now()
@@ -146,7 +146,7 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
       // Keep track of the current status
       currentStatus = newStatus
     }),
-    on(socket, SocketEventType.Enqueue, (message: ClientMessage) => {
+    on(socket, SocketEvent.Enqueue, (message: ClientMessage) => {
       // When a new message is sent, make sure the socket is open (unless there was a recent error)
       if (currentStatus === SocketStatus.Closed && lastError < ago(30)) {
         socket.open()
@@ -166,10 +166,10 @@ export const socketPolicyCloseOnTimeout = (socket: Socket) => {
   let lastActivity = now()
 
   const unsubscribers = [
-    on(socket, SocketEventType.Send, (message: ClientMessage) => {
+    on(socket, SocketEvent.Send, (message: ClientMessage) => {
       lastActivity = now()
     }),
-    on(socket, SocketEventType.Receive, (message: RelayMessage) => {
+    on(socket, SocketEvent.Receive, (message: RelayMessage) => {
       lastActivity = now()
     }),
   ]
@@ -197,7 +197,7 @@ export const socketPolicyReopenActive = (socket: Socket) => {
   let lastOpen = Date.now()
 
   const unsubscribers = [
-    on(socket, SocketEventType.Status, (newStatus: SocketStatus) => {
+    on(socket, SocketEvent.Status, (newStatus: SocketStatus) => {
       // Keep track of the most recent error
       if (newStatus === SocketStatus.Open) {
         lastOpen = Date.now()
@@ -214,7 +214,7 @@ export const socketPolicyReopenActive = (socket: Socket) => {
         })
       }
     }),
-    on(socket, SocketEventType.Send, (message: ClientMessage) => {
+    on(socket, SocketEvent.Send, (message: ClientMessage) => {
       if (isClientEvent(message)) {
         pending.set(message[1].id, message)
       }
@@ -227,7 +227,7 @@ export const socketPolicyReopenActive = (socket: Socket) => {
         pending.delete(message[1])
       }
     }),
-    on(socket, SocketEventType.Receive, (message: RelayMessage) => {
+    on(socket, SocketEvent.Receive, (message: RelayMessage) => {
       if (isRelayClosed(message) || isRelayOk(message)) {
         pending.delete(message[1])
       }

@@ -15,7 +15,7 @@ import {
   StampedEvent,
   NOSTR_CONNECT,
 } from "@welshman/util"
-import {subscribe, publish, Subscription, SubscriptionEvent} from "@welshman/net"
+import {multireq, multicast, Multireq, RequestEvent, AdapterContext} from "@welshman/net"
 import {ISigner, EncryptionImplementation, decrypt, hash, own} from "../util.js"
 import {Nip01Signer} from "./nip01.js"
 
@@ -32,6 +32,7 @@ export type Nip46BrokerParams = {
   connectSecret?: string
   signerPubkey?: string
   algorithm?: Nip46Algorithm
+  context?: AdapterContext
 }
 
 export type Nip46Response = {
@@ -96,7 +97,7 @@ const popupManager = (() => {
 })()
 
 export class Nip46Receiver extends Emitter {
-  public sub?: Subscription
+  public sub?: Multireq
 
   constructor(
     public signer: ISigner,
@@ -109,29 +110,28 @@ export class Nip46Receiver extends Emitter {
   start = async () => {
     if (this.sub) return
 
+    const {relays, context} = this.params
     const userPubkey = await this.signer.getPubkey()
-    const filters = [{kinds: [NOSTR_CONNECT], "#p": [userPubkey]}]
+    const filter = {kinds: [NOSTR_CONNECT], "#p": [userPubkey]}
 
-    this.sub = subscribe({relays: this.params.relays, filters})
+    this.sub = multireq({relays, filter, context})
 
-    return new Promise<void>(resolve => {
-      this.sub!.on(SubscriptionEvent.Send, resolve)
+    this.sub.on(RequestEvent.Send, resolve)
 
-      this.sub!.on(SubscriptionEvent.Event, async (url: string, event: TrustedEvent) => {
-        const json = await decrypt(this.signer, event.pubkey, event.content)
-        const response = tryCatch(() => JSON.parse(json)) || {}
+    this.sub.on(RequestEvent.Event, async (event: TrustedEvent, url: string) => {
+      const json = await decrypt(this.signer, event.pubkey, event.content)
+      const response = tryCatch(() => JSON.parse(json)) || {}
 
-        // Delay errors in case there's a zombie signer out there clogging things up
-        if (response.error) {
-          await sleep(3000)
-        }
+      // Delay errors in case there's a zombie signer out there clogging things up
+      if (response.error) {
+        await sleep(3000)
+      }
 
-        this.emit(Nip46Event.Receive, {...response, url, event} as Nip46Response)
-      })
+      this.emit(Nip46Event.Receive, {...response, url, event} as Nip46Response)
+    })
 
-      this.sub!.on(SubscriptionEvent.Complete, () => {
-        this.sub = undefined
-      })
+    this.sub.on(RequestEvent.Close, () => {
+      this.sub = undefined
     })
   }
 
@@ -154,7 +154,7 @@ export class Nip46Sender extends Emitter {
   // send a request to the remote signer, emitting the request and the pub
   public send = async (request: Nip46Request) => {
     const {id, method, params} = request
-    const {relays, signerPubkey, algorithm = "nip44"} = this.params
+    const {relays, signerPubkey, context, algorithm = "nip44"} = this.params
 
     if (!signerPubkey) {
       throw new Error("Unable to send nip46 request without a signer pubkey")
@@ -164,7 +164,7 @@ export class Nip46Sender extends Emitter {
     const content = await this.signer[algorithm].encrypt(signerPubkey, payload)
     const template = createEvent(NOSTR_CONNECT, {content, tags: [["p", signerPubkey]]})
     const event = await this.signer.sign(template)
-    const pub = publish({relays, event})
+    const pub = multicast({relays, event, context})
 
     this.emit(Nip46Event.Send, {...request, pub})
   }

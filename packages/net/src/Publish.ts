@@ -2,7 +2,7 @@ import {EventEmitter} from "events"
 import {on, fromPairs, sleep, yieldThread} from "@welshman/lib"
 import {SignedEvent} from "@welshman/util"
 import {RelayMessage, ClientMessageType, isRelayOk} from "./message.js"
-import {AbstractAdapter, AdapterEventType, AdapterContext, getAdapter} from "./adapter.js"
+import {AbstractAdapter, AdapterEvent, AdapterContext, getAdapter} from "./adapter.js"
 import {TypedEmitter} from "./util.js"
 
 export enum PublishStatus {
@@ -13,7 +13,7 @@ export enum PublishStatus {
   Aborted = "publish:status:aborted",
 }
 
-export enum PublishEventType {
+export enum PublishEvent {
   Success = "publish:event:success",
   Failure = "publish:event:failure",
   Timeout = "publish:event:timeout",
@@ -24,17 +24,17 @@ export enum PublishEventType {
 // Unicast
 
 export type UnicastEvents = {
-  [PublishEventType.Success]: (id: string, detail: string) => void
-  [PublishEventType.Failure]: (id: string, detail: string) => void
-  [PublishEventType.Timeout]: () => void
-  [PublishEventType.Aborted]: () => void
-  [PublishEventType.Complete]: () => void
+  [PublishEvent.Success]: (id: string, detail: string) => void
+  [PublishEvent.Failure]: (id: string, detail: string) => void
+  [PublishEvent.Timeout]: () => void
+  [PublishEvent.Aborted]: () => void
+  [PublishEvent.Complete]: () => void
 }
 
 export type UnicastOptions = {
   event: SignedEvent
   relay: string
-  context: AdapterContext
+  context?: AdapterContext
   timeout?: number
 }
 
@@ -53,7 +53,7 @@ export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEven
     // Listen for Unicast result
     this._unsubscriber = on(
       this._adapter,
-      AdapterEventType.Receive,
+      AdapterEvent.Receive,
       (message: RelayMessage, url: string) => {
         if (isRelayOk(message)) {
           const [_, id, ok, detail] = message
@@ -62,10 +62,10 @@ export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEven
 
           if (ok) {
             this.status = PublishStatus.Success
-            this.emit(PublishEventType.Success, id, detail)
+            this.emit(PublishEvent.Success, id, detail)
           } else {
             this.status = PublishStatus.Failure
-            this.emit(PublishEventType.Failure, id, detail)
+            this.emit(PublishEvent.Failure, id, detail)
           }
 
           this.cleanup()
@@ -77,7 +77,7 @@ export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEven
     sleep(this.options.timeout || 10_000).then(() => {
       if (this.status === PublishStatus.Pending) {
         this.status = PublishStatus.Timeout
-        this.emit(PublishEventType.Timeout)
+        this.emit(PublishEvent.Timeout)
       }
 
       this.cleanup()
@@ -92,13 +92,13 @@ export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEven
   abort = () => {
     if (this.status === PublishStatus.Pending) {
       this.status = PublishStatus.Aborted
-      this.emit(PublishEventType.Aborted)
+      this.emit(PublishEvent.Aborted)
       this.cleanup()
     }
   }
 
   cleanup = () => {
-    this.emit(PublishEventType.Complete)
+    this.emit(PublishEvent.Complete)
     this.removeAllListeners()
     this._adapter.cleanup()
     this._unsubscriber()
@@ -108,11 +108,11 @@ export class Unicast extends (EventEmitter as new () => TypedEmitter<UnicastEven
 // Multicast
 
 export type MulticastEvents = {
-  [PublishEventType.Success]: (id: string, detail: string, url: string) => void
-  [PublishEventType.Failure]: (id: string, detail: string, url: string) => void
-  [PublishEventType.Timeout]: (url: string) => void
-  [PublishEventType.Aborted]: (url: string) => void
-  [PublishEventType.Complete]: () => void
+  [PublishEvent.Success]: (id: string, detail: string, url: string) => void
+  [PublishEvent.Failure]: (id: string, detail: string, url: string) => void
+  [PublishEvent.Timeout]: (url: string) => void
+  [PublishEvent.Aborted]: (url: string) => void
+  [PublishEvent.Complete]: () => void
 }
 
 export type MulticastOptions = Omit<UnicastOptions, "relay"> & {
@@ -133,32 +133,32 @@ export class Multicast extends (EventEmitter as new () => TypedEmitter<Multicast
     for (const relay of relays) {
       const unicast = new Unicast({relay, ...options})
 
-      unicast.on(PublishEventType.Success, (id: string, detail: string) => {
+      unicast.on(PublishEvent.Success, (id: string, detail: string) => {
         this.status[relay] = unicast.status
-        this.emit(PublishEventType.Success, id, detail, relay)
+        this.emit(PublishEvent.Success, id, detail, relay)
       })
 
-      unicast.on(PublishEventType.Failure, (id: string, detail: string) => {
+      unicast.on(PublishEvent.Failure, (id: string, detail: string) => {
         this.status[relay] = unicast.status
-        this.emit(PublishEventType.Failure, id, detail, relay)
+        this.emit(PublishEvent.Failure, id, detail, relay)
       })
 
-      unicast.on(PublishEventType.Timeout, () => {
+      unicast.on(PublishEvent.Timeout, () => {
         this.status[relay] = unicast.status
-        this.emit(PublishEventType.Timeout, relay)
+        this.emit(PublishEvent.Timeout, relay)
       })
 
-      unicast.on(PublishEventType.Aborted, () => {
+      unicast.on(PublishEvent.Aborted, () => {
         this.status[relay] = unicast.status
-        this.emit(PublishEventType.Aborted, relay)
+        this.emit(PublishEvent.Aborted, relay)
       })
 
-      unicast.on(PublishEventType.Complete, () => {
+      unicast.on(PublishEvent.Complete, () => {
         this._completed.add(relay)
         this.status[relay] = unicast.status
 
         if (this._completed.size === relays.length) {
-          this.emit(PublishEventType.Complete)
+          this.emit(PublishEvent.Complete)
           this.cleanup()
         }
       })

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { EventEmitter } from "events"
-import { Unicast, Multicast, PublishEventType, PublishStatus, unicast, multicast } from "../src/publish"
-import { AbstractAdapter, AdapterEventType } from "../src/adapter"
+import { Unicast, Multicast, PublishEvent, PublishStatus, unicast, multicast } from "../src/publish"
+import { AbstractAdapter, AdapterEvent } from "../src/adapter"
 import { ClientMessageType, RelayMessage } from "../src/message"
 import { SignedEvent, makeEvent } from "@welshman/util"
 import { Nip01Signer } from '@welshman/signer'
@@ -20,7 +20,7 @@ class MockAdapter extends AbstractAdapter {
   }
 
   receive = (message: RelayMessage) => {
-    this.emit(AdapterEventType.Receive, message, this.url)
+    this.emit(AdapterEvent.Receive, message, this.url)
   }
 }
 
@@ -49,9 +49,9 @@ describe("Unicast", () => {
     const failureSpy = vi.fn()
     const completeSpy = vi.fn()
 
-    pub.on(PublishEventType.Success, successSpy)
-    pub.on(PublishEventType.Failure, failureSpy)
-    pub.on(PublishEventType.Complete, completeSpy)
+    pub.on(PublishEvent.Success, successSpy)
+    pub.on(PublishEvent.Failure, failureSpy)
+    pub.on(PublishEvent.Complete, completeSpy)
 
     await vi.advanceTimersByTimeAsync(200)
 
@@ -82,9 +82,9 @@ describe("Unicast", () => {
     const failureSpy = vi.fn()
     const completeSpy = vi.fn()
 
-    pub.on(PublishEventType.Success, successSpy)
-    pub.on(PublishEventType.Failure, failureSpy)
-    pub.on(PublishEventType.Complete, completeSpy)
+    pub.on(PublishEvent.Success, successSpy)
+    pub.on(PublishEvent.Failure, failureSpy)
+    pub.on(PublishEvent.Complete, completeSpy)
 
     await vi.advanceTimersByTimeAsync(200)
 
@@ -116,10 +116,10 @@ describe("Unicast", () => {
     const completeSpy = vi.fn()
     const timeoutSpy = vi.fn()
 
-    pub.on(PublishEventType.Success, successSpy)
-    pub.on(PublishEventType.Failure, failureSpy)
-    pub.on(PublishEventType.Complete, completeSpy)
-    pub.on(PublishEventType.Timeout, timeoutSpy)
+    pub.on(PublishEvent.Success, successSpy)
+    pub.on(PublishEvent.Failure, failureSpy)
+    pub.on(PublishEvent.Complete, completeSpy)
+    pub.on(PublishEvent.Timeout, timeoutSpy)
 
     await vi.runAllTimers(200)
 
@@ -150,10 +150,10 @@ describe("Unicast", () => {
     const completeSpy = vi.fn()
     const abortSpy = vi.fn()
 
-    pub.on(PublishEventType.Success, successSpy)
-    pub.on(PublishEventType.Failure, failureSpy)
-    pub.on(PublishEventType.Complete, completeSpy)
-    pub.on(PublishEventType.Timeout, abortSpy)
+    pub.on(PublishEvent.Success, successSpy)
+    pub.on(PublishEvent.Failure, failureSpy)
+    pub.on(PublishEvent.Complete, completeSpy)
+    pub.on(PublishEvent.Timeout, abortSpy)
 
     await vi.runAllTimers(200)
 
@@ -209,10 +209,10 @@ describe("Multicast", () => {
     const completeSpy = vi.fn()
     const timeoutSpy = vi.fn()
 
-    pub.on(PublishEventType.Success, successSpy)
-    pub.on(PublishEventType.Failure, failureSpy)
-    pub.on(PublishEventType.Complete, completeSpy)
-    pub.on(PublishEventType.Timeout, timeoutSpy)
+    pub.on(PublishEvent.Success, successSpy)
+    pub.on(PublishEvent.Failure, failureSpy)
+    pub.on(PublishEvent.Complete, completeSpy)
+    pub.on(PublishEvent.Timeout, timeoutSpy)
 
     adapter1.receive(["OK", event.id, true, "hi"])
     adapter2.receive(["OK", event.id, false, "hi"])

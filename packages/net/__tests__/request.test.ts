@@ -2,8 +2,8 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { Nip01Signer } from '@welshman/signer'
 import { LOCAL_RELAY_URL, makeEvent } from '@welshman/util'
 import { ClientMessageType, RelayMessage } from "../src/message"
-import { AdapterContext, AbstractAdapter, AdapterEventType } from "../src/adapter"
-import { unireq, multireq, RequestEventType } from "../src/request"
+import { AdapterContext, AbstractAdapter, AdapterEvent } from "../src/adapter"
+import { unireq, multireq, RequestEvent } from "../src/request"
 import { Tracker } from "../src/tracker"
 
 class MockAdapter extends AbstractAdapter {
@@ -20,7 +20,7 @@ class MockAdapter extends AbstractAdapter {
   }
 
   receive = (message: RelayMessage) => {
-    this.emit(AdapterEventType.Receive, message, this.url)
+    this.emit(AdapterEvent.Receive, message, this.url)
   }
 }
 
@@ -50,12 +50,12 @@ describe("Unireq", () => {
     const eoseSpy = vi.fn()
     const closeSpy = vi.fn()
 
-    req.on(RequestEventType.Duplicate, duplicateSpy)
-    req.on(RequestEventType.Invalid, invalidSpy)
-    req.on(RequestEventType.Filtered, filteredSpy)
-    req.on(RequestEventType.Event, eventSpy)
-    req.on(RequestEventType.Eose, eoseSpy)
-    req.on(RequestEventType.Close, closeSpy)
+    req.on(RequestEvent.Duplicate, duplicateSpy)
+    req.on(RequestEvent.Invalid, invalidSpy)
+    req.on(RequestEvent.Filtered, filteredSpy)
+    req.on(RequestEvent.Event, eventSpy)
+    req.on(RequestEvent.Eose, eoseSpy)
+    req.on(RequestEvent.Close, closeSpy)
 
     await vi.runAllTimers()
 
@@ -116,12 +116,12 @@ describe("Multireq", () => {
     const eoseSpy = vi.fn()
     const closeSpy = vi.fn()
 
-    req.on(RequestEventType.Duplicate, duplicateSpy)
-    req.on(RequestEventType.Invalid, invalidSpy)
-    req.on(RequestEventType.Filtered, filteredSpy)
-    req.on(RequestEventType.Event, eventSpy)
-    req.on(RequestEventType.Eose, eoseSpy)
-    req.on(RequestEventType.Close, closeSpy)
+    req.on(RequestEvent.Duplicate, duplicateSpy)
+    req.on(RequestEvent.Invalid, invalidSpy)
+    req.on(RequestEvent.Filtered, filteredSpy)
+    req.on(RequestEvent.Event, eventSpy)
+    req.on(RequestEvent.Eose, eoseSpy)
+    req.on(RequestEvent.Close, closeSpy)
 
     await vi.runAllTimers()
 

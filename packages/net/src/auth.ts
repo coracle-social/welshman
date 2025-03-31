@@ -3,7 +3,7 @@ import {on, call, sleep} from "@welshman/lib"
 import type {SignedEvent, StampedEvent} from "@welshman/util"
 import {makeEvent, CLIENT_AUTH} from "@welshman/util"
 import {isRelayAuth, isClientAuth, isRelayOk, RelayMessage} from "./message.js"
-import {Socket, SocketStatus, SocketEventType} from "./socket.js"
+import {Socket, SocketStatus, SocketEvent} from "./socket.js"
 import {TypedEmitter, Unsubscriber} from "./util.js"
 
 export const makeAuthEvent = (url: string, challenge: string) =>
@@ -29,12 +29,12 @@ export type AuthResult = {
   reason?: string
 }
 
-export enum AuthStateEventType {
+export enum AuthStateEvent {
   Status = "auth:event:status",
 }
 
 export type AuthStateEvents = {
-  [AuthStateEventType.Status]: (status: AuthStatus) => void
+  [AuthStateEvent.Status]: (status: AuthStatus) => void
 }
 
 export class AuthState extends (EventEmitter as new () => TypedEmitter<AuthStateEvents>) {
@@ -48,7 +48,7 @@ export class AuthState extends (EventEmitter as new () => TypedEmitter<AuthState
     super()
 
     this._unsubscribers.push(
-      on(socket, SocketEventType.Receive, (message: RelayMessage) => {
+      on(socket, SocketEvent.Receive, (message: RelayMessage) => {
         if (isRelayOk(message)) {
           const [_, id, ok, details] = message
 
@@ -72,12 +72,12 @@ export class AuthState extends (EventEmitter as new () => TypedEmitter<AuthState
           this.setStatus(AuthStatus.Requested)
         }
       }),
-      on(socket, SocketEventType.Enqueue, (message: RelayMessage) => {
+      on(socket, SocketEvent.Enqueue, (message: RelayMessage) => {
         if (isClientAuth(message)) {
           this.setStatus(AuthStatus.PendingResponse)
         }
       }),
-      on(socket, SocketEventType.Status, (status: SocketStatus) => {
+      on(socket, SocketEvent.Status, (status: SocketStatus) => {
         if (status === SocketStatus.Closed) {
           this.challenge = undefined
           this.request = undefined
@@ -90,7 +90,7 @@ export class AuthState extends (EventEmitter as new () => TypedEmitter<AuthState
 
   setStatus(status: AuthStatus) {
     this.status = status
-    this.emit(AuthStateEventType.Status, status)
+    this.emit(AuthStateEvent.Status, status)
   }
 
   cleanup() {
@@ -112,7 +112,7 @@ export class AuthManager {
     readonly options: AuthManagerOptions,
   ) {
     this.state = new AuthState(socket)
-    this.state.on(AuthStateEventType.Status, (status: string) => {
+    this.state.on(AuthStateEvent.Status, (status: string) => {
       if (status === AuthStatus.Requested && options.eager) {
         this.respond()
       }

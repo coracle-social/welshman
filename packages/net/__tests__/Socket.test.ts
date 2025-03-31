@@ -1,7 +1,7 @@
 import { sleep } from "@welshman/lib"
 import WebSocket from 'isomorphic-ws'
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { Socket, SocketStatus, SocketEventType } from "../src/socket"
+import { Socket, SocketStatus, SocketEvent } from "../src/socket"
 import { ClientMessage, RelayMessage } from "../src/message"
 
 vi.mock('isomorphic-ws', () => {
@@ -39,7 +39,7 @@ describe("Socket", () => {
   describe("open", () => {
     it("should create websocket and emit opening status", () => {
       const statusSpy = vi.fn()
-      socket.on(SocketEventType.Status, statusSpy)
+      socket.on(SocketEvent.Status, statusSpy)
 
       socket.open()
 
@@ -58,7 +58,7 @@ describe("Socket", () => {
 
     it("should emit invalid status on invalid URL", () => {
       const statusSpy = vi.fn()
-      socket.on(SocketEventType.Status, statusSpy)
+      socket.on(SocketEvent.Status, statusSpy)
 
       vi.mocked(WebSocket).mockImplementationOnce(() => {
         throw new Error()
@@ -73,7 +73,7 @@ describe("Socket", () => {
   describe("close", () => {
     it("should close websocket and emit closed status", () => {
       const statusSpy = vi.fn()
-      socket.on(SocketEventType.Status, statusSpy)
+      socket.on(SocketEvent.Status, statusSpy)
 
       socket.open()
 
@@ -89,7 +89,7 @@ describe("Socket", () => {
   describe("send", () => {
     it("should queue messages and emit enqueue event", () => {
       const enqueueSpy = vi.fn()
-      socket.on(SocketEventType.Enqueue, enqueueSpy)
+      socket.on(SocketEvent.Enqueue, enqueueSpy)
 
       const message: ClientMessage = ["EVENT", { id: "123", kind: 1 }]
       socket.send(message)
@@ -99,7 +99,7 @@ describe("Socket", () => {
 
     it("should send messages when socket is open", async () => {
       const sendSpy = vi.fn()
-      socket.on(SocketEventType.Send, sendSpy)
+      socket.on(SocketEvent.Send, sendSpy)
 
       socket.open()
       socket._ws.onopen()
@@ -117,7 +117,7 @@ describe("Socket", () => {
   describe("receive", () => {
     it("should handle valid relay messages", async () => {
       const receiveSpy = vi.fn()
-      socket.on(SocketEventType.Receive, receiveSpy)
+      socket.on(SocketEvent.Receive, receiveSpy)
 
       socket.open()
       const message: RelayMessage = ["EVENT", "123", { id: "123", kind: 1 }]
@@ -131,7 +131,7 @@ describe("Socket", () => {
 
     it("should emit error on invalid JSON", () => {
       const errorSpy = vi.fn()
-      socket.on(SocketEventType.Error, errorSpy)
+      socket.on(SocketEvent.Error, errorSpy)
 
       socket.open()
       socket._ws.onmessage({ data: "invalid json" })
@@ -141,7 +141,7 @@ describe("Socket", () => {
 
     it("should emit error on non-array message", () => {
       const errorSpy = vi.fn()
-      socket.on(SocketEventType.Error, errorSpy)
+      socket.on(SocketEvent.Error, errorSpy)
 
       socket.open()
       socket._ws.onmessage({ data: JSON.stringify({ not: "an array" }) })
@@ -159,14 +159,14 @@ describe("Socket", () => {
       socket.cleanup()
 
       expect(ws.close).toHaveBeenCalled()
-      expect(socket.listenerCount(SocketEventType.Send)).toBe(0)
+      expect(socket.listenerCount(SocketEvent.Send)).toBe(0)
     })
   })
 
   describe("error handling", () => {
     it("should emit error status on websocket error", () => {
       const statusSpy = vi.fn()
-      socket.on(SocketEventType.Status, statusSpy)
+      socket.on(SocketEvent.Status, statusSpy)
 
       socket.open()
       socket._ws.onerror()

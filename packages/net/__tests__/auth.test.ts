@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
-import { Socket, SocketStatus, SocketEventType } from "../src/socket"
+import { Socket, SocketStatus, SocketEvent } from "../src/socket"
 import { makeEvent, CLIENT_AUTH } from "@welshman/util"
 import { Nip01Signer } from "@welshman/signer"
-import { AuthState, AuthStatus, AuthStateEventType, AuthManager, makeAuthEvent } from "../src/auth"
+import { AuthState, AuthStatus, AuthStateEvent, AuthManager, makeAuthEvent } from "../src/auth"
 import EventEmitter from "events"
 import { RelayMessage } from "../src/message"
 
@@ -43,7 +43,7 @@ describe('auth', () => {
 
     it("should handle AUTH message from relay", () => {
       const message: RelayMessage = ["AUTH", "challenge123"]
-      socket.emit(SocketEventType.Receive, message)
+      socket.emit(SocketEvent.Receive, message)
 
       expect(authManager.state.challenge).toBe("challenge123")
       expect(authManager.state.status).toBe(AuthStatus.Requested)
@@ -52,7 +52,7 @@ describe('auth', () => {
     it("should handle successful OK message", () => {
       authManager.state.request = "request123"
       const message: RelayMessage = ["OK", "request123", true, "success"]
-      socket.emit(SocketEventType.Receive, message)
+      socket.emit(SocketEvent.Receive, message)
 
       expect(authManager.state.status).toBe(AuthStatus.Ok)
       expect(authManager.state.details).toBe("success")
@@ -61,7 +61,7 @@ describe('auth', () => {
     it("should handle failed OK message", () => {
       authManager.state.request = "request123"
       const message: RelayMessage = ["OK", "request123", false, "forbidden"]
-      socket.emit(SocketEventType.Receive, message)
+      socket.emit(SocketEvent.Receive, message)
 
       expect(authManager.state.status).toBe(AuthStatus.Forbidden)
       expect(authManager.state.details).toBe("forbidden")
@@ -70,14 +70,14 @@ describe('auth', () => {
     it("should ignore OK messages for different requests", () => {
       authManager.state.request = "request123"
       const message: RelayMessage = ["OK", "different-request", true, "success"]
-      socket.emit(SocketEventType.Receive, message)
+      socket.emit(SocketEvent.Receive, message)
 
       expect(authManager.state.status).toBe(AuthStatus.None)
     })
 
     it("should handle client AUTH message", () => {
       const message: RelayMessage = ["AUTH", { id: "123", kind: CLIENT_AUTH }]
-      socket.emit(SocketEventType.Enqueue, message)
+      socket.emit(SocketEvent.Enqueue, message)
 
       expect(authManager.state.status).toBe(AuthStatus.PendingResponse)
     })
@@ -88,7 +88,7 @@ describe('auth', () => {
       authManager.state.details = "details"
       authManager.state.status = AuthStatus.PendingResponse
 
-      socket.emit(SocketEventType.Status, SocketStatus.Closed)
+      socket.emit(SocketEvent.Status, SocketStatus.Closed)
 
       expect(authManager.state.challenge).toBeUndefined()
       expect(authManager.state.request).toBeUndefined()
@@ -98,7 +98,7 @@ describe('auth', () => {
 
     it("should emit status changes", () => {
       const statusSpy = vi.fn()
-      authManager.state.on(AuthStateEventType.Status, statusSpy)
+      authManager.state.on(AuthStateEvent.Status, statusSpy)
 
       authManager.state.setStatus(AuthStatus.Requested)
 
@@ -121,14 +121,14 @@ describe('auth', () => {
       const respondSpy = vi.spyOn(AuthManager.prototype, "respond")
       const eagerManager = new AuthManager(socket, { sign, eager: true })
 
-      socket.emit(SocketEventType.Receive, ["AUTH", "challenge123"])
+      socket.emit(SocketEvent.Receive, ["AUTH", "challenge123"])
 
       expect(respondSpy).toHaveBeenCalled()
     })
 
     it("should not respond automatically when eager is false", () => {
       const respondSpy = vi.spyOn(AuthManager.prototype, "respond")
-      socket.emit(SocketEventType.Receive, ["AUTH", "challenge123"])
+      socket.emit(SocketEvent.Receive, ["AUTH", "challenge123"])
 
       expect(respondSpy).not.toHaveBeenCalled()
     })

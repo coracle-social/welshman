@@ -3,8 +3,8 @@ import {verifyEvent as nostrToolsVerifyEvent} from "nostr-tools/pure"
 import {on, call, randomId, yieldThread} from "@welshman/lib"
 import {Filter, matchFilter, SignedEvent} from "@welshman/util"
 import {RelayMessage, ClientMessageType, isRelayEvent, isRelayEose} from "./message.js"
-import {getAdapter, AdapterContext, AbstractAdapter, AdapterEventType} from "./adapter.js"
-import {SocketEventType, SocketStatus} from "./socket.js"
+import {getAdapter, AdapterContext, AbstractAdapter, AdapterEvent} from "./adapter.js"
+import {SocketEvent, SocketStatus} from "./socket.js"
 import {TypedEmitter, Unsubscriber} from "./util.js"
 import {Tracker} from "./tracker.js"
 
@@ -16,7 +16,7 @@ export const defaultVerifyEvent = (event: SignedEvent) => {
   }
 }
 
-export enum RequestEventType {
+export enum RequestEvent {
   Close = "request:event:close",
   Disconnect = "request:event:disconnect",
   Duplicate = "request:event:duplicate",
@@ -29,19 +29,19 @@ export enum RequestEventType {
 // Unireq
 
 export type UnireqEvents = {
-  [RequestEventType.Event]: (event: SignedEvent) => void
-  [RequestEventType.Invalid]: (event: SignedEvent) => void
-  [RequestEventType.Filtered]: (event: SignedEvent) => void
-  [RequestEventType.Duplicate]: (event: SignedEvent) => void
-  [RequestEventType.Disconnect]: () => void
-  [RequestEventType.Close]: () => void
-  [RequestEventType.Eose]: () => void
+  [RequestEvent.Event]: (event: SignedEvent) => void
+  [RequestEvent.Invalid]: (event: SignedEvent) => void
+  [RequestEvent.Filtered]: (event: SignedEvent) => void
+  [RequestEvent.Duplicate]: (event: SignedEvent) => void
+  [RequestEvent.Disconnect]: () => void
+  [RequestEvent.Close]: () => void
+  [RequestEvent.Eose]: () => void
 }
 
 export type UnireqOptions = {
   relay: string
   filter: Filter
-  context: AdapterContext
+  context?: AdapterContext
   timeout?: number
   tracker?: Tracker
   autoClose?: boolean
@@ -66,20 +66,20 @@ export class Unireq extends (EventEmitter as new () => TypedEmitter<UnireqEvents
 
     // Listen for event/eose messages from the adapter
     this._unsubscribers.push(
-      on(this._adapter, AdapterEventType.Receive, (message: RelayMessage, url: string) => {
+      on(this._adapter, AdapterEvent.Receive, (message: RelayMessage, url: string) => {
         if (isRelayEvent(message)) {
           const [_, id, event] = message
 
           if (id !== this._id) return
 
           if (tracker.track(event.id, url)) {
-            this.emit(RequestEventType.Duplicate, event)
+            this.emit(RequestEvent.Duplicate, event)
           } else if (verifyEvent?.(event) === false) {
-            this.emit(RequestEventType.Invalid, event)
+            this.emit(RequestEvent.Invalid, event)
           } else if (!matchFilter(this.options.filter, event)) {
-            this.emit(RequestEventType.Filtered, event)
+            this.emit(RequestEvent.Filtered, event)
           } else {
-            this.emit(RequestEventType.Event, event)
+            this.emit(RequestEvent.Event, event)
           }
         }
 
@@ -87,7 +87,7 @@ export class Unireq extends (EventEmitter as new () => TypedEmitter<UnireqEvents
           const [_, id] = message
 
           if (id === this._id) {
-            this.emit(RequestEventType.Eose)
+            this.emit(RequestEvent.Eose)
 
             if (this.options.autoClose) {
               this.close()
@@ -100,9 +100,9 @@ export class Unireq extends (EventEmitter as new () => TypedEmitter<UnireqEvents
     // Listen to disconnects from any sockets
     for (const socket of this._adapter.sockets) {
       this._unsubscribers.push(
-        on(socket, SocketEventType.Status, (status: SocketStatus) => {
+        on(socket, SocketEvent.Status, (status: SocketStatus) => {
           if (![SocketStatus.Open, SocketStatus.Opening].includes(status)) {
-            this.emit(RequestEventType.Disconnect)
+            this.emit(RequestEvent.Disconnect)
 
             if (this.options.autoClose) {
               this.close()
@@ -127,7 +127,7 @@ export class Unireq extends (EventEmitter as new () => TypedEmitter<UnireqEvents
     if (this._closed) return
 
     this._adapter.send(["CLOSE", this._id])
-    this.emit(RequestEventType.Close)
+    this.emit(RequestEvent.Close)
     this.removeAllListeners()
     this._unsubscribers.map(call)
     this._adapter.cleanup()
@@ -138,13 +138,13 @@ export class Unireq extends (EventEmitter as new () => TypedEmitter<UnireqEvents
 // Multireq
 
 export type MultireqEvents = {
-  [RequestEventType.Event]: (event: SignedEvent, url: string) => void
-  [RequestEventType.Invalid]: (event: SignedEvent, url: string) => void
-  [RequestEventType.Filtered]: (event: SignedEvent, url: string) => void
-  [RequestEventType.Duplicate]: (event: SignedEvent, url: string) => void
-  [RequestEventType.Disconnect]: (url: string) => void
-  [RequestEventType.Eose]: (url: string) => void
-  [RequestEventType.Close]: () => void
+  [RequestEvent.Event]: (event: SignedEvent, url: string) => void
+  [RequestEvent.Invalid]: (event: SignedEvent, url: string) => void
+  [RequestEvent.Filtered]: (event: SignedEvent, url: string) => void
+  [RequestEvent.Duplicate]: (event: SignedEvent, url: string) => void
+  [RequestEvent.Disconnect]: (url: string) => void
+  [RequestEvent.Eose]: (url: string) => void
+  [RequestEvent.Close]: () => void
 }
 
 export type MultireqOptions = Omit<UnireqOptions, "relay"> & {
@@ -163,35 +163,35 @@ export class Multireq extends (EventEmitter as new () => TypedEmitter<MultireqEv
     for (const relay of relays) {
       const req = new Unireq({relay, tracker, ...options})
 
-      req.on(RequestEventType.Event, (event: SignedEvent) => {
-        this.emit(RequestEventType.Event, event, relay)
+      req.on(RequestEvent.Event, (event: SignedEvent) => {
+        this.emit(RequestEvent.Event, event, relay)
       })
 
-      req.on(RequestEventType.Invalid, (event: SignedEvent) => {
-        this.emit(RequestEventType.Invalid, event, relay)
+      req.on(RequestEvent.Invalid, (event: SignedEvent) => {
+        this.emit(RequestEvent.Invalid, event, relay)
       })
 
-      req.on(RequestEventType.Filtered, (event: SignedEvent) => {
-        this.emit(RequestEventType.Filtered, event, relay)
+      req.on(RequestEvent.Filtered, (event: SignedEvent) => {
+        this.emit(RequestEvent.Filtered, event, relay)
       })
 
-      req.on(RequestEventType.Duplicate, (event: SignedEvent) => {
-        this.emit(RequestEventType.Duplicate, event, relay)
+      req.on(RequestEvent.Duplicate, (event: SignedEvent) => {
+        this.emit(RequestEvent.Duplicate, event, relay)
       })
 
-      req.on(RequestEventType.Disconnect, () => {
-        this.emit(RequestEventType.Disconnect, relay)
+      req.on(RequestEvent.Disconnect, () => {
+        this.emit(RequestEvent.Disconnect, relay)
       })
 
-      req.on(RequestEventType.Eose, () => {
-        this.emit(RequestEventType.Eose, relay)
+      req.on(RequestEvent.Eose, () => {
+        this.emit(RequestEvent.Eose, relay)
       })
 
-      req.on(RequestEventType.Close, () => {
+      req.on(RequestEvent.Close, () => {
         this._closed.add(relay)
 
         if (this._closed.size === relays.length) {
-          this.emit(RequestEventType.Close)
+          this.emit(RequestEvent.Close)
         }
       })
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
-import { Socket, SocketEventType } from "../src/socket"
+import { Socket, SocketEvent } from "../src/socket"
 import { Relay, LOCAL_RELAY_URL, isRelayUrl } from "@welshman/util"
-import { AdapterEventType, SocketAdapter, LocalAdapter, getAdapter } from "../src/adapter"
+import { AdapterEvent, SocketAdapter, LocalAdapter, getAdapter } from "../src/adapter"
 import { Pool } from "../src/pool"
 import { ClientMessage, RelayMessage } from "../src/message"
 import EventEmitter from "events"
@@ -45,10 +45,10 @@ describe("SocketAdapter", () => {
 
   it("should forward received messages", () => {
     const receiveSpy = vi.fn()
-    adapter.on(AdapterEventType.Receive, receiveSpy)
+    adapter.on(AdapterEvent.Receive, receiveSpy)
 
     const message: RelayMessage = ["EVENT", "123", { id: "123", kind: 1 }]
-    socket.emit(SocketEventType.Receive, message, "wss://test.relay")
+    socket.emit(SocketEvent.Receive, message, "wss://test.relay")
 
     expect(receiveSpy).toHaveBeenCalledWith(message, "wss://test.relay")
   })
@@ -95,7 +95,7 @@ describe("LocalAdapter", () => {
 
   it("should forward received messages", () => {
     const receiveSpy = vi.fn()
-    adapter.on(AdapterEventType.Receive, receiveSpy)
+    adapter.on(AdapterEvent.Receive, receiveSpy)
 
     const message: RelayMessage = ["EVENT", "123", { id: "123", kind: 1 }]
     relay.emit("*", ...message)

@@ -13,7 +13,7 @@ export enum SocketStatus {
   Invalid = "socket:status:invalid",
 }
 
-export enum SocketEventType {
+export enum SocketEvent {
   Error = "socket:event:error",
   Status = "socket:event:status",
   Send = "socket:event:send",
@@ -22,11 +22,11 @@ export enum SocketEventType {
 }
 
 export type SocketEvents = {
-  [SocketEventType.Error]: (error: string, url: string) => void
-  [SocketEventType.Status]: (status: SocketStatus, url: string) => void
-  [SocketEventType.Send]: (message: ClientMessage, url: string) => void
-  [SocketEventType.Enqueue]: (message: ClientMessage, url: string) => void
-  [SocketEventType.Receive]: (message: RelayMessage, url: string) => void
+  [SocketEvent.Error]: (error: string, url: string) => void
+  [SocketEvent.Status]: (status: SocketStatus, url: string) => void
+  [SocketEvent.Send]: (message: ClientMessage, url: string) => void
+  [SocketEvent.Enqueue]: (message: ClientMessage, url: string) => void
+  [SocketEvent.Receive]: (message: RelayMessage, url: string) => void
 }
 
 export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents>) {
@@ -43,18 +43,18 @@ export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents
       batchSize: 50,
       processItem: (message: ClientMessage) => {
         this._ws?.send(JSON.stringify(message))
-        this.emit(SocketEventType.Send, message, this.url)
+        this.emit(SocketEvent.Send, message, this.url)
       },
     })
 
     this._recvQueue = new TaskQueue<RelayMessage>({
       batchSize: 50,
       processItem: (message: RelayMessage) => {
-        this.emit(SocketEventType.Receive, message, this.url)
+        this.emit(SocketEvent.Receive, message, this.url)
       },
     })
 
-    this.on(SocketEventType.Status, (status: SocketStatus) => {
+    this.on(SocketEvent.Status, (status: SocketStatus) => {
       this.status = status
     })
   }
@@ -66,21 +66,21 @@ export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents
 
     try {
       this._ws = new WebSocket(this.url)
-      this.emit(SocketEventType.Status, SocketStatus.Opening, this.url)
+      this.emit(SocketEvent.Status, SocketStatus.Opening, this.url)
 
       this._ws.onopen = () => {
-        this.emit(SocketEventType.Status, SocketStatus.Open, this.url)
+        this.emit(SocketEvent.Status, SocketStatus.Open, this.url)
         this._sendQueue.start()
       }
 
       this._ws.onerror = () => {
-        this.emit(SocketEventType.Status, SocketStatus.Error, this.url)
+        this.emit(SocketEvent.Status, SocketStatus.Error, this.url)
         this._sendQueue.stop()
         this._ws = undefined
       }
 
       this._ws.onclose = () => {
-        this.emit(SocketEventType.Status, SocketStatus.Closed, this.url)
+        this.emit(SocketEvent.Status, SocketStatus.Closed, this.url)
         this._sendQueue.stop()
         this._ws = undefined
       }
@@ -94,14 +94,14 @@ export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents
           if (Array.isArray(message)) {
             this._recvQueue.push(message as RelayMessage)
           } else {
-            this.emit(SocketEventType.Error, "Invalid message received", this.url)
+            this.emit(SocketEvent.Error, "Invalid message received", this.url)
           }
         } catch (e) {
-          this.emit(SocketEventType.Error, "Invalid message received", this.url)
+          this.emit(SocketEvent.Error, "Invalid message received", this.url)
         }
       }
     } catch (e) {
-      this.emit(SocketEventType.Status, SocketStatus.Invalid, this.url)
+      this.emit(SocketEvent.Status, SocketStatus.Invalid, this.url)
     }
   }
 
@@ -125,6 +125,6 @@ export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents
 
   send = (message: ClientMessage) => {
     this._sendQueue.push(message)
-    this.emit(SocketEventType.Enqueue, message, this.url)
+    this.emit(SocketEvent.Enqueue, message, this.url)
   }
 }

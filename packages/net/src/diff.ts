@@ -9,28 +9,28 @@ import {
   RelayMessageType,
   ClientMessageType,
 } from "./message.js"
-import {getAdapter, AdapterContext, AbstractAdapter, AdapterEventType} from "./adapter.js"
+import {getAdapter, AdapterContext, AbstractAdapter, AdapterEvent} from "./adapter.js"
 import {Negentropy, NegentropyStorageVector} from "./negentropy.js"
-import {unireq, RequestEventType} from "./request.js"
-import {multicast, PublishEventType} from "./publish.js"
+import {unireq, RequestEvent} from "./request.js"
+import {multicast, PublishEvent} from "./publish.js"
 
-export enum DifferenceEventType {
+export enum DifferenceEvent {
   Message = "difference:event:message",
   Error = "difference:event:error",
   Close = "difference:event:close",
 }
 
 export type DifferenceEvents = {
-  [DifferenceEventType.Message]: (payload: {have: string[]; need: string[]}, url: string) => void
-  [DifferenceEventType.Error]: (error: string, url: string) => void
-  [DifferenceEventType.Close]: () => void
+  [DifferenceEvent.Message]: (payload: {have: string[]; need: string[]}, url: string) => void
+  [DifferenceEvent.Error]: (error: string, url: string) => void
+  [DifferenceEvent.Close]: () => void
 }
 
 export type DifferenceOptions = {
   relay: string
   filter: Filter
   events: SignedEvent[]
-  context: AdapterContext
+  context?: AdapterContext
 }
 
 export class Difference extends (EventEmitter as new () => TypedEmitter<DifferenceEvents>) {
@@ -61,7 +61,7 @@ export class Difference extends (EventEmitter as new () => TypedEmitter<Differen
     // Add listeners
     this._unsubscriber = on(
       this._adapter,
-      AdapterEventType.Receive,
+      AdapterEvent.Receive,
       async (message: RelayMessage, url: string) => {
         if (isRelayNegMsg(message)) {
           const [_, negid, msg] = message
@@ -77,7 +77,7 @@ export class Difference extends (EventEmitter as new () => TypedEmitter<Differen
               this.need.add(id)
             }
 
-            this.emit(DifferenceEventType.Message, {have, need}, url)
+            this.emit(DifferenceEvent.Message, {have, need}, url)
 
             if (newMsg) {
               this._adapter.send([RelayMessageType.NegMsg, this._id, newMsg])
@@ -89,7 +89,7 @@ export class Difference extends (EventEmitter as new () => TypedEmitter<Differen
           const [_, negid, msg] = message
 
           if (negid === this._id) {
-            this.emit(DifferenceEventType.Error, msg, url)
+            this.emit(DifferenceEvent.Error, msg, url)
           }
         }
       },
@@ -104,7 +104,7 @@ export class Difference extends (EventEmitter as new () => TypedEmitter<Differen
     if (this._closed) return
 
     this._adapter.send([ClientMessageType.NegClose, this._id])
-    this.emit(DifferenceEventType.Close)
+    this.emit(DifferenceEvent.Close)
     this.removeAllListeners()
     this._adapter.cleanup()
     this._unsubscriber()
@@ -118,7 +118,7 @@ export type DiffOptions = {
   relays: string[]
   filters: Filter[]
   events: SignedEvent[]
-  context: AdapterContext
+  context?: AdapterContext
 }
 
 export type DiffItem = {
@@ -137,12 +137,12 @@ export const diff = async ({relays, filters, ...options}: DiffOptions) => {
               new Promise<DiffItem>((resolve, reject) => {
                 const diff = new Difference({relay, filter, ...options})
 
-                diff.on(DifferenceEventType.Close, () => {
+                diff.on(DifferenceEvent.Close, () => {
                   resolve({relay, have: diff.have, need: diff.need})
                   diff.close()
                 })
 
-                diff.on(DifferenceEventType.Error, (url, message) => {
+                diff.on(DifferenceEvent.Error, (url, message) => {
                   reject(message)
                   diff.close()
                 })
@@ -206,8 +206,8 @@ export const pull = async ({context, ...options}: PullOptions) => {
           return new Promise<void>(resolve => {
             const req = unireq({relay, context, filter: {ids}, autoClose: true})
 
-            req.on(RequestEventType.Close, resolve)
-            req.on(RequestEventType.Event, event => result.push(event))
+            req.on(RequestEvent.Close, resolve)
+            req.on(RequestEvent.Event, event => result.push(event))
           })
         }),
       )
@@ -236,7 +236,7 @@ export const push = async ({context, events, ...options}: PushOptions) => {
 
       if (relays) {
         new Promise<void>(resolve => {
-          multicast({event, relays, context}).on(PublishEventType.Complete, resolve)
+          multicast({event, relays, context}).on(PublishEvent.Complete, resolve)
         })
       }
     }),
