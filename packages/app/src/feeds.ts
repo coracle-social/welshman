@@ -11,17 +11,12 @@ import {wotGraph, maxWot, getFollows, getNetwork, getFollowers} from "./wot.js"
 
 export const request = async ({filters = [{}], relays = [], onEvent}: RequestOpts) => {
   if (relays.length > 0) {
-    await Promise.all(
-      filters.map(
-        filter =>
-          new Promise<void>(resolve => {
-            const sub = new MultiRequest({filter, relays, timeout: 5000, autoClose: true})
+    await new Promise<void>(resolve => {
+      const sub = new MultiRequest({filters, relays, timeout: 5000, autoClose: true})
 
-            sub.on(RequestEvent.Event, onEvent)
-            sub.on(RequestEvent.Close, resolve)
-          }),
-      ),
-    )
+      sub.on(RequestEvent.Event, onEvent)
+      sub.on(RequestEvent.Close, resolve)
+    })
   } else {
     await Promise.all(getFilterSelections(filters).map(opts => request({...opts, onEvent})))
   }

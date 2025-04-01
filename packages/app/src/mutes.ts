@@ -30,9 +30,9 @@ export const {
   load: async (pubkey: string, request: Partial<MultiRequestOptions> = {}) => {
     await loadRelaySelections(pubkey, request)
 
-    const filter = {kinds: [MUTES], authors: [pubkey]}
+    const filters = [{kinds: [MUTES], authors: [pubkey]}]
     const relays = Router.get().FromPubkey(pubkey).getUrls()
 
-    await load({relays, ...request, filter})
+    await load({relays, ...request, filters})
   },
 })

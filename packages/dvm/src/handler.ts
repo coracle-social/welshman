@@ -50,7 +50,7 @@ export class DVM {
           filter["#p"] = [pubkey]
         }
 
-        const req = new MultiRequest({relays, filter, context})
+        const req = new MultiRequest({relays, filters: [filter], context})
 
         req.on(RequestEvent.Event, this.onEvent)
         req.on(RequestEvent.Close, resolve)

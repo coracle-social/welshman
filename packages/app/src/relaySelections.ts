@@ -53,7 +53,7 @@ export const {
     await load({
       relays: router.merge([router.Index(), router.FromPubkey(pubkey)]).getUrls(),
       ...request,
-      filter: {kinds: [RELAYS], authors: [pubkey]},
+      filters: [{kinds: [RELAYS], authors: [pubkey]}],
     })
   },
 })
@@ -78,7 +78,7 @@ export const {
     await load({
       relays: router.merge([router.Index(), router.FromPubkey(pubkey)]).getUrls(),
       ...request,
-      filter: {kinds: [INBOX_RELAYS], authors: [pubkey]},
+      filters: [{kinds: [INBOX_RELAYS], authors: [pubkey]}],
     })
   },
 })

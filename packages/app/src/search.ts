@@ -55,7 +55,7 @@ export const createSearch = <V, T>(options: T[], opts: SearchOptions<V, T>): Sea
 export const searchProfiles = debounce(500, (search: string) => {
   if (search.length > 2) {
     load({
-      filter: {kinds: [PROFILE], search},
+      filters: [{kinds: [PROFILE], search}],
       relays: Router.get().Search().getUrls(),
     })
   }

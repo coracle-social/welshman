@@ -35,17 +35,9 @@ export const pull = async ({relays, filters}: AppSyncOpts) => {
     relays.map(async relay => {
       await (hasNegentropy(relay)
         ? basePull({filters, events, relays: [relay]})
-        : Promise.all(
-            filters.map(
-              filter =>
-                new Promise<void>(resolve => {
-                  new SingleRequest({filter, relay, autoClose: true}).on(
-                    RequestEvent.Close,
-                    resolve,
-                  )
-                }),
-            ),
-          ))
+        : new Promise<void>(resolve => {
+            new SingleRequest({filters, relay, autoClose: true}).on(RequestEvent.Close, resolve)
+          }))
     }),
   )
 }

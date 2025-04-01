@@ -35,9 +35,9 @@ export const makeDvmRequest = (request: DVMRequestOptions) => {
   } = request
   const kind = event.kind + 1000
   const kinds = reportProgress ? [kind, 7000] : [kind]
-  const filter: Filter = {kinds, since: now() - 60, "#e": [event.id]}
+  const filters: Filter[] = [{kinds, since: now() - 60, "#e": [event.id]}]
 
-  const sub = new MultiRequest({relays, filter, timeout, context})
+  const sub = new MultiRequest({relays, filters, timeout, context})
   const pub = new MultiPublish({relays, event, timeout, context})
 
   sub.on(RequestEvent.Event, (event: TrustedEvent, url: string) => {

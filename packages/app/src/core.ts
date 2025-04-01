@@ -3,12 +3,16 @@ import {verifyEvent, isEphemeralKind, isDVMKind} from "@welshman/util"
 import {Repository} from "@welshman/relay"
 import {Pool, Tracker, SocketEvent, isRelayEvent} from "@welshman/net"
 import {custom} from "@welshman/store"
+import {loadRelay, trackRelayStats} from "./relays.js"
 
 export const repository = Repository.getSingleton()
 
 export const tracker = new Tracker()
 
 Pool.getSingleton().subscribe(socket => {
+  loadRelay(socket.url)
+  trackRelayStats(socket)
+
   socket.on(SocketEvent.Receive, message => {
     if (isRelayEvent(message)) {
       const event = message[2]

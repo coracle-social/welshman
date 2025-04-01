@@ -28,10 +28,10 @@ export const {
     await loadRelaySelections(pubkey, request)
 
     const router = Router.get()
-    const filter = {kinds: [PROFILE], authors: [pubkey]}
+    const filters = [{kinds: [PROFILE], authors: [pubkey]}]
     const relays = router.merge([router.Index(), router.FromPubkey(pubkey)]).getUrls()
 
-    await load({relays, ...request, filter})
+    await load({relays, ...request, filters})
   },
 })
 

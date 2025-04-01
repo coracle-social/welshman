@@ -112,9 +112,9 @@ export class Nip46Receiver extends Emitter {
 
     const {relays, context} = this.params
     const userPubkey = await this.signer.getPubkey()
-    const filter = {kinds: [NOSTR_CONNECT], "#p": [userPubkey]}
+    const filters = [{kinds: [NOSTR_CONNECT], "#p": [userPubkey]}]
 
-    this.sub = new MultiRequest({relays, filter, context})
+    this.sub = new MultiRequest({relays, filters, context})
 
     this.sub.on(RequestEvent.Event, async (event: TrustedEvent, url: string) => {
       const json = await decrypt(this.signer, event.pubkey, event.content)

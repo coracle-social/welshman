@@ -204,7 +204,7 @@ export const pull = async ({context, ...options}: PullOptions) => {
       return Promise.all(
         chunk(500, allIds).map(ids => {
           return new Promise<void>(resolve => {
-            const req = new SingleRequest({relay, context, filter: {ids}, autoClose: true})
+            const req = new SingleRequest({relay, context, filters: [{ids}], autoClose: true})
 
             req.on(RequestEvent.Close, resolve)
             req.on(RequestEvent.Event, event => result.push(event as SignedEvent))

@@ -3,7 +3,7 @@ import {on, call, randomId, yieldThread, pushToMapKey, batcher} from "@welshman/
 import {
   Filter,
   unionFilters,
-  matchFilter,
+  matchFilters,
   TrustedEvent,
   getFilterResultCardinality,
 } from "@welshman/util"
@@ -40,7 +40,7 @@ export type SingleRequestEvents = {
 
 export type SingleRequestOptions = {
   relay: string
-  filter: Filter
+  filters: Filter[]
   context?: AdapterContext
   timeout?: number
   tracker?: Tracker
@@ -49,8 +49,12 @@ export type SingleRequestOptions = {
   isEventDeleted?: (event: TrustedEvent, url: string) => boolean
 }
 
+// Needed for typescript to infer emitter methods
+export interface SingleRequest extends TypedEmitter<SingleRequestEvents> {}
+
 export class SingleRequest extends (EventEmitter as new () => TypedEmitter<SingleRequestEvents>) {
-  _id = `REQ-${randomId().slice(0, 8)}`
+  _ids = new Set<string>()
+  _eose = new Set<string>()
   _unsubscribers: Unsubscriber[] = []
   _adapter: AbstractAdapter
   _closed = false
@@ -71,29 +75,33 @@ export class SingleRequest extends (EventEmitter as new () => TypedEmitter<Singl
         if (isRelayEvent(message)) {
           const [_, id, event] = message
 
-          if (id !== this._id) return
-
-          if (tracker.track(event.id, url)) {
-            this.emit(RequestEvent.Duplicate, event)
-          } else if (isEventDeleted(event, url)) {
-            this.emit(RequestEvent.Deleted, event)
-          } else if (!isEventValid(event, url)) {
-            this.emit(RequestEvent.Invalid, event)
-          } else if (!matchFilter(this.options.filter, event)) {
-            this.emit(RequestEvent.Filtered, event)
-          } else {
-            this.emit(RequestEvent.Event, event)
+          if (this._ids.has(id)) {
+            if (tracker.track(event.id, url)) {
+              this.emit(RequestEvent.Duplicate, event)
+            } else if (isEventDeleted(event, url)) {
+              this.emit(RequestEvent.Deleted, event)
+            } else if (!isEventValid(event, url)) {
+              this.emit(RequestEvent.Invalid, event)
+            } else if (!matchFilters(this.options.filters, event)) {
+              this.emit(RequestEvent.Filtered, event)
+            } else {
+              this.emit(RequestEvent.Event, event)
+            }
           }
         }
 
         if (isRelayEose(message)) {
           const [_, id] = message
 
-          if (id === this._id) {
-            this.emit(RequestEvent.Eose)
+          if (this._ids.has(id)) {
+            this._eose.add(id)
 
-            if (this.options.autoClose) {
-              this.close()
+            if (this._eose.size === this._ids.size) {
+              this.emit(RequestEvent.Eose)
+
+              if (this.options.autoClose) {
+                this.close()
+              }
             }
           }
         }
@@ -122,14 +130,22 @@ export class SingleRequest extends (EventEmitter as new () => TypedEmitter<Singl
 
     // Start asynchronously so the caller can set up listeners
     yieldThread().then(() => {
-      this._adapter.send([ClientMessageType.Req, this._id, this.options.filter])
+      for (const filter of this.options.filters) {
+        const id = `REQ-${randomId().slice(0, 8)}`
+
+        this._ids.add(id)
+        this._adapter.send([ClientMessageType.Req, id, filter])
+      }
     })
   }
 
   close() {
     if (this._closed) return
 
-    this._adapter.send(["CLOSE", this._id])
+    for (const id of this._ids) {
+      this._adapter.send(["CLOSE", id])
+    }
+
     this.emit(RequestEvent.Close)
     this.removeAllListeners()
     this._unsubscribers.map(call)
@@ -154,6 +170,9 @@ export type MultiRequestEvents = {
 export type MultiRequestOptions = Omit<SingleRequestOptions, "relay"> & {
   relays: string[]
 }
+
+// Needed for typescript to infer emitter methods
+export interface MultiRequest extends TypedEmitter<MultiRequestEvents> {}
 
 export class MultiRequest extends (EventEmitter as new () => TypedEmitter<MultiRequestEvents>) {
   _children: SingleRequest[] = []
@@ -214,6 +233,8 @@ export class MultiRequest extends (EventEmitter as new () => TypedEmitter<MultiR
   }
 }
 
+export const request = (options: MultiRequestOptions) => new MultiRequest(options)
+
 /**
  * A convenience function which returns a promise of events from a request.
  * It may return early if filter cardinality is known, and it delays requests by
@@ -224,9 +245,11 @@ export class MultiRequest extends (EventEmitter as new () => TypedEmitter<MultiR
 export const load = batcher(200, async (requests: MultiRequestOptions[]) => {
   const filtersByRelay = new Map<string, Filter[]>()
 
-  for (const {filter, relays} of requests) {
+  for (const {filters, relays} of requests) {
     for (const relay of relays) {
-      pushToMapKey(filtersByRelay, relay, filter)
+      for (const filter of filters) {
+        pushToMapKey(filtersByRelay, relay, filter)
+      }
     }
   }
 
@@ -234,35 +257,34 @@ export const load = batcher(200, async (requests: MultiRequestOptions[]) => {
   const events: TrustedEvent[] = []
 
   await Promise.all(
-    Array.from(filtersByRelay).map(async ([relay, filters]) => {
-      await Promise.all(
-        unionFilters(filters).map(filter => {
-          new Promise<void>(resolve => {
-            const cardinality = getFilterResultCardinality(filter)
-            const req = new MultiRequest({
-              filter,
-              tracker,
-              relays: [relay],
-              timeout: 5000,
-              autoClose: true,
-            })
-
-            let count = 0
-
-            req.on(RequestEvent.Event, (event: TrustedEvent) => {
-              events.push(event)
-
-              if (++count === cardinality) {
-                resolve()
-              }
-            })
-
-            req.on(RequestEvent.Close, () => resolve())
+    Array.from(filtersByRelay).map(
+      async ([relay, unmergedFilters]) =>
+        new Promise<void>(resolve => {
+          const filters = unionFilters(unmergedFilters)
+          const cardinality =
+            filters.length === 1 ? getFilterResultCardinality(filters[0]) : undefined
+          const req = new MultiRequest({
+            filters,
+            tracker,
+            relays: [relay],
+            timeout: 5000,
+            autoClose: true,
           })
+
+          let count = 0
+
+          req.on(RequestEvent.Event, (event: TrustedEvent) => {
+            events.push(event)
+
+            if (++count === cardinality) {
+              resolve()
+            }
+          })
+
+          req.on(RequestEvent.Close, () => resolve())
         }),
-      )
-    }),
+    ),
   )
 
-  return requests.map(r => events.filter(event => matchFilter(r.filter, event)))
+  return requests.map(r => events.filter(event => matchFilters(r.filters, event)))
 })
