@@ -1,17 +1,17 @@
 import {EventEmitter} from "events"
-import {on, always, call, randomId, yieldThread, pushToMapKey, batcher} from "@welshman/lib"
+import {on, call, randomId, yieldThread, pushToMapKey, batcher} from "@welshman/lib"
 import {
   Filter,
   unionFilters,
   matchFilter,
   TrustedEvent,
   getFilterResultCardinality,
-  verifyEvent as defaultVerifyEvent,
 } from "@welshman/util"
 import {RelayMessage, ClientMessageType, isRelayEvent, isRelayEose} from "./message.js"
 import {getAdapter, AdapterContext, AbstractAdapter, AdapterEvent} from "./adapter.js"
 import {SocketEvent, SocketStatus} from "./socket.js"
 import {TypedEmitter, Unsubscriber} from "./util.js"
+import {netContext} from "./context.js"
 import {Tracker} from "./tracker.js"
 
 export enum RequestEvent {
@@ -45,8 +45,8 @@ export type SingleRequestOptions = {
   timeout?: number
   tracker?: Tracker
   autoClose?: boolean
-  isEventValid?: (event: any, url: string) => boolean
-  isEventDeleted?: (event: any, url: string) => boolean
+  isEventValid?: (event: TrustedEvent, url: string) => boolean
+  isEventDeleted?: (event: TrustedEvent, url: string) => boolean
 }
 
 export class SingleRequest extends (EventEmitter as new () => TypedEmitter<SingleRequestEvents>) {
@@ -59,8 +59,8 @@ export class SingleRequest extends (EventEmitter as new () => TypedEmitter<Singl
     super()
 
     const tracker = options.tracker || new Tracker()
-    const isEventValid = options.isEventValid || defaultVerifyEvent
-    const isEventDeleted = options.isEventDeleted || always(false)
+    const isEventValid = options.isEventValid || netContext.isEventValid
+    const isEventDeleted = options.isEventDeleted || netContext.isEventDeleted
 
     // Set up our adapter
     this._adapter = getAdapter(this.options.relay, this.options.context)

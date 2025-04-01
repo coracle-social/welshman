@@ -13,12 +13,12 @@ import {
 } from "@welshman/lib"
 import {collection} from "./collection.js"
 import {deriveProfile} from "./profiles.js"
-import {AppContext} from "./context.js"
+import {appContext} from "./context.js"
 
 export const zappers = writable<Zapper[]>([])
 
 export const fetchZappers = async (lnurls: string[]) => {
-  const base = AppContext.dufflepudUrl
+  const base = appContext.dufflepudUrl
   const zappersByLnurl = new Map<string, Zapper>()
 
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly

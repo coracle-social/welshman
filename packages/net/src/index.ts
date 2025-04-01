@@ -1,5 +1,6 @@
 export * from "./adapter.js"
 export * from "./auth.js"
+export * from "./context.js"
 export * from "./diff.js"
 export * from "./message.js"
 export * from "./negentropy.js"

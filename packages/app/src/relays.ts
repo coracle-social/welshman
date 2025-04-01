@@ -5,7 +5,7 @@ import {RelayProfile} from "@welshman/util"
 import {normalizeRelayUrl, displayRelayUrl, displayRelayProfile} from "@welshman/util"
 import {Socket, SocketStatus, SocketEvent, ClientMessage, RelayMessage} from "@welshman/net"
 import {collection} from "./collection.js"
-import {AppContext} from "./context.js"
+import {appContext} from "./context.js"
 
 export type RelayStats = {
   first_seen: number
@@ -65,7 +65,7 @@ export const relaysByPubkey = derived(relays, $relays =>
 )
 
 export const fetchRelayProfiles = async (urls: string[]) => {
-  const base = AppContext.dufflepudUrl
+  const base = appContext.dufflepudUrl
 
   if (!base) {
     throw new Error("ctx.app.dufflepudUrl is required to fetch relay metadata")

@@ -3,7 +3,7 @@ import {MultiRequestOptions} from "@welshman/net"
 import {tryCatch, fetchJson, uniq, batcher, postJson, last} from "@welshman/lib"
 import {collection} from "./collection.js"
 import {deriveProfile} from "./profiles.js"
-import {AppContext} from "./context.js"
+import {appContext} from "./context.js"
 
 export type Handle = {
   nip05: string
@@ -48,7 +48,7 @@ export async function queryProfile(nip05: string) {
 export const handles = writable<Handle[]>([])
 
 export const fetchHandles = async (nip05s: string[]) => {
-  const base = AppContext.dufflepudUrl!
+  const base = appContext.dufflepudUrl!
   const handlesByNip05 = new Map<string, Handle>()
 
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly

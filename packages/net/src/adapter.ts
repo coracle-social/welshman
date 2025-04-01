@@ -1,11 +1,11 @@
 import EventEmitter from "events"
-import {call, on} from "@welshman/lib"
+import {call, mergeRight, on} from "@welshman/lib"
 import {isRelayUrl} from "@welshman/util"
-import {LocalRelay, LOCAL_RELAY_URL, Repository} from "@welshman/relay"
+import {LocalRelay, LOCAL_RELAY_URL} from "@welshman/relay"
 import {RelayMessage, ClientMessage} from "./message.js"
 import {Socket, SocketEvent} from "./socket.js"
 import {TypedEmitter, Unsubscriber} from "./util.js"
-import {Pool} from "./pool.js"
+import {netContext, NetContext} from "./context.js"
 
 export enum AdapterEvent {
   Receive = "adapter:event:receive",
@@ -99,13 +99,13 @@ export class MockAdapter extends AbstractAdapter {
   }
 }
 
-export type AdapterContext = {
-  pool?: Pool
-  relay?: LocalRelay
+export type AdapterContext = Partial<NetContext> & {
   getAdapter?: (url: string, context: AdapterContext) => AbstractAdapter
 }
 
-export const getAdapter = (url: string, context: AdapterContext = {}) => {
+export const getAdapter = (url: string, adapterContext: AdapterContext = {}) => {
+  const context = mergeRight(netContext, adapterContext as any)
+
   if (context.getAdapter) {
     const adapter = context.getAdapter(url, context)
 
@@ -115,15 +115,11 @@ export const getAdapter = (url: string, context: AdapterContext = {}) => {
   }
 
   if (url === LOCAL_RELAY_URL) {
-    const relay = context.relay || new LocalRelay(Repository.getSingleton())
-
-    return new LocalAdapter(relay)
+    return new LocalAdapter(new LocalRelay(context.repository))
   }
 
   if (isRelayUrl(url)) {
-    const pool = context.pool || Pool.getSingleton()
-
-    return new SocketAdapter(pool.get(url))
+    return new SocketAdapter(context.pool.get(url))
   }
 
   throw new Error(`Invalid relay url ${url}`)
