@@ -1,5 +1,7 @@
-import {verifiedSymbol, getEventHash, verifyEvent} from "nostr-tools/pure"
-import {cached, mapVals, first, pick, now} from "@welshman/lib"
+import {verifiedSymbol, verifyEvent as verifyEventPure} from "nostr-tools/pure"
+import {setNostrWasm, verifyEvent as verifyEventWasm} from "nostr-tools/wasm"
+import {initNostrWasm} from "nostr-wasm"
+import {mapVals, first, pick, now} from "@welshman/lib"
 import {getReplyTagValues, getCommentTagValues} from "./Tags.js"
 import {getAddress, Address} from "./Address.js"
 import {
@@ -59,6 +61,20 @@ export const makeEvent = (
 
 export const createEvent = makeEvent
 
+export const verifyEvent = (() => {
+  let verify = verifyEventPure
+
+  if (typeof WebAssembly === "object") {
+    initNostrWasm()
+      .then(setNostrWasm)
+      .then(() => {
+        verify = verifyEventWasm
+      })
+  }
+
+  return (event: TrustedEvent) => event.sig && verify(event as SignedEvent)
+})()
+
 export const isEventTemplate = (e: EventTemplate): e is EventTemplate =>
   Boolean(typeof e.kind === "number" && Array.isArray(e.tags) && typeof e.content === "string")
 
@@ -99,28 +115,6 @@ export const asUnwrappedEvent = (e: UnwrappedEvent): UnwrappedEvent =>
 
 export const asTrustedEvent = (e: TrustedEvent): TrustedEvent =>
   pick(["kind", "tags", "content", "created_at", "pubkey", "id", "sig", "wrap"], e)
-
-const _hasValidSignature = cached<string, boolean, [SignedEvent]>({
-  maxSize: 10000,
-  getKey: ([e]: [SignedEvent]) => {
-    try {
-      return `${getEventHash(e)}:${e.sig}`
-    } catch (err) {
-      return "invalid"
-    }
-  },
-  getValue: ([e]: [SignedEvent]) => {
-    try {
-      verifyEvent(e)
-    } catch (err) {
-      return false
-    }
-
-    return true
-  },
-})
-
-export const hasValidSignature = (e: SignedEvent) => e[verifiedSymbol] || _hasValidSignature(e)
 
 export const getIdentifier = (e: EventTemplate) => e.tags.find(t => t[0] === "d")?.[1]
 

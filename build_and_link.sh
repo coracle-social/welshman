@@ -5,6 +5,10 @@ upstream=$1
 npm run fix -w @welshman/$upstream
 npm run build -w @welshman/$upstream
 
+if [[ $? -eq 1 ]]; then
+  exit 1
+fi
+
 for downstream in $(./get_packages.py); do
   n=@welshman/$upstream
   f=packages/$downstream/package.json

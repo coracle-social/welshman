@@ -1,6 +1,5 @@
-import {hexToBytes} from "@noble/hashes/utils"
-import {getPublicKey, finalizeEvent} from "nostr-tools/pure"
 import {now} from "@welshman/lib"
+import {Nip01Signer} from "@welshman/signer"
 import {TrustedEvent, StampedEvent, Filter} from "@welshman/util"
 import {MultiRequest, MultiPublish, PublishEvent, RequestEvent, AdapterContext} from "@welshman/net"
 
@@ -25,8 +24,11 @@ export class DVM {
   logEvents = false
   seen = new Set()
   handlers = new Map()
+  signer: Nip01Signer
 
   constructor(readonly opts: DVMOpts) {
+    this.signer = new Nip01Signer(opts.sk)
+
     for (const [kind, createHandler] of Object.entries(this.opts.handlers)) {
       this.handlers.set(parseInt(kind), createHandler(this))
     }
@@ -35,7 +37,8 @@ export class DVM {
   async start() {
     this.active = true
 
-    const {sk, relays, context, requireMention = false} = this.opts
+    const {relays, context, requireMention = false} = this.opts
+    const pubkey = await this.signer.getPubkey()
 
     while (this.active) {
       await new Promise<void>(resolve => {
@@ -44,7 +47,7 @@ export class DVM {
         const filter: Filter = {kinds, since}
 
         if (requireMention) {
-          filter["#p"] = [getPublicKey(hexToBytes(sk))]
+          filter["#p"] = [pubkey]
         }
 
         const req = new MultiRequest({relays, filter, context})
@@ -109,8 +112,8 @@ export class DVM {
   }
 
   async publish(template: StampedEvent) {
-    const {sk, relays, context} = this.opts
-    const event = finalizeEvent(template, hexToBytes(sk))
+    const {relays, context} = this.opts
+    const event = await this.signer.sign(template)
 
     await new Promise<void>(resolve => {
       new MultiPublish({event, relays, context}).on(PublishEvent.Complete, resolve)

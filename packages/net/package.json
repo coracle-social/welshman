@@ -30,7 +30,6 @@
     "@welshman/util": "^0.1.0",
     "@welshman/relay": "^0.1.0",
     "isomorphic-ws": "^5.0.0",
-    "nostr-tools": "^2.11.0",
     "typed-emitter": "^2.1.0"
   }
 }

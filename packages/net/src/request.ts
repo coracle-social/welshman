@@ -1,5 +1,4 @@
 import {EventEmitter} from "events"
-import {verifyEvent as nostrToolsVerifyEvent} from "nostr-tools/pure"
 import {on, call, randomId, yieldThread, pushToMapKey, batcher} from "@welshman/lib"
 import {
   Filter,
@@ -7,20 +6,13 @@ import {
   matchFilter,
   TrustedEvent,
   getFilterResultCardinality,
+  verifyEvent as defaultVerifyEvent,
 } from "@welshman/util"
 import {RelayMessage, ClientMessageType, isRelayEvent, isRelayEose} from "./message.js"
 import {getAdapter, AdapterContext, AbstractAdapter, AdapterEvent} from "./adapter.js"
 import {SocketEvent, SocketStatus} from "./socket.js"
 import {TypedEmitter, Unsubscriber} from "./util.js"
 import {Tracker} from "./tracker.js"
-
-export const defaultVerifyEvent = (event: any) => {
-  try {
-    return nostrToolsVerifyEvent(event)
-  } catch (e) {
-    return false
-  }
-}
 
 export enum RequestEvent {
   Close = "request:event:close",
