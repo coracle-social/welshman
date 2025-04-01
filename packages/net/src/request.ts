@@ -1,5 +1,5 @@
 import {EventEmitter} from "events"
-import {on, call, randomId, yieldThread, pushToMapKey, batcher} from "@welshman/lib"
+import {on, always, call, randomId, yieldThread, pushToMapKey, batcher} from "@welshman/lib"
 import {
   Filter,
   unionFilters,
@@ -21,6 +21,7 @@ export enum RequestEvent {
   Eose = "request:event:eose",
   Event = "request:event:event",
   Filtered = "request:event:filtered",
+  Deleted = "request:event:deleted",
   Invalid = "request:event:invalid",
 }
 
@@ -28,6 +29,7 @@ export enum RequestEvent {
 
 export type SingleRequestEvents = {
   [RequestEvent.Event]: (event: TrustedEvent) => void
+  [RequestEvent.Deleted]: (event: any) => void
   [RequestEvent.Invalid]: (event: any) => void
   [RequestEvent.Filtered]: (event: TrustedEvent) => void
   [RequestEvent.Duplicate]: (event: TrustedEvent) => void
@@ -43,7 +45,8 @@ export type SingleRequestOptions = {
   timeout?: number
   tracker?: Tracker
   autoClose?: boolean
-  verifyEvent?: (event: any) => boolean
+  isEventValid?: (event: any, url: string) => boolean
+  isEventDeleted?: (event: any, url: string) => boolean
 }
 
 export class SingleRequest extends (EventEmitter as new () => TypedEmitter<SingleRequestEvents>) {
@@ -56,8 +59,8 @@ export class SingleRequest extends (EventEmitter as new () => TypedEmitter<Singl
     super()
 
     const tracker = options.tracker || new Tracker()
-
-    const verifyEvent = options.verifyEvent || defaultVerifyEvent
+    const isEventValid = options.isEventValid || defaultVerifyEvent
+    const isEventDeleted = options.isEventDeleted || always(false)
 
     // Set up our adapter
     this._adapter = getAdapter(this.options.relay, this.options.context)
@@ -72,7 +75,9 @@ export class SingleRequest extends (EventEmitter as new () => TypedEmitter<Singl
 
           if (tracker.track(event.id, url)) {
             this.emit(RequestEvent.Duplicate, event)
-          } else if (verifyEvent?.(event) === false) {
+          } else if (isEventDeleted(event, url)) {
+            this.emit(RequestEvent.Deleted, event)
+          } else if (!isEventValid(event, url)) {
             this.emit(RequestEvent.Invalid, event)
           } else if (!matchFilter(this.options.filter, event)) {
             this.emit(RequestEvent.Filtered, event)
@@ -137,6 +142,7 @@ export class SingleRequest extends (EventEmitter as new () => TypedEmitter<Singl
 
 export type MultiRequestEvents = {
   [RequestEvent.Event]: (event: TrustedEvent, url: string) => void
+  [RequestEvent.Deleted]: (event: TrustedEvent, url: string) => void
   [RequestEvent.Invalid]: (event: TrustedEvent, url: string) => void
   [RequestEvent.Filtered]: (event: TrustedEvent, url: string) => void
   [RequestEvent.Duplicate]: (event: TrustedEvent, url: string) => void
@@ -163,6 +169,10 @@ export class MultiRequest extends (EventEmitter as new () => TypedEmitter<MultiR
 
       req.on(RequestEvent.Event, (event: TrustedEvent) => {
         this.emit(RequestEvent.Event, event, relay)
+      })
+
+      req.on(RequestEvent.Deleted, (event: TrustedEvent) => {
+        this.emit(RequestEvent.Deleted, event, relay)
       })
 
       req.on(RequestEvent.Invalid, (event: TrustedEvent) => {
