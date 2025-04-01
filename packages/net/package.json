@@ -1,6 +1,6 @@
 {
   "name": "@welshman/net",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "hodlbod",
   "license": "MIT",
   "description": "Utilities for connecting with nostr relays.",
@@ -26,9 +26,9 @@
     "fix": "gts fix"
   },
   "dependencies": {
-    "@welshman/lib": "^0.1.0",
-    "@welshman/util": "^0.1.0",
-    "@welshman/relay": "^0.1.0",
+    "@welshman/lib": "^0.1.1",
+    "@welshman/util": "^0.1.2",
+    "@welshman/relay": "^0.1.1",
     "isomorphic-ws": "^5.0.0",
     "typed-emitter": "^2.1.0"
   }

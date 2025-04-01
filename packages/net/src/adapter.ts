@@ -99,9 +99,7 @@ export class MockAdapter extends AbstractAdapter {
   }
 }
 
-export type AdapterContext = Partial<NetContext> & {
-  getAdapter?: (url: string, context: AdapterContext) => AbstractAdapter
-}
+export type AdapterContext = Partial<NetContext>
 
 export const getAdapter = (url: string, adapterContext: AdapterContext = {}) => {
   const context = mergeRight(netContext, adapterContext as any)

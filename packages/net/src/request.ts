@@ -124,8 +124,8 @@ export class SingleRequest extends (EventEmitter as new () => TypedEmitter<Singl
     }
 
     // Timeout our subscription
-    if (this.options.timeout) {
-      setTimeout(() => this.close(), this.options.timeout)
+    if (this.options.timeout || this.options.autoClose) {
+      setTimeout(() => this.close(), this.options.timeout || 10000)
     }
 
     // Start asynchronously so the caller can set up listeners

@@ -1,6 +1,6 @@
 {
   "name": "@welshman/relay",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "hodlbod",
   "license": "MIT",
   "description": "An in-memory nostr relay implementation.",
@@ -26,7 +26,7 @@
     "fix": "gts fix"
   },
   "dependencies": {
-    "@welshman/lib": "^0.1.0",
-    "@welshman/util": "^0.1.0"
+    "@welshman/lib": "^0.1.1",
+    "@welshman/util": "^0.1.2"
   }
 }

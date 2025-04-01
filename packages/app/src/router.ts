@@ -175,7 +175,7 @@ export const getPubkeyRelays = (pubkey: string, mode?: string) => {
   }
 }
 
-export const globalRouterOptions: RouterOptions = {
+export const routerContext: RouterOptions = {
   getRelayQuality,
   getPubkeyRelays,
   getFallbackRelays: () => ["wss://relay.damus.io/", "wss://nos.lol/"],
@@ -191,15 +191,15 @@ export class Router {
   readonly options: RouterOptions
 
   static configure(options: RouterOptions) {
-    Object.assign(globalRouterOptions, options)
+    Object.assign(routerContext, options)
   }
 
   static get() {
-    return new Router(globalRouterOptions)
+    return new Router(routerContext)
   }
 
   constructor(options: RouterOptions) {
-    this.options = mergeLeft(options, globalRouterOptions)
+    this.options = mergeLeft(options, routerContext)
   }
 
   // Utilities derived from options
@@ -420,7 +420,7 @@ type FilterSelectionRule = (filter: Filter) => FilterScenario[]
 export const getFilterSelectionsForSearch = (filter: Filter) => {
   if (!filter.search) return []
 
-  const relays = globalRouterOptions.getSearchRelays?.() || []
+  const relays = routerContext.getSearchRelays?.() || []
 
   return [{filter, scenario: Router.get().FromRelays(relays).weight(10)}]
 }
@@ -441,7 +441,7 @@ export const getFilterSelectionsForIndexedKinds = (filter: Filter) => {
 
   if (kinds.length === 0) return []
 
-  const relays = globalRouterOptions.getIndexerRelays?.() || []
+  const relays = routerContext.getIndexerRelays?.() || []
 
   return [
     {
