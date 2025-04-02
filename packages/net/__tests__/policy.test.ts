@@ -3,9 +3,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { Socket, SocketStatus, SocketEvent } from "../src/socket"
 import { AuthStatus, AuthStateEvent } from "../src/auth"
 import {
-  socketPolicySendWhenOpen,
-  socketPolicyDeferOnAuth,
-  socketPolicyRetryAuthRequired,
+  socketPolicyAuthBuffer,
   socketPolicyConnectOnSend,
   socketPolicyCloseOnTimeout,
   socketPolicyReopenActive
@@ -41,9 +39,9 @@ describe('policy', () => {
     vi.clearAllMocks()
   })
 
-  describe("socketPolicyDeferOnAuth", () => {
+  describe("socketPolicyAuthBuffer", () => {
     it("should buffer messages when not authenticated", () => {
-      const cleanup = socketPolicyDeferOnAuth(socket)
+      const cleanup = socketPolicyAuthBuffer(socket)
       const removeSpy = vi.spyOn(socket._sendQueue, 'remove')
 
       socket.emit(SocketEvent.Receive, ["AUTH", "challenge"])
@@ -67,7 +65,7 @@ describe('policy', () => {
     })
 
     it("should send buffered messages when auth succeeds", () => {
-      const cleanup = socketPolicyDeferOnAuth(socket)
+      const cleanup = socketPolicyAuthBuffer(socket)
       const sendSpy = vi.spyOn(socket, 'send')
 
       socket.emit(SocketEvent.Receive, ["AUTH", "challenge"])
@@ -89,7 +87,7 @@ describe('policy', () => {
     })
 
     it("should handle CLOSE messages properly", () => {
-      const cleanup = socketPolicyDeferOnAuth(socket)
+      const cleanup = socketPolicyAuthBuffer(socket)
       const removeSpy = vi.spyOn(socket._sendQueue, 'remove')
 
       socket.emit(SocketEvent.Receive, ["AUTH", "challenge"])
@@ -108,11 +106,9 @@ describe('policy', () => {
 
       cleanup()
     })
-  })
 
-  describe("socketPolicyRetryAuthRequired", () => {
     it("should retry events once when auth-required", () => {
-      const cleanup = socketPolicyRetryAuthRequired(socket)
+      const cleanup = socketPolicyAuthBuffer(socket)
       const sendSpy = vi.spyOn(socket, 'send')
 
       // Send an event
@@ -135,7 +131,7 @@ describe('policy', () => {
     })
 
     it("should retry REQ once when auth-required", () => {
-      const cleanup = socketPolicyRetryAuthRequired(socket)
+      const cleanup = socketPolicyAuthBuffer(socket)
       const sendSpy = vi.spyOn(socket, 'send')
 
       // Send a REQ
@@ -158,7 +154,7 @@ describe('policy', () => {
     })
 
     it("should not retry AUTH_JOIN events", () => {
-      const cleanup = socketPolicyRetryAuthRequired(socket)
+      const cleanup = socketPolicyAuthBuffer(socket)
       const sendSpy = vi.spyOn(socket, 'send')
 
       // Send an AUTH_JOIN event
@@ -175,7 +171,7 @@ describe('policy', () => {
     })
 
     it("should clear pending messages on successful response", () => {
-      const cleanup = socketPolicyRetryAuthRequired(socket)
+      const cleanup = socketPolicyAuthBuffer(socket)
       const sendSpy = vi.spyOn(socket, 'send')
 
       // Send an event

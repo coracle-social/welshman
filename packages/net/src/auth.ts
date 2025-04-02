@@ -66,10 +66,14 @@ export class AuthState extends EventEmitter {
         if (isRelayAuth(message)) {
           const [_, challenge] = message
 
-          this.challenge = challenge
-          this.request = undefined
-          this.details = undefined
-          this.setStatus(AuthStatus.Requested)
+          // Sometimes relays send the same challenge multiple times, no need to
+          // respond to it twice
+          if (challenge !== this.challenge) {
+            this.challenge = challenge
+            this.request = undefined
+            this.details = undefined
+            this.setStatus(AuthStatus.Requested)
+          }
         }
       }),
       on(socket, SocketEvent.Sending, (message: RelayMessage) => {
