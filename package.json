@@ -8,6 +8,7 @@
     "clean": "pnpm run -r clean",
     "build": "pnpm run -r build",
     "test": "pnpm run -r test",
+    "link": "for p in $(ls packages); do cd packages/$p; pnpm link --global; cd ../..; done",
     "lint": "eslint ."
   },
   "devDependencies": {
