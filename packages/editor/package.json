@@ -8,13 +8,14 @@
     "access": "public"
   },
   "type": "module",
-  "main": "dist/index",
-  "types": "dist/index",
+  "main": "dist/editor/src/index",
+  "types": "dist/editor/src/index",
   "exports": {
-    "./index.css": "dist/index.css"
+    "./index.css": "src/index.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "src/index.css"
   ],
   "scripts": {
     "build": "pnpm run clean && pnpm run compile",

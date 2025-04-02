@@ -8,8 +8,8 @@
     "access": "public"
   },
   "type": "module",
-  "main": "dist/index",
-  "types": "dist/index",
+  "main": "dist/net/src/index",
+  "types": "dist/net/src/index",
   "files": [
     "dist"
   ],

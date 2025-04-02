@@ -7,8 +7,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "dist/index",
-  "types": "dist/index",
+  "main": "dist/feeds/src/index",
+  "types": "dist/feeds/src/index",
   "files": [
     "dist"
   ],
