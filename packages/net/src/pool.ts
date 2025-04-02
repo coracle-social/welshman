@@ -1,7 +1,6 @@
 import {remove} from "@welshman/lib"
 import {normalizeRelayUrl} from "@welshman/util"
 import {Socket} from "./socket.js"
-import {AuthState} from "./auth.js"
 import {defaultSocketPolicies} from "./policy.js"
 
 export const makeSocket = (url: string, policies = defaultSocketPolicies) => {
@@ -22,13 +21,8 @@ export type PoolOptions = {
 
 export let poolSingleton: Pool
 
-export type PoolItem = {
-  socket: Socket
-  auth: AuthState
-}
-
 export class Pool {
-  _data = new Map<string, PoolItem>()
+  _data = new Map<string, Socket>()
   _subs: PoolSubscription[] = []
 
   static getSingleton() {
@@ -55,25 +49,21 @@ export class Pool {
 
   get(_url: string): Socket {
     const url = normalizeRelayUrl(_url)
-    const item = this._data.get(url)
+    const socket = this._data.get(url)
 
-    if (item) {
-      return item.socket
+    if (socket) {
+      return socket
     }
 
-    const socket = this.makeSocket(url)
+    const newSocket = this.makeSocket(url)
 
-    this._data.set(url, {socket, auth: new AuthState(socket)})
+    this._data.set(url, newSocket)
 
     for (const cb of this._subs) {
-      cb(socket)
+      cb(newSocket)
     }
 
-    return socket
-  }
-
-  getAuth(url: string) {
-    return this._data.get(normalizeRelayUrl(url))?.auth
+    return newSocket
   }
 
   subscribe(cb: PoolSubscription) {
@@ -85,11 +75,10 @@ export class Pool {
   }
 
   remove(url: string) {
-    const item = this._data.get(url)
+    const socket = this._data.get(url)
 
-    if (item) {
-      item.socket.cleanup()
-      item.auth.cleanup()
+    if (socket) {
+      socket.cleanup()
 
       this._data.delete(url)
     }

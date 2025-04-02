@@ -12,7 +12,7 @@ import {
   isRelayClosed,
 } from "./message.js"
 import {Socket, SocketStatus, SocketEvent} from "./socket.js"
-import {AuthState, AuthStatus, AuthStateEvent} from "./auth.js"
+import {AuthStatus, AuthStateEvent} from "./auth.js"
 
 /**
  * Defers sending messages when a challenge has been presented and not answered yet
@@ -21,12 +21,11 @@ import {AuthState, AuthStatus, AuthStateEvent} from "./auth.js"
  */
 export const socketPolicyDeferOnAuth = (socket: Socket) => {
   const buffer: ClientMessage[] = []
-  const authState = new AuthState(socket)
   const okStatuses = [AuthStatus.None, AuthStatus.Ok]
 
   const unsubscribers = [
     // Pause sending certain messages when we're not authenticated
-    on(socket, SocketEvent.Enqueue, (message: ClientMessage) => {
+    on(socket, SocketEvent.Sending, (message: ClientMessage) => {
       // If we're closing a request, but it never got sent, remove both from the queue
       // Otherwise, always send CLOSE
       if (isClientClose(message)) {
@@ -47,13 +46,13 @@ export const socketPolicyDeferOnAuth = (socket: Socket) => {
       if (isClientEvent(message) && message[1].kind === AUTH_JOIN) return
 
       // If we're not ok, remove the message and save it for later
-      if (!okStatuses.includes(authState.status)) {
+      if (!okStatuses.includes(socket.auth.status)) {
         buffer.push(message)
         socket._sendQueue.remove(message)
       }
     }),
     // Send buffered messages when we get successful auth
-    on(authState, AuthStateEvent.Status, (status: AuthStatus) => {
+    on(socket.auth, AuthStateEvent.Status, (status: AuthStatus) => {
       if (okStatuses.includes(status) && buffer.length > 0) {
         for (const message of buffer.splice(0)) {
           socket.send(message)
@@ -64,7 +63,6 @@ export const socketPolicyDeferOnAuth = (socket: Socket) => {
 
   return () => {
     unsubscribers.forEach(call)
-    authState.cleanup()
   }
 }
 
@@ -142,7 +140,7 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
         lastError = now()
       }
     }),
-    on(socket, SocketEvent.Enqueue, (message: ClientMessage) => {
+    on(socket, SocketEvent.Sending, (message: ClientMessage) => {
       // When a new message is sent, make sure the socket is open (unless there was a recent error)
       if (socket.status === SocketStatus.Closed && lastError < ago(30)) {
         socket.open()
@@ -242,20 +240,18 @@ export type SocketPolicyAuthOptions = {
  * @return a socket policy
  */
 export const makeSocketPolicyAuth = (options: SocketPolicyAuthOptions) => (socket: Socket) => {
-  const authState = new AuthState(socket)
   const shouldAuth = options.shouldAuth || always(true)
 
   const unsubscribers = [
-    on(authState, AuthStateEvent.Status, (status: AuthStatus) => {
+    on(socket.auth, AuthStateEvent.Status, (status: AuthStatus) => {
       if (status === AuthStatus.Requested && shouldAuth(socket)) {
-        authState.authenticate(options.sign)
+        socket.auth.authenticate(options.sign)
       }
     }),
   ]
 
   return () => {
     unsubscribers.forEach(call)
-    authState.cleanup()
   }
 }
 

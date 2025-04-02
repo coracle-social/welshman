@@ -205,7 +205,7 @@ describe('policy', () => {
 
       // Send a message
       const event: ClientMessage = ["EVENT", { id: "123", kind: 1 }]
-      socket.emit(SocketEvent.Enqueue, event)
+      socket.emit(SocketEvent.Sending, event)
 
       // Should open the socket
       expect(openSpy).toHaveBeenCalled()
@@ -222,7 +222,7 @@ describe('policy', () => {
 
       // Send a message
       const event: ClientMessage = ["EVENT", { id: "123", kind: 1 }]
-      socket.emit(SocketEvent.Enqueue, event)
+      socket.emit(SocketEvent.Sending, event)
 
       // Should not try to open the socket
       expect(openSpy).not.toHaveBeenCalled()
@@ -240,7 +240,7 @@ describe('policy', () => {
 
       // Send a message
       const event: ClientMessage = ["EVENT", { id: "123", kind: 1 }]
-      socket.emit(SocketEvent.Enqueue, event)
+      socket.emit(SocketEvent.Sending, event)
 
       // Should not try to open the socket due to recent error
       expect(openSpy).not.toHaveBeenCalled()
@@ -249,7 +249,7 @@ describe('policy', () => {
       vi.advanceTimersByTime(31000)
 
       // Send another message
-      socket.emit(SocketEvent.Enqueue, event)
+      socket.emit(SocketEvent.Sending, event)
 
       // Now it should try to open
       expect(openSpy).toHaveBeenCalled()

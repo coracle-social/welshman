@@ -2,6 +2,7 @@ import WebSocket from "isomorphic-ws"
 import EventEmitter from "events"
 import {TaskQueue} from "@welshman/lib"
 import {RelayMessage, ClientMessage} from "./message.js"
+import {AuthState} from "./auth.js"
 
 export enum SocketStatus {
   Open = "socket:status:open",
@@ -16,19 +17,22 @@ export enum SocketEvent {
   Error = "socket:event:error",
   Status = "socket:event:status",
   Send = "socket:event:send",
-  Enqueue = "socket:event:enqueue",
+  Sending = "socket:event:sending",
   Receive = "socket:event:receive",
+  Receiving = "socket:event:receiving",
 }
 
 export type SocketEvents = {
   [SocketEvent.Error]: (error: string, url: string) => void
   [SocketEvent.Status]: (status: SocketStatus, url: string) => void
   [SocketEvent.Send]: (message: ClientMessage, url: string) => void
-  [SocketEvent.Enqueue]: (message: ClientMessage, url: string) => void
+  [SocketEvent.Sending]: (message: ClientMessage, url: string) => void
   [SocketEvent.Receive]: (message: RelayMessage, url: string) => void
+  [SocketEvent.Receiving]: (message: RelayMessage, url: string) => void
 }
 
 export class Socket extends EventEmitter {
+  auth: AuthState
   status = SocketStatus.Closed
 
   _ws?: WebSocket
@@ -37,6 +41,8 @@ export class Socket extends EventEmitter {
 
   constructor(readonly url: string) {
     super()
+
+    this.auth = new AuthState(this)
 
     this._sendQueue = new TaskQueue<ClientMessage>({
       batchSize: 50,
@@ -84,7 +90,6 @@ export class Socket extends EventEmitter {
       this._ws.onclose = () => {
         this._ws = undefined
         this._sendQueue.stop()
-        console.log("socket closed", this.url)
         this.emit(SocketEvent.Status, SocketStatus.Closed, this.url)
       }
 
@@ -96,6 +101,7 @@ export class Socket extends EventEmitter {
 
           if (Array.isArray(message)) {
             this._recvQueue.push(message as RelayMessage)
+            this.emit(SocketEvent.Receiving, message, this.url)
           } else {
             this.emit(SocketEvent.Error, "Invalid message received", this.url)
           }
@@ -121,6 +127,7 @@ export class Socket extends EventEmitter {
 
   cleanup = () => {
     this.close()
+    this.auth.cleanup()
     this._recvQueue.clear()
     this._sendQueue.clear()
     this.removeAllListeners()
@@ -128,6 +135,6 @@ export class Socket extends EventEmitter {
 
   send = (message: ClientMessage) => {
     this._sendQueue.push(message)
-    this.emit(SocketEvent.Enqueue, message, this.url)
+    this.emit(SocketEvent.Sending, message, this.url)
   }
 }

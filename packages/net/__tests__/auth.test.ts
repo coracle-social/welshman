@@ -77,7 +77,7 @@ describe('auth', () => {
 
     it("should handle client AUTH message", () => {
       const message: RelayMessage = ["AUTH", { id: "123", kind: CLIENT_AUTH }]
-      socket.emit(SocketEvent.Enqueue, message)
+      socket.emit(SocketEvent.Sending, message)
 
       expect(authManager.state.status).toBe(AuthStatus.PendingResponse)
     })

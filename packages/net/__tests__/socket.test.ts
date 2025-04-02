@@ -89,7 +89,7 @@ describe("Socket", () => {
   describe("send", () => {
     it("should queue messages and emit enqueue event", () => {
       const enqueueSpy = vi.fn()
-      socket.on(SocketEvent.Enqueue, enqueueSpy)
+      socket.on(SocketEvent.Sending, enqueueSpy)
 
       const message: ClientMessage = ["EVENT", { id: "123", kind: 1 }]
       socket.send(message)

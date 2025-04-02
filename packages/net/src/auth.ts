@@ -52,8 +52,6 @@ export class AuthState extends EventEmitter {
         if (isRelayOk(message)) {
           const [_, id, ok, details] = message
 
-          console.log("ok", message)
-
           if (id === this.request) {
             this.details = details
 
@@ -68,23 +66,19 @@ export class AuthState extends EventEmitter {
         if (isRelayAuth(message)) {
           const [_, challenge] = message
 
-          console.log("relay auth", message)
-
           this.challenge = challenge
           this.request = undefined
           this.details = undefined
           this.setStatus(AuthStatus.Requested)
         }
       }),
-      on(socket, SocketEvent.Enqueue, (message: RelayMessage) => {
+      on(socket, SocketEvent.Sending, (message: RelayMessage) => {
         if (isClientAuth(message)) {
-          console.log("client auth", message)
           this.setStatus(AuthStatus.PendingResponse)
         }
       }),
       on(socket, SocketEvent.Status, (status: SocketStatus) => {
         if (status === SocketStatus.Closed) {
-          console.log("closed")
           this.challenge = undefined
           this.request = undefined
           this.details = undefined
@@ -112,8 +106,6 @@ export class AuthState extends EventEmitter {
 
     const template = makeAuthEvent(this.socket.url, this.challenge)
     const event = await sign(template)
-
-    console.log(event)
 
     if (event) {
       this.request = event.id
