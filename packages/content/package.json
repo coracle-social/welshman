@@ -7,13 +7,13 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "dist/index",
-  "types": "dist/index",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "pnpm run clean && pnpm run compile",
+    "build": "pnpm run clean && pnpm run compile --force",
     "clean": "rimraf ./dist",
     "compile": "tsc -b tsconfig.build.json",
     "prepublishOnly": "pnpm run build"

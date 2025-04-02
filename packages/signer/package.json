@@ -8,13 +8,13 @@
     "access": "public"
   },
   "type": "module",
-  "main": "dist/signer/src/index",
-  "types": "dist/signer/src/index",
+  "main": "dist/signer/src/index.js",
+  "types": "dist/signer/src/index.d.ts",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "pnpm run clean && pnpm run compile",
+    "build": "pnpm run clean && pnpm run compile --force",
     "clean": "rimraf ./dist",
     "compile": "tsc -b tsconfig.build.json",
     "prepublishOnly": "pnpm run build"
