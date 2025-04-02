@@ -8,23 +8,19 @@
     "access": "public"
   },
   "type": "module",
-  "files": [
-    "build"
-  ],
-  "types": "./build/src/index.d.ts",
+  "main": "dist/index",
+  "types": "dist/index",
   "exports": {
-    ".": {
-      "types": "./build/src/index.d.ts",
-      "import": "./build/src/index.js",
-      "require": "./build/src/index.js"
-    },
-    "./index.css": "./build/src/index.css"
+    "./index.css": "dist/index.css"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "pub": "npm run lint && npm run build && npm publish",
-    "build": "gts clean && tsc && cp src/index.css build/src/index.css",
-    "lint": "gts lint",
-    "fix": "gts fix"
+    "build": "pnpm run clean && pnpm run compile",
+    "clean": "rimraf ./dist",
+    "compile": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
     "@tiptap/core": "^2.11.5",
@@ -40,10 +36,14 @@
     "@tiptap/extension-text": "^2.11.5",
     "@tiptap/pm": "^2.11.5",
     "@tiptap/suggestion": "^2.11.5",
-    "@welshman/lib": "^0.1.1",
-    "@welshman/util": "^0.1.2",
+    "@welshman/lib": "workspace:*",
+    "@welshman/util": "workspace:*",
     "nostr-editor": "^0.0.4-pre.13",
     "nostr-tools": "^2.10.4",
     "tippy.js": "^6.3.7"
+  },
+  "devDependencies": {
+    "rimraf": "~6.0.0",
+    "typescript": "~5.8.0"
   }
 }

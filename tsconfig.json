@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.build.json",
+
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@welshman/*": ["packages/*/src"]
+    },
+    "noEmit": true
+  }
+}

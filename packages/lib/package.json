@@ -12,25 +12,23 @@
   },
   "type": "module",
   "files": [
-    "build"
+    "dist"
   ],
-  "types": "./build/src/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./build/src/index.d.ts",
-      "import": "./build/src/index.js",
-      "require": "./build/src/index.js"
-    }
-  },
+  "main": "dist/index",
+  "types": "dist/index",
   "scripts": {
-    "pub": "npm run lint && npm run build && npm publish",
-    "build": "gts clean && tsc",
-    "lint": "gts lint",
-    "fix": "gts fix"
+    "build": "pnpm run clean && pnpm run compile",
+    "clean": "rimraf ./dist",
+    "compile": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
     "@scure/base": "^1.1.6",
     "@types/events": "^3.0.3",
     "events": "^3.3.0"
+  },
+  "devDependencies": {
+    "rimraf": "~6.0.0",
+    "typescript": "~5.8.0"
   }
 }

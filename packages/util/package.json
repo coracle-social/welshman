@@ -8,30 +8,25 @@
     "access": "public"
   },
   "type": "module",
+  "main": "dist/index",
+  "types": "dist/index",
   "files": [
-    "build"
+    "dist"
   ],
-  "engines": {
-    "node": ">=10.4.0"
-  },
-  "types": "./build/src/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./build/src/index.d.ts",
-      "import": "./build/src/index.js",
-      "require": "./build/src/index.js"
-    }
-  },
   "scripts": {
-    "pub": "npm run lint && npm run build && npm publish",
-    "build": "gts clean && tsc",
-    "lint": "gts lint",
-    "fix": "gts fix"
+    "build": "pnpm run clean && pnpm run compile",
+    "clean": "rimraf ./dist",
+    "compile": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
+    "@welshman/lib": "workspace:*",
     "@types/ws": "^8.5.13",
-    "@welshman/lib": "^0.1.1",
     "nostr-tools": "^2.7.2",
     "nostr-wasm": "^0.1.0"
+  },
+  "devDependencies": {
+    "rimraf": "~6.0.0",
+    "typescript": "~5.8.0"
   }
 }
