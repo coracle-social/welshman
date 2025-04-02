@@ -1,5 +1,5 @@
-import {on, call, sleep, spec, ago, now} from "@welshman/lib"
-import {AUTH_JOIN} from "@welshman/util"
+import {on, always, call, sleep, spec, ago, now} from "@welshman/lib"
+import {AUTH_JOIN, StampedEvent, SignedEvent} from "@welshman/util"
 import {
   ClientMessage,
   isClientAuth,
@@ -134,7 +134,6 @@ export const socketPolicyRetryAuthRequired = (socket: Socket) => {
  */
 export const socketPolicyConnectOnSend = (socket: Socket) => {
   let lastError = 0
-  let currentStatus = SocketStatus.Closed
 
   const unsubscribers = [
     on(socket, SocketEvent.Status, (newStatus: SocketStatus) => {
@@ -142,13 +141,10 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
       if (newStatus === SocketStatus.Error) {
         lastError = now()
       }
-
-      // Keep track of the current status
-      currentStatus = newStatus
     }),
     on(socket, SocketEvent.Enqueue, (message: ClientMessage) => {
       // When a new message is sent, make sure the socket is open (unless there was a recent error)
-      if (currentStatus === SocketStatus.Closed && lastError < ago(30)) {
+      if (socket.status === SocketStatus.Closed && lastError < ago(30)) {
         socket.open()
       }
     }),
@@ -233,6 +229,34 @@ export const socketPolicyReopenActive = (socket: Socket) => {
   ]
 
   return () => unsubscribers.forEach(call)
+}
+
+export type SocketPolicyAuthOptions = {
+  sign: (event: StampedEvent) => Promise<SignedEvent>
+  shouldAuth?: (socket: Socket) => boolean
+}
+
+/**
+ * Factory function for a policy which may authenticate the socket
+ * @param options - SocketPolicyAuthOptions object
+ * @return a socket policy
+ */
+export const makeSocketPolicyAuth = (options: SocketPolicyAuthOptions) => (socket: Socket) => {
+  const authState = new AuthState(socket)
+  const shouldAuth = options.shouldAuth || always(true)
+
+  const unsubscribers = [
+    on(authState, AuthStateEvent.Status, (status: AuthStatus) => {
+      if (status === AuthStatus.Requested && shouldAuth(socket)) {
+        authState.authenticate(options.sign)
+      }
+    }),
+  ]
+
+  return () => {
+    unsubscribers.forEach(call)
+    authState.cleanup()
+  }
 }
 
 export const defaultSocketPolicies = [

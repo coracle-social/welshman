@@ -3,7 +3,6 @@ import {on, fromPairs, sleep, yieldThread} from "@welshman/lib"
 import {SignedEvent} from "@welshman/util"
 import {RelayMessage, ClientMessageType, isRelayOk} from "./message.js"
 import {AbstractAdapter, AdapterEvent, AdapterContext, getAdapter} from "./adapter.js"
-import {TypedEmitter} from "./util.js"
 
 export enum PublishStatus {
   Pending = "publish:status:pending",
@@ -23,14 +22,6 @@ export enum PublishEvent {
 
 // SinglePublish
 
-export type SinglePublishEvents = {
-  [PublishEvent.Success]: (id: string, detail: string) => void
-  [PublishEvent.Failure]: (id: string, detail: string) => void
-  [PublishEvent.Timeout]: () => void
-  [PublishEvent.Aborted]: () => void
-  [PublishEvent.Complete]: () => void
-}
-
 export type SinglePublishOptions = {
   event: SignedEvent
   relay: string
@@ -38,7 +29,7 @@ export type SinglePublishOptions = {
   timeout?: number
 }
 
-export class SinglePublish extends (EventEmitter as new () => TypedEmitter<SinglePublishEvents>) {
+export class SinglePublish extends EventEmitter {
   status = PublishStatus.Pending
 
   _unsubscriber: () => void
@@ -107,19 +98,11 @@ export class SinglePublish extends (EventEmitter as new () => TypedEmitter<Singl
 
 // MultiPublish
 
-export type MultiPublishEvents = {
-  [PublishEvent.Success]: (id: string, detail: string, url: string) => void
-  [PublishEvent.Failure]: (id: string, detail: string, url: string) => void
-  [PublishEvent.Timeout]: (url: string) => void
-  [PublishEvent.Aborted]: (url: string) => void
-  [PublishEvent.Complete]: () => void
-}
-
 export type MultiPublishOptions = Omit<SinglePublishOptions, "relay"> & {
   relays: string[]
 }
 
-export class MultiPublish extends (EventEmitter as new () => TypedEmitter<MultiPublishEvents>) {
+export class MultiPublish extends EventEmitter {
   status: Record<string, PublishStatus>
 
   _children: SinglePublish[] = []

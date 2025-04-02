@@ -1118,21 +1118,20 @@ export const pushToMapKey = <K, T>(m: Map<K, T[]>, k: K, v: T) => {
 }
 
 /**
- * A generic type-safe event listener function that auto-detects the appropriate methods
- * for adding and removing event listeners.
+ * A generic type-safe event listener function that works with event emitters.
  *
  * @param target - The event target object with add/remove listener methods
  * @param eventName - The name of the event to listen for
  * @param callback - The callback function to execute when the event occurs
  * @returns A function that removes the event listener when called
  */
-export const on = <EventName extends string, Args extends any[]>(
+export const on = <EventMap extends Record<string | symbol, any[]>, E extends keyof EventMap>(
   target: {
-    on: (event: EventName, handler: (...args: Args) => any, ...rest: any[]) => any
-    off: (event: EventName, handler: (...args: Args) => any, ...rest: any[]) => any
+    on(event: E, listener: (...args: EventMap[E]) => any): any
+    off(event: E, listener: (...args: EventMap[E]) => any): any
   },
-  eventName: EventName,
-  callback: (...args: Args) => void,
+  eventName: E,
+  callback: (...args: EventMap[E]) => void,
 ): (() => void) => {
   target.on(eventName, callback)
 

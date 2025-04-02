@@ -1,11 +1,13 @@
 import {throttle} from "@welshman/lib"
 import {verifyEvent, isEphemeralKind, isDVMKind} from "@welshman/util"
-import {Repository} from "@welshman/relay"
+import {Repository, LocalRelay} from "@welshman/relay"
 import {Pool, Tracker, SocketEvent, isRelayEvent} from "@welshman/net"
 import {custom} from "@welshman/store"
 import {loadRelay, trackRelayStats} from "./relays.js"
 
 export const repository = Repository.getSingleton()
+
+export const relay = new LocalRelay(repository)
 
 export const tracker = new Tracker()
 

@@ -26,6 +26,7 @@ export type ThunkRequest = {
   event: ThunkEvent
   relays: string[]
   delay?: number
+  timeout?: number
   context?: AdapterContext
 }
 
@@ -226,6 +227,7 @@ export const thunkQueue = new TaskQueue<Thunk>({
         event: signedEvent,
         relays: thunk.request.relays,
         context: thunk.request.context,
+        timeout: thunk.request.timeout,
       })
 
       // Copy the signature over since we had deferred it

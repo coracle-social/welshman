@@ -2,7 +2,6 @@ import WebSocket from "isomorphic-ws"
 import EventEmitter from "events"
 import {TaskQueue} from "@welshman/lib"
 import {RelayMessage, ClientMessage} from "./message.js"
-import {TypedEmitter} from "./util.js"
 
 export enum SocketStatus {
   Open = "socket:status:open",
@@ -29,7 +28,7 @@ export type SocketEvents = {
   [SocketEvent.Receive]: (message: RelayMessage, url: string) => void
 }
 
-export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents>) {
+export class Socket extends EventEmitter {
   status = SocketStatus.Closed
 
   _ws?: WebSocket
@@ -57,6 +56,9 @@ export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents
     this.on(SocketEvent.Status, (status: SocketStatus) => {
       this.status = status
     })
+
+    this._sendQueue.stop()
+    this.setMaxListeners(1000)
   }
 
   open = () => {
@@ -74,15 +76,16 @@ export class Socket extends (EventEmitter as new () => TypedEmitter<SocketEvents
       }
 
       this._ws.onerror = () => {
-        this.emit(SocketEvent.Status, SocketStatus.Error, this.url)
-        this._sendQueue.stop()
         this._ws = undefined
+        this._sendQueue.stop()
+        this.emit(SocketEvent.Status, SocketStatus.Error, this.url)
       }
 
       this._ws.onclose = () => {
-        this.emit(SocketEvent.Status, SocketStatus.Closed, this.url)
-        this._sendQueue.stop()
         this._ws = undefined
+        this._sendQueue.stop()
+        console.log("socket closed", this.url)
+        this.emit(SocketEvent.Status, SocketStatus.Closed, this.url)
       }
 
       this._ws.onmessage = (event: any) => {

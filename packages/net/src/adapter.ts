@@ -4,7 +4,7 @@ import {isRelayUrl} from "@welshman/util"
 import {LocalRelay, LOCAL_RELAY_URL} from "@welshman/relay"
 import {RelayMessage, ClientMessage} from "./message.js"
 import {Socket, SocketEvent} from "./socket.js"
-import {TypedEmitter, Unsubscriber} from "./util.js"
+import {Unsubscriber} from "./util.js"
 import {netContext, NetContext} from "./context.js"
 
 export enum AdapterEvent {
@@ -15,7 +15,7 @@ export type AdapterEvents = {
   [AdapterEvent.Receive]: (message: RelayMessage, url: string) => void
 }
 
-export abstract class AbstractAdapter extends (EventEmitter as new () => TypedEmitter<AdapterEvents>) {
+export abstract class AbstractAdapter extends EventEmitter {
   _unsubscribers: Unsubscriber[] = []
 
   abstract urls: string[]

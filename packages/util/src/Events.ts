@@ -1,7 +1,7 @@
 import {verifiedSymbol, verifyEvent as verifyEventPure} from "nostr-tools/pure"
 import {setNostrWasm, verifyEvent as verifyEventWasm} from "nostr-tools/wasm"
 import {initNostrWasm} from "nostr-wasm"
-import {mapVals, first, pick, now} from "@welshman/lib"
+import {mapVals, noop, first, pick, now} from "@welshman/lib"
 import {getReplyTagValues, getCommentTagValues} from "./Tags.js"
 import {getAddress, Address} from "./Address.js"
 import {
@@ -66,7 +66,7 @@ export const verifyEvent = (() => {
 
   if (typeof WebAssembly === "object") {
     initNostrWasm()
-      .then(setNostrWasm)
+      .then(setNostrWasm, noop)
       .then(() => {
         verify = verifyEventWasm
       })

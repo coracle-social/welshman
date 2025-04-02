@@ -10,7 +10,7 @@ import {
 import {RelayMessage, ClientMessageType, isRelayEvent, isRelayEose} from "./message.js"
 import {getAdapter, AdapterContext, AbstractAdapter, AdapterEvent} from "./adapter.js"
 import {SocketEvent, SocketStatus} from "./socket.js"
-import {TypedEmitter, Unsubscriber} from "./util.js"
+import {Unsubscriber} from "./util.js"
 import {netContext} from "./context.js"
 import {Tracker} from "./tracker.js"
 
@@ -41,6 +41,7 @@ export type SingleRequestEvents = {
 export type SingleRequestOptions = {
   relay: string
   filters: Filter[]
+  signal?: AbortSignal
   context?: AdapterContext
   timeout?: number
   tracker?: Tracker
@@ -49,10 +50,7 @@ export type SingleRequestOptions = {
   isEventDeleted?: (event: TrustedEvent, url: string) => boolean
 }
 
-// Needed for typescript to infer emitter methods
-export interface SingleRequest extends TypedEmitter<SingleRequestEvents> {}
-
-export class SingleRequest extends (EventEmitter as new () => TypedEmitter<SingleRequestEvents>) {
+export class SingleRequest extends EventEmitter {
   _ids = new Set<string>()
   _eose = new Set<string>()
   _unsubscribers: Unsubscriber[] = []
@@ -128,6 +126,9 @@ export class SingleRequest extends (EventEmitter as new () => TypedEmitter<Singl
       setTimeout(() => this.close(), this.options.timeout || 10000)
     }
 
+    // Handle abort signal
+    this.options.signal?.addEventListener("abort", () => this.close())
+
     // Start asynchronously so the caller can set up listeners
     yieldThread().then(() => {
       for (const filter of this.options.filters) {
@@ -171,10 +172,7 @@ export type MultiRequestOptions = Omit<SingleRequestOptions, "relay"> & {
   relays: string[]
 }
 
-// Needed for typescript to infer emitter methods
-export interface MultiRequest extends TypedEmitter<MultiRequestEvents> {}
-
-export class MultiRequest extends (EventEmitter as new () => TypedEmitter<MultiRequestEvents>) {
+export class MultiRequest extends EventEmitter {
   _children: SingleRequest[] = []
   _closed = new Set<string>()
 

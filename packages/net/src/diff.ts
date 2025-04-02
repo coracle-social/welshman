@@ -1,7 +1,6 @@
 import {EventEmitter} from "events"
 import {on, sleep, randomId, groupBy, pushToMapKey, inc, flatten, chunk} from "@welshman/lib"
 import {SignedEvent, Filter} from "@welshman/util"
-import {TypedEmitter} from "./util.js"
 import {
   RelayMessage,
   isRelayNegErr,
@@ -33,7 +32,7 @@ export type DifferenceOptions = {
   context?: AdapterContext
 }
 
-export class Difference extends (EventEmitter as new () => TypedEmitter<DifferenceEvents>) {
+export class Difference extends EventEmitter {
   have = new Set<string>()
   need = new Set<string>()
 
@@ -139,7 +138,6 @@ export const diff = async ({relays, filters, ...options}: DiffOptions) => {
 
                 diff.on(DifferenceEvent.Close, () => {
                   resolve({relay, have: diff.have, need: diff.need})
-                  diff.close()
                 })
 
                 diff.on(DifferenceEvent.Error, (url, message) => {

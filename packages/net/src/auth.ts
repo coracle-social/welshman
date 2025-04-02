@@ -1,10 +1,10 @@
 import EventEmitter from "events"
-import {on, call, sleep} from "@welshman/lib"
-import type {SignedEvent, StampedEvent} from "@welshman/util"
+import {on, call} from "@welshman/lib"
+import {SignedEvent, StampedEvent} from "@welshman/util"
 import {makeEvent, CLIENT_AUTH} from "@welshman/util"
 import {isRelayAuth, isClientAuth, isRelayOk, RelayMessage} from "./message.js"
 import {Socket, SocketStatus, SocketEvent} from "./socket.js"
-import {TypedEmitter, Unsubscriber} from "./util.js"
+import {Unsubscriber} from "./util.js"
 
 export const makeAuthEvent = (url: string, challenge: string) =>
   makeEvent(CLIENT_AUTH, {
@@ -37,7 +37,7 @@ export type AuthStateEvents = {
   [AuthStateEvent.Status]: (status: AuthStatus) => void
 }
 
-export class AuthState extends (EventEmitter as new () => TypedEmitter<AuthStateEvents>) {
+export class AuthState extends EventEmitter {
   challenge: string | undefined
   request: string | undefined
   details: string | undefined
@@ -51,6 +51,8 @@ export class AuthState extends (EventEmitter as new () => TypedEmitter<AuthState
       on(socket, SocketEvent.Receive, (message: RelayMessage) => {
         if (isRelayOk(message)) {
           const [_, id, ok, details] = message
+
+          console.log("ok", message)
 
           if (id === this.request) {
             this.details = details
@@ -66,6 +68,8 @@ export class AuthState extends (EventEmitter as new () => TypedEmitter<AuthState
         if (isRelayAuth(message)) {
           const [_, challenge] = message
 
+          console.log("relay auth", message)
+
           this.challenge = challenge
           this.request = undefined
           this.details = undefined
@@ -74,11 +78,13 @@ export class AuthState extends (EventEmitter as new () => TypedEmitter<AuthState
       }),
       on(socket, SocketEvent.Enqueue, (message: RelayMessage) => {
         if (isClientAuth(message)) {
+          console.log("client auth", message)
           this.setStatus(AuthStatus.PendingResponse)
         }
       }),
       on(socket, SocketEvent.Status, (status: SocketStatus) => {
         if (status === SocketStatus.Closed) {
+          console.log("closed")
           this.challenge = undefined
           this.request = undefined
           this.details = undefined
@@ -93,92 +99,32 @@ export class AuthState extends (EventEmitter as new () => TypedEmitter<AuthState
     this.emit(AuthStateEvent.Status, status)
   }
 
-  cleanup() {
-    this.removeAllListeners()
-    this._unsubscribers.forEach(call)
-  }
-}
-
-export type AuthManagerOptions = {
-  sign: (event: StampedEvent) => Promise<SignedEvent>
-  eager?: boolean
-}
-
-export class AuthManager {
-  state: AuthState
-
-  constructor(
-    readonly socket: Socket,
-    readonly options: AuthManagerOptions,
-  ) {
-    this.state = new AuthState(socket)
-    this.state.on(AuthStateEvent.Status, (status: string) => {
-      if (status === AuthStatus.Requested && options.eager) {
-        this.respond()
-      }
-    })
-  }
-
-  async waitFor(condition: () => boolean, timeout = 300) {
-    const start = Date.now()
-
-    while (Date.now() - timeout <= start) {
-      if (condition()) {
-        break
-      }
-
-      await sleep(Math.min(100, Math.ceil(timeout / 3)))
-    }
-  }
-
-  async waitForChallenge(timeout = 300) {
-    await this.waitFor(() => Boolean(this.state.challenge), timeout)
-  }
-
-  async waitForResolution(timeout = 300) {
-    await this.waitFor(
-      () =>
-        [AuthStatus.None, AuthStatus.DeniedSignature, AuthStatus.Forbidden, AuthStatus.Ok].includes(
-          this.state.status,
-        ),
-      timeout,
-    )
-  }
-
-  async attempt(timeout = 300) {
-    await this.socket.attemptToOpen()
-    await this.waitForChallenge(Math.ceil(timeout / 2))
-
-    if (this.state.status === AuthStatus.Requested) {
-      await this.respond()
-    }
-
-    await this.waitForResolution(Math.ceil(timeout / 2))
-  }
-
-  async respond() {
-    if (!this.state.challenge) {
+  async authenticate(sign: (event: StampedEvent) => Promise<SignedEvent>) {
+    if (!this.challenge) {
       throw new Error("Attempted to authenticate with no challenge")
     }
 
-    if (this.state.status !== AuthStatus.Requested) {
-      throw new Error(`Attempted to authenticate when auth is already ${this.state.status}`)
+    if (this.status !== AuthStatus.Requested) {
+      throw new Error(`Attempted to authenticate when auth is already ${this.status}`)
     }
 
-    this.state.setStatus(AuthStatus.PendingSignature)
+    this.setStatus(AuthStatus.PendingSignature)
 
-    const template = makeAuthEvent(this.socket.url, this.state.challenge)
-    const event = await this.options.sign(template)
+    const template = makeAuthEvent(this.socket.url, this.challenge)
+    const event = await sign(template)
+
+    console.log(event)
 
     if (event) {
-      this.state.request = event.id
+      this.request = event.id
       this.socket.send(["AUTH", event])
     } else {
-      this.state.setStatus(AuthStatus.DeniedSignature)
+      this.setStatus(AuthStatus.DeniedSignature)
     }
   }
 
   cleanup() {
-    this.state.cleanup()
+    this.removeAllListeners()
+    this._unsubscribers.forEach(call)
   }
 }
