@@ -2,7 +2,11 @@
   "extends": "../../tsconfig.build.json",
 
   "compilerOptions": {
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "paths": {
+      "@welshman/lib": ["../lib/src/index.js"],
+      "@welshman/util": ["../util/src/index.js"]
+    }
   },
 
   "include": [

@@ -17,5 +17,18 @@
   "exclude": [
     "node_modules",
     "dist"
+  ],
+  "references": [
+    {"path": "./packages/app/tsconfig.build.json"},
+    {"path": "./packages/content/tsconfig.build.json"},
+    {"path": "./packages/dvm/tsconfig.build.json"},
+    {"path": "./packages/editor/tsconfig.build.json"},
+    {"path": "./packages/feeds/tsconfig.build.json"},
+    {"path": "./packages/lib/tsconfig.build.json"},
+    {"path": "./packages/net/tsconfig.build.json"},
+    {"path": "./packages/relay/tsconfig.build.json"},
+    {"path": "./packages/signer/tsconfig.build.json"},
+    {"path": "./packages/store/tsconfig.build.json"},
+    {"path": "./packages/util/tsconfig.build.json"}
   ]
 }
