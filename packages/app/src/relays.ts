@@ -85,6 +85,7 @@ export const {
   indexStore: relaysByUrl,
   deriveItem: deriveRelay,
   loadItem: loadRelay,
+  onItem: onRelay,
 } = collection({
   name: "relays",
   store: relays,

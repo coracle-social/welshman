@@ -82,6 +82,7 @@ export const {
   indexStore: handlesByNip05,
   deriveItem: deriveHandle,
   loadItem: loadHandle,
+  onItem: onHandle,
 } = collection({
   name: "handles",
   store: handles,

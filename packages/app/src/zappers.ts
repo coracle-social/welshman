@@ -58,6 +58,7 @@ export const {
   indexStore: zappersByLnurl,
   deriveItem: deriveZapper,
   loadItem: loadZapper,
+  onItem: onZapper,
 } = collection({
   name: "zappers",
   store: zappers,
