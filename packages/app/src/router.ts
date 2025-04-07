@@ -235,14 +235,13 @@ export class Router {
 
   FromUser = () => this.FromRelays(this.getRelaysForUser(RelayMode.Write))
 
-  UserInbox = () => this.FromRelays(this.getRelaysForUser(RelayMode.Inbox)).policy(addNoFallbacks)
+  UserInbox = () => this.FromRelays(this.getRelaysForUser(RelayMode.Inbox))
 
   ForPubkey = (pubkey: string) => this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Read))
 
   FromPubkey = (pubkey: string) => this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Write))
 
-  PubkeyInbox = (pubkey: string) =>
-    this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Inbox)).policy(addNoFallbacks)
+  PubkeyInbox = (pubkey: string) => this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Inbox))
 
   ForPubkeys = (pubkeys: string[]) => this.merge(pubkeys.map(pubkey => this.ForPubkey(pubkey)))
 
@@ -361,7 +360,7 @@ export class RouterScenario {
   weight = (scale: number) =>
     this.update(selection => ({...selection, weight: selection.weight * scale}))
 
-  getPolicy = () => this.options.policy || addMaximalFallbacks
+  getPolicy = () => this.options.policy || addNoFallbacks
 
   getLimit = () => this.options.limit || this.router.options.getLimit?.() || 3
 
