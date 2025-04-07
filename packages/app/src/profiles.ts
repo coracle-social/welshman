@@ -6,7 +6,7 @@ import {deriveEventsMapped, withGetter} from "@welshman/store"
 import {repository} from "./core.js"
 import {Router} from "./router.js"
 import {collection} from "./collection.js"
-import {loadRelaySelections} from "./relaySelections.js"
+import {loadWithAsapMetaRelayUrls} from "./relaySelections.js"
 
 export const profiles = withGetter(
   deriveEventsMapped<PublishedProfile>(repository, {
@@ -24,15 +24,8 @@ export const {
   name: "profiles",
   store: profiles,
   getKey: profile => profile.event.pubkey,
-  load: async (pubkey: string, request: Partial<MultiRequestOptions> = {}) => {
-    await loadRelaySelections(pubkey, request)
-
-    const router = Router.get()
-    const filters = [{kinds: [PROFILE], authors: [pubkey]}]
-    const relays = router.merge([router.Index(), router.FromPubkey(pubkey)]).getUrls()
-
-    await load({relays, ...request, filters})
-  },
+  load: (pubkey: string, relays: string[]) =>
+    loadWithAsapMetaRelayUrls(pubkey, relays, [{kinds: [PROFILE], authors: [pubkey]}])
 })
 
 export const displayProfileByPubkey = (pubkey: string | undefined) =>

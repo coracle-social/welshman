@@ -105,8 +105,8 @@ export const {
   }),
 })
 
-export const deriveHandleForPubkey = (pubkey: string, request: Partial<MultiRequestOptions> = {}) =>
-  derived([handlesByNip05, deriveProfile(pubkey, request)], ([$handlesByNip05, $profile]) => {
+export const deriveHandleForPubkey = (pubkey: string, relays: string[] = []) =>
+  derived([handlesByNip05, deriveProfile(pubkey, relays)], ([$handlesByNip05, $profile]) => {
     if (!$profile?.nip05) {
       return undefined
     }

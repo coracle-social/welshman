@@ -3,7 +3,7 @@ import {indexBy, remove, type Maybe, now} from "@welshman/lib"
 import {withGetter} from "@welshman/store"
 import {getFreshness, setFreshnessThrottled} from "./freshness.js"
 
-export const collection = <T, LoadArgs extends any[]>({
+export const collection = <T>({
   name,
   store,
   getKey,
@@ -12,7 +12,7 @@ export const collection = <T, LoadArgs extends any[]>({
   name: string
   store: Readable<T[]>
   getKey: (item: T) => string
-  load?: (key: string, ...args: LoadArgs) => Promise<any>
+  load?: (key: string, relays: string[]) => Promise<any>
 }) => {
   const indexStore = withGetter(derived(store, $items => indexBy(getKey, $items)))
   const pending = new Map<string, Promise<Maybe<T>>>()
@@ -20,7 +20,7 @@ export const collection = <T, LoadArgs extends any[]>({
 
   let subscribers: Subscriber<T>[] = []
 
-  const loadItem = async (key: string, ...args: LoadArgs) => {
+  const loadItem = async (key: string, relays: string[] = []) => {
     const stale = indexStore.get().get(key)
 
     // If we have no loader function, nothing we can do
@@ -51,7 +51,7 @@ export const collection = <T, LoadArgs extends any[]>({
 
     setFreshnessThrottled({ns: name, key, ts: now()})
 
-    const promise = load(key, ...args)
+    const promise = load(key, relays)
 
     pending.set(key, promise)
 
@@ -76,14 +76,14 @@ export const collection = <T, LoadArgs extends any[]>({
     return fresh
   }
 
-  const deriveItem = (key: Maybe<string>, ...args: LoadArgs) => {
+  const deriveItem = (key: Maybe<string>, relays: string[] = []) => {
     if (!key) {
       return readable(undefined)
     }
 
     // If we don't yet have the item, or it's stale, trigger a request for it. The derived
     // store will update when it arrives
-    loadItem(key, ...args)
+    loadItem(key, relays)
 
     return derived(indexStore, $index => $index.get(key))
   }

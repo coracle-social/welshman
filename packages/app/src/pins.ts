@@ -5,7 +5,7 @@ import {deriveEventsMapped} from "@welshman/store"
 import {repository} from "./core.js"
 import {Router} from "./router.js"
 import {collection} from "./collection.js"
-import {loadRelaySelections} from "./relaySelections.js"
+import {loadWithAsapMetaRelayUrls} from "./relaySelections.js"
 
 export const pins = deriveEventsMapped<PublishedList>(repository, {
   filters: [{kinds: [PINS]}],
@@ -21,12 +21,6 @@ export const {
   name: "pins",
   store: pins,
   getKey: pins => pins.event.pubkey,
-  load: async (pubkey: string, request: Partial<MultiRequestOptions> = {}) => {
-    await loadRelaySelections(pubkey, request)
-
-    const filters = [{kinds: [PINS], authors: [pubkey]}]
-    const relays = Router.get().FromPubkey(pubkey).getUrls()
-
-    await load({relays, ...request, filters})
-  },
+  load: (pubkey: string, relays: string[]) =>
+    loadWithAsapMetaRelayUrls(pubkey, relays, [{kinds: [PINS], authors: [pubkey]}]),
 })

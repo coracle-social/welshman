@@ -9,11 +9,11 @@ import {
   getRelayTags,
   getRelayTagValues,
 } from "@welshman/util"
-import {TrustedEvent, PublishedList, List} from "@welshman/util"
+import {TrustedEvent, Filter, PublishedList, List} from "@welshman/util"
 import {load, MultiRequestOptions} from "@welshman/net"
 import {deriveEventsMapped} from "@welshman/store"
 import {repository} from "./core.js"
-import {Router} from "./router.js"
+import {Router, addNoFallbacks} from "./router.js"
 import {collection} from "./collection.js"
 
 export const getRelayUrls = (list?: List): string[] =>
@@ -47,16 +47,28 @@ export const {
   name: "relaySelections",
   store: relaySelections,
   getKey: relaySelections => relaySelections.event.pubkey,
-  load: async (pubkey: string, request: Partial<MultiRequestOptions> = {}) => {
+  load: async (pubkey: string, relays: string[]) => {
     const router = Router.get()
 
     await load({
-      relays: router.merge([router.Index(), router.FromPubkey(pubkey)]).getUrls(),
-      ...request,
+      relays: router.merge([router.Index(), router.FromRelays(relays), router.FromPubkey(pubkey)]).getUrls(),
       filters: [{kinds: [RELAYS], authors: [pubkey]}],
     })
   },
 })
+
+export const loadWithAsapMetaRelayUrls = <T>(pubkey: string, relays: string[], filters: Filter[]) => {
+  const router = Router.get()
+
+  return Promise.race([
+    load({filters, relays: router.merge([router.FromRelays(relays), router.Index()]).getUrls()}),
+    loadRelaySelections(pubkey, relays).then(() => {
+      const relays = router.FromPubkey(pubkey).policy(addNoFallbacks).getUrls()
+
+      return load({filters, relays})
+    }),
+  ])
+}
 
 export const inboxRelaySelections = deriveEventsMapped<PublishedList>(repository, {
   filters: [{kinds: [INBOX_RELAYS]}],
@@ -72,13 +84,6 @@ export const {
   name: "inboxRelaySelections",
   store: inboxRelaySelections,
   getKey: inboxRelaySelections => inboxRelaySelections.event.pubkey,
-  load: async (pubkey: string, request: Partial<MultiRequestOptions> = {}) => {
-    const router = Router.get()
-
-    await load({
-      relays: router.merge([router.Index(), router.FromPubkey(pubkey)]).getUrls(),
-      ...request,
-      filters: [{kinds: [INBOX_RELAYS], authors: [pubkey]}],
-    })
-  },
+  load: (pubkey: string, relays: string[]) =>
+    loadWithAsapMetaRelayUrls(pubkey, relays, [{kinds: [INBOX_RELAYS], authors: [pubkey]}])
 })

@@ -147,11 +147,11 @@ export class SingleRequest extends EventEmitter {
       this._adapter.send(["CLOSE", id])
     }
 
-    this.emit(RequestEvent.Close)
-    this.removeAllListeners()
-    this._unsubscribers.map(call)
-    this._adapter.cleanup()
     this._closed = true
+    this.emit(RequestEvent.Close)
+    this._adapter.cleanup()
+    this._unsubscribers.map(call)
+    this.removeAllListeners()
   }
 }
 
@@ -170,6 +170,7 @@ export type MultiRequestEvents = {
 
 export type MultiRequestOptions = Omit<SingleRequestOptions, "relay"> & {
   relays: string[]
+  threshold?: number
 }
 
 export class MultiRequest extends EventEmitter {
@@ -181,6 +182,7 @@ export class MultiRequest extends EventEmitter {
 
     const tracker = new Tracker()
     const relays = new Set(options.relays)
+    const threshold = options.threshold || 1
 
     if (relays.size !== options.relays.length) {
       console.warn("Non-unique relays passed to MultiRequest")
@@ -220,8 +222,9 @@ export class MultiRequest extends EventEmitter {
       req.on(RequestEvent.Close, () => {
         this._closed.add(relay)
 
-        if (this._closed.size === relays.size) {
+        if (this._closed.size >= relays.size * threshold) {
           this.emit(RequestEvent.Close)
+          this.close()
         }
       })
 
@@ -238,56 +241,73 @@ export class MultiRequest extends EventEmitter {
 
 export const request = (options: MultiRequestOptions) => new MultiRequest(options)
 
+export type LoaderOptions = {
+  delay: number
+  timeout?: number
+  threshold?: number
+  context?: AdapterContext
+  isEventValid?: (event: TrustedEvent, url: string) => boolean
+  isEventDeleted?: (event: TrustedEvent, url: string) => boolean
+}
+
+export type LoadOptions = {
+  relays: string[]
+  filters: Filter[]
+}
+
 /**
- * A convenience function which returns a promise of events from a request.
+ * Creates a convenience function which returns a promise of events from a request.
  * It may return early if filter cardinality is known, and it delays requests by
  * 200 in order to implement batching
  * @param options - MultiRequestOptions
  * @returns - a promise containing an array of TrustedEvents
  */
-export const load = batcher(200, async (requests: MultiRequestOptions[]) => {
-  const filtersByRelay = new Map<string, Filter[]>()
+export const makeLoader = (options: LoaderOptions) =>
+  batcher(options.delay, async (requests: LoadOptions[]) => {
+    const filtersByRelay = new Map<string, Filter[]>()
 
-  for (const {filters, relays} of requests) {
-    for (const relay of relays) {
-      for (const filter of filters) {
-        pushToMapKey(filtersByRelay, relay, filter)
+    for (const {filters, relays} of requests) {
+      for (const relay of relays) {
+        for (const filter of filters) {
+          pushToMapKey(filtersByRelay, relay, filter)
+        }
       }
     }
-  }
 
-  const tracker = new Tracker()
-  const events: TrustedEvent[] = []
+    const tracker = new Tracker()
+    const events: TrustedEvent[] = []
 
-  await Promise.all(
-    Array.from(filtersByRelay).map(
-      async ([relay, unmergedFilters]) =>
-        new Promise<void>(resolve => {
-          const filters = unionFilters(unmergedFilters)
-          const cardinality =
-            filters.length === 1 ? getFilterResultCardinality(filters[0]) : undefined
-          const req = new MultiRequest({
-            filters,
-            tracker,
-            relays: [relay],
-            timeout: 5000,
-            autoClose: true,
-          })
+    await Promise.all(
+      Array.from(filtersByRelay).map(
+        async ([relay, unmergedFilters]) =>
+          new Promise<void>(resolve => {
+            const filters = unionFilters(unmergedFilters)
+            const cardinality =
+              filters.length === 1 ? getFilterResultCardinality(filters[0]) : undefined
+            const req = new MultiRequest({
+              filters,
+              tracker,
+              relays: [relay],
+              autoClose: true,
+              ...options
+            })
 
-          let count = 0
+            let count = 0
 
-          req.on(RequestEvent.Event, (event: TrustedEvent) => {
-            events.push(event)
+            req.on(RequestEvent.Event, (event: TrustedEvent) => {
+              events.push(event)
 
-            if (++count === cardinality) {
-              resolve()
-            }
-          })
+              if (++count === cardinality) {
+                resolve()
+              }
+            })
 
-          req.on(RequestEvent.Close, () => resolve())
-        }),
-    ),
-  )
+            req.on(RequestEvent.Close, () => resolve())
+          }),
+      ),
+    )
 
-  return requests.map(r => events.filter(event => matchFilters(r.filters, event)))
-})
+    return requests.map(r => events.filter(event => matchFilters(r.filters, event)))
+  })
+
+export const load = makeLoader({delay: 200, timeout: 3000, threshold: 0.5})
