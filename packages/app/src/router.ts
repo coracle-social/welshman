@@ -114,7 +114,7 @@ export type Selection = {
 }
 
 const makeSelection = (relays: string[], weight = 1): Selection => ({
-  relays: relays.map(normalizeRelayUrl),
+  relays: relays.filter(isRelayUrl).map(normalizeRelayUrl),
   weight,
 })
 

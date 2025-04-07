@@ -108,10 +108,16 @@ export class MultiPublish extends EventEmitter {
   _children: SinglePublish[] = []
   _completed = new Set<string>()
 
-  constructor({relays, ...options}: MultiPublishOptions) {
+  constructor(options: MultiPublishOptions) {
     super()
 
-    this.status = fromPairs(relays.map(relay => [relay, PublishStatus.Pending]))
+    const relays = new Set(options.relays)
+
+    if (relays.size !== options.relays.length) {
+      console.warn("Non-unique relays passed to MultiPublish")
+    }
+
+    this.status = fromPairs(Array.from(relays).map(relay => [relay, PublishStatus.Pending]))
 
     for (const relay of relays) {
       const unicast = new SinglePublish({relay, ...options})
@@ -140,7 +146,7 @@ export class MultiPublish extends EventEmitter {
         this._completed.add(relay)
         this.status[relay] = unicast.status
 
-        if (this._completed.size === relays.length) {
+        if (this._completed.size === relays.size) {
           this.emit(PublishEvent.Complete)
           this.cleanup()
         }

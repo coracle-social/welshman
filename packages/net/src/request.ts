@@ -176,10 +176,15 @@ export class MultiRequest extends EventEmitter {
   _children: SingleRequest[] = []
   _closed = new Set<string>()
 
-  constructor({relays, ...options}: MultiRequestOptions) {
+  constructor(options: MultiRequestOptions) {
     super()
 
     const tracker = new Tracker()
+    const relays = new Set(options.relays)
+
+    if (relays.size !== options.relays.length) {
+      console.warn("Non-unique relays passed to MultiRequest")
+    }
 
     for (const relay of relays) {
       const req = new SingleRequest({relay, tracker, ...options})
@@ -215,7 +220,7 @@ export class MultiRequest extends EventEmitter {
       req.on(RequestEvent.Close, () => {
         this._closed.add(relay)
 
-        if (this._closed.size === relays.length) {
+        if (this._closed.size === relays.size) {
           this.emit(RequestEvent.Close)
         }
       })
