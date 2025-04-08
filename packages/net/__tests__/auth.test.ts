@@ -2,18 +2,18 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { Socket, SocketStatus, SocketEvent } from "../src/socket"
 import { makeEvent, CLIENT_AUTH } from "@welshman/util"
 import { Nip01Signer } from "@welshman/signer"
-import { AuthState, AuthStatus, AuthStateEvent, AuthManager, makeAuthEvent } from "../src/auth"
+import { AuthState, AuthStatus, AuthStateEvent, makeAuthEvent } from "../src/auth"
 import EventEmitter from "events"
 import { RelayMessage } from "../src/message"
 
 vi.mock('isomorphic-ws', () => {
-  const WebSocket = vi.fn(function () {
+  const WebSocket = vi.fn(function (this: any) {
     setTimeout(() => this.onopen())
   })
 
   WebSocket.prototype.send = vi.fn()
 
-  WebSocket.prototype.close = vi.fn(function () {
+  WebSocket.prototype.close = vi.fn(function (this: any) {
     this.onclose()
   })
 
@@ -22,183 +22,140 @@ vi.mock('isomorphic-ws', () => {
 
 describe('auth', () => {
   let socket: Socket
-  let authManager: AuthManager
-  let sign = vi.fn(Nip01Signer.ephemeral().sign)
 
   beforeEach(() => {
     socket = new Socket('wss://test.relay')
-    authManager = new AuthManager(socket, { sign })
   })
 
   afterEach(() => {
     vi.clearAllMocks()
     socket.cleanup()
-    authManager.cleanup()
   })
 
   describe("AuthState", () => {
     it("should initialize with None status", () => {
-      expect(authManager.state.status).toBe(AuthStatus.None)
+      expect(socket.auth.status).toBe(AuthStatus.None)
     })
 
     it("should handle AUTH message from relay", () => {
       const message: RelayMessage = ["AUTH", "challenge123"]
       socket.emit(SocketEvent.Receive, message)
 
-      expect(authManager.state.challenge).toBe("challenge123")
-      expect(authManager.state.status).toBe(AuthStatus.Requested)
+      expect(socket.auth.challenge).toBe("challenge123")
+      expect(socket.auth.status).toBe(AuthStatus.Requested)
     })
 
     it("should handle successful OK message", () => {
-      authManager.state.request = "request123"
+      socket.auth.request = "request123"
       const message: RelayMessage = ["OK", "request123", true, "success"]
       socket.emit(SocketEvent.Receive, message)
 
-      expect(authManager.state.status).toBe(AuthStatus.Ok)
-      expect(authManager.state.details).toBe("success")
+      expect(socket.auth.status).toBe(AuthStatus.Ok)
+      expect(socket.auth.details).toBe("success")
     })
 
     it("should handle failed OK message", () => {
-      authManager.state.request = "request123"
+      socket.auth.request = "request123"
       const message: RelayMessage = ["OK", "request123", false, "forbidden"]
       socket.emit(SocketEvent.Receive, message)
 
-      expect(authManager.state.status).toBe(AuthStatus.Forbidden)
-      expect(authManager.state.details).toBe("forbidden")
+      expect(socket.auth.status).toBe(AuthStatus.Forbidden)
+      expect(socket.auth.details).toBe("forbidden")
     })
 
     it("should ignore OK messages for different requests", () => {
-      authManager.state.request = "request123"
+      socket.auth.request = "request123"
       const message: RelayMessage = ["OK", "different-request", true, "success"]
       socket.emit(SocketEvent.Receive, message)
 
-      expect(authManager.state.status).toBe(AuthStatus.None)
+      expect(socket.auth.status).toBe(AuthStatus.None)
     })
 
     it("should handle client AUTH message", () => {
       const message: RelayMessage = ["AUTH", { id: "123", kind: CLIENT_AUTH }]
       socket.emit(SocketEvent.Sending, message)
 
-      expect(authManager.state.status).toBe(AuthStatus.PendingResponse)
+      expect(socket.auth.status).toBe(AuthStatus.PendingResponse)
     })
 
     it("should reset state on socket close", () => {
-      authManager.state.challenge = "challenge123"
-      authManager.state.request = "request123"
-      authManager.state.details = "details"
-      authManager.state.status = AuthStatus.PendingResponse
+      socket.auth.challenge = "challenge123"
+      socket.auth.request = "request123"
+      socket.auth.details = "details"
+      socket.auth.status = AuthStatus.PendingResponse
 
       socket.emit(SocketEvent.Status, SocketStatus.Closed)
 
-      expect(authManager.state.challenge).toBeUndefined()
-      expect(authManager.state.request).toBeUndefined()
-      expect(authManager.state.details).toBeUndefined()
-      expect(authManager.state.status).toBe(AuthStatus.None)
+      expect(socket.auth.challenge).toBeUndefined()
+      expect(socket.auth.request).toBeUndefined()
+      expect(socket.auth.details).toBeUndefined()
+      expect(socket.auth.status).toBe(AuthStatus.None)
     })
 
     it("should emit status changes", () => {
       const statusSpy = vi.fn()
-      authManager.state.on(AuthStateEvent.Status, statusSpy)
+      socket.auth.on(AuthStateEvent.Status, statusSpy)
 
-      authManager.state.setStatus(AuthStatus.Requested)
+      socket.auth.setStatus(AuthStatus.Requested)
 
       expect(statusSpy).toHaveBeenCalledWith(AuthStatus.Requested)
     })
 
     it("should cleanup properly", () => {
-      const removeListenersSpy = vi.spyOn(authManager.state, "removeAllListeners")
-      authManager.state.cleanup()
+      const removeListenersSpy = vi.spyOn(socket.auth, "removeAllListeners")
+      socket.auth.cleanup()
       expect(removeListenersSpy).toHaveBeenCalled()
     })
   })
 
-  describe("AuthManager", () => {
-    it("should create AuthState instance", () => {
-      expect(authManager.state).toBeInstanceOf(AuthState)
+  describe("authenticate", () => {
+    it("should throw an error when there is no challenge", async () => {
+      const sign = vi.fn()
+
+      await expect(socket.auth.authenticate(sign)).rejects.toThrow(
+        "Attempted to authenticate with no challenge"
+      )
     })
 
-    it("should respond automatically when eager is true", () => {
-      const respondSpy = vi.spyOn(AuthManager.prototype, "respond")
-      const eagerManager = new AuthManager(socket, { sign, eager: true })
+    it("should throw an error when status is not requested", async () => {
+      const sign = vi.fn()
 
-      socket.emit(SocketEvent.Receive, ["AUTH", "challenge123"])
+      socket.auth.challenge = "challenge123"
+      socket.auth.status = AuthStatus.PendingResponse
 
-      expect(respondSpy).toHaveBeenCalled()
+      await expect(socket.auth.authenticate(sign)).rejects.toThrow(
+        "Attempted to authenticate when auth is already auth:status:pending_response"
+      )
     })
 
-    it("should not respond automatically when eager is false", () => {
-      const respondSpy = vi.spyOn(AuthManager.prototype, "respond")
-      socket.emit(SocketEvent.Receive, ["AUTH", "challenge123"])
+    it("should update status when signature fails", async () => {
+      const sign = vi.fn()
 
-      expect(respondSpy).not.toHaveBeenCalled()
+      socket.auth.challenge = "challenge123"
+      socket.auth.status = AuthStatus.Requested
+
+      await socket.auth.authenticate(sign)
+
+      expect(socket.auth.status).toBe(AuthStatus.DeniedSignature)
     })
 
-    describe("respond", () => {
-      it("should throw error if no challenge", async () => {
-        await expect(authManager.respond()).rejects.toThrow("Attempted to authenticate with no challenge")
-      })
+    it("should send AUTH message", async () => {
+      const sendSpy = vi.spyOn(socket, 'send')
+      let event
 
-      it("should throw error if status is not Requested", async () => {
-        authManager.state.challenge = "challenge123"
-        authManager.state.status = AuthStatus.PendingSignature
+      socket.auth.challenge = "challenge123"
+      socket.auth.status = AuthStatus.Requested
 
-        await expect(authManager.respond()).rejects.toThrow("Attempted to authenticate when auth is already auth:status:pending_signature")
-      })
+      const sign = async e => {
+        event = await Nip01Signer.ephemeral().sign(e)
 
-      it("should handle successful sign", async () => {
-        const sendSpy = vi.spyOn(socket, 'send')
+        return event
+      }
 
-        authManager.state.challenge = "challenge123"
-        authManager.state.status = AuthStatus.Requested
-        const signedEvent = { id: "signed-event-id", kind: CLIENT_AUTH }
-        sign.mockResolvedValue(signedEvent)
+      await socket.auth.authenticate(sign)
 
-        await authManager.respond()
-
-        expect(authManager.state.request).toBe("signed-event-id")
-        expect(sendSpy).toHaveBeenCalledWith(["AUTH", signedEvent])
-      })
-
-      it("should handle denied signature", async () => {
-        const sendSpy = vi.spyOn(socket, 'send')
-
-        authManager.state.challenge = "challenge123"
-        authManager.state.status = AuthStatus.Requested
-        sign.mockResolvedValue(null)
-
-        await authManager.respond()
-
-        expect(authManager.state.status).toBe(AuthStatus.DeniedSignature)
-        expect(sendSpy).not.toHaveBeenCalled()
-      })
-    })
-
-    describe("attempt", () => {
-      it("should attempt to open socket", async () => {
-        const attemptToOpenSpy = vi.spyOn(socket, 'attemptToOpen')
-        await authManager.attempt()
-        expect(attemptToOpenSpy).toHaveBeenCalled()
-      })
-
-      it("should wait for challenge", async () => {
-        const waitForChallengeSpy = vi.spyOn(authManager, "waitForChallenge")
-        await authManager.attempt()
-        expect(waitForChallengeSpy).toHaveBeenCalled()
-      })
-
-      it("should respond if challenge received", async () => {
-        const respondSpy = vi.spyOn(authManager, "respond")
-        authManager.state.challenge = "challenge123"
-        authManager.state.status = AuthStatus.Requested
-        await authManager.attempt()
-        expect(respondSpy).toHaveBeenCalled()
-      })
-
-      it("should wait for resolution", async () => {
-        const waitForResolutionSpy = vi.spyOn(authManager, "waitForResolution")
-        await authManager.attempt()
-        expect(waitForResolutionSpy).toHaveBeenCalled()
-      })
+      expect(socket.auth.request).toStrictEqual(event.id)
+      expect(sendSpy).toHaveBeenCalledWith(["AUTH", event])
     })
   })
 })

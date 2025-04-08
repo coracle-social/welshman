@@ -151,7 +151,7 @@ describe("getAdapter", () => {
 
     const adapter = getAdapter(url, { getAdapter: getCustomAdapter })
 
-    expect(getCustomAdapter).toHaveBeenCalledWith(url, { getAdapter: getCustomAdapter })
+    expect(getCustomAdapter).toHaveBeenCalledWith(url, expect.objectContaining({ getAdapter: getCustomAdapter }))
     expect(adapter).toBe(customAdapter)
   })
 })

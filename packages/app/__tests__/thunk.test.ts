@@ -15,7 +15,7 @@ import {
   prepEvent,
   publishThunk,
   publishThunks,
-  thunkWorker,
+  thunkQueue,
   walkThunks,
 } from "../src/thunk"
 
@@ -34,12 +34,13 @@ describe("thunk", () => {
     addSession({method: 'nip01', secret, pubkey})
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    thunkQueue.stop()
+    thunkQueue.clear()
+    await vi.runAllTimersAsync()
     vi.useRealTimers()
     vi.clearAllMocks()
-    thunkWorker.clear()
-    thunkWorker.pause()
-    thunkWorker.resume()
+    thunkQueue.start()
     dropSession(pubkey)
   })
 
@@ -110,23 +111,21 @@ describe("thunk", () => {
   it("should update status during publishing", async () => {
     const send = vi.fn()
     const track = vi.spyOn(tracker, 'track')
-    const statuses: Map<string, any> = new Map<string, any>()
     const thunk = makeThunk(mockRequest)
+    let status = {}
 
     // Subscribe to status updates
-    thunk.status.subscribe(status => {
-      for (const [key, value] of Object.entries(status)) {
-        statuses.set(key, value)
-      }
+    thunk.status.subscribe(_status => {
+      status = _status
     })
 
     // Start the publish process
-    thunkWorker.push(thunk)
+    thunkQueue.push(thunk)
 
     // Wait for initial async operations
     await vi.runAllTimersAsync()
 
-    expect(statuses.get(LOCAL_RELAY_URL)).toEqual({
+    expect(status[LOCAL_RELAY_URL]).toEqual({
       status: PublishStatus.Success,
       message: "",
     })

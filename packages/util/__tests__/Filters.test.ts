@@ -211,7 +211,7 @@ describe("Filters", () => {
 
     it("should get filter result cardinality", () => {
       expect(Filters.getFilterResultCardinality({ids: [id, id + "1"]})).toBe(2)
-      expect(Filters.getFilterResultCardinality({kinds: [1]})).toBeNull()
+      expect(Filters.getFilterResultCardinality({kinds: [1]})).toBeUndefined()
     })
 
     it("should trim large filters", () => {

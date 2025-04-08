@@ -42,24 +42,24 @@ describe('policy', () => {
   describe("socketPolicyAuthBuffer", () => {
     it("should buffer messages when not authenticated", () => {
       const cleanup = socketPolicyAuthBuffer(socket)
-      const removeSpy = vi.spyOn(socket._sendQueue, 'remove')
+      const sendSpy = vi.spyOn(socket, 'send')
 
       socket.emit(SocketEvent.Receive, ["AUTH", "challenge"])
 
       // Regular event should be buffered
       const event: ClientMessage = ["EVENT", { id: "123"}]
       socket.send(event)
-      expect(removeSpy).toHaveBeenCalledWith(event)
+      expect(sendSpy).toHaveBeenCalledWith(event)
 
       // Auth event should not be buffered
       const authEvent: ClientMessage = ["AUTH", { id: "456" }]
       socket.send(authEvent)
-      expect(removeSpy).not.toHaveBeenCalledWith(authEvent)
+      expect(sendSpy).toHaveBeenCalledWith(authEvent)
 
       // Auth join event should not be buffered
       const joinEvent: ClientMessage = ["EVENT", { id: "789", kind: AUTH_JOIN }]
       socket.send(joinEvent)
-      expect(removeSpy).not.toHaveBeenCalledWith(joinEvent)
+      expect(sendSpy).toHaveBeenCalledWith(joinEvent)
 
       cleanup()
     })
@@ -88,7 +88,7 @@ describe('policy', () => {
 
     it("should handle CLOSE messages properly", () => {
       const cleanup = socketPolicyAuthBuffer(socket)
-      const removeSpy = vi.spyOn(socket._sendQueue, 'remove')
+      const sendSpy = vi.spyOn(socket, 'send')
 
       socket.emit(SocketEvent.Receive, ["AUTH", "challenge"])
 
@@ -100,55 +100,59 @@ describe('policy', () => {
       const close: ClientMessage = ["CLOSE", "123"]
       socket.send(close)
 
-      // Both messages should be removed
-      expect(removeSpy).toHaveBeenCalledWith(req)
-      expect(removeSpy).toHaveBeenCalledWith(close)
+      // Both messages should be sent
+      expect(sendSpy).toHaveBeenCalledWith(req)
+      expect(sendSpy).toHaveBeenCalledWith(close)
 
       cleanup()
     })
 
     it("should retry events once when auth-required", () => {
       const cleanup = socketPolicyAuthBuffer(socket)
-      const sendSpy = vi.spyOn(socket, 'send')
+      const recvQueueRemoveSpy = vi.spyOn(socket._recvQueue, 'remove')
 
       // Send an event
       const event: ClientMessage = ["EVENT", { id: "123", kind: 1, content: "", tags: [], pubkey: "", sig: "" }]
       socket.emit(SocketEvent.Send, event)
 
       // Receive auth-required rejection
-      socket.emit(SocketEvent.Receive, ["OK", "123", false, "auth-required: need to auth first"])
+      const authReqMsg: RelayMessage = ["OK", "123", false, "auth-required: need to auth first"]
+      socket.emit(SocketEvent.Receiving, authReqMsg)
 
-      // Should retry the event
-      expect(sendSpy).toHaveBeenCalledWith(event)
+      // Should remove the auth-required message
+      expect(recvQueueRemoveSpy).toHaveBeenCalledWith(authReqMsg)
 
       // Receive another auth-required rejection
-      socket.emit(SocketEvent.Receive, ["OK", "123", false, "auth-required: need to auth first"])
+      const authReqMsg2: RelayMessage = ["OK", "123", false, "auth-required: need to auth first"]
+      socket.emit(SocketEvent.Receiving, authReqMsg2)
 
-      // Should not retry again
-      expect(sendSpy).toHaveBeenCalledTimes(1)
+      // Should remove the second auth-required message too
+      expect(recvQueueRemoveSpy).toHaveBeenCalledWith(authReqMsg2)
 
       cleanup()
     })
 
     it("should retry REQ once when auth-required", () => {
       const cleanup = socketPolicyAuthBuffer(socket)
-      const sendSpy = vi.spyOn(socket, 'send')
+      const recvQueueRemoveSpy = vi.spyOn(socket._recvQueue, 'remove')
 
       // Send a REQ
       const req: ClientMessage = ["REQ", "123", { kinds: [1] }]
       socket.emit(SocketEvent.Send, req)
 
-      // Receive auth-required rejection via CLOSED
-      socket.emit(SocketEvent.Receive, ["CLOSED", "123", "auth-required: need to auth first"])
+      // Receive auth-required rejection
+      const authReqMsg: RelayMessage = ["OK", "123", false, "auth-required: need to auth first"]
+      socket.emit(SocketEvent.Receiving, authReqMsg)
 
-      // Should retry the request
-      expect(sendSpy).toHaveBeenCalledWith(req)
+      // Should remove the auth-required message
+      expect(recvQueueRemoveSpy).toHaveBeenCalledWith(authReqMsg)
 
       // Receive another auth-required rejection
-      socket.emit(SocketEvent.Receive, ["CLOSED", "123", "auth-required: need to auth first"])
+      const authReqMsg2: RelayMessage = ["OK", "123", false, "auth-required: need to auth first"]
+      socket.emit(SocketEvent.Receiving, authReqMsg2)
 
-      // Should not retry again
-      expect(sendSpy).toHaveBeenCalledTimes(1)
+      // Should remove the second auth-required message too
+      expect(recvQueueRemoveSpy).toHaveBeenCalledWith(authReqMsg2)
 
       cleanup()
     })

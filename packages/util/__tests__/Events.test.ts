@@ -186,12 +186,12 @@ describe("Events", () => {
     it("should validate signature using verifiedSymbol", () => {
       let event = createSignedEvent() as Events.SignedEvent
       event[verifiedSymbol] = true
-      expect(Events.hasValidSignature(event)).toBe(true)
+      expect(Events.verifyEvent(event)).toBe(true)
 
-      // Clear verifiedSymbol and use verify the actual signature
+      // Clear verifiedSymbol and verify the actual signature
       delete event[verifiedSymbol]
-      // the signature is invalid, but the sig validity is not checked here
-      expect(Events.hasValidSignature(event)).toBe(true)
+      // the signature is invalid, so verifyEvent should return false
+      expect(Events.verifyEvent(event)).toBe(false)
     })
   })
 

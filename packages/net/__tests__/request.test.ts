@@ -1,12 +1,11 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { Nip01Signer } from '@welshman/signer'
-import { LOCAL_RELAY_URL, makeEvent } from '@welshman/util'
-import { ClientMessageType, RelayMessage } from "../src/message"
-import { AdapterContext, AbstractAdapter, AdapterEvent, MockAdapter } from "../src/adapter"
+import { makeEvent } from '@welshman/util'
+import { ClientMessageType } from "../src/message"
+import { MockAdapter } from "../src/adapter"
 import { SingleRequest, MultiRequest, RequestEvent } from "../src/request"
-import { Tracker } from "../src/tracker"
 
-describe("Unireq", () => {
+describe("SingleRequest", () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -22,7 +21,6 @@ describe("Unireq", () => {
       relay: 'whatever',
       filters: [{kinds: [1]}],
       context: {getAdapter: () => adapter},
-      autoClose: true,
     })
 
     const duplicateSpy = vi.fn()
@@ -41,19 +39,21 @@ describe("Unireq", () => {
 
     await vi.runAllTimersAsync()
 
-    expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Req, expect.any(String), {kinds: [1]}])
+    const id = Array.from(req._ids)[0]
+
+    expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Req, id, {kinds: [1]}])
 
     const signer = Nip01Signer.ephemeral()
     const event1 = await signer.sign(makeEvent(1))
     const event2 = await signer.sign(makeEvent(7))
     const event3 = makeEvent(1)
 
-    adapter.receive(["EVENT", expect.any(String), event1])
-    adapter.receive(["EVENT", expect.any(String), event2])
-    adapter.receive(["EVENT", expect.any(String), event1])
-    adapter.receive(["EVENT", expect.any(String), event3])
+    adapter.receive(["EVENT", id, event1])
+    adapter.receive(["EVENT", id, event2])
+    adapter.receive(["EVENT", id, event1])
+    adapter.receive(["EVENT", id, event3])
 
-    await vi.runAllTimers()
+    await vi.runAllTimersAsync()
 
     expect(duplicateSpy).toHaveBeenCalledWith(event1)
     expect(filteredSpy).toHaveBeenCalledWith(event2)
@@ -61,14 +61,17 @@ describe("Unireq", () => {
     expect(eventSpy).toHaveBeenCalledWith(event1)
     expect(eoseSpy).toHaveBeenCalledTimes(0)
 
-    adapter.receive(["EOSE", expect.any(String)])
+    adapter.receive(["EOSE", id])
 
     expect(eoseSpy).toHaveBeenCalledTimes(1)
+
+    req.close()
+
     expect(closeSpy).toHaveBeenCalledTimes(1)
   })
 })
 
-describe("Multireq", () => {
+describe("MultiRequest", () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -83,7 +86,6 @@ describe("Multireq", () => {
     const send2Spy = vi.fn()
     const adapter2 = new MockAdapter('2', send2Spy)
     const req = new MultiRequest({
-      autoClose: true,
       relays: ['1', '2'],
       filters: [{kinds: [1]}],
       context: {
@@ -105,10 +107,13 @@ describe("Multireq", () => {
     req.on(RequestEvent.Eose, eoseSpy)
     req.on(RequestEvent.Close, closeSpy)
 
-    await vi.runAllTimers()
+    await vi.runAllTimersAsync()
 
-    expect(send1Spy).toHaveBeenCalledWith([ClientMessageType.Req, expect.any(String), {kinds: [1]}])
-    expect(send2Spy).toHaveBeenCalledWith([ClientMessageType.Req, expect.any(String), {kinds: [1]}])
+    const id1 = Array.from(req._children[0]._ids)[0]
+    const id2 = Array.from(req._children[1]._ids)[0]
+
+    expect(send1Spy).toHaveBeenCalledWith([ClientMessageType.Req, id1, {kinds: [1]}])
+    expect(send2Spy).toHaveBeenCalledWith([ClientMessageType.Req, id2, {kinds: [1]}])
 
     const signer = Nip01Signer.ephemeral()
     const event1 = await signer.sign(makeEvent(1))
@@ -116,13 +121,13 @@ describe("Multireq", () => {
     const event3 = makeEvent(1)
     const event4 = await signer.sign(makeEvent(1))
 
-    adapter1.receive(["EVENT", expect.any(String), event1])
-    adapter1.receive(["EVENT", expect.any(String), event2])
-    adapter1.receive(["EVENT", expect.any(String), event3])
-    adapter2.receive(["EVENT", expect.any(String), event1])
-    adapter2.receive(["EVENT", expect.any(String), event4])
+    adapter1.receive(["EVENT", id1, event1])
+    adapter1.receive(["EVENT", id1, event2])
+    adapter1.receive(["EVENT", id1, event3])
+    adapter2.receive(["EVENT", id2, event1])
+    adapter2.receive(["EVENT", id2, event4])
 
-    await vi.runAllTimers()
+    await vi.runAllTimersAsync()
 
     expect(duplicateSpy).toHaveBeenCalledWith(event1, '2')
     expect(filteredSpy).toHaveBeenCalledWith(event2, '1')
@@ -130,10 +135,13 @@ describe("Multireq", () => {
     expect(eventSpy).toHaveBeenCalledWith(event1, '1')
     expect(eoseSpy).toHaveBeenCalledTimes(0)
 
-    adapter1.receive(["EOSE", expect.any(String)])
-    adapter2.receive(["EOSE", expect.any(String)])
+    adapter1.receive(["EOSE", id1])
+    adapter2.receive(["EOSE", id2])
 
     expect(eoseSpy).toHaveBeenCalledTimes(2)
+
+    req.close()
+
     expect(closeSpy).toHaveBeenCalledTimes(1)
   })
 })

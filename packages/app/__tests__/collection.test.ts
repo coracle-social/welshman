@@ -85,7 +85,7 @@ describe("collection", () => {
       })
 
       await col.loadItem("1")
-      expect(mockLoad).toHaveBeenCalledWith("1")
+      expect(mockLoad).toHaveBeenCalledWith("1", [])
     })
 
     it("should handle concurrent loading of the same item", async () => {
@@ -212,7 +212,7 @@ describe("collection", () => {
       })
 
       col.deriveItem("1")
-      expect(mockLoad).toHaveBeenCalledWith("1")
+      expect(mockLoad).toHaveBeenCalledWith("1", [])
     })
   })
 

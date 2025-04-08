@@ -56,7 +56,7 @@ describe("Socket", () => {
       expect(() => socket.open()).toThrow("Attempted to open a websocket that has not been closed")
     })
 
-    it("should emit invalid status on invalid URL", () => {
+    it("should emit error status on invalid URL", () => {
       const statusSpy = vi.fn()
       socket.on(SocketEvent.Status, statusSpy)
 
@@ -66,7 +66,7 @@ describe("Socket", () => {
 
       socket.open()
 
-      expect(statusSpy).toHaveBeenCalledWith(SocketStatus.Invalid, "wss://test.relay")
+      expect(statusSpy).toHaveBeenCalledWith(SocketStatus.Error, "wss://test.relay")
     })
   })
 
