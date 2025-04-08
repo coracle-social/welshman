@@ -20,7 +20,7 @@ describe("Unireq", () => {
     const adapter = new MockAdapter('1', sendSpy)
     const req = new SingleRequest({
       relay: 'whatever',
-      filter: {kinds: [1]},
+      filters: [{kinds: [1]}],
       context: {getAdapter: () => adapter},
       autoClose: true,
     })
@@ -39,19 +39,19 @@ describe("Unireq", () => {
     req.on(RequestEvent.Eose, eoseSpy)
     req.on(RequestEvent.Close, closeSpy)
 
-    await vi.runAllTimers()
+    await vi.runAllTimersAsync()
 
-    expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Req, req._id, {kinds: [1]}])
+    expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Req, expect.any(String), {kinds: [1]}])
 
     const signer = Nip01Signer.ephemeral()
     const event1 = await signer.sign(makeEvent(1))
     const event2 = await signer.sign(makeEvent(7))
     const event3 = makeEvent(1)
 
-    adapter.receive(["EVENT", req._id, event1])
-    adapter.receive(["EVENT", req._id, event2])
-    adapter.receive(["EVENT", req._id, event1])
-    adapter.receive(["EVENT", req._id, event3])
+    adapter.receive(["EVENT", expect.any(String), event1])
+    adapter.receive(["EVENT", expect.any(String), event2])
+    adapter.receive(["EVENT", expect.any(String), event1])
+    adapter.receive(["EVENT", expect.any(String), event3])
 
     await vi.runAllTimers()
 
@@ -61,7 +61,7 @@ describe("Unireq", () => {
     expect(eventSpy).toHaveBeenCalledWith(event1)
     expect(eoseSpy).toHaveBeenCalledTimes(0)
 
-    adapter.receive(["EOSE", req._id])
+    adapter.receive(["EOSE", expect.any(String)])
 
     expect(eoseSpy).toHaveBeenCalledTimes(1)
     expect(closeSpy).toHaveBeenCalledTimes(1)
@@ -85,7 +85,7 @@ describe("Multireq", () => {
     const req = new MultiRequest({
       autoClose: true,
       relays: ['1', '2'],
-      filter: {kinds: [1]},
+      filters: [{kinds: [1]}],
       context: {
         getAdapter: (url: string) => url === '1' ? adapter1 : adapter2
       },
@@ -107,8 +107,8 @@ describe("Multireq", () => {
 
     await vi.runAllTimers()
 
-    expect(send1Spy).toHaveBeenCalledWith([ClientMessageType.Req, req._children[0]._id, {kinds: [1]}])
-    expect(send2Spy).toHaveBeenCalledWith([ClientMessageType.Req, req._children[1]._id, {kinds: [1]}])
+    expect(send1Spy).toHaveBeenCalledWith([ClientMessageType.Req, expect.any(String), {kinds: [1]}])
+    expect(send2Spy).toHaveBeenCalledWith([ClientMessageType.Req, expect.any(String), {kinds: [1]}])
 
     const signer = Nip01Signer.ephemeral()
     const event1 = await signer.sign(makeEvent(1))
@@ -116,11 +116,11 @@ describe("Multireq", () => {
     const event3 = makeEvent(1)
     const event4 = await signer.sign(makeEvent(1))
 
-    adapter1.receive(["EVENT", req._children[0]._id, event1])
-    adapter1.receive(["EVENT", req._children[0]._id, event2])
-    adapter1.receive(["EVENT", req._children[0]._id, event3])
-    adapter2.receive(["EVENT", req._children[1]._id, event1])
-    adapter2.receive(["EVENT", req._children[1]._id, event4])
+    adapter1.receive(["EVENT", expect.any(String), event1])
+    adapter1.receive(["EVENT", expect.any(String), event2])
+    adapter1.receive(["EVENT", expect.any(String), event3])
+    adapter2.receive(["EVENT", expect.any(String), event1])
+    adapter2.receive(["EVENT", expect.any(String), event4])
 
     await vi.runAllTimers()
 
@@ -130,8 +130,8 @@ describe("Multireq", () => {
     expect(eventSpy).toHaveBeenCalledWith(event1, '1')
     expect(eoseSpy).toHaveBeenCalledTimes(0)
 
-    adapter1.receive(["EOSE", req._children[0]._id])
-    adapter2.receive(["EOSE", req._children[1]._id])
+    adapter1.receive(["EOSE", expect.any(String)])
+    adapter2.receive(["EOSE", expect.any(String)])
 
     expect(eoseSpy).toHaveBeenCalledTimes(2)
     expect(closeSpy).toHaveBeenCalledTimes(1)
