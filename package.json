@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "test": "vitest",
     "docs:dev": "vitepress dev docs",
-    "docs:build": "npx typedoc && vitepress build docs",
+    "docs:build": "typedoc && vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {

@@ -1,3 +1,5 @@
+// Copied from https://github.com/sindresorhus/normalize-url
+
 export type Options = {
 	/**
 	@default 'http'

@@ -1,18 +1,15 @@
 import {defineConfig} from "vitepress"
 import typeDocSidebar from "../reference/typedoc-sidebar.json"
 
-// https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: "Welshman",
   description: "The official Welshman documentation",
   ignoreDeadLinks: true,
   themeConfig: {
-    // https://vitepress.dev/reference/default-theme-config
     nav: [
       {text: "Guide", link: "/what-is-welshman"},
       {text: "Reference", link: "/reference/"},
     ],
-
     sidebar: {
       "/reference/": [...typeDocSidebar],
       "/": [
@@ -139,7 +136,6 @@ export default defineConfig({
         },
       ],
     },
-
     socialLinks: [{icon: "github", link: "https://github.com/vuejs/vitepress"}],
   },
 })

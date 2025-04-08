@@ -4,11 +4,11 @@ A lightweight TypeScript utility library with zero dependencies, providing essen
 
 ## What's Included
 
-- **Deferred Promises** - Create promises with exposed resolve/reject methods
-- **LRU Cache** - Efficient caching with automatic eviction policies
 - **Utility Functions** - Helpers for arrays, objects, strings, and more
-- **Worker Queue** - Process tasks asynchronously with batching and throttling
-
+- **LRU Cache** - Efficient caching with automatic eviction policies
+- **Task Queue** - Process tasks asynchronously with batching and throttling
+- **URL Normalization** - A utility function for normalizing URLs
+- **Deferred Promises** - Create promises with exposed resolve/reject methods
 
 ## Installation
 

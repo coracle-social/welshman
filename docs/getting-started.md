@@ -7,6 +7,9 @@ Welshman is modular - install only what you need:
 # Core nostr utilities (events, filters, tags)
 npm i @welshman/util
 
+# In-memory event store and relay adapter
+npm i @welshman/relay
+
 # Networking and relay management
 npm i @welshman/net
 
@@ -18,11 +21,7 @@ npm i @welshman/signer
 
 # Dynamic feed compilation
 npm i @welshman/feeds
-```
 
-For Svelte applications, additional packages provide reactive state management:
-
-```bash
 # Svelte stores and state management
 npm i @welshman/store
 
@@ -35,23 +34,19 @@ npm i @welshman/editor
 
 Choose packages based on your needs:
 
-- Building a framework-agnostic client? Start with:
+- Building a conventional client? Use the framework:
   ```bash
-  npm i @welshman/util @welshman/net @welshman/signer @welshman/feeds
+  npm i @welshman/app
   ```
 
-- Building a Svelte client? Add state management:
+- Prefer to put things together yourself? Start with:
   ```bash
-  npm i @welshman/store @welshman/app
+  npm i @welshman/util @welshman/net @welshman/signer
   ```
 
-- Need content features? Include:
+- Just parsing and rendering content? Include:
   ```bash
   npm i @welshman/content
   ```
 
-- Want the full Svelte stack used by Coracle.social and Flotilla?
-  ```bash
-  npm i @welshman/util @welshman/net @welshman/signer @welshman/feeds @welshman/store @welshman/app @welshman/content @welshman/editor
-  ```
-Each package is independent but integrates seamlessly. The core packages (`util`, `net`, `signer`, `feeds`, `content`) work with any framework, while `store`, `app` and `editor` are built for Svelte applications.
+Each package is independent but integrates seamlessly. All packages are framework-agnostic, but work best with Svelte.
