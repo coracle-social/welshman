@@ -1,4 +1,5 @@
-import type {Repository, TrustedEvent} from "@welshman/util"
+import {TrustedEvent} from "@welshman/util"
+import {Repository} from "@welshman/relay"
 import {get} from "svelte/store"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {

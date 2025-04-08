@@ -36,7 +36,6 @@ describe("Content Truncation", () => {
         value: {
           url: new URL("https://example.com/image.jpg"),
           meta: {},
-          isMedia: true,
         },
         raw: "https://example.com/image.jpg",
       },
@@ -83,7 +82,6 @@ describe("Content Truncation", () => {
         value: {
           url: new URL("https://example.com/image.jpg"),
           meta: {},
-          isMedia: true,
         },
         raw: "https://example.com/image.jpg",
       },
@@ -141,8 +139,8 @@ describe("Content Truncation", () => {
         type: ParsedType.LinkGrid,
         value: {
           links: [
-            {url: new URL("https://example.com/1.jpg"), meta: {}, isMedia: true},
-            {url: new URL("https://example.com/2.jpg"), meta: {}, isMedia: true},
+            {url: new URL("https://example.com/1.jpg"), meta: {}},
+            {url: new URL("https://example.com/2.jpg"), meta: {}},
           ],
         },
         raw: "",

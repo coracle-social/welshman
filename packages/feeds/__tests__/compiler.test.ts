@@ -1,6 +1,6 @@
 import {defaultTagFeedMappings} from "@welshman/feeds"
 import {now} from "@welshman/lib"
-import {getAddress, type TrustedEvent} from "@welshman/util"
+import {getAddress, TrustedEvent} from "@welshman/util"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 import {FeedCompiler} from "../src/compiler"
 import {Feed, FeedType, Scope} from "../src/core"
@@ -269,7 +269,7 @@ describe("FeedCompiler", () => {
         sig: "sig1",
       }
 
-      mockOptions.requestDVM.mockImplementation(async ({onEvent}) => {
+      mockOptions.requestDVM.mockImplementation(async ({onEvent}: any) => {
         await onEvent(mockEvent)
       })
 
@@ -307,7 +307,7 @@ describe("FeedCompiler", () => {
         sig: "sig1",
       }
 
-      mockOptions.request.mockImplementation(({onEvent}) => {
+      mockOptions.request.mockImplementation(({onEvent}: any) => {
         onEvent(mockEvent)
       })
 
@@ -345,7 +345,7 @@ describe("FeedCompiler", () => {
         sig: "sig1",
       }
 
-      mockOptions.request.mockImplementation(({onEvent}) => {
+      mockOptions.request.mockImplementation(({onEvent}: any) => {
         onEvent(labelEvent)
       })
 
@@ -381,7 +381,7 @@ describe("FeedCompiler", () => {
         sig: "sig1",
       }
 
-      mockOptions.requestDVM.mockImplementation(async ({onEvent}) => {
+      mockOptions.requestDVM.mockImplementation(async ({onEvent}: any) => {
         await onEvent(mockEvent)
       })
 

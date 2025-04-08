@@ -4,13 +4,13 @@ import { Pool, makeSocket } from "../src/pool"
 import { normalizeRelayUrl } from "@welshman/util"
 
 vi.mock('isomorphic-ws', () => {
-  const WebSocket = vi.fn(function () {
+  const WebSocket = vi.fn(function (this: any) {
     setTimeout(() => this.onopen())
   })
 
   WebSocket.prototype.send = vi.fn()
 
-  WebSocket.prototype.close = vi.fn(function () {
+  WebSocket.prototype.close = vi.fn(function (this: any) {
     this.onclose()
   })
 
@@ -97,7 +97,7 @@ describe("Pool", () => {
     it("should remove and cleanup existing socket", () => {
       const mockSocket = { url: "wss://test.relay", cleanup: vi.fn() }
 
-      pool._data.set(mockSocket.url, mockSocket)
+      pool._data.set(mockSocket.url, mockSocket as unknown as Socket)
       pool.remove(mockSocket.url)
 
       expect(mockSocket.cleanup).toHaveBeenCalled()
@@ -116,7 +116,7 @@ describe("Pool", () => {
       const mockSockets = urls.map(url => ({ url, cleanup: vi.fn() }))
 
       for (const mockSocket of mockSockets) {
-        pool._data.set(mockSocket.url, mockSocket)
+        pool._data.set(mockSocket.url, mockSocket as unknown as Socket)
       }
 
       pool.clear()

@@ -103,14 +103,14 @@ describe("SinglePublish", () => {
     pub.on(PublishEvent.Complete, completeSpy)
     pub.on(PublishEvent.Timeout, timeoutSpy)
 
-    await vi.runAllTimers(200)
+    await vi.runAllTimers()
 
     expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Event, event])
 
     await vi.runAllTimers()
 
     expect(successSpy).not.toHaveBeenCalled()
-    expect(failureSpy).not.toHaveBeenCalled(event.id, "hi")
+    expect(failureSpy).not.toHaveBeenCalled()
     expect(completeSpy).toHaveBeenCalled()
     expect(timeoutSpy).toHaveBeenCalled()
   })
@@ -137,7 +137,7 @@ describe("SinglePublish", () => {
     pub.on(PublishEvent.Complete, completeSpy)
     pub.on(PublishEvent.Timeout, abortSpy)
 
-    await vi.runAllTimers(200)
+    await vi.runAllTimers()
 
     expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Event, event])
 
@@ -146,7 +146,7 @@ describe("SinglePublish", () => {
     await vi.runAllTimers()
 
     expect(successSpy).not.toHaveBeenCalled()
-    expect(failureSpy).not.toHaveBeenCalled(event.id, "hi")
+    expect(failureSpy).not.toHaveBeenCalled()
     expect(completeSpy).toHaveBeenCalled()
     expect(abortSpy).toHaveBeenCalled()
   })

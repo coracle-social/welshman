@@ -1,7 +1,7 @@
 import {describe, it, vi, expect, beforeEach} from "vitest"
 import {now} from "@welshman/lib"
 import {getAddress, TrustedEvent, DELETE, MUTES} from "@welshman/util"
-import {Repository} from "../src/Repository"
+import {Repository} from "../src/repository"
 
 describe("Repository", () => {
   beforeEach(() => {

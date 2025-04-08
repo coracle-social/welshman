@@ -1,9 +1,9 @@
 node_modules
 **/dist
-**/cached
-**/cache
-**/temp
-**/reference
+docs/.vitepress/dist
+docs/.vitepress/cache
+docs/.vitepress/.temp
+docs/reference
 results
 .nyc_output
 *.tsbuildinfo

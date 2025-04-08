@@ -1,0 +1,10 @@
+{
+  "name": "Welshman Docs",
+  "out": "./docs/reference",
+  "docsRoot": "./docs",
+  "entryPoints": ["packages/*"],
+  "entryPointStrategy": "packages",
+  "exclude": ["**/normalize-url/*"],
+  "plugin": ["typedoc-plugin-markdown", "typedoc-vitepress-theme"],
+  "hideGenerator": true
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
 import { Socket, SocketStatus, SocketEvent } from "../src/socket"
-import { makeEvent, CLIENT_AUTH } from "@welshman/util"
+import { makeEvent, StampedEvent, CLIENT_AUTH } from "@welshman/util"
 import { Nip01Signer } from "@welshman/signer"
 import { AuthState, AuthStatus, AuthStateEvent, makeAuthEvent } from "../src/auth"
 import EventEmitter from "events"
@@ -146,7 +146,7 @@ describe('auth', () => {
       socket.auth.challenge = "challenge123"
       socket.auth.status = AuthStatus.Requested
 
-      const sign = async e => {
+      const sign = async (e: StampedEvent) => {
         event = await Nip01Signer.ephemeral().sign(e)
 
         return event
@@ -154,7 +154,7 @@ describe('auth', () => {
 
       await socket.auth.authenticate(sign)
 
-      expect(socket.auth.request).toStrictEqual(event.id)
+      expect(socket.auth.request).toStrictEqual(event!.id)
       expect(sendSpy).toHaveBeenCalledWith(["AUTH", event])
     })
   })

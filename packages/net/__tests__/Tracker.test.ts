@@ -1,5 +1,5 @@
-import {Tracker} from "../src/Tracker"
 import {vi, describe, it, expect, beforeEach} from "vitest"
+import {Tracker} from "../src/tracker"
 
 describe("Tracker", () => {
   let tracker: Tracker

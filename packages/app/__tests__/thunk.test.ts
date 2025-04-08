@@ -1,5 +1,5 @@
 import {now} from "@welshman/lib"
-import {publish, PublishStatus, MockAdapter} from "@welshman/net"
+import {PublishStatus, MockAdapter} from "@welshman/net"
 import {NOTE,  makeEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {LOCAL_RELAY_URL} from "@welshman/relay"
@@ -112,7 +112,7 @@ describe("thunk", () => {
     const send = vi.fn()
     const track = vi.spyOn(tracker, 'track')
     const thunk = makeThunk(mockRequest)
-    let status = {}
+    let status: Record<string, any> = {}
 
     // Subscribe to status updates
     thunk.status.subscribe(_status => {
