@@ -10,7 +10,6 @@ export enum SocketStatus {
   Closing = "socket:status:closing",
   Closed = "socket:status:closed",
   Error = "socket:status:error",
-  Invalid = "socket:status:invalid",
 }
 
 export enum SocketEvent {
@@ -110,7 +109,7 @@ export class Socket extends EventEmitter {
         }
       }
     } catch (e) {
-      this.emit(SocketEvent.Status, SocketStatus.Invalid, this.url)
+      this.emit(SocketEvent.Status, SocketStatus.Error, this.url)
     }
   }
 

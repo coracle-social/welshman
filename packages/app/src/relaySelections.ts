@@ -62,11 +62,7 @@ export const loadWithAsapMetaRelayUrls = <T>(pubkey: string, relays: string[], f
 
   return Promise.race([
     load({filters, relays: router.merge([router.FromRelays(relays), router.Index()]).getUrls()}),
-    loadRelaySelections(pubkey, relays).then(() => {
-      const relays = router.FromPubkey(pubkey).policy(addNoFallbacks).getUrls()
-
-      return load({filters, relays})
-    }),
+    loadRelaySelections(pubkey, relays).then(() => load({filters, relays: router.FromPubkey(pubkey).getUrls()})),
   ])
 }
 

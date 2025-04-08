@@ -141,7 +141,6 @@ export const getRelayQuality = (url: string) => {
     if (relay.stats.recent_errors.filter(n => n > ago(MINUTE)).length > 0) return 0
     if (relay.stats.recent_errors.filter(n => n > ago(HOUR)).length > 3) return 0
     if (relay.stats.recent_errors.filter(n => n > ago(DAY)).length > 10) return 0
-    if (relay.stats.recent_errors.filter(n => n > ago(WEEK)).length > 50) return 0
   }
 
   // Prefer stuff we're connected to
@@ -382,13 +381,13 @@ export class RouterScenario {
     }
 
     const scoreRelay = (relay: string) => {
-      const quality = this.router.options.getRelayQuality?.(relay) || 1
+      const quality = this.router.options.getRelayQuality?.(relay)
       const weight = relayWeights.get(relay)!
 
       // Log the weight, since it's a straight count which ends up over-weighting hubs.
       // Also add some random noise so that we'll occasionally pick lower quality/less
       // popular relays.
-      return -(quality * inc(Math.log(weight)) * Math.random())
+      return quality ? -(quality * inc(Math.log(weight)) * Math.random()) : 0
     }
 
     const relays = take(
@@ -492,7 +491,7 @@ export const getFilterSelections = (
   const result = []
 
   for (const [id, filter] of filtersById.entries()) {
-    const scenario = Router.get().merge(scenariosById.get(id) || [])
+    const scenario = Router.get().merge(scenariosById.get(id) || []).policy(addMinimalFallbacks)
 
     result.push({filters: [filter], relays: scenario.getUrls()})
   }

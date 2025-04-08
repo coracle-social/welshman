@@ -233,27 +233,26 @@ const onSocketStatus = (status: string, url: string) => {
       },
     ])
   }
-}
 
-const onSocketError = (error: string, url: string) =>
-  updateRelayStats([
-    url,
-    stats => {
-      stats.last_error = now()
-      stats.recent_errors = uniq(stats.recent_errors.concat(now())).slice(-10)
-    },
-  ])
+  if (status === SocketStatus.Error) {
+    updateRelayStats([
+      url,
+      stats => {
+        stats.last_error = now()
+        stats.recent_errors = uniq(stats.recent_errors.concat(now())).slice(-10)
+      },
+    ])
+  }
+}
 
 export const trackRelayStats = (socket: Socket) => {
   socket.on(SocketEvent.Send, onSocketSend)
   socket.on(SocketEvent.Receive, onSocketReceive)
   socket.on(SocketEvent.Status, onSocketStatus)
-  socket.on(SocketEvent.Error, onSocketError)
 
   return () => {
     socket.off(SocketEvent.Send, onSocketSend)
     socket.off(SocketEvent.Receive, onSocketReceive)
     socket.off(SocketEvent.Status, onSocketStatus)
-    socket.off(SocketEvent.Error, onSocketError)
   }
 }
