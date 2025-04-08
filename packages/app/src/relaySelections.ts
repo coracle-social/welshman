@@ -60,10 +60,22 @@ export const {
 export const loadWithAsapMetaRelayUrls = <T>(pubkey: string, relays: string[], filters: Filter[]) => {
   const router = Router.get()
 
-  return Promise.race([
-    load({filters, relays: router.merge([router.FromRelays(relays), router.Index()]).getUrls()}),
-    loadRelaySelections(pubkey, relays).then(() => load({filters, relays: router.FromPubkey(pubkey).getUrls()})),
-  ])
+  return new Promise(resolve => {
+    let resolved = 0
+
+    const onLoad = (events: TrustedEvent[]) => {
+      if (++resolved === 2 || events.length > 0) {
+        resolve(events)
+      }
+    }
+
+    load({filters, relays: router.merge([router.Index(), router.FromRelays(relays)]).getUrls()})
+      .then(onLoad)
+
+    loadRelaySelections(pubkey, relays)
+      .then(() => load({filters, relays: router.FromPubkey(pubkey).getUrls()}))
+      .then(onLoad)
+  })
 }
 
 export const inboxRelaySelections = deriveEventsMapped<PublishedList>(repository, {

@@ -76,10 +76,10 @@ export type RouterOptions = {
   getPubkeyRelays?: (pubkey: string, mode?: RelayMode) => string[]
 
   /**
-   * Retrieves fallback relays, for use when no other relays can be selected.
+   * Retrieves default relays, for use as fallbacks when no other relays can be selected.
    * @returns An array of relay URLs as strings.
    */
-  getFallbackRelays?: () => string[]
+  getDefaultRelays?: () => string[]
 
   /**
    * Retrieves relays that index profiles and relay selections.
@@ -177,7 +177,7 @@ export const getPubkeyRelays = (pubkey: string, mode?: string) => {
 export const routerContext: RouterOptions = {
   getRelayQuality,
   getPubkeyRelays,
-  getFallbackRelays: () => ["wss://relay.damus.io/", "wss://nos.lol/"],
+  getDefaultRelays: () => ["wss://relay.damus.io/", "wss://nos.lol/"],
   getIndexerRelays: () => ["wss://purplepag.es/", "wss://relay.nostr.band/"],
   getSearchRelays: () => ["wss://relay.nostr.band/", "wss://nostr.wine/"],
   getUserPubkey: () => pubkey.get(),
@@ -229,6 +229,8 @@ export class Router {
   Search = () => this.FromRelays(this.options.getSearchRelays?.() || [])
 
   Index = () => this.FromRelays(this.options.getIndexerRelays?.() || [])
+
+  Default = () => this.FromRelays(this.options.getDefaultRelays?.() || [])
 
   ForUser = () => this.FromRelays(this.getRelaysForUser(RelayMode.Read))
 
@@ -396,7 +398,7 @@ export class RouterScenario {
     )
 
     const fallbacksNeeded = fallbackPolicy(relays.length, limit)
-    const allFallbackRelays: string[] = this.router.options.getFallbackRelays?.() || []
+    const allFallbackRelays: string[] = this.router.options.getDefaultRelays?.() || []
     const fallbackRelays = shuffle(allFallbackRelays).slice(0, fallbacksNeeded)
 
     for (const fallbackRelay of fallbackRelays) {

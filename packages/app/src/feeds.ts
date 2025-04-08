@@ -5,7 +5,7 @@ import {Scope, FeedController, RequestOpts, FeedOptions, DVMOpts, Feed} from "@w
 import {makeDvmRequest, DVMEvent} from "@welshman/dvm"
 import {makeSecret, Nip01Signer} from "@welshman/signer"
 import {pubkey, signer} from "./session.js"
-import {Router, getFilterSelections} from "./router.js"
+import {Router, addMinimalFallbacks, getFilterSelections} from "./router.js"
 import {loadRelaySelections} from "./relaySelections.js"
 import {wotGraph, maxWot, getFollows, getNetwork, getFollowers} from "./wot.js"
 
@@ -33,9 +33,7 @@ export const requestDVM = async ({kind, onEvent, ...request}: DVMOpts) => {
   const tags = request.tags || []
   const $signer = signer.get() || new Nip01Signer(makeSecret())
   const pubkey = await $signer.getPubkey()
-  const relays = request.relays
-    ? Router.get().FromRelays(request.relays).getUrls()
-    : Router.get().FromPubkeys(getPubkeyTagValues(tags)).getUrls()
+  const relays = request.relays || Router.get().FromPubkeys(getPubkeyTagValues(tags)).policy(addMinimalFallbacks).getUrls()
 
   if (!tags.some(nthEq(0, "expiration"))) {
     tags.push(["expiration", String(now() + 60)])

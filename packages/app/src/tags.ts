@@ -14,19 +14,19 @@ import {Router} from "./router.js"
 export const tagZapSplit = (pubkey: string, split = 1) => [
   "zap",
   pubkey,
-  Router.get().FromPubkey(pubkey).getUrl(),
+  Router.get().FromPubkey(pubkey).getUrl() || "",
   String(split),
 ]
 
 export const tagPubkey = (pubkey: string, ...args: unknown[]) => [
   "p",
   pubkey,
-  Router.get().FromPubkey(pubkey).getUrl(),
+  Router.get().FromPubkey(pubkey).getUrl() || "",
   displayProfileByPubkey(pubkey),
 ]
 
 export const tagEvent = (event: TrustedEvent, mark = "") => {
-  const url = Router.get().Event(event).getUrl()
+  const url = Router.get().Event(event).getUrl() || ""
   const tags = [["e", event.id, url, mark, event.pubkey]]
 
   if (isReplaceable(event)) {
@@ -42,7 +42,7 @@ export const tagEventPubkeys = (event: TrustedEvent) =>
 export const tagEventForQuote = (event: TrustedEvent) => [
   "q",
   event.id,
-  Router.get().Event(event).getUrl(),
+  Router.get().Event(event).getUrl() || "",
   event.pubkey,
 ]
 
@@ -55,11 +55,11 @@ export const tagEventForReply = (event: TrustedEvent) => {
   // Root comes first
   if (roots.length > 0) {
     for (const t of roots) {
-      tags.push([...t.slice(0, 2), Router.get().EventRoots(event).getUrl(), "root"])
+      tags.push([...t.slice(0, 2), Router.get().EventRoots(event).getUrl() || "", "root"])
     }
   } else {
     for (const t of replies) {
-      tags.push([...t.slice(0, 2), Router.get().EventParents(event).getUrl(), "root"])
+      tags.push([...t.slice(0, 2), Router.get().EventParents(event).getUrl() || "", "root"])
     }
   }
 
@@ -81,7 +81,7 @@ export const tagEventForReply = (event: TrustedEvent) => {
 
   // Finally, tag the event itself
   const mark = replies.length > 0 ? "reply" : "root"
-  const hint = Router.get().Event(event).getUrl()
+  const hint = Router.get().Event(event).getUrl() || ""
 
   // e-tag the event
   tags.push(["e", event.id, hint, mark, event.pubkey])
@@ -95,8 +95,8 @@ export const tagEventForReply = (event: TrustedEvent) => {
 }
 
 export const tagEventForComment = (event: TrustedEvent) => {
-  const pubkeyHint = Router.get().FromPubkey(event.pubkey).getUrl()
-  const eventHint = Router.get().Event(event).getUrl()
+  const pubkeyHint = Router.get().FromPubkey(event.pubkey).getUrl() || ""
+  const eventHint = Router.get().Event(event).getUrl() || ""
   const address = getAddress(event)
   const seenRoots = new Set<string>()
   const tags: string[][] = []
@@ -130,7 +130,7 @@ export const tagEventForComment = (event: TrustedEvent) => {
 }
 
 export const tagEventForReaction = (event: TrustedEvent) => {
-  const hint = Router.get().Event(event).getUrl()
+  const hint = Router.get().Event(event).getUrl() || ""
   const tags: string[][] = []
 
   // Mention the event's author
