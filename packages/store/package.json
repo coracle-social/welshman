@@ -1,6 +1,6 @@
 {
   "name": "@welshman/store",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of utilities based on svelte/store for use with welshman",
