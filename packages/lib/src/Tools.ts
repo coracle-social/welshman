@@ -890,6 +890,32 @@ export const randomId = (): string => Math.random().toString().slice(2)
  */
 export const sleep = (t: number) => new Promise(resolve => setTimeout(resolve, t))
 
+export type PollOptions = {
+  signal: AbortSignal
+  condition: () => boolean
+  interval?: number
+}
+
+/**
+ * Creates a promise that resolves after the condition completes or timeout
+ * @param options - PollOptions
+ * @returns Promise<void>
+ */
+export const poll = ({interval = 300, condition, signal}: PollOptions) =>
+  new Promise<void>(resolve => {
+    const int = setInterval(() => {
+      if (condition()) {
+        resolve()
+        clearInterval(int)
+      }
+    }, interval)
+
+    signal.addEventListener('abort', () => {
+      resolve()
+      clearInterval(int)
+    })
+  })
+
 /**
  * Creates a microtask that yields to other tasks in the event loop
  * @returns Promise that resolves after yielding
