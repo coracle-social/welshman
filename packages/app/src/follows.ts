@@ -3,7 +3,7 @@ import {TrustedEvent, PublishedList} from "@welshman/util"
 import {deriveEventsMapped} from "@welshman/store"
 import {repository} from "./core.js"
 import {collection} from "./collection.js"
-import {loadWithAsapMetaRelayUrls} from "./relaySelections.js"
+import {makeOutboxLoader} from "./relaySelections.js"
 
 export const follows = deriveEventsMapped<PublishedList>(repository, {
   filters: [{kinds: [FOLLOWS]}],
@@ -19,6 +19,5 @@ export const {
   name: "follows",
   store: follows,
   getKey: follows => follows.event.pubkey,
-  load: (pubkey: string, relays: string[]) =>
-    loadWithAsapMetaRelayUrls(pubkey, relays, [{kinds: [FOLLOWS], authors: [pubkey]}]),
+  load: makeOutboxLoader([FOLLOWS])
 })

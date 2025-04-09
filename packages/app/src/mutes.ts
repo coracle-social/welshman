@@ -4,7 +4,7 @@ import {deriveEventsMapped} from "@welshman/store"
 import {repository} from "./core.js"
 import {collection} from "./collection.js"
 import {ensurePlaintext} from "./plaintext.js"
-import {loadWithAsapMetaRelayUrls} from "./relaySelections.js"
+import {makeOutboxLoader} from "./relaySelections.js"
 
 export const mutes = deriveEventsMapped<PublishedList>(repository, {
   filters: [{kinds: [MUTES]}],
@@ -25,6 +25,5 @@ export const {
   name: "mutes",
   store: mutes,
   getKey: mute => mute.event.pubkey,
-  load: (pubkey: string, relays: string[]) =>
-    loadWithAsapMetaRelayUrls(pubkey, relays, [{kinds: [MUTES], authors: [pubkey]}]),
+  load: makeOutboxLoader([MUTES])
 })

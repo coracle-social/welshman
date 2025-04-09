@@ -4,7 +4,7 @@ import {PublishedProfile} from "@welshman/util"
 import {deriveEventsMapped, withGetter} from "@welshman/store"
 import {repository} from "./core.js"
 import {collection} from "./collection.js"
-import {loadWithAsapMetaRelayUrls} from "./relaySelections.js"
+import {makeOutboxLoader} from "./relaySelections.js"
 
 export const profiles = withGetter(
   deriveEventsMapped<PublishedProfile>(repository, {
@@ -22,8 +22,7 @@ export const {
   name: "profiles",
   store: profiles,
   getKey: profile => profile.event.pubkey,
-  load: (pubkey: string, relays: string[]) =>
-    loadWithAsapMetaRelayUrls(pubkey, relays, [{kinds: [PROFILE], authors: [pubkey]}]),
+  load: makeOutboxLoader([PROFILE]),
 })
 
 export const displayProfileByPubkey = (pubkey: string | undefined) =>

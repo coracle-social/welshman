@@ -1,4 +1,4 @@
-import {uniq} from "@welshman/lib"
+import {uniq, batcher, always} from "@welshman/lib"
 import {
   INBOX_RELAYS,
   RELAYS,
@@ -10,7 +10,7 @@ import {
   getRelayTagValues,
 } from "@welshman/util"
 import {TrustedEvent, Filter, PublishedList, List} from "@welshman/util"
-import {load} from "@welshman/net"
+import {request, load, RequestEvent} from "@welshman/net"
 import {deriveEventsMapped} from "@welshman/store"
 import {repository} from "./core.js"
 import {Router} from "./router.js"
@@ -33,6 +33,39 @@ export const getWriteRelayUrls = (list?: List): string[] =>
       .map((t: string[]) => normalizeRelayUrl(t[1])),
   )
 
+
+export type OutboxLoaderRequest = {
+  pubkey: string
+  relays: string[]
+}
+
+export const makeOutboxLoader = (kinds: number[]) => {
+  const loadOutboxRequest = batcher(200, (requests: OutboxLoaderRequest[]) => {
+    const router = Router.get()
+    const authors: string[] = []
+    const scenarios = [router.Index()]
+
+    for (const {pubkey, relays} of requests) {
+      authors.push(pubkey)
+      scenarios.push(router.FromPubkey(pubkey), router.FromRelays(relays))
+    }
+
+    const filters = [{authors, kinds}]
+    const relays = router.merge(scenarios).getUrls()
+
+    const promise = new Promise<void>(resolve => {
+      const req = request({filters, relays, autoClose: true})
+
+      req.on(RequestEvent.Eose, () => resolve())
+      req.on(RequestEvent.Close, () => resolve())
+    })
+
+    return requests.map(always(promise))
+  })
+
+  return (pubkey: string, relays: string[]) => loadOutboxRequest({pubkey, relays})
+}
+
 export const relaySelections = deriveEventsMapped<PublishedList>(repository, {
   filters: [{kinds: [RELAYS]}],
   itemToEvent: item => item.event,
@@ -47,40 +80,8 @@ export const {
   name: "relaySelections",
   store: relaySelections,
   getKey: relaySelections => relaySelections.event.pubkey,
-  load: async (pubkey: string, relays: string[]) => {
-    const router = Router.get()
-
-    await load({
-      relays: router
-        .merge([router.Index(), router.FromRelays(relays), router.FromPubkey(pubkey)])
-        .getUrls(),
-      filters: [{kinds: [RELAYS], authors: [pubkey]}],
-    })
-  },
+  load: makeOutboxLoader([RELAYS]),
 })
-
-export const loadWithAsapMetaRelayUrls = (pubkey: string, relays: string[], filters: Filter[]) => {
-  const router = Router.get()
-
-  return new Promise(resolve => {
-    let resolved = 0
-
-    const onLoad = (events: TrustedEvent[]) => {
-      if (++resolved === 2 || events.length > 0) {
-        resolve(events)
-      }
-    }
-
-    load({
-      filters,
-      relays: router.merge([router.Index(), router.FromRelays(relays)]).getUrls(),
-    }).then(onLoad)
-
-    loadRelaySelections(pubkey, relays)
-      .then(() => load({filters, relays: router.FromPubkey(pubkey).getUrls()}))
-      .then(onLoad)
-  })
-}
 
 export const inboxRelaySelections = deriveEventsMapped<PublishedList>(repository, {
   filters: [{kinds: [INBOX_RELAYS]}],
@@ -96,6 +97,5 @@ export const {
   name: "inboxRelaySelections",
   store: inboxRelaySelections,
   getKey: inboxRelaySelections => inboxRelaySelections.event.pubkey,
-  load: (pubkey: string, relays: string[]) =>
-    loadWithAsapMetaRelayUrls(pubkey, relays, [{kinds: [INBOX_RELAYS], authors: [pubkey]}]),
+  load: makeOutboxLoader([INBOX_RELAYS]),
 })
