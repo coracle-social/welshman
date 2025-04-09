@@ -1,10 +1,9 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
-import { EventEmitter } from "events"
-import { SinglePublish, MultiPublish, PublishEvent, PublishStatus, } from "../src/publish"
-import { AbstractAdapter, AdapterEvent, MockAdapter } from "../src/adapter"
-import { ClientMessageType, RelayMessage } from "../src/message"
-import { SignedEvent, makeEvent } from "@welshman/util"
-import { Nip01Signer } from '@welshman/signer'
+import {describe, expect, it, vi, beforeEach, afterEach} from "vitest"
+import {SinglePublish, MultiPublish, PublishEvent} from "../src/publish"
+import {MockAdapter} from "../src/adapter"
+import {ClientMessageType} from "../src/message"
+import {makeEvent} from "@welshman/util"
+import {Nip01Signer} from "@welshman/signer"
 
 describe("SinglePublish", () => {
   beforeEach(() => {
@@ -17,12 +16,12 @@ describe("SinglePublish", () => {
 
   it("success works", async () => {
     const sendSpy = vi.fn()
-    const adapter = new MockAdapter('1', sendSpy)
+    const adapter = new MockAdapter("1", sendSpy)
     const signer = Nip01Signer.ephemeral()
     const event = await signer.sign(makeEvent(1))
 
     const pub = new SinglePublish({
-      relay: '1',
+      relay: "1",
       context: {getAdapter: () => adapter},
       event,
     })
@@ -50,12 +49,12 @@ describe("SinglePublish", () => {
 
   it("failure works", async () => {
     const sendSpy = vi.fn()
-    const adapter = new MockAdapter('1', sendSpy)
+    const adapter = new MockAdapter("1", sendSpy)
     const signer = Nip01Signer.ephemeral()
     const event = await signer.sign(makeEvent(1))
 
     const pub = new SinglePublish({
-      relay: '1',
+      relay: "1",
       context: {getAdapter: () => adapter},
       event,
     })
@@ -83,12 +82,12 @@ describe("SinglePublish", () => {
 
   it("timeout works", async () => {
     const sendSpy = vi.fn()
-    const adapter = new MockAdapter('1', sendSpy)
+    const adapter = new MockAdapter("1", sendSpy)
     const signer = Nip01Signer.ephemeral()
     const event = await signer.sign(makeEvent(1))
 
     const pub = new SinglePublish({
-      relay: '1',
+      relay: "1",
       context: {getAdapter: () => adapter},
       event,
     })
@@ -117,12 +116,12 @@ describe("SinglePublish", () => {
 
   it("abort works", async () => {
     const sendSpy = vi.fn()
-    const adapter = new MockAdapter('1', sendSpy)
+    const adapter = new MockAdapter("1", sendSpy)
     const signer = Nip01Signer.ephemeral()
     const event = await signer.sign(makeEvent(1))
 
     const pub = new SinglePublish({
-      relay: '1',
+      relay: "1",
       context: {getAdapter: () => adapter},
       event,
     })
@@ -163,27 +162,31 @@ describe("MultiPublish", () => {
 
   it("should all basically work", async () => {
     const send1Spy = vi.fn()
-    const adapter1 = new MockAdapter('1', send1Spy)
+    const adapter1 = new MockAdapter("1", send1Spy)
     const send2Spy = vi.fn()
-    const adapter2 = new MockAdapter('2', send2Spy)
+    const adapter2 = new MockAdapter("2", send2Spy)
     const send3Spy = vi.fn()
-    const adapter3 = new MockAdapter('3', send3Spy)
+    const adapter3 = new MockAdapter("3", send3Spy)
     const signer = Nip01Signer.ephemeral()
     const event = await signer.sign(makeEvent(1))
 
     const pub = new MultiPublish({
       event,
-      relays: ['1', '2', '3'],
+      relays: ["1", "2", "3"],
       context: {
         getAdapter: (url: string) => {
-          switch(url) {
-            case '1': return adapter1
-            case '2': return adapter2
-            case '3': return adapter3
-            default: throw new Error(`Unknown relay: ${url}`)
+          switch (url) {
+            case "1":
+              return adapter1
+            case "2":
+              return adapter2
+            case "3":
+              return adapter3
+            default:
+              throw new Error(`Unknown relay: ${url}`)
           }
         },
-      }
+      },
     })
 
     const successSpy = vi.fn()
@@ -198,7 +201,6 @@ describe("MultiPublish", () => {
 
     adapter1.receive(["OK", event.id, true, "hi"])
     adapter2.receive(["OK", event.id, false, "hi"])
-
 
     await vi.runAllTimers()
 

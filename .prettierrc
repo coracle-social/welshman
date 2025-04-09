@@ -3,6 +3,5 @@
   "printWidth": 100,
   "bracketSameLine": true,
   "arrowParens": "avoid",
-  "bracketSpacing": false,
-  "pluginSearchDirs": false
+  "bracketSpacing": false
 }

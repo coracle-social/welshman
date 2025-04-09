@@ -14,7 +14,6 @@ import {
   MINUTE,
   HOUR,
   DAY,
-  WEEK,
 } from "@welshman/lib"
 import {
   getFilterId,
@@ -242,7 +241,8 @@ export class Router {
 
   FromPubkey = (pubkey: string) => this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Write))
 
-  PubkeyInbox = (pubkey: string) => this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Inbox))
+  PubkeyInbox = (pubkey: string) =>
+    this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Inbox))
 
   ForPubkeys = (pubkeys: string[]) => this.merge(pubkeys.map(pubkey => this.ForPubkey(pubkey)))
 
@@ -493,7 +493,9 @@ export const getFilterSelections = (
   const result = []
 
   for (const [id, filter] of filtersById.entries()) {
-    const scenario = Router.get().merge(scenariosById.get(id) || []).policy(addMinimalFallbacks)
+    const scenario = Router.get()
+      .merge(scenariosById.get(id) || [])
+      .policy(addMinimalFallbacks)
 
     result.push({filters: [filter], relays: scenario.getUrls()})
   }

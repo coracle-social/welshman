@@ -1,9 +1,8 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
-import { Socket } from "../src/socket"
-import { Pool, makeSocket } from "../src/pool"
-import { normalizeRelayUrl } from "@welshman/util"
+import {describe, expect, it, vi, beforeEach, afterEach} from "vitest"
+import {Socket} from "../src/socket"
+import {Pool} from "../src/pool"
 
-vi.mock('isomorphic-ws', () => {
+vi.mock("isomorphic-ws", () => {
   const WebSocket = vi.fn(function (this: any) {
     setTimeout(() => this.onopen())
   })
@@ -14,7 +13,7 @@ vi.mock('isomorphic-ws', () => {
     this.onclose()
   })
 
-  return { default: WebSocket }
+  return {default: WebSocket}
 })
 
 describe("Pool", () => {
@@ -95,7 +94,7 @@ describe("Pool", () => {
 
   describe("remove", () => {
     it("should remove and cleanup existing socket", () => {
-      const mockSocket = { url: "wss://test.relay", cleanup: vi.fn() }
+      const mockSocket = {url: "wss://test.relay", cleanup: vi.fn()}
 
       pool._data.set(mockSocket.url, mockSocket as unknown as Socket)
       pool.remove(mockSocket.url)
@@ -113,7 +112,7 @@ describe("Pool", () => {
   describe("clear", () => {
     it("should remove all sockets", () => {
       const urls = ["wss://test1.relay", "wss://test2.relay"]
-      const mockSockets = urls.map(url => ({ url, cleanup: vi.fn() }))
+      const mockSockets = urls.map(url => ({url, cleanup: vi.fn()}))
 
       for (const mockSocket of mockSockets) {
         pool._data.set(mockSocket.url, mockSocket as unknown as Socket)

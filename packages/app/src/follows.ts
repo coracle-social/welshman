@@ -1,9 +1,7 @@
 import {FOLLOWS, asDecryptedEvent, readList} from "@welshman/util"
 import {TrustedEvent, PublishedList} from "@welshman/util"
-import {MultiRequestOptions, load} from "@welshman/net"
 import {deriveEventsMapped} from "@welshman/store"
 import {repository} from "./core.js"
-import {Router} from "./router.js"
 import {collection} from "./collection.js"
 import {loadWithAsapMetaRelayUrls} from "./relaySelections.js"
 

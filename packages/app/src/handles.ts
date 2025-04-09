@@ -1,5 +1,4 @@
 import {writable, derived} from "svelte/store"
-import {MultiRequestOptions} from "@welshman/net"
 import {tryCatch, fetchJson, uniq, batcher, postJson, last} from "@welshman/lib"
 import {collection} from "./collection.js"
 import {deriveProfile} from "./profiles.js"

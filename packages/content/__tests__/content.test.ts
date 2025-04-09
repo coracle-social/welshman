@@ -8,9 +8,7 @@ describe("Content Parsing", () => {
   describe("Basic Parsing", () => {
     it("should parse plain text", () => {
       const result = parse({content: "Hello world"})
-      expect(result).toEqual([
-        {type: ParsedType.Text, value: "Hello world", raw: "Hello world"},
-      ])
+      expect(result).toEqual([{type: ParsedType.Text, value: "Hello world", raw: "Hello world"}])
     })
 
     it("should parse newlines", () => {

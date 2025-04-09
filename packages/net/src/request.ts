@@ -289,7 +289,7 @@ export const makeLoader = (options: LoaderOptions) =>
               tracker,
               relays: [relay],
               autoClose: true,
-              ...options
+              ...options,
             })
 
             let count = 0

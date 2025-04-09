@@ -1,17 +1,25 @@
-import {get, derived} from 'svelte/store'
-import {batch, fromPairs} from '@welshman/lib'
-import {PROFILE, FOLLOWS, MUTES, RELAYS, INBOX_RELAYS, getPubkeyTagValues, getListTags} from '@welshman/util'
-import {throttled, withGetter} from '@welshman/store'
-import {RepositoryUpdate} from '@welshman/relay'
-import {getAll, bulkPut, bulkDelete} from './storage.js'
-import {relays} from './relays.js'
-import {handles, onHandle} from './handles.js'
-import {zappers, onZapper} from './zappers.js'
-import {plaintext} from './plaintext.js'
-import {freshness} from './freshness.js'
-import {repository} from './core.js'
-import {sessions} from './session.js'
-import {userFollows} from './user.js'
+import {derived} from "svelte/store"
+import {batch, fromPairs} from "@welshman/lib"
+import {
+  PROFILE,
+  FOLLOWS,
+  MUTES,
+  RELAYS,
+  INBOX_RELAYS,
+  getPubkeyTagValues,
+  getListTags,
+} from "@welshman/util"
+import {throttled, withGetter} from "@welshman/store"
+import {RepositoryUpdate} from "@welshman/relay"
+import {getAll, bulkPut, bulkDelete} from "./storage.js"
+import {relays} from "./relays.js"
+import {handles, onHandle} from "./handles.js"
+import {zappers, onZapper} from "./zappers.js"
+import {plaintext} from "./plaintext.js"
+import {freshness} from "./freshness.js"
+import {repository} from "./core.js"
+import {sessions} from "./session.js"
+import {userFollows} from "./user.js"
 
 export const defaultStorageAdapters = {
   relays: {
@@ -70,7 +78,7 @@ export const defaultStorageAdapters = {
     init: async () => repository.load(await getAll("events")),
     sync: () => {
       const userFollowPubkeys = withGetter(
-        derived(userFollows, l => new Set(getPubkeyTagValues(getListTags(l))))
+        derived(userFollows, l => new Set(getPubkeyTagValues(getListTags(l)))),
       )
 
       const onUpdate = async ({added, removed}: RepositoryUpdate) => {

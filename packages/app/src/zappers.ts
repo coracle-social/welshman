@@ -1,6 +1,5 @@
 import {writable, derived} from "svelte/store"
 import {Zapper} from "@welshman/util"
-import {MultiRequestOptions} from "@welshman/net"
 import {
   identity,
   fetchJson,

@@ -1,10 +1,9 @@
-import { sleep } from "@welshman/lib"
-import WebSocket from 'isomorphic-ws'
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { Socket, SocketStatus, SocketEvent } from "../src/socket"
-import { ClientMessage, RelayMessage } from "../src/message"
+import WebSocket from "isomorphic-ws"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
+import {Socket, SocketStatus, SocketEvent} from "../src/socket"
+import {ClientMessage, RelayMessage} from "../src/message"
 
-vi.mock('isomorphic-ws', () => {
+vi.mock("isomorphic-ws", () => {
   const WebSocket = vi.fn(function (this: any) {
     setTimeout(() => this.onopen())
   })
@@ -15,7 +14,7 @@ vi.mock('isomorphic-ws', () => {
     this.onclose()
   })
 
-  return { default: WebSocket }
+  return {default: WebSocket}
 })
 
 describe("Socket", () => {
@@ -77,9 +76,11 @@ describe("Socket", () => {
 
       socket.open()
 
+      const closeSpy = vi.spyOn(socket._ws, "close")
+
       socket.close()
 
-      expect(socket._ws!.close).toHaveBeenCalled()
+      expect(closeSpy).toHaveBeenCalled()
       expect(statusSpy).toHaveBeenCalledWith(SocketStatus.Closed, "wss://test.relay")
     })
   })
@@ -89,7 +90,7 @@ describe("Socket", () => {
       const enqueueSpy = vi.fn()
       socket.on(SocketEvent.Sending, enqueueSpy)
 
-      const message: ClientMessage = ["EVENT", { id: "123", kind: 1 }]
+      const message: ClientMessage = ["EVENT", {id: "123", kind: 1}]
       socket.send(message)
 
       expect(enqueueSpy).toHaveBeenCalledWith(message, "wss://test.relay")
@@ -102,7 +103,7 @@ describe("Socket", () => {
       socket.open()
       socket._ws?.onopen?.(undefined as unknown as any)
 
-      const message: ClientMessage = ["EVENT", { id: "123", kind: 1 }]
+      const message: ClientMessage = ["EVENT", {id: "123", kind: 1}]
       socket.send(message)
 
       await vi.runAllTimers()
@@ -118,7 +119,7 @@ describe("Socket", () => {
       socket.on(SocketEvent.Receive, receiveSpy)
 
       socket.open()
-      const message: RelayMessage = ["EVENT", "123", { id: "123", kind: 1 }]
+      const message: RelayMessage = ["EVENT", "123", {id: "123", kind: 1}]
       socket._ws?.onmessage?.({data: JSON.stringify(message)} as unknown as any)
 
       await vi.runAllTimers()

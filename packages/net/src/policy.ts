@@ -1,4 +1,4 @@
-import {on, nthEq, always, call, sleep, spec, ago, now} from "@welshman/lib"
+import {on, nthEq, always, call, sleep, ago, now} from "@welshman/lib"
 import {AUTH_JOIN, StampedEvent, SignedEvent} from "@welshman/util"
 import {
   ClientMessage,
@@ -7,7 +7,6 @@ import {
   isClientEvent,
   isClientReq,
   isClientNegClose,
-  ClientMessageType,
   RelayMessage,
   isRelayOk,
   isRelayEose,
@@ -50,7 +49,7 @@ export const socketPolicyAuthBuffer = (socket: Socket) => {
     }),
     on(socket, SocketEvent.Receiving, (message: RelayMessage) => {
       // If the client is closing a request during auth, don't tell the caller, we'll retry it
-      if (isRelayClosed(message) && message[2]?.startsWith('auth-required:')) {
+      if (isRelayClosed(message) && message[2]?.startsWith("auth-required:")) {
         socket._recvQueue.remove(message)
       }
 
@@ -60,7 +59,7 @@ export const socketPolicyAuthBuffer = (socket: Socket) => {
       }
 
       // If the client is rejecting an event during auth, don't tell the caller, we'll retry it
-      if (isRelayOk(message) && !message[2] && message[3]?.startsWith('auth-required:')) {
+      if (isRelayOk(message) && !message[2] && message[3]?.startsWith("auth-required:")) {
         socket._recvQueue.remove(message)
       }
     }),

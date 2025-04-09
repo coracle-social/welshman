@@ -1,6 +1,6 @@
 import {bech32, utf8} from "@scure/base"
 
-type Obj<T = any> = Record<string, T>;
+type Obj<T = any> = Record<string, T>
 
 // ----------------------------------------------------------------------------
 // Basic functional programming utilities
@@ -134,7 +134,8 @@ export const gt = (x: number | undefined, y: number | undefined) => num(x) > num
 export const gte = (x: number | undefined, y: number | undefined) => num(x) >= num(y)
 
 /** Returns maximum value in array, handling undefined values */
-export const max = (xs: (number | undefined)[]) => xs.reduce((a: number, b) => Math.max(num(a), num(b)), 0)
+export const max = (xs: (number | undefined)[]) =>
+  xs.reduce((a: number, b) => Math.max(num(a), num(b)), 0)
 
 /** Returns minimum value in array, handling undefined values */
 export const min = (xs: (number | undefined)[]) => {

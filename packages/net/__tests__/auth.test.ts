@@ -1,12 +1,11 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
-import { Socket, SocketStatus, SocketEvent } from "../src/socket"
-import { makeEvent, StampedEvent, CLIENT_AUTH } from "@welshman/util"
-import { Nip01Signer } from "@welshman/signer"
-import { AuthState, AuthStatus, AuthStateEvent, makeAuthEvent } from "../src/auth"
-import EventEmitter from "events"
-import { RelayMessage } from "../src/message"
+import {describe, expect, it, vi, beforeEach, afterEach} from "vitest"
+import {Socket, SocketStatus, SocketEvent} from "../src/socket"
+import {StampedEvent, CLIENT_AUTH} from "@welshman/util"
+import {Nip01Signer} from "@welshman/signer"
+import {AuthStatus, AuthStateEvent} from "../src/auth"
+import {RelayMessage} from "../src/message"
 
-vi.mock('isomorphic-ws', () => {
+vi.mock("isomorphic-ws", () => {
   const WebSocket = vi.fn(function (this: any) {
     setTimeout(() => this.onopen())
   })
@@ -17,14 +16,14 @@ vi.mock('isomorphic-ws', () => {
     this.onclose()
   })
 
-  return { default: WebSocket }
+  return {default: WebSocket}
 })
 
-describe('auth', () => {
+describe("auth", () => {
   let socket: Socket
 
   beforeEach(() => {
-    socket = new Socket('wss://test.relay')
+    socket = new Socket("wss://test.relay")
   })
 
   afterEach(() => {
@@ -72,7 +71,7 @@ describe('auth', () => {
     })
 
     it("should handle client AUTH message", () => {
-      const message: RelayMessage = ["AUTH", { id: "123", kind: CLIENT_AUTH }]
+      const message: RelayMessage = ["AUTH", {id: "123", kind: CLIENT_AUTH}]
       socket.emit(SocketEvent.Sending, message)
 
       expect(socket.auth.status).toBe(AuthStatus.PendingResponse)
@@ -113,7 +112,7 @@ describe('auth', () => {
       const sign = vi.fn()
 
       await expect(socket.auth.authenticate(sign)).rejects.toThrow(
-        "Attempted to authenticate with no challenge"
+        "Attempted to authenticate with no challenge",
       )
     })
 
@@ -124,7 +123,7 @@ describe('auth', () => {
       socket.auth.status = AuthStatus.PendingResponse
 
       await expect(socket.auth.authenticate(sign)).rejects.toThrow(
-        "Attempted to authenticate when auth is already auth:status:pending_response"
+        "Attempted to authenticate when auth is already auth:status:pending_response",
       )
     })
 
@@ -140,7 +139,7 @@ describe('auth', () => {
     })
 
     it("should send AUTH message", async () => {
-      const sendSpy = vi.spyOn(socket, 'send')
+      const sendSpy = vi.spyOn(socket, "send")
       let event
 
       socket.auth.challenge = "challenge123"

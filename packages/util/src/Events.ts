@@ -72,7 +72,8 @@ export const verifyEvent = (() => {
       })
   }
 
-  return (event: TrustedEvent) => event.sig && (event[verifiedSymbol] || verify(event as SignedEvent))
+  return (event: TrustedEvent) =>
+    event.sig && (event[verifiedSymbol] || verify(event as SignedEvent))
 })()
 
 export const isEventTemplate = (e: EventTemplate): e is EventTemplate =>

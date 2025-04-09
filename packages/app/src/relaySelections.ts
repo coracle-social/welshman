@@ -10,10 +10,10 @@ import {
   getRelayTagValues,
 } from "@welshman/util"
 import {TrustedEvent, Filter, PublishedList, List} from "@welshman/util"
-import {load, MultiRequestOptions} from "@welshman/net"
+import {load} from "@welshman/net"
 import {deriveEventsMapped} from "@welshman/store"
 import {repository} from "./core.js"
-import {Router, addNoFallbacks} from "./router.js"
+import {Router} from "./router.js"
 import {collection} from "./collection.js"
 
 export const getRelayUrls = (list?: List): string[] =>
@@ -51,13 +51,15 @@ export const {
     const router = Router.get()
 
     await load({
-      relays: router.merge([router.Index(), router.FromRelays(relays), router.FromPubkey(pubkey)]).getUrls(),
+      relays: router
+        .merge([router.Index(), router.FromRelays(relays), router.FromPubkey(pubkey)])
+        .getUrls(),
       filters: [{kinds: [RELAYS], authors: [pubkey]}],
     })
   },
 })
 
-export const loadWithAsapMetaRelayUrls = <T>(pubkey: string, relays: string[], filters: Filter[]) => {
+export const loadWithAsapMetaRelayUrls = (pubkey: string, relays: string[], filters: Filter[]) => {
   const router = Router.get()
 
   return new Promise(resolve => {
@@ -69,8 +71,10 @@ export const loadWithAsapMetaRelayUrls = <T>(pubkey: string, relays: string[], f
       }
     }
 
-    load({filters, relays: router.merge([router.Index(), router.FromRelays(relays)]).getUrls()})
-      .then(onLoad)
+    load({
+      filters,
+      relays: router.merge([router.Index(), router.FromRelays(relays)]).getUrls(),
+    }).then(onLoad)
 
     loadRelaySelections(pubkey, relays)
       .then(() => load({filters, relays: router.FromPubkey(pubkey).getUrls()}))
@@ -93,5 +97,5 @@ export const {
   store: inboxRelaySelections,
   getKey: inboxRelaySelections => inboxRelaySelections.event.pubkey,
   load: (pubkey: string, relays: string[]) =>
-    loadWithAsapMetaRelayUrls(pubkey, relays, [{kinds: [INBOX_RELAYS], authors: [pubkey]}])
+    loadWithAsapMetaRelayUrls(pubkey, relays, [{kinds: [INBOX_RELAYS], authors: [pubkey]}]),
 })

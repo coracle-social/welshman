@@ -1,10 +1,8 @@
 import {derived, readable} from "svelte/store"
 import {readProfile, displayProfile, displayPubkey, PROFILE} from "@welshman/util"
-import {load, MultiRequestOptions} from "@welshman/net"
 import {PublishedProfile} from "@welshman/util"
 import {deriveEventsMapped, withGetter} from "@welshman/store"
 import {repository} from "./core.js"
-import {Router} from "./router.js"
 import {collection} from "./collection.js"
 import {loadWithAsapMetaRelayUrls} from "./relaySelections.js"
 
@@ -25,7 +23,7 @@ export const {
   store: profiles,
   getKey: profile => profile.event.pubkey,
   load: (pubkey: string, relays: string[]) =>
-    loadWithAsapMetaRelayUrls(pubkey, relays, [{kinds: [PROFILE], authors: [pubkey]}])
+    loadWithAsapMetaRelayUrls(pubkey, relays, [{kinds: [PROFILE], authors: [pubkey]}]),
 })
 
 export const displayProfileByPubkey = (pubkey: string | undefined) =>

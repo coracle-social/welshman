@@ -3,7 +3,6 @@ import {Repository} from "@welshman/relay"
 import {get} from "svelte/store"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {
-  adapter,
   custom,
   deriveEvents,
   deriveEventsMapped,
@@ -111,28 +110,6 @@ describe("Store utilities", () => {
 
       expect(mockFn).toHaveBeenCalledTimes(3) // Initial + set + update
       expect(store.get()).toBe(2)
-    })
-  })
-
-  describe("adapter", () => {
-    it("should adapt between different types", () => {
-      const source = synced<number>("test", 0)
-      const adapted = adapter({
-        store: source,
-        forward: n => n.toString(),
-        backward: s => parseInt(s, 10),
-      })
-
-      const mockFn = vi.fn()
-      adapted.subscribe(mockFn)
-
-      adapted.set("42")
-      expect(get(source)).toBe(42)
-      expect(mockFn).toHaveBeenLastCalledWith("42")
-
-      adapted.update(s => (parseInt(s, 10) + 1).toString())
-      expect(get(source)).toBe(43)
-      expect(mockFn).toHaveBeenLastCalledWith("43")
     })
   })
 

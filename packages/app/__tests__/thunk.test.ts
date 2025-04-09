@@ -1,10 +1,7 @@
-import {now} from "@welshman/lib"
-import {PublishStatus, MockAdapter} from "@welshman/net"
-import {NOTE,  makeEvent} from "@welshman/util"
-import {Nip01Signer} from "@welshman/signer"
+import {PublishStatus} from "@welshman/net"
+import {NOTE, makeEvent} from "@welshman/util"
 import {LOCAL_RELAY_URL} from "@welshman/relay"
 import {getPubkey, makeSecret} from "@welshman/signer"
-import {EventEmitter} from "events"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {repository, tracker} from "../src/core"
 import {addSession, dropSession} from "../src/session"
@@ -31,7 +28,7 @@ const mockRequest = {
 describe("thunk", () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    addSession({method: 'nip01', secret, pubkey})
+    addSession({method: "nip01", secret, pubkey})
   })
 
   afterEach(async () => {
@@ -70,7 +67,7 @@ describe("thunk", () => {
 
   describe("publishThunk", () => {
     it("should create and publish a thunk", async () => {
-      const publishSpy = vi.spyOn(repository, 'publish')
+      const publishSpy = vi.spyOn(repository, "publish")
       const result = publishThunk(mockRequest)
 
       expect(publishSpy).toHaveBeenCalled()
@@ -79,7 +76,7 @@ describe("thunk", () => {
     })
 
     it("should handle abort", () => {
-      const removeEventSpy = vi.spyOn(repository, 'removeEvent')
+      const removeEventSpy = vi.spyOn(repository, "removeEvent")
       const thunk = publishThunk(mockRequest)
 
       thunk.controller.abort()
@@ -109,8 +106,7 @@ describe("thunk", () => {
   })
 
   it("should update status during publishing", async () => {
-    const send = vi.fn()
-    const track = vi.spyOn(tracker, 'track')
+    const track = vi.spyOn(tracker, "track")
     const thunk = makeThunk(mockRequest)
     let status: Record<string, any> = {}
 

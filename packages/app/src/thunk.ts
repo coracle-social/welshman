@@ -1,5 +1,15 @@
 import {Writable, Readable, writable, derived, get} from "svelte/store"
-import {Deferred, fromPairs, TaskQueue, dissoc, identity, uniq, defer, sleep, assoc} from "@welshman/lib"
+import {
+  Deferred,
+  fromPairs,
+  TaskQueue,
+  dissoc,
+  identity,
+  uniq,
+  defer,
+  sleep,
+  assoc,
+} from "@welshman/lib"
 import {stamp, own, hash} from "@welshman/signer"
 import {
   TrustedEvent,
@@ -225,9 +235,11 @@ export const thunkQueue = new TaskQueue<Thunk>({
       // Update status to pending
       thunk.status.set(
         fromPairs(
-          thunk.request.relays
-            .map(url => [url, {status: PublishStatus.Pending, message: "Sending your message..."}])
-        )
+          thunk.request.relays.map(url => [
+            url,
+            {status: PublishStatus.Pending, message: "Sending your message..."},
+          ]),
+        ),
       )
 
       // Send it off

@@ -121,22 +121,6 @@ export const custom = <T>(
   }
 }
 
-// Simple adapter
-
-export const adapter = <Source, Target>({
-  store,
-  forward,
-  backward,
-}: {
-  store: Writable<Source>
-  forward: (x: Source) => Target
-  backward: (x: Target) => Source
-}) => ({
-  ...derived(store, forward),
-  set: (x: Target) => store.set(backward(x)),
-  update: (f: (x: Target) => Target) => store.update((x: Source) => backward(f(forward(x)))),
-})
-
 // Event related stores
 
 export type DeriveEventsMappedOptions<T> = {

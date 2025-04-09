@@ -211,9 +211,7 @@ describe("Filters", () => {
     it("should calculate filter generality", () => {
       expect(getFilterGenerality({ids: [id]})).toBe(0)
       expect(getFilterGenerality({authors: [pubkey], "#p": [pubkey]})).toBe(0.2)
-      expect(getFilterGenerality({authors: [pubkey, pubkey, pubkey], kinds: [1]})).toBe(
-        0.01,
-      )
+      expect(getFilterGenerality({authors: [pubkey, pubkey, pubkey], kinds: [1]})).toBe(0.01)
       expect(getFilterGenerality({kinds: [1]})).toBe(1)
     })
 

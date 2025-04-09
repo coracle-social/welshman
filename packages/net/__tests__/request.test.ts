@@ -1,9 +1,9 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
-import { Nip01Signer } from '@welshman/signer'
-import { makeEvent } from '@welshman/util'
-import { ClientMessageType } from "../src/message"
-import { MockAdapter } from "../src/adapter"
-import { SingleRequest, MultiRequest, RequestEvent } from "../src/request"
+import {describe, expect, it, vi, beforeEach, afterEach} from "vitest"
+import {Nip01Signer} from "@welshman/signer"
+import {makeEvent} from "@welshman/util"
+import {ClientMessageType} from "../src/message"
+import {MockAdapter} from "../src/adapter"
+import {SingleRequest, MultiRequest, RequestEvent} from "../src/request"
 
 describe("SingleRequest", () => {
   beforeEach(() => {
@@ -16,9 +16,9 @@ describe("SingleRequest", () => {
 
   it("everything basically works", async () => {
     const sendSpy = vi.fn()
-    const adapter = new MockAdapter('1', sendSpy)
+    const adapter = new MockAdapter("1", sendSpy)
     const req = new SingleRequest({
-      relay: 'whatever',
+      relay: "whatever",
       filters: [{kinds: [1]}],
       context: {getAdapter: () => adapter},
     })
@@ -82,14 +82,14 @@ describe("MultiRequest", () => {
 
   it("everything basically works", async () => {
     const send1Spy = vi.fn()
-    const adapter1 = new MockAdapter('1', send1Spy)
+    const adapter1 = new MockAdapter("1", send1Spy)
     const send2Spy = vi.fn()
-    const adapter2 = new MockAdapter('2', send2Spy)
+    const adapter2 = new MockAdapter("2", send2Spy)
     const req = new MultiRequest({
-      relays: ['1', '2'],
+      relays: ["1", "2"],
       filters: [{kinds: [1]}],
       context: {
-        getAdapter: (url: string) => url === '1' ? adapter1 : adapter2
+        getAdapter: (url: string) => (url === "1" ? adapter1 : adapter2),
       },
     })
 
@@ -129,10 +129,10 @@ describe("MultiRequest", () => {
 
     await vi.runAllTimersAsync()
 
-    expect(duplicateSpy).toHaveBeenCalledWith(event1, '2')
-    expect(filteredSpy).toHaveBeenCalledWith(event2, '1')
-    expect(invalidSpy).toHaveBeenCalledWith(event3, '1')
-    expect(eventSpy).toHaveBeenCalledWith(event1, '1')
+    expect(duplicateSpy).toHaveBeenCalledWith(event1, "2")
+    expect(filteredSpy).toHaveBeenCalledWith(event2, "1")
+    expect(invalidSpy).toHaveBeenCalledWith(event3, "1")
+    expect(eventSpy).toHaveBeenCalledWith(event1, "1")
     expect(eoseSpy).toHaveBeenCalledTimes(0)
 
     adapter1.receive(["EOSE", id1])
@@ -145,4 +145,3 @@ describe("MultiRequest", () => {
     expect(closeSpy).toHaveBeenCalledTimes(1)
   })
 })
-

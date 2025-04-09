@@ -19,7 +19,6 @@ describe("LocalRelay", () => {
   const id = "ff".repeat(32)
   const sig = "00".repeat(64)
   const currentTime = now()
-  const onionUrl = "abcdefghijklmnopqrstuvwxyz234567abcdefghijklmnopqrstuvwx.onion"
 
   const createEvent = (overrides = {}): TrustedEvent => ({
     id: id,

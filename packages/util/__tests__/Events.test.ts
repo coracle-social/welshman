@@ -184,7 +184,7 @@ describe("Events", () => {
 
   describe("signature validation", () => {
     it("should validate signature using verifiedSymbol", () => {
-      let event = createSignedEvent() as Events.SignedEvent
+      const event = createSignedEvent() as Events.SignedEvent
       event[verifiedSymbol] = true
       expect(Events.verifyEvent(event)).toBe(true)
 
