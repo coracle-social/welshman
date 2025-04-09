@@ -1,5 +1,7 @@
 # @welshman/content
 
+[![version](https://badgen.net/npm/v/@welshman/content)](https://npmjs.com/package/@welshman/content)
+
 `@welshman/content` is a comprehensive content processing library designed specifically for Nostr applications.
 It provides a robust system for parsing, processing, and rendering Nostr content while handling various special formats and entities common in the Nostr ecosystem.
 

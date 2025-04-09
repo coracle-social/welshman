@@ -1,5 +1,7 @@
 # @welshman/lib
 
+[![version](https://badgen.net/npm/v/@welshman/lib)](https://npmjs.com/package/@welshman/lib)
+
 A lightweight TypeScript utility library with zero dependencies, providing essential tools for modern JavaScript development.
 
 ## What's Included

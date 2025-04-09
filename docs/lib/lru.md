@@ -1,6 +1,6 @@
 # LRU Cache
 
-The LRU (Least Recently Used) Cache implementation provides efficient caching with automatic eviction of least recently used items when the cache reaches its maximum size.
+A LRU (Least Recently Used) Cache implementation provides efficient caching with automatic eviction of least recently used items when the cache reaches its maximum size.
 
 ## Basic Usage
 

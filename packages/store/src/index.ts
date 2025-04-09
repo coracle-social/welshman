@@ -10,7 +10,6 @@ import {
   partition,
   first,
 } from "@welshman/lib"
-import {Maybe} from "@welshman/lib"
 import {Repository} from "@welshman/relay"
 import {matchFilters, getIdAndAddress, getIdFilters, Filter, TrustedEvent} from "@welshman/util"
 
@@ -142,7 +141,7 @@ export const adapter = <Source, Target>({
 
 export type DeriveEventsMappedOptions<T> = {
   filters: Filter[]
-  eventToItem: (event: TrustedEvent) => Maybe<T | T[] | Promise<T | T[]>>
+  eventToItem: (event: TrustedEvent) => T | T[] | Promise<T | T[]> | undefined
   itemToEvent: (item: T) => TrustedEvent
   throttle?: number
   includeDeleted?: boolean

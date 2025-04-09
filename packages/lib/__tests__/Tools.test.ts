@@ -11,13 +11,6 @@ describe("Tools", () => {
     vi.useRealTimers()
   })
   describe("Basic Utils", () => {
-    it("should check for nil values", () => {
-      expect(T.isNil(null)).toBe(true)
-      expect(T.isNil(undefined)).toBe(true)
-      expect(T.isNil(0)).toBe(false)
-      expect(T.isNil("")).toBe(false)
-    })
-
     it("should handle ifLet", () => {
       const fn = vi.fn()
       T.ifLet(undefined, fn)

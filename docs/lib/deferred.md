@@ -1,6 +1,6 @@
 # Deferred Promises
 
-The Deferred module provides utilities for creating promises with exposed resolve/reject functions and typed error handling. This is particularly useful for managing asynchronous operations where you need external control over promise resolution.
+The `Deferred` module provides utilities for creating promises with exposed resolve/reject functions and typed error handling. This is particularly useful for managing asynchronous operations where you need external control over promise resolution.
 
 ## Types
 

@@ -5,9 +5,10 @@ Thunks provide optimistic updates for event publishing. They immediately update 
 ## Overview
 
 A thunk:
+
 - Updates local state immediately
-- Handles event signing in the background
-- Manages publish status per relay
+- Handles event signing in the background using the current session
+- Tracks publish status per relay
 - Supports soft-undo via abort
 - Can be delayed/cancelled
 - Tracks successful publishes
@@ -46,7 +47,17 @@ const publish = async (content: string) => {
   }, 1000)
 
   // Wait for completion
-  const results = await thunk.result
-  return results
+  await thunk.result
 }
 ```
+
+## Built in commands
+
+Several thunk factories are provided for more complicated scenarios like updating lists:
+
+- `follow(pubkey)`
+- `unfollow(pubkey)`
+- `mute(pubkey)`
+- `unmute(pubkey)`
+- `pin(tag)`
+- `unpin(tag)`

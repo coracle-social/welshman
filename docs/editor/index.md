@@ -1,5 +1,7 @@
 # @welshman/editor
 
+[![version](https://badgen.net/npm/v/@welshman/editor)](https://npmjs.com/package/@welshman/editor)
+
 `@welshman/editor` provides a comprehensive Nostr-ready text editor, built on top of [nostr-editor](https://github.com/cesardeazevedo/nostr-editor).
 
 This package powers the editors of [Coracle](https://coracle.social) and [Flotilla](https://flotilla.social).

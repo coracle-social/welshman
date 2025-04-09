@@ -29,6 +29,11 @@ const getDay = (ts: number) => Math.floor(ts / DAY)
 
 export let repositorySingleton: Repository<TrustedEvent>
 
+export type RepositoryUpdate = {
+  added: TrustedEvent[]
+  removed: Set<string>
+}
+
 export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
   eventsById = new Map<string, E>()
   eventsByWrap = new Map<string, E>()

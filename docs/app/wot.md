@@ -1,6 +1,6 @@
-# Web of Trust (WOT) Module
+# Web of Trust (WOT)
 
-The `wot.ts` module provides utilities for implementing a Web of Trust system within Nostr applications. This system analyzes social connections (follows and mutes) to build a reputation graph that can be used for content filtering, user scoring, and discovery.
+Welshman provides utilities for implementing a Web of Trust system within Nostr applications. This system analyzes social connections (follows and mutes) to build a reputation graph that can be used for content filtering, user scoring, and discovery.
 
 ## Core Concepts
 

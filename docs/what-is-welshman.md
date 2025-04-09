@@ -12,9 +12,3 @@ Need just a content parser? Grab @welshman/content. Building a complex client? S
 Each module is battle-tested in production, designed to work together but never dependent on each other.
 
 Build your next Nostr client with the same tools that power today's leading Nostr applications.
-
-<!-- ## Installation
-
-```sh
-npm install @welshman
-``` -->

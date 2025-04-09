@@ -1,12 +1,13 @@
 # Tag Utilities
 
 The tag utilities provide helper functions for creating properly formatted Nostr event tags with correct relay hints and metadata.
+
 These are especially useful when creating events that reference other events or users.
 
 ## Tag Creators
 
+### Pubkey Tags
 
-### User Tags
 ```typescript
 import {tagPubkey} from '@welshman/app'
 
@@ -23,7 +24,7 @@ import {
   tagEvent,              // Basic event reference
   tagEventForQuote,      // For quoting events
   tagEventForReply,      // For reply threads
-  tagEventForComment,    // For NIP-23 comments
+  tagEventForComment,    // For NIP-22 comments
   tagEventForReaction    // For reactions
 } from '@welshman/app'
 
@@ -36,34 +37,10 @@ const createReply = async (parent: TrustedEvent, content: string) => {
   // - Relay hints
   const tags = tagEventForReply(parent)
 
-  const event = await signer.get().sign(
-    createEvent(NOTE, {
-      content,
-      tags,
-      created_at: now()
-    })
-  )
-
   return publishThunk({
-    event,
     // Use relay hints from tags
-    relays: ctx.app.router.PublishEvent(event).getUrls()
+    relays: Router.get().PublishEvent(event).getUrls()
+    event: await signer.get().sign(createEvent(NOTE, {content, tags})),
   })
 }
 ```
-
-All tag creators:
-- Add appropriate relay hints using the router
-- Handle replaceable/parameterized events
-- Follow adequate NIP-10/NIP-22 conventions for threading
-- Include metadata like usernames
-- Deduplicate references
-- Preserve tag order
-
-The tagging system is crucial for:
-- Thread construction
-- Event reactions
-- User mentions
-- Zap splits
-
-Tag utilities ensure consistent and correct tag creation across the application while integrating with the router for relay hints.

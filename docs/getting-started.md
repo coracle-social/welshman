@@ -13,23 +13,23 @@ npm i @welshman/relay
 # Networking and relay management
 npm i @welshman/net
 
-# Content parsing and rendering
-npm i @welshman/content
-
 # Event signing and encryption
 npm i @welshman/signer
 
 # Dynamic feed compilation
 npm i @welshman/feeds
 
+# Content parsing and rendering
+npm i @welshman/content
+
+# Rich text editor component
+npm i @welshman/editor
+
 # Svelte stores and state management
 npm i @welshman/store
 
-# Full application framework (requires Svelte)
+# Complete application framework
 npm i @welshman/app
-
-# Rich text editor component (requires Svelte)
-npm i @welshman/editor
 ```
 
 Choose packages based on your needs:
@@ -49,4 +49,4 @@ Choose packages based on your needs:
   npm i @welshman/content
   ```
 
-Each package is independent but integrates seamlessly. All packages are framework-agnostic, but work best with Svelte.
+Each package is independent but integrates seamlessly. All packages are framework-agnostic, but work best with Svelte due to svelte stores being a common pattern for state management.

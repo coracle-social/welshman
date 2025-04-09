@@ -21,13 +21,17 @@ export default defineConfig({
           ],
         },
         {
-          text: "@welshman/lib",
-          link: "/lib/",
+          text: "@welshman/app",
+          link: "/app/",
           items: [
-            {text: "Utilities", link: "/lib/tools"},
-            {text: "LRU cache", link: "/lib/lru"},
-            {text: "Worker", link: "/lib/worker"},
-            {text: "Deferred", link: "/lib/deferred"},
+            {text: "Session Management", link: "/app/session"},
+            {text: "Relay Selection", link: "/app/relay-selection"},
+            {text: "Making Requests", link: "/app/making-requests"},
+            {text: "Publishing Events", link: "/app/publishing-events"},
+            {text: "Tag utilities", link: "/app/tags"},
+            {text: "Web of Trust", link: "/app/wot"},
+            {text: "Storage", link: "/app/storage"},
+            {text: "Context", link: "/app/context"},
           ],
         },
         {
@@ -49,37 +53,6 @@ export default defineConfig({
           ],
         },
         {
-          text: "@welshman/content",
-          link: "/content/",
-          items: [
-            {text: "Parser", link: "/content/parser"},
-            {text: "Renderer", link: "/content/renderer"},
-          ],
-        },
-        {
-          text: "@welshman/feeds",
-          link: "/feeds/",
-          items: [
-            {text: "Core", link: "/feeds/core"},
-            {text: "Utilities", link: "/feeds/utils"},
-            {text: "Compiler", link: "/feeds/compiler"},
-            {text: "Controller", link: "/feeds/controller"},
-          ],
-        },
-        {
-          text: "@welshman/editor",
-          link: "/editor/",
-          items: [],
-        },
-        {
-          text: "@welshman/store",
-          link: "/store/",
-          items: [
-            {text: "Basic utilities", link: "/store/basic"},
-            {text: "Event stores", link: "/store/events"},
-          ],
-        },
-        {
           text: "@welshman/net",
           link: "/net/",
           items: [
@@ -96,14 +69,6 @@ export default defineConfig({
           ],
         },
         {
-          text: "@welshman/dvm",
-          link: "/dvm/",
-          items: [
-            {text: "Handler", link: "/dvm/handler"},
-            {text: "Request", link: "/dvm/request"},
-          ],
-        },
-        {
           text: "@welshman/signer",
           link: "/signer/",
           items: [
@@ -116,22 +81,59 @@ export default defineConfig({
           ],
         },
         {
-          text: "@welshman/app",
-          link: "/app/",
+          text: "@welshman/relay",
+          link: "/relay/",
           items: [
-            {text: "Context", link: "/app/context"},
-            {text: "Storage", link: "/app/storage"},
-            {text: "Router", link: "/app/router"},
-            {text: "Session", link: "/app/session"},
-            {text: "Collection", link: "/app/collection"},
-            {text: "Commands", link: "/app/commands"},
-            {text: "Subscription", link: "/app/subscription"},
-            {text: "Publish (Thunks)", link: "/app/thunks"},
-            {text: "Feed", link: "/app/feed"},
-            {text: "Tag utilities", link: "/app/tags"},
-            {text: "Topics", link: "/app/topics"},
-            {text: "Web of Trust", link: "/app/wot"},
-            {text: "Stores and Loaders", link: "/app/storesandloaders"},
+          ],
+        },
+        {
+          text: "@welshman/content",
+          link: "/content/",
+          items: [
+            {text: "Parser", link: "/content/parser"},
+            {text: "Renderer", link: "/content/renderer"},
+          ],
+        },
+        {
+          text: "@welshman/editor",
+          link: "/editor/",
+          items: [],
+        },
+        {
+          text: "@welshman/feeds",
+          link: "/feeds/",
+          items: [
+            {text: "Core", link: "/feeds/core"},
+            {text: "Utilities", link: "/feeds/utils"},
+            {text: "Compiler", link: "/feeds/compiler"},
+            {text: "Controller", link: "/feeds/controller"},
+          ],
+        },
+        {
+          text: "@welshman/dvm",
+          link: "/dvm/",
+          items: [
+            {text: "Handler", link: "/dvm/handler"},
+            {text: "Request", link: "/dvm/request"},
+          ],
+        },
+        {
+          text: "@welshman/store",
+          link: "/store/",
+          items: [
+            {text: "Basic utilities", link: "/store/basic"},
+            {text: "Event stores", link: "/store/events"},
+          ],
+        },
+        {
+          text: "@welshman/lib",
+          link: "/lib/",
+          items: [
+            {text: "Utilities", link: "/lib/tools"},
+            {text: "LRU cache", link: "/lib/lru"},
+            {text: "Task Queue", link: "/lib/task-queue"},
+            {text: "Normalize URL", link: "/lib/normalize-url"},
+            {text: "Deferred", link: "/lib/deferred"},
           ],
         },
       ],

@@ -1,5 +1,5 @@
 import {readable, derived, type Readable, type Subscriber} from "svelte/store"
-import {indexBy, remove, type Maybe, now} from "@welshman/lib"
+import {indexBy, remove, now} from "@welshman/lib"
 import {withGetter} from "@welshman/store"
 import {getFreshness, setFreshnessThrottled} from "./freshness.js"
 
@@ -15,7 +15,7 @@ export const collection = <T>({
   load?: (key: string, relays: string[]) => Promise<any>
 }) => {
   const indexStore = withGetter(derived(store, $items => indexBy(getKey, $items)))
-  const pending = new Map<string, Promise<Maybe<T>>>()
+  const pending = new Map<string, Promise<T | void>>()
   const loadAttempts = new Map<string, number>()
 
   let subscribers: Subscriber<T>[] = []
@@ -76,7 +76,7 @@ export const collection = <T>({
     return fresh
   }
 
-  const deriveItem = (key: Maybe<string>, relays: string[] = []) => {
+  const deriveItem = (key: string | undefined, relays: string[] = []) => {
     if (!key) {
       return readable(undefined)
     }

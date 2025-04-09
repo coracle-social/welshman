@@ -166,3 +166,5 @@ export class MultiPublish extends EventEmitter {
     this.removeAllListeners()
   }
 }
+
+export const publish = (options: MultiPublishOptions) => new MultiPublish(options)
