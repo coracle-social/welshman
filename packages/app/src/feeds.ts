@@ -1,6 +1,6 @@
-import {nthEq, now} from "@welshman/lib"
+import {nthEq, partition, race, now} from "@welshman/lib"
 import {createEvent, getPubkeyTagValues} from "@welshman/util"
-import {MultiRequest, RequestEvent} from "@welshman/net"
+import {MultiRequest, Tracker, RequestEvent, request} from "@welshman/net"
 import {Scope, FeedController, RequestOpts, FeedOptions, DVMOpts, Feed} from "@welshman/feeds"
 import {makeDvmRequest, DVMEvent} from "@welshman/dvm"
 import {makeSecret, Nip01Signer} from "@welshman/signer"
@@ -8,19 +8,67 @@ import {pubkey, signer} from "./session.js"
 import {Router, addMinimalFallbacks, getFilterSelections} from "./router.js"
 import {loadRelaySelections} from "./relaySelections.js"
 import {wotGraph, maxWot, getFollows, getNetwork, getFollowers} from "./wot.js"
+import {repository} from "./core.js"
 
-export const request = async ({filters = [{}], relays = [], onEvent}: RequestOpts) => {
-  if (relays.length > 0) {
-    await new Promise<void>(resolve => {
-      const sub = new MultiRequest({filters, relays, timeout: 5000, autoClose: true})
-
-      sub.on(RequestEvent.Event, onEvent)
-      sub.on(RequestEvent.Close, resolve)
-    })
-  } else {
-    await Promise.all(getFilterSelections(filters).map(opts => request({...opts, onEvent})))
-  }
+export type FeedRequestHandlerOptions = {
+  signal?: AbortSignal
 }
+
+export const makeFeedRequestHandler = ({signal}: FeedRequestHandlerOptions) =>
+  async ({filters = [{}], relays = [], onEvent}: RequestOpts) => {
+    const tracker = new Tracker()
+    const requestOptions = {}
+
+    if (relays.length > 0) {
+      await new Promise(resolve => {
+        const req = request({tracker, signal, autoClose: true, relays, filters})
+
+        req.on(RequestEvent.Event, onEvent)
+        req.on(RequestEvent.Close, resolve)
+      })
+    } else {
+      const requests: MultiRequest[] = []
+      const [withSearch, withoutSearch] = partition(f => Boolean(f.search), filters)
+
+      if (withSearch.length > 0) {
+        requests.push(
+          request({
+            tracker, signal, autoClose: true,
+            filters: withSearch,
+            relays: Router.get().Search().getUrls(),
+          }),
+        )
+      }
+
+      if (withoutSearch.length > 0) {
+        requests.push(
+          ...getFilterSelections(filters).flatMap(options =>
+            request({tracker, signal, autoClose: true, ...options}),
+          ),
+        )
+      }
+
+      // Break out selections by relay so we can complete early after a certain number
+      // of requests complete for faster load times
+      await race(
+        withSearch.length > 0 ? 0.1 : 0.8,
+        requests.map(
+          req =>
+            new Promise(resolve => {
+              req.on(RequestEvent.Event, onEvent)
+              req.on(RequestEvent.Close, resolve)
+            }),
+        ),
+      )
+
+      // Wait until after we've queried the network to access our local cache. This results in less
+      // snappy response times, but is necessary to prevent stale stuff that the user has already seen
+      // from showing up at the top of the feed
+      for (const event of repository.query(filters)) {
+        onEvent(event)
+      }
+    }
+  }
 
 export const requestDVM = async ({kind, onEvent, ...request}: DVMOpts) => {
   // Make sure we know what relays to use for target dvms
@@ -101,11 +149,14 @@ export const getPubkeysForWOTRange = (min: number, max: number) => {
 
 type _FeedOptions = Partial<Omit<FeedOptions, "feed">> & {feed: Feed}
 
-export const createFeedController = (options: _FeedOptions) =>
-  new FeedController({
+export const createFeedController = (options: _FeedOptions) => {
+  const request = makeFeedRequestHandler(options)
+
+  return new FeedController({
     request,
     requestDVM,
     getPubkeysForScope,
     getPubkeysForWOTRange,
     ...options,
   })
+}

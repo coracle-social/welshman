@@ -1038,6 +1038,32 @@ export const batcher = <T, U>(t: number, execute: (request: T[]) => U[] | Promis
     })
 }
 
+/**
+ * Returns a promise that resolves after some proportion of promises complete
+ * @param threshold - number between 0 and 1 for how many promises to wait for
+ * @param promises - array of promises
+ * @returns promise
+ */
+export const race = (threshold: number, promises: Promise<unknown>[]) => {
+  let count = 0
+
+  if (threshold === 0) {
+    return Promise.resolve()
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    promises.forEach(p => {
+      p.then(() => {
+        count++
+
+        if (count >= threshold * promises.length) {
+          resolve()
+        }
+      }).catch(reject)
+    })
+  })
+}
+
 // ----------------------------------------------------------------------------
 // URLs
 // ----------------------------------------------------------------------------

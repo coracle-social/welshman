@@ -66,14 +66,15 @@ export const verifyEvent = (() => {
 
   if (typeof WebAssembly === "object") {
     initNostrWasm()
-      .then(setNostrWasm, noop)
-      .then(() => {
+      .then(nostrWasm => {
+        setNostrWasm(nostrWasm)
         verify = verifyEventWasm
+      }, e => {
+        console.warn(e)
       })
   }
 
-  return (event: TrustedEvent) =>
-    event.sig && (event[verifiedSymbol] || verify(event as SignedEvent))
+  return (event: TrustedEvent) => Boolean(event.sig && verify(event as SignedEvent))
 })()
 
 export const isEventTemplate = (e: EventTemplate): e is EventTemplate =>

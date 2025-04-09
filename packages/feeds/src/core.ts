@@ -132,5 +132,5 @@ export type FeedOptions = {
   onEvent?: (event: TrustedEvent) => void
   onExhausted?: () => void
   useWindowing?: boolean
-  abortController?: AbortController
+  signal?: AbortSignal
 }

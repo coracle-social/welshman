@@ -2,7 +2,7 @@ import {openDB, deleteDB} from "idb"
 import {IDBPDatabase} from "idb"
 import {writable} from "svelte/store"
 import {Unsubscriber} from "svelte/store"
-import {call} from "@welshman/lib"
+import {call, defer} from "@welshman/lib"
 import {withGetter} from "@welshman/store"
 
 export type StorageAdapterOptions = {
@@ -18,11 +18,15 @@ export type StorageAdapter = {
 
 export let db: IDBPDatabase | undefined
 
+export const ready = defer<void>()
+
 export const dead = withGetter(writable(false))
 
 export const subs: Unsubscriber[] = []
 
 export const getAll = async (name: string) => {
+  await ready
+
   const tx = db!.transaction(name, "readwrite")
   const store = tx.objectStore(name)
   const result = await store.getAll()
@@ -33,6 +37,8 @@ export const getAll = async (name: string) => {
 }
 
 export const bulkPut = async (name: string, data: any[]) => {
+  await ready
+
   const tx = db!.transaction(name, "readwrite")
   const store = tx.objectStore(name)
 
@@ -50,6 +56,8 @@ export const bulkPut = async (name: string, data: any[]) => {
 }
 
 export const bulkDelete = async (name: string, ids: string[]) => {
+  await ready
+
   const tx = db!.transaction(name, "readwrite")
   const store = tx.objectStore(name)
 
@@ -89,6 +97,8 @@ export const initStorage = async (
       }
     },
   })
+
+  ready.resolve()
 
   await Promise.all(Object.values(adapters).map(adapter => adapter.init()))
 

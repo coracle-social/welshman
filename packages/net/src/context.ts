@@ -14,6 +14,6 @@ export type NetContext = {
 export const netContext: NetContext = {
   pool: Pool.getSingleton(),
   repository: Repository.getSingleton(),
-  isEventValid: (event, url) => Boolean(event.sig && verifyEvent(event as SignedEvent)),
+  isEventValid: (event, url) => verifyEvent(event),
   isEventDeleted: (event, url) => netContext.repository.isDeleted(event),
 }

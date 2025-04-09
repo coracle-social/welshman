@@ -199,7 +199,7 @@ export const makeSocketPolicyAuth = (options: SocketPolicyAuthOptions) => (socke
   const unsubscribers = [
     on(socket.auth, AuthStateEvent.Status, (status: AuthStatus) => {
       if (status === AuthStatus.Requested && shouldAuth(socket)) {
-        socket.auth.authenticate(options.sign)
+        socket.auth.doAuth(options.sign)
       }
     }),
   ]

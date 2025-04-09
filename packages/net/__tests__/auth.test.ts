@@ -107,11 +107,11 @@ describe("auth", () => {
     })
   })
 
-  describe("authenticate", () => {
+  describe("doAuth", () => {
     it("should throw an error when there is no challenge", async () => {
       const sign = vi.fn()
 
-      await expect(socket.auth.authenticate(sign)).rejects.toThrow(
+      await expect(socket.auth.doAuth(sign)).rejects.toThrow(
         "Attempted to authenticate with no challenge",
       )
     })
@@ -122,7 +122,7 @@ describe("auth", () => {
       socket.auth.challenge = "challenge123"
       socket.auth.status = AuthStatus.PendingResponse
 
-      await expect(socket.auth.authenticate(sign)).rejects.toThrow(
+      await expect(socket.auth.doAuth(sign)).rejects.toThrow(
         "Attempted to authenticate when auth is already auth:status:pending_response",
       )
     })
@@ -133,7 +133,7 @@ describe("auth", () => {
       socket.auth.challenge = "challenge123"
       socket.auth.status = AuthStatus.Requested
 
-      await socket.auth.authenticate(sign)
+      await socket.auth.doAuth(sign)
 
       expect(socket.auth.status).toBe(AuthStatus.DeniedSignature)
     })
@@ -151,7 +151,7 @@ describe("auth", () => {
         return event
       }
 
-      await socket.auth.authenticate(sign)
+      await socket.auth.doAuth(sign)
 
       expect(socket.auth.request).toStrictEqual(event!.id)
       expect(sendSpy).toHaveBeenCalledWith(["AUTH", event])

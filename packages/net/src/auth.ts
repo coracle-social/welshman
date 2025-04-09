@@ -1,5 +1,5 @@
 import EventEmitter from "events"
-import {on, call} from "@welshman/lib"
+import {on, poll, call} from "@welshman/lib"
 import {SignedEvent, StampedEvent} from "@welshman/util"
 import {makeEvent, CLIENT_AUTH} from "@welshman/util"
 import {isRelayAuth, isClientAuth, isRelayOk, RelayMessage} from "./message.js"
@@ -97,7 +97,7 @@ export class AuthState extends EventEmitter {
     this.emit(AuthStateEvent.Status, status)
   }
 
-  async authenticate(sign: (event: StampedEvent) => Promise<SignedEvent>) {
+  async doAuth(sign: (event: StampedEvent) => Promise<SignedEvent>) {
     if (!this.challenge) {
       throw new Error("Attempted to authenticate with no challenge")
     }
@@ -117,6 +117,24 @@ export class AuthState extends EventEmitter {
     } else {
       this.setStatus(AuthStatus.DeniedSignature)
     }
+  }
+
+  async attemptAuth(sign: (event: StampedEvent) => Promise<SignedEvent>) {
+    this.socket.attemptToOpen()
+
+    await poll({
+      signal: AbortSignal.timeout(800),
+      condition: () => this.status === AuthStatus.Requested,
+    })
+
+    if (this.status === AuthStatus.Requested) {
+      await this.doAuth(sign)
+    }
+
+    await poll({
+      signal: AbortSignal.timeout(800),
+      condition: () => this.status !== AuthStatus.PendingResponse,
+    })
   }
 
   cleanup() {
