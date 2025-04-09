@@ -76,7 +76,7 @@ describe("Socket", () => {
 
       socket.open()
 
-      const closeSpy = vi.spyOn(socket._ws, "close")
+      const closeSpy = vi.spyOn(socket._ws!, "close")
 
       socket.close()
 
