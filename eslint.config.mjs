@@ -17,6 +17,16 @@ export default tsEslint.config(
     extends: [js.configs.recommended, ...tsEslint.configs.recommended],
     files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"],
     languageOptions: { globals: globals.node },
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/ban-ts-comment": "off",
+      "@typescript-eslint/no-unused-vars": ["error", {
+            "vars": "all",
+            "args": "after-used",
+            "caughtErrors": "none",
+            "argsIgnorePattern": "^_",
+        }]
+    }
   },
   eslintPluginPrettierRecommended,
 );

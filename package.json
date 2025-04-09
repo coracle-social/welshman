@@ -17,6 +17,7 @@
   "devDependencies": {
     "@eslint/js": "~9.23.0",
     "eslint": "~9.23.0",
+    "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "~5.2.5",
     "eslint-plugin-react": "~7.37.4",
     "fake-indexeddb": "^6.0.0",
