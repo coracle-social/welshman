@@ -4,9 +4,8 @@ import {
   push as basePush,
   pull as basePull,
   PublishEvent,
-  RequestEvent,
   SinglePublish,
-  SingleRequest,
+  requestOne,
 } from "@welshman/net"
 import {repository} from "./core.js"
 import {relaysByUrl} from "./relays.js"
@@ -35,9 +34,7 @@ export const pull = async ({relays, filters}: AppSyncOpts) => {
     relays.map(async relay => {
       await (hasNegentropy(relay)
         ? basePull({filters, events, relays: [relay]})
-        : new Promise<void>(resolve => {
-            new SingleRequest({filters, relay, autoClose: true}).on(RequestEvent.Close, resolve)
-          }))
+        : requestOne({filters, relay, autoClose: true}))
     }),
   )
 }

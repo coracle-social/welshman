@@ -1,7 +1,7 @@
 import {now} from "@welshman/lib"
 import {Nip01Signer} from "@welshman/signer"
 import {TrustedEvent, StampedEvent, Filter} from "@welshman/util"
-import {MultiRequest, MultiPublish, PublishEvent, RequestEvent, AdapterContext} from "@welshman/net"
+import {request, MultiPublish, PublishEvent, AdapterContext} from "@welshman/net"
 
 export type DVMHandler = {
   stop?: () => void
@@ -50,10 +50,13 @@ export class DVM {
           filter["#p"] = [pubkey]
         }
 
-        const req = new MultiRequest({relays, filters: [filter], context})
-
-        req.on(RequestEvent.Event, this.onEvent)
-        req.on(RequestEvent.Close, resolve)
+        request({
+          relays,
+          filters: [filter],
+          context,
+          onClose: resolve,
+          onEvent: this.onEvent,
+        })
       })
     }
   }

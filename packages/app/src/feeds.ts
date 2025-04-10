@@ -1,6 +1,6 @@
 import {nthEq, partition, race, now} from "@welshman/lib"
 import {createEvent, getPubkeyTagValues} from "@welshman/util"
-import {MultiRequest, Tracker, RequestEvent, request} from "@welshman/net"
+import {request, Tracker} from "@welshman/net"
 import {Scope, FeedController, RequestOpts, FeedOptions, DVMOpts, Feed} from "@welshman/feeds"
 import {makeDvmRequest, DVMEvent} from "@welshman/dvm"
 import {makeSecret, Nip01Signer} from "@welshman/signer"
@@ -27,13 +27,17 @@ export const makeFeedRequestHandler = ({signal}: FeedRequestHandlerOptions) =>
         req.on(RequestEvent.Close, resolve)
       })
     } else {
-      const requests: MultiRequest[] = []
+      const promises: Promise<TrustedEvent>[][] = []
       const [withSearch, withoutSearch] = partition(f => Boolean(f.search), filters)
 
       if (withSearch.length > 0) {
-        requests.push(
+        promises.push(
           request({
-            tracker, signal, autoClose: true,
+            signal,
+            tracker,
+            onEvent
+            threshold: 0.1,
+            autoClose: true,
             filters: withSearch,
             relays: Router.get().Search().getUrls(),
           }),
@@ -41,25 +45,16 @@ export const makeFeedRequestHandler = ({signal}: FeedRequestHandlerOptions) =>
       }
 
       if (withoutSearch.length > 0) {
-        requests.push(
-          ...getFilterSelections(filters).flatMap(options =>
-            request({tracker, signal, autoClose: true, ...options}),
+        promises.push(
+          ...getFilterSelections(filters).flatMap(({relays, filters}) =>
+            request({tracker, signal, onEvent, relays, filters, threshold: 0.8, autoClose: true}),
           ),
         )
       }
 
       // Break out selections by relay so we can complete early after a certain number
       // of requests complete for faster load times
-      await race(
-        withSearch.length > 0 ? 0.1 : 0.8,
-        requests.map(
-          req =>
-            new Promise(resolve => {
-              req.on(RequestEvent.Event, onEvent)
-              req.on(RequestEvent.Close, resolve)
-            }),
-        ),
-      )
+      await race(withSearch.length > 0 ? 0.1 : 0.8, promises)
 
       // Wait until after we've queried the network to access our local cache. This results in less
       // snappy response times, but is necessary to prevent stale stuff that the user has already seen
