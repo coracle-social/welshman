@@ -372,7 +372,7 @@ export class Nip46Broker extends Emitter {
     return `nostrconnect://${clientPubkey}?${params.toString()}`
   }
 
-  waitForNostrconnect = (url: string, abort?: AbortController) => {
+  waitForNostrconnect = (url: string, signal: AbortSignal) => {
     const secret = new URL(url).searchParams.get("secret")
 
     return makePromise<Nip46ResponseWithResult, Nip46Response | undefined>((resolve, reject) => {
@@ -401,7 +401,7 @@ export class Nip46Broker extends Emitter {
       this.receiver.on(Nip46Event.Receive, onReceive)
       this.receiver.start()
 
-      abort?.signal.addEventListener("abort", () => {
+      signal.addEventListener("abort", () => {
         reject(undefined)
         cleanup()
       })

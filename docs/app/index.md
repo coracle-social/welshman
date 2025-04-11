@@ -6,13 +6,13 @@ A comprehensive framework for building nostr clients, powering production applic
 
 ## What's Included
 
-- **Repository System** - Event storage and query capabilities
-- **Router** - Intelligent relay selection for optimal networking
-- **Feed Controller** - Manages feed creation and updates
+- **Repository** - Event storage and query capabilities
+- **Router** - Intelligent relay selection for optimal network access
+- **Feed Controller** - Manages feed loading
 - **Session Management** - User identity and key management
 - **Event Actions** - High-level operations like reacting, replying, etc.
 - **Profile Management** - User profile handling and metadata
-- **Relay Directories** - Discovery and management of relays
+- **Relay Directory** - Discovery and management of relays
 - **Web of Trust** - Utilities for building webs of trust
 
 ## Quick Example
@@ -61,18 +61,19 @@ const events = await load({
 }])
 
 // Or use `request` for more fine-grained subscription control
-const req = request({
+const abortController = new AbortController()
+
+request({
+  signal: abortController.signal,
   relays: Router.get().ForUser().getUrls(),
   filters: [{kinds: [NOTE],
+  onEvent: (event: TrustedEvent) => {
+    console.log(event)
+  },
 }])
 
-// Listen for events
-req.on(RequestEvent.Event, (event: TrustedEvent) => {
-  console.log(event)
-})
-
-// Close the req
-req.close()
+// Close the request
+abortController.abort()
 ```
 
 ## Installation
