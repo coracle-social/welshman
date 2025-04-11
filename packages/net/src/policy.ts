@@ -1,4 +1,4 @@
-import {on, nthEq, always, call, sleep, ago, now} from "@welshman/lib"
+import {on, nthNe, always, call, sleep, ago, now} from "@welshman/lib"
 import {AUTH_JOIN, StampedEvent, SignedEvent} from "@welshman/util"
 import {
   ClientMessage,
@@ -42,7 +42,7 @@ export const socketPolicyAuthBuffer = (socket: Socket) => {
       // If the client is closing a req, remove both from our buffer
       // Otherwise, if auth isn't done, hang on to recent messages in case we need to replay them
       if (isClientClose(message) || isClientNegClose(message)) {
-        buffer = buffer.filter(nthEq(1, message[1]))
+        buffer = buffer.filter(nthNe(1, message[1]))
       } else {
         buffer = buffer.slice(-50).concat([message])
       }
