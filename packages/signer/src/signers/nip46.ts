@@ -15,7 +15,7 @@ import {
   StampedEvent,
   NOSTR_CONNECT,
 } from "@welshman/util"
-import {MultiPublish, request, AdapterContext} from "@welshman/net"
+import {publish, request, AdapterContext} from "@welshman/net"
 import {ISigner, EncryptionImplementation, decrypt, hash, own} from "../util.js"
 import {Nip01Signer} from "./nip01.js"
 
@@ -167,9 +167,10 @@ export class Nip46Sender extends Emitter {
     const content = await this.signer[algorithm].encrypt(signerPubkey, payload)
     const template = createEvent(NOSTR_CONNECT, {content, tags: [["p", signerPubkey]]})
     const event = await this.signer.sign(template)
-    const pub = new MultiPublish({relays, event, context})
 
-    this.emit(Nip46Event.Send, {...request, pub})
+    publish({relays, event, context})
+
+    this.emit(Nip46Event.Send, request)
   }
 
   // process the queue of requests

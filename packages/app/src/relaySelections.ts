@@ -10,7 +10,7 @@ import {
   getRelayTagValues,
 } from "@welshman/util"
 import {TrustedEvent, Filter, PublishedList, List} from "@welshman/util"
-import {request, load, RequestEvent} from "@welshman/net"
+import {request, load} from "@welshman/net"
 import {deriveEventsMapped} from "@welshman/store"
 import {repository} from "./core.js"
 import {Router} from "./router.js"
@@ -52,13 +52,7 @@ export const makeOutboxLoader = (kinds: number[]) => {
 
     const filters = [{authors, kinds}]
     const relays = router.merge(scenarios).getUrls()
-
-    const promise = new Promise<void>(resolve => {
-      const req = request({filters, relays, autoClose: true})
-
-      req.on(RequestEvent.Eose, () => resolve())
-      req.on(RequestEvent.Close, () => resolve())
-    })
+    const promise = request({filters, relays, autoClose: true})
 
     return requests.map(always(promise))
   })

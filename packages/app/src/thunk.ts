@@ -26,7 +26,7 @@ import {
   isUnwrappedEvent,
   isSignedEvent,
 } from "@welshman/util"
-import {MultiPublish, AdapterContext, PublishStatus, PublishEvent} from "@welshman/net"
+import {publish, AdapterContext, PublishStatus} from "@welshman/net"
 import {repository, tracker} from "./core.js"
 import {pubkey, getSession, getSigner} from "./session.js"
 
@@ -47,14 +47,14 @@ export type ThunkStatus = {
   status: PublishStatus
 }
 
-export type ThunkStatusByUrl = Record<string, ThunkStatus>
+export type ThunkStatusByRelay = Record<string, ThunkStatus>
 
 export type Thunk = {
   event: TrustedEvent
   request: ThunkRequest
   controller: AbortController
-  result: Deferred<ThunkStatusByUrl>
-  status: Writable<ThunkStatusByUrl>
+  result: Deferred<ThunkStatusByRelay>
+  status: Writable<ThunkStatusByRelay>
 }
 
 export const prepEvent = (event: ThunkEvent) => {
@@ -85,8 +85,8 @@ export const makeThunk = (request: ThunkRequest) => {
 export type MergedThunk = {
   thunks: Thunk[]
   controller: AbortController
-  result: Promise<ThunkStatusByUrl[]>
-  status: Readable<ThunkStatusByUrl>
+  result: Promise<ThunkStatusByRelay[]>
+  status: Readable<ThunkStatusByRelay>
 }
 
 export const isMergedThunk = (thunk: Thunk | MergedThunk): thunk is MergedThunk =>
@@ -108,7 +108,7 @@ export const mergeThunks = (thunks: Thunk[]) => {
     status: derived(
       thunks.map(thunk => thunk.status),
       statuses => {
-        const mergedStatus: ThunkStatusByUrl = {}
+        const mergedStatus: ThunkStatusByRelay = {}
 
         for (const url of uniq(statuses.flatMap(s => Object.keys(s)))) {
           const urlStatuses = statuses.map(s => s[url])
@@ -196,7 +196,7 @@ export const thunkQueue = new TaskQueue<Thunk>({
     // Avoid making this function async so multiple publishes can run concurrently
     Promise.resolve().then(async () => {
       const fail = (message: string) => {
-        const status: ThunkStatusByUrl = {}
+        const status: ThunkStatusByRelay = {}
 
         for (const url of thunk.request.relays) {
           status[url] = {status: PublishStatus.Failure, message}
@@ -239,17 +239,37 @@ export const thunkQueue = new TaskQueue<Thunk>({
         fromPairs(
           thunk.request.relays.map(url => [
             url,
-            {status: PublishStatus.Pending, message: "Sending your message..."},
+            {status: Pending, message: "Sending your message..."},
           ]),
         ),
       )
 
       // Send it off
-      const pub = new MultiPublish({
+      publish({
         event: signedEvent,
         relays: thunk.request.relays,
         context: thunk.request.context,
         timeout: thunk.request.timeout,
+        onSuccess: (message: string, url: string) => {
+          tracker.track(signedEvent.id, url)
+          thunk.status.update(assoc(url, {status: PublishStatus.Success, message}))
+        },
+        onFailure: (message: string, url: string) => {
+          thunk.status.update(assoc(url, {status: PublishStatus.Failure, message}))
+        },
+        onTimeout: (url: string) => {
+          const message = "Publish timed out"
+
+          thunk.status.update(assoc(url, {status: PublishStatus.Timeout, message}))
+        },
+        onAborted: (url: string) => {
+          const message = "Publish was aborted"
+
+          thunk.status.update(assoc(url, {status: PublishStatus.Aborted, message}))
+        },
+        onComplete: () => {
+          thunk.result.resolve(get(thunk.status))
+        },
       })
 
       // Copy the signature over since we had deferred it
@@ -259,31 +279,6 @@ export const thunkQueue = new TaskQueue<Thunk>({
       if (savedEvent) {
         savedEvent.sig = signedEvent.sig
       }
-
-      pub.on(PublishEvent.Success, (id: string, message: string, url: string) => {
-        tracker.track(id, url)
-        thunk.status.update(assoc(url, {status: PublishStatus.Success, message}))
-      })
-
-      pub.on(PublishEvent.Failure, (id: string, message: string, url: string) => {
-        thunk.status.update(assoc(url, {status: PublishStatus.Failure, message}))
-      })
-
-      pub.on(PublishEvent.Timeout, (url: string) => {
-        thunk.status.update(
-          assoc(url, {status: PublishStatus.Timeout, message: "Publish timed out"}),
-        )
-      })
-
-      pub.on(PublishEvent.Aborted, (url: string) => {
-        thunk.status.update(
-          assoc(url, {status: PublishStatus.Aborted, message: "Publish was aborted"}),
-        )
-      })
-
-      pub.on(PublishEvent.Complete, () => {
-        thunk.result.resolve(get(thunk.status))
-      })
     })
   },
 })

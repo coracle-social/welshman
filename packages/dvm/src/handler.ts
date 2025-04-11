@@ -1,7 +1,7 @@
 import {now} from "@welshman/lib"
 import {Nip01Signer} from "@welshman/signer"
 import {TrustedEvent, StampedEvent, Filter} from "@welshman/util"
-import {request, MultiPublish, PublishEvent, AdapterContext} from "@welshman/net"
+import {request, publish, AdapterContext} from "@welshman/net"
 
 export type DVMHandler = {
   stop?: () => void
@@ -118,8 +118,6 @@ export class DVM {
     const {relays, context} = this.opts
     const event = await this.signer.sign(template)
 
-    await new Promise<void>(resolve => {
-      new MultiPublish({event, relays, context}).on(PublishEvent.Complete, resolve)
-    })
+    await publish({event, relays, context})
   }
 }

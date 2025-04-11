@@ -1,6 +1,6 @@
 import {Emitter, now} from "@welshman/lib"
 import {TrustedEvent, SignedEvent, Filter} from "@welshman/util"
-import {request, MultiPublish, AdapterContext} from "@welshman/net"
+import {request, publish, AdapterContext} from "@welshman/net"
 
 export enum DVMEvent {
   Progress = "progress",
@@ -19,7 +19,6 @@ export type DVMRequestOptions = {
 export type DVMRequest = {
   options: DVMRequestOptions
   emitter: Emitter
-  pub: MultiPublish
 }
 
 export const makeDvmRequest = (options: DVMRequestOptions) => {
@@ -56,8 +55,8 @@ export const makeDvmRequest = (options: DVMRequestOptions) => {
     },
   })
 
-  const pub = new MultiPublish({relays, event, timeout, context})
+  publish({relays, event, timeout, context})
 
 
-  return {options, emitter, pub} as DVMRequest
+  return {options, emitter} as DVMRequest
 }

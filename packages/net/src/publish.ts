@@ -12,159 +12,122 @@ export enum PublishStatus {
   Aborted = "publish:status:aborted",
 }
 
-export enum PublishEvent {
-  Success = "publish:event:success",
-  Failure = "publish:event:failure",
-  Timeout = "publish:event:timeout",
-  Aborted = "publish:event:aborted",
-  Complete = "publish:event:complete",
+export type PublishResult = {
+  status: PublishStatus
+  detail: string
 }
 
-// SinglePublish
-
-export type SinglePublishOptions = {
+export type PublishOneOptions = {
   event: SignedEvent
   relay: string
-  context?: AdapterContext
+  signal?: AbortSignal
   timeout?: number
+  context?: AdapterContext
+  onStatus?: (status: PublishStatus, relay: string) => void
+  onSuccess?: (detail: string, relay: string) => void
+  onFailure?: (detail: string, relay: string) => void
+  onTimeout?: (relay: string) => void
+  onAborted?: (relay: string) => void
+  onComplete?: () => void
 }
 
-export class SinglePublish extends EventEmitter {
-  status = PublishStatus.Pending
+export const publishOne = (options: PublishOneOptions) =>
+  new Promise(resolve => {
+    const adapter = getAdapter(options.relay, options.context)
 
-  _unsubscriber: () => void
-  _adapter: AbstractAdapter
+    let status = PublishStatus.Pending
 
-  constructor(readonly options: SinglePublishOptions) {
-    super()
+    const setStatus = (_status: PublishStatus) => {
+      status = _status
+      options.onStatus?.(status, options.relay)
+    }
 
-    // Set up our adapter
-    this._adapter = getAdapter(this.options.relay, this.options.context)
+    const cleanup = () => {
+      options.onComplete?.()
+      adapter.cleanup()
+      resolve(status)
+    }
 
-    // Listen for SinglePublish result
-    this._unsubscriber = on(
-      this._adapter,
+    adapter.on(
       AdapterEvent.Receive,
       (message: RelayMessage, url: string) => {
         if (isRelayOk(message)) {
           const [_, id, ok, detail] = message
 
-          if (id !== this.options.event.id) return
+          if (id !== options.event.id) return
 
           if (ok) {
-            this.status = PublishStatus.Success
-            this.emit(PublishEvent.Success, id, detail)
+            setStatus(PublishStatus.Success)
+            options.onSuccess?.(detail, options.relay)
           } else {
-            this.status = PublishStatus.Failure
-            this.emit(PublishEvent.Failure, id, detail)
+            setStatus(PublishStatus.Failure)
+            options.onFailure?.(detail, options.relay)
           }
 
-          this.cleanup()
+          cleanup()
         }
       },
     )
 
-    // Set timeout
-    sleep(this.options.timeout || 10_000).then(() => {
-      if (this.status === PublishStatus.Pending) {
-        this.status = PublishStatus.Timeout
-        this.emit(PublishEvent.Timeout)
+    options.signal?.addEventListener('abort', () => {
+      if (status === PublishStatus.Pending) {
+        setStatus(PublishStatus.Aborted)
+        options.onAborted?.(options.relay)
       }
 
-      this.cleanup()
+      cleanup()
     })
 
-    // Start asynchronously so the caller can set up listeners
-    yieldThread().then(() => {
-      this._adapter.send([ClientMessageType.Event, this.options.event])
-    })
-  }
+    setTimeout(() => {
+      if (status === PublishStatus.Pending) {
+        setStatus(PublishStatus.Timeout)
+        options.onTimeout?.(options.relay)
+      }
 
-  abort = () => {
-    if (this.status === PublishStatus.Pending) {
-      this.status = PublishStatus.Aborted
-      this.emit(PublishEvent.Aborted)
-      this.cleanup()
-    }
-  }
+      cleanup()
+    }, options.timeout || 10_000)
 
-  cleanup = () => {
-    this.emit(PublishEvent.Complete)
-    this.removeAllListeners()
-    this._adapter.cleanup()
-    this._unsubscriber()
-  }
-}
+    adapter.send([ClientMessageType.Event, options.event])
 
-// MultiPublish
+    setStatus(PublishStatus.Pending)
+  })
 
-export type MultiPublishOptions = Omit<SinglePublishOptions, "relay"> & {
+export type PublishStatusByRelay = Record<string, PublishStatus>
+
+export type PublishOptions = Omit<PublishOneOptions, "relay"> & {
   relays: string[]
+  onUpdate?: (status: PublishStatusByRelay) => void
 }
 
-export class MultiPublish extends EventEmitter {
-  status: Record<string, PublishStatus>
+export const publish = async (options: PublishOptions) => {
+  const status: PublishStatusByRelay = {}
+  const completed = new Set<string>()
+  const relays = new Set(options.relays)
 
-  _children: SinglePublish[] = []
-  _completed = new Set<string>()
-
-  constructor(options: MultiPublishOptions) {
-    super()
-
-    const relays = new Set(options.relays)
-
-    if (relays.size !== options.relays.length) {
-      console.warn("Non-unique relays passed to MultiPublish")
-    }
-
-    this.status = fromPairs(Array.from(relays).map(relay => [relay, PublishStatus.Pending]))
-
-    for (const relay of relays) {
-      const unicast = new SinglePublish({relay, ...options})
-
-      unicast.on(PublishEvent.Success, (id: string, detail: string) => {
-        this.status[relay] = unicast.status
-        this.emit(PublishEvent.Success, id, detail, relay)
-      })
-
-      unicast.on(PublishEvent.Failure, (id: string, detail: string) => {
-        this.status[relay] = unicast.status
-        this.emit(PublishEvent.Failure, id, detail, relay)
-      })
-
-      unicast.on(PublishEvent.Timeout, () => {
-        this.status[relay] = unicast.status
-        this.emit(PublishEvent.Timeout, relay)
-      })
-
-      unicast.on(PublishEvent.Aborted, () => {
-        this.status[relay] = unicast.status
-        this.emit(PublishEvent.Aborted, relay)
-      })
-
-      unicast.on(PublishEvent.Complete, () => {
-        this._completed.add(relay)
-        this.status[relay] = unicast.status
-
-        if (this._completed.size === relays.size) {
-          this.emit(PublishEvent.Complete)
-          this.cleanup()
-        }
-      })
-
-      this._children.push(unicast)
-    }
+  if (relays.size !== options.relays.length) {
+    console.warn("Non-unique relays passed to publish")
   }
 
-  abort() {
-    for (const child of this._children) {
-      child.abort()
-    }
-  }
+  await Promise.all(
+    options.relays.map(relay =>
+      publishOne({
+        relay,
+        ...options,
+        onStatus: (_status: PublishStatus, relay: string) => {
+          status[relay] = _status
+          options.onStatus?.(_status, relay)
+          options.onUpdate?.(status)
+        },
+        onComplete: () => {
+          completed.add(relay)
 
-  cleanup() {
-    this.removeAllListeners()
-  }
+          if (completed.size === relays.size) {
+            options.onComplete?.()
+          }
+        },
+      })
+    )
+  )
+
+  return status
 }
-
-export const publish = (options: MultiPublishOptions) => new MultiPublish(options)

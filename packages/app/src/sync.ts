@@ -3,8 +3,7 @@ import {isSignedEvent, SignedEvent} from "@welshman/util"
 import {
   push as basePush,
   pull as basePull,
-  PublishEvent,
-  SinglePublish,
+  publishOne,
   requestOne,
 } from "@welshman/net"
 import {repository} from "./core.js"
@@ -46,14 +45,7 @@ export const push = async ({relays, filters}: AppSyncOpts) => {
     relays.map(async relay => {
       await (hasNegentropy(relay)
         ? basePush({filters, events, relays: [relay]})
-        : Promise.all(
-            events.map(
-              (event: SignedEvent) =>
-                new Promise<void>(resolve => {
-                  new SinglePublish({event, relay}).on(PublishEvent.Complete, resolve)
-                }),
-            ),
-          ))
+        : Promise.all(events.map((event: SignedEvent) => publishOne({event, relay}))))
     }),
   )
 }

@@ -1,11 +1,11 @@
 import {describe, expect, it, vi, beforeEach, afterEach} from "vitest"
-import {SinglePublish, MultiPublish, PublishEvent} from "../src/publish"
+import {publishOne, publish} from "../src/publish"
 import {MockAdapter} from "../src/adapter"
 import {ClientMessageType} from "../src/message"
 import {makeEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 
-describe("SinglePublish", () => {
+describe("publishOne", () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -19,20 +19,18 @@ describe("SinglePublish", () => {
     const adapter = new MockAdapter("1", sendSpy)
     const signer = Nip01Signer.ephemeral()
     const event = await signer.sign(makeEvent(1))
-
-    const pub = new SinglePublish({
-      relay: "1",
-      context: {getAdapter: () => adapter},
-      event,
-    })
-
     const successSpy = vi.fn()
     const failureSpy = vi.fn()
     const completeSpy = vi.fn()
 
-    pub.on(PublishEvent.Success, successSpy)
-    pub.on(PublishEvent.Failure, failureSpy)
-    pub.on(PublishEvent.Complete, completeSpy)
+    publishOne({
+      event,
+      relay: "1",
+      context: {getAdapter: () => adapter},
+      onSuccess: successSpy,
+      onFailure: failureSpy,
+      onComplete: completeSpy,
+    })
 
     await vi.advanceTimersByTimeAsync(200)
 
@@ -42,7 +40,7 @@ describe("SinglePublish", () => {
 
     await vi.runAllTimers()
 
-    expect(successSpy).toHaveBeenCalledWith(event.id, "hi")
+    expect(successSpy).toHaveBeenCalledWith("hi", "1")
     expect(failureSpy).not.toHaveBeenCalled()
     expect(completeSpy).toHaveBeenCalled()
   })
@@ -52,20 +50,18 @@ describe("SinglePublish", () => {
     const adapter = new MockAdapter("1", sendSpy)
     const signer = Nip01Signer.ephemeral()
     const event = await signer.sign(makeEvent(1))
-
-    const pub = new SinglePublish({
-      relay: "1",
-      context: {getAdapter: () => adapter},
-      event,
-    })
-
     const successSpy = vi.fn()
     const failureSpy = vi.fn()
     const completeSpy = vi.fn()
 
-    pub.on(PublishEvent.Success, successSpy)
-    pub.on(PublishEvent.Failure, failureSpy)
-    pub.on(PublishEvent.Complete, completeSpy)
+    publishOne({
+      event,
+      relay: "1",
+      context: {getAdapter: () => adapter},
+      onSuccess: successSpy,
+      onFailure: failureSpy,
+      onComplete: completeSpy,
+    })
 
     await vi.advanceTimersByTimeAsync(200)
 
@@ -76,7 +72,7 @@ describe("SinglePublish", () => {
     await vi.runAllTimers()
 
     expect(successSpy).not.toHaveBeenCalled()
-    expect(failureSpy).toHaveBeenCalledWith(event.id, "hi")
+    expect(failureSpy).toHaveBeenCalledWith("hi", "1")
     expect(completeSpy).toHaveBeenCalled()
   })
 
@@ -85,22 +81,20 @@ describe("SinglePublish", () => {
     const adapter = new MockAdapter("1", sendSpy)
     const signer = Nip01Signer.ephemeral()
     const event = await signer.sign(makeEvent(1))
-
-    const pub = new SinglePublish({
-      relay: "1",
-      context: {getAdapter: () => adapter},
-      event,
-    })
-
     const successSpy = vi.fn()
     const failureSpy = vi.fn()
     const completeSpy = vi.fn()
     const timeoutSpy = vi.fn()
 
-    pub.on(PublishEvent.Success, successSpy)
-    pub.on(PublishEvent.Failure, failureSpy)
-    pub.on(PublishEvent.Complete, completeSpy)
-    pub.on(PublishEvent.Timeout, timeoutSpy)
+    publishOne({
+      event,
+      relay: "1",
+      context: {getAdapter: () => adapter},
+      onSuccess: successSpy,
+      onFailure: failureSpy,
+      onComplete: completeSpy,
+      onTimeout: timeoutSpy,
+    })
 
     await vi.runAllTimers()
 
@@ -119,28 +113,28 @@ describe("SinglePublish", () => {
     const adapter = new MockAdapter("1", sendSpy)
     const signer = Nip01Signer.ephemeral()
     const event = await signer.sign(makeEvent(1))
-
-    const pub = new SinglePublish({
-      relay: "1",
-      context: {getAdapter: () => adapter},
-      event,
-    })
-
+    const ctrl = new AbortController()
     const successSpy = vi.fn()
     const failureSpy = vi.fn()
     const completeSpy = vi.fn()
     const abortSpy = vi.fn()
 
-    pub.on(PublishEvent.Success, successSpy)
-    pub.on(PublishEvent.Failure, failureSpy)
-    pub.on(PublishEvent.Complete, completeSpy)
-    pub.on(PublishEvent.Timeout, abortSpy)
+    publishOne({
+      event,
+      relay: "1",
+      signal: ctrl.signal,
+      context: {getAdapter: () => adapter},
+      onSuccess: successSpy,
+      onFailure: failureSpy,
+      onComplete: completeSpy,
+      onTimeout: abortSpy,
+    })
 
     await vi.runAllTimers()
 
     expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Event, event])
 
-    pub.abort()
+    ctrl.abort()
 
     await vi.runAllTimers()
 
@@ -151,7 +145,7 @@ describe("SinglePublish", () => {
   })
 })
 
-describe("MultiPublish", () => {
+describe("publish", () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -169,8 +163,12 @@ describe("MultiPublish", () => {
     const adapter3 = new MockAdapter("3", send3Spy)
     const signer = Nip01Signer.ephemeral()
     const event = await signer.sign(makeEvent(1))
+    const successSpy = vi.fn()
+    const failureSpy = vi.fn()
+    const completeSpy = vi.fn()
+    const timeoutSpy = vi.fn()
 
-    const pub = new MultiPublish({
+    publish({
       event,
       relays: ["1", "2", "3"],
       context: {
@@ -187,25 +185,19 @@ describe("MultiPublish", () => {
           }
         },
       },
+      onSuccess: successSpy,
+      onFailure: failureSpy,
+      onComplete: completeSpy,
+      onTimeout: timeoutSpy,
     })
-
-    const successSpy = vi.fn()
-    const failureSpy = vi.fn()
-    const completeSpy = vi.fn()
-    const timeoutSpy = vi.fn()
-
-    pub.on(PublishEvent.Success, successSpy)
-    pub.on(PublishEvent.Failure, failureSpy)
-    pub.on(PublishEvent.Complete, completeSpy)
-    pub.on(PublishEvent.Timeout, timeoutSpy)
 
     adapter1.receive(["OK", event.id, true, "hi"])
     adapter2.receive(["OK", event.id, false, "hi"])
 
-    await vi.runAllTimers()
+    await vi.runAllTimersAsync()
 
-    expect(successSpy).toHaveBeenCalledWith(event.id, "hi", "1")
-    expect(failureSpy).toHaveBeenCalledWith(event.id, "hi", "2")
+    expect(successSpy).toHaveBeenCalledWith("hi", "1")
+    expect(failureSpy).toHaveBeenCalledWith("hi", "2")
     expect(completeSpy).toHaveBeenCalledTimes(1)
     expect(timeoutSpy).toHaveBeenCalledWith("3")
   })

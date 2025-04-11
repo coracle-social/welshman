@@ -11,7 +11,7 @@ import {
 import {getAdapter, AdapterContext, AbstractAdapter, AdapterEvent} from "./adapter.js"
 import {Negentropy, NegentropyStorageVector} from "./negentropy.js"
 import {requestOne} from "./request.js"
-import {MultiPublish, PublishEvent} from "./publish.js"
+import {publish} from "./publish.js"
 
 export enum DifferenceEvent {
   Message = "difference:event:message",
@@ -237,9 +237,7 @@ export const push = async ({context, events, ...options}: PushOptions) => {
       const relays = relaysById.get(event.id)
 
       if (relays) {
-        new Promise<void>(resolve => {
-          new MultiPublish({event, relays, context}).on(PublishEvent.Complete, resolve)
-        })
+        await publish({event, relays, context})
       }
     }),
   )

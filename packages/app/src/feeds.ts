@@ -1,5 +1,5 @@
 import {nthEq, partition, race, now} from "@welshman/lib"
-import {createEvent, getPubkeyTagValues} from "@welshman/util"
+import {createEvent, getPubkeyTagValues, TrustedEvent} from "@welshman/util"
 import {request, Tracker} from "@welshman/net"
 import {Scope, FeedController, RequestOpts, FeedOptions, DVMOpts, Feed} from "@welshman/feeds"
 import {makeDvmRequest, DVMEvent} from "@welshman/dvm"
@@ -20,14 +20,9 @@ export const makeFeedRequestHandler = ({signal}: FeedRequestHandlerOptions) =>
     const requestOptions = {}
 
     if (relays.length > 0) {
-      await new Promise(resolve => {
-        const req = request({tracker, signal, autoClose: true, relays, filters})
-
-        req.on(RequestEvent.Event, onEvent)
-        req.on(RequestEvent.Close, resolve)
-      })
+      await request({tracker, signal, relays, filters, onEvent, autoClose: true})
     } else {
-      const promises: Promise<TrustedEvent>[][] = []
+      const promises: Promise<TrustedEvent[]>[] = []
       const [withSearch, withoutSearch] = partition(f => Boolean(f.search), filters)
 
       if (withSearch.length > 0) {
@@ -35,7 +30,7 @@ export const makeFeedRequestHandler = ({signal}: FeedRequestHandlerOptions) =>
           request({
             signal,
             tracker,
-            onEvent
+            onEvent,
             threshold: 0.1,
             autoClose: true,
             filters: withSearch,
