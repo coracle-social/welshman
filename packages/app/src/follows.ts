@@ -19,5 +19,5 @@ export const {
   name: "follows",
   store: follows,
   getKey: follows => follows.event.pubkey,
-  load: makeOutboxLoader([FOLLOWS])
+  load: makeOutboxLoader(FOLLOWS)
 })

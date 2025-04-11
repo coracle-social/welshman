@@ -2,51 +2,42 @@ import {Emitter, now} from "@welshman/lib"
 import {TrustedEvent, SignedEvent, Filter} from "@welshman/util"
 import {request, publish, AdapterContext} from "@welshman/net"
 
-export enum DVMEvent {
-  Progress = "progress",
-  Result = "result",
-}
-
 export type DVMRequestOptions = {
   event: SignedEvent
   relays: string[]
   timeout?: number
   autoClose?: boolean
-  reportProgress?: boolean
   context?: AdapterContext
+  onResult?: (event: TrustedEvent, url: string) => void
+  onProgress?: (event: TrustedEvent, url: string) => void
 }
 
-export type DVMRequest = {
-  options: DVMRequestOptions
-  emitter: Emitter
-}
-
-export const makeDvmRequest = (options: DVMRequestOptions) => {
-  const emitter = new Emitter()
+export const requestDvmResponse = (options: DVMRequestOptions) => {
   const {
     event,
     relays,
     context,
     timeout = 30_000,
     autoClose = true,
-    reportProgress = true,
+    onResult,
+    onProgress,
   } = options
   const kind = event.kind + 1000
-  const kinds = reportProgress ? [kind, 7000] : [kind]
+  const kinds = onProgress ? [kind, 7000] : [kind]
   const filters: Filter[] = [{kinds, since: now() - 60, "#e": [event.id]}]
   const abortController = new AbortController()
   const signal = AbortSignal.any([abortController.signal, AbortSignal.timeout(timeout)])
 
-  request({
+  return request({
     signal,
     relays,
     filters,
     context,
     onEvent: (event: TrustedEvent, url: string) => {
       if (event.kind === 7000) {
-        emitter.emit(DVMEvent.Progress, url, event)
+        onProgress?.(event, url)
       } else {
-        emitter.emit(DVMEvent.Result, url, event)
+        onResult?.(event, url)
 
         if (autoClose) {
           abortController.abort()
@@ -54,9 +45,7 @@ export const makeDvmRequest = (options: DVMRequestOptions) => {
       }
     },
   })
-
-  publish({relays, event, timeout, context})
-
-
-  return {options, emitter} as DVMRequest
 }
+
+export const makeDvmRequest = (options: DVMRequestOptions) =>
+  Promise.all([publish(options), requestDvmResponse(options)])

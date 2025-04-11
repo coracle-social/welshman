@@ -37,28 +37,30 @@ export const getWriteRelayUrls = (list?: List): string[] =>
 export type OutboxLoaderRequest = {
   pubkey: string
   relays: string[]
+  kind: number
 }
 
-export const makeOutboxLoader = (kinds: number[]) => {
-  const loadOutboxRequest = batcher(200, (requests: OutboxLoaderRequest[]) => {
-    const router = Router.get()
-    const authors: string[] = []
-    const scenarios = [router.Index()]
+export const loadUsingOutbox = batcher(200, (requests: OutboxLoaderRequest[]) => {
+  const router = Router.get()
+  const authors: string[] = []
+  const scenarios = [router.Index()]
+  const kinds = new Set<number>()
 
-    for (const {pubkey, relays} of requests) {
-      authors.push(pubkey)
-      scenarios.push(router.FromPubkey(pubkey), router.FromRelays(relays))
-    }
+  for (const {pubkey, relays, kind} of requests) {
+    kinds.add(kind)
+    authors.push(pubkey)
+    scenarios.push(router.FromPubkey(pubkey), router.FromRelays(relays))
+  }
 
-    const filters = [{authors, kinds}]
-    const relays = router.merge(scenarios).getUrls()
-    const promise = request({filters, relays, autoClose: true})
+  const relays = router.merge(scenarios).getUrls()
+  const filters = [{authors, kinds: Array.from(kinds)}]
+  const promise = request({filters, relays, autoClose: true})
 
-    return requests.map(always(promise))
-  })
+  return requests.map(always(promise))
+})
 
-  return (pubkey: string, relays: string[]) => loadOutboxRequest({pubkey, relays})
-}
+export const makeOutboxLoader = (kind: number) =>
+  (pubkey: string, relays: string[]) => loadUsingOutbox({pubkey, relays, kind})
 
 export const relaySelections = deriveEventsMapped<PublishedList>(repository, {
   filters: [{kinds: [RELAYS]}],
@@ -74,7 +76,7 @@ export const {
   name: "relaySelections",
   store: relaySelections,
   getKey: relaySelections => relaySelections.event.pubkey,
-  load: makeOutboxLoader([RELAYS]),
+  load: makeOutboxLoader(RELAYS),
 })
 
 export const inboxRelaySelections = deriveEventsMapped<PublishedList>(repository, {
@@ -91,5 +93,5 @@ export const {
   name: "inboxRelaySelections",
   store: inboxRelaySelections,
   getKey: inboxRelaySelections => inboxRelaySelections.event.pubkey,
-  load: makeOutboxLoader([INBOX_RELAYS]),
+  load: makeOutboxLoader(INBOX_RELAYS),
 })

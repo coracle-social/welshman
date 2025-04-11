@@ -22,7 +22,7 @@ export const {
   name: "profiles",
   store: profiles,
   getKey: profile => profile.event.pubkey,
-  load: makeOutboxLoader([PROFILE]),
+  load: makeOutboxLoader(PROFILE),
 })
 
 export const displayProfileByPubkey = (pubkey: string | undefined) =>

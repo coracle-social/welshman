@@ -2,7 +2,7 @@ import {nthEq, partition, race, now} from "@welshman/lib"
 import {createEvent, getPubkeyTagValues, TrustedEvent} from "@welshman/util"
 import {request, Tracker} from "@welshman/net"
 import {Scope, FeedController, RequestOpts, FeedOptions, DVMOpts, Feed} from "@welshman/feeds"
-import {makeDvmRequest, DVMEvent} from "@welshman/dvm"
+import {makeDvmRequest} from "@welshman/dvm"
 import {makeSecret, Nip01Signer} from "@welshman/signer"
 import {pubkey, signer} from "./session.js"
 import {Router, addMinimalFallbacks, getFilterSelections} from "./router.js"
@@ -91,14 +91,10 @@ export const requestDVM = async ({kind, onEvent, ...request}: DVMOpts) => {
     tags.push(["param", "max_results", "200"])
   }
 
-  const event = await $signer.sign(createEvent(kind, {tags}))
-  const req = makeDvmRequest({event, relays})
-
-  await new Promise<void>(resolve => {
-    req.emitter.on(DVMEvent.Result, (url, event) => {
-      onEvent(event)
-      resolve()
-    })
+  await makeDvmRequest({
+    relays,
+    event: await $signer.sign(createEvent(kind, {tags})),
+    onResult: onEvent,
   })
 }
 

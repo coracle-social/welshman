@@ -19,5 +19,5 @@ export const {
   name: "pins",
   store: pins,
   getKey: pins => pins.event.pubkey,
-  load: makeOutboxLoader([PINS])
+  load: makeOutboxLoader(PINS)
 })
