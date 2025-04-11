@@ -64,7 +64,7 @@ export type RouterOptions = {
    * Retrieves the user's public key.
    * @returns The user's public key as a string, or null if not available.
    */
-  getUserPubkey?: () => string | null
+  getUserPubkey?: () => string | undefined
 
   /**
    * Retrieves relays for the specified public key and mode.

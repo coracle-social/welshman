@@ -52,7 +52,7 @@ export type SessionAnyMethod =
 
 export type Session = SessionAnyMethod & Record<string, any>
 
-export const pubkey = withGetter(synced<string | null>("pubkey", null))
+export const pubkey = withGetter(synced<string | undefined>("pubkey", undefined))
 
 export const sessions = withGetter(synced<Record<string, Session>>("sessions", {}))
 
@@ -76,8 +76,15 @@ export const putSession = (session: Session) => {
 export const updateSession = (pubkey: string, f: (session: Session) => Session) =>
   putSession(f(getSession(pubkey)))
 
-export const dropSession = (pubkey: string) =>
-  sessions.update($sessions => omit([pubkey], $sessions))
+export const dropSession = (_pubkey: string) => {
+  pubkey.update($pubkey => $pubkey === _pubkey ? undefined : $pubkey)
+  sessions.update($sessions => omit([_pubkey], $sessions))
+}
+
+export const clearSessions = () => {
+  pubkey.set(undefined)
+  sessions.set({})
+}
 
 // Session factories
 
