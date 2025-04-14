@@ -5,6 +5,7 @@ import {RelayMessage, ClientMessageType, isRelayOk} from "./message.js"
 import {AbstractAdapter, AdapterEvent, AdapterContext, getAdapter} from "./adapter.js"
 
 export enum PublishStatus {
+  Sending = "publish:status:sending",
   Pending = "publish:status:pending",
   Success = "publish:status:success",
   Failure = "publish:status:failure",
@@ -23,11 +24,11 @@ export type PublishOneOptions = {
   signal?: AbortSignal
   timeout?: number
   context?: AdapterContext
-  onStatus?: (status: PublishStatus, relay: string) => void
-  onSuccess?: (detail: string, relay: string) => void
-  onFailure?: (detail: string, relay: string) => void
-  onTimeout?: (relay: string) => void
-  onAborted?: (relay: string) => void
+  onSuccess?: (detail: string) => void
+  onFailure?: (detail: string) => void
+  onPending?: () => void
+  onTimeout?: () => void
+  onAborted?: () => void
   onComplete?: () => void
 }
 
@@ -37,10 +38,7 @@ export const publishOne = (options: PublishOneOptions) =>
 
     let status = PublishStatus.Pending
 
-    const setStatus = (_status: PublishStatus) => {
-      status = _status
-      options.onStatus?.(status, options.relay)
-    }
+    options.onPending?.()
 
     const cleanup = () => {
       options.onComplete?.()
@@ -57,11 +55,11 @@ export const publishOne = (options: PublishOneOptions) =>
           if (id !== options.event.id) return
 
           if (ok) {
-            setStatus(PublishStatus.Success)
-            options.onSuccess?.(detail, options.relay)
+            status = PublishStatus.Success
+            options.onSuccess?.(detail)
           } else {
-            setStatus(PublishStatus.Failure)
-            options.onFailure?.(detail, options.relay)
+            status = PublishStatus.Failure
+            options.onFailure?.(detail)
           }
 
           cleanup()
@@ -71,8 +69,8 @@ export const publishOne = (options: PublishOneOptions) =>
 
     options.signal?.addEventListener('abort', () => {
       if (status === PublishStatus.Pending) {
-        setStatus(PublishStatus.Aborted)
-        options.onAborted?.(options.relay)
+        status = PublishStatus.Aborted
+        options.onAborted?.()
       }
 
       cleanup()
@@ -80,26 +78,34 @@ export const publishOne = (options: PublishOneOptions) =>
 
     setTimeout(() => {
       if (status === PublishStatus.Pending) {
-        setStatus(PublishStatus.Timeout)
-        options.onTimeout?.(options.relay)
+        status = PublishStatus.Timeout
+        options.onTimeout?.()
       }
 
       cleanup()
     }, options.timeout || 10_000)
 
     adapter.send([ClientMessageType.Event, options.event])
-
-    setStatus(PublishStatus.Pending)
   })
 
 export type PublishStatusByRelay = Record<string, PublishStatus>
 
-export type PublishOptions = Omit<PublishOneOptions, "relay"> & {
+export type PublishOptions = {
+  event: SignedEvent
   relays: string[]
-  onUpdate?: (status: PublishStatusByRelay) => void
+  signal?: AbortSignal
+  timeout?: number
+  context?: AdapterContext
+  onSuccess?: (detail: string, relay: string) => void
+  onFailure?: (detail: string, relay: string) => void
+  onPending?: (relay: string) => void
+  onTimeout?: (relay: string) => void
+  onAborted?: (relay: string) => void
+  onComplete?: () => void
 }
 
 export const publish = async (options: PublishOptions) => {
+  const {event, timeout, signal, context} = options
   const status: PublishStatusByRelay = {}
   const completed = new Set<string>()
   const relays = new Set(options.relays)
@@ -111,12 +117,30 @@ export const publish = async (options: PublishOptions) => {
   await Promise.all(
     options.relays.map(relay =>
       publishOne({
+        event,
         relay,
-        ...options,
-        onStatus: (_status: PublishStatus, relay: string) => {
-          status[relay] = _status
-          options.onStatus?.(_status, relay)
-          options.onUpdate?.(status)
+        signal,
+        timeout,
+        context,
+        onSuccess: (detail: string) => {
+          status[relay] = PublishStatus.Success
+          options.onSuccess?.(detail, relay)
+        },
+        onFailure: (detail: string) => {
+          status[relay] = PublishStatus.Failure
+          options.onFailure?.(detail, relay)
+        },
+        onPending: () => {
+          status[relay] = PublishStatus.Pending
+          options.onPending?.(relay)
+        },
+        onTimeout: () => {
+          status[relay] = PublishStatus.Timeout
+          options.onTimeout?.(relay)
+        },
+        onAborted: () => {
+          status[relay] = PublishStatus.Aborted
+          options.onAborted?.(relay)
         },
         onComplete: () => {
           completed.add(relay)

@@ -1283,13 +1283,13 @@ export const spec =
 /** Returns a function that checks equality with value */
 export const eq =
   <T>(v: T) =>
-  (x: T) =>
+  (x: T, ...args: unknown[]) =>
     x === v
 
 /** Returns a function that checks inequality with value */
 export const ne =
   <T>(v: T) =>
-  (x: T) =>
+  (x: T, ...args: unknown[]) =>
     x !== v
 
 /** Returns a function that gets property value from object */
@@ -1309,6 +1309,12 @@ export const dissoc =
   <K extends string, T extends Obj>(k: K) =>
   (o: T) =>
     omit([k], o)
+
+/** Returns a function that checks whether a value is in the given sequence */
+export const member =
+  <T>(xs: Iterable<T>) =>
+  (x: T) =>
+    Array.from(xs).includes(x)
 
 // ----------------------------------------------------------------------------
 // Sets
