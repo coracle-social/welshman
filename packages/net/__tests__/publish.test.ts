@@ -40,7 +40,7 @@ describe("publishOne", () => {
 
     await vi.runAllTimers()
 
-    expect(successSpy).toHaveBeenCalledWith("hi", "1")
+    expect(successSpy).toHaveBeenCalledWith("hi")
     expect(failureSpy).not.toHaveBeenCalled()
     expect(completeSpy).toHaveBeenCalled()
   })
@@ -72,7 +72,7 @@ describe("publishOne", () => {
     await vi.runAllTimers()
 
     expect(successSpy).not.toHaveBeenCalled()
-    expect(failureSpy).toHaveBeenCalledWith("hi", "1")
+    expect(failureSpy).toHaveBeenCalledWith("hi")
     expect(completeSpy).toHaveBeenCalled()
   })
 

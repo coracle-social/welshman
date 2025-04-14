@@ -899,7 +899,7 @@ export type PollOptions = {
 /**
  * Creates a promise that resolves after the condition completes or timeout
  * @param options - PollOptions
- * @returns Promise<void>
+ * @returns void Promise
  */
 export const poll = ({interval = 300, condition, signal}: PollOptions) =>
   new Promise<void>(resolve => {

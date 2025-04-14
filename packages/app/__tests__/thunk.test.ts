@@ -4,14 +4,13 @@ import {LOCAL_RELAY_URL} from "@welshman/relay"
 import {getPubkey, makeSecret} from "@welshman/signer"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {repository, tracker} from "../src/core"
-import {addSession, dropSession} from "../src/session"
+import {addSession, dropSession, makeNip01Session} from "../src/session"
 import {
   abortThunk,
-  makeThunk,
-  mergeThunks,
+  Thunk,
+  MergedThunk,
   prepEvent,
   publishThunk,
-  publishThunks,
   thunkQueue,
   walkThunks,
 } from "../src/thunk"
@@ -28,7 +27,7 @@ const mockRequest = {
 describe("thunk", () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    addSession({method: "nip01", secret, pubkey})
+    addSession(makeNip01Session(secret))
   })
 
   afterEach(async () => {
@@ -41,11 +40,11 @@ describe("thunk", () => {
     dropSession(pubkey)
   })
 
-  describe("mergeThunks", () => {
+  describe("MergedThunk", () => {
     it("should abort all thunks when merged controller aborts", () => {
-      const thunk1 = makeThunk(mockRequest)
-      const thunk2 = makeThunk(mockRequest)
-      const merged = mergeThunks([thunk1, thunk2])
+      const thunk1 = new Thunk(mockRequest)
+      const thunk2 = new Thunk(mockRequest)
+      const merged = new MergedThunk([thunk1, thunk2])
 
       merged.controller.abort()
 
@@ -56,9 +55,9 @@ describe("thunk", () => {
 
   describe("walkThunks", () => {
     it("should iterate through nested thunks", () => {
-      const thunk1 = makeThunk(mockRequest)
-      const thunk2 = makeThunk(mockRequest)
-      const merged = mergeThunks([thunk1, thunk2])
+      const thunk1 = new Thunk(mockRequest)
+      const thunk2 = new Thunk(mockRequest)
+      const merged = new MergedThunk([thunk1, thunk2])
       const thunks = Array.from(walkThunks([merged, thunk1]))
 
       expect(thunks).toHaveLength(3)
@@ -72,7 +71,7 @@ describe("thunk", () => {
 
       expect(publishSpy).toHaveBeenCalled()
       expect(result).toHaveProperty("event")
-      expect(result).toHaveProperty("request")
+      expect(result).toHaveProperty("options")
     })
 
     it("should handle abort", () => {
@@ -85,19 +84,9 @@ describe("thunk", () => {
     })
   })
 
-  describe("publishThunks", () => {
-    it("should publish multiple thunks", () => {
-      const requests = [mockRequest, mockRequest]
-      const result = publishThunks(requests)
-
-      expect(repository.publish).toHaveBeenCalledTimes(2)
-      expect(result.thunks).toHaveLength(2)
-    })
-  })
-
   describe("abortThunk", () => {
     it("should abort a thunk and clean up", () => {
-      const thunk = makeThunk(mockRequest)
+      const thunk = new Thunk(mockRequest)
 
       abortThunk(thunk)
 
@@ -107,13 +96,7 @@ describe("thunk", () => {
 
   it("should update status during publishing", async () => {
     const track = vi.spyOn(tracker, "track")
-    const thunk = makeThunk(mockRequest)
-    let status: Record<string, any> = {}
-
-    // Subscribe to status updates
-    thunk.status.subscribe(_status => {
-      status = _status
-    })
+    const thunk = new Thunk(mockRequest)
 
     // Start the publish process
     thunkQueue.push(thunk)
@@ -121,10 +104,7 @@ describe("thunk", () => {
     // Wait for initial async operations
     await vi.runAllTimersAsync()
 
-    expect(status[LOCAL_RELAY_URL]).toEqual({
-      status: PublishStatus.Success,
-      message: "",
-    })
+    expect(thunk.status[LOCAL_RELAY_URL]).toEqual(PublishStatus.Success)
 
     // Verify tracker was called on success
     expect(track).toHaveBeenCalledWith(thunk.event.id, LOCAL_RELAY_URL)
@@ -132,8 +112,6 @@ describe("thunk", () => {
     await vi.runAllTimersAsync()
 
     const finalStatus = await thunk.result
-    expect(finalStatus).toEqual({
-      [LOCAL_RELAY_URL]: {status: PublishStatus.Success, message: ""},
-    })
+    expect(finalStatus).toEqual({[LOCAL_RELAY_URL]: PublishStatus.Success})
   })
 })
