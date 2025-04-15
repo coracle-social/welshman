@@ -1,6 +1,6 @@
 import {npubEncode} from "nostr-tools/nip19"
 import {ellipsize, parseJson} from "@welshman/lib"
-import {TrustedEvent} from "./Events.js"
+import {TrustedEvent, EventTemplate} from "./Events.js"
 import {getLnUrl} from "./Zaps.js"
 import {PROFILE} from "./Kinds.js"
 
@@ -50,12 +50,13 @@ export const readProfile = (event: TrustedEvent): PublishedProfile => ({
   event,
 })
 
-export const createProfile = ({event, ...profile}: Profile) => ({
+export const createProfile = ({event, ...profile}: Profile): EventTemplate => ({
   kind: PROFILE,
   content: JSON.stringify(profile),
+  tags: [],
 })
 
-export const editProfile = ({event, ...profile}: PublishedProfile) => ({
+export const editProfile = ({event, ...profile}: PublishedProfile): EventTemplate => ({
   kind: PROFILE,
   content: JSON.stringify(profile),
   tags: event.tags,

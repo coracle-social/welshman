@@ -1,26 +1,20 @@
 import {readable, derived, type Readable, type Subscriber} from "svelte/store"
 import {indexBy, remove, now} from "@welshman/lib"
-import {withGetter} from "@welshman/store"
+import {ReadableWithGetter, withGetter} from "@welshman/store"
 import {getFreshness, setFreshnessThrottled} from "./freshness.js"
 
-export const collection = <T>({
-  name,
-  store,
-  getKey,
-  load,
-}: {
+export type CachedLoaderOptions<T> = {
   name: string
-  store: Readable<T[]>
-  getKey: (item: T) => string
-  load?: (key: string, relays: string[]) => Promise<any>
-}) => {
-  const indexStore = withGetter(derived(store, $items => indexBy(getKey, $items)))
+  indexStore: ReadableWithGetter<Map<string, T>>
+  load: (key: string, relays: string[]) => Promise<any>
+  subscribers?: Subscriber<T>[]
+}
+
+export const makeCachedLoader = <T>({name, load, indexStore, subscribers = []}: CachedLoaderOptions<T>) => {
   const pending = new Map<string, Promise<T | void>>()
   const loadAttempts = new Map<string, number>()
 
-  let subscribers: Subscriber<T>[] = []
-
-  const loadItem = async (key: string, relays: string[] = []) => {
+  return async (key: string, relays: string[] = []) => {
     const stale = indexStore.get().get(key)
 
     // If we have no loader function, nothing we can do
@@ -75,6 +69,21 @@ export const collection = <T>({
 
     return fresh
   }
+}
+
+export type CollectionOptions<T> = {
+  name: string
+  store: Readable<T[]>
+  getKey: (item: T) => string
+  load: (key: string, relays: string[]) => Promise<any>
+}
+
+export const collection = <T>({name, store, getKey, load}: CollectionOptions<T>) => {
+  const indexStore = withGetter(derived(store, $items => indexBy(getKey, $items)))
+
+  let subscribers: Subscriber<T>[] = []
+
+  const loadItem = makeCachedLoader({name, load, indexStore, subscribers})
 
   const deriveItem = (key: string | undefined, relays: string[] = []) => {
     if (!key) {

@@ -10,21 +10,21 @@ export const urlIsMedia = (url: string) =>
 
 // Copy some types from nostr-tools because I can't import them
 
-type AddressPointer = {
+export type AddressPointer = {
   identifier: string
   pubkey: string
   kind: number
   relays?: string[]
 }
 
-type EventPointer = {
+export type EventPointer = {
   id: string
   relays?: string[]
   author?: string
   kind?: number
 }
 
-type ProfilePointer = {
+export type ProfilePointer = {
   pubkey: string
   relays?: string[]
 }
