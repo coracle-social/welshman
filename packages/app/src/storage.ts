@@ -120,3 +120,4 @@ export const clearStorage = async () => {
     db = undefined // force initStorage to run again in tests
   }
 }
+

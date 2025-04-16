@@ -1,6 +1,19 @@
 import {bech32, utf8} from "@scure/base"
 
+
 type Obj<T = any> = Record<string, T>
+
+// ----------------------------------------------------------------------------
+// Working with nil
+// ----------------------------------------------------------------------------
+
+export type Nil = null | undefined
+
+export const isNil = <T>(x: T, ...args: unknown[]) => x === undefined || x === null
+
+export const isNotNil = <T>(x: T, ...args: unknown[]) => x !== undefined || x !== null
+
+export const assertNotNil = <T>(x: T, ...args: unknown[]) => x!
 
 // ----------------------------------------------------------------------------
 // Basic functional programming utilities
@@ -609,6 +622,9 @@ export const toIterable = (x: any) => (isIterable(x) ? x : [x])
 
 /** Ensures value is array by wrapping if needed */
 export const ensurePlural = <T>(x: T | T[]) => (x instanceof Array ? x : [x])
+
+/** Ensures values are not undefined */
+export const removeNil = <T>(xs: T[]) => xs.filter(isNotNil).map(assertNotNil)
 
 // ----------------------------------------------------------------------------
 // Objects
