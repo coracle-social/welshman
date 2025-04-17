@@ -57,7 +57,9 @@ export const fetchHandles = async (nip05s: string[]) => {
     )
 
     for (const {handle: nip05, info} of res?.data || []) {
-      handlesByNip05.set(nip05, info)
+      if (info) {
+        handlesByNip05.set(nip05, info)
+      }
     }
   } else {
     const results = await Promise.all(
