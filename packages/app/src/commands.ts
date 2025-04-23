@@ -1,9 +1,9 @@
 import {get} from "svelte/store"
 import {addToListPublicly, removeFromList, makeList, FOLLOWS, MUTES, PINS} from "@welshman/util"
+import {Router, addMaximalFallbacks} from "@welshman/router"
 import {userFollows, userMutes, userPins} from "./user.js"
 import {nip44EncryptToSelf} from "./session.js"
 import {publishThunk} from "./thunk.js"
-import {Router, addMaximalFallbacks} from "./router.js"
 
 export const unfollow = async (value: string) => {
   const list = get(userFollows) || makeList({kind: FOLLOWS})

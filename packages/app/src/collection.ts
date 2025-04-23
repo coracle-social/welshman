@@ -10,7 +10,12 @@ export type CachedLoaderOptions<T> = {
   subscribers?: Subscriber<T>[]
 }
 
-export const makeCachedLoader = <T>({name, load, indexStore, subscribers = []}: CachedLoaderOptions<T>) => {
+export const makeCachedLoader = <T>({
+  name,
+  load,
+  indexStore,
+  subscribers = [],
+}: CachedLoaderOptions<T>) => {
   const pending = new Map<string, Promise<T | void>>()
   const loadAttempts = new Map<string, number>()
 

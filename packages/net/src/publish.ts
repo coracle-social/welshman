@@ -1,8 +1,6 @@
-import {EventEmitter} from "events"
-import {on, fromPairs, sleep, yieldThread} from "@welshman/lib"
 import {SignedEvent} from "@welshman/util"
 import {RelayMessage, ClientMessageType, isRelayOk} from "./message.js"
-import {AbstractAdapter, AdapterEvent, AdapterContext, getAdapter} from "./adapter.js"
+import {AdapterEvent, AdapterContext, getAdapter} from "./adapter.js"
 
 export enum PublishStatus {
   Sending = "publish:status:sending",
@@ -46,28 +44,25 @@ export const publishOne = (options: PublishOneOptions) =>
       resolve(status)
     }
 
-    adapter.on(
-      AdapterEvent.Receive,
-      (message: RelayMessage, url: string) => {
-        if (isRelayOk(message)) {
-          const [_, id, ok, detail] = message
+    adapter.on(AdapterEvent.Receive, (message: RelayMessage, url: string) => {
+      if (isRelayOk(message)) {
+        const [_, id, ok, detail] = message
 
-          if (id !== options.event.id) return
+        if (id !== options.event.id) return
 
-          if (ok) {
-            status = PublishStatus.Success
-            options.onSuccess?.(detail)
-          } else {
-            status = PublishStatus.Failure
-            options.onFailure?.(detail)
-          }
-
-          cleanup()
+        if (ok) {
+          status = PublishStatus.Success
+          options.onSuccess?.(detail)
+        } else {
+          status = PublishStatus.Failure
+          options.onFailure?.(detail)
         }
-      },
-    )
 
-    options.signal?.addEventListener('abort', () => {
+        cleanup()
+      }
+    })
+
+    options.signal?.addEventListener("abort", () => {
       if (status === PublishStatus.Pending) {
         status = PublishStatus.Aborted
         options.onAborted?.()
@@ -149,8 +144,8 @@ export const publish = async (options: PublishOptions) => {
             options.onComplete?.()
           }
         },
-      })
-    )
+      }),
+    ),
   )
 
   return status

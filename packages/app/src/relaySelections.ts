@@ -9,11 +9,11 @@ import {
   getRelayTags,
   getRelayTagValues,
 } from "@welshman/util"
-import {TrustedEvent, Filter, PublishedList, List} from "@welshman/util"
-import {request, load} from "@welshman/net"
+import {TrustedEvent, PublishedList, List} from "@welshman/util"
+import {request} from "@welshman/net"
 import {deriveEventsMapped} from "@welshman/store"
+import {Router, RelayMode} from "@welshman/router"
 import {repository} from "./core.js"
-import {Router} from "./router.js"
 import {collection} from "./collection.js"
 
 export const getRelayUrls = (list?: List): string[] =>
@@ -32,7 +32,6 @@ export const getWriteRelayUrls = (list?: List): string[] =>
       .filter((t: string[]) => !t[2] || t[2] === "write")
       .map((t: string[]) => normalizeRelayUrl(t[1])),
   )
-
 
 export type OutboxLoaderRequest = {
   pubkey: string
@@ -59,8 +58,8 @@ export const loadUsingOutbox = batcher(200, (requests: OutboxLoaderRequest[]) =>
   return requests.map(always(promise))
 })
 
-export const makeOutboxLoader = (kind: number) =>
-  (pubkey: string, relays: string[]) => loadUsingOutbox({pubkey, relays, kind})
+export const makeOutboxLoader = (kind: number) => (pubkey: string, relays: string[]) =>
+  loadUsingOutbox({pubkey, relays, kind})
 
 export const relaySelections = deriveEventsMapped<PublishedList>(repository, {
   filters: [{kinds: [RELAYS]}],
@@ -78,6 +77,22 @@ export const {
   getKey: relaySelections => relaySelections.event.pubkey,
   load: makeOutboxLoader(RELAYS),
 })
+
+export const getPubkeyRelays = (pubkey: string, mode?: string) => {
+  const $relaySelections = relaySelectionsByPubkey.get()
+  const $inboxSelections = inboxRelaySelectionsByPubkey.get()
+
+  switch (mode) {
+    case RelayMode.Read:
+      return getReadRelayUrls($relaySelections.get(pubkey))
+    case RelayMode.Write:
+      return getWriteRelayUrls($relaySelections.get(pubkey))
+    case RelayMode.Inbox:
+      return getRelayUrls($inboxSelections.get(pubkey))
+    default:
+      return getRelayUrls($relaySelections.get(pubkey))
+  }
+}
 
 export const inboxRelaySelections = deriveEventsMapped<PublishedList>(repository, {
   filters: [{kinds: [INBOX_RELAYS]}],

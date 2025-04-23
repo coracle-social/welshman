@@ -44,7 +44,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
   eventsByKind = new Map<number, E[]>()
   deletes = new Map<string, number>()
 
-  static getSingleton() {
+  static get() {
     if (!repositorySingleton) {
       repositorySingleton = new Repository()
     }

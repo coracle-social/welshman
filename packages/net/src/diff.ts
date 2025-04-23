@@ -200,17 +200,18 @@ export const pull = async ({context, ...options}: PullOptions) => {
   await Promise.all(
     Array.from(idsByRelay.entries()).map(([relay, allIds]) => {
       return Promise.all(
-        chunk(500, allIds).map(ids =>
-          new Promise<void>(resolve =>
-            requestOne({
-              relay,
-              context,
-              filters: [{ids}],
-              autoClose: true,
-              onClose: resolve,
-              onEvent: event => result.push(event as SignedEvent),
-            })
-          )
+        chunk(500, allIds).map(
+          ids =>
+            new Promise<void>(resolve =>
+              requestOne({
+                relay,
+                context,
+                filters: [{ids}],
+                autoClose: true,
+                onClose: resolve,
+                onEvent: event => result.push(event as SignedEvent),
+              }),
+            ),
         ),
       )
     }),

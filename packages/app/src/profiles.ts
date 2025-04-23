@@ -30,5 +30,7 @@ export const displayProfileByPubkey = (pubkey: string | undefined) =>
 
 export const deriveProfileDisplay = (pubkey: string | undefined, relays: string[] = []) =>
   pubkey
-    ? derived(deriveProfile(pubkey, relays), $profile => displayProfile($profile, displayPubkey(pubkey)))
+    ? derived(deriveProfile(pubkey, relays), $profile =>
+        displayProfile($profile, displayPubkey(pubkey)),
+      )
     : readable("")

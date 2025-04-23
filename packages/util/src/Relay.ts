@@ -34,7 +34,7 @@ export const isRelayUrl = (url: string) => {
   if (url.match(/\\.*\./)) return false
 
   // Skip non-localhost urls without a dot
-  if (!url.match(/\./) && !url.includes('localhost')) return false
+  if (!url.match(/\./) && !url.includes("localhost")) return false
 
   try {
     new URL(url)

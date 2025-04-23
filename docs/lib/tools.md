@@ -5,6 +5,18 @@ The `Tools` module provides a comprehensive collection of utility functions for 
 ## Basic functional programming utilities
 
 ```typescript
+// Null or undefined
+export type Nil = null | undefined;
+
+// Check whether something is null or undefined
+export declare const isNil: <T>(x: T, ...args: unknown[]) => boolean;
+
+// Check whether something is not null or undefined
+export declare const isNotNil: <T>(x: T, ...args: unknown[]) => x is (T & null) | (T & {}) | (T & undefined);
+
+// Assert that a nullable type is not null or undefined
+export declare const assertNotNil: <T>(x: T, ...args: unknown[]) => NonNullable<T>;
+
 // Function that does nothing and returns undefined
 export declare const noop: (...args: unknown[]) => undefined;
 
@@ -120,6 +132,33 @@ export declare const ago: (unit: number, count?: number) => number;
 
 // Converts seconds to milliseconds
 export declare const ms: (seconds: number) => number;
+
+// Converts seconds to date
+export declare const secondsToDate: (seconds: number) => Date;
+
+// Converts date object to seconds
+export declare const dateToSeconds: (date: Date) => number;
+
+// Creates a local date from a date string
+export declare const createLocalDate: (dateString: any, timezone?: string) => Date;
+/** Formatter for date+time */
+export declare const dateTimeFormatter: Intl.DateTimeFormat;
+
+// Formats seconds as a datetime
+export declare const formatTimestamp: (seconds: number) => string;
+/** Formatter for date */
+export declare const dateFormatter: Intl.DateTimeFormat;
+
+// Formats seconds as a date
+export declare const formatTimestampAsDate: (ts: number) => string;
+/** Formatter for time */
+export declare const timeFormatter: Intl.DateTimeFormat;
+
+// Formats seconds as a time
+export declare const formatTimestampAsTime: (ts: number) => string;
+
+// Formats seconds as a relative date (x minutes ago)
+export declare const formatTimestampRelative: (ts: number) => string;
 ```
 
 ## Sequences
@@ -232,6 +271,9 @@ export declare const toIterable: (x: any) => any;
 
 // Ensures value is array by wrapping if needed
 export declare const ensurePlural: <T>(x: T | T[]) => T[];
+
+// Ensures values are not undefined
+export declare const removeNil: <T>(xs: T[]) => (T & {})[];
 ```
 
 ## Objects

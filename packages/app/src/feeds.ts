@@ -2,10 +2,10 @@ import {nthEq, partition, race, now} from "@welshman/lib"
 import {createEvent, getPubkeyTagValues, TrustedEvent} from "@welshman/util"
 import {request, Tracker} from "@welshman/net"
 import {Scope, FeedController, RequestOpts, FeedOptions, DVMOpts, Feed} from "@welshman/feeds"
+import {Router, addMinimalFallbacks, getFilterSelections} from "@welshman/router"
 import {makeDvmRequest} from "@welshman/dvm"
 import {makeSecret, Nip01Signer} from "@welshman/signer"
 import {pubkey, signer} from "./session.js"
-import {Router, addMinimalFallbacks, getFilterSelections} from "./router.js"
 import {loadRelaySelections} from "./relaySelections.js"
 import {wotGraph, maxWot, getFollows, getNetwork, getFollowers} from "./wot.js"
 import {repository} from "./core.js"
@@ -14,10 +14,10 @@ export type FeedRequestHandlerOptions = {
   signal?: AbortSignal
 }
 
-export const makeFeedRequestHandler = ({signal}: FeedRequestHandlerOptions) =>
+export const makeFeedRequestHandler =
+  ({signal}: FeedRequestHandlerOptions) =>
   async ({filters = [{}], relays = [], onEvent}: RequestOpts) => {
     const tracker = new Tracker()
-    const requestOptions = {}
 
     if (relays.length > 0) {
       await request({tracker, signal, relays, filters, onEvent, autoClose: true})

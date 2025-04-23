@@ -8,19 +8,14 @@ import {
   pushToMapKey,
   inc,
   add,
-  ago,
   take,
   chunks,
-  MINUTE,
-  HOUR,
-  DAY,
 } from "@welshman/lib"
 import {
   getFilterId,
   isRelayUrl,
   isOnionUrl,
   isLocalUrl,
-  isIPAddress,
   isShareableRelayUrl,
   COMMENT,
   PROFILE,
@@ -35,16 +30,6 @@ import {
   TrustedEvent,
   Filter,
 } from "@welshman/util"
-import {Pool} from "@welshman/net"
-import {pubkey} from "./session.js"
-import {
-  relaySelectionsByPubkey,
-  inboxRelaySelectionsByPubkey,
-  getReadRelayUrls,
-  getWriteRelayUrls,
-  getRelayUrls,
-} from "./relaySelections.js"
-import {relaysByUrl} from "./relays.js"
 
 export const INDEXED_KINDS = [PROFILE, RELAYS, INBOX_RELAYS, FOLLOWS]
 
@@ -127,63 +112,9 @@ export const addMinimalFallbacks = (count: number, limit: number) => (count > 0 
 
 export const addMaximalFallbacks = (count: number, limit: number) => limit - count
 
-// Default router options
-
-export const getRelayQuality = (url: string) => {
-  const relay = relaysByUrl.get().get(url)
-
-  // Skip non-relays entirely
-  if (!isRelayUrl(url)) return 0
-
-  // If we have recent errors, skip it
-  if (relay?.stats) {
-    if (relay.stats.recent_errors.filter(n => n > ago(MINUTE)).length > 0) return 0
-    if (relay.stats.recent_errors.filter(n => n > ago(HOUR)).length > 3) return 0
-    if (relay.stats.recent_errors.filter(n => n > ago(DAY)).length > 10) return 0
-  }
-
-  // Prefer stuff we're connected to
-  if (Pool.getSingleton().has(url)) return 1
-
-  // Prefer stuff we've connected to in the past
-  if (relay?.stats) return 0.9
-
-  // If it's not weird url give it an ok score
-  if (!isIPAddress(url) && !isLocalUrl(url) && !isOnionUrl(url) && !url.startsWith("ws://")) {
-    return 0.8
-  }
-
-  // Default to a "meh" score
-  return 0.7
-}
-
-export const getPubkeyRelays = (pubkey: string, mode?: string) => {
-  const $relaySelections = relaySelectionsByPubkey.get()
-  const $inboxSelections = inboxRelaySelectionsByPubkey.get()
-
-  switch (mode) {
-    case RelayMode.Read:
-      return getReadRelayUrls($relaySelections.get(pubkey))
-    case RelayMode.Write:
-      return getWriteRelayUrls($relaySelections.get(pubkey))
-    case RelayMode.Inbox:
-      return getRelayUrls($inboxSelections.get(pubkey))
-    default:
-      return getRelayUrls($relaySelections.get(pubkey))
-  }
-}
-
-export const routerContext: RouterOptions = {
-  getRelayQuality,
-  getPubkeyRelays,
-  getDefaultRelays: () => ["wss://relay.damus.io/", "wss://nos.lol/"],
-  getIndexerRelays: () => ["wss://purplepag.es/", "wss://relay.nostr.band/"],
-  getSearchRelays: () => ["wss://relay.nostr.band/", "wss://nostr.wine/"],
-  getUserPubkey: () => pubkey.get(),
-  getLimit: () => 3,
-}
-
 // Router class
+
+export const routerContext: RouterOptions = {}
 
 export class Router {
   readonly options: RouterOptions

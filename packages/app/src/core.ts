@@ -1,31 +1,13 @@
 import {throttle} from "@welshman/lib"
-import {verifyEvent, isEphemeralKind, isDVMKind} from "@welshman/util"
 import {Repository, LocalRelay} from "@welshman/relay"
-import {Pool, Tracker, SocketEvent, isRelayEvent} from "@welshman/net"
 import {custom} from "@welshman/store"
-import {loadRelay, trackRelayStats} from "./relays.js"
+import {Tracker} from "@welshman/net"
 
-export const repository = Repository.getSingleton()
+export const repository = Repository.get()
 
 export const relay = new LocalRelay(repository)
 
 export const tracker = new Tracker()
-
-Pool.getSingleton().subscribe(socket => {
-  loadRelay(socket.url)
-  trackRelayStats(socket)
-
-  socket.on(SocketEvent.Receive, message => {
-    if (isRelayEvent(message)) {
-      const event = message[2]
-
-      if (!isEphemeralKind(event.kind) && !isDVMKind(event.kind) && verifyEvent(event)) {
-        tracker.track(event.id, socket.url)
-        repository.publish(event)
-      }
-    }
-  })
-})
 
 // Adapt above objects to stores
 

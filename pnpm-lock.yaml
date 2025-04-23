@@ -74,6 +74,9 @@ importers:
       '@welshman/relay':
         specifier: workspace:*
         version: link:../relay
+      '@welshman/router':
+        specifier: workspace:*
+        version: link:../router
       '@welshman/signer':
         specifier: workspace:*
         version: link:../signer
@@ -213,6 +216,9 @@ importers:
       '@welshman/lib':
         specifier: workspace:*
         version: link:../lib
+      '@welshman/net':
+        specifier: workspace:*
+        version: link:../net
       '@welshman/util':
         specifier: workspace:*
         version: link:../util
@@ -254,6 +260,9 @@ importers:
       '@welshman/util':
         specifier: workspace:*
         version: link:../util
+      events:
+        specifier: ^3.3.0
+        version: 3.3.0
       isomorphic-ws:
         specifier: ^5.0.0
         version: 5.0.0(ws@8.18.1)
@@ -266,6 +275,22 @@ importers:
         version: 5.8.2
 
   packages/relay:
+    dependencies:
+      '@welshman/lib':
+        specifier: workspace:*
+        version: link:../lib
+      '@welshman/util':
+        specifier: workspace:*
+        version: link:../util
+    devDependencies:
+      rimraf:
+        specifier: ~6.0.0
+        version: 6.0.1
+      typescript:
+        specifier: ~5.8.0
+        version: 5.8.2
+
+  packages/router:
     dependencies:
       '@welshman/lib':
         specifier: workspace:*

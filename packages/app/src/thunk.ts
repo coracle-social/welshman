@@ -1,14 +1,10 @@
 import type {Subscriber} from "svelte/store"
-import {Writable, Readable, writable, derived, get} from "svelte/store"
+import {writable, get} from "svelte/store"
 import {
-  Deferred,
-  fromPairs,
   TaskQueue,
   ifLet,
   dissoc,
   remove,
-  identity,
-  uniq,
   defer,
   sleep,
   assoc,
@@ -30,7 +26,7 @@ import {
   isUnwrappedEvent,
   isSignedEvent,
 } from "@welshman/util"
-import {publish, AdapterContext, PublishStatus, PublishOptions, PublishStatusByRelay} from "@welshman/net"
+import {publish, PublishStatus, PublishOptions, PublishStatusByRelay} from "@welshman/net"
 import {repository, tracker} from "./core.js"
 import {pubkey, getSession, getSigner} from "./session.js"
 
@@ -52,7 +48,7 @@ export const prepEvent = (event: ThunkEvent) => {
   return event as TrustedEvent
 }
 
-export type ThunkOptions = Omit<PublishOptions, 'event'> & {
+export type ThunkOptions = Omit<PublishOptions, "event"> & {
   event: ThunkEvent
   delay?: number
 }
@@ -173,7 +169,7 @@ export class Thunk {
           this.options.onComplete?.()
           this._subs = []
         },
-      })
+      }),
     )
   }
 
@@ -198,7 +194,6 @@ export class MergedThunk {
   constructor(readonly thunks: Thunk[]) {
     const {Aborted, Failure, Timeout, Pending, Success} = PublishStatus
     const relays = new Set(thunks.flatMap(thunk => Object.keys(thunk.options.relays)))
-    const statusMaps = thunks.map(thunk => thunk.status)
 
     for (const thunk of thunks) {
       this.controller.signal.addEventListener("abort", () => thunk.controller.abort())
@@ -246,8 +241,7 @@ export class MergedThunk {
 
 export type AbstractThunk = Thunk | MergedThunk
 
-export const isThunk = (thunk: AbstractThunk): thunk is Thunk =>
-  thunk instanceof Thunk
+export const isThunk = (thunk: AbstractThunk): thunk is Thunk => thunk instanceof Thunk
 
 export const isMergedThunk = (thunk: AbstractThunk): thunk is MergedThunk =>
   thunk instanceof MergedThunk
@@ -261,18 +255,22 @@ export const thunkUrlsWithStatus = (thunk: AbstractThunk, status: PublishStatus)
 export const thunkCompleteUrls = (thunk: AbstractThunk) => {
   const incompleteStatuses = [PublishStatus.Sending, PublishStatus.Pending]
 
-  return Object.entries(thunk.status).filter(([_, s]) => !incompleteStatuses.includes(s)).map(nth(1))
+  return Object.entries(thunk.status)
+    .filter(([_, s]) => !incompleteStatuses.includes(s))
+    .map(nth(1))
 }
 
 export const thunkIncompleteUrls = (thunk: AbstractThunk) => {
   const incompleteStatuses = [PublishStatus.Sending, PublishStatus.Pending]
 
-  return Object.entries(thunk.status).filter(([_, s]) => incompleteStatuses.includes(s)).map(nth(1))
+  return Object.entries(thunk.status)
+    .filter(([_, s]) => incompleteStatuses.includes(s))
+    .map(nth(1))
 }
 
 export const thunkIsComplete = (thunk: AbstractThunk) => thunkCompleteUrls(thunk).length > 0
 
-export function* walkThunks(thunks: (AbstractThunk)[]): Iterable<Thunk> {
+export function* walkThunks(thunks: AbstractThunk[]): Iterable<Thunk> {
   for (const thunk of thunks) {
     if (thunk instanceof MergedThunk) {
       yield* walkThunks(thunk.thunks)

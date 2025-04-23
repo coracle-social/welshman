@@ -1,5 +1,5 @@
 import {Repository} from "@welshman/relay"
-import {verifyEvent, TrustedEvent, SignedEvent} from "@welshman/util"
+import {verifyEvent, TrustedEvent} from "@welshman/util"
 import {AbstractAdapter} from "./adapter.js"
 import {Pool} from "./pool.js"
 
@@ -12,8 +12,8 @@ export type NetContext = {
 }
 
 export const netContext: NetContext = {
-  pool: Pool.getSingleton(),
-  repository: Repository.getSingleton(),
+  pool: Pool.get(),
+  repository: Repository.get(),
   isEventValid: (event, url) => verifyEvent(event),
   isEventDeleted: (event, url) => netContext.repository.isDeleted(event),
 }

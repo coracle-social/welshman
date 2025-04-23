@@ -1,6 +1,5 @@
 import {bech32, utf8} from "@scure/base"
 
-
 type Obj<T = any> = Record<string, T>
 
 // ----------------------------------------------------------------------------
@@ -224,6 +223,12 @@ export const QUARTER = 90 * DAY
 /** One year in seconds (approximate) */
 export const YEAR = 365 * DAY
 
+/** User's default locale */
+export const LOCALE = new Intl.DateTimeFormat().resolvedOptions().locale
+
+/** User's default timezone */
+export const TIMEZONE = new Date().toString().match(/GMT[^\s]+/)![0]
+
 /**
  * Multiplies time unit by count
  * @param unit - Time unit in seconds
@@ -249,6 +254,97 @@ export const ago = (unit: number, count = 1) => now() - int(unit, count)
  * @returns Time in milliseconds
  */
 export const ms = (seconds: number) => seconds * 1000
+
+/**
+ * Converts seconds to date
+ * @param seconds - Time in seconds
+ * @returns Date object
+ */
+export const secondsToDate = (seconds: number) => new Date(seconds * 1000)
+
+/**
+ * Converts date object to seconds
+ * @param date - Date object
+ * @returns timestamp in seconds
+ */
+export const dateToSeconds = (date: Date) => Math.round(date.valueOf() / 1000)
+
+/**
+ * Creates a local date from a date string
+ * @param dateString - date string
+ * @param timezone - timezone string
+ * @returns timezone-aware Date object
+ */
+export const createLocalDate = (dateString: any, timezone = TIMEZONE) =>
+  new Date(`${dateString} ${timezone}`)
+
+/** Formatter for date+time */
+export const dateTimeFormatter = new Intl.DateTimeFormat(LOCALE, {
+  dateStyle: "short",
+  timeStyle: "short",
+})
+
+/**
+ * Formats seconds as a datetime
+ * @param seconds - timestamp in seconds
+ * @returns datetime string
+ */
+export const formatTimestamp = (seconds: number) => dateTimeFormatter.format(secondsToDate(seconds))
+
+/** Formatter for date */
+export const dateFormatter = new Intl.DateTimeFormat(LOCALE, {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+})
+
+/**
+ * Formats seconds as a date
+ * @param seconds - timestamp in seconds
+ * @returns date string
+ */
+export const formatTimestampAsDate = (ts: number) => dateFormatter.format(secondsToDate(ts))
+
+/** Formatter for time */
+export const timeFormatter = new Intl.DateTimeFormat(LOCALE, {
+  timeStyle: "short",
+})
+
+/**
+ * Formats seconds as a time
+ * @param seconds - timestamp in seconds
+ * @returns time string
+ */
+export const formatTimestampAsTime = (ts: number) => timeFormatter.format(secondsToDate(ts))
+
+/**
+ * Formats seconds as a relative date (x minutes ago)
+ * @param seconds - timestamp in seconds
+ * @returns relative date string
+ */
+export const formatTimestampRelative = (ts: number) => {
+  let unit
+  let delta = now() - ts
+  if (delta < int(MINUTE)) {
+    unit = "second"
+  } else if (delta < int(HOUR)) {
+    unit = "minute"
+    delta = Math.round(delta / int(MINUTE))
+  } else if (delta < int(DAY, 2)) {
+    unit = "hour"
+    delta = Math.round(delta / int(HOUR))
+  } else {
+    unit = "day"
+    delta = Math.round(delta / int(DAY))
+  }
+
+  const locale = new Intl.RelativeTimeFormat().resolvedOptions().locale
+  const formatter = new Intl.RelativeTimeFormat(locale, {
+    numeric: "auto",
+  })
+
+  return formatter.format(-delta, unit as Intl.RelativeTimeFormatUnit)
+}
 
 // ----------------------------------------------------------------------------
 // Sequences
@@ -359,6 +455,14 @@ export const difference = <T>(a: T[], b: T[]) => {
  * @returns New array with element removed
  */
 export const remove = <T>(a: T, xs: T[]) => xs.filter(x => x !== a)
+
+/**
+ * Removes element at index
+ * @param i - Index to remove
+ * @param xs - Source array
+ * @returns New array with element removed
+ */
+export const removeAt = <T>(i: number, xs: T[]) => [...xs.slice(0, i), ...xs.slice(i + 1)]
 
 /**
  * Returns elements from second array not present in first
@@ -602,7 +706,10 @@ export const chunks = <T>(n: number, xs: T[]) => {
 export const splitAt = <T>(n: number, xs: T[]) => [xs.slice(0, n), xs.slice(n)]
 
 /** Inserts element into array at index */
-export const insert = <T>(n: number, x: T, xs: T[]) => [...xs.slice(0, n), x, ...xs.slice(n)]
+export const insertAt = <T>(n: number, x: T, xs: T[]) => [...xs.slice(0, n), x, ...xs.slice(n)]
+
+/** Replaces array element at index */
+export const replaceAt = <T>(n: number, x: T, xs: T[]) => [...xs.slice(0, n), x, ...xs.slice(n + 1)]
 
 /** Returns random element from array */
 export const choice = <T>(xs: T[]): T => xs[Math.floor(xs.length * Math.random())]
@@ -926,7 +1033,7 @@ export const poll = ({interval = 300, condition, signal}: PollOptions) =>
       }
     }, interval)
 
-    signal.addEventListener('abort', () => {
+    signal.addEventListener("abort", () => {
       resolve()
       clearInterval(int)
     })

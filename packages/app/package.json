@@ -25,6 +25,7 @@
     "@welshman/feeds": "workspace:*",
     "@welshman/lib": "workspace:*",
     "@welshman/relay": "workspace:*",
+    "@welshman/router": "workspace:*",
     "@welshman/net": "workspace:*",
     "@welshman/signer": "workspace:*",
     "@welshman/store": "workspace:*",

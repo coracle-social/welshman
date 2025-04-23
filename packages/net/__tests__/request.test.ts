@@ -17,7 +17,7 @@ describe("requestOne", () => {
   it("everything basically works", async () => {
     let id
     const sendSpy = vi.fn(m => {
-      if (m[0] === 'REQ') {
+      if (m[0] === "REQ") {
         id = m[1]
       }
     })
@@ -87,13 +87,13 @@ describe("request", () => {
   it("everything basically works", async () => {
     let id1, id2
     const send1Spy = vi.fn(m => {
-      if (m[0] === 'REQ') {
+      if (m[0] === "REQ") {
         id1 = m[1]
       }
     })
     const adapter1 = new MockAdapter("1", send1Spy)
     const send2Spy = vi.fn(m => {
-      if (m[0] === 'REQ') {
+      if (m[0] === "REQ") {
         id2 = m[1]
       }
     })

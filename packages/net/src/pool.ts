@@ -25,7 +25,7 @@ export class Pool {
   _data = new Map<string, Socket>()
   _subs: PoolSubscription[] = []
 
-  static getSingleton() {
+  static get() {
     if (!poolSingleton) {
       poolSingleton = new Pool()
     }

@@ -10,7 +10,7 @@ import {
   getListTags,
   TrustedEvent,
 } from "@welshman/util"
-import {throttled, withGetter, WritableWithGetter} from "@welshman/store"
+import {throttled, withGetter} from "@welshman/store"
 import {Tracker} from "@welshman/net"
 import {Repository, RepositoryUpdate} from "@welshman/relay"
 import {getAll, bulkPut, bulkDelete} from "./storage.js"
@@ -123,8 +123,7 @@ export class PlaintextStorageAdapter {
     const interval = setInterval(() => {
       bulkPut(
         this.options.name,
-        Object.entries(plaintext.get())
-          .map(([key, value]) => ({key, value})),
+        Object.entries(plaintext.get()).map(([key, value]) => ({key, value})),
       )
     }, 10_000)
 
@@ -156,14 +155,16 @@ export class TrackerStorageAdapter {
     const onUpdate = throttle(3000, async () => {
       await bulkPut(
         this.options.name,
-        Array.from(this.options.tracker.relaysById.entries())
-          .map(([id, relays]) => ({id, relays: Array.from(relays)}))
+        Array.from(this.options.tracker.relaysById.entries()).map(([id, relays]) => ({
+          id,
+          relays: Array.from(relays),
+        })),
       )
     })
 
-    this.options.tracker.on('update', onUpdate)
+    this.options.tracker.on("update", onUpdate)
 
-    return () => this.options.tracker.off('update', onUpdate)
+    return () => this.options.tracker.off("update", onUpdate)
   }
 }
 
@@ -224,30 +225,32 @@ export class EventsStorageAdapter {
 }
 
 export const defaultStorageAdapters = {
-  relays: new RelaysStorageAdapter({name: 'relays'}),
-  handles: new HandlesStorageAdapter({name: 'handles'}),
-  zappers: new ZappersStorageAdapter({name: 'zappers'}),
-  freshness: new FreshnessStorageAdapter({name: 'freshness'}),
-  plaintext: new PlaintextStorageAdapter({name: 'plaintext'}),
-  tracker: new TrackerStorageAdapter({name: 'tracker', tracker}),
-  events: new EventsStorageAdapter(call(() => {
-    const userFollowPubkeys = withGetter(
-      derived(userFollows, l => new Set(getPubkeyTagValues(getListTags(l)))),
-    )
+  relays: new RelaysStorageAdapter({name: "relays"}),
+  handles: new HandlesStorageAdapter({name: "handles"}),
+  zappers: new ZappersStorageAdapter({name: "zappers"}),
+  freshness: new FreshnessStorageAdapter({name: "freshness"}),
+  plaintext: new PlaintextStorageAdapter({name: "plaintext"}),
+  tracker: new TrackerStorageAdapter({name: "tracker", tracker}),
+  events: new EventsStorageAdapter(
+    call(() => {
+      const userFollowPubkeys = withGetter(
+        derived(userFollows, l => new Set(getPubkeyTagValues(getListTags(l)))),
+      )
 
-    return {
-      repository,
-      name: 'events',
-      limit: 10_000,
-      rankEvent: (e: TrustedEvent) => {
-        const $sessions = sessions.get()
-        const metaKinds = [PROFILE, FOLLOWS, MUTES, RELAYS, INBOX_RELAYS]
+      return {
+        repository,
+        name: "events",
+        limit: 10_000,
+        rankEvent: (e: TrustedEvent) => {
+          const $sessions = sessions.get()
+          const metaKinds = [PROFILE, FOLLOWS, MUTES, RELAYS, INBOX_RELAYS]
 
-        if ($sessions[e.pubkey] || e.tags.some(t => $sessions[t[1]])) return 1
-        if (metaKinds.includes(e.kind) && userFollowPubkeys.get()?.has(e.pubkey)) return 1
+          if ($sessions[e.pubkey] || e.tags.some(t => $sessions[t[1]])) return 1
+          if (metaKinds.includes(e.kind) && userFollowPubkeys.get()?.has(e.pubkey)) return 1
 
-        return 0
-      },
-    }
-  })),
+          return 0
+        },
+      }
+    }),
+  ),
 }

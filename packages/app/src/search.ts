@@ -5,11 +5,11 @@ import {dec, sortBy} from "@welshman/lib"
 import {PROFILE, PublishedProfile} from "@welshman/util"
 import {load} from "@welshman/net"
 import {throttled} from "@welshman/store"
+import {Router} from "@welshman/router"
 import {wotGraph} from "./wot.js"
 import {profiles} from "./profiles.js"
 import {topics, Topic} from "./topics.js"
 import {relays, Relay} from "./relays.js"
-import {Router} from "./router.js"
 import {handlesByNip05} from "./handles.js"
 
 export type SearchOptions<V, T> = {

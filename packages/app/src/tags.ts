@@ -7,9 +7,9 @@ import {
   isReplaceableKind,
 } from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
+import {Router} from "@welshman/router"
 import {displayProfileByPubkey} from "./profiles.js"
 import {pubkey} from "./session.js"
-import {Router} from "./router.js"
 
 export const tagZapSplit = (pubkey: string, split = 1) => [
   "zap",

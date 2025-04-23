@@ -1,4 +1,4 @@
-import {Emitter, now} from "@welshman/lib"
+import {now} from "@welshman/lib"
 import {TrustedEvent, SignedEvent, Filter} from "@welshman/util"
 import {request, publish, AdapterContext} from "@welshman/net"
 
@@ -13,15 +13,7 @@ export type DVMRequestOptions = {
 }
 
 export const requestDvmResponse = (options: DVMRequestOptions) => {
-  const {
-    event,
-    relays,
-    context,
-    timeout = 30_000,
-    autoClose = true,
-    onResult,
-    onProgress,
-  } = options
+  const {event, relays, context, timeout = 30_000, autoClose = true, onResult, onProgress} = options
   const kind = event.kind + 1000
   const kinds = onProgress ? [kind, 7000] : [kind]
   const filters: Filter[] = [{kinds, since: now() - 60, "#e": [event.id]}]

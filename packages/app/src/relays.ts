@@ -1,9 +1,29 @@
 import {writable, derived} from "svelte/store"
 import {withGetter} from "@welshman/store"
-import {groupBy, indexBy, batch, now, uniq, batcher, postJson} from "@welshman/lib"
+import {
+  groupBy,
+  indexBy,
+  batch,
+  now,
+  uniq,
+  batcher,
+  postJson,
+  ago,
+  DAY,
+  HOUR,
+  MINUTE,
+} from "@welshman/lib"
 import {RelayProfile} from "@welshman/util"
-import {normalizeRelayUrl, displayRelayUrl, displayRelayProfile} from "@welshman/util"
-import {Socket, SocketStatus, SocketEvent, ClientMessage, RelayMessage} from "@welshman/net"
+import {
+  normalizeRelayUrl,
+  displayRelayUrl,
+  displayRelayProfile,
+  isOnionUrl,
+  isLocalUrl,
+  isIPAddress,
+  isRelayUrl,
+} from "@welshman/util"
+import {Pool, Socket, SocketStatus, SocketEvent, ClientMessage, RelayMessage} from "@welshman/net"
 import {collection} from "./collection.js"
 import {appContext} from "./context.js"
 
@@ -115,6 +135,34 @@ export const displayRelayByPubkey = (url: string) =>
 
 export const deriveRelayDisplay = (url: string) =>
   derived(deriveRelay(url), $relay => displayRelayProfile($relay?.profile, displayRelayUrl(url)))
+
+export const getRelayQuality = (url: string) => {
+  const relay = relaysByUrl.get().get(url)
+
+  // Skip non-relays entirely
+  if (!isRelayUrl(url)) return 0
+
+  // If we have recent errors, skip it
+  if (relay?.stats) {
+    if (relay.stats.recent_errors.filter(n => n > ago(MINUTE)).length > 0) return 0
+    if (relay.stats.recent_errors.filter(n => n > ago(HOUR)).length > 3) return 0
+    if (relay.stats.recent_errors.filter(n => n > ago(DAY)).length > 10) return 0
+  }
+
+  // Prefer stuff we're connected to
+  if (Pool.get().has(url)) return 1
+
+  // Prefer stuff we've connected to in the past
+  if (relay?.stats) return 0.9
+
+  // If it's not weird url give it an ok score
+  if (!isIPAddress(url) && !isLocalUrl(url) && !isOnionUrl(url) && !url.startsWith("ws://")) {
+    return 0.8
+  }
+
+  // Default to a "meh" score
+  return 0.7
+}
 
 // Utilities for syncing stats from connections to relays
 

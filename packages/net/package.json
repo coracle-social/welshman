@@ -23,6 +23,7 @@
     "@welshman/lib": "workspace:*",
     "@welshman/relay": "workspace:*",
     "@welshman/util": "workspace:*",
+    "events": "^3.3.0",
     "isomorphic-ws": "^5.0.0"
   },
   "devDependencies": {

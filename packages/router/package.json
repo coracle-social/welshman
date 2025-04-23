@@ -1,14 +1,15 @@
 {
-  "name": "@welshman/feeds",
-  "version": "0.1.2",
+  "name": "@welshman/router",
+  "version": "0.1.0",
   "author": "hodlbod",
   "license": "MIT",
-  "description": "Utilities for building dynamic nostr feeds.",
+  "description": "A collection of utilities for nostr relay selection.",
   "publishConfig": {
     "access": "public"
   },
-  "main": "dist/feeds/src/index.js",
-  "types": "dist/feeds/src/index.d.ts",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "files": [
     "dist"
   ],
@@ -20,7 +21,6 @@
   },
   "dependencies": {
     "@welshman/lib": "workspace:*",
-    "@welshman/net": "workspace:*",
     "@welshman/util": "workspace:*"
   },
   "devDependencies": {

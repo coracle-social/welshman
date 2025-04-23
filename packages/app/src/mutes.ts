@@ -25,5 +25,5 @@ export const {
   name: "mutes",
   store: mutes,
   getKey: mute => mute.event.pubkey,
-  load: makeOutboxLoader(MUTES)
+  load: makeOutboxLoader(MUTES),
 })

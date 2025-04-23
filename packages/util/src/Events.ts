@@ -1,7 +1,7 @@
 import {verifiedSymbol, verifyEvent as verifyEventPure} from "nostr-tools/pure"
 import {setNostrWasm, verifyEvent as verifyEventWasm} from "nostr-tools/wasm"
 import {initNostrWasm} from "nostr-wasm"
-import {mapVals, noop, first, pick, now} from "@welshman/lib"
+import {mapVals, first, pick, now} from "@welshman/lib"
 import {getReplyTagValues, getCommentTagValues} from "./Tags.js"
 import {getAddress, Address} from "./Address.js"
 import {
@@ -65,16 +65,19 @@ export const verifyEvent = (() => {
   let verify = verifyEventPure
 
   if (typeof WebAssembly === "object") {
-    initNostrWasm()
-      .then(nostrWasm => {
+    initNostrWasm().then(
+      nostrWasm => {
         setNostrWasm(nostrWasm)
         verify = verifyEventWasm
-      }, e => {
+      },
+      e => {
         console.warn(e)
-      })
+      },
+    )
   }
 
-  return (event: TrustedEvent) => Boolean(event.sig && (event[verifiedSymbol] || verify(event as SignedEvent)))
+  return (event: TrustedEvent) =>
+    Boolean(event.sig && (event[verifiedSymbol] || verify(event as SignedEvent)))
 })()
 
 export const isEventTemplate = (e: EventTemplate): e is EventTemplate =>

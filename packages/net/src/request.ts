@@ -1,5 +1,16 @@
-import {EventEmitter} from "events"
-import {on, uniq, lt, flatten, addToMapKey, defer, Deferred, call, randomId, yieldThread, pushToMapKey, batcher} from "@welshman/lib"
+import {
+  on,
+  uniq,
+  lt,
+  flatten,
+  addToMapKey,
+  defer,
+  Deferred,
+  call,
+  randomId,
+  pushToMapKey,
+  batcher,
+} from "@welshman/lib"
 import {
   Filter,
   getAddress,
@@ -9,9 +20,8 @@ import {
   getFilterResultCardinality,
 } from "@welshman/util"
 import {RelayMessage, ClientMessageType, isRelayEvent, isRelayEose} from "./message.js"
-import {getAdapter, AdapterContext, AbstractAdapter, AdapterEvent} from "./adapter.js"
+import {getAdapter, AdapterContext, AdapterEvent} from "./adapter.js"
 import {SocketEvent, SocketStatus} from "./socket.js"
-import {Unsubscriber} from "./util.js"
 import {netContext} from "./context.js"
 import {Tracker} from "./tracker.js"
 
@@ -160,7 +170,6 @@ export const request = async (options: RequestOptions) => {
   const ctrl = new AbortController()
   const signal = options.signal ? AbortSignal.any([options.signal, ctrl.signal]) : ctrl.signal
   const threshold = options.threshold || 1
-  const promises: Promise<TrustedEvent[]>[] = []
 
   if (relays.size !== options.relays.length) {
     console.warn("Non-unique relays passed to request")
@@ -181,13 +190,12 @@ export const request = async (options: RequestOptions) => {
               options.onClose?.()
               ctrl.abort()
             }
-          }
-        })
-      )
-    )
+          },
+        }),
+      ),
+    ),
   )
 }
-
 
 export type LoaderOptions = {
   delay: number
@@ -251,7 +259,7 @@ export const makeLoader = (options: LoaderOptions) =>
         resultsByRequest.set(request, defer())
 
         // Propagate abort when all requests have been closed for a given relay
-        request.signal?.addEventListener('abort', () => close(relay, request))
+        request.signal?.addEventListener("abort", () => close(relay, request))
       }
     }
 
@@ -268,47 +276,46 @@ export const makeLoader = (options: LoaderOptions) =>
       signalsByRelay.set(relay, AbortSignal.any(signals))
     }
 
-    Array.from(requestsByRelay).forEach(
-      async ([relay, requests]) => {
-        // Union all filters for a given request and send them together
-        const filters = unionFilters(requests.flatMap(r => r.filters))
+    Array.from(requestsByRelay).forEach(async ([relay, requests]) => {
+      // Union all filters for a given request and send them together
+      const filters = unionFilters(requests.flatMap(r => r.filters))
 
-        // Propagate events to caller, but only for requests that have not been aborted
-        const getOpenRequests = () =>
-          requests.filter(request => !closedRequestsByRelay.get(relay)?.has(request))
+      // Propagate events to caller, but only for requests that have not been aborted
+      const getOpenRequests = () =>
+        requests.filter(request => !closedRequestsByRelay.get(relay)?.has(request))
 
-        requestOne({
-          relay,
-          filters,
-          tracker,
-          autoClose: true,
-          signal: signalsByRelay.get(relay),
-          context: options.context,
-          isEventValid: options.isEventValid,
-          isEventDeleted: options.isEventDeleted,
-          onEvent: (event: TrustedEvent, url: string) => {
-            for (const request of getOpenRequests()) {
-              if (matchFilters(request.filters, event)) {
-                pushToMapKey(eventsByRequest, request, event)
-                request.onEvent?.(event, url)
+      requestOne({
+        relay,
+        filters,
+        tracker,
+        autoClose: true,
+        signal: signalsByRelay.get(relay),
+        context: options.context,
+        isEventValid: options.isEventValid,
+        isEventDeleted: options.isEventDeleted,
+        onEvent: (event: TrustedEvent, url: string) => {
+          for (const request of getOpenRequests()) {
+            if (matchFilters(request.filters, event)) {
+              pushToMapKey(eventsByRequest, request, event)
+              request.onEvent?.(event, url)
 
-                // Calculate cardinality for unioned filters so that we can return early
-                if (request.filters.length === 1) {
-                  const cardinality = getFilterResultCardinality(request.filters[0])
+              // Calculate cardinality for unioned filters so that we can return early
+              if (request.filters.length === 1) {
+                const cardinality = getFilterResultCardinality(request.filters[0])
 
-                  if (eventsByRequest.get(request)?.length === cardinality) {
-                    close(relay, request)
-                  }
+                if (eventsByRequest.get(request)?.length === cardinality) {
+                  close(relay, request)
                 }
               }
             }
-          },
-          onDisconnect: (url: string) => getOpenRequests().forEach(request => request.onDisconnect?.(url)),
-          onEose: (url: string) => getOpenRequests().forEach(request => request.onEose?.(url)),
-          onClose: () => requests.forEach(request => close(relay, request)),
-        })
-      }
-    )
+          }
+        },
+        onDisconnect: (url: string) =>
+          getOpenRequests().forEach(request => request.onDisconnect?.(url)),
+        onEose: (url: string) => getOpenRequests().forEach(request => request.onEose?.(url)),
+        onClose: () => requests.forEach(request => close(relay, request)),
+      })
+    })
 
     return allRequests.map(r => resultsByRequest.get(r)!)
   })
