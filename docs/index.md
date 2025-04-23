@@ -33,6 +33,9 @@ features:
   - title: "@welshman/relay"
     details: In-memory relay and event store.
     link: "/relay"
+  - title: "@welshman/router"
+    details: Tools for relay selection.
+    link: "/router"
   - title: "@welshman/content"
     details: Parser and renderer for nostr notes with customizable formatting options.
     link: "/content"
