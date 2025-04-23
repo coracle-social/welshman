@@ -11,9 +11,7 @@
     "format": "eslint --fix .",
     "lint": "eslint .",
     "test": "vitest",
-    "docs:dev": "vitepress dev docs",
-    "docs:build": "typedoc && vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs": "typedoc && vitepress build docs"
   },
   "devDependencies": {
     "@eslint/js": "~9.23.0",

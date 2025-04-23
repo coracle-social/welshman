@@ -1,8 +1,8 @@
 import {describe, it, expect, beforeEach, vi, afterEach} from "vitest"
 import {get, writable} from "svelte/store"
+import {now, always} from "@welshman/lib"
 import {collection} from "../src/collection"
 import {freshness, setFreshnessImmediate} from "../src/freshness"
-import {now} from "@welshman/lib"
 
 describe("collection", () => {
   beforeEach(() => {
@@ -25,6 +25,7 @@ describe("collection", () => {
         name: "test",
         store,
         getKey: item => item.id,
+        load: always(Promise.resolve()),
       })
 
       expect(col.indexStore.get().get("1")).toEqual(items[0])
@@ -36,6 +37,7 @@ describe("collection", () => {
         name: "test",
         store,
         getKey: item => item.id,
+        load: always(Promise.resolve()),
       })
 
       const newItem = {id: "1", value: "test"}
@@ -54,6 +56,7 @@ describe("collection", () => {
         name: "test",
         store,
         getKey: item => item.id,
+        load: always(Promise.resolve()),
       })
 
       const result = await col.loadItem("1")
@@ -67,6 +70,7 @@ describe("collection", () => {
         name: "test",
         store,
         getKey: item => item.id,
+        load: always(Promise.resolve()),
       })
 
       const result = await col.loadItem("1")
@@ -177,6 +181,7 @@ describe("collection", () => {
         name: "test",
         store,
         getKey: item => item.id,
+        load: always(Promise.resolve()),
       })
 
       const derived = col.deriveItem(undefined)
@@ -190,6 +195,7 @@ describe("collection", () => {
         name: "test",
         store,
         getKey: item => item.id,
+        load: always(Promise.resolve()),
       })
 
       const derived = col.deriveItem("1")
