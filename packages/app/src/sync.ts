@@ -10,8 +10,9 @@ const query = (filters: Filter[]) =>
 export const hasNegentropy = (url: string) => {
   const p = relaysByUrl.get().get(url)?.profile
 
-  if (p?.supported_nips?.includes(77)) return true
-  if (p?.software?.includes("strfry") && !p?.version?.match(/^0\./)) return true
+  if (p?.negentropy) return true
+  if (p?.supported_nips?.includes?.(77)) return true
+  if (p?.software?.includes?.("strfry") && !p?.version?.match(/^0\./)) return true
 
   return false
 }

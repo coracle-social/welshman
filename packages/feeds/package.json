@@ -20,7 +20,11 @@
   },
   "dependencies": {
     "@welshman/lib": "workspace:*",
+    "@welshman/dvm": "workspace:*",
     "@welshman/net": "workspace:*",
+    "@welshman/relay": "workspace:*",
+    "@welshman/router": "workspace:*",
+    "@welshman/signer": "workspace:*",
     "@welshman/util": "workspace:*",
     "trava": "^1.2.1"
   },

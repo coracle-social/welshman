@@ -1,4 +1,4 @@
-import type {TrustedEvent, Filter} from "@welshman/util"
+import {Filter} from "@welshman/util"
 
 export enum FeedType {
   Address = "address",
@@ -107,30 +107,4 @@ export type Feed =
 export type RequestItem = {
   relays?: string[]
   filters?: Filter[]
-}
-
-export type RequestOpts = RequestItem & {
-  onEvent: (event: TrustedEvent) => void
-}
-
-export type DVMRequest = {
-  kind: number
-  tags?: string[][]
-  relays?: string[]
-}
-
-export type DVMOpts = DVMRequest & {
-  onEvent: (event: TrustedEvent) => void
-}
-
-export type FeedOptions = {
-  feed: Feed
-  request: (opts: RequestOpts) => Promise<void>
-  requestDVM: (opts: DVMOpts) => Promise<void>
-  getPubkeysForScope: (scope: Scope) => string[]
-  getPubkeysForWOTRange: (minWOT: number, maxWOT: number) => string[]
-  onEvent?: (event: TrustedEvent) => void
-  onExhausted?: () => void
-  useWindowing?: boolean
-  signal?: AbortSignal
 }

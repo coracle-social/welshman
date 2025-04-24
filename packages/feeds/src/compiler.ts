@@ -1,7 +1,17 @@
 import {uniq, identity, flatten, pushToMapKey, intersection, tryCatch, now} from "@welshman/lib"
-import type {TrustedEvent, Filter} from "@welshman/util"
-import {intersectFilters, matchFilter, getAddress, getIdFilters, unionFilters} from "@welshman/util"
-import type {
+import {
+  TrustedEvent,
+  Filter,
+  intersectFilters,
+  matchFilter,
+  getAddress,
+  getIdFilters,
+  unionFilters,
+} from "@welshman/util"
+import {Repository} from "@welshman/relay"
+import {ISigner} from "@welshman/signer"
+import {Tracker} from "@welshman/net"
+import {
   CreatedAtItem,
   RequestItem,
   ListItem,
@@ -10,13 +20,22 @@ import type {
   DVMItem,
   Scope,
   Feed,
-  FeedOptions,
+  FeedType,
 } from "./core.js"
 import {getFeedArgs, feedsFromTags} from "./utils.js"
-import {FeedType} from "./core.js"
+import {requestPage, requestDVM} from "./request.js"
+
+export type FeedCompilerOptions = {
+  signer?: ISigner
+  signal?: AbortSignal
+  tracker?: Tracker
+  repository?: Repository
+  getPubkeysForScope: (scope: Scope) => string[]
+  getPubkeysForWOTRange: (minWOT: number, maxWOT: number) => string[]
+}
 
 export class FeedCompiler {
-  constructor(readonly options: FeedOptions) {}
+  constructor(readonly options: FeedCompilerOptions) {}
 
   canCompile(feed: Feed): boolean {
     switch (feed[0]) {
@@ -138,9 +157,10 @@ export class FeedCompiler {
 
     await Promise.all(
       items.map(({mappings, ...request}) =>
-        this.options.requestDVM({
+        requestDVM({
           ...request,
-          onEvent: async (e: TrustedEvent) => {
+          signer: this.options.signer,
+          onResult: async (e: TrustedEvent) => {
             const tags = (await tryCatch(() => JSON.parse(e.content))) || []
 
             for (const feed of feedsFromTags(tags, mappings)) {
@@ -247,7 +267,10 @@ export class FeedCompiler {
     const addresses = uniq(listItems.flatMap(({addresses}) => addresses))
     const eventsByAddress = new Map<string, TrustedEvent>()
 
-    await this.options.request({
+    await requestPage({
+      signal: this.options.signal,
+      tracker: this.options.tracker,
+      repository: this.options.repository,
       filters: getIdFilters(addresses),
       onEvent: (e: TrustedEvent) => eventsByAddress.set(getAddress(e), e),
     })
@@ -280,7 +303,7 @@ export class FeedCompiler {
 
     await Promise.all(
       labelItems.map(({mappings, relays, ...filter}) =>
-        this.options.request({
+        requestPage({
           relays,
           filters: [{kinds: [1985], ...filter}],
           onEvent: (e: TrustedEvent) => events.push(e),

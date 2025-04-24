@@ -11,6 +11,7 @@ export type RelayProfile = {
   contact?: string
   software?: string
   version?: string
+  negentropy?: number
   description?: string
   supported_nips?: number[]
   limitation?: {
