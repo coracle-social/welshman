@@ -21,7 +21,8 @@
   "dependencies": {
     "@welshman/lib": "workspace:*",
     "@welshman/net": "workspace:*",
-    "@welshman/util": "workspace:*"
+    "@welshman/util": "workspace:*",
+    "trava": "^1.2.1"
   },
   "devDependencies": {
     "rimraf": "~6.0.0",

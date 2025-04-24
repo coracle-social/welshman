@@ -222,6 +222,9 @@ importers:
       '@welshman/util':
         specifier: workspace:*
         version: link:../util
+      trava:
+        specifier: ^1.2.1
+        version: 1.2.1
     devDependencies:
       rimraf:
         specifier: ~6.0.0
@@ -298,6 +301,15 @@ importers:
       '@welshman/util':
         specifier: workspace:*
         version: link:../util
+    devDependencies:
+      rimraf:
+        specifier: ~6.0.0
+        version: 6.0.1
+      typescript:
+        specifier: ~5.8.0
+        version: 5.8.2
+
+  packages/schema:
     devDependencies:
       rimraf:
         specifier: ~6.0.0
@@ -2257,6 +2269,10 @@ packages:
   to-regex-range@5.0.1:
     resolution: {integrity: sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ==}
     engines: {node: '>=8.0'}
+
+  trava@1.2.1:
+    resolution: {integrity: sha512-2dt4qJEVtYIwCoihoO+HfVLN+uid7ibtKnZ4pjLF4YqyDOwGuP0uTGLTUnvNkAp92qh3YmgRv4wojxnj5yBPAQ==}
+    engines: {node: '>=6.0.0', npm: '>=4.0.0'}
 
   trim-lines@3.0.1:
     resolution: {integrity: sha512-kRj8B+YHZCc9kQYdWfJB2/oUl9rA99qbowYYBtr4ui4mZyAQ2JpvVBd/6U2YloATfqBhBTSMhTpgBHtU0Mf3Rg==}
@@ -4399,6 +4415,8 @@ snapshots:
   to-regex-range@5.0.1:
     dependencies:
       is-number: 7.0.0
+
+  trava@1.2.1: {}
 
   trim-lines@3.0.1: {}
 

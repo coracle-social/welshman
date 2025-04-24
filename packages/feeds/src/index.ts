@@ -1,4 +1,6 @@
 export * from "./core.js"
 export * from "./compiler.js"
 export * from "./controller.js"
+export * from "./display.js"
 export * from "./utils.js"
+export * from "./validate.js"

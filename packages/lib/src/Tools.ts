@@ -10,7 +10,7 @@ export type Nil = null | undefined
 
 export const isNil = <T>(x: T, ...args: unknown[]) => x === undefined || x === null
 
-export const isNotNil = <T>(x: T, ...args: unknown[]) => x !== undefined || x !== null
+export const isNotNil = <T>(x: T, ...args: unknown[]) => x !== undefined && x !== null
 
 export const assertNotNil = <T>(x: T, ...args: unknown[]) => x!
 
@@ -1356,6 +1356,19 @@ export const ellipsize = (s: string, l: number, suffix = "...") => {
   }
 
   return s + suffix
+}
+
+/** Displays a list of items with oxford commas and a chosen conjunction */
+export const displayList = <T>(xs: T[], conj = "and", n = 6) => {
+  if (xs.length > n + 2) {
+    return `${xs.slice(0, n).join(", ")}, ${conj} ${xs.length - n} others`
+  }
+
+  if (xs.length < 3) {
+    return xs.join(` ${conj} `)
+  }
+
+  return `${xs.slice(0, -1).join(", ")}, ${conj} ${xs.slice(-1).join("")}`
 }
 
 /** Generates a hash string from input string */
