@@ -310,6 +310,9 @@ importers:
       '@welshman/lib':
         specifier: workspace:*
         version: link:../lib
+      '@welshman/relay':
+        specifier: workspace:*
+        version: link:../relay
       '@welshman/util':
         specifier: workspace:*
         version: link:../util

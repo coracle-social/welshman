@@ -1,4 +1,5 @@
 import {
+  uniq,
   intersection,
   mergeLeft,
   first,
@@ -29,19 +30,18 @@ import {
   normalizeRelayUrl,
   TrustedEvent,
   Filter,
+  readList,
+  asDecryptedEvent,
+  getRelaysFromList,
+  RelayMode,
 } from "@welshman/util"
+import {Repository} from "@welshman/relay"
 
 export const INDEXED_KINDS = [PROFILE, RELAYS, INBOX_RELAYS, FOLLOWS]
 
 export type RelaysAndFilters = {
   relays: string[]
   filters: Filter[]
-}
-
-export enum RelayMode {
-  Read = "read",
-  Write = "write",
-  Inbox = "inbox",
 }
 
 export type RouterOptions = {
@@ -114,7 +114,15 @@ export const addMaximalFallbacks = (count: number, limit: number) => limit - cou
 
 // Router class
 
-export const routerContext: RouterOptions = {}
+export const routerContext: RouterOptions = {
+  getPubkeyRelays: (pubkey: string, mode?: RelayMode) => {
+    return uniq(
+      Repository.get()
+        .query([{kinds: [RELAYS], authors: [pubkey]}])
+        .flatMap(event => getRelaysFromList(readList(asDecryptedEvent(event)), mode))
+    )
+  }
+}
 
 export class Router {
   readonly options: RouterOptions

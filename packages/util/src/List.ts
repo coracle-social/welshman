@@ -1,7 +1,7 @@
-import {parseJson, nthEq} from "@welshman/lib"
+import {parseJson, uniq, nthEq} from "@welshman/lib"
 import {Address} from "./Address.js"
-import {uniqTags} from "./Tags.js"
-import {isRelayUrl} from "./Relay.js"
+import {uniqTags, getRelayTags} from "./Tags.js"
+import {isRelayUrl, normalizeRelayUrl} from "./Relay.js"
 import {Encryptable, DecryptedEvent} from "./Encryptable.js"
 import type {EncryptableUpdates} from "./Encryptable.js"
 
@@ -87,4 +87,14 @@ export const addToListPrivately = (list: List, ...tags: string[][]) => {
   return new Encryptable(template, {
     content: JSON.stringify(uniqTags([...list.privateTags, ...tags])),
   })
+}
+
+export const getRelaysFromList = (list?: List, mode?: string): string[] => {
+  let tags = getRelayTags(getListTags(list))
+
+  if (mode) {
+    tags = tags.filter((t: string[]) => !t[2] || t[2] === mode)
+  }
+
+  return uniq(tags.map(t => normalizeRelayUrl(t[1])))
 }

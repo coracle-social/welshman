@@ -5,33 +5,14 @@ import {
   normalizeRelayUrl,
   asDecryptedEvent,
   readList,
-  getListTags,
-  getRelayTags,
-  getRelayTagValues,
+  getRelaysFromList,
 } from "@welshman/util"
-import {TrustedEvent, PublishedList, List} from "@welshman/util"
+import {TrustedEvent, PublishedList, RelayMode, List} from "@welshman/util"
 import {request} from "@welshman/net"
 import {deriveEventsMapped} from "@welshman/store"
-import {Router, RelayMode} from "@welshman/router"
+import {Router} from "@welshman/router"
 import {repository} from "./core.js"
 import {collection} from "./collection.js"
-
-export const getRelayUrls = (list?: List): string[] =>
-  uniq(getRelayTagValues(getListTags(list)).map(normalizeRelayUrl))
-
-export const getReadRelayUrls = (list?: List): string[] =>
-  uniq(
-    getRelayTags(getListTags(list))
-      .filter((t: string[]) => !t[2] || t[2] === "read")
-      .map((t: string[]) => normalizeRelayUrl(t[1])),
-  )
-
-export const getWriteRelayUrls = (list?: List): string[] =>
-  uniq(
-    getRelayTags(getListTags(list))
-      .filter((t: string[]) => !t[2] || t[2] === "write")
-      .map((t: string[]) => normalizeRelayUrl(t[1])),
-  )
 
 export type OutboxLoaderRequest = {
   pubkey: string
@@ -78,21 +59,10 @@ export const {
   load: makeOutboxLoader(RELAYS),
 })
 
-export const getPubkeyRelays = (pubkey: string, mode?: string) => {
-  const $relaySelections = relaySelectionsByPubkey.get()
-  const $inboxSelections = inboxRelaySelectionsByPubkey.get()
-
-  switch (mode) {
-    case RelayMode.Read:
-      return getReadRelayUrls($relaySelections.get(pubkey))
-    case RelayMode.Write:
-      return getWriteRelayUrls($relaySelections.get(pubkey))
-    case RelayMode.Inbox:
-      return getRelayUrls($inboxSelections.get(pubkey))
-    default:
-      return getRelayUrls($relaySelections.get(pubkey))
-  }
-}
+export const getPubkeyRelays = (pubkey: string, mode?: string) =>
+  mode === RelayMode.Inbox
+    ? getRelaysFromList(inboxRelaySelectionsByPubkey.get().get(pubkey))
+    : getRelaysFromList(relaySelectionsByPubkey.get().get(pubkey), mode)
 
 export const inboxRelaySelections = deriveEventsMapped<PublishedList>(repository, {
   filters: [{kinds: [INBOX_RELAYS]}],

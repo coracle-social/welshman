@@ -2,6 +2,12 @@ import {last, normalizeUrl, stripProtocol} from "@welshman/lib"
 
 // Constants and types
 
+export enum RelayMode {
+  Read = "read",
+  Write = "write",
+  Inbox = "inbox",
+}
+
 export type RelayProfile = {
   url: string
   icon?: string
