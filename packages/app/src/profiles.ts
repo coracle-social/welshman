@@ -1,9 +1,8 @@
 import {derived, readable} from "svelte/store"
 import {readProfile, displayProfile, displayPubkey, PROFILE} from "@welshman/util"
 import {PublishedProfile} from "@welshman/util"
-import {deriveEventsMapped, withGetter} from "@welshman/store"
+import {deriveEventsMapped, collection, withGetter} from "@welshman/store"
 import {repository} from "./core.js"
-import {collection} from "./collection.js"
 import {makeOutboxLoader} from "./relaySelections.js"
 
 export const profiles = withGetter(

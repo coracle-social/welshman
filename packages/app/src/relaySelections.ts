@@ -1,19 +1,11 @@
-import {derived} from 'svelte/store'
-import {uniq, batcher, always} from "@welshman/lib"
-import {
-  INBOX_RELAYS,
-  RELAYS,
-  normalizeRelayUrl,
-  asDecryptedEvent,
-  readList,
-  getRelaysFromList,
-} from "@welshman/util"
-import {TrustedEvent, PublishedList, RelayMode, List} from "@welshman/util"
+import {derived} from "svelte/store"
+import {batcher, always} from "@welshman/lib"
+import {INBOX_RELAYS, RELAYS, asDecryptedEvent, readList, getRelaysFromList} from "@welshman/util"
+import {TrustedEvent, PublishedList, RelayMode} from "@welshman/util"
 import {request} from "@welshman/net"
-import {deriveEventsMapped} from "@welshman/store"
+import {deriveEventsMapped, collection} from "@welshman/store"
 import {Router} from "@welshman/router"
 import {repository} from "./core.js"
-import {collection} from "./collection.js"
 
 export type OutboxLoaderRequest = {
   pubkey: string

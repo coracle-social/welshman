@@ -1,7 +1,34 @@
-import {readable, derived, type Readable, type Subscriber} from "svelte/store"
-import {indexBy, remove, now} from "@welshman/lib"
-import {ReadableWithGetter, withGetter} from "@welshman/store"
-import {getFreshness, setFreshnessThrottled} from "./freshness.js"
+import {readable, derived, writable, Readable, Subscriber} from "svelte/store"
+import {batch, indexBy, remove, assoc, now} from "@welshman/lib"
+import {withGetter, ReadableWithGetter} from "./getter.js"
+
+// Collection utility
+
+export type FreshnessUpdate = {
+  ns: string
+  key: string
+  ts: number
+}
+
+export const freshness = withGetter(writable<Record<string, number>>({}))
+
+export const getFreshnessKey = (ns: string, key: string) => `${ns}:${key}`
+
+export const getFreshness = (ns: string, key: string) =>
+  freshness.get()[getFreshnessKey(ns, key)] || 0
+
+export const setFreshnessImmediate = ({ns, key, ts}: FreshnessUpdate) =>
+  freshness.update(assoc(getFreshnessKey(ns, key), ts))
+
+export const setFreshnessThrottled = batch(100, (updates: FreshnessUpdate[]) =>
+  freshness.update($freshness => {
+    for (const {ns, key, ts} of updates) {
+      $freshness[getFreshnessKey(ns, key)] = ts
+    }
+
+    return $freshness
+  }),
+)
 
 export type CachedLoaderOptions<T> = {
   name: string

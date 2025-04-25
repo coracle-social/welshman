@@ -1,6 +1,6 @@
 import {writable, derived} from "svelte/store"
 import {tryCatch, fetchJson, uniq, batcher, postJson, last} from "@welshman/lib"
-import {collection} from "./collection.js"
+import {collection} from "@welshman/store"
 import {deriveProfile} from "./profiles.js"
 import {appContext} from "./context.js"
 

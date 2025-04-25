@@ -24,7 +24,7 @@ import {
   isRelayUrl,
 } from "@welshman/util"
 import {Pool, Socket, SocketStatus, SocketEvent, ClientMessage, RelayMessage} from "@welshman/net"
-import {collection} from "./collection.js"
+import {collection} from "@welshman/store"
 import {appContext} from "./context.js"
 
 export type RelayStats = {

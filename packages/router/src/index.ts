@@ -119,9 +119,9 @@ export const routerContext: RouterOptions = {
     return uniq(
       Repository.get()
         .query([{kinds: [RELAYS], authors: [pubkey]}])
-        .flatMap(event => getRelaysFromList(readList(asDecryptedEvent(event)), mode))
+        .flatMap(event => getRelaysFromList(readList(asDecryptedEvent(event)), mode)),
     )
-  }
+  },
 }
 
 export class Router {

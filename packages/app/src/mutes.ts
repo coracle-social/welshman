@@ -1,8 +1,7 @@
 import {MUTES, asDecryptedEvent, readList} from "@welshman/util"
 import {TrustedEvent, PublishedList} from "@welshman/util"
-import {deriveEventsMapped} from "@welshman/store"
+import {deriveEventsMapped, collection} from "@welshman/store"
 import {repository} from "./core.js"
-import {collection} from "./collection.js"
 import {ensurePlaintext} from "./plaintext.js"
 import {makeOutboxLoader} from "./relaySelections.js"
 
