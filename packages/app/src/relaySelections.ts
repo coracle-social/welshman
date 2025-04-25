@@ -1,3 +1,4 @@
+import {derived} from 'svelte/store'
 import {uniq, batcher, always} from "@welshman/lib"
 import {
   INBOX_RELAYS,
@@ -59,10 +60,15 @@ export const {
   load: makeOutboxLoader(RELAYS),
 })
 
-export const getPubkeyRelays = (pubkey: string, mode?: string) =>
+export const getPubkeyRelays = (pubkey: string, mode?: RelayMode) =>
   mode === RelayMode.Inbox
     ? getRelaysFromList(inboxRelaySelectionsByPubkey.get().get(pubkey))
     : getRelaysFromList(relaySelectionsByPubkey.get().get(pubkey), mode)
+
+export const derivePubkeyRelays = (pubkey: string, mode?: RelayMode) =>
+  mode === RelayMode.Inbox
+    ? derived(inboxRelaySelectionsByPubkey, $m => getRelaysFromList($m.get(pubkey)))
+    : derived(relaySelectionsByPubkey, $m => getRelaysFromList($m.get(pubkey), mode))
 
 export const inboxRelaySelections = deriveEventsMapped<PublishedList>(repository, {
   filters: [{kinds: [INBOX_RELAYS]}],

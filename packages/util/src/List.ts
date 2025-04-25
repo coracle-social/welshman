@@ -1,7 +1,7 @@
 import {parseJson, uniq, nthEq} from "@welshman/lib"
 import {Address} from "./Address.js"
 import {uniqTags, getRelayTags} from "./Tags.js"
-import {isRelayUrl, normalizeRelayUrl} from "./Relay.js"
+import {isRelayUrl, RelayMode, normalizeRelayUrl} from "./Relay.js"
 import {Encryptable, DecryptedEvent} from "./Encryptable.js"
 import type {EncryptableUpdates} from "./Encryptable.js"
 
@@ -89,7 +89,7 @@ export const addToListPrivately = (list: List, ...tags: string[][]) => {
   })
 }
 
-export const getRelaysFromList = (list?: List, mode?: string): string[] => {
+export const getRelaysFromList = (list?: List, mode?: RelayMode): string[] => {
   let tags = getRelayTags(getListTags(list))
 
   if (mode) {
