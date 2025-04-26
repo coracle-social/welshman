@@ -425,7 +425,7 @@ export const truncate = (
 
     if (currentSize > minLength) {
       content = content
-        .slice(0, Math.max(1, i))
+        .slice(0, Math.max(1, i + 1))
         .concat({type: ParsedType.Ellipsis, value: "…", raw: ""})
 
       return false
