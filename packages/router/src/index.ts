@@ -97,7 +97,7 @@ export type Selection = {
   relays: string[]
 }
 
-const makeSelection = (relays: string[], weight = 1): Selection => ({
+export const makeSelection = (relays: string[], weight = 1): Selection => ({
   relays: relays.filter(isRelayUrl).map(normalizeRelayUrl),
   weight,
 })
@@ -322,7 +322,7 @@ export class RouterScenario {
     }
 
     const scoreRelay = (relay: string) => {
-      const quality = this.router.options.getRelayQuality?.(relay)
+      const quality = this.router.options.getRelayQuality?.(relay) || 1
       const weight = relayWeights.get(relay)!
 
       // Log the weight, since it's a straight count which ends up over-weighting hubs.

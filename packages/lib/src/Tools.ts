@@ -629,6 +629,21 @@ export const groupBy = <T, K>(f: (x: T) => K, xs: T[]) => {
 }
 
 /**
+ * Counts array elements by key function
+ * @param f - Function to generate group key
+ * @param xs - Array to count entries
+ * @returns Map of counts
+ */
+export const countBy = <T, K>(f: (x: T) => K, xs: T[]) => {
+  const r = new Map<K, number>()
+  for (const [k, items] of groupBy(f, xs)) {
+    r.set(k, items.length)
+  }
+
+  return r
+}
+
+/**
  * Creates map from array using key function
  * @param f - Function to generate key
  * @param xs - Array to index

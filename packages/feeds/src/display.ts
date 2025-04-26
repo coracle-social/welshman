@@ -31,7 +31,7 @@ export const displayAddressFeed = (feed: AddressFeed) => {
 export const displayAuthorFeed = (feed: AuthorFeed) => {
   const n = getFeedArgs(feed).length
 
-  return `events from ${n} replaceable {n === 1 ? 'person' : 'people'}`
+  return `from ${n} replaceable {n === 1 ? 'person' : 'people'}`
 }
 
 export const displayCreatedAtFeed = (feed: CreatedAtFeed) => {
@@ -57,10 +57,10 @@ export const displayCreatedAtFeed = (feed: CreatedAtFeed) => {
   }
 
   if (descriptions.length === 0) {
-    return "events from any time"
+    return "from any time"
   }
 
-  return `events ${displayList(descriptions, "or")}`
+  return displayList(descriptions, "or")
 }
 
 export const displayDVMFeed = (feed: DVMFeed) => {
@@ -83,29 +83,29 @@ export const displayDVMFeed = (feed: DVMFeed) => {
     descriptions.push(parts.join(" "))
   }
 
-  return `events from DVM requests of ${displayList(descriptions)}`
+  return `from DVM requests of ${displayList(descriptions)}`
 }
 
 export const displayDifferenceFeed = (feed: DifferenceFeed) => {
   const [base, ...excluded] = getFeedArgs(feed)
 
-  return `all ${displayFeed(base)}, excluding ${displayList(excluded.map(displayFeed))}`
+  return `${displayFeed(base)}, excluding ${displayList(excluded.map(displayFeed))}`
 }
 
-export const displayIDFeed = (feed: IDFeed) => `${getFeedArgs(feed).length} events`
+export const displayIDFeed = (feed: IDFeed) => `matching ${getFeedArgs(feed).length} IDs`
 
 export const displayIntersectionFeed = (feed: IntersectionFeed) =>
-  `events matching ${displayList(getFeedArgs(feed).map(displayFeed))}`
+  displayList(getFeedArgs(feed).map(displayFeed))
 
 export const displayGlobalFeed = (feed: GlobalFeed) => "anything"
 
 export const displayKindFeed = (feed: KindFeed) =>
-  `events of kind ${displayList(getFeedArgs(feed))}`
+  `of kind ${displayList(getFeedArgs(feed))}`
 
 export const displayListFeed = (feed: ListFeed) => {
   const addresses = uniq(getFeedArgs(feed).flatMap(({addresses}) => addresses))
 
-  return `events from ${addresses.length} list${addresses.length === 1 ? "" : "s"}`
+  return `from ${addresses.length} list${addresses.length === 1 ? "" : "s"}`
 }
 
 export const displayLabelFeed = (feed: LabelFeed) => {
@@ -134,7 +134,7 @@ export const displayLabelFeed = (feed: LabelFeed) => {
     descriptions.push(parts.join(" "))
   }
 
-  return `events ${displayList(descriptions)}`
+  return displayList(descriptions)
 }
 
 export const displayWOTFeed = (feed: WOTFeed) => {
@@ -142,25 +142,25 @@ export const displayWOTFeed = (feed: WOTFeed) => {
     min === max ? `WOT score of ${min}` : `WOT score between ${min} and ${max}`,
   )
 
-  return `Events from authors with ${displayList(descriptions)}`
+  return `from authors with ${displayList(descriptions)}`
 }
 
-export const displayRelayFeed = (feed: RelayFeed) => `events from ${displayList(getFeedArgs(feed))}`
+export const displayRelayFeed = (feed: RelayFeed) => `from ${displayList(getFeedArgs(feed))}`
 
 export const displayScopeFeed = (feed: ScopeFeed) =>
-  `events from ${displayList(getFeedArgs(feed).map(s => s.toLowerCase()))}`
+  `from ${displayList(getFeedArgs(feed).map(s => s.toLowerCase()))}`
 
 export const displaySearchFeed = (feed: SearchFeed) =>
-  `events matching ${displayList(getFeedArgs(feed).map(term => `"${term}"`))}`
+  `matching ${displayList(getFeedArgs(feed).map(term => `"${term}"`))}`
 
 export const displayTagFeed = (feed: TagFeed) => {
   const [key, ...values] = getFeedArgs(feed)
 
-  return `events with ${key} tag matching ${displayList(values, "or")}`
+  return `with ${key} tag matching ${displayList(values, "or")}`
 }
 
 export const displayUnionFeed = (feed: UnionFeed) =>
-  `all ${displayList(getFeedArgs(feed).map(displayFeed))}`
+  displayList(getFeedArgs(feed).map(displayFeed))
 
 export const displayFeed = (feed: Feed): string => {
   switch (feed[0]) {

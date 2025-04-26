@@ -1,5 +1,5 @@
 import {ensureNumber} from "@welshman/lib"
-import type {Filter} from "@welshman/util"
+import {Filter, unionFilters} from "@welshman/util"
 import {getTagValues} from "@welshman/util"
 import {
   FeedType,
@@ -195,7 +195,7 @@ export const feedsFromFilter = ({since, until, ...filter}: Filter) => {
 export const feedFromFilter = (filter: Filter) => makeIntersectionFeed(...feedsFromFilter(filter))
 
 export const feedFromFilters = (filters: Filter[]) =>
-  makeUnionFeed(...filters.map(filter => feedFromFilter(filter)))
+  makeUnionFeed(...unionFilters(filters).map(filter => feedFromFilter(filter)))
 
 export const walkFeed = (feed: Feed, visit: (feed: Feed) => void) => {
   visit(feed)
