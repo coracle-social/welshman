@@ -121,6 +121,7 @@ export const INBOX_RELAYS = 10050
 export const FILE_SERVERS = 10096
 export const LIGHTNING_PUB_RPC = 21000
 export const CLIENT_AUTH = 22242
+export const BLOSSOM_AUTH = 24242
 export const AUTH_JOIN = 28934
 export const AUTH_INVITE = 28935
 export const WALLET_INFO = 13194

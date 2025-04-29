@@ -62,7 +62,7 @@ export const getCommentTags = (tags: string[][]) => {
 }
 
 export const getCommentTagValues = (tags: string[][]) =>
-  mapVals(tags => tags.map(nth(1)), getCommentTags(tags))
+  mapVals(tags => tags.filter(t => ['a', 'e'].includes(t[0].toLowerCase())).map(nth(1)), getCommentTags(tags))
 
 export const getReplyTags = (tags: string[][]) => {
   const validTags = tags.filter(t => ["a", "e", "q"].includes(t[0]))
