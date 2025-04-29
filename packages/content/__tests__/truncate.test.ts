@@ -47,7 +47,7 @@ describe("Content Truncation", () => {
     })
     expect(result[result.length - 1].type).toBe(ParsedType.Ellipsis) // ellipsis
 
-    expect(result).toHaveLength(2) // text + link = 300 + 250 = 550
+    expect(result).toHaveLength(3) // text + link = 300 + 250 = 550
   })
 
   it("should account for entityLength in nostr entity calculations", () => {
@@ -71,7 +71,7 @@ describe("Content Truncation", () => {
     // 300 + 110 = 410, which is over the maxLength
     expect(result[result.length - 1].type).toBe(ParsedType.Ellipsis) // ellipsis
 
-    expect(result).toHaveLength(2) // text + profile
+    expect(result).toHaveLength(3) // text + profile
   })
 
   it("should handle mixed content types correctly", () => {

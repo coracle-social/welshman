@@ -312,7 +312,7 @@ describe("Tools", () => {
 
   describe("displayList", () => {
     it("should return an empty string when the list is empty", () => {
-      const list = []
+      const list: string[] = []
       const output = T.displayList(list)
 
       expect(output).toEqual("")
