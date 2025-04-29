@@ -235,7 +235,9 @@ export const parseInvoice = (text: string, context: ParseContext): ParsedInvoice
 
 export const parseLink = (text: string, context: ParseContext): ParsedLink | void => {
   const prev = last(context.results)
-  let link = text.match(/^([a-z\+:]{2,30}:\/\/)?[-\.~\w]+\.[\w]{2,6}([^\s]*[^<>"'\.!,:\s\)\(]+)?/gi)?.[0]
+  const link = text.match(
+    /^([a-z\+:]{2,30}:\/\/)?[-\.~\w]+\.[\w]{2,6}([^\s]*[^<>"'\.!,:\s\)\(]+)?/gi,
+  )?.[0]
 
   // Skip url if it's just the end of a filepath or an ellipse
   if (!link || (prev?.type === ParsedType.Text && prev.value.endsWith("/")) || link.match(/\.\./)) {

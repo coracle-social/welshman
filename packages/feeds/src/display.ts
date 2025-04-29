@@ -99,8 +99,7 @@ export const displayIntersectionFeed = (feed: IntersectionFeed) =>
 
 export const displayGlobalFeed = (feed: GlobalFeed) => "anything"
 
-export const displayKindFeed = (feed: KindFeed) =>
-  `of kind ${displayList(getFeedArgs(feed))}`
+export const displayKindFeed = (feed: KindFeed) => `of kind ${displayList(getFeedArgs(feed))}`
 
 export const displayListFeed = (feed: ListFeed) => {
   const addresses = uniq(getFeedArgs(feed).flatMap(({addresses}) => addresses))
@@ -159,8 +158,7 @@ export const displayTagFeed = (feed: TagFeed) => {
   return `with ${key} tag matching ${displayList(values, "or")}`
 }
 
-export const displayUnionFeed = (feed: UnionFeed) =>
-  displayList(getFeedArgs(feed).map(displayFeed))
+export const displayUnionFeed = (feed: UnionFeed) => displayList(getFeedArgs(feed).map(displayFeed))
 
 export const displayFeed = (feed: Feed): string => {
   switch (feed[0]) {
