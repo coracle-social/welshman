@@ -1,9 +1,11 @@
-import {derived} from "svelte/store"
+import {derived, Readable} from "svelte/store"
+import {withGetter} from "@welshman/store"
 import {pubkey} from "./session.js"
 import {profilesByPubkey, loadProfile} from "./profiles.js"
 import {followsByPubkey, loadFollows} from "./follows.js"
 import {loadPins, pinsByPubkey} from "./pins.js"
 import {mutesByPubkey, loadMutes} from "./mutes.js"
+import {blossomServersByPubkey, loadBlossomServers} from "./blossom.js"
 import {
   relaySelectionsByPubkey,
   inboxRelaySelectionsByPubkey,
@@ -12,58 +14,56 @@ import {
 } from "./relaySelections.js"
 import {wotGraph} from "./wot.js"
 
-export const userProfile = derived([profilesByPubkey, pubkey], ([$profilesByPubkey, $pubkey]) => {
-  if (!$pubkey) return undefined
+export type MakeUserDataOptions<T> = {
+  mapStore: Readable<Map<string, T>>
+  loadItem: (pubkey: string) => unknown
+}
 
-  loadProfile($pubkey)
+const makeUserData = <T>({mapStore, loadItem}: MakeUserDataOptions<T>) =>
+  withGetter(
+    derived([mapStore, pubkey], ([$mapStore, $pubkey]) => {
+      if (!$pubkey) return undefined
 
-  return $profilesByPubkey.get($pubkey)
+      loadItem($pubkey)
+
+      return $mapStore.get($pubkey)
+    })
+  )
+
+export const userProfile = makeUserData({
+  mapStore: profilesByPubkey,
+  loadItem: loadProfile,
 })
 
-export const userFollows = derived([followsByPubkey, pubkey], ([$followsByPubkey, $pubkey]) => {
-  if (!$pubkey) return undefined
-
-  loadFollows($pubkey)
-
-  return $followsByPubkey.get($pubkey)
+export const userFollows = makeUserData({
+  mapStore: followsByPubkey,
+  loadItem: loadFollows,
 })
 
-export const userMutes = derived([mutesByPubkey, pubkey], ([$mutesByPubkey, $pubkey]) => {
-  if (!$pubkey) return undefined
-
-  loadMutes($pubkey)
-
-  return $mutesByPubkey.get($pubkey)
+export const userMutes = makeUserData({
+  mapStore: mutesByPubkey,
+  loadItem: loadMutes,
 })
 
-export const userPins = derived([pinsByPubkey, pubkey], ([$pinsByPubkey, $pubkey]) => {
-  if (!$pubkey) return undefined
-
-  loadPins($pubkey)
-  return $pinsByPubkey.get($pubkey)
+export const userPins = makeUserData({
+  mapStore: pinsByPubkey,
+  loadItem: loadPins,
 })
 
-export const userRelaySelections = derived(
-  [relaySelectionsByPubkey, pubkey],
-  ([$relaySelectionsByPubkey, $pubkey]) => {
-    if (!$pubkey) return undefined
+export const userRelaySelections = makeUserData({
+  mapStore: relaySelectionsByPubkey,
+  loadItem: loadRelaySelections,
+})
 
-    loadRelaySelections($pubkey)
+export const userInboxRelaySelections = makeUserData({
+  mapStore: inboxRelaySelectionsByPubkey,
+  loadItem: loadInboxRelaySelections,
+})
 
-    return $relaySelectionsByPubkey.get($pubkey)
-  },
-)
-
-export const userInboxRelaySelections = derived(
-  [inboxRelaySelectionsByPubkey, pubkey],
-  ([$inboxRelaySelectionsByPubkey, $pubkey]) => {
-    if (!$pubkey) return undefined
-
-    loadInboxRelaySelections($pubkey)
-
-    return $inboxRelaySelectionsByPubkey.get($pubkey)
-  },
-)
+export const userBlossomServers = makeUserData({
+  mapStore: blossomServersByPubkey,
+  loadItem: loadBlossomServers,
+})
 
 export const getUserWotScore = (tpk: string) => wotGraph.get().get(tpk) || 0
 

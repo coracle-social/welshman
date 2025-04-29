@@ -118,6 +118,7 @@ export const FEEDS = 10014
 export const TOPICS = 10015
 export const EMOJIS = 10030
 export const INBOX_RELAYS = 10050
+export const BLOSSOM_SERVERS = 10063
 export const FILE_SERVERS = 10096
 export const LIGHTNING_PUB_RPC = 21000
 export const CLIENT_AUTH = 22242
