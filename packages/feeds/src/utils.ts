@@ -206,3 +206,61 @@ export const walkFeed = (feed: Feed, visit: (feed: Feed) => void) => {
     }
   }
 }
+
+export const simplifyFeed = (feed: Feed): Feed => {
+  if (isUnionFeed(feed)) {
+    const args = getFeedArgs(feed)
+
+    if (args.length === 1) return simplifyFeed(args[0])
+
+    const modified: Feed[] = []
+
+    for (let sub of args.map(simplifyFeed)) {
+      if (isUnionFeed(sub)) {
+        modified.push(...getFeedArgs(sub))
+      } else {
+        modified.push(sub)
+      }
+    }
+
+    return makeUnionFeed(...modified)
+  }
+
+  if (isIntersectionFeed(feed)) {
+    const args = getFeedArgs(feed)
+
+    if (args.length === 1) return simplifyFeed(args[0])
+
+    const modified: Feed[] = []
+
+    for (let sub of args.map(simplifyFeed)) {
+      if (isIntersectionFeed(sub)) {
+        modified.push(...getFeedArgs(sub))
+      } else {
+        modified.push(sub)
+      }
+    }
+
+    return makeIntersectionFeed(...modified)
+  }
+
+  if (isDifferenceFeed(feed)) {
+    const args = getFeedArgs(feed)
+
+    if (args.length === 1) return simplifyFeed(args[0])
+
+    const modified: Feed[] = []
+
+    for (let sub of args.map(simplifyFeed)) {
+      if (isDifferenceFeed(sub)) {
+        modified.push(...getFeedArgs(sub))
+      } else {
+        modified.push(sub)
+      }
+    }
+
+    return makeDifferenceFeed(...modified)
+  }
+
+  return feed
+}

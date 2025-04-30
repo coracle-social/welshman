@@ -1,4 +1,4 @@
-import {now, uniq, displayList} from "@welshman/lib"
+import {now, uniq, displayList, formatTimestampAsDate, formatTimestampRelative} from "@welshman/lib"
 import {
   FeedType,
   Feed,
@@ -42,13 +42,19 @@ export const displayCreatedAtFeed = (feed: CreatedAtFeed) => {
     const parts: string[] = []
 
     if (since) {
-      const timestamp = relative.includes("since") ? now() - since : since
-      parts.push(`after ${new Date(timestamp * 1000).toLocaleString()}`)
+      if (relative.includes("since")) {
+        parts.push(`after ${formatTimestampRelative(now() - since)}`)
+      } else {
+        parts.push(`after ${formatTimestampAsDate(since)}`)
+      }
     }
 
     if (until) {
-      const timestamp = relative.includes("until") ? now() - until : until
-      parts.push(`before ${new Date(timestamp * 1000).toLocaleString()}`)
+      if (relative.includes("until")) {
+        parts.push(`before ${formatTimestampRelative(now() - until)}`)
+      } else {
+        parts.push(`before ${formatTimestampAsDate(until)}`)
+      }
     }
 
     if (parts.length > 0) {

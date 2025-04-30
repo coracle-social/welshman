@@ -1,4 +1,4 @@
-import {inc, memoize, omitVals, max, min, now} from "@welshman/lib"
+import {inc, defer, Deferred, memoize, omitVals, max, min, now} from "@welshman/lib"
 import {EPOCH, trimFilters, guessFilterDelta, TrustedEvent, Filter} from "@welshman/util"
 import {Feed, FeedType, RequestItem} from "./core.js"
 import {FeedCompiler, FeedCompilerOptions} from "./compiler.js"
@@ -87,17 +87,17 @@ export class FeedController {
     const minSince = sinces.length === filters.length ? min(sinces) : EPOCH
     const initialDelta = guessFilterDelta(filters)
 
-    let loading = false
+    let promise: Deferred<void> | undefined
     let delta = initialDelta
     let since = this.options.useWindowing ? maxUntil - delta : minSince
     let until = maxUntil
 
     return async (limit: number) => {
-      if (loading) {
-        return
+      if (promise) {
+        return promise
       }
 
-      loading = true
+      promise = defer()
 
       const requestFilters = filters!
         // Remove filters that don't fit our window
@@ -148,32 +148,31 @@ export class FeedController {
         onExhausted?.()
       }
 
-      loading = false
+      promise.resolve()
+      promise = undefined
     }
   }
 
-  async _getDifferenceLoader(feeds: Feed[]) {
+  _getDifferenceLoader(feeds: Feed[]) {
     const exhausted = new Set<number>()
     const skip = new Set<string>()
     const events: TrustedEvent[] = []
     const seen = new Set()
 
-    const controllers = await Promise.all(
-      feeds.map(
-        (thisFeed: Feed, i: number) =>
-          new FeedController({
-            ...this.options,
-            feed: thisFeed,
-            onExhausted: () => exhausted.add(i),
-            onEvent: (event: TrustedEvent) => {
-              if (i === 0) {
-                events.push(event)
-              } else {
-                skip.add(event.id)
-              }
-            },
-          }),
-      ),
+    const controllers = feeds.map(
+      (thisFeed: Feed, i: number) =>
+        new FeedController({
+          ...this.options,
+          feed: thisFeed,
+          onExhausted: () => exhausted.add(i),
+          onEvent: (event: TrustedEvent) => {
+            if (i === 0) {
+              events.push(event)
+            } else {
+              skip.add(event.id)
+            }
+          },
+        }),
     )
 
     return async (limit: number) => {
@@ -200,25 +199,23 @@ export class FeedController {
     }
   }
 
-  async _getIntersectionLoader(feeds: Feed[]) {
+  _getIntersectionLoader(feeds: Feed[]) {
     const exhausted = new Set<number>()
     const counts = new Map<string, number>()
     const events: TrustedEvent[] = []
     const seen = new Set()
 
-    const controllers = await Promise.all(
-      feeds.map(
-        (thisFeed: Feed, i: number) =>
-          new FeedController({
-            ...this.options,
-            feed: thisFeed,
-            onExhausted: () => exhausted.add(i),
-            onEvent: (event: TrustedEvent) => {
-              events.push(event)
-              counts.set(event.id, inc(counts.get(event.id)))
-            },
-          }),
-      ),
+    const controllers = feeds.map(
+      (thisFeed: Feed, i: number) =>
+        new FeedController({
+          ...this.options,
+          feed: thisFeed,
+          onExhausted: () => exhausted.add(i),
+          onEvent: (event: TrustedEvent) => {
+            events.push(event)
+            counts.set(event.id, inc(counts.get(event.id)))
+          },
+        }),
     )
 
     return async (limit: number) => {
@@ -245,25 +242,23 @@ export class FeedController {
     }
   }
 
-  async _getUnionLoader(feeds: Feed[]) {
+  _getUnionLoader(feeds: Feed[]) {
     const exhausted = new Set<number>()
     const seen = new Set()
 
-    const controllers = await Promise.all(
-      feeds.map(
-        (thisFeed: Feed, i: number) =>
-          new FeedController({
-            ...this.options,
-            feed: thisFeed,
-            onExhausted: () => exhausted.add(i),
-            onEvent: (event: TrustedEvent) => {
-              if (!seen.has(event.id)) {
-                this.options.onEvent?.(event)
-                seen.add(event.id)
-              }
-            },
-          }),
-      ),
+    const controllers = feeds.map(
+      (thisFeed: Feed, i: number) =>
+        new FeedController({
+          ...this.options,
+          feed: thisFeed,
+          onExhausted: () => exhausted.add(i),
+          onEvent: (event: TrustedEvent) => {
+            if (!seen.has(event.id)) {
+              this.options.onEvent?.(event)
+              seen.add(event.id)
+            }
+          },
+        }),
     )
 
     return async (limit: number) => {
