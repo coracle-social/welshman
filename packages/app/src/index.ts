@@ -20,7 +20,6 @@ export * from "./tags.js"
 export * from "./thunk.js"
 export * from "./topics.js"
 export * from "./user.js"
-export * from "./util.js"
 export * from "./wot.js"
 export * from "./zappers.js"
 

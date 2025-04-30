@@ -317,7 +317,7 @@ export const makeLoader = (options: LoaderOptions) =>
       })
     })
 
-    return allRequests.map(r => resultsByRequest.get(r)!)
+    return allRequests.map(r => resultsByRequest.get(r) || [])
   })
 
 export const load = makeLoader({delay: 200, timeout: 3000, threshold: 0.5})

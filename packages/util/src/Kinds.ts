@@ -24,6 +24,7 @@ export const MESSAGE = 9
 export const THREAD = 11
 export const SEAL = 13
 export const DIRECT_MESSAGE = 14
+export const DIRECT_MESSAGE_FILE = 15
 export const GENERIC_REPOST = 16
 export const PICTURE_NOTE = 20
 export const CHANNEL_CREATE = 40

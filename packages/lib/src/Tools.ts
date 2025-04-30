@@ -227,7 +227,11 @@ export const YEAR = 365 * DAY
 export const LOCALE = new Intl.DateTimeFormat().resolvedOptions().locale
 
 /** User's default timezone */
-export const TIMEZONE = new Date().toString().match(/GMT[^\s]+/)![0]
+export const TIMEZONE = (() => {
+  const [_, sign = "+", offset] = new Date().toString().match(/GMT([-\+]?)(\d+)/)!
+
+  return sign + offset.slice(0, 2) + ":" + offset.slice(2)
+})()
 
 /**
  * Multiplies time unit by count
@@ -276,7 +280,7 @@ export const dateToSeconds = (date: Date) => Math.round(date.valueOf() / 1000)
  * @returns timezone-aware Date object
  */
 export const createLocalDate = (dateString: any, timezone = TIMEZONE) =>
-  new Date(`${dateString} ${timezone}`)
+  new Date(`${dateString} GMT${timezone}`)
 
 /** Formatter for date+time */
 export const dateTimeFormatter = new Intl.DateTimeFormat(LOCALE, {
