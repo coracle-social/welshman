@@ -37,7 +37,7 @@ export class RelaysStorageAdapter {
   }
 
   sync() {
-    return throttled(3000, relays).subscribe($relays => Boolean(console.log('relays', $relays))||bulkPut(this.options.name, $relays))
+    return throttled(3000, relays).subscribe($relays => bulkPut(this.options.name, $relays))
   }
 }
 

@@ -1,5 +1,5 @@
 import {partition, now, nthEq, race} from "@welshman/lib"
-import {makeEvent, Filter, getPubkeyTagValues, TrustedEvent} from "@welshman/util"
+import {makeEvent, Filter, getPubkeyTagValues, TrustedEvent, asDecryptedEvent, readList, getRelaysFromList, RELAYS} from "@welshman/util"
 import {Nip01Signer, ISigner} from "@welshman/signer"
 import {Repository} from "@welshman/relay"
 import {Router, getFilterSelections, addMinimalFallbacks} from "@welshman/router"
@@ -82,8 +82,14 @@ export const requestDVM = async ({
   signer = Nip01Signer.ephemeral(),
 }: RequestDVMOptions) => {
   if (relays.length === 0) {
+    const events = await request({
+      autoClose: true,
+      filters: [{kinds: [RELAYS], authors: getPubkeyTagValues(tags)}],
+      relays: Router.get().Index().policy(addMinimalFallbacks).getUrls(),
+    })
+
     relays = Router.get()
-      .FromPubkeys(getPubkeyTagValues(tags))
+      .FromRelays(events.flatMap(e => getRelaysFromList(readList(asDecryptedEvent(e)))))
       .policy(addMinimalFallbacks)
       .getUrls()
   }
