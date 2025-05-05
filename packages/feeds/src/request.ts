@@ -1,5 +1,14 @@
 import {partition, now, nthEq, race} from "@welshman/lib"
-import {makeEvent, Filter, getPubkeyTagValues, TrustedEvent, asDecryptedEvent, readList, getRelaysFromList, RELAYS} from "@welshman/util"
+import {
+  makeEvent,
+  Filter,
+  getPubkeyTagValues,
+  TrustedEvent,
+  asDecryptedEvent,
+  readList,
+  getRelaysFromList,
+  RELAYS,
+} from "@welshman/util"
 import {Nip01Signer, ISigner} from "@welshman/signer"
 import {Repository} from "@welshman/relay"
 import {Router, getFilterSelections, addMinimalFallbacks} from "@welshman/router"

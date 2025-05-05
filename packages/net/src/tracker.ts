@@ -1,6 +1,5 @@
 import {Emitter, addToMapKey} from "@welshman/lib"
 
-
 export class Tracker extends Emitter {
   relaysById = new Map<string, Set<string>>()
   idsByRelay = new Map<string, Set<string>>()

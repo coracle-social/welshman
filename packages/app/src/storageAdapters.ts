@@ -1,5 +1,5 @@
 import {derived} from "svelte/store"
-import {batch, throttle, sortBy, call, fromPairs} from "@welshman/lib"
+import {batch, sortBy, call, fromPairs} from "@welshman/lib"
 import {
   PROFILE,
   FOLLOWS,

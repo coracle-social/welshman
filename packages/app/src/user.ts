@@ -27,7 +27,7 @@ const makeUserData = <T>({mapStore, loadItem}: MakeUserDataOptions<T>) =>
       loadItem($pubkey)
 
       return $mapStore.get($pubkey)
-    })
+    }),
   )
 
 export const userProfile = makeUserData({

@@ -215,7 +215,7 @@ export const simplifyFeed = (feed: Feed): Feed => {
 
     const modified: Feed[] = []
 
-    for (let sub of args.map(simplifyFeed)) {
+    for (const sub of args.map(simplifyFeed)) {
       if (isUnionFeed(sub)) {
         modified.push(...getFeedArgs(sub))
       } else {
@@ -233,7 +233,7 @@ export const simplifyFeed = (feed: Feed): Feed => {
 
     const modified: Feed[] = []
 
-    for (let sub of args.map(simplifyFeed)) {
+    for (const sub of args.map(simplifyFeed)) {
       if (isIntersectionFeed(sub)) {
         modified.push(...getFeedArgs(sub))
       } else {
@@ -251,7 +251,7 @@ export const simplifyFeed = (feed: Feed): Feed => {
 
     const modified: Feed[] = []
 
-    for (let sub of args.map(simplifyFeed)) {
+    for (const sub of args.map(simplifyFeed)) {
       if (isDifferenceFeed(sub)) {
         modified.push(...getFeedArgs(sub))
       } else {

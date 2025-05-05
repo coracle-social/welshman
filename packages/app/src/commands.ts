@@ -1,6 +1,14 @@
 import {get} from "svelte/store"
 import {uniq} from "@welshman/lib"
-import {addToListPublicly, EventTemplate, removeFromList, makeList, FOLLOWS, MUTES, PINS} from "@welshman/util"
+import {
+  addToListPublicly,
+  EventTemplate,
+  removeFromList,
+  makeList,
+  FOLLOWS,
+  MUTES,
+  PINS,
+} from "@welshman/util"
 import {Nip59, stamp} from "@welshman/signer"
 import {Router, addMaximalFallbacks} from "@welshman/router"
 import {userFollows, userMutes, userPins} from "./user.js"
