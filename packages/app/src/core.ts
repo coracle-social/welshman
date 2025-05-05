@@ -11,6 +11,25 @@ export const tracker = new Tracker()
 
 // Adapt objects to stores
 
+export const makeRepositoryStore = ({throttle: t = 300}: {throttle?: number} = {}) =>
+  custom(
+    setter => {
+      let onUpdate = () => setter(repository)
+
+      if (t) {
+        onUpdate = throttle(t, onUpdate)
+      }
+
+      onUpdate()
+      repository.on("update", onUpdate)
+
+      return () => repository.off("update", onUpdate)
+    },
+    {
+      set: (other: Repository) => repository.load(other.dump()),
+    },
+  )
+
 export const makeTrackerStore = ({throttle: t = 300}: {throttle?: number} = {}) =>
   custom(
     setter => {

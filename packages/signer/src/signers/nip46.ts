@@ -33,6 +33,7 @@ export type Nip46BrokerParams = {
   signerPubkey?: string
   algorithm?: Nip46Algorithm
   context?: AdapterContext
+  debug?: (message: string, ...args: any[]) => void
 }
 
 export type Nip46Response = {
@@ -189,7 +190,7 @@ export class Nip46Sender extends Emitter {
         try {
           await this.send(request)
         } catch (error: any) {
-          console.error("nip46 error:", error, request)
+          this.params.debug?.("nip46 error:", error, request)
         }
       }
     } finally {
@@ -307,7 +308,7 @@ export class Nip46Broker extends Emitter {
     const sender = new Nip46Sender(this.signer, this.params)
 
     sender.on(Nip46Event.Send, (data: any) => {
-      console.log("nip46 send:", data)
+      this.params.debug?.("nip46 send:", data)
     })
 
     return sender
@@ -317,7 +318,7 @@ export class Nip46Broker extends Emitter {
     const receiver = new Nip46Receiver(this.signer, this.params)
 
     receiver.on(Nip46Event.Receive, (data: any) => {
-      console.log("nip46 receive:", data)
+      this.params.debug?.("nip46 receive:", data)
     })
 
     return receiver

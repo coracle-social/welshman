@@ -1,7 +1,6 @@
 import {Scope, FeedController, FeedControllerOptions, Feed} from "@welshman/feeds"
 import {pubkey, signer} from "./session.js"
 import {wotGraph, maxWot, getFollows, getNetwork, getFollowers} from "./wot.js"
-import {repository} from "./core.js"
 
 export const getPubkeysForScope = (scope: string) => {
   const $pubkey = pubkey.get()
@@ -41,10 +40,4 @@ export const getPubkeysForWOTRange = (min: number, max: number) => {
 type MakeFeedControllerOptions = Partial<Omit<FeedControllerOptions, "feed">> & {feed: Feed}
 
 export const makeFeedController = (options: MakeFeedControllerOptions) =>
-  new FeedController({
-    repository,
-    getPubkeysForScope,
-    getPubkeysForWOTRange,
-    signer: signer.get(),
-    ...options,
-  })
+  new FeedController({getPubkeysForScope, getPubkeysForWOTRange, signer: signer.get(), ...options})
