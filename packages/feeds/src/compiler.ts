@@ -8,9 +8,8 @@ import {
   getIdFilters,
   unionFilters,
 } from "@welshman/util"
-import {Repository} from "@welshman/relay"
 import {ISigner} from "@welshman/signer"
-import {Tracker} from "@welshman/net"
+import {AdapterContext} from "@welshman/net"
 import {
   CreatedAtItem,
   RequestItem,
@@ -28,8 +27,7 @@ import {requestPage, requestDVM} from "./request.js"
 export type FeedCompilerOptions = {
   signer?: ISigner
   signal?: AbortSignal
-  tracker?: Tracker
-  repository?: Repository
+  context?: AdapterContext
   getPubkeysForScope: (scope: Scope) => string[]
   getPubkeysForWOTRange: (minWOT: number, maxWOT: number) => string[]
 }
@@ -160,6 +158,7 @@ export class FeedCompiler {
         requestDVM({
           ...request,
           signer: this.options.signer,
+          context: this.options.context,
           onResult: async (e: TrustedEvent) => {
             const tags = (await tryCatch(() => JSON.parse(e.content))) || []
 
@@ -269,8 +268,7 @@ export class FeedCompiler {
 
     await requestPage({
       signal: this.options.signal,
-      tracker: this.options.tracker,
-      repository: this.options.repository,
+      context: this.options.context,
       filters: getIdFilters(addresses),
       onEvent: (e: TrustedEvent) => eventsByAddress.set(getAddress(e), e),
     })
@@ -304,6 +302,8 @@ export class FeedCompiler {
     await Promise.all(
       labelItems.map(({mappings, relays, ...filter}) =>
         requestPage({
+          signal: this.options.signal,
+          context: this.options.context,
           relays,
           filters: [{kinds: [1985], ...filter}],
           onEvent: (e: TrustedEvent) => events.push(e),

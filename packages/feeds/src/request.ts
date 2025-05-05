@@ -10,30 +10,30 @@ import {
   RELAYS,
 } from "@welshman/util"
 import {Nip01Signer, ISigner} from "@welshman/signer"
-import {Repository} from "@welshman/relay"
+import {LOCAL_RELAY_URL} from "@welshman/relay"
 import {Router, getFilterSelections, addMinimalFallbacks} from "@welshman/router"
-import {Tracker, request} from "@welshman/net"
+import {Tracker, AdapterContext, request, netContext, RequestOptions} from "@welshman/net"
 import {makeDvmRequest} from "@welshman/dvm"
 
 export type RequestPageOptions = {
-  filters?: Filter[]
+  filters: Filter[]
+  onEvent: (event: TrustedEvent) => void
   relays?: string[]
-  signal?: AbortSignal
   tracker?: Tracker
-  repository?: Repository
-  onEvent?: (event: TrustedEvent) => void
+  signal?: AbortSignal
+  context?: AdapterContext
 }
 
 export const requestPage = async ({
-  filters = [{}],
-  relays = [],
+  filters,
   onEvent,
-  signal,
-  repository,
+  relays = [],
   tracker = new Tracker(),
+  signal,
+  context,
 }: RequestPageOptions) => {
   if (relays.length > 0) {
-    return request({tracker, signal, relays, filters, onEvent, autoClose: true})
+    return request({tracker, signal, context, onEvent, relays, filters, autoClose: true})
   }
 
   const promises: Promise<TrustedEvent[]>[] = []
@@ -42,8 +42,9 @@ export const requestPage = async ({
   if (withSearch.length > 0) {
     promises.push(
       request({
-        signal,
         tracker,
+        signal,
+        context,
         onEvent,
         threshold: 0.1,
         autoClose: true,
@@ -56,7 +57,7 @@ export const requestPage = async ({
   if (withoutSearch.length > 0) {
     promises.push(
       ...getFilterSelections(filters).flatMap(({relays, filters}) =>
-        request({tracker, signal, onEvent, relays, filters, threshold: 0.8, autoClose: true}),
+        request({tracker, signal, context, onEvent, relays, filters, threshold: 0.8, autoClose: true}),
       ),
     )
   }
@@ -68,11 +69,7 @@ export const requestPage = async ({
   // Wait until after we've queried the network to access our local cache. This results in less
   // snappy response times, but is necessary to prevent stale stuff that the user has already seen
   // from showing up at the top of the feed
-  if (repository) {
-    for (const event of repository.query(filters)) {
-      onEvent?.(event)
-    }
-  }
+  await request({tracker, signal, context, onEvent, filters, relays: [LOCAL_RELAY_URL], autoClose: true})
 }
 
 export type RequestDVMOptions = {
@@ -80,6 +77,7 @@ export type RequestDVMOptions = {
   tags?: string[][]
   relays?: string[]
   signer?: ISigner
+  context?: AdapterContext
   onResult: (event: TrustedEvent) => void
 }
 
@@ -89,6 +87,7 @@ export const requestDVM = async ({
   tags = [],
   relays = [],
   signer = Nip01Signer.ephemeral(),
+  context,
 }: RequestDVMOptions) => {
   if (relays.length === 0) {
     const events = await request({
@@ -121,5 +120,5 @@ export const requestDVM = async ({
 
   const event = await signer.sign(makeEvent(kind, {tags}))
 
-  await makeDvmRequest({relays, event, onResult})
+  await makeDvmRequest({relays, event, context, onResult})
 }

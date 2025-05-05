@@ -1,11 +1,13 @@
 import {inc, defer, Deferred, memoize, omitVals, max, min, now} from "@welshman/lib"
 import {EPOCH, trimFilters, guessFilterDelta, TrustedEvent, Filter} from "@welshman/util"
+import {Tracker} from "@welshman/net"
 import {Feed, FeedType, RequestItem} from "./core.js"
 import {FeedCompiler, FeedCompilerOptions} from "./compiler.js"
 import {requestPage} from "./request.js"
 
 export type FeedControllerOptions = FeedCompilerOptions & {
   feed: Feed
+  tracker?: Tracker
   onEvent?: (event: TrustedEvent) => void
   onExhausted?: () => void
   useWindowing?: boolean
@@ -122,7 +124,7 @@ export class FeedController {
           filters: trimFilters(requestFilters),
           signal: this.options.signal,
           tracker: this.options.tracker,
-          repository: this.options.repository,
+          context: this.options.context,
           onEvent: (event: TrustedEvent) => {
             count += 1
             until = Math.min(until, event.created_at - 1)

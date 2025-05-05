@@ -105,6 +105,7 @@ export class Nip46Receiver extends Emitter {
   ) {
     super()
   }
+
   // start listening to the remote signer for incoming events
   // broadcast any event returned by the remote signer
   start = async () => {

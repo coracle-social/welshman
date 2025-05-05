@@ -122,6 +122,7 @@ export class Socket extends EventEmitter {
   close = () => {
     this._ws?.close()
     this._ws = undefined
+    this._sendQueue.clear()
   }
 
   cleanup = () => {

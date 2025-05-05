@@ -39,9 +39,7 @@ const deduplicateEvents = (events: TrustedEvent[]) => {
   return Array.from(eventsByAddress.values())
 }
 
-export type RequestOneOptions = {
-  relay: string
-  filters: Filter[]
+export type BaseRequestOptions = {
   signal?: AbortSignal
   tracker?: Tracker
   context?: AdapterContext
@@ -56,6 +54,11 @@ export type RequestOneOptions = {
   onDisconnect?: (url: string) => void
   onEose?: (url: string) => void
   onClose?: () => void
+}
+
+export type RequestOneOptions = BaseRequestOptions & {
+  relay: string
+  filters: Filter[]
 }
 
 export const requestOne = (options: RequestOneOptions) => {
@@ -158,8 +161,9 @@ export const requestOne = (options: RequestOneOptions) => {
   return deferred
 }
 
-export type RequestOptions = Omit<RequestOneOptions, "relay"> & {
+export type RequestOptions = BaseRequestOptions & {
   relays: string[]
+  filters: Filter[]
   threshold?: number
 }
 
@@ -216,6 +220,8 @@ export type LoadOptions = {
   onClose?: () => void
 }
 
+export type Loader = (options: LoadOptions) => Promise<TrustedEvent[]>
+
 /**
  * Creates a convenience function which returns a promise of events from a request.
  * It may return early if filter cardinality is known, and it delays requests in order
@@ -224,7 +230,7 @@ export type LoadOptions = {
  * @returns - a load function
  */
 export const makeLoader = (options: LoaderOptions) =>
-  batcher(options.delay, async (allRequests: LoadOptions[]) => {
+  batcher(options.delay, (allRequests: LoadOptions[]) => {
     const resultsByRequest = new Map<LoadOptions, Deferred<TrustedEvent[]>>()
     const eventsByRequest = new Map<LoadOptions, TrustedEvent[]>()
     const requestsByRelay = new Map<string, LoadOptions[]>()
@@ -276,7 +282,7 @@ export const makeLoader = (options: LoaderOptions) =>
       signalsByRelay.set(relay, AbortSignal.any(signals))
     }
 
-    Array.from(requestsByRelay).forEach(async ([relay, requests]) => {
+    Array.from(requestsByRelay).forEach(([relay, requests]) => {
       // Union all filters for a given request and send them together
       const filters = unionFilters(requests.flatMap(r => r.filters))
 
@@ -318,6 +324,6 @@ export const makeLoader = (options: LoaderOptions) =>
     })
 
     return allRequests.map(r => resultsByRequest.get(r) || [])
-  })
+  }) as Loader
 
 export const load = makeLoader({delay: 200, timeout: 3000, threshold: 0.5})
