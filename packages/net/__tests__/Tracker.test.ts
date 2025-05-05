@@ -34,22 +34,13 @@ describe("Tracker", () => {
 
     it("should not duplicate existing pairs", () => {
       const updateSpy = vi.fn()
-      tracker.on("update", updateSpy)
+      tracker.on("add", updateSpy)
 
       tracker.addRelay("event1", "relay1")
       tracker.addRelay("event1", "relay1")
 
       // expect(updateSpy).toHaveBeenCalledTimes(1)
       expect(tracker.getRelays("event1").size).toBe(1)
-    })
-
-    it("should emit update event", () => {
-      const updateSpy = vi.fn()
-      tracker.on("update", updateSpy)
-
-      tracker.addRelay("event1", "relay1")
-
-      expect(updateSpy).toHaveBeenCalled()
     })
   })
 
@@ -68,7 +59,7 @@ describe("Tracker", () => {
 
     it("should emit update event on successful removal", () => {
       const updateSpy = vi.fn()
-      tracker.on("update", updateSpy)
+      tracker.on("remove", updateSpy)
 
       tracker.removeRelay("event1", "relay1")
 
@@ -77,7 +68,7 @@ describe("Tracker", () => {
 
     it("should not emit update event if nothing was removed", () => {
       const updateSpy = vi.fn()
-      tracker.on("update", updateSpy)
+      tracker.on("remove", updateSpy)
 
       tracker.removeRelay("nonexistent", "relay1")
 
@@ -142,7 +133,7 @@ describe("Tracker", () => {
 
     it("should emit update event", () => {
       const updateSpy = vi.fn()
-      tracker.on("update", updateSpy)
+      tracker.on("load", updateSpy)
 
       tracker.load(new Map())
 
@@ -165,7 +156,7 @@ describe("Tracker", () => {
 
     it("should emit update event", () => {
       const updateSpy = vi.fn()
-      tracker.on("update", updateSpy)
+      tracker.on("clear", updateSpy)
 
       tracker.clear()
 

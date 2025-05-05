@@ -1,5 +1,6 @@
 import {Emitter, addToMapKey} from "@welshman/lib"
 
+
 export class Tracker extends Emitter {
   relaysById = new Map<string, Set<string>>()
   idsByRelay = new Map<string, Set<string>>()
@@ -36,7 +37,7 @@ export class Tracker extends Emitter {
     this.relaysById.set(eventId, relays)
     this.idsByRelay.set(relay, ids)
 
-    this.emit("update")
+    this.emit("add", eventId, relay)
   }
 
   removeRelay = (eventId: string, relay: string) => {
@@ -45,7 +46,7 @@ export class Tracker extends Emitter {
 
     if (!didDeleteRelay && !didDeleteId) return
 
-    this.emit("update")
+    this.emit("remove", eventId, relay)
   }
 
   track = (eventId: string, relay: string) => {
@@ -73,13 +74,13 @@ export class Tracker extends Emitter {
       }
     }
 
-    this.emit("update")
+    this.emit("load")
   }
 
   clear = () => {
     this.relaysById.clear()
     this.idsByRelay.clear()
 
-    this.emit("update")
+    this.emit("clear")
   }
 }

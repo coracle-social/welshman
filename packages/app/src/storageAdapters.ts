@@ -37,7 +37,7 @@ export class RelaysStorageAdapter {
   }
 
   sync() {
-    return throttled(3000, relays).subscribe($relays => bulkPut(this.options.name, $relays))
+    return throttled(3000, relays).subscribe($relays => Boolean(console.log('relays', $relays))||bulkPut(this.options.name, $relays))
   }
 }
 
@@ -152,19 +152,29 @@ export class TrackerStorageAdapter {
   }
 
   sync() {
-    const onUpdate = throttle(3000, async () => {
-      await bulkPut(
+    const updateOne = (id: string, relay: string) =>
+      bulkPut(this.options.name, [{id, relays: Array.from(this.options.tracker.getRelays(id))}])
+
+    const updateAll = () =>
+      bulkPut(
         this.options.name,
         Array.from(this.options.tracker.relaysById.entries()).map(([id, relays]) => ({
           id,
           relays: Array.from(relays),
         })),
       )
-    })
 
-    this.options.tracker.on("update", onUpdate)
+    this.options.tracker.on("add", updateOne)
+    this.options.tracker.on("remove", updateOne)
+    this.options.tracker.on("load", updateAll)
+    this.options.tracker.on("clear", updateAll)
 
-    return () => this.options.tracker.off("update", onUpdate)
+    return () => {
+      this.options.tracker.off("add", updateOne)
+      this.options.tracker.off("remove", updateOne)
+      this.options.tracker.off("load", updateAll)
+      this.options.tracker.off("clear", updateAll)
+    }
   }
 }
 

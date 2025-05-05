@@ -9,26 +9,7 @@ export const relay = new LocalRelay(repository)
 
 export const tracker = new Tracker()
 
-// Adapt above objects to stores
-
-export const makeRepositoryStore = ({throttle: t = 300}: {throttle?: number} = {}) =>
-  custom(
-    setter => {
-      let onUpdate = () => setter(repository)
-
-      if (t) {
-        onUpdate = throttle(t, onUpdate)
-      }
-
-      onUpdate()
-      repository.on("update", onUpdate)
-
-      return () => repository.off("update", onUpdate)
-    },
-    {
-      set: (other: Repository) => repository.load(other.dump()),
-    },
-  )
+// Adapt objects to stores
 
 export const makeTrackerStore = ({throttle: t = 300}: {throttle?: number} = {}) =>
   custom(
@@ -40,9 +21,17 @@ export const makeTrackerStore = ({throttle: t = 300}: {throttle?: number} = {}) 
       }
 
       onUpdate()
-      tracker.on("update", onUpdate)
+      tracker.on("add", onUpdate)
+      tracker.on("remove", onUpdate)
+      tracker.on("load", onUpdate)
+      tracker.on("clear", onUpdate)
 
-      return () => tracker.off("update", onUpdate)
+      return () => {
+        tracker.off("add", onUpdate)
+        tracker.off("remove", onUpdate)
+        tracker.off("load", onUpdate)
+        tracker.off("clear", onUpdate)
+      }
     },
     {
       set: (other: Tracker) => tracker.load(other.relaysById),
