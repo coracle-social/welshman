@@ -1,6 +1,6 @@
 {
   "name": "@welshman/signer",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A nostr signer implemenation supporting several login methods.",
@@ -32,6 +32,6 @@
     "typescript": "~5.8.0"
   },
   "peerDependencies": {
-    "nostr-signer-capacitor-plugin": "^0.0.3"
+    "nostr-signer-capacitor-plugin": "~0.0.4"
   }
 }
