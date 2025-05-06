@@ -29,6 +29,9 @@ importers:
       happy-dom:
         specifier: ^17.4.4
         version: 17.4.4
+      husky:
+        specifier: ^9.1.7
+        version: 9.1.7
       prettier:
         specifier: ~3.5.3
         version: 3.5.3
@@ -341,13 +344,16 @@ importers:
       '@welshman/util':
         specifier: workspace:*
         version: link:../util
-      nostr-signer-capacitor-plugin:
-        specifier: ~0.0.4
-        version: 0.0.4(@capacitor/core@6.2.1)
       nostr-tools:
         specifier: ^2.7.2
         version: 2.12.0(typescript@5.8.2)
     devDependencies:
+      '@capacitor/core':
+        specifier: ^7.2.0
+        version: 7.2.0
+      nostr-signer-capacitor-plugin:
+        specifier: ~0.0.4
+        version: 0.0.4(@capacitor/core@7.2.0)
       rimraf:
         specifier: ~6.0.0
         version: 6.0.1
@@ -497,8 +503,8 @@ packages:
   '@braintree/sanitize-url@7.1.1':
     resolution: {integrity: sha512-i1L7noDNxtFyL5DmZafWy1wRVhGehQmzZaz1HiN5e7iylJMSZR7ekOV7NsIqa5qBldlLrsKv4HbgFUVlQrz8Mw==}
 
-  '@capacitor/core@6.2.1':
-    resolution: {integrity: sha512-urZwxa7hVE/BnA18oCFAdizXPse6fCKanQyEqpmz6cBJ2vObwMpyJDG5jBeoSsgocS9+Ax+9vb4ducWJn0y2qQ==}
+  '@capacitor/core@7.2.0':
+    resolution: {integrity: sha512-2zCnA6RJeZ9ec4470o8QMZEQTWpekw9FNoqm5TLc10jeCrhvHVI8MPgxdZVc3mOdFlyieYu4AS1fNxSqbS57Pw==}
 
   '@docsearch/css@3.8.2':
     resolution: {integrity: sha512-y05ayQFyUmCXze79+56v/4HpycYF3uFqB78pLPrSV5ZKAlDuIAAJNhaRi8tTdRNXh05yxX/TyNnzD6LwSM89vQ==}
@@ -1765,6 +1771,11 @@ packages:
   html-void-elements@3.0.0:
     resolution: {integrity: sha512-bEqo66MRXsUGxWHV5IP0PUiAWwoEjba4VCzg0LjFJBpchPaTfyfCKTG6bc5F8ucKec3q5y6qOdGyYTSBEvhCrg==}
 
+  husky@9.1.7:
+    resolution: {integrity: sha512-5gs5ytaNjBrh5Ow3zrvdUUY+0VxIuWVL4i9irt6friV+BqdCfmV11CQTWMiBYWHbXhco+J1kHfTOUkePhCDvMA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   idb@8.0.2:
     resolution: {integrity: sha512-CX70rYhx7GDDQzwwQMDwF6kDRQi5vVs6khHUumDrMecBylKkwvZ8HWvKV08AGb7VbpoGCWUQ4aHzNDgoUiOIUg==}
 
@@ -2664,7 +2675,7 @@ snapshots:
 
   '@braintree/sanitize-url@7.1.1': {}
 
-  '@capacitor/core@6.2.1':
+  '@capacitor/core@7.2.0':
     dependencies:
       tslib: 2.8.1
 
@@ -3871,6 +3882,8 @@ snapshots:
 
   html-void-elements@3.0.0: {}
 
+  husky@9.1.7: {}
+
   idb@8.0.2: {}
 
   ignore@5.3.2: {}
@@ -4046,9 +4059,9 @@ snapshots:
       prosemirror-state: 1.4.3
       tiptap-markdown: 0.8.10(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))
 
-  nostr-signer-capacitor-plugin@0.0.4(@capacitor/core@6.2.1):
+  nostr-signer-capacitor-plugin@0.0.4(@capacitor/core@7.2.0):
     dependencies:
-      '@capacitor/core': 6.2.1
+      '@capacitor/core': 7.2.0
 
   nostr-tools@2.12.0(typescript@5.8.2):
     dependencies:

@@ -1,7 +1,5 @@
-#!/usr/bin/env sh
+export CI=1
 
-. "$(dirname -- "$0")/_/husky.sh"
-
-yarn lint
-yarn clean
-yarn build
+pnpm run lint
+pnpm run docs
+pnpm run test
