@@ -379,6 +379,8 @@ export class Nip46Broker extends Emitter {
 
     return makePromise<Nip46ResponseWithResult, Nip46Response | undefined>((resolve, reject) => {
       const onReceive = (response: Nip46Response) => {
+        if (response.result === "auth_url") return
+
         if (["ack", secret].includes(response.result!)) {
           this.setParams({signerPubkey: response.event.pubkey})
 
