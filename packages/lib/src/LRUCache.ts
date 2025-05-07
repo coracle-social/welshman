@@ -35,6 +35,14 @@ export class LRUCache<T, U> {
       this.map.delete(this.keys.shift() as T)
     }
   }
+
+  pop(k: T) {
+    const v = this.get(k)
+
+    this.map.delete(k)
+
+    return v
+  }
 }
 
 /**
@@ -64,9 +72,16 @@ export function cached<T, V, Args extends any[]>({
     return cache.get(k)!
   }
 
+  const pop = (...args: Args) => {
+    const k = getKey(args)
+
+    return cache.has(k) ? cache.pop(k)! : getValue(args)
+  }
+
   get.cache = cache
   get.getKey = getKey
   get.getValue = getValue
+  get.pop = pop
 
   return get
 }

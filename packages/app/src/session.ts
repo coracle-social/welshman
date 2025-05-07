@@ -1,5 +1,5 @@
 import {derived} from "svelte/store"
-import {cached, hash, omit, equals, assoc} from "@welshman/lib"
+import {cached, omit, equals, assoc} from "@welshman/lib"
 import {withGetter, synced} from "@welshman/store"
 import {
   Nip46Broker,
@@ -64,7 +64,7 @@ export const pubkey = withGetter(synced<string | undefined>("pubkey", undefined)
 export const sessions = withGetter(synced<Record<string, Session>>("sessions", {}))
 
 export const session = withGetter(
-  derived([pubkey, sessions], ([$pubkey, $sessions]) => ($pubkey ? $sessions[$pubkey] : null)),
+  derived([pubkey, sessions], ([$pubkey, $sessions]) => ($pubkey ? $sessions[$pubkey] : undefined)),
 )
 
 export const getSession = (pubkey: string) => sessions.get()[pubkey]
@@ -84,13 +84,20 @@ export const updateSession = (pubkey: string, f: (session: Session) => Session) 
   putSession(f(getSession(pubkey)))
 
 export const dropSession = (_pubkey: string) => {
+  const $signer = getSigner.pop(getSession(_pubkey))
+
+  if ($signer instanceof Nip46Signer) {
+    $signer.broker.cleanup()
+  }
+
   pubkey.update($pubkey => ($pubkey === _pubkey ? undefined : $pubkey))
   sessions.update($sessions => omit([_pubkey], $sessions))
 }
 
 export const clearSessions = () => {
-  pubkey.set(undefined)
-  sessions.set({})
+  for (const pubkey of Object.keys(sessions.get())) {
+    dropSession(pubkey)
+  }
 }
 
 // Session factories
@@ -129,6 +136,23 @@ export const makePubkeySession = (pubkey: string): SessionPubkey => ({
   pubkey,
 })
 
+// Type guards
+
+export const isNip01Session = (session?: Session): session is SessionNip01 =>
+  session?.method === SessionMethod.Nip01
+
+export const isNip07Session = (session?: Session): session is SessionNip07 =>
+  session?.method === SessionMethod.Nip07
+
+export const isNip46Session = (session?: Session): session is SessionNip46 =>
+  session?.method === SessionMethod.Nip46
+
+export const isNip55Session = (session?: Session): session is SessionNip55 =>
+  session?.method === SessionMethod.Nip55
+
+export const isPubkeySession = (session?: Session): session is SessionPubkey =>
+  session?.method === SessionMethod.Pubkey
+
 // Login utilities
 
 export const loginWithNip01 = (secret: string) => addSession(makeNip01Session(secret))
@@ -153,25 +177,20 @@ export const nip46Perms = "sign_event:22242,nip04_encrypt,nip04_decrypt,nip44_en
 
 export const getSigner = cached({
   maxSize: 100,
-  getKey: ([session]: [Session | null]) => hash(String(JSON.stringify(session))),
-  getValue: ([session]: [Session | null]) => {
-    switch (session?.method) {
-      case "nip07":
-        return new Nip07Signer()
-      case "nip01":
-        return new Nip01Signer(session.secret!)
-      case "nip46":
-        return new Nip46Signer(
-          Nip46Broker.get({
-            clientSecret: session.secret!,
-            relays: session.handler!.relays,
-            signerPubkey: session.handler!.pubkey,
-          }),
-        )
-      case "nip55":
-        return new Nip55Signer(session.signer!)
-      default:
-        return null
+  getKey: ([session]: [Session | undefined]) => `${session?.method}:${session?.pubkey}`,
+  getValue: ([session]: [Session | undefined]) => {
+    if (isNip07Session(session)) return new Nip07Signer()
+    if (isNip01Session(session)) return new Nip01Signer(session.secret)
+    if (isNip55Session(session)) return new Nip55Signer(session.signer)
+    if (isNip46Session(session)) {
+      const {
+        secret: clientSecret,
+        handler: {relays, pubkey: signerPubkey},
+      } = session
+      const broker = new Nip46Broker({clientSecret, signerPubkey, relays})
+      const signer = new Nip46Signer(broker)
+
+      return signer
     }
   },
 })

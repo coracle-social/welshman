@@ -1,13 +1,4 @@
-import {
-  Emitter,
-  throttle,
-  makePromise,
-  defer,
-  sleep,
-  tryCatch,
-  randomId,
-  equals,
-} from "@welshman/lib"
+import {Emitter, throttle, makePromise, defer, sleep, tryCatch, randomId} from "@welshman/lib"
 import {
   createEvent,
   normalizeRelayUrl,
@@ -18,6 +9,14 @@ import {
 import {publish, request, AdapterContext} from "@welshman/net"
 import {ISigner, EncryptionImplementation, decrypt, hash, own} from "../util.js"
 import {Nip01Signer} from "./nip01.js"
+
+export type Nip46Context = {
+  debug: boolean
+}
+
+export const nip46Context = {
+  debug: false,
+}
 
 export type Nip46Algorithm = "nip04" | "nip44"
 
@@ -33,7 +32,6 @@ export type Nip46BrokerParams = {
   signerPubkey?: string
   algorithm?: Nip46Algorithm
   context?: AdapterContext
-  debug?: (message: string, ...args: any[]) => void
 }
 
 export type Nip46Response = {
@@ -57,8 +55,6 @@ export type Nip46ResponseWithError = {
   event: TrustedEvent
   error: string
 }
-
-let singleton: Nip46Broker
 
 const popupManager = (() => {
   let pendingUrl = ""
@@ -190,7 +186,9 @@ export class Nip46Sender extends Emitter {
         try {
           await this.send(request)
         } catch (error: any) {
-          this.params.debug?.("nip46 error:", error, request)
+          if (nip46Context.debug) {
+            console.log("nip46 error:", error, request)
+          }
         }
       }
     } finally {
@@ -263,17 +261,6 @@ export class Nip46Broker extends Emitter {
     this.receiver = this.makeReceiver()
   }
 
-  // Use a static getter to avoid duplicate connections
-
-  static get(params: Nip46BrokerParams) {
-    if (!singleton?.hasParams(params)) {
-      singleton?.teardown()
-      singleton = new Nip46Broker(params)
-    }
-
-    return singleton
-  }
-
   // Static utility methods
 
   static parseBunkerUrl = (url: string) => {
@@ -294,12 +281,6 @@ export class Nip46Broker extends Emitter {
     return {signerPubkey, connectSecret, relays: relays.map(normalizeRelayUrl)}
   }
 
-  // Expose params without exposing params
-
-  hasParams(params: Nip46BrokerParams) {
-    return equals(this.params, params)
-  }
-
   // Getters for helper objects
 
   makeSigner = () => new Nip01Signer(this.params.clientSecret)
@@ -307,9 +288,11 @@ export class Nip46Broker extends Emitter {
   makeSender = () => {
     const sender = new Nip46Sender(this.signer, this.params)
 
-    sender.on(Nip46Event.Send, (data: any) => {
-      this.params.debug?.("nip46 send:", data)
-    })
+    if (nip46Context.debug) {
+      sender.on(Nip46Event.Send, (data: any) => {
+        console.log("nip46 send:", data)
+      })
+    }
 
     return sender
   }
@@ -317,27 +300,18 @@ export class Nip46Broker extends Emitter {
   makeReceiver = () => {
     const receiver = new Nip46Receiver(this.signer, this.params)
 
-    receiver.on(Nip46Event.Receive, (data: any) => {
-      this.params.debug?.("nip46 receive:", data)
-    })
+    if (nip46Context.debug) {
+      receiver.on(Nip46Event.Receive, (data: any) => {
+        console.log("nip46 receive:", data)
+      })
+    }
 
     return receiver
   }
 
   // Lifecycle methods
 
-  setParams = (params: Partial<Nip46BrokerParams>) => {
-    this.params = {...this.params, ...params}
-
-    // Stop everything that's stateful
-    this.teardown()
-
-    // Set it back up again
-    this.sender = this.makeSender()
-    this.receiver = this.makeReceiver()
-  }
-
-  teardown = () => {
+  cleanup = () => {
     this.sender.stop()
     this.receiver.stop()
   }
@@ -382,7 +356,7 @@ export class Nip46Broker extends Emitter {
         if (response.result === "auth_url") return
 
         if (["ack", secret].includes(response.result!)) {
-          this.setParams({signerPubkey: response.event.pubkey})
+          this.params.signerPubkey = response.event.pubkey
 
           if (response.result === "ack") {
             console.warn(
