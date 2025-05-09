@@ -5,3 +5,4 @@
 --ignore-dir=build
 --ignore-dir=.svelte-kit
 --ignore-file=match:yarn.lock
+--ignore-file=match:tsbuildinfo

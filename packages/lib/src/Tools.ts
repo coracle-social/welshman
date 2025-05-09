@@ -1551,3 +1551,13 @@ export const hexToBech32 = (prefix: string, hex: string) =>
  */
 export const bech32ToHex = (b32: string) =>
   utf8.encode(bech32.fromWords(bech32.decode(b32 as any, false).words))
+
+/**
+ * Converts an array buffer to hex format
+ * @param buffer - ArrayBuffer string to convert
+ * @returns Hex encoded string
+ */
+export const bufferToHex = (buffer: ArrayBuffer) =>
+  Array.from(new Uint8Array(buffer))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("")

@@ -101,7 +101,6 @@ class Accumulator {
 
     if (typeof window === "undefined") {
       // node.js
-      const crypto = require("crypto")
       this.sha256 = async slice =>
         new Uint8Array(crypto.createHash("sha256").update(slice).digest())
     } else {
