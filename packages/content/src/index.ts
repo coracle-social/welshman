@@ -226,10 +226,10 @@ export const parseEvent = (text: string, context: ParseContext): ParsedEvent | v
 }
 
 export const parseInvoice = (text: string, context: ParseContext): ParsedInvoice | void => {
-  const [value] = text.match(/^ln(bc|url)[0-9a-z]{10,}/i) || []
+  const [raw, _, value] = text.match(/^(lightning:)?(ln(bc|url)[0-9a-z]{10,})/i) || []
 
-  if (value) {
-    return {type: ParsedType.Invoice, value, raw: value}
+  if (raw && value) {
+    return {type: ParsedType.Invoice, value, raw}
   }
 }
 
@@ -549,7 +549,8 @@ export const renderCode = (p: ParsedCode, r: Renderer) => r.addText(p.value)
 
 export const renderEllipsis = (p: ParsedEllipsis, r: Renderer) => r.addText("…")
 
-export const renderInvoice = (p: ParsedInvoice, r: Renderer) => r.addText(p.value)
+export const renderInvoice = (p: ParsedInvoice, r: Renderer) =>
+  r.addLink("lightning:" + p.value, p.value.slice(0, 16) + "…")
 
 export const renderLink = (p: ParsedLink, r: Renderer) =>
   r.addLink(p.value.url.toString(), p.value.url.host + p.value.url.pathname)

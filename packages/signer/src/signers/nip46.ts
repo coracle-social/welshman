@@ -288,11 +288,11 @@ export class Nip46Broker extends Emitter {
   makeSender = () => {
     const sender = new Nip46Sender(this.signer, this.params)
 
-    if (nip46Context.debug) {
-      sender.on(Nip46Event.Send, (data: any) => {
+    sender.on(Nip46Event.Send, (data: any) => {
+      if (nip46Context.debug) {
         console.log("nip46 send:", data)
-      })
-    }
+      }
+    })
 
     return sender
   }
@@ -300,11 +300,11 @@ export class Nip46Broker extends Emitter {
   makeReceiver = () => {
     const receiver = new Nip46Receiver(this.signer, this.params)
 
-    if (nip46Context.debug) {
-      receiver.on(Nip46Event.Receive, (data: any) => {
+    receiver.on(Nip46Event.Receive, (data: any) => {
+      if (nip46Context.debug) {
         console.log("nip46 receive:", data)
-      })
-    }
+      }
+    })
 
     return receiver
   }
