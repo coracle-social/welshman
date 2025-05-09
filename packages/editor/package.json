@@ -41,7 +41,7 @@
     "@tiptap/suggestion": "^2.11.5",
     "@welshman/lib": "workspace:*",
     "@welshman/util": "workspace:*",
-    "nostr-editor": "^0.0.4-pre.13",
+    "nostr-editor": "^0.0.4-pre.17",
     "nostr-tools": "^2.10.4",
     "tippy.js": "^6.3.7"
   },
