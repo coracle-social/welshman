@@ -1,4 +1,4 @@
-import {uniqBy, mapVals, nth, nthEq, ensurePlural} from "@welshman/lib"
+import {uniqBy, first, spec, mapVals, nth, nthEq, ensurePlural} from "@welshman/lib"
 import {isRelayUrl} from "./Relay.js"
 import {Address} from "./Address.js"
 
@@ -105,6 +105,15 @@ export const getReplyTags = (tags: string[][]) => {
 
 export const getReplyTagValues = (tags: string[][]) =>
   mapVals(tags => tags.map(nth(1)), getReplyTags(tags))
+
+export const getEmojiTags = (name: string, tags: string[][]) => tags.filter(spec(["emoji", name]))
+
+export const getEmojiTag = (name: string, tags: string[][]) => first(getEmojiTags(name, tags))
+
+export const getEmojiTagUrls = (name: string, tags: string[][]) =>
+  getEmojiTags(name, tags).map(nth(2))
+
+export const getEmojiTagUrl = (name: string, tags: string[][]) => first(getEmojiTagUrls(name, tags))
 
 export const uniqTags = (tags: string[][]) => uniqBy(t => t.slice(0, 2).join(":"), tags)
 

@@ -42,6 +42,7 @@ export enum ParsedType {
   Cashu = "cashu",
   Code = "code",
   Ellipsis = "ellipsis",
+  Emoji = "emoji",
   Event = "event",
   Invoice = "invoice",
   Link = "link",
@@ -67,6 +68,17 @@ export type ParsedCode = {
 export type ParsedEllipsis = {
   type: ParsedType.Ellipsis
   value: string
+  raw: string
+}
+
+export type ParsedEmojiValue = {
+  name: string
+  url?: string
+}
+
+export type ParsedEmoji = {
+  type: ParsedType.Emoji
+  value: ParsedEmojiValue
   raw: string
 }
 
@@ -138,6 +150,7 @@ export type Parsed =
   | ParsedCashu
   | ParsedCode
   | ParsedEllipsis
+  | ParsedEmoji
   | ParsedEvent
   | ParsedInvoice
   | ParsedLink
@@ -155,6 +168,7 @@ export const isCashu = (parsed: Parsed): parsed is ParsedCashu => parsed.type ==
 export const isCode = (parsed: Parsed): parsed is ParsedCode => parsed.type === ParsedType.Code
 export const isEllipsis = (parsed: Parsed): parsed is ParsedEllipsis =>
   parsed.type === ParsedType.Ellipsis
+export const isEmoji = (parsed: Parsed): parsed is ParsedEmoji => parsed.type === ParsedType.Emoji
 export const isEvent = (parsed: Parsed): parsed is ParsedEvent => parsed.type === ParsedType.Event
 export const isInvoice = (parsed: Parsed): parsed is ParsedInvoice =>
   parsed.type === ParsedType.Invoice
@@ -195,18 +209,28 @@ export const parseCashu = (text: string, context: ParseContext): ParsedCashu | v
 }
 
 export const parseCodeBlock = (text: string, context: ParseContext): ParsedCode | void => {
-  const [code, value] = text.match(/^```([^]*?)```/i) || []
+  const [raw, value] = text.match(/^```([^]*?)```/i) || []
 
-  if (code) {
-    return {type: ParsedType.Code, value, raw: code}
+  if (raw) {
+    return {type: ParsedType.Code, value, raw}
   }
 }
 
 export const parseCodeInline = (text: string, context: ParseContext): ParsedCode | void => {
-  const [code, value] = text.match(/^`(.*?)`/i) || []
+  const [raw, value] = text.match(/^`(.*?)`/i) || []
 
-  if (code) {
-    return {type: ParsedType.Code, value, raw: code}
+  if (raw) {
+    return {type: ParsedType.Code, value, raw}
+  }
+}
+
+export const parseEmoji = (text: string, context: ParseContext): ParsedEmoji | void => {
+  const [raw, name] = text.match(/^:(\w+):/i) || []
+
+  if (raw) {
+    const url = context.tags.find(t => t[0] === "emoji" && t[1] === name)?.[2]
+
+    return {type: ParsedType.Emoji, value: {name, url}, raw}
   }
 }
 
@@ -331,6 +355,7 @@ export const parsers = [
   parseCodeInline,
   parseAddress,
   parseProfile,
+  parseEmoji,
   parseEvent,
   parseCashu,
   parseInvoice,
@@ -407,6 +432,8 @@ export const truncate = (
       case ParsedType.Address:
       case ParsedType.Profile:
         return entityLength
+      case ParsedType.Emoji:
+        return parsed.value.name.length
       default:
         return parsed.value.length
     }
@@ -549,6 +576,8 @@ export const renderCode = (p: ParsedCode, r: Renderer) => r.addText(p.value)
 
 export const renderEllipsis = (p: ParsedEllipsis, r: Renderer) => r.addText("…")
 
+export const renderEmoji = (p: ParsedEmoji, r: Renderer) => r.addText(p.raw)
+
 export const renderInvoice = (p: ParsedInvoice, r: Renderer) =>
   r.addLink("lightning:" + p.value, p.value.slice(0, 16) + "…")
 
@@ -583,6 +612,9 @@ export const renderOne = (parsed: Parsed, renderer: Renderer) => {
       break
     case ParsedType.Ellipsis:
       renderEllipsis(parsed as ParsedEllipsis, renderer)
+      break
+    case ParsedType.Emoji:
+      renderEmoji(parsed as ParsedEmoji, renderer)
       break
     case ParsedType.Event:
       renderEvent(parsed as ParsedEvent, renderer)
