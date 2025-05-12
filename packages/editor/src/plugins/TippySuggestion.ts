@@ -67,6 +67,7 @@ export class DefaultSuggestionsWrapper implements ISuggestionsWrapper {
     const {term, search} = this.props
 
     this.items = search(term).slice(0, 5)
+    this.render()
   })
 
   render() {
