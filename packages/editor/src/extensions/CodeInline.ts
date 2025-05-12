@@ -1,9 +1,9 @@
 import {InputRule, mergeAttributes, Node, PasteRule} from "@tiptap/core"
 import type {CodeOptions} from "@tiptap/extension-code"
 
-const inputRegex = /(?:^|\s)(`(?!\s+`)((?:[^`]+))`(?!\s+`))$/
+const inputRegex = /(^|\s)(`(?!\s+`)((?:[^`]+))`(?!\s+`))$/
 
-const pasteRegex = /(?:^|\s)(`(?!\s+`)((?:[^`]+))`(?!\s+`))/g
+const pasteRegex = /(^|\s)(`(?!\s+`)((?:[^`]+))`(?!\s+`))/g
 
 export type CodeInlineOptions = object
 
@@ -53,9 +53,11 @@ export const CodeInline = Node.create<CodeOptions>({
       new InputRule({
         find: inputRegex,
         handler: ({state, range, match}) => {
-          const textNode = state.schema.text(match[2])
+          const textNode = state.schema.text(match[3])
           const codeNode = this.type.create(null, textNode)
-          state.tr.replaceWith(range.from, range.to, codeNode).insertText(" ")
+          // Preserve any leading space by adjusting the range start
+          const spaceAdjustment = match[1] === " " ? 1 : 0
+          state.tr.replaceWith(range.from + spaceAdjustment, range.to, codeNode).insertText(" ")
         },
       }),
     ]
@@ -65,9 +67,11 @@ export const CodeInline = Node.create<CodeOptions>({
       new PasteRule({
         find: pasteRegex,
         handler: ({state, range, match}) => {
-          const textNode = state.schema.text(match[2])
+          const textNode = state.schema.text(match[3])
           const codeNode = this.type.create(null, textNode)
-          state.tr.replaceWith(range.from, range.to, codeNode).insertText(" ")
+          // Preserve any leading space by adjusting the range start
+          const spaceAdjustment = match[1] === " " ? 1 : 0
+          state.tr.replaceWith(range.from + spaceAdjustment, range.to, codeNode).insertText(" ")
         },
       }),
     ]
