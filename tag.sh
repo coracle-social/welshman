@@ -7,11 +7,7 @@ if [[ -z "$status" ]]; then
   exit 1
 fi
 
-for pkg in $(ls packages); do
-  version=$(sed -nr 's/ +"version": "(.+)",/\1/p' packages/$pkg/package.json)
-
-  git tag "$pkg/$version" >/dev/null 2>&1
-done
+git tag $(cat package.json|jq -r .version) >/dev/null 2>&1
 
 git push
 git push --tags
