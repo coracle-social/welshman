@@ -1,6 +1,7 @@
 {
   "name": "@welshman",
   "private": true,
+  "version": "0.3.0",
   "workspaces": [
     "packages/*"
   ],
@@ -11,7 +12,8 @@
     "lint": "eslint .",
     "test": "vitest",
     "docs": "typedoc && vitepress build docs",
-    "prepare": "husky"
+    "prepare": "husky",
+    "apply-version": "./scripts/apply_version.sh"
   },
   "devDependencies": {
     "@eslint/js": "~9.23.0",
@@ -23,6 +25,7 @@
     "happy-dom": "^17.4.4",
     "husky": "^9.1.7",
     "prettier": "~3.5.3",
+    "ts-node": "^10.9.2",
     "typedoc": "^0.28.2",
     "typedoc-plugin-markdown": "^4.6.1",
     "typedoc-vitepress-theme": "^1.1.2",
