@@ -187,7 +187,7 @@ export const isTopic = (parsed: Parsed): parsed is ParsedTopic => parsed.type ==
 // Parsers for known formats
 
 export const parseAddress = (text: string, context: ParseContext): ParsedAddress | void => {
-  const [naddr] = text.match(/^(web\+)?(nostr:)?\/?\/?naddr1[\d\w]+/i) || []
+  const [naddr] = text.match(/^(web\+)?(nostr:)naddr1[\d\w]+/i) || []
 
   if (naddr) {
     try {
@@ -201,7 +201,7 @@ export const parseAddress = (text: string, context: ParseContext): ParsedAddress
 }
 
 export const parseCashu = (text: string, context: ParseContext): ParsedCashu | void => {
-  const [value] = text.match(/^(cashu)[-\d\w=]{50,5000}/i) || []
+  const [value] = text.match(/^cashu:cashu[-\d\w=]{50,5000}/i) || []
 
   if (value) {
     return {type: ParsedType.Cashu, value, raw: value}
@@ -235,7 +235,7 @@ export const parseEmoji = (text: string, context: ParseContext): ParsedEmoji | v
 }
 
 export const parseEvent = (text: string, context: ParseContext): ParsedEvent | void => {
-  const [entity] = text.match(/^(web\+)?(nostr:)?\/?\/?n(event|ote)1[\d\w]+/i) || []
+  const [entity] = text.match(/^(web\+)?(nostr:)n(event|ote)1[\d\w]+/i) || []
 
   if (entity) {
     try {
@@ -250,7 +250,7 @@ export const parseEvent = (text: string, context: ParseContext): ParsedEvent | v
 }
 
 export const parseInvoice = (text: string, context: ParseContext): ParsedInvoice | void => {
-  const [raw, _, value] = text.match(/^(lightning:)?(ln(bc|url)[0-9a-z]{10,})/i) || []
+  const [raw, _, value] = text.match(/^(lightning:)(ln(bc|url)[0-9a-z]{10,})/i) || []
 
   if (raw && value) {
     return {type: ParsedType.Invoice, value, raw}
@@ -301,7 +301,7 @@ export const parseNewline = (text: string, context: ParseContext): ParsedNewline
 }
 
 export const parseProfile = (text: string, context: ParseContext): ParsedProfile | void => {
-  const [entity] = text.match(/^@?(web\+)?(nostr:)?\/?\/?n(profile|pub)1[\d\w]+/i) || []
+  const [entity] = text.match(/^@?(web\+)?(nostr:)n(profile|pub)1[\d\w]+/i) || []
 
   if (entity) {
     try {
