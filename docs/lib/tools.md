@@ -121,6 +121,12 @@ export declare const QUARTER: number;
 // One year in seconds (approximate)
 export declare const YEAR: number;
 
+// User's default locale
+export declare const LOCALE: string;
+
+// User's default timezone
+export declare const TIMEZONE: string;
+
 // Multiplies time unit by count
 export declare const int: (unit: number, count?: number) => number;
 
@@ -197,6 +203,9 @@ export declare const difference: <T>(a: T[], b: T[]) => T[];
 // Removes all instances of an element from array
 export declare const remove: <T>(a: T, xs: T[]) => T[];
 
+// Removes element at index
+export declare const removeAt: <T>(i: number, xs: T[]) => T[];
+
 // Returns elements from second array not present in first
 export declare const without: <T>(a: T[], b: T[]) => T[];
 
@@ -239,6 +248,9 @@ export declare const groupBy: <T, K>(f: (x: T) => K, xs: T[]) => Map<K, T[]>;
 // Creates map from array using key function
 export declare const indexBy: <T, K>(f: (x: T) => K, xs: T[]) => Map<K, T>;
 
+// Counts array elements by key function
+export declare const countBy: <T, K>(f: (x: T) => K, xs: T[]) => Map<K, number>;
+
 // Creates array of specified length using generator function
 export declare const initArray: <T>(n: number, f: () => T) => T[];
 
@@ -252,7 +264,10 @@ export declare const chunks: <T>(n: number, xs: T[]) => T[][];
 export declare const splitAt: <T>(n: number, xs: T[]) => T[][];
 
 // Inserts element into array at index
-export declare const insert: <T>(n: number, x: T, xs: T[]) => T[];
+export declare const insertAt: <T>(n: number, x: T, xs: T[]) => T[];
+
+// Replaces array element at index
+export declare const replaceAt: <T>(n: number, x: T, xs: T[]) => T[];
 
 // Returns random element from array
 export declare const choice: <T>(xs: T[]) => T;
@@ -357,6 +372,16 @@ export declare const sleep: (t: number) => Promise<unknown>;
 // Creates a microtask that yields to other tasks in the event loop
 export declare const yieldThread: () => any;
 
+// Poll options for condition checking
+type PollOptions = {
+  signal: AbortSignal;
+  condition: () => boolean;
+  interval?: number;
+};
+
+// Creates a promise that resolves after condition completes or timeout
+export declare const poll: (options: PollOptions) => Promise<void>;
+
 // Creates throttled version of function
 export declare const throttle: <F extends (...args: any[]) => any>(ms: number, f: F) => F | ((...thisArgs: Parameters<F>) => void);
 
@@ -368,6 +393,9 @@ export declare const batch: <T>(t: number, f: (xs: T[]) => void) => (x: T) => vo
 
 // Creates batching function that returns results
 export declare const batcher: <T, U>(t: number, execute: (request: T[]) => U[] | Promise<U[]>) => (request: T) => Promise<U>;
+
+// Returns a promise that resolves after some proportion of promises complete
+export declare const race: (threshold: number, promises: Promise<unknown>[]) => Promise<void>;
 ```
 
 ## URLs
@@ -424,6 +452,9 @@ export declare const on: <EventMap extends Record<string | symbol, any[]>, E ext
 // Truncates string to length, breaking at word boundaries
 export declare const ellipsize: (s: string, l: number, suffix?: string) => string;
 
+// Displays a list of items with oxford commas and a chosen conjunction
+export declare const displayList: <T>(xs: T[], conj?: string, n?: number) => string;
+
 // Generates a hash string from input string
 export declare const hash: (s: string) => string;
 ```
@@ -457,6 +488,9 @@ export declare const assoc: <K extends string, T, U>(k: K, v: T) => (o: U) => U 
 
 // Returns a function that removes a property on object
 export declare const dissoc: <K extends string, T extends Obj>(k: K) => (o: T) => T;
+
+// Returns a function that checks whether a value is in the given sequence
+export declare const member: <T>(xs: Iterable<T>) => (x: T) => boolean;
 ```
 
 ## Sets
@@ -487,5 +521,8 @@ export declare const hexToBech32: (prefix: string, hex: string) => `${Lowercase<
 
 // Converts bech32 string to hex format
 export declare const bech32ToHex: (b32: string) => string;
+
+// Converts an array buffer to hex format
+export declare const bufferToHex: (buffer: ArrayBuffer) => string;
 ```
 
