@@ -2,19 +2,7 @@
 
 A `normalizeUrl` function borrowed from [sindresorhus/normalize-url](https://github.com/sindresorhus/normalize-url) is included for convenience.
 
-## Basic Usage
-
-```typescript
-normalizeUrl('example')
-//=> 'http://example'
-
-normalizeUrl('sindresorhus.com/about.html#contact', {stripHash: true});
-//=> 'http://sindresorhus.com/about.html'
-```
-
-## API Reference
-
-### Configuration
+## API
 
 ```typescript
 export type Options = {
@@ -66,4 +54,14 @@ export type Options = {
 	// Sorts the query parameters alphabetically by key.
 	readonly sortQueryParameters?: boolean
 }
+```
+
+## Example
+
+```typescript
+normalizeUrl('example')
+//=> 'http://example'
+
+normalizeUrl('sindresorhus.com/about.html#contact', {stripHash: true});
+//=> 'http://sindresorhus.com/about.html'
 ```

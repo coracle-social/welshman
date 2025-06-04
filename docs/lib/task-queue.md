@@ -2,58 +2,50 @@
 
 The `TaskQueue` class provides a simple queue processing system with batched operations and throttling. It's designed to handle asynchronous operations efficiently while maintaining control over processing rates and resource usage.
 
-## Basic Usage
+## API
 
 ```typescript
-// Create queue for processing messages
-const queue = new TaskQueue<number>({
-  chunkSize: 10,
-  processItem: (n: number) => console.log(n)
-})
+// Task queue options
+export type TaskQueueOptions<Item> = {
+  batchSize: number;
+  processItem: (item: Item) => unknown;
+};
 
-// Add and remove items to/from queue
-worker.push(10)
-worker.push(21)
-worker.remove(10)
-worker.push(57)
-```
-
-## Control Methods
-
-Control message processing:
-
-```typescript
-// Pause processing
-worker.stop()
-
-// Resume processing
-worker.start()
-
-// Clear queue
-worker.clear()
-```
-
-## API Reference
-
-### Constructor
-
-```typescript
-class TaskQueue<Item> {
-  constructor(readonly options: TaskQueueOptions<Item>) {}
+// Task queue implementation
+export declare class TaskQueue<Item> {
+  constructor(options: TaskQueueOptions<Item>);
+  push(item: Item): void;
+  remove(item: Item): void;
+  subscribe(subscriber: (item: Item) => void): () => void;
+  process(): Promise<void>;
+  stop(): void;
+  start(): void;
+  clear(): void;
 }
 ```
 
-The TaskQueue class accepts messages of type `Item` and processes them.
-
-### Configuration
+## Example
 
 ```typescript
-type TaskQueueOptions<Item> = {
-  // How many items to process at a time
-  batchSize: number
+import { TaskQueue } from '@welshman/lib';
 
-  // A function for processing items. Any promises returned will be awaited
-  processItem: (item: Item) => unknown
-}
+// Create a task queue that processes 3 items at a time
+const queue = new TaskQueue({
+  batchSize: 3,
+  processItem: async (message: string) => {
+    console.log('Processing:', message);
+    // Simulate async work
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+});
+
+// Add items to the queue
+queue.push('Message 1');
+queue.push('Message 2');
+queue.push('Message 3');
+queue.push('Message 4');
+
+// Items will be processed in batches of 3
+// Output: "Processing: Message 1", "Processing: Message 2", "Processing: Message 3"
+// Then: "Processing: Message 4"
 ```
-
