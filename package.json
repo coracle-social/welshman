@@ -24,6 +24,7 @@
     "globals": "~16.0.0",
     "happy-dom": "^17.4.4",
     "husky": "^9.1.7",
+    "onchange": "^7.1.0",
     "prettier": "~3.5.3",
     "ts-node": "^10.9.2",
     "typedoc": "^0.28.2",

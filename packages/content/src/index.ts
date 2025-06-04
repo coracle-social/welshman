@@ -53,22 +53,23 @@ export enum ParsedType {
   Topic = "topic",
 }
 
-export type ParsedCashu = {
+export type ParsedBase = {
+  raw: string
+}
+
+export type ParsedCashu = ParsedBase & {
   type: ParsedType.Cashu
   value: string
-  raw: string
 }
 
-export type ParsedCode = {
+export type ParsedCode = ParsedBase & {
   type: ParsedType.Code
   value: string
-  raw: string
 }
 
-export type ParsedEllipsis = {
+export type ParsedEllipsis = ParsedBase & {
   type: ParsedType.Ellipsis
   value: string
-  raw: string
 }
 
 export type ParsedEmojiValue = {
@@ -76,16 +77,14 @@ export type ParsedEmojiValue = {
   url?: string
 }
 
-export type ParsedEmoji = {
+export type ParsedEmoji = ParsedBase & {
   type: ParsedType.Emoji
   value: ParsedEmojiValue
-  raw: string
 }
 
-export type ParsedInvoice = {
+export type ParsedInvoice = ParsedBase & {
   type: ParsedType.Invoice
   value: string
-  raw: string
 }
 
 export type ParsedLinkValue = {
@@ -97,52 +96,44 @@ export type ParsedLinkGridValue = {
   links: ParsedLinkValue[]
 }
 
-export type ParsedLink = {
+export type ParsedLink = ParsedBase & {
   type: ParsedType.Link
   value: ParsedLinkValue
-  raw: string
 }
 
-export type ParsedLinkGrid = {
+export type ParsedLinkGrid = ParsedBase & {
   type: ParsedType.LinkGrid
   value: ParsedLinkGridValue
-  raw: string
 }
 
-export type ParsedNewline = {
+export type ParsedNewline = ParsedBase & {
   type: ParsedType.Newline
   value: string
-  raw: string
 }
 
-export type ParsedText = {
+export type ParsedText = ParsedBase & {
   type: ParsedType.Text
   value: string
-  raw: string
 }
 
-export type ParsedTopic = {
+export type ParsedTopic = ParsedBase & {
   type: ParsedType.Topic
   value: string
-  raw: string
 }
 
-export type ParsedEvent = {
+export type ParsedEvent = ParsedBase & {
   type: ParsedType.Event
   value: EventPointer
-  raw: string
 }
 
-export type ParsedProfile = {
+export type ParsedProfile = ParsedBase & {
   type: ParsedType.Profile
   value: ProfilePointer
-  raw: string
 }
 
-export type ParsedAddress = {
+export type ParsedAddress = ParsedBase & {
   type: ParsedType.Address
   value: AddressPointer
-  raw: string
 }
 
 export type Parsed =

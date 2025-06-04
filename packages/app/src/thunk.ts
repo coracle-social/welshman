@@ -270,6 +270,45 @@ export const thunkIncompleteUrls = (thunk: AbstractThunk) => {
 
 export const thunkIsComplete = (thunk: AbstractThunk) => thunkCompleteUrls(thunk).length > 0
 
+export const getThunkError = (thunk: Thunk) =>
+  new Promise<string>(resolve => {
+    thunk.subscribe($thunk => {
+      for (const [relay, status] of Object.entries($thunk.status)) {
+        if (status === PublishStatus.Failure) {
+          resolve($thunk.details[relay])
+        }
+      }
+
+      if (thunkIsComplete($thunk)) {
+        resolve("")
+      }
+    })
+  })
+
+export const waitForThunkStatus = (thunk: Thunk, status: PublishStatus) =>
+  new Promise<boolean>(resolve => {
+    thunk.subscribe($thunk => {
+      for (const [_, s] of Object.entries($thunk.status)) {
+        if (s === status) {
+          resolve(true)
+        }
+      }
+
+      if (thunkIsComplete($thunk)) {
+        resolve(false)
+      }
+    })
+  })
+
+export const waitForThunkCompletion = (thunk: Thunk) =>
+  new Promise<void>(resolve => {
+    thunk.subscribe($thunk => {
+      if (thunkIsComplete($thunk)) {
+        resolve()
+      }
+    })
+  })
+
 export function* walkThunks(thunks: AbstractThunk[]): Iterable<Thunk> {
   for (const thunk of thunks) {
     if (thunk instanceof MergedThunk) {
