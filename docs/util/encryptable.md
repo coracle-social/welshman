@@ -1,162 +1,91 @@
 # Encryptable
 
-The Encryptable module provides a system for handling encrypted Nostr events, particularly useful for private content like muted lists, bookmarks, or other encrypted user data.
+The Encryptable module provides utilities for handling encrypted Nostr events, allowing you to merge plaintext updates into events and encrypt them before publishing.
 
-## Core Types
-
-### Encrypt Function
-```typescript
-type Encrypt = (x: string) => Promise<string>
-```
-
-### Encryptable Updates
-```typescript
-type EncryptableUpdates = {
-  content?: string
-  tags?: string[][]
-}
-```
-
-### Decrypted Event
-```typescript
-type DecryptedEvent = TrustedEvent & {
-  plaintext: EncryptableUpdates
-}
-```
-
-## Encryptable Class
+## API
 
 ```typescript
-class Encryptable<T extends EventTemplate> {
+// Encryption function type
+export type Encrypt = (x: string) => Promise<string>;
+
+// Partial event content for updates
+export type EncryptableUpdates = Partial<EventContent>;
+
+// Event with attached plaintext data
+export type DecryptedEvent = TrustedEvent & {
+  plaintext: EncryptableUpdates;
+};
+
+// Creates a DecryptedEvent by attaching plaintext to an event
+export declare const asDecryptedEvent: (
+  event: TrustedEvent,
+  plaintext?: EncryptableUpdates
+) => DecryptedEvent;
+
+// Encryptable class for handling encrypted events
+export declare class Encryptable<T extends EventTemplate> {
   constructor(
-    readonly event: Partial<T>,      // Base event template
-    readonly updates: EncryptableUpdates // Plaintext updates
-  )
+    event: Partial<T>,
+    updates: EncryptableUpdates
+  );
+
+  // Encrypts updates and merges them into the event
+  reconcile(encrypt: Encrypt): Promise<T>;
 }
-```
-
-## Usage
-
-### Basic Encryption
-```typescript
-// Create encryptable event
-const encryptable = new Encryptable(
-  { kind: 10000 }, // Base event
-  { content: "secret content" } // Plaintext updates
-)
-
-// Encrypt and get final event
-const event = await encryptable.reconcile(encryptFn)
-```
-
-### Private Lists
-```typescript
-// Create private mute list
-const muteList = new Encryptable(
-  {
-    kind: 10000, // Mute list kind
-    tags: []     // Public tags
-  },
-  {
-    content: JSON.stringify(['pubkey1', 'pubkey2']), // Private content
-    tags: [['p', 'pubkey1'], ['p', 'pubkey2']]      // Private tags
-  }
-)
-
-// Encrypt for publishing
-const encrypted = await muteList.reconcile(async (content) => {
-  return await nip04.encrypt(pubkey, content)
-})
-```
-
-### Updating Encrypted Content
-```typescript
-// Create encryptable from existing event
-const existing = {
-  kind: 10000,
-  content: encryptedContent,
-  tags: publicTags
-}
-
-// Add new encrypted content
-const updated = new Encryptable(
-  existing,
-  {
-    content: JSON.stringify(newContent),
-    tags: newPrivateTags
-  }
-)
-
-const final = await updated.reconcile(encrypt)
-```
-
-## Helper Functions
-
-### Create Decrypted Event
-```typescript
-import { asDecryptedEvent } from '@welshman/util'
-
-// Add plaintext content to event
-const decrypted = asDecryptedEvent(
-  event,
-  {
-    content: decryptedContent,
-    tags: decryptedTags
-  }
-)
 ```
 
 ## Examples
 
-### Private Bookmarks
-```typescript
-// Create private bookmark list
-const bookmarks = new Encryptable(
-  {
-    kind: 10003,
-    tags: [['d', 'bookmarks']] // Public identifier
-  },
-  {
-    content: JSON.stringify([
-      { id: 'note1', title: 'Secret Note' }
-    ])
-  }
-)
+### Basic Usage
 
-// Encrypt for publishing
-const event = await bookmarks.reconcile(async (content) => {
-  return await myEncryptionFunction(content)
-})
+```typescript
+import { Encryptable } from '@welshman/util';
+
+// Create encryptable with plaintext updates
+const encryptable = new Encryptable(
+  { kind: 10000 }, // Base event template
+  { content: "secret mute list data" } // Plaintext content to encrypt
+);
+
+// Encrypt and get final event
+const encryptFn = async (text: string) => {
+  // Your encryption logic here
+  return await encrypt(text);
+};
+
+const event = await encryptable.reconcile(encryptFn);
+// event.content is now encrypted
 ```
 
-### Encrypted Group Membership
-```typescript
-// Create private group member list
-const members = new Encryptable(
-  {
-    kind: 30000,
-    tags: [['d', 'group-members']]
-  },
-  {
-    tags: members.map(m => ['p', m.pubkey, m.role])
-  }
-)
+### Encrypting Tags
 
-const encrypted = await members.reconcile(encrypt)
+```typescript
+import { Encryptable } from '@welshman/util';
+
+// Encrypt both content and tag values
+const encryptable = new Encryptable(
+  { kind: 10000, tags: [] },
+  {
+    content: JSON.stringify(['pubkey1', 'pubkey2']),
+    tags: [['p', 'sensitive-pubkey'], ['e', 'sensitive-event-id']]
+  }
+);
+
+// The reconcile method encrypts tag values at index 1
+const event = await encryptable.reconcile(encryptFn);
+// event.tags[0] = ['p', 'encrypted-pubkey']
+// event.tags[1] = ['e', 'encrypted-event-id']
 ```
 
-### Updating Private Content
-```typescript
-function updatePrivateList(event: DecryptedEvent, newItems: string[]) {
-  return new Encryptable(
-    event,
-    {
-      content: JSON.stringify(newItems)
-    }
-  )
-}
+### Working with Decrypted Events
 
-// Usage
-const updated = updatePrivateList(existingEvent, newItems)
-const final = await updated.reconcile(encrypt)
+```typescript
+import { asDecryptedEvent } from '@welshman/util';
+
+// Add plaintext data to an event for reference
+const event = { kind: 10000, content: "encrypted...", tags: [] };
+const plaintext = { content: "original content", tags: [['p', 'pubkey']] };
+
+const decryptedEvent = asDecryptedEvent(event, plaintext);
+console.log(decryptedEvent.plaintext.content); // "original content"
 ```

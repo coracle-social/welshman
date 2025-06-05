@@ -103,9 +103,8 @@ uniqTags(tags: string[][]): string[][]
 tagsFromIMeta(imeta: string[]): string[][]
 ```
 
-## Usage Examples
+## Example
 
-### Basic Tag Handling
 ```typescript
 // Get specific tag types
 const pubkeys = getPubkeyTagValues(event.tags)
@@ -117,33 +116,4 @@ const refs = getTags(['p', 'e'], event.tags)
 
 // Get single tag
 const topic = getTagValue('t', event.tags)
-```
-
-### Thread Processing
-```typescript
-// Get thread context
-const {roots, replies} = getReplyTags(event.tags)
-
-// Process thread structure
-function processThread(tags: string[][]) {
-  const thread = getReplyTags(tags)
-
-  return {
-    rootEvents: thread.roots.map(t => t[1]),
-    replyTo: thread.replies.map(t => t[1]),
-    mentions: thread.mentions.map(t => t[1])
-  }
-}
-```
-
-### Tag Collection
-```typescript
-// Collect all references
-function collectReferences(tags: string[][]) {
-  return {
-    events: getEventTagValues(tags),
-    profiles: getPubkeyTagValues(tags),
-    addresses: getAddressTagValues(tags)
-  }
-}
 ```

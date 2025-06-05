@@ -109,6 +109,13 @@ const updated = addToListPrivately(
   ['p', 'pubkey2']
 )
 
+// Add new items publicly
+const addItems = addToListPublicly(
+  list,
+  ['p', 'pubkey3'],
+  ['p', 'pubkey4']
+)
+
 // Encrypt and publish
 const encrypted = await updated.reconcile(encrypt)
 ```
@@ -121,19 +128,6 @@ const list = readList(decryptedEvent)
 // Remove item
 const removeItem = removeFromList(list, 'pubkey1')
 
-// Add new items publicly
-const addItems = addToListPublicly(
-  list,
-  ['p', 'pubkey3'],
-  ['p', 'pubkey4']
-)
-```
-
-### Working with Tags
-```typescript
-// Get all list tags
-const tags = getListTags(list)
-
 // Remove by predicate
 const noMentions = removeFromListByPredicate(
   list,
@@ -141,35 +135,8 @@ const noMentions = removeFromListByPredicate(
 )
 ```
 
-## Common List Types
-
-### Mute List
+### Working with Tags
 ```typescript
-const muteList = makeList({
-  kind: 10000,
-  publicTags: [['d', 'mutes']],
-  privateTags: [] // Keep muted users private
-})
-```
-
-### Bookmark List
-```typescript
-const bookmarks = makeList({
-  kind: 10003,
-  privateTags: [
-    ['e', 'id1'],
-    ['e', 'id2']
-  ]
-})
-```
-
-### Relay List
-```typescript
-const relays = makeList({
-  kind: 10002,
-  publicTags: [[
-    ['r', 'wss://relay1.com'],
-    ['r', 'wss://relay2.com', 'write']
-  ]
-})
+// Get all list tags
+const tags = getListTags(list)
 ```

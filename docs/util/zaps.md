@@ -1,192 +1,219 @@
 # Zaps
 
-The Zaps module provides utilities for working with Lightning Network payments (zaps) in Nostr, including LNURL handling, invoice amount parsing, and zap validation.
+The Zaps module provides utilities for working with Lightning Network payments (zaps) in Nostr, following [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md). It includes LNURL handling, invoice amount parsing, and zap validation.
 
-## Zapper Interface
-The Zapper interface represents a Lightning Network payment provider that can process zaps:
+## Protocol Overview
+
+Zaps enable Lightning Network payments to be associated with Nostr events through a standardized flow:
+
+1. **Zap Request** (kind 9734): Client creates a request specifying the amount and target
+2. **Lightning Invoice**: LNURL service generates an invoice with the request embedded
+3. **Zap Receipt** (kind 9735): Zapper publishes proof of payment to Nostr
+
+## API
+
+### Types
 
 ```typescript
-interface Zapper {
-  // LNURL for payment processing
-  lnurl: string
+// Zapper service information
+export type Zapper = {
+  lnurl: string;
+  pubkey?: string;
+  callback?: string;
+  minSendable?: number;
+  maxSendable?: number;
+  nostrPubkey?: string;
+  allowsNostr?: boolean;
+};
 
-  // User's pubkey on the payment service
-  pubkey?: string
-
-  // LNURL callback endpoint
-  callback?: string
-
-  // Minimum payment amount in millisatoshis
-  minSendable?: number
-
-  // Maximum payment amount in millisatoshis
-  maxSendable?: number
-
-  // Pubkey used to sign zap receipts
-  nostrPubkey?: string
-
-  // Whether provider supports Nostr zaps
-  allowsNostr?: boolean
-}
+// Complete zap with request and receipt
+export type Zap = {
+  request: TrustedEvent;  // kind 9734 (zap request)
+  response: TrustedEvent; // kind 9735 (zap receipt)
+  invoiceAmount: number;  // amount in millisatoshis
+};
 ```
 
-### Finding Nostr Zappers
-
-#### Getting Lightning Info
-
-First, check the user's profile for Lightning addresses:
+### Lightning Network Utilities
 
 ```typescript
-function getLightningInfo(profile: Profile) {
-  // Check for Lightning Address (NIP-57)
-  if (profile.lud16) {
-    return {
-      type: 'lud16',
-      address: profile.lud16
-    }
-  }
+// Convert human-readable amount to millisatoshis
+export declare const hrpToMillisat: (hrpString: string) => bigint;
 
-  // Check for LNURL
-  if (profile.lud06) {
-    return {
-      type: 'lud06',
-      url: profile.lud06
-    }
-  }
+// Extract amount from BOLT11 lightning invoice
+export declare const getInvoiceAmount: (bolt11: string) => number;
 
-  return null
-}
+// Convert lightning address or URL to LNURL
+export declare const getLnUrl: (address: string) => string | null;
 ```
 
-#### Fetching LNURL Metadata
-
-Once you have the Lightning address or LNURL, fetch the metadata:
+### Zap Validation
 
 ```typescript
-async function fetchZapper(address: string): Promise<Zapper | null> {
-  // Convert Lightning address to LNURL if needed
-  const lnurl = getLnUrl(address)
-  if (!lnurl) return null
-
-  try {
-    // Decode and fetch LNURL metadata
-    const url = new URL(bech32.decode(lnurl).data)
-    const response = await fetch(url.toString())
-    const metadata = await response.json()
-
-    // Extract zapper details
-    return {
-      lnurl,
-      callback: metadata.callback,
-      minSendable: metadata.minSendable,
-      maxSendable: metadata.maxSendable,
-      nostrPubkey: metadata.nostrPubkey,
-      allowsNostr: Boolean(metadata.allowsNostr),
-    }
-  } catch (error) {
-    console.error('Failed to fetch zapper:', error)
-    return null
-  }
-}
+// Create validated Zap from zap receipt event
+export declare const zapFromEvent: (response: TrustedEvent, zapper?: Zapper) => Zap | null;
 ```
 
+## Examples
+
+### Converting Lightning Addresses
+
 ```typescript
-// Example Alby zapper configuration
-const albyZapper: Zapper = {
-  lnurl: "lnurl1...",
-  pubkey: "alby_user_pubkey",
-  nostrPubkey: "alby_signing_key",
+import { getLnUrl } from '@welshman/util';
+
+// Lightning address (LUD-16)
+const lnurl1 = getLnUrl('satoshi@getalby.com');
+console.log(lnurl1); // 'lnurl1...' (encoded URL)
+
+// Regular URL
+const lnurl2 = getLnUrl('https://getalby.com/.well-known/lnurlp/satoshi');
+console.log(lnurl2); // 'lnurl1...' (encoded URL)
+
+// Already encoded LNURL
+const lnurl3 = getLnUrl('lnurl1dp68gurn8ghj7mr0vdskc6r0wd6z7mrww4excttsv9un7um9wdekjmmw84jxywf5x43rvv35xgmr2enrxanr2cfcvsmnwe3jxcukvde48qukgdec89snwde3vfjxvepjxpjnjvtpxd3kvdnxx5crxwpjvyunsephsz36jf');
+console.log(lnurl3); // 'lnurl1...' (same as input)
+
+// Invalid address
+const invalid = getLnUrl('not-a-valid-address');
+console.log(invalid); // null
+```
+
+### Parsing Invoice Amounts
+
+```typescript
+import { getInvoiceAmount, hrpToMillisat } from '@welshman/util';
+
+// Extract amount from BOLT11 invoice
+const invoice = 'lnbc1500n1...'; // 1500 nanosats = 1.5 sats
+const amount = getInvoiceAmount(invoice);
+console.log(amount); // 1500 (millisatoshis)
+
+// Convert human-readable amounts
+console.log(hrpToMillisat('1000')); // 100000000000n (1000 BTC in millisats)
+console.log(hrpToMillisat('1000m')); // 100000000n (1000 mBTC = 1 BTC in millisats)
+console.log(hrpToMillisat('1000u')); // 100000n (1000 µBTC = 1 mBTC in millisats)
+console.log(hrpToMillisat('1000n')); // 100n (1000 nBTC = 1000 sats in millisats)
+console.log(hrpToMillisat('1000p')); // 0.1n (1000 pBTC = 1 msat, but must be divisible by 10)
+```
+
+### Validating Zaps
+
+```typescript
+import { zapFromEvent, ZAP_RESPONSE } from '@welshman/util';
+
+// Zapper service configuration
+const zapper: Zapper = {
+  lnurl: 'lnurl1dp68gurn8ghj7mr0vdskc6r0wd6z7mrww4excttsv9un7um9wdekjmmw84jxywf5x43rvv35xgmr2enrxanr2cfcvsmnwe3jxcukvde48qukgdec89snwde3vfjxvepjxpjnjvtpxd3kvdnxx5crxwpjvyunsephsz36jf',
+  nostrPubkey: 'zapper-pubkey-hex',
   allowsNostr: true,
-  minSendable: 1000,    // 1 sat minimum
-  maxSendable: 100000000 // 100k sats maximum
+  minSendable: 1000,
+  maxSendable: 10000000
+};
+
+// Zap receipt event (kind 9735)
+const zapReceipt = {
+  kind: ZAP_RESPONSE,
+  pubkey: 'zapper-pubkey-hex',
+  tags: [
+    ['bolt11', 'lnbc1500n1...'],
+    ['description', '{"kind":9734,"pubkey":"sender-pubkey","tags":[["p","recipient-pubkey"],["amount","1500"],["relays","wss://relay.com"]],"content":"Great post!","created_at":1234567890}'],
+    ['p', 'recipient-pubkey']
+  ],
+  // ... other event fields
+};
+
+// Validate the zap
+const validZap = zapFromEvent(zapReceipt, zapper);
+
+if (validZap) {
+  console.log('Amount:', validZap.invoiceAmount); // 1500 millisats
+  console.log('Request:', validZap.request.content); // "Great post!"
+  console.log('Recipient:', validZap.request.tags.find(t => t[0] === 'p')?.[1]);
+} else {
+  console.log('Invalid zap - failed validation');
+}
+```
+
+### Complete Zap Flow Example
+
+```typescript
+import { getLnUrl, zapFromEvent, makeEvent, ZAP_REQUEST } from '@welshman/util';
+
+// Step 1: Get LNURL from lightning address
+const lightningAddress = 'satoshi@getalby.com';
+const lnurl = getLnUrl(lightningAddress);
+
+if (!lnurl) {
+  throw new Error('Invalid lightning address');
 }
 
-// Example LNbits zapper
-const lnbitsZapper: Zapper = {
-  lnurl: "lnurl1...",
-  callback: "https://lnbits.com/callback",
-  nostrPubkey: "lnbits_signing_key",
+// Step 2: Create zap request (kind 9734)
+const zapRequest = makeEvent(ZAP_REQUEST, {
+  content: 'Amazing content!',
+  tags: [
+    ['p', 'recipient-pubkey-hex'], // recipient
+    ['amount', '5000'], // 5000 millisats = 5 sats
+    ['lnurl', lnurl],
+    ['relays', 'wss://relay.damus.io', 'wss://relay.snort.social']
+  ]
+});
+
+// Step 3: Send to LNURL service (implementation specific)
+// The service will generate an invoice with the zap request in description
+
+// Step 4: Pay the invoice (using Lightning wallet)
+
+// Step 5: Validate received zap receipt
+const zapperInfo = {
+  lnurl,
+  nostrPubkey: 'zapper-service-pubkey',
   allowsNostr: true
+};
+
+// When zap receipt arrives (kind 9735)
+function handleZapReceipt(zapReceipt: TrustedEvent) {
+  const validatedZap = zapFromEvent(zapReceipt, zapperInfo);
+
+  if (validatedZap) {
+    console.log(`Received ${validatedZap.invoiceAmount} msat zap!`);
+    console.log(`Message: ${validatedZap.request.content}`);
+    return validatedZap;
+  } else {
+    console.log('Invalid zap receipt');
+    return null;
+  }
 }
 ```
 
-### Zap Structure
-```typescript
-interface Zap {
-  request: TrustedEvent    // Zap request event kind 9734
-  response: TrustedEvent   // Zap receipt/response event kind 9735 sent by the zapper
-  invoiceAmount: number    // Amount in millisats
-}
-```
+### Zap Validation Rules
 
-## Core Functions
-
-### Lightning Address Handling
-```typescript
-// Convert address to LNURL
-function getLnUrl(address: string): string | null
-
-// Examples:
-getLnUrl("user@domain.com")  // => lnurl1...
-getLnUrl("https://domain.com/.well-known/lnurlp/user")  // => lnurl1...
-getLnUrl("lnurl1...")  // => returns unchanged
-```
-
-### Invoice Processing
-```typescript
-// Parse amount from BOLT11 invoice
-function getInvoiceAmount(bolt11: string): number
-
-// Convert human readable amount to millisats
-function hrpToMillisat(hrpString: string): bigint
-```
-
-### Zap Validation
-
-The `zapFromEvent` function validates a zap receipt event, against an expected zapper.
-
-It returns a `Zap` object if the zap is valid, or `null` if not.
+The `zapFromEvent` function validates several aspects of a zap according to NIP-57:
 
 ```typescript
-function zapFromEvent(
-  response: TrustedEvent,
-  zapper: Zapper | undefined
-): Zap | null
-```
+import { zapFromEvent } from '@welshman/util';
 
-## Usage Examples
+// Validation checks performed:
+// 1. Invoice amount matches requested amount (if specified)
+// 2. Zap request is properly embedded in invoice description
+// 3. Zapper pubkey matches the expected zapper service
+// 4. LNURL matches the expected service (if provided in request)
+// 5. Self-zaps are filtered out (sender != zapper)
 
-### Processing Lightning Addresses
-```typescript
-// Get LNURL from various formats
-const lnurl1 = getLnUrl("user@getalby.com")
-const lnurl2 = getLnUrl("https://getalby.com/.well-known/lnurlp/user")
-const lnurl3 = getLnUrl("lnurl1...")
+const zapReceipt = {
+  // ... zap receipt event
+};
 
-// Check if conversion was successful
-if (lnurl1) {
-  // Process LNURL
-  processLnurl(lnurl1)
-}
-```
+const zapper = {
+  nostrPubkey: 'expected-zapper-pubkey',
+  lnurl: 'expected-lnurl'
+};
 
-### Invoice Amount Handling
-```typescript
-// Get invoice amount in millisats
-const amount = getInvoiceAmount(bolt11Invoice)
+const validZap = zapFromEvent(zapReceipt, zapper);
 
-// Convert string amount to millisats
-const millisats = hrpToMillisat("1000")  // 1000 sats
-const millisats = hrpToMillisat("1m")    // 1 million sats
-```
-
-### Zap Validation
-```typescript
-// Validate zap event
-const zap = zapFromEvent(zapResponse, albyZapper)
-
-if (zap) {
-  // Process valid zap
-  processZap(zap)
-}
+// Returns null if any validation fails:
+// - Malformed bolt11 invoice
+// - Amount mismatch
+// - Wrong zapper pubkey
+// - LNURL mismatch
+// - Self-zap detection
 ```

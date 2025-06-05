@@ -73,7 +73,7 @@ const profile = makeProfile({
 })
 
 // Create profile event
-const event = createProfile(profile)
+const profileEvent = createProfile(profile)
 ```
 
 ### Reading Profile
@@ -107,7 +107,7 @@ if (profileHasName(profile)) {
 ### Updating Profile
 ```typescript
 // Edit existing profile
-const updated = editProfile({
+const profileEvent = editProfile({
   ...existingProfile,
   name: "New Name",
   about: "Updated bio"

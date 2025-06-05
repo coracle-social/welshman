@@ -1,110 +1,106 @@
 # Nostr Address
 
-The Address module provides utilities for working with Nostr Addresses (NIP-19 naddr format) and handles the conversion between different address formats.
+The Address module provides utilities for working with Nostr Addresses (NIP-19 naddr format) and handles the conversion between different address formats. Addresses are used to reference addressable events (kinds 10000-39999) in a format that includes kind, pubkey, and identifier.
 
-## Address Class
+## API
 
 ```typescript
-class Address {
+// Address class for handling addressable events
+export declare class Address {
   constructor(
-    readonly kind: number,      // Event kind
-    readonly pubkey: string,    // Author's public key
-    readonly identifier: string, // Unique identifier (d-tag)
-    readonly relays?: string[], // Optional relay hints
-  )
+    kind: number,
+    pubkey: string,
+    identifier: string,
+    relays?: string[]
+  );
+
+  // Check if string is a valid address format
+  static isAddress(address: string): boolean;
+
+  // Parse address from string format "kind:pubkey:identifier"
+  static from(address: string, relays?: string[]): Address;
+
+  // Parse address from naddr (NIP-19 format)
+  static fromNaddr(naddr: string): Address;
+
+  // Create address from addressable event
+  static fromEvent(event: AddressableEvent, relays?: string[]): Address;
+
+  // Convert to string format "kind:pubkey:identifier"
+  toString(): string;
+
+  // Convert to naddr (NIP-19 format)
+  toNaddr(): string;
 }
-```
 
-## Creating Addresses
-
-### From Components
-```typescript
-const address = new Address(
-  30023,                      // kind (e.g., long-form article)
-  'ab82...123',              // pubkey
-  'my-article-title',        // identifier
-  ['wss://relay.example.com'] // relays
-)
-```
-
-### From String Format
-```typescript
-// Parse "kind:pubkey:identifier" format
-const address = Address.from('30023:ab82...123:my-article-title')
-
-// With optional relays
-const address = Address.from(
-  '30023:ab82...123:my-article-title',
-  ['wss://relay.example.com']
-)
-```
-
-### From Naddr
-```typescript
-// Parse naddr format
-const address = Address.fromNaddr('naddr1...')
-```
-
-### From Event
-```typescript
-const address = Address.fromEvent(event, relays)
-```
-
-## Converting Addresses
-
-### To String
-```typescript
-const address = new Address(kind, pubkey, identifier)
-address.toString() // => "kind:pubkey:identifier"
-```
-
-### To Naddr
-```typescript
-const address = new Address(kind, pubkey, identifier, relays)
-address.toNaddr() // => "naddr1..."
-```
-
-## Utility Functions
-
-### Check Address Format
-```typescript
-// Check if string is valid address format
-Address.isAddress('30023:abc...123:title') // => true
-Address.isAddress('not-an-address') // => false
-```
-
-### Get Address from Event
-```typescript
-import { getAddress } from '@welshman/util'
-
-// Extract address from event
-const address = getAddress(event)
+// Utility function to get address string from event
+export declare const getAddress: (e: AddressableEvent) => string;
 ```
 
 ## Examples
 
-### Working with Long-form Content
+### Creating and parsing addresses
+
 ```typescript
-// Create address for article
-const articleAddress = new Address(
-  30023,               // Long-form content kind
-  authorPubkey,
-  'my-article-slug',
+import { Address } from '@welshman/util';
+
+// Create address from components
+const address = new Address(
+  30023,
+  '27067f0efd1b9ffc6d71672a1b69a4e5ac3b8ce3cc8428b06849448e38d69389',
+  'my-article',
   ['wss://relay.example.com']
-)
+);
 
-// Convert to string format for storage
-const addressString = articleAddress.toString()
+// Parse from string format
+const parsed = Address.from('30023:27067f0efd1b9ffc6d71672a1b69a4e5ac3b8ce3cc8428b06849448e38d69389:my-article');
+console.log(parsed.kind); // 30023
+console.log(parsed.identifier); // 'my-article'
 
-// Convert to naddr for sharing
-const shareableAddress = articleAddress.toNaddr()
+// Check if string is valid address
+const isValid = Address.isAddress('30023:27067f0efd1b9ffc6d71672a1b69a4e5ac3b8ce3cc8428b06849448e38d69389:my-article'); // true
+const isInvalid = Address.isAddress('invalid-format'); // false
 ```
 
-### Handling Replaceable Events
-```typescript
-// Create address from replaceable event
-const address = Address.fromEvent(event)
+### Converting between formats
 
-// Store latest version using address as key
-storage.set(address.toString(), event)
+```typescript
+import { Address } from '@welshman/util';
+
+const address = new Address(30023, '27067f0efd1b9ffc6d71672a1b69a4e5ac3b8ce3cc8428b06849448e38d69389', 'my-article');
+
+// Convert to string format
+const addressString = address.toString();
+console.log(addressString); // '30023:27067f0efd1b9ffc6d71672a1b69a4e5ac3b8ce3cc8428b06849448e38d69389:my-article'
+
+// Convert to naddr format (NIP-19)
+const naddr = address.toNaddr();
+console.log(naddr); // 'naddr1...'
+
+// Parse back from naddr
+const fromNaddr = Address.fromNaddr(naddr);
+console.log(fromNaddr.kind); // 30023
+```
+
+### Working with events
+
+```typescript
+import { Address, getAddress } from '@welshman/util';
+
+const event = {
+  kind: 30023,
+  pubkey: '27067f0efd1b9ffc6d71672a1b69a4e5ac3b8ce3cc8428b06849448e38d69389',
+  tags: [
+    ['d', 'my-article'],
+    ['title', 'My Article Title']
+  ]
+};
+
+// Create address from event
+const address = Address.fromEvent(event, ['wss://relay.example.com']);
+console.log(address.identifier); // 'my-article'
+
+// Get address string directly
+const addressString = getAddress(event);
+console.log(addressString); // '30023:27067f0efd1b9ffc6d71672a1b69a4e5ac3b8ce3cc8428b06849448e38d69389:my-article'
 ```

@@ -1,147 +1,158 @@
 # Relay
 
-The `Relay` module provides utilities for working with Nostr relays, including a local in-memory relay implementation that integrates with [Repository](/util/repository) for event storage.
-The Relay class extends EventEmitter to provide event-based communication.
+The `Relay` module provides utilities for working with Nostr relays, including URL normalization, validation, and relay profile handling.
 
-## Core Components
+## API
 
-### Relay Class
+### Types and Enums
+
 ```typescript
-class Relay<E extends HashedEvent = TrustedEvent> extends Emitter {
-  constructor(readonly repository: Repository<E>)
-
-  // Emit events: 'EVENT', 'EOSE', 'OK'
-  emit(type: string, ...args: any[]): boolean
-
-  // Handle relay messages
-  send(type: string, ...message: any[]): void
+// Relay operation modes
+export enum RelayMode {
+  Read = "read",
+  Write = "write",
+  Inbox = "inbox"
 }
+
+// Relay information from NIP-11
+export type RelayProfile = {
+  url: string;
+  icon?: string;
+  banner?: string;
+  name?: string;
+  pubkey?: string;
+  contact?: string;
+  software?: string;
+  version?: string;
+  negentropy?: number;
+  description?: string;
+  supported_nips?: number[];
+  limitation?: {
+    min_pow_difficulty?: number;
+    payment_required?: boolean;
+    auth_required?: boolean;
+  };
+};
+```
+
+### URL Validation
+
+```typescript
+// Check if URL is a valid relay URL
+export declare const isRelayUrl: (url: string) => boolean;
+
+// Check if URL is an onion (Tor) address
+export declare const isOnionUrl: (url: string) => boolean;
+
+// Check if URL is a local address
+export declare const isLocalUrl: (url: string) => boolean;
+
+// Check if URL contains an IP address
+export declare const isIPAddress: (url: string) => boolean;
+
+// Check if URL is safe to share publicly
+export declare const isShareableRelayUrl: (url: string) => boolean;
+```
+
+### URL Normalization
+
+```typescript
+// Normalize relay URL to standard format
+export declare const normalizeRelayUrl: (url: string) => string;
+
+// Format URL for display (remove protocol, trailing slash)
+export declare const displayRelayUrl: (url: string) => string;
 ```
 
 ### Relay Profile
-```typescript
-interface RelayProfile {
-  url: string              // Relay URL
-  name?: string           // Display name
-  description?: string    // Description
-  pubkey?: string        // Operator's pubkey
-  contact?: string       // Contact information
-  software?: string      // Software name
-  version?: string       // Software version
-  supported_nips?: number[] // Supported NIPs
-  limitation?: {
-    min_pow_difficulty?: number
-    payment_required?: boolean
-    auth_required?: boolean
-  }
-}
-```
-
-### Finding Relay Information
 
 ```typescript
-// Fetch relay information document
-async function getRelayProfile(url: string): Promise<RelayProfile | null> {
-  try {
-    const normalized = normalizeRelayUrl(url)
-    // Convert ws/wss to http/https
-    const httpUrl = normalized.replace(/^ws(s)?:\/\//, 'http$1://')
-
-    // Fetch relay information document
-    const response = await fetch(`${httpUrl}`)
-    const info = await response.json()
-
-    return {
-      url: normalized,
-      name: info.name,
-      description: info.description,
-      pubkey: info.pubkey,
-      contact: info.contact,
-      software: info.software,
-      version: info.version,
-      supported_nips: info.supported_nips,
-      limitation: info.limitation
-    }
-  } catch (error) {
-    console.error(`Failed to fetch relay info for ${url}:`, error)
-    return null
-  }
-}
+// Get display name for relay profile
+export declare const displayRelayProfile: (profile?: RelayProfile, fallback?: string) => string;
 ```
 
-## URL Utilities
+## Examples
 
 ### URL Validation
+
 ```typescript
-// Check if URL is valid relay URL
-isRelayUrl(url: string): boolean
+import {
+  isRelayUrl,
+  isOnionUrl,
+  isLocalUrl,
+  isShareableRelayUrl
+} from '@welshman/util';
 
-// Check if URL is .onion address
-isOnionUrl(url: string): boolean
+// Valid relay URLs
+console.log(isRelayUrl('wss://relay.damus.io')); // true
+console.log(isRelayUrl('relay.damus.io')); // true (auto-adds wss://)
+console.log(isRelayUrl('ws://localhost:8080')); // true
 
-// Check if URL is local
-isLocalUrl(url: string): boolean
+// Invalid URLs
+console.log(isRelayUrl('https://example.com')); // false (not websocket)
+console.log(isRelayUrl('invalid-url')); // false
 
-// Check if URL is IP address
-isIPAddress(url: string): boolean
+// Special URL types
+console.log(isOnionUrl('wss://7rqsrjfmyb3n2k72.onion')); // true
+console.log(isLocalUrl('ws://localhost:8080')); // true
+console.log(isLocalUrl('wss://relay.local')); // true
 
-// Check if URL can be shared
-isShareableRelayUrl(url: string): boolean
+// Safe to share publicly
+console.log(isShareableRelayUrl('wss://relay.damus.io')); // true
+console.log(isShareableRelayUrl('ws://localhost:8080')); // false (local)
 ```
 
-### URL Formatting
+### URL Normalization
+
 ```typescript
-// Normalize relay URL
-normalizeRelayUrl(url: string): string
+import { normalizeRelayUrl, displayRelayUrl } from '@welshman/util';
 
-// Format URL for display
-displayRelayUrl(url: string): string
+// Normalize various URL formats
+console.log(normalizeRelayUrl('relay.damus.io'));
+// 'wss://relay.damus.io/'
 
-// Format relay profile for display
-displayRelayProfile(profile?: RelayProfile, fallback = ""): string
+console.log(normalizeRelayUrl('ws://RELAY.EXAMPLE.COM/path'));
+// 'ws://relay.example.com/path'
+
+console.log(normalizeRelayUrl('wss://relay.damus.io/?ref=123'));
+// 'wss://relay.damus.io/' (strips query params)
+
+// Format for display
+console.log(displayRelayUrl('wss://relay.damus.io/'));
+// 'relay.damus.io'
+
+console.log(displayRelayUrl('ws://localhost:8080/'));
+// 'localhost:8080'
 ```
 
+### Working with Relay Profiles
 
-## Usage Examples
-
-### URL Processing
 ```typescript
-// Validate relay URL
-if (isRelayUrl(url)) {
-  // Normalize for consistency
-  const normalized = normalizeRelayUrl(url)
+import { displayRelayProfile, RelayProfile } from '@welshman/util';
 
-  // Check if shareable
-  if (isShareableRelayUrl(normalized)) {
-    // Format for display
-    const display = displayRelayUrl(normalized)
-    showRelay(display)
+const relayProfile: RelayProfile = {
+  url: 'wss://relay.damus.io',
+  name: 'Damus Relay',
+  description: 'A high-performance Nostr relay',
+  software: 'strfry',
+  version: '1.0.0',
+  supported_nips: [1, 2, 4, 9, 11, 12, 15, 16, 20, 22],
+  limitation: {
+    payment_required: false,
+    auth_required: false,
+    min_pow_difficulty: 0
   }
-}
-```
+};
 
-### Relay usage with Repository
+// Get display name
+const displayName = displayRelayProfile(relayProfile);
+console.log(displayName); // 'Damus Relay'
 
-```typescript
-// Create storage and relay interface
-const repository = new Repository()
-const relay = new Relay(repository)
+// With fallback for unnamed relays
+const anonymousRelay: RelayProfile = {
+  url: 'wss://anonymous.relay.com'
+};
 
-// Subscribe to events
-relay.send("REQ", "sub_id", {
-  kinds: [1],
-  limit: 100
-})
-
-// Listen for events
-relay.on("EVENT", (subId, event) => {
-  console.log(`Received event for ${subId}:`, event)
-})
-
-// Publish event
-// Will be stored in repository and sent to matching subscribers
-relay.send("EVENT", signedEvent)
-
-// Close subscription
-relay.send("CLOSE", "sub_id")
+const name = displayRelayProfile(anonymousRelay, 'Unknown Relay');
+console.log(name); // 'Unknown Relay'
 ```
