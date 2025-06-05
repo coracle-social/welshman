@@ -82,7 +82,7 @@ export class AuthState extends EventEmitter {
         }
       }),
       on(socket, SocketEvent.Status, (status: SocketStatus) => {
-        if (status === SocketStatus.Closed) {
+        if (status === SocketStatus.Closed || status === SocketStatus.Error) {
           this.challenge = undefined
           this.request = undefined
           this.details = undefined

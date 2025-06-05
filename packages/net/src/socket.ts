@@ -89,7 +89,10 @@ export class Socket extends EventEmitter {
       this._ws.onclose = () => {
         this._ws = undefined
         this._sendQueue.stop()
-        this.emit(SocketEvent.Status, SocketStatus.Closed, this.url)
+
+        if (this.status !== SocketStatus.Error) {
+          this.emit(SocketEvent.Status, SocketStatus.Closed, this.url)
+        }
       }
 
       this._ws.onmessage = (event: any) => {
