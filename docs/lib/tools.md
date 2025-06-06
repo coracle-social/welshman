@@ -289,6 +289,9 @@ export declare const ensurePlural: <T>(x: T | T[]) => T[];
 
 // Ensures values are not undefined
 export declare const removeNil: <T>(xs: T[]) => (T & {})[];
+
+// Returns a list of overlapping pairs of elements in xs
+export declare const overlappingPairs: <T>(xs: T[]) => T[][];
 ```
 
 ## Objects

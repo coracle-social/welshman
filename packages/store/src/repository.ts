@@ -1,5 +1,5 @@
 import {derived} from "svelte/store"
-import {identity, ensurePlural, batch, partition, first} from "@welshman/lib"
+import {sortBy, identity, ensurePlural, batch, partition, first} from "@welshman/lib"
 import {Repository} from "@welshman/relay"
 import {matchFilters, getIdAndAddress, getIdFilters, Filter, TrustedEvent} from "@welshman/util"
 import {custom} from "./custom.js"
@@ -38,7 +38,7 @@ export const deriveEventsMapped = <T>(
               data.push(item)
             }
 
-            setter(data)
+            setter(sortBy(item => -itemToEvent(item).created_at, data))
           }
         })
       }
@@ -59,7 +59,7 @@ export const deriveEventsMapped = <T>(
         }
       }
 
-      setter(data)
+      setter(sortBy(item => -itemToEvent(item).created_at, data))
 
       const onUpdate = batch(300, (updates: {added: TrustedEvent[]; removed: Set<string>}[]) => {
         const removed = new Set()
@@ -109,7 +109,7 @@ export const deriveEventsMapped = <T>(
         }
 
         if (dirty) {
-          setter(data)
+          setter(sortBy(item => -itemToEvent(item).created_at, data))
         }
       })
 

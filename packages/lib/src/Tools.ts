@@ -752,6 +752,16 @@ export const ensurePlural = <T>(x: T | T[]) => (x instanceof Array ? x : [x])
 /** Ensures values are not undefined */
 export const removeNil = <T>(xs: T[]) => xs.filter(isNotNil).map(assertNotNil)
 
+/** Returns a list of overlapping pairs of elements in xs */
+export const overlappingPairs = <T>(xs: T[]): T[][] => {
+  const result: T[][] = []
+  for (let i = 0; i < xs.length - 1; i++) {
+    result.push([xs[i], xs[i + 1]])
+  }
+
+  return result
+}
+
 // ----------------------------------------------------------------------------
 // Objects
 // ----------------------------------------------------------------------------

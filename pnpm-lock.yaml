@@ -121,8 +121,8 @@ importers:
         specifier: ^7.0.2
         version: 7.1.1
       nostr-tools:
-        specifier: ^2.7.2
-        version: 2.12.0(typescript@5.8.2)
+        specifier: ^2.14.2
+        version: 2.14.2(typescript@5.8.2)
     devDependencies:
       rimraf:
         specifier: ~6.0.0
@@ -204,11 +204,11 @@ importers:
         specifier: workspace:*
         version: link:../util
       nostr-editor:
-        specifier: github:cesardeazevedo/nostr-editor#a1babb361e081dd9548b852e15837525a2fc82bc
-        version: https://codeload.github.com/cesardeazevedo/nostr-editor/tar.gz/a1babb361e081dd9548b852e15837525a2fc82bc(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/extension-image@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7)))(@tiptap/extension-link@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7)(linkifyjs@4.2.0)(nostr-tools@2.12.0(typescript@5.8.2))(prosemirror-markdown@1.13.2)(prosemirror-model@1.25.0)(prosemirror-state@1.4.3)(tiptap-markdown@0.8.10(@tiptap/core@2.11.7(@tiptap/pm@2.11.7)))
+        specifier: github:cesardeazevedo/nostr-editor#98f579b93bd2b5a3344df42f769d2ea4c5d8cf55
+        version: https://codeload.github.com/cesardeazevedo/nostr-editor/tar.gz/98f579b93bd2b5a3344df42f769d2ea4c5d8cf55(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/extension-image@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7)))(@tiptap/extension-link@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7)(linkifyjs@4.2.0)(nostr-tools@2.14.2(typescript@5.8.2))(prosemirror-markdown@1.13.2)(prosemirror-model@1.25.0)(prosemirror-state@1.4.3)(tiptap-markdown@0.8.10(@tiptap/core@2.11.7(@tiptap/pm@2.11.7)))
       nostr-tools:
-        specifier: ^2.7.2
-        version: 2.12.0(typescript@5.8.2)
+        specifier: ^2.14.2
+        version: 2.14.2(typescript@5.8.2)
       tippy.js:
         specifier: ^6.3.7
         version: 6.3.7
@@ -351,8 +351,8 @@ importers:
         specifier: workspace:*
         version: link:../util
       nostr-tools:
-        specifier: ^2.7.2
-        version: 2.12.0(typescript@5.8.2)
+        specifier: ^2.14.2
+        version: 2.14.2(typescript@5.8.2)
     devDependencies:
       '@capacitor/core':
         specifier: ^7.2.0
@@ -398,8 +398,8 @@ importers:
         specifier: workspace:*
         version: link:../lib
       nostr-tools:
-        specifier: ^2.7.2
-        version: 2.12.0(typescript@5.8.2)
+        specifier: ^2.14.2
+        version: 2.14.2(typescript@5.8.2)
       nostr-wasm:
         specifier: ^0.1.0
         version: 0.1.0
@@ -932,10 +932,6 @@ packages:
   '@noble/ciphers@0.5.3':
     resolution: {integrity: sha512-B0+6IIHiqEs3BPMT0hcRmHvEj2QHOLu+uwt+tqDDeVd0oyVzh7BPrDcPjRnV1PV/5LaknXJJQvOuRGR0zQJz+w==}
 
-  '@noble/ciphers@1.3.0':
-    resolution: {integrity: sha512-2I0gnIVPtfnMw9ee9h1dJG7tp81+8Ob3OJb3Mv37rx5L40/b0i7djjCVvGOVqc9AEIQyvyu1i6ypKdFw8R8gQw==}
-    engines: {node: ^14.21.3 || >=16}
-
   '@noble/curves@1.1.0':
     resolution: {integrity: sha512-091oBExgENk/kGj3AZmtBDMpxQPDtxQABR2B9lb1JbVTs6ytdzZNwvhxQ4MWasRNEzlbEH8jCWFCwhF/Obj5AA==}
 
@@ -956,10 +952,6 @@ packages:
 
   '@noble/hashes@1.7.1':
     resolution: {integrity: sha512-B8XBPsn4vT/KJAGqDzbwztd+6Yte3P4V7iafm24bxgDe/mlRuK6xmWPuCNrKt2vDafZ8MfJLlchDG/vYafQEjQ==}
-    engines: {node: ^14.21.3 || >=16}
-
-  '@noble/hashes@1.8.0':
-    resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
 
   '@nodelib/fs.scandir@2.1.5':
@@ -2031,8 +2023,8 @@ packages:
     resolution: {integrity: sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==}
     engines: {node: '>=0.10.0'}
 
-  nostr-editor@https://codeload.github.com/cesardeazevedo/nostr-editor/tar.gz/a1babb361e081dd9548b852e15837525a2fc82bc:
-    resolution: {tarball: https://codeload.github.com/cesardeazevedo/nostr-editor/tar.gz/a1babb361e081dd9548b852e15837525a2fc82bc}
+  nostr-editor@https://codeload.github.com/cesardeazevedo/nostr-editor/tar.gz/98f579b93bd2b5a3344df42f769d2ea4c5d8cf55:
+    resolution: {tarball: https://codeload.github.com/cesardeazevedo/nostr-editor/tar.gz/98f579b93bd2b5a3344df42f769d2ea4c5d8cf55}
     version: 0.0.4-pre.17
     engines: {node: '>=18.16.1'}
     peerDependencies:
@@ -2041,7 +2033,7 @@ packages:
       '@tiptap/extension-link': ^2.6.6
       '@tiptap/pm': ^2.6.6
       linkifyjs: ^4.1.3
-      nostr-tools: ^2.7.2
+      nostr-tools: ^2.14.2
       prosemirror-markdown: ^1.13.0
       prosemirror-model: ^1.22.3
       prosemirror-state: ^1.4.3
@@ -2052,8 +2044,8 @@ packages:
     peerDependencies:
       '@capacitor/core': ^7.0.0
 
-  nostr-tools@2.12.0:
-    resolution: {integrity: sha512-pUWEb020gTvt1XZvTa8AKNIHWFapjsv2NKyk43Ez2nnvz6WSXsrTFE0XtkNLSRBjPn6EpxumKeNiVzLz74jNSA==}
+  nostr-tools@2.14.2:
+    resolution: {integrity: sha512-YOIOn5EdJ2Kq5sQW5Zh4wOcqzR6kUyrCDHG4+mVD2szzthsyOTpiWX0yrwaRZGlHJG6q83vkhg95qc2W201XTQ==}
     peerDependencies:
       typescript: '>=5.0.0'
     peerDependenciesMeta:
@@ -3076,8 +3068,6 @@ snapshots:
 
   '@noble/ciphers@0.5.3': {}
 
-  '@noble/ciphers@1.3.0': {}
-
   '@noble/curves@1.1.0':
     dependencies:
       '@noble/hashes': 1.3.1
@@ -3095,8 +3085,6 @@ snapshots:
   '@noble/hashes@1.3.2': {}
 
   '@noble/hashes@1.7.1': {}
-
-  '@noble/hashes@1.8.0': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -3185,12 +3173,12 @@ snapshots:
   '@scure/bip32@1.3.1':
     dependencies:
       '@noble/curves': 1.1.0
-      '@noble/hashes': 1.3.1
+      '@noble/hashes': 1.3.2
       '@scure/base': 1.1.9
 
   '@scure/bip39@1.2.1':
     dependencies:
-      '@noble/hashes': 1.3.1
+      '@noble/hashes': 1.3.2
       '@scure/base': 1.1.9
 
   '@shikijs/core@2.5.0':
@@ -4222,10 +4210,8 @@ snapshots:
 
   normalize-path@3.0.0: {}
 
-  nostr-editor@https://codeload.github.com/cesardeazevedo/nostr-editor/tar.gz/a1babb361e081dd9548b852e15837525a2fc82bc(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/extension-image@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7)))(@tiptap/extension-link@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7)(linkifyjs@4.2.0)(nostr-tools@2.12.0(typescript@5.8.2))(prosemirror-markdown@1.13.2)(prosemirror-model@1.25.0)(prosemirror-state@1.4.3)(tiptap-markdown@0.8.10(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))):
+  nostr-editor@https://codeload.github.com/cesardeazevedo/nostr-editor/tar.gz/98f579b93bd2b5a3344df42f769d2ea4c5d8cf55(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/extension-image@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7)))(@tiptap/extension-link@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7)(linkifyjs@4.2.0)(nostr-tools@2.14.2(typescript@5.8.2))(prosemirror-markdown@1.13.2)(prosemirror-model@1.25.0)(prosemirror-state@1.4.3)(tiptap-markdown@0.8.10(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))):
     dependencies:
-      '@noble/ciphers': 1.3.0
-      '@noble/hashes': 1.8.0
       '@tiptap/core': 2.11.7(@tiptap/pm@2.11.7)
       '@tiptap/extension-image': 2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))
       '@tiptap/extension-link': 2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7)
@@ -4233,7 +4219,7 @@ snapshots:
       js-base64: 3.7.7
       light-bolt11-decoder: 3.2.0
       linkifyjs: 4.2.0
-      nostr-tools: 2.12.0(typescript@5.8.2)
+      nostr-tools: 2.14.2(typescript@5.8.2)
       prosemirror-markdown: 1.13.2
       prosemirror-model: 1.25.0
       prosemirror-state: 1.4.3
@@ -4243,7 +4229,7 @@ snapshots:
     dependencies:
       '@capacitor/core': 7.2.0
 
-  nostr-tools@2.12.0(typescript@5.8.2):
+  nostr-tools@2.14.2(typescript@5.8.2):
     dependencies:
       '@noble/ciphers': 0.5.3
       '@noble/curves': 1.2.0
@@ -4251,8 +4237,8 @@ snapshots:
       '@scure/base': 1.1.1
       '@scure/bip32': 1.3.1
       '@scure/bip39': 1.2.1
-    optionalDependencies:
       nostr-wasm: 0.1.0
+    optionalDependencies:
       typescript: 5.8.2
 
   nostr-wasm@0.1.0: {}

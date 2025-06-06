@@ -20,6 +20,8 @@ export type RelayProfile = {
   negentropy?: number
   description?: string
   supported_nips?: number[]
+  privacy_policy?: string
+  terms_of_service?: string
   limitation?: {
     min_pow_difficulty?: number
     payment_required?: boolean

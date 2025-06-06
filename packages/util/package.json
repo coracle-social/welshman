@@ -22,7 +22,7 @@
   "dependencies": {
     "@welshman/lib": "workspace:*",
     "@types/ws": "^8.5.13",
-    "nostr-tools": "^2.7.2",
+    "nostr-tools": "^2.14.2",
     "nostr-wasm": "^0.1.0"
   },
   "devDependencies": {
