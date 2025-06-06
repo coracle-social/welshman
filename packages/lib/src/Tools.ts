@@ -1563,11 +1563,35 @@ export const bech32ToHex = (b32: string) =>
   utf8.encode(bech32.fromWords(bech32.decode(b32 as any, false).words))
 
 /**
- * Converts an array buffer to hex format
- * @param buffer - ArrayBuffer string to convert
+ * Converts an array buffer or Uint8Array to hex format
+ * @param buffer - ArrayBuffer or Uint8Array to convert
  * @returns Hex encoded string
  */
-export const bufferToHex = (buffer: ArrayBuffer) =>
-  Array.from(new Uint8Array(buffer))
+export const bytesToHex = (buffer: ArrayBuffer | Uint8Array) => {
+  if (buffer instanceof ArrayBuffer) {
+    buffer = new Uint8Array(buffer)
+  }
+
+  return Array.from(buffer)
     .map(b => b.toString(16).padStart(2, "0"))
     .join("")
+}
+
+/**
+ * Converts a hex string to an array buffer
+ * @param hex - hex string
+ * @returns ArrayBuffer
+ */
+export const hexToBytes = (hex: string) =>
+  new Uint8Array(hex.match(/.{2}/g)!.map(hex => parseInt(hex, 16)))
+
+/**
+ * Computes SHA-256 hash of binary data
+ * @param data - Binary data to hash
+ * @returns Promise resolving to hex-encoded hash string
+ */
+export const sha256 = async (data: ArrayBuffer | Uint8Array): Promise<string> => {
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("")
+}

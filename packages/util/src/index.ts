@@ -1,4 +1,5 @@
 export * from "./Address.js"
+export * from "./Blossom.js"
 export * from "./Encryptable.js"
 export * from "./Events.js"
 export * from "./Filters.js"

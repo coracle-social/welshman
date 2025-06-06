@@ -41,7 +41,7 @@
     "@tiptap/suggestion": "^2.11.5",
     "@welshman/lib": "workspace:*",
     "@welshman/util": "workspace:*",
-    "nostr-editor": "github:cesardeazevedo/nostr-editor#98f579b93bd2b5a3344df42f769d2ea4c5d8cf55",
+    "nostr-editor": "github:cesardeazevedo/nostr-editor#82f37ab",
     "nostr-tools": "^2.14.2",
     "tippy.js": "^6.3.7"
   },

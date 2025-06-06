@@ -526,6 +526,12 @@ export declare const hexToBech32: (prefix: string, hex: string) => `${Lowercase<
 export declare const bech32ToHex: (b32: string) => string;
 
 // Converts an array buffer to hex format
-export declare const bufferToHex: (buffer: ArrayBuffer) => string;
+export declare const bytesToHex: (buffer: ArrayBuffer) => string;
+
+// Converts a hex string to a Uint8Array buffer
+export declare const hexToBytes: (hex: string) => Uint8Array;
+
+// Computes SHA-256 hash of binary data
+export declare const sha256: (data: ArrayBuffer | Uint8Array) => Promise<string>;
 ```
 

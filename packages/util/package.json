@@ -20,8 +20,9 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@welshman/lib": "workspace:*",
     "@types/ws": "^8.5.13",
+    "@welshman/lib": "workspace:*",
+    "js-base64": "^3.7.7",
     "nostr-tools": "^2.14.2",
     "nostr-wasm": "^0.1.0"
   },

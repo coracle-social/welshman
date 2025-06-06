@@ -15,11 +15,13 @@ import {Text} from "@tiptap/extension-text"
 import {Placeholder} from "@tiptap/extension-placeholder"
 import type {PlaceholderOptions} from "@tiptap/extension-placeholder"
 import type {
+  UploadTask,
   NostrOptions,
   FileUploadOptions,
   ImageOptions,
   LinkOptions,
   NSecRejectOptions,
+  FileAttributes,
 } from "nostr-editor"
 import {
   NostrExtension,
@@ -55,7 +57,10 @@ export type WelshmanExtensionOptions = {
   codeBlock?: ChildExtensionOptions<CodeBlockOptions>
   document?: false
   dropcursor?: ChildExtensionOptions<DropcursorOptions>
-  fileUpload?: ChildExtensionOptions<FileUploadOptions>
+  fileUpload?: {
+    extend?: Partial<any>
+    config?: Partial<FileUploadOptions> & Pick<FileUploadOptions, 'upload'>
+  }
   gapcursor?: false
   history?: ChildExtensionOptions<HistoryOptions>
   image?: ChildExtensionOptions<ImageOptions>
@@ -74,9 +79,6 @@ export type WelshmanExtensionOptions = {
 
 export interface WelshmanOptions extends NostrOptions {
   submit?: () => void
-  sign?: (event: StampedEvent) => Promise<SignedEvent>
-  defaultUploadUrl?: string
-  defaultUploadType?: "nip96" | "blossom"
   extensions?: WelshmanExtensionOptions
 }
 
@@ -87,14 +89,8 @@ export const WelshmanExtension = NostrExtension.extend<WelshmanOptions>({
   },
 
   addExtensions() {
-    const {
-      sign,
-      submit,
-      defaultUploadUrl = "https://nostr.build",
-      defaultUploadType = "nip96",
-    } = this.options
+    const {submit} = this.options
 
-    if (!sign) throw new Error("sign is a required argument to WelshmanExtension")
     if (!submit) throw new Error("submit is a required argument to WelshmanExtension")
 
     const extensionOptions = deepMergeLeft(this.options.extensions || {}, {
@@ -121,8 +117,6 @@ export const WelshmanExtension = NostrExtension.extend<WelshmanOptions>({
         config: {
           inline: true,
           group: "inline",
-          defaultUploadUrl,
-          defaultUploadType,
         },
         extend: {
           addNodeView: () => MediaNodeView,
@@ -132,8 +126,6 @@ export const WelshmanExtension = NostrExtension.extend<WelshmanOptions>({
         config: {
           inline: true,
           group: "inline",
-          defaultUploadUrl,
-          defaultUploadType,
         },
         extend: {
           addNodeView: () => MediaNodeView,
@@ -169,7 +161,6 @@ export const WelshmanExtension = NostrExtension.extend<WelshmanOptions>({
       },
       fileUpload: {
         config: {
-          sign,
           immediateUpload: true,
           allowedMimeTypes: [
             "image/jpeg",
@@ -186,7 +177,7 @@ export const WelshmanExtension = NostrExtension.extend<WelshmanOptions>({
 
     const extensions: Extensions = []
 
-    const addExtension = (extension: AnyExtension, options?: ChildExtensionOptions | false) => {
+    const addExtension = (extension: AnyExtension, options?: any) => {
       if (options === false) return
 
       if (options?.extend) {
