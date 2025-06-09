@@ -1,6 +1,6 @@
 {
   "name": "@welshman/relay",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "author": "hodlbod",
   "license": "MIT",
   "description": "An in-memory nostr relay implementation.",

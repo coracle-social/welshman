@@ -204,8 +204,8 @@ importers:
         specifier: workspace:*
         version: link:../util
       nostr-editor:
-        specifier: github:cesardeazevedo/nostr-editor#82f37ab
-        version: https://codeload.github.com/cesardeazevedo/nostr-editor/tar.gz/82f37ab(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/extension-image@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7)))(@tiptap/extension-link@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7)(linkifyjs@4.2.0)(nostr-tools@2.14.2(typescript@5.8.2))(prosemirror-markdown@1.13.2)(prosemirror-model@1.25.0)(prosemirror-state@1.4.3)(tiptap-markdown@0.8.10(@tiptap/core@2.11.7(@tiptap/pm@2.11.7)))
+        specifier: npm:nostr-editor-coracle-workaround@0.0.4-pre.17
+        version: nostr-editor-coracle-workaround@0.0.4-pre.17(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/extension-image@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7)))(@tiptap/extension-link@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7)(linkifyjs@4.2.0)(nostr-tools@2.14.2(typescript@5.8.2))(prosemirror-markdown@1.13.2)(prosemirror-model@1.25.0)(prosemirror-state@1.4.3)(tiptap-markdown@0.8.10(@tiptap/core@2.11.7(@tiptap/pm@2.11.7)))
       nostr-tools:
         specifier: ^2.14.2
         version: 2.14.2(typescript@5.8.2)
@@ -2026,9 +2026,8 @@ packages:
     resolution: {integrity: sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==}
     engines: {node: '>=0.10.0'}
 
-  nostr-editor@https://codeload.github.com/cesardeazevedo/nostr-editor/tar.gz/82f37ab:
-    resolution: {tarball: https://codeload.github.com/cesardeazevedo/nostr-editor/tar.gz/82f37ab}
-    version: 0.0.4-pre.17
+  nostr-editor-coracle-workaround@0.0.4-pre.17:
+    resolution: {integrity: sha512-Sd9iolD0VerdEzknDFGjV4oHcLvdCF9nw+kISatDHMzm31NZa4f8RCfbIMLTm+0IqMZo+Efd5YNbtF3F5jBspg==}
     engines: {node: '>=18.16.1'}
     peerDependencies:
       '@tiptap/core': ^2.6.6
@@ -4213,7 +4212,7 @@ snapshots:
 
   normalize-path@3.0.0: {}
 
-  nostr-editor@https://codeload.github.com/cesardeazevedo/nostr-editor/tar.gz/82f37ab(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/extension-image@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7)))(@tiptap/extension-link@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7)(linkifyjs@4.2.0)(nostr-tools@2.14.2(typescript@5.8.2))(prosemirror-markdown@1.13.2)(prosemirror-model@1.25.0)(prosemirror-state@1.4.3)(tiptap-markdown@0.8.10(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))):
+  nostr-editor-coracle-workaround@0.0.4-pre.17(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/extension-image@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7)))(@tiptap/extension-link@2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7))(@tiptap/pm@2.11.7)(linkifyjs@4.2.0)(nostr-tools@2.14.2(typescript@5.8.2))(prosemirror-markdown@1.13.2)(prosemirror-model@1.25.0)(prosemirror-state@1.4.3)(tiptap-markdown@0.8.10(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))):
     dependencies:
       '@tiptap/core': 2.11.7(@tiptap/pm@2.11.7)
       '@tiptap/extension-image': 2.11.7(@tiptap/core@2.11.7(@tiptap/pm@2.11.7))
