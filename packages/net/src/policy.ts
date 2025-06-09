@@ -98,7 +98,7 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
       const isClosed = [SocketStatus.Closed, SocketStatus.Error].includes(socket.status)
 
       // When a new message is sent, make sure the socket is open (unless there was a recent error)
-      if (isClosed && lastError < ago(30)) {
+      if (isClosed && lastError < ago(10)) {
         socket.open()
       }
     }),
