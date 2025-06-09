@@ -19,7 +19,7 @@ import type {
   ImageOptions,
   LinkOptions,
   NSecRejectOptions,
-} from "nostr-editor"
+} from "nostr-editor-coracle-workaround"
 import {
   NostrExtension,
   Bolt11Extension,
@@ -32,7 +32,7 @@ import {
   TagExtension,
   VideoExtension,
   NSecRejectExtension,
-} from "nostr-editor"
+} from "nostr-editor-coracle-workaround"
 import {WordCount} from "./WordCount.js"
 import {CodeInline, type CodeInlineOptions} from "./CodeInline.js"
 import {BreakOrSubmit, type BreakOrSubmitOptions} from "./BreakOrSubmit.js"
