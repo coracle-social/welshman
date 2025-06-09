@@ -1,4 +1,3 @@
-import type {StampedEvent, SignedEvent} from "@welshman/util"
 import {deepMergeLeft} from "@welshman/lib"
 import type {Extensions, AnyExtension} from "@tiptap/core"
 import {CodeBlock} from "@tiptap/extension-code-block"
@@ -15,13 +14,11 @@ import {Text} from "@tiptap/extension-text"
 import {Placeholder} from "@tiptap/extension-placeholder"
 import type {PlaceholderOptions} from "@tiptap/extension-placeholder"
 import type {
-  UploadTask,
   NostrOptions,
   FileUploadOptions,
   ImageOptions,
   LinkOptions,
   NSecRejectOptions,
-  FileAttributes,
 } from "nostr-editor"
 import {
   NostrExtension,
@@ -59,7 +56,7 @@ export type WelshmanExtensionOptions = {
   dropcursor?: ChildExtensionOptions<DropcursorOptions>
   fileUpload?: {
     extend?: Partial<any>
-    config?: Partial<FileUploadOptions> & Pick<FileUploadOptions, 'upload'>
+    config?: Partial<FileUploadOptions> & Pick<FileUploadOptions, "upload">
   }
   gapcursor?: false
   history?: ChildExtensionOptions<HistoryOptions>

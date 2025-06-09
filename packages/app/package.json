@@ -1,6 +1,6 @@
 {
   "name": "@welshman/app",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of svelte stores for use in building nostr client applications.",
