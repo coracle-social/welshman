@@ -1,132 +1,93 @@
 # Feed Controller
 
-The `FeedController` class is responsible for managing and executing feed queries in a performant and organized manner. It handles the compilation of feed definitions into executable queries and manages the loading of events based on those queries.
+The `FeedController` class manages feed execution with advanced loading strategies including pagination, windowing, and set operations. It compiles feeds into requests and handles event streaming with deduplication.
+
+## Types
+
+```typescript
+export type FeedControllerOptions = FeedCompilerOptions & {
+  feed: Feed
+  tracker?: Tracker
+  onEvent?: (event: TrustedEvent) => void
+  onExhausted?: () => void
+  useWindowing?: boolean
+}
+```
+
+## FeedController Class
+
+```typescript
+export class FeedController {
+  compiler: FeedCompiler
+
+  constructor(readonly options: FeedControllerOptions)
+
+  // Get compiled request items (memoized)
+  getRequestItems(): Promise<RequestItem[] | undefined>
+
+  // Get loader function (memoized)
+  getLoader(): Promise<(limit: number) => Promise<void>>
+
+  // Load events with specified limit
+  load(limit: number): Promise<void>
+}
+```
+
+## Loading Strategies
+
+### Request-based Loading
+
+For feeds that can be compiled to `RequestItem[]`:
+- **Pagination**: Automatically handles `since`/`until` windowing
+- **Deduplication**: Prevents duplicate events across multiple requests
+- **Exhaustion tracking**: Detects when all requests are exhausted
+
+### Set Operation Loading
+
+For feeds requiring special handling:
+
+#### Union Feeds
+- Loads events from all sub-feeds in parallel
+- Deduplicates events by ID across sub-feeds
+- Signals exhaustion when all sub-feeds are exhausted
+
+#### Intersection Feeds
+- Loads events from all sub-feeds in parallel
+- Only emits events that appear in ALL sub-feeds
+- Uses count tracking to determine intersection
+
+#### Difference Feeds
+- Loads events from first feed (included) and remaining feeds (excluded)
+- Emits events from first feed that don't appear in other feeds
+- Maintains skip set for excluded events
+
+## Windowing Strategy
+
+When `useWindowing: true`:
+- **Initial window**: Starts from recent events with estimated delta
+- **Exponential backoff**: Increases window size when few events found
+- **Timeline traversal**: Moves backward through time systematically
+- **Performance optimization**: Gets recent events first
+
+Windowing is best used when you don't trust relays to give you results ordered by `created_at` descending. Windowing should not be used when treating relays as algorithm feeds.
 
 ## Usage
 
 ```typescript
-import { FeedController } from '@welshman/feeds'
+import { FeedController, makeAuthorFeed } from '@welshman/feeds'
 
 const controller = new FeedController({
-  feed: yourFeedDefinition,
-  request: async ({ filters, relays, onEvent }) => {
-    // Your implementation for fetching events
-  },
-  requestDVM: async ({ kind, tags, relays, onEvent }) => {
-    // Your implementation for DVM requests
-  },
-  getPubkeysForScope: (scope) => {
-    // Return pubkeys for given scope
-    return ['pubkey1', 'pubkey2']
-  },
-  getPubkeysForWOTRange: (min, max) => {
-    // Return pubkeys within WOT range
-    return ['pubkey1', 'pubkey2']
-  },
-  onEvent: (event) => {
-    // Handle received events
-  },
-  onExhausted: () => {
-    // Called when no more events are available
-  },
-  useWindowing: true, // Optional: enable time-window based loading
-})
-```
-
-## API Reference
-
-### Constructor
-
-```typescript
-constructor(options: FeedOptions)
-```
-
-Creates a new feed controller with the given options:
-- `feed`: The feed definition to execute
-- `request`: Function to fetch events from relays
-- `requestDVM`: Function to fetch events from DVMs
-- `getPubkeysForScope`: Function to get pubkeys for a scope
-- `getPubkeysForWOTRange`: Function to get pubkeys within a WOT range
-- `onEvent`: Optional callback for received events
-- `onExhausted`: Optional callback when feed is exhausted
-- `useWindowing`: Optional flag to enable time-window based loading
-
-### Methods
-
-#### `load(limit: number): Promise<void>`
-```typescript
-const controller = new FeedController(options)
-await controller.load(10) // Load 10 events
-```
-Loads events from the feed up to the specified limit.
-
-#### `getLoader(): Promise<(limit: number) => Promise<void>>`
-Gets the loader function for this feed. Usually called internally by `load()`.
-
-#### `getRequestItems(): Promise<RequestItem[] | undefined>`
-Gets the compiled request items for this feed. Usually called internally.
-
-## Advanced Features
-
-### Time Windowing
-
-When `useWindowing` is enabled, the controller uses a time-based window approach to load events:
-
-```typescript
-const controller = new FeedController({
-  ...options,
-  useWindowing: true
-})
-```
-
-This is useful for:
-- Loading recent events first
-- Handling large datasets efficiently
-- Progressive loading of historical data
-
-
-## Examples
-
-### Basic Loading
-
-```typescript
-const controller = new FeedController(options)
-await controller.load(20) // Load 20 events
-```
-
-### Custom Loading Strategy
-
-```typescript
-const controller = new FeedController({
-  ...options,
+  feed: makeAuthorFeed("pubkey1", "pubkey2"),
   useWindowing: true,
-  onEvent: (event) => {
-    console.log('Received event:', event.id)
-  },
-  onExhausted: () => {
-    console.log('No more events available')
-  }
+  onEvent: (event) => console.log('New event:', event.id),
+  onExhausted: () => console.log('No more events'),
+  getPubkeysForScope: (scope) => [...],
+  getPubkeysForWOTRange: (min, max) => [...]
 })
 
-// Load events in batches
-async function loadAllEvents() {
-  while (!exhausted) {
-    await controller.load(10)
-    await new Promise(resolve => setTimeout(resolve, 1000))
-  }
-}
-```
+// Load first batch of events
+await controller.load(50)
 
-### Error Handling
-
-```typescript
-try {
-  await controller.load(10)
-} catch (error) {
-  if (error.message.includes('relay')) {
-    // Handle relay errors
-  } else {
-    // Handle other errors
-  }
-}
+// Load more events
+await controller.load(50)
 ```

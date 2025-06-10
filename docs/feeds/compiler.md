@@ -1,101 +1,82 @@
 # Feed Compiler
 
-The `FeedCompiler` class is responsible for transforming feed definitions into executable relay requests. It handles the complex task of converting various feed types into optimized filters and relay selections.
+The `FeedCompiler` class transforms feed definitions into optimized `RequestItem[]` arrays containing filters and relay selections for efficient event fetching.
 
-## Overview
+## Types
 
 ```typescript
-class FeedCompiler {
-  constructor(readonly options: FeedOptions)
+export type FeedCompilerOptions = {
+  signer?: ISigner
+  signal?: AbortSignal
+  context?: AdapterContext
+  getPubkeysForScope: (scope: Scope) => string[]
+  getPubkeysForWOTRange: (minWOT: number, maxWOT: number) => string[]
+}
+```
 
+## FeedCompiler Class
+
+```typescript
+export class FeedCompiler {
+  constructor(readonly options: FeedCompilerOptions)
+
+  // Check if a feed can be compiled
   canCompile(feed: Feed): boolean
-  compile(feed: Feed): Promise<RequestItem[]>
+
+  // Compile a feed into request items
+  async compile(feed: Feed): Promise<RequestItem[]>
 }
 ```
 
-## Feed Compilation Process
+## Compilation Logic
 
-The compiler transforms feed definitions into `RequestItem[]`, where each item contains:
+### Basic Feed Types
+
+- **ID feeds** → `{filters: [{ids: [...]}]}`
+- **Kind feeds** → `{filters: [{kinds: [...]}]}`
+- **Author feeds** → `{filters: [{authors: [...]}]}`
+- **Tag feeds** → `{filters: [{[key]: [...values]}]}`
+- **Address feeds** → Converts to ID filters using `getIdFilters()`
+- **Relay feeds** → `{relays: [...urls]}`
+- **Global feeds** → `{filters: [{}]}`
+
+### Time-based Feeds
+
+- **CreatedAt feeds** → Processes `since`/`until` with optional relative timestamps
+- **Scope feeds** → Resolves to author filters using `getPubkeysForScope()`
+- **WOT feeds** → Resolves to author filters using `getPubkeysForWOTRange()`
+- **Search feeds** → `{filters: [{search: "term"}]}`
+
+### Complex Feed Types
+
+- **DVM feeds** → Requests DVM responses and converts result tags to feeds
+- **List feeds** → Fetches list events and converts their tags to feeds
+- **Label feeds** → Fetches label events (kind 1985) and converts tags to feeds
+
+### Set Operations
+
+- **Union feeds** → Merges all sub-feed results, optimizing by relay
+- **Intersection feeds** → Finds overlapping filters and relays across sub-feeds
+
+## Usage
+
 ```typescript
-type RequestItem = {
-  relays?: string[]    // Specific relays to query
-  filters?: Filter[]   // Nostr filters to apply
-}
-```
+import { FeedCompiler, makeAuthorFeed, makeKindFeed } from '@welshman/feeds'
 
-## Examples
+const compiler = new FeedCompiler({
+  getPubkeysForScope: (scope) => [...], // Your scope resolution logic
+  getPubkeysForWOTRange: (min, max) => [...], // Your WOT logic
+  context: adapterContext,
+  signal: abortSignal
+})
 
-### Basic Feed Compilation
-```typescript
-const compiler = new FeedCompiler(options)
-
-// Simple author feed
-const feed = [FeedType.Author, "pubkey1", "pubkey2"]
+// Compile a simple feed
+const feed = makeAuthorFeed("pubkey1", "pubkey2")
 const requests = await compiler.compile(feed)
-// => [{ filters: [{ authors: ["pubkey1", "pubkey2"] }] }]
-```
+// => [{filters: [{authors: ["pubkey1", "pubkey2"]}]}]
 
-### Complex Feed Compilation
-```typescript
-// Complex feed with multiple operations
-const feed = [
-  FeedType.Intersection,
-  [FeedType.Kind, 1],
-  [
-    FeedType.Union,
-    [FeedType.Scope, Scope.Follows],
-    [FeedType.List, { addresses: ["trending"] }]
-  ]
-]
-
-const requests = await compiler.compile(feed)
-// Compiles to optimized filters for relay queries
-```
-
-### DVM Integration
-```typescript
-const feed = [
-  FeedType.DVM,
-  {
-    kind: 5300,
-    mappings: [
-      ["p", [FeedType.Author]],
-      ["t", [FeedType.Tag, "#t"]]
-    ]
-  }
-]
-
-const requests = await compiler.compile(feed)
-// Queries DVM and compiles resulting tags into feeds
-```
-
-## Implementation Notes
-
-### Optimization Strategies
-
-1. **Filter Merging**: Similar filters are combined when possible
-   ```typescript
-   // Before: [{ authors: ["a"] }, { authors: ["b"] }]
-   // After: [{ authors: ["a", "b"] }]
-   ```
-
-2. **Relay Grouping**: Requests are grouped by relay where possible
-   ```typescript
-   // Filters are organized by relay to minimize connections
-   filtersByRelay: Map<string, Filter[]>
-   ```
-
-3. **Deduplication**: Duplicate values are removed using `uniq`
-   ```typescript
-   uniq(scopes.flatMap(this.options.getPubkeysForScope))
-   ```
-
-### Error Handling
-
-The compiler includes various safety checks:
-```typescript
-canCompile(feed: Feed): boolean {
-  // Checks if feed type is supported
-  // Recursively checks sub-feeds
+// Check if feed can be compiled
+if (compiler.canCompile(feed)) {
+  const requests = await compiler.compile(feed)
 }
 ```

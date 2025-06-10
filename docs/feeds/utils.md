@@ -45,7 +45,8 @@ const feed: Feed = makeDVMFeed({ kind: 5300 })
 
 if (isDVMFeed(feed)) {
   // feed is now typed as DVMFeed
-  const [kind] = feed.slice(1)
+  const [item] = getFeedArgs(feed)
+  const kind = item.kind
 }
 
 if (hasSubFeeds(feed)) {
@@ -120,6 +121,24 @@ const feed = makeIntersectionFeed(
 walkFeed(feed, (node) => {
   console.log(`Visiting feed of type: ${node[0]}`)
 })
+```
+
+## Feed Simplification
+
+Flatten nested feeds of the same type:
+
+```typescript
+// Simplifies nested feeds of the same type
+export declare const simplifyFeed: (feed: Feed) => Feed
+
+// Example: flatten nested union feeds
+const nested = makeUnionFeed(
+  makeAuthorFeed("pubkey1"),
+  makeUnionFeed(makeKindFeed(1), makeKindFeed(6))
+)
+
+const simplified = simplifyFeed(nested)
+// Result: [FeedType.Union, [FeedType.Author, "pubkey1"], [FeedType.Kind, 1], [FeedType.Kind, 6]]
 ```
 
 ## Type Extraction
