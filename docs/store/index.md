@@ -1,6 +1,7 @@
 # @welshman/store
 
 [![version](https://badgen.net/npm/v/@welshman/store)](https://npmjs.com/package/@welshman/store)
+
 A utility package providing welshman-specific svelte store functionality and utilities for managing state. While it's primarily built for use with Svelte's store system, the concepts could be valuable for developers familiar with reactive programming patterns like RxJS.
 
 ## What's Included

@@ -8,37 +8,47 @@ Utilities for selecting nostr relays.
 
 - **Router** - A configurable router class usable as a singleton which provides common relay selection scenarios.
 - **RouterScenario** - A scenario class which scores relays based on policy.
-- **getFilterSelections** - A high-level utility for inferring relay selections from fitlers.
+- **getFilterSelections** - A high-level utility for inferring relay selections from filters.
+- **Fallback Policies** - Functions to determine how many fallback relays to add.
 
 ## Quick Example
 
 ```typescript
-import {routerContext, addMaximalFallbacks, Router} from '@welshman/router'
+import {Router, addMaximalFallbacks, getFilterSelections} from '@welshman/router'
 
-// Configure the global router instance based on RouterOptions
+// Configure the global router instance
 Router.configure({
-  defaultRelays: ['wss://relay.example.com/'],
+  getDefaultRelays: () => ['wss://relay.example.com/'],
   getPubkeyRelays: (pubkey, mode) => ['wss://myrelay.example.com/'],
+  getIndexerRelays: () => ['wss://indexer.example.com/'],
+  getUserPubkey: () => 'user-pubkey',
+  getRelayQuality: (url) => 0.8,
+  getLimit: () => 5
 })
 
-// Get the singleton and use it to select some relays
 const router = Router.get()
 
-// Get a hint based on pubkey
-router.FromPubkeys(pubkeys).getUrl()
+// Get relays for reading events from specific pubkeys
+const readRelays = router.FromPubkeys(['pubkey1', 'pubkey2']).getUrls()
 
-// Send an event to the author's outbox and mentions' inboxes
-router.PublishEvent(event).getUrls()
+// Get relays for publishing an event (author's outbox + mentions' inboxes)
+const publishRelays = router.PublishEvent(event).getUrls()
 
-// Try as hard as we can to find a quoted note
-router
-  .FromPubkeys(event, quotedEventId, hints)
+// Try hard to find a quoted note with maximal fallbacks
+const searchRelays = router
+  .Quote(event, quotedEventId, hints)
   .allowLocal(true)
   .allowOnion(true)
   .allowInsecure(true)
   .policy(addMaximalFallbacks)
   .limit(10)
   .getUrls()
+
+// Automatically select relays based on filters
+const relaysAndFilters = getFilterSelections([
+  {kinds: [1], authors: ['pubkey1', 'pubkey2']},
+  {kinds: [0], search: 'bitcoin'}
+])
 ```
 
 ## Installation
@@ -46,3 +56,58 @@ router
 ```bash
 npm install @welshman/router
 ```
+
+## Core Concepts
+
+### Router
+
+The main class for relay selection. Configure it once with your relay discovery functions, then use scenario methods to select relays for different purposes.
+
+**Configuration Options:**
+- `getUserPubkey()` - Returns the current user's pubkey
+- `getPubkeyRelays(pubkey, mode)` - Returns relays for a pubkey ("read", "write", or "inbox")
+- `getDefaultRelays()` - Returns fallback relays
+- `getIndexerRelays()` - Returns relays that index profiles and relay lists
+- `getSearchRelays()` - Returns relays that support NIP-50 search
+- `getRelayQuality(url)` - Returns quality score (0-1) for a relay
+- `getLimit()` - Returns maximum number of relays to select
+
+**Scenario Methods:**
+- `FromRelays(relays)` - Use specific relays
+- `ForUser()` / `FromUser()` / `UserInbox()` - User's read/write/inbox relays
+- `ForPubkey(pubkey)` / `FromPubkey(pubkey)` / `PubkeyInbox(pubkey)` - Pubkey's relays
+- `ForPubkeys(pubkeys)` / `FromPubkeys(pubkeys)` - Multiple pubkeys' relays
+- `Event(event)` - Relays for an event's author
+- `PublishEvent(event)` - Relays for publishing (author + mentions)
+- `Quote(event, id, hints)` - Relays for finding a quoted event
+- `Search()` / `Index()` / `Default()` - Special relay types
+
+### RouterScenario
+
+Represents a relay selection with scoring and filtering options.
+
+**Methods:**
+- `getUrls()` - Returns selected relay URLs
+- `getUrl()` - Returns first selected relay URL
+- `limit(n)` - Limit number of relays
+- `weight(scale)` - Scale selection weight
+- `policy(fallbackPolicy)` - Set fallback policy
+- `allowLocal(bool)` / `allowOnion(bool)` / `allowInsecure(bool)` - Filter relay types
+
+### Fallback Policies
+
+Functions that determine how many fallback relays to add:
+- `addNoFallbacks` - Never add fallbacks
+- `addMinimalFallbacks` - Add 1 fallback if no relays found
+- `addMaximalFallbacks` - Fill up to the limit with fallbacks
+
+### Filter Selection
+
+`getFilterSelections(filters)` automatically chooses appropriate relays based on filter content:
+- Search filters → search relays
+- Wrap events → user's inbox
+- Profile/relay kinds → indexer relays  
+- Author filters → authors' relays
+- Everything else → user's relays (low weight)
+
+Returns `RelaysAndFilters[]` with optimized relay-filter combinations.

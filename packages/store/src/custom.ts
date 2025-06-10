@@ -6,7 +6,7 @@ type Start<T> = (set: Subscriber<T>) => Unsubscriber
 
 export type CustomStoreOpts<T> = {
   throttle?: number
-  set?: (x: T) => void
+  onUpdate?: (x: T) => void
 }
 
 export const custom = <T>(
@@ -30,13 +30,13 @@ export const custom = <T>(
     get: () => value,
     set: (newValue: T) => {
       set(newValue)
-      opts.set?.(newValue)
+      opts.onUpdate?.(newValue)
     },
     update: (f: (value: T) => T) => {
       const newValue = f(value)
 
       set(newValue)
-      opts.set?.(newValue)
+      opts.onUpdate?.(newValue)
     },
     subscribe: (sub: Subscriber<T>) => {
       if (opts.throttle) {

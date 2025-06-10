@@ -8,7 +8,7 @@ The implementation consists of two main classes:
 - `Nip46Broker`: Handles the communication with the remote signer
 - `Nip46Signer`: Implements the `ISigner` interface using the broker
 
-## Getting Started
+## Example
 
 ```typescript
 import {
@@ -122,22 +122,6 @@ Nip46Broker.parseBunkerUrl(url: string): {
   connectSecret: string,
   relays: string[]
 }
-```
-
-### Remote Operations
-
-```typescript
-// Basic operations
-broker.ping(): Promise<string>
-broker.getPublicKey(): Promise<string>
-broker.connect(connectSecret?: string, perms?: string): Promise<string>
-
-// Signing and encryption
-broker.signEvent(event: StampedEvent): Promise<SignedEvent>
-broker.nip04Encrypt(pk: string, message: string): Promise<string>
-broker.nip04Decrypt(pk: string, message: string): Promise<string>
-broker.nip44Encrypt(pk: string, message: string): Promise<string>
-broker.nip44Decrypt(pk: string, message: string): Promise<string>
 ```
 
 ## Nip46Signer Usage

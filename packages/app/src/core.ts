@@ -26,7 +26,7 @@ export const makeRepositoryStore = ({throttle: t = 300}: {throttle?: number} = {
       return () => repository.off("update", onUpdate)
     },
     {
-      set: (other: Repository) => repository.load(other.dump()),
+      onUpdate: (other: Repository) => repository.load(other.dump()),
     },
   )
 
@@ -53,6 +53,6 @@ export const makeTrackerStore = ({throttle: t = 300}: {throttle?: number} = {}) 
       }
     },
     {
-      set: (other: Tracker) => tracker.load(other.relaysById),
+      onUpdate: (other: Tracker) => tracker.load(other.relaysById),
     },
   )
