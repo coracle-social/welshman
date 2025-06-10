@@ -4,7 +4,6 @@
   "compilerOptions": {
     "outDir": "./dist",
     "paths": {
-      "@welshman/dvm": ["../dvm/src/index.js"],
       "@welshman/feeds": ["../feeds/src/index.js"],
       "@welshman/lib": ["../lib/src/index.js"],
       "@welshman/relay": ["../relay/src/index.js"],

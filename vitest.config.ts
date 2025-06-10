@@ -16,7 +16,6 @@ export default defineConfig({
     alias: {
       "@welshman/app": resolve(__dirname, "packages/app/src"),
       "@welshman/content": resolve(__dirname, "packages/content/src"),
-      "@welshman/dvm": resolve(__dirname, "packages/dvm/src"),
       "@welshman/feeds": resolve(__dirname, "packages/feeds/src"),
       "@welshman/lib": resolve(__dirname, "packages/lib/src"),
       "@welshman/net": resolve(__dirname, "packages/net/src"),

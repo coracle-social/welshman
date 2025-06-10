@@ -110,14 +110,6 @@ export default defineConfig({
           ],
         },
         {
-          text: "@welshman/dvm",
-          link: "/dvm/",
-          items: [
-            {text: "Handler", link: "/dvm/handler"},
-            {text: "Request", link: "/dvm/request"},
-          ],
-        },
-        {
           text: "@welshman/store",
           link: "/store/",
           items: [

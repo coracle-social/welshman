@@ -1,4 +1,3 @@
---ignore-dir=docs
 --ignore-dir=docs/reference
 --ignore-dir=docs/.vitepress/cache
 --ignore-dir=dist

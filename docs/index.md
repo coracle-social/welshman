@@ -39,9 +39,6 @@ features:
   - title: "@welshman/content"
     details: Parser and renderer for nostr notes with customizable formatting options.
     link: "/content"
-  - title: "@welshman/dvm"
-    details: Tools for building and interacting with nostr Data Vending Machines (DVMs)
-    link: "/dvm"
   - title: "@welshman/editor"
     details: Rich text editor with support for mentions and embeds.
     link: "/editor"

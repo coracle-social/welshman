@@ -21,7 +21,6 @@
   },
   "dependencies": {
     "@types/throttle-debounce": "^5.0.2",
-    "@welshman/dvm": "workspace:*",
     "@welshman/feeds": "workspace:*",
     "@welshman/lib": "workspace:*",
     "@welshman/relay": "workspace:*",

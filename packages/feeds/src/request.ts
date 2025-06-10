@@ -12,8 +12,7 @@ import {
 import {Nip01Signer, ISigner} from "@welshman/signer"
 import {LOCAL_RELAY_URL} from "@welshman/relay"
 import {Router, getFilterSelections, addMinimalFallbacks} from "@welshman/router"
-import {Tracker, AdapterContext, request} from "@welshman/net"
-import {makeDvmRequest} from "@welshman/dvm"
+import {Tracker, AdapterContext, request, publish} from "@welshman/net"
 
 export type RequestPageOptions = {
   filters: Filter[]
@@ -136,6 +135,10 @@ export const requestDVM = async ({
   }
 
   const event = await signer.sign(makeEvent(kind, {tags}))
+  const filters = [{kinds: [event.kind + 1000], since: now() - 60, "#e": [event.id]}]
 
-  await makeDvmRequest({relays, event, context, onResult})
+  return Promise.all([
+    publish({event, relays, context}),
+    request({filters, relays, context, autoClose: true, onEvent: onResult}),
+  ])
 }

@@ -21,7 +21,6 @@
   },
   "dependencies": {
     "@welshman/lib": "workspace:*",
-    "@welshman/dvm": "workspace:*",
     "@welshman/net": "workspace:*",
     "@welshman/relay": "workspace:*",
     "@welshman/router": "workspace:*",
