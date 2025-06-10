@@ -535,3 +535,13 @@ export declare const hexToBytes: (hex: string) => Uint8Array;
 export declare const sha256: (data: ArrayBuffer | Uint8Array) => Promise<string>;
 ```
 
+## Text encoding
+
+```typescript
+// TextEncoder instance for encoding strings to bytes
+export declare const textEncoder: TextEncoder;
+
+// TextDecoder instance for decoding bytes to strings
+export declare const textDecoder: TextDecoder;
+```
+

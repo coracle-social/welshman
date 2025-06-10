@@ -54,12 +54,14 @@ export type MakeEventOpts = {
   created_at?: number
 }
 
+// Event template creation
+
 export const makeEvent = (
   kind: number,
   {content = "", tags = [], created_at = now()}: MakeEventOpts = {},
 ) => ({kind, content, tags, created_at})
 
-export const createEvent = makeEvent
+// Event signature verification
 
 export const verifyEvent = (() => {
   let verify = verifyEventPure
@@ -79,6 +81,8 @@ export const verifyEvent = (() => {
   return (event: TrustedEvent) =>
     Boolean(event.sig && (event[verifiedSymbol] || verify(event as SignedEvent)))
 })()
+
+// Type guards
 
 export const isEventTemplate = (e: EventTemplate): e is EventTemplate =>
   Boolean(typeof e.kind === "number" && Array.isArray(e.tags) && typeof e.content === "string")
@@ -100,6 +104,8 @@ export const isUnwrappedEvent = (e: TrustedEvent): e is UnwrappedEvent =>
 export const isTrustedEvent = (e: TrustedEvent): e is TrustedEvent =>
   isSignedEvent(e) || isUnwrappedEvent(e)
 
+// Type coercion and attribute stripping
+
 export const asEventTemplate = (e: EventTemplate): EventTemplate =>
   pick(["kind", "tags", "content"], e)
 
@@ -120,6 +126,8 @@ export const asUnwrappedEvent = (e: UnwrappedEvent): UnwrappedEvent =>
 
 export const asTrustedEvent = (e: TrustedEvent): TrustedEvent =>
   pick(["kind", "tags", "content", "created_at", "pubkey", "id", "sig", "wrap"], e)
+
+// Utilities for working with events
 
 export const getIdentifier = (e: EventTemplate) => e.tags.find(t => t[0] === "d")?.[1]
 

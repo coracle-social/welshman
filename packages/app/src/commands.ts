@@ -1,9 +1,12 @@
 import {get} from "svelte/store"
 import {uniq, nthNe, removeNil, nthEq} from "@welshman/lib"
 import {
+  sendManagementRequest,
+  ManagementRequest,
   addToListPublicly,
   EventTemplate,
   removeFromList,
+  makeHttpAuth,
   getListTags,
   getRelayTags,
   makeList,
@@ -140,4 +143,13 @@ export const sendWrapped = async ({template, pubkeys, ...options}: SendWrappedOp
       ),
     ),
   )
+}
+
+export const manageRelay = async (url: string, request: ManagementRequest) => {
+  url = url.replace(/^ws/, "http")
+
+  const authTemplate = await makeHttpAuth(url, "POST", JSON.stringify(request))
+  const authEvent = await signer.get()!.sign(authTemplate)
+
+  return sendManagementRequest(url, request, authEvent)
 }

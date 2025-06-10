@@ -1321,7 +1321,10 @@ export const postJson = async <T>(url: string, data: T, opts: FetchOpts = {}) =>
     opts.headers = {}
   }
 
-  opts.headers["Content-Type"] = "application/json"
+  if (!opts.headers["Content-Type"]) {
+    opts.headers["Content-Type"] = "application/json"
+  }
+
   opts.body = JSON.stringify(data)
 
   return fetchJson(url, opts)
@@ -1562,6 +1565,10 @@ export const hexToBech32 = (prefix: string, hex: string) =>
 export const bech32ToHex = (b32: string) =>
   utf8.encode(bech32.fromWords(bech32.decode(b32 as any, false).words))
 
+// ----------------------------------------------------------------------------
+// Bytes <-> hex encoding
+// ----------------------------------------------------------------------------
+
 /**
  * Converts an array buffer or Uint8Array to hex format
  * @param buffer - ArrayBuffer or Uint8Array to convert
@@ -1584,6 +1591,14 @@ export const bytesToHex = (buffer: ArrayBuffer | Uint8Array) => {
  */
 export const hexToBytes = (hex: string) =>
   new Uint8Array(hex.match(/.{2}/g)!.map(hex => parseInt(hex, 16)))
+
+// ----------------------------------------------------------------------------
+// Binary data
+// ----------------------------------------------------------------------------
+
+export const textEncoder = new TextEncoder()
+
+export const textDecoder = new TextDecoder()
 
 /**
  * Computes SHA-256 hash of binary data

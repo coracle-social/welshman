@@ -1,6 +1,6 @@
 import {Emitter, throttle, makePromise, defer, sleep, tryCatch, randomId} from "@welshman/lib"
 import {
-  createEvent,
+  makeEvent,
   normalizeRelayUrl,
   TrustedEvent,
   StampedEvent,
@@ -163,7 +163,7 @@ export class Nip46Sender extends Emitter {
 
     const payload = JSON.stringify({id, method, params})
     const content = await this.signer[algorithm].encrypt(signerPubkey, payload)
-    const template = createEvent(NOSTR_CONNECT, {content, tags: [["p", signerPubkey]]})
+    const template = makeEvent(NOSTR_CONNECT, {content, tags: [["p", signerPubkey]]})
     const event = await this.signer.sign(template)
 
     publish({relays, event, context})

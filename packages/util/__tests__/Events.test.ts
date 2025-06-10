@@ -57,9 +57,9 @@ describe("Events", () => {
     ],
   })
 
-  describe("createEvent", () => {
+  describe("makeEvent", () => {
     it("should create event with defaults", () => {
-      const event = Events.createEvent(1, {})
+      const event = Events.makeEvent(1, {})
       expect(event.kind).toBe(1)
       expect(event.content).toBe("")
       expect(event.tags).toEqual([])
@@ -67,7 +67,7 @@ describe("Events", () => {
     })
 
     it("should create event with provided values", () => {
-      const event = Events.createEvent(1, {
+      const event = Events.makeEvent(1, {
         content: "Hello Nostr!",
         tags: [["p", pubkey]],
         created_at: currentTime,

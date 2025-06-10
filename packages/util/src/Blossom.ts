@@ -1,7 +1,7 @@
-import {Base64} from "js-base64"
 import {now, bytesToHex, hexToBytes} from "@welshman/lib"
 import {BLOSSOM_AUTH} from "./Kinds.js"
 import {makeEvent, SignedEvent} from "./Events.js"
+import {makeHttpAuthHeader} from "./Nip98.js"
 
 export type BlossomAuthAction = "get" | "upload" | "list" | "delete"
 
@@ -48,10 +48,6 @@ export const makeBlossomAuthEvent = ({
   return makeEvent(BLOSSOM_AUTH, {content, tags})
 }
 
-export const createAuthorizationHeader = (event: SignedEvent): string => {
-  return `Nostr ${Base64.encode(JSON.stringify(event))}`
-}
-
 export const buildBlobUrl = (server: string, sha256: string, extension?: string): string => {
   const url = new URL(server)
   const filename = extension ? `${sha256}.${extension}` : sha256
@@ -69,7 +65,7 @@ export const checkBlobExists = async (
   const headers: Record<string, string> = {}
 
   if (options.authEvent) {
-    headers.Authorization = createAuthorizationHeader(options.authEvent)
+    headers.Authorization = makeHttpAuthHeader(options.authEvent)
   }
 
   try {
@@ -101,7 +97,7 @@ export const getBlob = async (
   const headers: Record<string, string> = {}
 
   if (options.authEvent) {
-    headers.Authorization = createAuthorizationHeader(options.authEvent)
+    headers.Authorization = makeHttpAuthHeader(options.authEvent)
   }
 
   if (options.range) {
@@ -126,7 +122,7 @@ export const uploadBlob = async (
   const headers: Record<string, string> = {}
 
   if (options.authEvent) {
-    headers.Authorization = createAuthorizationHeader(options.authEvent)
+    headers.Authorization = makeHttpAuthHeader(options.authEvent)
   }
 
   return fetch(uploadUrl, {method: "PUT", headers, body})
@@ -144,7 +140,7 @@ export const deleteBlob = async (
   const headers: Record<string, string> = {}
 
   if (options.authEvent) {
-    headers.Authorization = createAuthorizationHeader(options.authEvent)
+    headers.Authorization = makeHttpAuthHeader(options.authEvent)
   }
 
   return fetch(url, {method: "DELETE", headers})
@@ -175,7 +171,7 @@ export const listBlobs = async (
   const headers: Record<string, string> = {}
 
   if (options.authEvent) {
-    headers.Authorization = createAuthorizationHeader(options.authEvent)
+    headers.Authorization = makeHttpAuthHeader(options.authEvent)
   }
 
   return fetch(fullUrl, {headers})
