@@ -1,69 +1,62 @@
 # Socket
-The Socket class is exclusively used by the `Connection` class as its low-level WebSocket manager. It's not meant to be used directly by other classes.
-Its sole purpose is to provide a reliable, manageable WebSocket connection with nostr-specific handling.
 
-## Core Responsibilities
+WebSocket wrapper for Nostr relay connections with status tracking, queuing, and authentication support. Not intended to be used directly, instead access sockets through the `Pool` interface.
 
-```typescript
-export class Socket {
-  // Track connection state
-  status: SocketStatus = "new" | "open" | "opening" | "closing" | "closed" | "error"
+## Enums
 
-  // Handle nostr message queue
-  worker: Worker<Message>
+### SocketStatus
 
-  // Core operations
-  open = async () => {/* Initialize WebSocket */}
-  close = async () => {/* Clean shutdown */}
-  send = async (message: Message) => {/* Send with JSON serialization */}
-}
-```
+Connection status values:
+- `Open` - Socket is connected and ready
+- `Opening` - Socket is connecting
+- `Closing` - Socket is closing
+- `Closed` - Socket is closed
+- `Error` - Socket encountered an error
 
-Key features:
-- State tracking
-- Message queuing
-- JSON serialization
-- Error recovery
-- Connection lifecycle
+### SocketEvent
 
-Think of it as a thin wrapper that turns raw WebSocket connections into something more suitable for nostr:
-```typescript
-// Raw WebSocket
-ws.send(JSON.stringify(["REQ", "sub1", {kinds: [1]}]))
+Event types emitted by the socket:
+- `Error` - Socket error occurred
+- `Status` - Status changed
+- `Send` - Message sent to relay
+- `Sending` - Message queued for sending
+- `Receive` - Message received from relay
+- `Receiving` - Message queued for processing
 
-// With Socket
-socket.send(["REQ", "sub1", {kinds: [1]}]) // Handles serialization
-```
+## Classes
 
-## Usage Chain
+### Socket
 
-```typescript
-// Hierarchy
-Socket                    // WebSocket management
-  ↳ Connection           // Uses Socket
-    ↳ Relay Target      // Uses Connection
-      ↳ Executor       // Uses Target
-        ↳ Subscribe   // Uses Executor
-        ↳ Publish    // Uses Executor
+WebSocket connection to a Nostr relay with queuing and authentication.
 
-// In Connection.ts
-export class Connection extends Emitter {
-  socket: Socket
+**Properties:**
+- `url` - Relay URL
+- `status` - Current socket status
+- `auth` - Authentication state
 
-  constructor(url: string) {
-    this.socket = new Socket(this)
-  }
-}
-```
+**Methods:**
+- `open()` - Opens the WebSocket connection
+- `attemptToOpen()` - Opens connection if not already open
+- `close()` - Closes the connection
+- `cleanup()` - Closes connection and removes all listeners
+- `send(message)` - Queues a message to send
 
-It's an internal implementation detail that you shouldn't need to use directly - always interact with the `Connection` class instead, which provides a higher-level interface.
+## Example
 
 ```typescript
-// DON'T use Socket directly
-const socket = new Socket(/*...*/) // ❌
+import {Socket, SocketEvent, SocketStatus} from "@welshman/net"
 
-// DO use Connection
-const connection = new Connection(url) // ✅
+const socket = new Socket("wss://relay.example.com")
+
+socket.on(SocketEvent.Status, (status, url) => {
+  console.log(`Socket ${url} status: ${status}`)
+})
+
+socket.on(SocketEvent.Receive, (message, url) => {
+  console.log("Received:", message)
+})
+
+socket.open()
+socket.send(["REQ", "sub-id", {kinds: [1], limit: 10}])
+socket.cleanup()
 ```
-
-This encapsulation ensures consistent connection management across the library.

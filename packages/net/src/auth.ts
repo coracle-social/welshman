@@ -1,18 +1,10 @@
 import EventEmitter from "events"
 import {on, poll, call} from "@welshman/lib"
 import {SignedEvent, StampedEvent} from "@welshman/util"
-import {makeEvent, CLIENT_AUTH} from "@welshman/util"
+import {makeRelayAuth} from "@welshman/util"
 import {isRelayAuth, isClientAuth, isRelayOk, RelayMessage} from "./message.js"
 import {Socket, SocketStatus, SocketEvent} from "./socket.js"
 import {Unsubscriber} from "./util.js"
-
-export const makeAuthEvent = (url: string, challenge: string) =>
-  makeEvent(CLIENT_AUTH, {
-    tags: [
-      ["relay", url],
-      ["challenge", challenge],
-    ],
-  })
 
 export enum AuthStatus {
   None = "auth:status:none",
@@ -108,7 +100,7 @@ export class AuthState extends EventEmitter {
 
     this.setStatus(AuthStatus.PendingSignature)
 
-    const template = makeAuthEvent(this.socket.url, this.challenge)
+    const template = makeRelayAuth(this.socket.url, this.challenge)
     const event = await sign(template)
 
     if (event) {

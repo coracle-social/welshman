@@ -68,9 +68,6 @@ importers:
       '@types/throttle-debounce':
         specifier: ^5.0.2
         version: 5.0.2
-      '@welshman/dvm':
-        specifier: workspace:*
-        version: link:../dvm
       '@welshman/feeds':
         specifier: workspace:*
         version: link:../feeds
@@ -123,31 +120,6 @@ importers:
       nostr-tools:
         specifier: ^2.14.2
         version: 2.14.2(typescript@5.8.2)
-    devDependencies:
-      rimraf:
-        specifier: ~6.0.0
-        version: 6.0.1
-      typescript:
-        specifier: ~5.8.0
-        version: 5.8.2
-
-  packages/dvm:
-    dependencies:
-      '@noble/hashes':
-        specifier: ^1.6.1
-        version: 1.7.1
-      '@welshman/lib':
-        specifier: workspace:*
-        version: link:../lib
-      '@welshman/net':
-        specifier: workspace:*
-        version: link:../net
-      '@welshman/signer':
-        specifier: workspace:*
-        version: link:../signer
-      '@welshman/util':
-        specifier: workspace:*
-        version: link:../util
     devDependencies:
       rimraf:
         specifier: ~6.0.0
@@ -222,9 +194,6 @@ importers:
 
   packages/feeds:
     dependencies:
-      '@welshman/dvm':
-        specifier: workspace:*
-        version: link:../dvm
       '@welshman/lib':
         specifier: workspace:*
         version: link:../lib

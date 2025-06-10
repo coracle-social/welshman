@@ -1,72 +1,70 @@
 # Tracker
 
-The Tracker is a simple but crucial class that keeps track of which relays an event was seen on or published to. It's essential for relay selection and event source tracking.
+Event tracker for managing which events have been seen from which relays, used for deduplication across multiple relay connections.
 
-## Overview
+## Classes
+
+### Tracker
+
+Tracks the relationship between event IDs and relay URLs to prevent duplicate processing.
+
+**Properties:**
+- `relaysById` - Map of event IDs to sets of relay URLs
+- `idsByRelay` - Map of relay URLs to sets of event IDs
+
+**Methods:**
+- `getIds(relay)` - Gets all event IDs seen from a relay
+- `getRelays(eventId)` - Gets all relays that have sent an event
+- `hasRelay(eventId, relay)` - Checks if an event was seen from a relay
+- `addRelay(eventId, relay)` - Records that an event was seen from a relay
+- `removeRelay(eventId, relay)` - Removes the event-relay association
+- `track(eventId, relay)` - Tracks an event and returns true if already seen
+- `copy(eventId1, eventId2)` - Copies relay associations from one event to another
+- `load(relaysById)` - Loads tracker state from a map
+- `clear()` - Clears all tracked data
+
+**Events:**
+- `add` - Emitted when event-relay association is added
+- `remove` - Emitted when event-relay association is removed
+- `load` - Emitted when tracker state is loaded
+- `clear` - Emitted when tracker is cleared
+
+## Example
 
 ```typescript
-import {Tracker} from '@welshman/net'
+import {Tracker} from "@welshman/net"
 
 const tracker = new Tracker()
 
-// Track event source
-tracker.track(eventId, relayUrl)
+// Track events from different relays
+const isDuplicate1 = tracker.track("event123", "wss://relay1.com") // false
+const isDuplicate2 = tracker.track("event123", "wss://relay2.com") // false
+const isDuplicate3 = tracker.track("event123", "wss://relay1.com") // true (duplicate)
 
-// Get relays for event
-const relays = tracker.getRelays(eventId)  // Set<string>
-
-// Get events from relay
-const events = tracker.getIds(relayUrl)    // Set<string>
-
-// Check specific relay
-const seen = tracker.hasRelay(eventId, relayUrl)
+// Check which relays have sent an event
+const relays = tracker.getRelays("event123") // Set(["wss://relay1.com", "wss://relay2.com"])
 ```
 
-## Used By
+If you're not using `@welshman/app`, you might want to track relays for all events that come through:
 
-1. **Repository & Sync**
 ```typescript
-// In sync operations
-pull({
-  events,
-  relays,
-  onEvent: (event) => {
-    tracker.track(event.id, relay)
-  }
+import {Pool, Tracker, SocketEvent, isRelayEvent} from "@welshman/net"
+import {isEphemeralKind, isDVMKind, verifyEvent} from "@welshman/util"
+import {Repository} from "@welshman/relay"
+
+const tracker = new Tracker()
+const repository = new Repository()
+
+Pool.get().subscribe(socket => {
+  socket.on(SocketEvent.Receive, message => {
+    if (isRelayEvent(message)) {
+      const event = message[2]
+
+      if (!isEphemeralKind(event.kind) && !isDVMKind(event.kind) && verifyEvent(event)) {
+        tracker.track(event.id, socket.url)
+        repository.publish(event)
+      }
+    }
+  })
 })
 ```
-
-2. **Subscribe**
-```typescript
-// In @welshman/app subscribe
-sub.on('event', (url, event) => {
-  // Track where we got the event
-  tracker.track(event.id, url)
-})
-```
-
-3. **Publish**
-```typescript
-// In publish operations
-pub.emitter.on('success', (url) => {
-  // Track where we published
-  tracker.track(event.id, url)
-})
-```
-
-4. **Router**
-```typescript
-// Used for relay selection
-const relays = tracker
-  .getRelays(event.id)
-  .filter(url =>
-    isHealthyRelay(url)
-  )
-```
-
-The Tracker:
-- Maps events to their source relays
-- Maps relays to their known events
-- Helps optimize relay selection
-
-Think of it as a memory of where events came from, helping make better decisions about where to find or publish events.

@@ -1,85 +1,53 @@
 # Publish
 
-The `Publish` class handles event publishing to relays, managing publish status, relay responses, and error handling.
+Utilities for publishing events to Nostr relays with status tracking and callback handling.
 
-## Overview
+## Enums
 
-- Sends events to relays
-- Tracks publish status per relay
-- Handles OK/Error responses
-- Manages timeouts
+### PublishStatus
 
-## Basic Usage
+Status values for publish operations:
+- `Sending` - Event is being sent
+- `Pending` - Waiting for relay response
+- `Success` - Event published successfully
+- `Failure` - Event rejected by relay
+- `Timeout` - Request timed out
+- `Aborted` - Request was aborted
 
-```typescript
-import {`Publish`, `Publish`Status} from '@welshman/net'
+## Functions
 
-const {Pending, Success, Failure, Timeout, Aborted} = `Publish`Status
+### publishOne(options)
 
-// Basic `Publish`
-const pub = `Publish`({
-  event: signedEvent,
-  relays: ["wss://relay.example.com"],
-  timeout: 3000 // 3s timeout
-})
+Publishes an event to a single relay and returns a promise that resolves with the publish status.
 
-// Track status
-pub.emitter.on('*', (status: `Publish`Status, url: string, message?: string) => {
-  switch (status) {
-    case Success:
-      console.log(``Publish`ed to ${url}`)
-      break
-    case Failure:
-      console.log(`Failed on ${url}: ${message}`)
-      break
-    case Timeout:
-      console.log(`Timeout on ${url}`)
-      break
-  }
-})
-```
+**Options:**
+- `event` - The signed event to publish
+- `relay` - Relay URL
+- `signal?` - AbortSignal for cancellation
+- `timeout?` - Timeout in milliseconds (default: 10000)
+- `context?` - Adapter context
+- Callback functions: `onSuccess`, `onFailure`, `onPending`, `onTimeout`, `onAborted`, `onComplete`
 
-## Real World Example
+### publish(options)
+
+Publishes an event to multiple relays in parallel and returns a status object mapping relay URLs to their publish status.
+
+## Example
 
 ```typescript
-const publishWithStatus = async (event: SignedEvent) => {
-  const pub = `Publish`({
-    event,
-    relays: ctx.app.router
-      .FromUser()
-      .getUrls(),
-    timeout: 5000
-  })
+import {publish, PublishStatus} from "@welshman/net"
 
-  // Track per-relay status
-  const status = new Map<string, string>()
-
-  pub.emitter.on('*', (state: `Publish`Status, url: string) => {
-    status.set(url, state)
-
-    // Log progress
-    const counts = {
-      pending: 0,
-      success: 0,
-      failed: 0
-    }
-
-    for (const s of status.values()) {
-      counts[s] = (counts[s] || 0) + 1
-    }
-
-    console.log(
-      `Progress: ${counts.success}/${status.size}`,
-      `(${counts.failed} failed)`
-    )
-  })
-
-  // Wait for completion
-  return pub.result
+const event = {
+  // ... signed event
 }
+
+const statusByRelay = await publish({
+  event,
+  relays: ["wss://relay1.com", "wss://relay2.com"],
+  timeout: 5000,
+  onSuccess: (detail, relay) => console.log(`Published to ${relay}`),
+  onFailure: (detail, relay) => console.log(`Failed on ${relay}: ${detail}`)
+})
+
+console.log(statusByRelay) // { "wss://relay1.com": "success", "wss://relay2.com": "failure" }
 ```
-
-Like [Subscribe](/net/subscribe.md), `Publish` uses [Pool](/net/pool.md) for connections and creates appropriate [Targets](/net/targets.md) via an [Executor](/net/executor.md), but focuses on event publishing rather than subscription management.
-
-Note: The base `@welshman/net` Publish class just handles network publishing.
-For optimistic updates and repository integration, use Publish from `@welshman/app`.
