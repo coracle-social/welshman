@@ -1,6 +1,8 @@
 # @welshman/util
 
-A comprehensive utility package for Nostr application development, providing essential tools and types for working with Nostr events, addresses, profiles, and more.
+[![version](https://badgen.net/npm/v/@welshman/util)](https://npmjs.com/package/@welshman/util)
+
+A utility package for Nostr application development, providing essential tools and types for working with Nostr events, addresses, profiles, and more.
 
 ## What's Included
 

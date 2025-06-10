@@ -1,181 +1,98 @@
 # Content Parser
 
-The content parser system in `@welshman/content` provides a powerful way to parse Nostr content into structured elements.
-It handles various types of content including Nostr entities, links, code blocks, and special formats.
+The content parser system in `@welshman/content` provides utilities for parsing Nostr content into structured elements.
 
-## Content Types
+## Core Types
 
-### Basic Types
+### ParsedType Enum
+
+Defines all supported content types:
+- `Address` - naddr references to parameterized replaceable events
+- `Cashu` - Cashu token strings
+- `Code` - Code blocks and inline code
+- `Ellipsis` - Truncation indicators
+- `Emoji` - Custom emoji references
+- `Event` - Event references (note/nevent)
+- `Invoice` - Lightning invoices
+- `Link` - HTTP/HTTPS URLs
+- `LinkGrid` - Collections of adjacent links
+- `Newline` - Line breaks
+- `Profile` - Profile references (npub/nprofile)
+- `Text` - Plain text content
+- `Topic` - Hashtags
+
+## Main Functions
+
+### parse(options)
+
+Main parsing function that processes content into structured elements:
+
 ```typescript
-enum ParsedType {
-  Text = "text",         // Plain text
-  Newline = "newline",   // Line breaks
-  Topic = "topic",       // Hashtags (#nostr)
-  Code = "code",         // Code blocks (inline and multi-line)
-  Link = "link",         // URLs
-  LinkGrid = "link-grid" // Grid of media links
-}
+parse({content?: string, tags?: string[][]}) => Parsed[]
 ```
 
-### Nostr-specific Types
-```typescript
-enum ParsedType {
-  Event = "event",       // Nostr events (note1/nevent1)
-  Profile = "profile",   // Profiles (npub1/nprofile1)
-  Address = "address",   // Addresses (naddr1)
-}
-```
+Takes content string and optional tags array, returns array of parsed elements. Uses tags for emoji lookup and imeta information.
 
-### Special Format Types
-```typescript
-enum ParsedType {
-  Cashu = "cashu",       // Cashu tokens
-  Invoice = "invoice",    // Lightning invoices
-  Ellipsis = "ellipsis"  // Truncation marker
-}
-```
+### truncate(content, options)
 
-## Parsing Content
+Truncates parsed content to specified length limits:
 
-### Main Parser
 ```typescript
-const parse = ({
-  content = "",
-  tags = []
-}: {
-  content?: string
-  tags?: string[][]
+truncate(content: Parsed[], {
+  minLength?: number,     // 500 - minimum before truncating
+  maxLength?: number,     // 700 - maximum total length
+  mediaLength?: number,   // 200 - assumed size for media
+  entityLength?: number   // 30 - assumed size for entities
 }) => Parsed[]
-
-// Example
-const parsed = parse({
-  content: "Hello #nostr, check nostr:npub1...",
-  tags: [["p", "pubkey123"]]
-})
 ```
 
-### Available Parsers
+### reduceLinks(content)
 
-The system includes specialized parsers for each content type:
+Combines adjacent links into `LinkGrid` elements for better presentation:
 
 ```typescript
-// Nostr Entities
-parseAddress(text: string, context: ParseContext): ParsedAddress | void
-parseEvent(text: string, context: ParseContext): ParsedEvent | void
-parseProfile(text: string, context: ParseContext): ParsedProfile | void
-
-// Code Blocks
-parseCodeBlock(text: string, context: ParseContext): ParsedCode | void
-parseCodeInline(text: string, context: ParseContext): ParsedCode | void
-
-// Special Formats
-parseCashu(text: string, context: ParseContext): ParsedCashu | void
-parseInvoice(text: string, context: ParseContext): ParsedInvoice | void
-
-// Basic Content
-parseLink(text: string, context: ParseContext): ParsedLink | void
-parseNewline(text: string, context: ParseContext): ParsedNewline | void
-parseTopic(text: string, context: ParseContext): ParsedTopic | void
-```
-
-## Content Processing
-
-### Truncation
-```typescript
-type TruncateOpts = {
-  minLength?: number    // Minimum content length (default: 500)
-  maxLength?: number    // Maximum content length (default: 700)
-  mediaLength?: number  // Length value for media items (default: 200)
-  entityLength?: number // Length value for entities (default: 30)
-}
-
-const truncate = (
-  content: Parsed[],
-  options?: TruncateOpts
-) => Parsed[]
-
-// Example
-const truncated = truncate(parsed, {
-  maxLength: 1000,
-  mediaLength: 150
-})
-```
-
-### Link Processing
-```typescript
-// Consolidate consecutive image links into grids
-const reduceLinks = (content: Parsed[]) => Parsed[]
-
-// Example
-const processed = reduceLinks(parsed)
+reduceLinks(content: Parsed[]) => Parsed[]
 ```
 
 ## Type Guards
 
-```typescript
-// Basic content
-isText(parsed: Parsed): parsed is ParsedText
-isNewline(parsed: Parsed): parsed is ParsedNewline
-isCode(parsed: Parsed): parsed is ParsedCode
-isTopic(parsed: Parsed): parsed is ParsedTopic
+Utility functions to check parsed element types:
+- `isAddress(parsed)`, `isCashu(parsed)`, `isCode(parsed)`, etc.
+- `isImage(parsed)` - special check for image links
 
-// Links and media
-isLink(parsed: Parsed): parsed is ParsedLink
-isImage(parsed: Parsed): parsed is ParsedLink
-isLinkGrid(parsed: Parsed): parsed is ParsedLinkGrid
+## Utilities
 
-// Nostr entities
-isEvent(parsed: Parsed): parsed is ParsedEvent
-isProfile(parsed: Parsed): parsed is ParsedProfile
-isAddress(parsed: Parsed): parsed is ParsedAddress
+- `urlIsMedia(url)` - Checks if URL points to media file
+- `fromNostrURI(s)` - Removes nostr: protocol prefix
 
-// Special formats
-isCashu(parsed: Parsed): parsed is ParsedCashu
-isInvoice(parsed: Parsed): parsed is ParsedInvoice
-isEllipsis(parsed: Parsed): parsed is ParsedEllipsis
-```
-
-## Complete Example
+## Example Usage
 
 ```typescript
-// Parse content with tags
-const parsed = parse({
-  content: `
-    Hello #nostr!
+import { parse, truncate, reduceLinks } from '@welshman/content'
 
-    Check out this note: nostr:note1...
-    And this profile: nostr:npub1...
+const content = `Check out this cool #nostr client!
+https://github.com/coracle-social/welshman
+https://welshman.coracle.social
+Visit npub1jlrs53pkdfjnts29kveljul2sm0actt6n8dxrrzqcersttvcuv3qdjynqn for more info`
 
-    Some code: \`console.log("hello")\`
+// Parse the content into structured elements
+const parsed = parse({ content })
 
-    https://example.com/image.jpg
-    https://example.com/image2.jpg
-  `,
-  tags: [
-    ["p", "pubkey123"],
-    ["e", "event456"]
-  ]
+// Combine adjacent links into grids
+const withLinkGrids = reduceLinks(parsed)
+
+// Truncate to reasonable length for preview
+const truncated = truncate(withLinkGrids, {
+  minLength: 100,
+  maxLength: 200
 })
 
-// Process the content
-const processed = reduceLinks(parsed)
-
-// Truncate if needed
-const final = truncate(processed, {
-  maxLength: 500,
-  mediaLength: 150
-})
-
-// Check types and handle accordingly
-final.forEach(item => {
-  if (isImage(item)) {
-    // Handle image
-  } else if (isProfile(item)) {
-    // Handle profile reference
-  } else if (isCode(item)) {
-    // Handle code block
-  }
-})
+// Result contains structured elements:
+// - Text: "Check out this cool "
+// - Topic: "nostr"
+// - Text: " client!\n"
+// - LinkGrid: [github.com/..., welshman.coracle.social]
+// - Text: "Visit "
+// - Profile: npub1jlrs53pkdfjnts29kveljul2sm0actt6n8dxrrzqcersttvcuv3qdjynqn
+// - Text: " for more info"
 ```
-
-This parser system provides a robust foundation for handling Nostr content, with support for various content types and processing needs. The type-safe approach ensures reliable content handling while maintaining flexibility for different use cases.
