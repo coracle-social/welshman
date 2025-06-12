@@ -41,7 +41,7 @@
     "@tiptap/suggestion": "^2.11.5",
     "@welshman/lib": "workspace:*",
     "@welshman/util": "workspace:*",
-    "nostr-editor-coracle-workaround": "0.0.4-pre.18",
+    "nostr-editor": "^1.0.0",
     "nostr-tools": "^2.14.2",
     "tippy.js": "^6.3.7"
   },

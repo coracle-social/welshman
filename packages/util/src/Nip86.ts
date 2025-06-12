@@ -1,4 +1,3 @@
-import {postJson} from "@welshman/lib"
 import {SignedEvent} from "./Events.js"
 import {makeHttpAuthHeader} from "./Nip98.js"
 
@@ -28,14 +27,30 @@ export type ManagementRequest = {
   params: string[]
 }
 
-export const sendManagementRequest = (
+export type ManagementResponse = {
+  result?: any
+  error?: string
+}
+
+export const sendManagementRequest = async (
   url: string,
   request: ManagementRequest,
   authEvent: SignedEvent,
-) =>
-  postJson(url, request, {
-    headers: {
-      "Content-Type": "application/nostr+json+rpc",
-      Authorization: makeHttpAuthHeader(authEvent),
-    },
-  })
+): Promise<ManagementResponse> => {
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      body: JSON.stringify(request),
+      headers: {
+        "Content-Type": "application/nostr+json+rpc",
+        Authorization: makeHttpAuthHeader(authEvent),
+      },
+    })
+
+    return await res.json()
+  } catch (e) {
+    const msg = "Failed to send management request"
+    console.log(msg, ":", e)
+    return {error: "failed to send management request"}
+  }
+}
