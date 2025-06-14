@@ -10,6 +10,11 @@ import {
   getListTags,
   getRelayTags,
   makeList,
+  makeRoomCreateEvent,
+  makeRoomDeleteEvent,
+  makeRoomEditEvent,
+  makeRoomJoinEvent,
+  makeRoomLeaveEvent,
   RelayMode,
   INBOX_RELAYS,
   FOLLOWS,
@@ -17,6 +22,7 @@ import {
   MUTES,
   PINS,
 } from "@welshman/util"
+import type {RoomMeta} from "@welshman/util"
 import {Nip59, stamp} from "@welshman/signer"
 import {Router, addMaximalFallbacks} from "@welshman/router"
 import {
@@ -28,6 +34,8 @@ import {
 } from "./user.js"
 import {nip44EncryptToSelf, signer} from "./session.js"
 import {ThunkOptions, MergedThunk, publishThunk} from "./thunk.js"
+
+// NIP 65
 
 export const removeRelay = async (url: string, mode: RelayMode) => {
   const list = get(userRelaySelections) || makeList({kind: RELAYS})
@@ -60,6 +68,8 @@ export const addRelay = async (url: string, mode: RelayMode) => {
   return publishThunk({event, relays})
 }
 
+// NIP 17
+
 export const removeInboxRelay = async (url: string) => {
   const list = get(userInboxRelaySelections) || makeList({kind: INBOX_RELAYS})
   const event = await removeFromList(list, url).reconcile(nip44EncryptToSelf)
@@ -75,6 +85,8 @@ export const addInboxRelay = async (url: string) => {
 
   return publishThunk({event, relays})
 }
+
+// NIP 02
 
 export const unfollow = async (value: string) => {
   const list = get(userFollows) || makeList({kind: FOLLOWS})
@@ -124,6 +136,8 @@ export const pin = async (tag: string[]) => {
   return publishThunk({event, relays})
 }
 
+// NIP 59
+
 export type SendWrappedOptions = Omit<ThunkOptions, "event" | "relays"> & {
   template: EventTemplate
   pubkeys: string[]
@@ -145,6 +159,8 @@ export const sendWrapped = async ({template, pubkeys, ...options}: SendWrappedOp
   )
 }
 
+// NIP 86
+
 export const manageRelay = async (url: string, request: ManagementRequest) => {
   url = url.replace(/^ws/, "http")
 
@@ -153,3 +169,20 @@ export const manageRelay = async (url: string, request: ManagementRequest) => {
 
   return sendManagementRequest(url, request, authEvent)
 }
+
+// NIP 29
+
+export const createRoom = (url: string, room: RoomMeta) =>
+  publishThunk({event: makeRoomCreateEvent(room), relays: [url]})
+
+export const deleteRoom = (url: string, room: RoomMeta) =>
+  publishThunk({event: makeRoomDeleteEvent(room), relays: [url]})
+
+export const editRoom = (url: string, room: RoomMeta) =>
+  publishThunk({event: makeRoomEditEvent(room), relays: [url]})
+
+export const joinRoom = (url: string, room: RoomMeta) =>
+  publishThunk({event: makeRoomJoinEvent(room), relays: [url]})
+
+export const leaveRoom = (url: string, room: RoomMeta) =>
+  publishThunk({event: makeRoomLeaveEvent(room), relays: [url]})
