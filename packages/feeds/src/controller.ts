@@ -91,7 +91,7 @@ export class FeedController {
 
     let promise: Deferred<void> | undefined
     let delta = initialDelta
-    let since = this.options.useWindowing ? maxUntil - delta : minSince
+    let since = this.options.useWindowing ? maxUntil - delta : 0
     let until = maxUntil
 
     return async (limit: number) => {
