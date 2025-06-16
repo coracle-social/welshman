@@ -218,12 +218,11 @@ export class Router {
     const tags: string[][] = (ancestorTags as any)[type] || []
 
     return this.scenario(
-      tags.flatMap(([_, value, relay, pubkey]) => {
-        const selections = [makeSelection(this.ForUser().getUrls(), 0.5)]
-
-        if (pubkey) {
-          selections.push(makeSelection(this.FromPubkey(pubkey).getUrls()))
-        }
+      tags.flatMap(([_, value, relay, ...pubkeys]) => {
+        const selections = [
+          makeSelection(this.ForUser().getUrls(), 0.5),
+          makeSelection(this.FromPubkeys(pubkeys).getUrls()),
+        ]
 
         if (relay) {
           selections.push(makeSelection([relay], 0.9))
