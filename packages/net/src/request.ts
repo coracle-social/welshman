@@ -1,7 +1,7 @@
 import {
   on,
   uniq,
-  lt,
+  lte,
   flatten,
   addToMapKey,
   defer,
@@ -31,7 +31,7 @@ const deduplicateEvents = (events: TrustedEvent[]) => {
   for (const event of events) {
     const address = getAddress(event)
 
-    if (lt(eventsByAddress.get(address)?.created_at, event.created_at)) {
+    if (lte(eventsByAddress.get(address)?.created_at, event.created_at)) {
       eventsByAddress.set(address, event)
     }
   }
