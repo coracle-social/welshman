@@ -2,7 +2,7 @@ import {verifiedSymbol, verifyEvent as verifyEventPure} from "nostr-tools/pure"
 import {setNostrWasm, verifyEvent as verifyEventWasm} from "nostr-tools/wasm"
 import {initNostrWasm} from "nostr-wasm"
 import {mapVals, first, pick, now} from "@welshman/lib"
-import {getReplyTagValues, getCommentTagValues} from "./Tags.js"
+import {getReplyTags, getCommentTags, getReplyTagValues, getCommentTagValues} from "./Tags.js"
 import {getAddress, Address} from "./Address.js"
 import {
   COMMENT,
@@ -144,6 +144,9 @@ export const isPlainReplaceable = (e: EventTemplate) => isPlainReplaceableKind(e
 
 export const isParameterizedReplaceable = (e: EventTemplate) =>
   isParameterizedReplaceableKind(e.kind)
+
+export const getAncestorTags = ({kind, tags}: EventTemplate) =>
+  kind === COMMENT ? getCommentTags(tags) : getReplyTags(tags)
 
 export const getAncestors = ({kind, tags}: EventTemplate) =>
   kind === COMMENT ? getCommentTagValues(tags) : getReplyTagValues(tags)

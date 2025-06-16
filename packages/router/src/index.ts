@@ -18,19 +18,17 @@ import {
   isOnionUrl,
   isLocalUrl,
   isShareableRelayUrl,
-  COMMENT,
   PROFILE,
   RELAYS,
   INBOX_RELAYS,
   FOLLOWS,
   WRAP,
-  getReplyTags,
-  getCommentTags,
   getPubkeyTagValues,
   normalizeRelayUrl,
   TrustedEvent,
   Filter,
   readList,
+  getAncestorTags,
   asDecryptedEvent,
   getRelaysFromList,
   RelayMode,
@@ -215,8 +213,7 @@ export class Router {
   }
 
   EventAncestors = (event: TrustedEvent, type: "mentions" | "replies" | "roots") => {
-    const ancestorTags =
-      event.kind === COMMENT ? getCommentTags(event.tags) : getReplyTags(event.tags)
+    const ancestorTags = getAncestorTags(event)
 
     const tags: string[][] = (ancestorTags as any)[type] || []
 
