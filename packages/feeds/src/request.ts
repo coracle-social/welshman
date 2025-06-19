@@ -21,6 +21,7 @@ export type RequestPageOptions = {
   tracker?: Tracker
   signal?: AbortSignal
   context?: AdapterContext
+  autoClose?: boolean
 }
 
 export const requestPage = async ({
@@ -30,9 +31,10 @@ export const requestPage = async ({
   tracker = new Tracker(),
   signal,
   context,
+  autoClose,
 }: RequestPageOptions) => {
   if (relays.length > 0) {
-    return request({tracker, signal, context, onEvent, relays, filters, autoClose: true})
+    return request({tracker, signal, context, onEvent, relays, filters, autoClose})
   }
 
   const promises: Promise<TrustedEvent[]>[] = []
@@ -46,7 +48,7 @@ export const requestPage = async ({
         context,
         onEvent,
         threshold: 0.1,
-        autoClose: true,
+        autoClose,
         filters: withSearch,
         relays: Router.get().Search().getUrls(),
       }),
@@ -64,7 +66,7 @@ export const requestPage = async ({
           relays,
           filters,
           threshold: 0.8,
-          autoClose: true,
+          autoClose,
         }),
       ),
     )
@@ -84,7 +86,7 @@ export const requestPage = async ({
     onEvent,
     filters,
     relays: [LOCAL_RELAY_URL],
-    autoClose: true,
+    autoClose,
   })
 }
 
