@@ -1,5 +1,5 @@
 import {derived} from "svelte/store"
-import {batcher, always} from "@welshman/lib"
+import {batcher} from "@welshman/lib"
 import {INBOX_RELAYS, RELAYS, asDecryptedEvent, readList, getRelaysFromList} from "@welshman/util"
 import {TrustedEvent, PublishedList, RelayMode} from "@welshman/util"
 import {request} from "@welshman/net"
@@ -15,21 +15,32 @@ export type OutboxLoaderRequest = {
 
 export const loadUsingOutbox = batcher(200, (requests: OutboxLoaderRequest[]) => {
   const router = Router.get()
-  const authors: string[] = []
-  const scenarios = [router.Index()]
   const kinds = new Set<number>()
+  const authors = new Set<string>()
+  const scenarios = [router.Index()]
 
-  for (const {pubkey, relays, kind} of requests) {
+  for (const {pubkey, kind} of requests) {
     kinds.add(kind)
-    authors.push(pubkey)
-    scenarios.push(router.FromPubkey(pubkey), router.FromRelays(relays))
+    authors.add(pubkey)
+    scenarios.push(router.FromPubkey(pubkey))
   }
 
   const relays = router.merge(scenarios).getUrls()
-  const filters = [{authors, kinds: Array.from(kinds)}]
+  const filters = [{authors: Array.from(authors), kinds: Array.from(kinds)}]
   const promise = request({filters, relays, autoClose: true})
 
-  return requests.map(always(promise))
+  return requests.map(async ({kind, pubkey, relays}) => {
+    const promises = [promise]
+
+    // If the caller explicitly provided relays, make sure we check them
+    if (relays.length > 0) {
+      const filters = [{authors: [pubkey], kinds: [kind]}]
+
+      promises.push(request({filters, relays, autoClose: true}))
+    }
+
+    await Promise.all(promises)
+  })
 })
 
 export const makeOutboxLoader = (kind: number) => (pubkey: string, relays: string[]) =>

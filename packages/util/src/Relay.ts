@@ -13,6 +13,7 @@ export type RelayProfile = {
   icon?: string
   banner?: string
   name?: string
+  self?: string
   pubkey?: string
   contact?: string
   software?: string

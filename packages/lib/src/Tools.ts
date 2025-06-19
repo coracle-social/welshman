@@ -533,7 +533,7 @@ export const fromPairs = <T>(pairs: [k?: string, v?: T, ...args: unknown[]][]) =
  * @param xs - Array of arrays to flatten
  * @returns Flattened array
  */
-export const flatten = <T>(xs: T[][]) => xs.flatMap(identity)
+export const flatten = <T>(xs: (T | T[])[], ...args: unknown[]) => xs.flatMap(identity)
 
 /**
  * Splits array into two arrays based on predicate

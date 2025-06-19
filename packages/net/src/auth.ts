@@ -114,19 +114,21 @@ export class AuthState extends EventEmitter {
   async attemptAuth(sign: (event: StampedEvent) => Promise<SignedEvent>) {
     this.socket.attemptToOpen()
 
-    await poll({
-      signal: AbortSignal.timeout(800),
-      condition: () => this.status === AuthStatus.Requested,
-    })
+    if (![AuthStatus.Forbidden, AuthStatus.Ok].includes(this.status)) {
+      await poll({
+        signal: AbortSignal.timeout(800),
+        condition: () => this.status === AuthStatus.Requested,
+      })
 
-    if (this.status === AuthStatus.Requested) {
-      await this.doAuth(sign)
+      if (this.status === AuthStatus.Requested) {
+        await this.doAuth(sign)
+      }
+
+      await poll({
+        signal: AbortSignal.timeout(800),
+        condition: () => this.status !== AuthStatus.PendingResponse,
+      })
     }
-
-    await poll({
-      signal: AbortSignal.timeout(800),
-      condition: () => this.status !== AuthStatus.PendingResponse,
-    })
   }
 
   cleanup() {
