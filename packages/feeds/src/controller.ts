@@ -79,7 +79,11 @@ export class FeedController {
     }
   })
 
-  listen = async () => (await this.getListener())()
+  listen = () => {
+    const promise = this.getListener().then(call)
+
+    return () => promise.then(call)
+  }
 
   async _getRequestsLoader(requests: RequestItem[]) {
     const seen = new Set()
@@ -389,7 +393,7 @@ export class FeedController {
     return () => {
       const unsubscribers = controllers.map(controller => controller.listen())
 
-      return () => unsubscribers.forEach(async p => call(await p))
+      return () => unsubscribers.forEach(call)
     }
   }
 
@@ -414,9 +418,9 @@ export class FeedController {
     )
 
     return () => {
-      const unsubscribers =  controllers.map(controller => controller.listen())
+      const unsubscribers = controllers.map(controller => controller.listen())
 
-      return () => unsubscribers.forEach(async p => call(await p))
+      return () => unsubscribers.forEach(call)
     }
   }
 
@@ -438,9 +442,9 @@ export class FeedController {
     )
 
     return () => {
-      const unsubscribers =  controllers.map(controller => controller.listen())
+      const unsubscribers = controllers.map(controller => controller.listen())
 
-      return () => unsubscribers.forEach(async p => call(await p))
+      return () => unsubscribers.forEach(call)
     }
   }
 }

@@ -55,12 +55,10 @@ export type RenderOptions = {
   createElement: (tag: string) => any
 }
 
-const createElement = (tag: string) => document.createElement(tag) as any
-
 export const textRenderOptions = {
   newline: "\n",
   entityBase: "",
-  createElement,
+  createElement: (tag: string) => document.createElement(tag) as any,
   renderLink: (href: string, display: string) => href,
   renderEntity: (entity: string) => entity.slice(0, 16) + "…",
 }
@@ -68,7 +66,7 @@ export const textRenderOptions = {
 export const htmlRenderOptions = {
   newline: "\n",
   entityBase: "https://njump.me/",
-  createElement,
+  createElement: (tag: string) => document.createElement(tag) as any,
   renderLink(href: string, display: string) {
     const element = this.createElement("a")
 

@@ -169,9 +169,9 @@ export type RequestOptions = BaseRequestOptions & {
 
 export const request = async (options: RequestOptions) => {
   const closed = new Set<string>()
-  const tracker = new Tracker()
-  const relays = new Set(options.relays)
   const ctrl = new AbortController()
+  const relays = new Set(options.relays)
+  const tracker = options.tracker || new Tracker()
   const signal = options.signal ? AbortSignal.any([options.signal, ctrl.signal]) : ctrl.signal
   const threshold = options.threshold || 1
 

@@ -98,7 +98,7 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
       const isClosed = [SocketStatus.Closed, SocketStatus.Error].includes(socket.status)
 
       // When a new message is sent, make sure the socket is open (unless there was a recent error)
-      if (isClosed && lastError < ago(10)) {
+      if (isClosed && lastError < ago(5)) {
         socket.open()
       }
     }),
@@ -157,7 +157,7 @@ export const socketPolicyReopenActive = (socket: Socket) => {
 
       // If the socket closed and we have no error, reopen it but don't flap
       if (isClosed && pending.size) {
-        sleep(Math.max(0, 10_000 - (Date.now() - lastOpen))).then(() => {
+        sleep(Math.max(0, 5000 - (Date.now() - lastOpen))).then(() => {
           for (const message of pending.values()) {
             socket.send(message)
           }
