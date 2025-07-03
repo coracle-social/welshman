@@ -114,7 +114,11 @@ export const deriveHandleForPubkey = (pubkey: string, relays: string[] = []) =>
 
     loadHandle($profile.nip05)
 
-    return $handlesByNip05.get($profile.nip05)
+    const handle = $handlesByNip05.get($profile.nip05)
+
+    if (handle?.pubkey === pubkey) {
+      return handle
+    }
   })
 
 export const displayNip05 = (nip05: string) =>
