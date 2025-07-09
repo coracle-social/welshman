@@ -75,7 +75,7 @@ describe("Zaps", () => {
     })
 
     it("should return null for invalid input", () => {
-      expect(getLnUrl("invalid")).toBeNull()
+      expect(getLnUrl("invalid")).toBeUndefined()
     })
   })
 
@@ -138,7 +138,7 @@ describe("Zaps", () => {
 
       const result = zapFromEvent(response, validZapper)
 
-      expect(result).toBeNull()
+      expect(result).toBeUndefined()
     })
 
     it("should reject amount mismatch", () => {
@@ -150,7 +150,7 @@ describe("Zaps", () => {
 
       const result = zapFromEvent(response, validZapper)
 
-      expect(result).toBeNull()
+      expect(result).toBeUndefined()
     })
 
     it("should reject incorrect zapper pubkey", () => {
@@ -160,7 +160,7 @@ describe("Zaps", () => {
 
       const result = zapFromEvent(response, validZapper)
 
-      expect(result).toBeNull()
+      expect(result).toBeUndefined()
     })
 
     it("should reject incorrect lnurl", () => {
@@ -172,7 +172,7 @@ describe("Zaps", () => {
 
       const result = zapFromEvent(response, validZapper)
 
-      expect(result).toBeNull()
+      expect(result).toBeUndefined()
     })
 
     it("should handle invalid description JSON", () => {
@@ -183,7 +183,7 @@ describe("Zaps", () => {
 
       const result = zapFromEvent(response, validZapper)
 
-      expect(result).toBeNull()
+      expect(result).toBeUndefined()
     })
 
     it("should accept zap when recipient is zapper", () => {

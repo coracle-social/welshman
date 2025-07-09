@@ -1,7 +1,7 @@
 import {writable, derived} from "svelte/store"
-import {Zapper} from "@welshman/util"
+import {Zapper, TrustedEvent, Zap, getTagValues, getLnUrl, zapFromEvent} from "@welshman/util"
 import {
-  identity,
+  removeNil,
   fetchJson,
   uniq,
   bech32ToHex,
@@ -11,7 +11,7 @@ import {
   postJson,
 } from "@welshman/lib"
 import {collection} from "@welshman/store"
-import {deriveProfile} from "./profiles.js"
+import {deriveProfile, loadProfile} from "./profiles.js"
 import {appContext} from "./context.js"
 
 export const zappers = writable<Zapper[]>([])
@@ -22,7 +22,7 @@ export const fetchZappers = async (lnurls: string[]) => {
 
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly
   if (base) {
-    const hexUrls = lnurls.map(lnurl => tryCatch(() => bech32ToHex(lnurl))).filter(identity)
+    const hexUrls = removeNil(lnurls.map(lnurl => tryCatch(() => bech32ToHex(lnurl))))
 
     if (hexUrls.length > 0) {
       const res: any = await tryCatch(
@@ -90,3 +90,40 @@ export const deriveZapperForPubkey = (pubkey: string, relays: string[] = []) =>
 
     return $zappersByLnurl.get($profile.lnurl)
   })
+
+export const getLnUrlsForEvent = async (event: TrustedEvent) => {
+  const lnurls = removeNil(getTagValues("zap", event.tags).map(getLnUrl))
+
+  if (lnurls.length > 0) {
+    return lnurls
+  }
+
+  const profile = await loadProfile(event.pubkey)
+
+  return removeNil([profile?.lnurl])
+}
+
+export const getZapperForZap = async (zap: TrustedEvent, parent: TrustedEvent) => {
+  const lnurls = await getLnUrlsForEvent(parent)
+
+  return lnurls.length > 0 ? loadZapper(lnurls[0]) : undefined
+}
+
+export const getValidZap = async (zap: TrustedEvent, parent: TrustedEvent) => {
+  const zapper = await getZapperForZap(zap, parent)
+
+  return zapper ? zapFromEvent(zap, zapper) : undefined
+}
+
+export const getValidZaps = async (zaps: TrustedEvent[], parent: TrustedEvent) =>
+  removeNil(await Promise.all(zaps.map(zap => getValidZap(zap, parent))))
+
+export const deriveValidZaps = (zaps: TrustedEvent[], parent: TrustedEvent) => {
+  const store = writable<Zap[]>([])
+
+  getValidZaps(zaps, parent).then(validZaps => {
+    store.set(validZaps)
+  })
+
+  return store
+}
