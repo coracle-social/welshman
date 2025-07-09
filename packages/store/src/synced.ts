@@ -6,10 +6,10 @@ export interface StorageProvider {
   set: (key: string, value: any) => Promise<void>
 }
 
-export interface SyncedConfig {
+export interface SyncedConfig<T> {
   key: string
   storage: StorageProvider
-  defaultValue: any
+  defaultValue: T
 }
 
 export const localStorageProvider: StorageProvider = {
@@ -17,7 +17,7 @@ export const localStorageProvider: StorageProvider = {
   set: async (key: string, value: any) => setJson(key, value),
 }
 
-export const synced = <T>(config: SyncedConfig) => {
+export const synced = <T>(config: SyncedConfig<T>) => {
   const {key, storage, defaultValue} = config
   const store = writable<T>(defaultValue)
 
