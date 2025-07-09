@@ -1,12 +1,12 @@
 import {derived} from "svelte/store"
-import {sortBy, identity, ensurePlural, batch, partition, first} from "@welshman/lib"
+import {sortBy, identity, ensurePlural, removeNil, batch, partition, first} from "@welshman/lib"
 import {Repository} from "@welshman/relay"
 import {matchFilters, getIdAndAddress, getIdFilters, Filter, TrustedEvent} from "@welshman/util"
 import {custom} from "./custom.js"
 
 export type DeriveEventsMappedOptions<T> = {
   filters: Filter[]
-  eventToItem: (event: TrustedEvent) => T | T[] | Promise<T | T[]> | undefined
+  eventToItem: (event: TrustedEvent) => undefined | T | T[] | Promise<undefined | T | T[]>
   itemToEvent: (item: T) => TrustedEvent
   throttle?: number
   includeDeleted?: boolean
@@ -27,14 +27,14 @@ export const deriveEventsMapped = <T>(
       let data: T[] = []
       const deferred = new Set()
 
-      const defer = (event: TrustedEvent, promise: Promise<T | T[]>) => {
+      const defer = (event: TrustedEvent, promise: Promise<undefined | T | T[]>) => {
         deferred.add(event.id)
 
         void promise.then(items => {
           if (deferred.has(event.id)) {
             deferred.delete(event.id)
 
-            for (const item of ensurePlural(items)) {
+            for (const item of removeNil(ensurePlural(items))) {
               data.push(item)
             }
 
@@ -53,7 +53,7 @@ export const deriveEventsMapped = <T>(
         if (items instanceof Promise) {
           defer(event, items)
         } else {
-          for (const item of ensurePlural(items)) {
+          for (const item of removeNil(ensurePlural(items))) {
             data.push(item)
           }
         }
@@ -89,7 +89,7 @@ export const deriveEventsMapped = <T>(
             } else if (items) {
               dirty = true
 
-              for (const item of ensurePlural(items)) {
+              for (const item of removeNil(ensurePlural(items))) {
                 data.push(item as T)
               }
             }

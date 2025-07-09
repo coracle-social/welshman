@@ -1,5 +1,9 @@
-import {hexToBech32, fromPairs} from "@welshman/lib"
-import type {TrustedEvent} from "./Events.js"
+import {now, tryCatch, fetchJson, hexToBech32, fromPairs} from "@welshman/lib"
+import {ZAP_RESPONSE, ZAP_REQUEST} from "./Kinds.js"
+import {getTagValue} from "./Tags.js"
+import type {Filter} from "./Filters.js"
+import type {TrustedEvent, SignedEvent} from "./Events.js"
+import {makeEvent} from "./Events.js"
 
 const DIVISORS = {
   m: BigInt(1e3),
@@ -11,6 +15,10 @@ const DIVISORS = {
 const MAX_MILLISATS = BigInt("2100000000000000000")
 
 const MILLISATS_PER_BTC = BigInt(1e11)
+
+export const toMsats = (sats: number) => sats * 1000
+
+export const fromMsats = (msats: number) => Math.floor(msats / 1000)
 
 export const hrpToMillisat = (hrpString: string) => {
   let divisor, value
@@ -68,7 +76,7 @@ export const getLnUrl = (address: string) => {
     }
   }
 
-  return null
+  return undefined
 }
 
 export type Zapper = {
@@ -98,19 +106,19 @@ export const zapFromEvent = (response: TrustedEvent, zapper: Zapper | undefined)
       request: JSON.parse(responseMeta.description),
     }
   } catch (e) {
-    return null
+    return undefined
   }
 
   // Don't count zaps that the user requested for himself
   if (zap.request.pubkey === zapper?.pubkey) {
-    return null
+    return undefined
   }
 
   const {amount, lnurl} = fromPairs(zap.request.tags)
 
   // Verify that the zapper actually sent the requested amount (if it was supplied)
   if (amount && parseInt(amount) !== zap.invoiceAmount) {
-    return null
+    return undefined
   }
 
   // If the recipient and the zapper are the same person, it's legit
@@ -120,13 +128,89 @@ export const zapFromEvent = (response: TrustedEvent, zapper: Zapper | undefined)
 
   // If the sending client provided an lnurl tag, verify that too
   if (lnurl && lnurl !== zapper?.lnurl) {
-    return null
+    return undefined
   }
 
   // Verify that the request actually came from the recipient's zapper
   if (zap.response.pubkey !== zapper?.nostrPubkey) {
-    return null
+    return undefined
   }
 
   return zap
+}
+
+export type ZapRequestParams = {
+  msats: number
+  zapper: Zapper
+  pubkey: string
+  relays: string[]
+  content?: string
+  eventId?: string
+  anonymous?: boolean
+}
+
+export const makeZapRequest = ({
+  msats,
+  zapper,
+  pubkey,
+  relays,
+  content = "",
+  eventId,
+  anonymous,
+}: ZapRequestParams) => {
+  const tags = [
+    ["relays", ...relays],
+    ["amount", String(msats)],
+    ["lnurl", zapper.lnurl],
+    ["p", pubkey],
+  ]
+
+  if (eventId) {
+    tags.push(["e", eventId])
+  }
+
+  if (anonymous) {
+    tags.push(["anon"])
+  }
+
+  return makeEvent(ZAP_REQUEST, {content, tags})
+}
+
+export type RequestInvoiceParams = {
+  zapper: Zapper
+  event: SignedEvent
+}
+
+export const requestZap = async ({zapper, event}: RequestInvoiceParams) => {
+  const zapString = encodeURI(JSON.stringify(event))
+  const msats = parseInt(getTagValue("amount", event.tags)!)
+  const qs = `?amount=${msats}&nostr=${zapString}&lnurl=${zapper.lnurl}`
+  const res = await tryCatch(() => fetchJson(zapper.callback + qs))
+
+  return res?.pr ? {invoice: res.pr} : {error: res.reason || "Failed to request invoice"}
+}
+
+export type ZapResponseFilterParams = {
+  zapper: Zapper
+  pubkey: string
+  eventId?: string
+}
+
+export const getZapResponseFilter = ({zapper, pubkey, eventId}: ZapResponseFilterParams) => {
+  if (!zapper.nostrPubkey) {
+    throw new Error("Zapper did not have a nostr pubkey")
+  }
+
+  const filter: Filter = {
+    kinds: [ZAP_RESPONSE],
+    authors: [zapper.nostrPubkey],
+    since: now() - 30,
+    "#p": [pubkey],
+  }
+
+  if (eventId) {
+    filter["#e"] = [eventId]
+  }
+
+  return filter
 }
