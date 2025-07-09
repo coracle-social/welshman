@@ -1,6 +1,6 @@
-import {derived} from "svelte/store"
+import {derived, writable} from "svelte/store"
 import {cached, omit, equals, assoc} from "@welshman/lib"
-import {withGetter, synced} from "@welshman/store"
+import {withGetter} from "@welshman/store"
 import {
   Nip46Broker,
   Nip46Signer,
@@ -59,9 +59,9 @@ export type SessionAnyMethod =
 
 export type Session = SessionAnyMethod & Record<string, any>
 
-export const pubkey = withGetter(synced<string | undefined>("pubkey", undefined))
+export const pubkey = withGetter(writable<string | undefined>(undefined))
 
-export const sessions = withGetter(synced<Record<string, Session>>("sessions", {}))
+export const sessions = withGetter(writable<Record<string, Session>>({}))
 
 export const session = withGetter(
   derived([pubkey, sessions], ([$pubkey, $sessions]) => ($pubkey ? $sessions[$pubkey] : undefined)),

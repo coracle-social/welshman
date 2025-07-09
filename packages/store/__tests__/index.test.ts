@@ -9,6 +9,7 @@ import {
   deriveIsDeleted,
   getter,
   synced,
+  localStorageProvider,
   throttled,
   withGetter,
 } from "../src/index"
@@ -40,24 +41,52 @@ describe("Store utilities", () => {
   })
 
   describe("synced", () => {
-    it("should sync with localStorage", () => {
-      const store = synced("testKey", "default")
+    it("should sync with localStorage", async () => {
+      const store = synced({
+        key: "testKey",
+        storage: localStorageProvider,
+        defaultValue: "default",
+      })
+
+      // Wait for async initialization using vi.runAllTimersAsync
+      await vi.runAllTimersAsync()
+
       expect(get(store)).toBe("default")
 
       store.set("new value")
+
+      // Wait for async save using vi.runAllTimersAsync
+      await vi.runAllTimersAsync()
+
       expect(localStorage.getItem("testKey")).toBe(JSON.stringify("new value"))
     })
 
-    it("should load existing value from localStorage", () => {
+    it("should load existing value from localStorage", async () => {
       localStorage.setItem("testKey", JSON.stringify("existing"))
-      const store = synced("testKey", "default")
+      const store = synced({
+        key: "testKey",
+        storage: localStorageProvider,
+        defaultValue: "default",
+      })
+
+      // Wait for async initialization using vi.runAllTimersAsync
+      await vi.runAllTimersAsync()
+
       expect(get(store)).toBe("existing")
     })
   })
 
   describe("getter", () => {
-    it("should return current store value", () => {
-      const store = synced("test", "initial")
+    it("should return current store value", async () => {
+      const store = synced({
+        key: "test",
+        storage: localStorageProvider,
+        defaultValue: "initial",
+      })
+
+      // Wait for async initialization using vi.runAllTimersAsync
+      await vi.runAllTimersAsync()
+
       const getValue = getter(store)
 
       expect(getValue()).toBe("initial")
@@ -67,8 +96,17 @@ describe("Store utilities", () => {
   })
 
   describe("withGetter", () => {
-    it("should add getter to writable store", () => {
-      const store = withGetter(synced("test", "initial"))
+    it("should add getter to writable store", async () => {
+      const store = withGetter(
+        synced({
+          key: "test",
+          storage: localStorageProvider,
+          defaultValue: "initial",
+        }),
+      )
+
+      // Wait for async initialization using vi.runAllTimersAsync
+      await vi.runAllTimersAsync()
 
       expect(store.get()).toBe("initial")
       store.set("updated")
@@ -77,9 +115,17 @@ describe("Store utilities", () => {
   })
 
   describe("throttled", () => {
-    it("should throttle updates", () => {
+    it("should throttle updates", async () => {
       const mockFn = vi.fn()
-      const store = synced("test", 0)
+      const store = synced({
+        key: "test",
+        storage: localStorageProvider,
+        defaultValue: 0,
+      })
+
+      // Wait for async initialization using vi.runAllTimersAsync
+      await vi.runAllTimersAsync()
+
       const throttledStore = throttled(100, store)
 
       throttledStore.subscribe(mockFn)
