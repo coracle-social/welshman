@@ -270,15 +270,18 @@ export class Nip46Broker extends Emitter {
 
     try {
       const _url = new URL(url)
+      const _relays = _url.searchParams.getAll("relay") || []
+      const _signerPubkey = _url.hostname || _url.pathname.replace(/\//g, "")
+      const _connectSecret = _url.searchParams.get("secret") || ""
 
-      relays = _url.searchParams.getAll("relay") || []
-      signerPubkey = _url.hostname || _url.pathname.replace(/\//g, "")
-      connectSecret = _url.searchParams.get("secret") || ""
+      relays = _relays.map(normalizeRelayUrl)
+      signerPubkey = _signerPubkey.match(/^[0-9a-f]{64}$/)?.[0] || ""
+      connectSecret = _connectSecret
     } catch {
       // pass
     }
 
-    return {signerPubkey, connectSecret, relays: relays.map(normalizeRelayUrl)}
+    return {relays, signerPubkey, connectSecret}
   }
 
   // Getters for helper objects
