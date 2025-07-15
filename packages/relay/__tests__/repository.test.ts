@@ -1,28 +1,18 @@
 import {describe, it, vi, expect, beforeEach} from "vitest"
-import {now} from "@welshman/lib"
-import {getAddress, TrustedEvent, DELETE, MUTES} from "@welshman/util"
+import {now, randomId} from "@welshman/lib"
+import {getAddress, makeEvent, TrustedEvent, DELETE, MUTES} from "@welshman/util"
 import {Repository} from "../src/repository"
+
+const createEvent = (kind: number, extra = {}) => ({
+  ...makeEvent(kind),
+  pubkey: randomId(),
+  id: randomId(),
+  ...extra,
+})
 
 describe("Repository", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-  })
-
-  // Realistic Nostr data
-  const pubkey = "ee".repeat(32)
-  const id = "ff".repeat(32)
-  const sig = "00".repeat(64)
-  const currentTime = now()
-
-  const createEvent = (overrides = {}): TrustedEvent => ({
-    id: id,
-    pubkey: pubkey,
-    created_at: currentTime,
-    kind: 1,
-    tags: [],
-    content: "Hello Nostr!",
-    sig: sig,
-    ...overrides,
   })
 
   describe("basic operations", () => {
@@ -33,7 +23,7 @@ describe("Repository", () => {
     })
 
     it("should publish and retrieve events", () => {
-      const event = createEvent()
+      const event = createEvent(1)
       expect(repo.publish(event)).toBe(true)
       expect(repo.getEvent(event.id)).toEqual(event)
     })
@@ -45,13 +35,13 @@ describe("Repository", () => {
     })
 
     it("should handle duplicate events", () => {
-      const event = createEvent()
+      const event = createEvent(1)
       expect(repo.publish(event)).toBe(true)
       expect(repo.publish(event)).toBe(false)
     })
 
     it("should check if events exist", () => {
-      const event = createEvent()
+      const event = createEvent(1)
       repo.publish(event)
       expect(repo.hasEvent(event)).toBe(true)
     })
@@ -65,8 +55,9 @@ describe("Repository", () => {
     })
 
     it("should handle replaceable events", () => {
-      const event1 = createEvent({kind: MUTES, created_at: currentTime - 100})
-      const event2 = createEvent({kind: MUTES, created_at: currentTime, id: "ee".repeat(32)})
+      const pubkey = randomId()
+      const event1 = createEvent(MUTES, {created_at: now() - 100, pubkey})
+      const event2 = createEvent(MUTES, {created_at: now(), pubkey})
 
       const address1 = getAddress(event1)
       const address2 = getAddress(event2)
@@ -79,7 +70,7 @@ describe("Repository", () => {
       expect(repo.getEvent(event2.id)).toEqual(event2)
       expect(repo.getEvent(address2)).toEqual(event2)
 
-      const event3 = createEvent({kind: MUTES, created_at: currentTime - 50, id: "dd".repeat(32)})
+      const event3 = createEvent(MUTES, {created_at: now() - 50, pubkey})
 
       repo.publish(event3)
 
@@ -87,8 +78,8 @@ describe("Repository", () => {
     })
 
     it("should not replace with older events", () => {
-      const event1 = createEvent({kind: MUTES, created_at: currentTime})
-      const event2 = createEvent({kind: MUTES, created_at: currentTime - 100})
+      const event1 = createEvent(MUTES, {created_at: now()})
+      const event2 = createEvent(MUTES, {created_at: now() - 100})
 
       repo.publish(event1)
       repo.publish(event2)
@@ -105,13 +96,8 @@ describe("Repository", () => {
     })
 
     it("should handle delete events", () => {
-      const event = createEvent()
-      const deleteEvent = createEvent({
-        id: "ee".repeat(32),
-        kind: DELETE,
-        tags: [["e", event.id]],
-        created_at: currentTime + 100,
-      })
+      const event = createEvent(1)
+      const deleteEvent = createEvent(DELETE, {tags: [["e", event.id]], created_at: now() + 100})
 
       repo.publish(event)
       repo.publish(deleteEvent)
@@ -120,18 +106,38 @@ describe("Repository", () => {
     })
 
     it("should handle delete by address", () => {
-      const event = createEvent({kind: MUTES})
-      const deleteEvent = createEvent({
-        id: "ee".repeat(32),
-        kind: DELETE,
+      const event = createEvent(MUTES)
+      const deleteEvent = createEvent(DELETE, {
         tags: [["a", `10000:${event.pubkey}:`]],
-        created_at: currentTime + 100,
+        created_at: now() + 100,
       })
 
       repo.publish(event)
       repo.publish(deleteEvent)
 
       expect(repo.isDeletedByAddress(event)).toBe(true)
+    })
+  })
+
+  describe("expire events", () => {
+    let repo: Repository
+
+    beforeEach(() => {
+      repo = new Repository()
+    })
+
+    it("should handle expiring events", () => {
+      const event1 = createEvent(1, {tags: [["expiration", String(now() - 100)]]})
+      const event2 = createEvent(1, {tags: [["expiration", String(now() + 100)]]})
+      const event3 = createEvent(1)
+
+      repo.publish(event1)
+      repo.publish(event2)
+      repo.publish(event3)
+
+      expect(repo.isExpired(event1)).toBe(true)
+      expect(repo.isExpired(event2)).toBe(false)
+      expect(repo.isExpired(event3)).toBe(false)
     })
   })
 
@@ -147,7 +153,7 @@ describe("Repository", () => {
     })
 
     it("should query by ids", () => {
-      const event = createEvent()
+      const event = createEvent(1)
       repo.publish(event)
 
       const results = repo.query([{ids: [event.id]}])
@@ -155,7 +161,7 @@ describe("Repository", () => {
     })
 
     it("should query by authors", () => {
-      const event = createEvent()
+      const event = createEvent(1)
       repo.publish(event)
 
       const results = repo.query([{authors: [event.pubkey]}])
@@ -163,7 +169,7 @@ describe("Repository", () => {
     })
 
     it("should query by kinds", () => {
-      const event = createEvent({kind: 1})
+      const event = createEvent(1)
       repo.publish(event)
 
       const results = repo.query([{kinds: [1]}])
@@ -171,7 +177,9 @@ describe("Repository", () => {
     })
 
     it("should query by tags", () => {
-      const event = createEvent({tags: [["p", pubkey]]})
+      const pubkey = randomId()
+      const event = createEvent(1, {tags: [["p", pubkey]]})
+
       repo.publish(event)
 
       const results = repo.query([{"#p": [pubkey]}])
@@ -179,20 +187,20 @@ describe("Repository", () => {
     })
 
     it("should query by time range", () => {
-      const event = createEvent()
+      const event = createEvent(1)
       repo.publish(event)
 
       const results = repo.query([
         {
-          since: currentTime - 3600,
-          until: currentTime + 3600,
+          since: now() - 3600,
+          until: now() + 3600,
         },
       ])
       expect(results).toContain(event)
     })
 
     it("should handle multiple filters", () => {
-      const event = createEvent({kind: 1})
+      const event = createEvent(1)
       repo.publish(event)
 
       const results = repo.query([{kinds: [1]}, {authors: [event.pubkey]}])
@@ -202,8 +210,8 @@ describe("Repository", () => {
 
     it("should respect limit parameter", () => {
       const events = [
-        createEvent({id: id + "1", created_at: currentTime}),
-        createEvent({id: id + "2", created_at: currentTime - 100}),
+        createEvent(1, {created_at: now()}),
+        createEvent(1, {created_at: now() - 100}),
       ]
 
       events.forEach(e => repo.publish(e))
@@ -214,13 +222,8 @@ describe("Repository", () => {
     })
 
     it("should not return deleted events", () => {
-      const event = createEvent()
-      const deleteEvent = createEvent({
-        id: "ee".repeat(32),
-        kind: DELETE,
-        tags: [["e", event.id]],
-        created_at: currentTime + 100,
-      })
+      const event = createEvent(1)
+      const deleteEvent = createEvent(DELETE, {tags: [["e", event.id]], created_at: now() + 1})
 
       repo.publish(event)
       repo.publish(deleteEvent)
@@ -238,7 +241,7 @@ describe("Repository", () => {
     })
 
     it("should dump all events", () => {
-      const event = createEvent()
+      const event = createEvent(1)
       repo.publish(event)
 
       const dumped = repo.dump()
@@ -246,21 +249,21 @@ describe("Repository", () => {
     })
 
     it("should load events", () => {
-      const event = createEvent()
+      const event = createEvent(1)
       repo.load([event])
 
       expect(repo.getEvent(event.id)).toEqual(event)
     })
 
     it("should handle chunked loading", () => {
-      const events = Array.from({length: 1500}, (_, i) => createEvent({id: id.slice(0, -1) + i}))
+      const events = Array.from({length: 1500}, (_, i) => createEvent(1))
 
       repo.load(events, 500)
       expect(repo.dump()).toHaveLength(1500)
     })
 
     it("should emit update events", () => {
-      const event = createEvent()
+      const event = createEvent(1)
       const updateHandler = vi.fn()
 
       repo.on("update", updateHandler)
@@ -281,13 +284,11 @@ describe("Repository", () => {
     })
 
     it("should handle wrapped events", () => {
-      const wrapped = createEvent()
-      const event = createEvent({
-        wrap: wrapped,
-      })
+      const event: TrustedEvent = createEvent(1, {wrap: createEvent(1)})
 
       repo.publish(event)
-      expect(repo.eventsByWrap.get(wrapped.id)).toEqual(event)
+
+      expect(repo.eventsByWrap.get(event.wrap!.id)).toEqual(event)
     })
   })
 
@@ -299,7 +300,7 @@ describe("Repository", () => {
     })
 
     it("should remove events", () => {
-      const event = createEvent()
+      const event = createEvent(1)
       repo.publish(event)
       repo.removeEvent(event.id)
 
@@ -307,10 +308,8 @@ describe("Repository", () => {
     })
 
     it("should remove wrapped events", () => {
-      const wrapped = createEvent()
-      const event = createEvent({
-        wrap: wrapped,
-      })
+      const wrapped = createEvent(1)
+      const event = createEvent(1, {wrap: wrapped})
 
       repo.publish(event)
       repo.removeEvent(event.id)
@@ -319,7 +318,7 @@ describe("Repository", () => {
     })
 
     it("should emit update on removal", () => {
-      const event = createEvent()
+      const event = createEvent(1)
       const updateHandler = vi.fn()
 
       repo.on("update", updateHandler)

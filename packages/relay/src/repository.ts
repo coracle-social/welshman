@@ -43,6 +43,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
   eventsByAuthor = new Map<string, E[]>()
   eventsByKind = new Map<number, E[]>()
   deletes = new Map<string, number>()
+  expired = new Map<string, number>()
 
   static get() {
     if (!repositorySingleton) {
@@ -75,6 +76,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
     this.eventsByAuthor.clear()
     this.eventsByKind.clear()
     this.deletes.clear()
+    this.expired.clear()
 
     const added = []
 
@@ -100,6 +102,11 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
 
     // Anything removed via delete or replace has been removed
     for (const id of this.deletes.keys()) {
+      removed.add(id)
+    }
+
+    // Anything expired has been removed
+    for (const id of this.expired.keys()) {
       removed.add(id)
     }
 
@@ -146,7 +153,10 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
     }
   }
 
-  query = (filters: Filter[], {includeDeleted = false, shouldSort = true} = {}) => {
+  query = (
+    filters: Filter[],
+    {includeDeleted = false, includeExpired = false, shouldSort = true} = {},
+  ) => {
     const result: E[][] = []
     for (const originalFilter of filters) {
       if (originalFilter.limit !== undefined && !shouldSort) {
@@ -166,6 +176,10 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
         }
 
         if (!includeDeleted && this.isDeleted(event)) {
+          continue
+        }
+
+        if (!includeExpired && this.isExpired(event)) {
           continue
         }
 
@@ -190,8 +204,8 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
       return false
     }
 
-    // If we've already seen this event, or it's been deleted, we're done
-    if (this.eventsById.get(event.id) || this.isDeleted(event)) {
+    // If we've already seen this event we're done
+    if (this.eventsById.get(event.id)) {
       return false
     }
 
@@ -247,6 +261,15 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
           }
         }
       }
+
+      // Keep track of whether this event is expired
+      if (tag[0] === "expiration") {
+        const expiration = parseInt(tag[1] || "")
+
+        if (!isNaN(expiration)) {
+          this.expired.set(event.id, expiration)
+        }
+      }
     }
 
     if (shouldNotify) {
@@ -261,6 +284,12 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
   isDeletedById = (event: E) => (this.deletes.get(event.id) || 0) > event.created_at
 
   isDeleted = (event: E) => this.isDeletedByAddress(event) || this.isDeletedById(event)
+
+  isExpired = (event: E) => {
+    const ts = this.expired.get(event.id)
+
+    return Boolean(ts && ts < now())
+  }
 
   // Utilities
 
