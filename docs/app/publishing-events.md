@@ -53,11 +53,23 @@ const publish = async (content: string) => {
 
 ## Built in commands
 
-Several thunk factories are provided for more complicated scenarios like updating lists:
+Several thunk factories are provided for common or more complicated scenarios like updating lists:
 
-- `follow(pubkey)`
-- `unfollow(pubkey)`
-- `mute(pubkey)`
-- `unmute(pubkey)`
-- `pin(tag)`
-- `unpin(tag)`
+- `removeRelay(url: string, mode: RelayMode)`
+- `addRelay(url: string, mode: RelayMode)`
+- `removeInboxRelay(url: string)`
+- `addInboxRelay(url: string)`
+- `setProfile(profile: Profile)`
+- `unfollow(value: string)`
+- `follow(tag: string[])`
+- `unmute(value: string)`
+- `mute(tag: string[])`
+- `unpin(value: string)`
+- `pin(tag: string[])`
+- `sendWrapped({template, pubkeys, ...options}: SendWrappedOptions)`
+- `manageRelay(url: string, request: ManagementRequest)`
+- `createRoom(url: string, room: RoomMeta)`
+- `deleteRoom(url: string, room: RoomMeta)`
+- `editRoom(url: string, room: RoomMeta)`
+- `joinRoom(url: string, room: RoomMeta)`
+- `leaveRoom(url: string, room: RoomMeta)`

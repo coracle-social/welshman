@@ -15,6 +15,9 @@ import {
   makeRoomEditEvent,
   makeRoomJoinEvent,
   makeRoomLeaveEvent,
+  isPublishedProfile,
+  createProfile,
+  editProfile,
   RelayMode,
   INBOX_RELAYS,
   FOLLOWS,
@@ -22,7 +25,7 @@ import {
   MUTES,
   PINS,
 } from "@welshman/util"
-import type {RoomMeta} from "@welshman/util"
+import type {RoomMeta, Profile} from "@welshman/util"
 import {Nip59, stamp} from "@welshman/signer"
 import {Router, addMaximalFallbacks} from "@welshman/router"
 import {
@@ -82,6 +85,16 @@ export const addInboxRelay = async (url: string) => {
   const list = get(userInboxRelaySelections) || makeList({kind: INBOX_RELAYS})
   const event = await addToListPublicly(list, ["relay", url]).reconcile(nip44EncryptToSelf)
   const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
+
+  return publishThunk({event, relays})
+}
+
+// NIP 01
+
+export const setProfile = (profile: Profile) => {
+  const router = Router.get()
+  const relays = router.merge([router.Index(), router.FromUser()]).getUrls()
+  const event = isPublishedProfile(profile) ? editProfile(profile) : createProfile(profile)
 
   return publishThunk({event, relays})
 }
