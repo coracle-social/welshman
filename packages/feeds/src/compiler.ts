@@ -267,6 +267,7 @@ export class FeedCompiler {
     const eventsByAddress = new Map<string, TrustedEvent>()
 
     await requestPage({
+      autoClose: true,
       signal: this.options.signal,
       context: this.options.context,
       filters: getIdFilters(addresses),
@@ -302,9 +303,10 @@ export class FeedCompiler {
     await Promise.all(
       labelItems.map(({mappings, relays, ...filter}) =>
         requestPage({
+          relays,
+          autoClose: true,
           signal: this.options.signal,
           context: this.options.context,
-          relays,
           filters: [{kinds: [1985], ...filter}],
           onEvent: (e: TrustedEvent) => events.push(e),
         }),

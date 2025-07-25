@@ -147,7 +147,7 @@ export class FeedController {
           return filterSince < until && filterUntil > since
         })
         // Modify the filters to define our window
-        .map((filter: Filter) => ({...filter, until, limit, since}))
+        .map((filter: Filter) => ({since, until, limit, ...filter}))
 
       if (requestFilters.length === 0) {
         return onExhausted?.()
