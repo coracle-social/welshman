@@ -22,7 +22,7 @@ export const ready = defer<void>()
 
 export const dead = withGetter(writable(false))
 
-export const subs: Unsubscriber[] = []
+export const unsubscribers: Unsubscriber[] = []
 
 export const getAll = async (name: string) => {
   await ready
@@ -100,16 +100,18 @@ export const initStorage = async (
 
   ready.resolve()
 
-  await Promise.all(Object.values(adapters).map(adapter => adapter.init()))
+  await Promise.all(
+    Object.values(adapters).map(async adapter => {
+      await adapter.init()
 
-  const unsubscribers = Object.values(adapters).map(adapter => adapter.sync())
-
-  return () => unsubscribers.forEach(call)
+      unsubscribers.push(adapter.sync())
+    }),
+  )
 }
 
 export const closeStorage = async () => {
   dead.set(true)
-  subs.forEach(unsub => unsub())
+  unsubscribers.forEach(call)
   await db?.close()
 }
 

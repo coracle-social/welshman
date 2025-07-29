@@ -108,7 +108,7 @@ export class Thunk {
       try {
         event = await signer.sign(event)
       } catch (e: any) {
-        return this._fail(String(e.error || e))
+        return this._fail(`Failed to sign event: ${String(e.error || e)}`)
       }
     }
 

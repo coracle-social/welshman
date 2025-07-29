@@ -1,5 +1,5 @@
 import EventEmitter from "events"
-import {on, poll, call} from "@welshman/lib"
+import {on, poll, call, tryCatch} from "@welshman/lib"
 import {SignedEvent, StampedEvent} from "@welshman/util"
 import {makeRelayAuth} from "@welshman/util"
 import {isRelayAuth, isClientAuth, isRelayOk, RelayMessage} from "./message.js"
@@ -101,7 +101,7 @@ export class AuthState extends EventEmitter {
     this.setStatus(AuthStatus.PendingSignature)
 
     const template = makeRelayAuth(this.socket.url, this.challenge)
-    const event = await sign(template)
+    const event = await tryCatch(() => sign(template))
 
     if (event) {
       this.request = event.id

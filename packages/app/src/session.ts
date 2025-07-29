@@ -1,13 +1,15 @@
 import {derived, writable} from "svelte/store"
-import {cached, omit, equals, assoc} from "@welshman/lib"
+import {cached, randomId, append, omit, equals, assoc} from "@welshman/lib"
 import {withGetter} from "@welshman/store"
 import {
+  WrappedSigner,
   Nip46Broker,
   Nip46Signer,
   Nip07Signer,
   Nip01Signer,
   Nip55Signer,
   getPubkey,
+  ISigner,
 } from "@welshman/signer"
 
 export enum SessionMethod {
@@ -175,13 +177,62 @@ export const loginWithPubkey = (pubkey: string) => addSession(makePubkeySession(
 
 export const nip46Perms = "sign_event:22242,nip04_encrypt,nip04_decrypt,nip44_encrypt,nip44_decrypt"
 
+export enum SignerLogEntryStatus {
+  Pending = "pending",
+  Success = "success",
+  Failure = "failure",
+}
+
+export type SignerLogEntry = {
+  id: string
+  method: string
+  status: SignerLogEntryStatus
+  duration: number
+}
+
+export const signerLog = withGetter(writable<SignerLogEntry[]>([]))
+
+export const wrapSigner = (signer: ISigner) =>
+  new WrappedSigner(signer, async <T>(method: string, thunk: () => Promise<T>) => {
+    const id = randomId()
+    const now = Date.now()
+
+    signerLog.update(log =>
+      append({id, method, status: SignerLogEntryStatus.Pending, duration: 0}, log),
+    )
+
+    try {
+      const result = await thunk()
+
+      signerLog.update(log =>
+        log.map(x =>
+          x.id === id
+            ? {...x, status: SignerLogEntryStatus.Success, duration: Date.now() - now}
+            : x,
+        ),
+      )
+
+      return result
+    } catch (error: any) {
+      signerLog.update(log =>
+        log.map(x =>
+          x.id === id
+            ? {...x, status: SignerLogEntryStatus.Failure, duration: Date.now() - now}
+            : x,
+        ),
+      )
+
+      throw error
+    }
+  })
+
 export const getSigner = cached({
   maxSize: 100,
   getKey: ([session]: [Session | undefined]) => `${session?.method}:${session?.pubkey}`,
   getValue: ([session]: [Session | undefined]) => {
-    if (isNip07Session(session)) return new Nip07Signer()
-    if (isNip01Session(session)) return new Nip01Signer(session.secret)
-    if (isNip55Session(session)) return new Nip55Signer(session.signer)
+    if (isNip07Session(session)) return wrapSigner(new Nip07Signer())
+    if (isNip01Session(session)) return wrapSigner(new Nip01Signer(session.secret))
+    if (isNip55Session(session)) return wrapSigner(new Nip55Signer(session.signer))
     if (isNip46Session(session)) {
       const {
         secret: clientSecret,
@@ -190,7 +241,7 @@ export const getSigner = cached({
       const broker = new Nip46Broker({clientSecret, signerPubkey, relays})
       const signer = new Nip46Signer(broker)
 
-      return signer
+      return wrapSigner(signer)
     }
   },
 })

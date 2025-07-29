@@ -3,7 +3,7 @@ import {bytesToHex, hexToBytes} from "@noble/hashes/utils"
 import * as nt04 from "nostr-tools/nip04"
 import * as nt44 from "nostr-tools/nip44"
 import {generateSecretKey, getPublicKey, getEventHash} from "nostr-tools/pure"
-import {cached, now} from "@welshman/lib"
+import {Emitter, cached, now} from "@welshman/lib"
 import {SignedEvent, HashedEvent, EventTemplate, StampedEvent, OwnedEvent} from "@welshman/util"
 
 export const makeSecret = () => bytesToHex(generateSecretKey())
@@ -64,3 +64,36 @@ export const decrypt = async (signer: ISigner, pubkey: string, message: string) 
   nip04.detect(message)
     ? signer.nip04.decrypt(pubkey, message)
     : signer.nip44.decrypt(pubkey, message)
+
+export type SignerMethodWrapper = <T>(method: string, thunk: () => Promise<T>) => Promise<T>
+
+export class WrappedSigner extends Emitter implements ISigner {
+  constructor(
+    private signer: ISigner,
+    private wrapMethod: SignerMethodWrapper,
+  ) {
+    super()
+  }
+
+  sign(event: StampedEvent) {
+    return this.wrapMethod("sign", () => this.signer.sign(event))
+  }
+
+  getPubkey() {
+    return this.wrapMethod("getPubkey", () => this.signer.getPubkey())
+  }
+
+  nip04 = {
+    encrypt: async (pubkey: string, message: string) =>
+      this.wrapMethod("nip04.encrypt", () => this.signer.nip04.encrypt(pubkey, message)),
+    decrypt: async (pubkey: string, message: string) =>
+      this.wrapMethod("nip04.decrypt", () => this.signer.nip04.decrypt(pubkey, message)),
+  }
+
+  nip44 = {
+    encrypt: async (pubkey: string, message: string) =>
+      this.wrapMethod("nip44.encrypt", () => this.signer.nip44.encrypt(pubkey, message)),
+    decrypt: async (pubkey: string, message: string) =>
+      this.wrapMethod("nip44.decrypt", () => this.signer.nip44.decrypt(pubkey, message)),
+  }
+}
