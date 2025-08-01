@@ -39,13 +39,13 @@ export class Encryptable<T extends EventTemplate> {
    */
   async reconcile(encrypt: Encrypt) {
     const encryptContent = () => {
-      if (!this.updates.content) return null
+      if (!this.updates.content) return undefined
 
       return encrypt(this.updates.content)
     }
 
     const encryptTags = () => {
-      if (!this.updates.tags) return null
+      if (!this.updates.tags) return undefined
 
       return Promise.all(
         this.updates.tags.map(async tag => {

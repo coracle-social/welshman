@@ -215,7 +215,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
 
     if (duplicate) {
       // If our event is younger than the duplicate, we're done
-      if (event.created_at <= duplicate.created_at) {
+      if (event.created_at < duplicate.created_at) {
         return false
       }
 

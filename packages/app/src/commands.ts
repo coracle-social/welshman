@@ -4,6 +4,8 @@ import {
   sendManagementRequest,
   ManagementRequest,
   addToListPublicly,
+  addToListPrivately,
+  updateList,
   EventTemplate,
   removeFromList,
   makeHttpAuth,
@@ -30,10 +32,15 @@ import {Nip59, stamp} from "@welshman/signer"
 import {Router, addMaximalFallbacks} from "@welshman/router"
 import {
   userRelaySelections,
+  loadUserRelaySelections,
   userInboxRelaySelections,
+  loadUserInboxRelaySelections,
   userFollows,
+  loadUserFollows,
   userMutes,
+  loadUserMutes,
   userPins,
+  loadUserPins,
 } from "./user.js"
 import {nip44EncryptToSelf, signer} from "./session.js"
 import {ThunkOptions, MergedThunk, publishThunk} from "./thunk.js"
@@ -41,6 +48,8 @@ import {ThunkOptions, MergedThunk, publishThunk} from "./thunk.js"
 // NIP 65
 
 export const removeRelay = async (url: string, mode: RelayMode) => {
+  await loadUserRelaySelections([], true)
+
   const list = get(userRelaySelections) || makeList({kind: RELAYS})
   const dup = getRelayTags(getListTags(list)).find(nthEq(1, url))
   const alt = mode === RelayMode.Read ? RelayMode.Write : RelayMode.Read
@@ -61,6 +70,8 @@ export const removeRelay = async (url: string, mode: RelayMode) => {
 }
 
 export const addRelay = async (url: string, mode: RelayMode) => {
+  await loadUserRelaySelections([], true)
+
   const list = get(userRelaySelections) || makeList({kind: RELAYS})
   const dup = getRelayTags(getListTags(list)).find(nthEq(1, url))
   const tag = removeNil(["r", url, dup && dup[2] !== mode ? undefined : mode])
@@ -74,6 +85,8 @@ export const addRelay = async (url: string, mode: RelayMode) => {
 // NIP 17
 
 export const removeInboxRelay = async (url: string) => {
+  await loadUserInboxRelaySelections([], true)
+
   const list = get(userInboxRelaySelections) || makeList({kind: INBOX_RELAYS})
   const event = await removeFromList(list, url).reconcile(nip44EncryptToSelf)
   const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
@@ -82,6 +95,8 @@ export const removeInboxRelay = async (url: string) => {
 }
 
 export const addInboxRelay = async (url: string) => {
+  await loadUserInboxRelaySelections([], true)
+
   const list = get(userInboxRelaySelections) || makeList({kind: INBOX_RELAYS})
   const event = await addToListPublicly(list, ["relay", url]).reconcile(nip44EncryptToSelf)
   const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
@@ -102,6 +117,8 @@ export const setProfile = (profile: Profile) => {
 // NIP 02
 
 export const unfollow = async (value: string) => {
+  await loadUserFollows([], true)
+
   const list = get(userFollows) || makeList({kind: FOLLOWS})
   const event = await removeFromList(list, value).reconcile(nip44EncryptToSelf)
   const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
@@ -110,6 +127,8 @@ export const unfollow = async (value: string) => {
 }
 
 export const follow = async (tag: string[]) => {
+  await loadUserFollows([], true)
+
   const list = get(userFollows) || makeList({kind: FOLLOWS})
   const event = await addToListPublicly(list, tag).reconcile(nip44EncryptToSelf)
   const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
@@ -118,6 +137,8 @@ export const follow = async (tag: string[]) => {
 }
 
 export const unmute = async (value: string) => {
+  await loadUserMutes([], true)
+
   const list = get(userMutes) || makeList({kind: MUTES})
   const event = await removeFromList(list, value).reconcile(nip44EncryptToSelf)
   const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
@@ -125,7 +146,9 @@ export const unmute = async (value: string) => {
   return publishThunk({event, relays})
 }
 
-export const mute = async (tag: string[]) => {
+export const mutePublicly = async (tag: string[]) => {
+  await loadUserMutes([], true)
+
   const list = get(userMutes) || makeList({kind: MUTES})
   const event = await addToListPublicly(list, tag).reconcile(nip44EncryptToSelf)
   const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
@@ -133,7 +156,35 @@ export const mute = async (tag: string[]) => {
   return publishThunk({event, relays})
 }
 
+export const mutePrivately = async (tag: string[]) => {
+  await loadUserMutes([], true)
+
+  const list = get(userMutes) || makeList({kind: MUTES})
+  const event = await addToListPrivately(list, tag).reconcile(nip44EncryptToSelf)
+  const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
+
+  return publishThunk({event, relays})
+}
+
+export const setMutes = async ({
+  publicTags,
+  privateTags,
+}: {
+  publicTags?: string[][]
+  privateTags?: string[][]
+}) => {
+  await loadUserMutes([], true)
+
+  const list = get(userMutes) || makeList({kind: MUTES})
+  const event = await updateList(list, {publicTags, privateTags}).reconcile(nip44EncryptToSelf)
+  const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
+
+  return publishThunk({event, relays})
+}
+
 export const unpin = async (value: string) => {
+  await loadUserPins([], true)
+
   const list = get(userPins) || makeList({kind: PINS})
   const event = await removeFromList(list, value).reconcile(nip44EncryptToSelf)
   const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
@@ -142,6 +193,8 @@ export const unpin = async (value: string) => {
 }
 
 export const pin = async (tag: string[]) => {
+  await loadUserPins([], true)
+
   const list = get(userPins) || makeList({kind: PINS})
   const event = await addToListPublicly(list, tag).reconcile(nip44EncryptToSelf)
   const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()

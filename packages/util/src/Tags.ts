@@ -119,4 +119,6 @@ export const uniqTags = (tags: string[][]) => uniqBy(t => t.slice(0, 2).join(":"
 
 export const tagsFromIMeta = (imeta: string[]) => imeta.map((m: string) => m.split(" "))
 
-export const tagger = (name: string) => (value: string) => [name, value]
+export const tagger =
+  (name: string) =>
+  (value: string, ...args: unknown[]) => [name, value]

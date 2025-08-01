@@ -46,7 +46,7 @@ export const makeCachedLoader = <T>({
   const pending = new Map<string, Promise<T | void>>()
   const loadAttempts = new Map<string, number>()
 
-  return async (key: string, relays: string[] = []) => {
+  return async (key: string, relays: string[] = [], force = false) => {
     const stale = indexStore.get().get(key)
 
     // If we have no loader function, nothing we can do
@@ -57,7 +57,7 @@ export const makeCachedLoader = <T>({
     const freshness = getFreshness(name, key)
 
     // If we have an item, reload if it's stale
-    if (stale && freshness > now() - 3600) {
+    if (stale && freshness > now() - 3600 && !force) {
       return stale
     }
 
@@ -69,7 +69,7 @@ export const makeCachedLoader = <T>({
     const attempt = loadAttempts.get(key) || 0
 
     // Use exponential backoff to throttle attempts
-    if (freshness > now() - Math.pow(2, attempt)) {
+    if (freshness > now() - Math.pow(2, attempt) && !force) {
       return stale
     }
 

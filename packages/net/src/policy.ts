@@ -14,6 +14,14 @@ import {
 } from "./message.js"
 import {Socket, SocketStatus, SocketEvent} from "./socket.js"
 import {AuthStatus, AuthStateEvent} from "./auth.js"
+import {Unsubscriber} from "./util.js"
+
+/**
+ * The contract for socket policies
+ * @param socket - a Socket object
+ * @return a cleanup function
+ */
+export type SocketPolicy = (socket: Socket) => Unsubscriber
 
 /**
  * Handles auth-related message management:

@@ -69,8 +69,8 @@ export type SignerMethodWrapper = <T>(method: string, thunk: () => Promise<T>) =
 
 export class WrappedSigner extends Emitter implements ISigner {
   constructor(
-    private signer: ISigner,
-    private wrapMethod: SignerMethodWrapper,
+    readonly signer: ISigner,
+    readonly wrapMethod: SignerMethodWrapper,
   ) {
     super()
   }

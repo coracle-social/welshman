@@ -89,6 +89,25 @@ export const addToListPrivately = (list: List, ...tags: string[][]) => {
   })
 }
 
+export const updateList = (
+  list: List,
+  {publicTags, privateTags}: {publicTags?: string[][]; privateTags?: string[][]},
+) => {
+  const template = {
+    kind: list.kind,
+    content: list.event?.content || "",
+    tags: publicTags || list.publicTags,
+  }
+
+  const updates: EncryptableUpdates = {}
+
+  if (privateTags) {
+    updates.content = JSON.stringify(privateTags)
+  }
+
+  return new Encryptable(template, updates)
+}
+
 export const getRelaysFromList = (list?: List, mode?: RelayMode): string[] => {
   let tags = getRelayTags(getListTags(list))
 
