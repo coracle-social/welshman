@@ -32,6 +32,8 @@ export default defineConfig({
             {text: "Web of Trust", link: "/app/wot"},
             {text: "Storage", link: "/app/storage"},
             {text: "Context", link: "/app/context"},
+            {text: "Commands", link: "/app/commands"},
+            {text: "User", link: "/app/user"},
           ],
         },
         {

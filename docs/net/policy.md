@@ -2,6 +2,15 @@
 
 Socket policies provide automated behavior for socket connections. They are intended to be applied on socket creation via `makeSocket` or `PoolOptions.makeSocket`.
 
+## Types
+
+### SocketPolicy
+```typescript
+type SocketPolicy = (socket: Socket) => Unsubscriber
+```
+
+The contract for socket policies. Takes a Socket object and returns a cleanup function that should be called when the policy is no longer needed.
+
 ## Built-in Policies
 
 ### `socketPolicyAuthBuffer`

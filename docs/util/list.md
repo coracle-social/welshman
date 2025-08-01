@@ -87,6 +87,12 @@ function addToListPrivately(
   list: List,
   ...tags: string[][]
 ): Encryptable
+
+// Update list with new tags
+function updateList(
+  list: List,
+  options: {publicTags?: string[][], privateTags?: string[][]}
+): Encryptable
 ```
 
 ## Usage Examples
