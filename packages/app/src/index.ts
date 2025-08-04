@@ -11,6 +11,7 @@ export * from "./profiles.js"
 export * from "./pins.js"
 export * from "./relays.js"
 export * from "./relaySelections.js"
+export * from "./inboxRelaySelections.js"
 export * from "./search.js"
 export * from "./session.js"
 export * from "./storage.js"
@@ -23,14 +24,16 @@ export * from "./user.js"
 export * from "./wot.js"
 export * from "./zappers.js"
 
+import {derived} from "svelte/store"
 import {sortBy, throttleWithValue, tryCatch} from "@welshman/lib"
-import {verifyEvent, isEphemeralKind, isDVMKind} from "@welshman/util"
+import {verifyEvent, isEphemeralKind, isDVMKind, RelayMode, getRelaysFromList} from "@welshman/util"
 import {routerContext} from "@welshman/router"
 import {Pool, SocketEvent, isRelayEvent} from "@welshman/net"
 import {pubkey} from "./session.js"
 import {repository, tracker} from "./core.js"
-import {getPubkeyRelays} from "./relaySelections.js"
 import {Relay, relays, loadRelay, trackRelayStats, getRelayQuality} from "./relays.js"
+import {relaySelectionsByPubkey} from "./relaySelections.js"
+import {inboxRelaySelectionsByPubkey} from "./inboxRelaySelections.js"
 
 // Sync relays with our database
 
@@ -50,7 +53,7 @@ Pool.get().subscribe(socket => {
   })
 })
 
-// Configure the router
+// Configure the router and add a few other relay utils
 
 const _relayGetter = (fn?: (relay: Relay) => any) =>
   throttleWithValue(200, () => {
@@ -64,6 +67,16 @@ const _relayGetter = (fn?: (relay: Relay) => any) =>
       .slice(0, 5)
       .map(r => r.url)
   })
+
+export const getPubkeyRelays = (pubkey: string, mode?: RelayMode) =>
+  mode === RelayMode.Inbox
+    ? getRelaysFromList(inboxRelaySelectionsByPubkey.get().get(pubkey))
+    : getRelaysFromList(relaySelectionsByPubkey.get().get(pubkey), mode)
+
+export const derivePubkeyRelays = (pubkey: string, mode?: RelayMode) =>
+  mode === RelayMode.Inbox
+    ? derived(inboxRelaySelectionsByPubkey, $m => getRelaysFromList($m.get(pubkey)))
+    : derived(relaySelectionsByPubkey, $m => getRelaysFromList($m.get(pubkey), mode))
 
 routerContext.getUserPubkey = () => pubkey.get()
 routerContext.getPubkeyRelays = getPubkeyRelays

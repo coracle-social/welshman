@@ -3,7 +3,7 @@ import {readProfile, displayProfile, displayPubkey, PROFILE} from "@welshman/uti
 import {PublishedProfile} from "@welshman/util"
 import {deriveEventsMapped, collection, withGetter} from "@welshman/store"
 import {repository} from "./core.js"
-import {makeOutboxLoader} from "./relaySelections.js"
+import {makeOutboxLoaderWithIndexers} from "./relaySelections.js"
 
 export const profiles = withGetter(
   deriveEventsMapped<PublishedProfile>(repository, {
@@ -21,7 +21,7 @@ export const {
   name: "profiles",
   store: profiles,
   getKey: profile => profile.event.pubkey,
-  load: makeOutboxLoader(PROFILE),
+  load: makeOutboxLoaderWithIndexers(PROFILE),
 })
 
 export const displayProfileByPubkey = (pubkey: string | undefined) =>

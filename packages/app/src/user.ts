@@ -6,12 +6,8 @@ import {followsByPubkey, loadFollows} from "./follows.js"
 import {loadPins, pinsByPubkey} from "./pins.js"
 import {mutesByPubkey, loadMutes} from "./mutes.js"
 import {blossomServersByPubkey, loadBlossomServers} from "./blossom.js"
-import {
-  relaySelectionsByPubkey,
-  inboxRelaySelectionsByPubkey,
-  loadRelaySelections,
-  loadInboxRelaySelections,
-} from "./relaySelections.js"
+import {relaySelectionsByPubkey, loadRelaySelections} from "./relaySelections.js"
+import {inboxRelaySelectionsByPubkey, loadInboxRelaySelections} from "./inboxRelaySelections.js"
 import {wotGraph} from "./wot.js"
 
 export type UserDataLoader = (pubkey: string, relays?: string[], force?: boolean) => unknown
