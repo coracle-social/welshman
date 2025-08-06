@@ -1291,6 +1291,9 @@ type FetchOpts = {
  * @returns Promise of parsed JSON response
  */
 export const fetchJson = async (url: string, opts: FetchOpts = {}) => {
+  // Make sure the url is valid, this will throw if not
+  url = String(new URL(url))
+
   if (!opts.headers) {
     opts.headers = {}
   }

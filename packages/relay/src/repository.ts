@@ -56,7 +56,7 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
   constructor() {
     super()
 
-    this.setMaxListeners(100)
+    this.setMaxListeners(1000)
   }
 
   // Dump/load/clear

@@ -1,4 +1,5 @@
 import {
+  nth,
   uniq,
   intersection,
   mergeLeft,
@@ -31,6 +32,7 @@ import {
   getAncestorTags,
   asDecryptedEvent,
   getRelaysFromList,
+  getPubkeyTags,
   RelayMode,
 } from "@welshman/util"
 import {Repository} from "@welshman/relay"
@@ -212,32 +214,33 @@ export class Router {
     return this.merge(scenarios)
   }
 
-  EventAncestors = (event: TrustedEvent, type: "mentions" | "replies" | "roots") => {
-    const ancestorTags = getAncestorTags(event)
+  EventParents = (event: TrustedEvent) => {
+    const {replies} = getAncestorTags(event)
+    const mentions = getPubkeyTags(event.tags)
+    const authors = replies.map(nth(3)).filter(p => p?.length === 64)
+    const others = mentions.map(nth(1)).filter(p => p?.length === 64)
+    const relays = uniq([...replies, ...mentions].map(nth(2)).filter(r => r && isRelayUrl(r)))
 
-    const tags: string[][] = (ancestorTags as any)[type] || []
-
-    return this.scenario(
-      tags.flatMap(([_, value, relay, ...pubkeys]) => {
-        const selections = [
-          makeSelection(this.ForUser().getUrls(), 0.5),
-          makeSelection(this.FromPubkeys(pubkeys).getUrls()),
-        ]
-
-        if (relay) {
-          selections.push(makeSelection([relay], 0.9))
-        }
-
-        return selections
-      }),
-    )
+    return this.merge([
+      this.FromPubkeys(authors).weight(10),
+      this.FromPubkeys(others),
+      this.FromRelays(relays),
+    ])
   }
 
-  EventMentions = (event: TrustedEvent) => this.EventAncestors(event, "mentions")
+  EventRoots = (event: TrustedEvent) => {
+    const {roots} = getAncestorTags(event)
+    const mentions = getPubkeyTags(event.tags)
+    const authors = roots.map(nth(3)).filter(p => p?.length === 64)
+    const others = mentions.map(nth(1)).filter(p => p?.length === 64)
+    const relays = uniq([...roots, ...mentions].map(nth(2)).filter(r => r && isRelayUrl(r)))
 
-  EventParents = (event: TrustedEvent) => this.EventAncestors(event, "replies")
-
-  EventRoots = (event: TrustedEvent) => this.EventAncestors(event, "roots")
+    return this.merge([
+      this.FromPubkeys(authors).weight(10),
+      this.FromPubkeys(others),
+      this.FromRelays(relays),
+    ])
+  }
 
   PublishEvent = (event: TrustedEvent) => {
     const pubkeys = getPubkeyTagValues(event.tags)
