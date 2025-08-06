@@ -1,6 +1,7 @@
 import {derived, writable} from "svelte/store"
 import {cached, randomId, append, omit, equals, assoc} from "@welshman/lib"
 import {withGetter} from "@welshman/store"
+import {Wallet} from "@welshman/util"
 import {
   WrappedSigner,
   Nip46Broker,
@@ -59,7 +60,7 @@ export type SessionAnyMethod =
   | SessionNip55
   | SessionPubkey
 
-export type Session = SessionAnyMethod & Record<string, any>
+export type Session = SessionAnyMethod & {wallet?: Wallet} & Record<string, any>
 
 export const pubkey = withGetter(writable<string | undefined>(undefined))
 

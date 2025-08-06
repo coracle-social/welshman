@@ -80,6 +80,16 @@ export const {
   }),
 })
 
+export const loadZapperForPubkey = async (pubkey: string, relays: string[] = []) => {
+  const $profile = await loadProfile(pubkey, relays)
+
+  if (!$profile?.lnurl) {
+    return undefined
+  }
+
+  return loadZapper($profile.lnurl)
+}
+
 export const deriveZapperForPubkey = (pubkey: string, relays: string[] = []) =>
   derived([zappersByLnurl, deriveProfile(pubkey, relays)], ([$zappersByLnurl, $profile]) => {
     if (!$profile?.lnurl) {
