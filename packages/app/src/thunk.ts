@@ -3,13 +3,12 @@ import {writable, get} from "svelte/store"
 import {
   TaskQueue,
   ifLet,
+  ensurePlural,
   dissoc,
   remove,
   defer,
   sleep,
   assoc,
-  spec,
-  nthEq,
   nth,
 } from "@welshman/lib"
 import {stamp, own, hash} from "@welshman/signer"
@@ -68,6 +67,13 @@ export class Thunk {
     for (const relay of options.relays) {
       this.status[relay] = PublishStatus.Sending
     }
+
+    this.controller.signal.addEventListener("abort", () => {
+      console.log("abort")
+      for (const relay of options.relays) {
+        this._setAborted(relay)
+      }
+    })
   }
 
   _notify() {
@@ -82,6 +88,26 @@ export class Thunk {
       this.details[relay] = message
     }
 
+    this._notify()
+  }
+
+  _setPending(relay: string) {
+    this.options.onPending?.(relay)
+    this.status[relay] = PublishStatus.Pending
+    this._notify()
+  }
+
+  _setTimeout(relay: string) {
+    this.options.onTimeout?.(relay)
+    this.status[relay] = PublishStatus.Timeout
+    this.details[relay] = "Publish timed out"
+    this._notify()
+  }
+
+  _setAborted(relay: string) {
+    this.options.onAborted?.(relay)
+    this.status[relay] = PublishStatus.Aborted
+    this.details[relay] = "Publish was aborted"
     this._notify()
   }
 
@@ -149,21 +175,13 @@ export class Thunk {
           this._notify()
         },
         onPending: (relay: string) => {
-          this.options.onPending?.(relay)
-          this.status[relay] = PublishStatus.Pending
-          this._notify()
+          this._setPending(relay)
         },
         onTimeout: (relay: string) => {
-          this.options.onTimeout?.(relay)
-          this.status[relay] = PublishStatus.Timeout
-          this.details[relay] = "Publish timed out"
-          this._notify()
+          this._setTimeout(relay)
         },
         onAborted: (relay: string) => {
-          this.options.onAborted?.(relay)
-          this.status[relay] = PublishStatus.Aborted
-          this.details[relay] = "Publish was aborted"
-          this._notify()
+          this._setAborted(relay)
         },
         onComplete: () => {
           this.options.onComplete?.()
@@ -187,24 +205,21 @@ export class Thunk {
 export class MergedThunk {
   _subs: Subscriber<MergedThunk>[] = []
 
-  controller = new AbortController()
   status: PublishStatusByRelay = {}
   details: Record<string, string> = {}
 
   constructor(readonly thunks: Thunk[]) {
-    const {Aborted, Failure, Timeout, Pending, Success} = PublishStatus
-    const relays = new Set(thunks.flatMap(thunk => Object.keys(thunk.options.relays)))
+    const {Aborted, Failure, Timeout, Pending, Sending, Success} = PublishStatus
+    const relays = new Set(thunks.flatMap(thunk => thunk.options.relays))
 
     for (const thunk of thunks) {
-      this.controller.signal.addEventListener("abort", () => thunk.controller.abort())
-
       thunk.subscribe($thunk => {
         this.status = {}
         this.details = {}
 
         for (const relay of relays) {
-          for (const status of [Aborted, Failure, Timeout, Pending, Success]) {
-            const thunk = thunks.find(spec({[relay]: status}))
+          for (const status of [Aborted, Failure, Timeout, Pending, Sending, Success]) {
+            const thunk = thunks.find(t => t.status[relay] === status)
 
             if (thunk) {
               this.status[relay] = thunk.status[relay]!
@@ -213,9 +228,11 @@ export class MergedThunk {
           }
         }
 
+        console.log(this.status)
+
         this._notify()
 
-        if (thunks.filter(thunkIsComplete).length === thunks.length) {
+        if (thunks.every(thunkIsComplete)) {
           this._subs = []
         }
       })
@@ -246,78 +263,64 @@ export const isThunk = (thunk: AbstractThunk): thunk is Thunk => thunk instanceo
 export const isMergedThunk = (thunk: AbstractThunk): thunk is MergedThunk =>
   thunk instanceof MergedThunk
 
-export const thunkHasStatus = (thunk: AbstractThunk, status: PublishStatus) =>
-  Object.entries(thunk.status).some(nthEq(1, status))
+// Thunk status urls
 
-export const thunkUrlsWithStatus = (thunk: AbstractThunk, status: PublishStatus) =>
-  Object.entries(thunk.status).filter(nthEq(1, status)).map(nth(0))
-
-export const thunkCompleteUrls = (thunk: AbstractThunk) => {
-  const incompleteStatuses = [PublishStatus.Sending, PublishStatus.Pending]
-
-  return Object.entries(thunk.status)
-    .filter(([_, s]) => !incompleteStatuses.includes(s))
-    .map(nth(1))
-}
-
-export const thunkIncompleteUrls = (thunk: AbstractThunk) => {
-  const incompleteStatuses = [PublishStatus.Sending, PublishStatus.Pending]
+export const getThunkUrlsWithStatus = (
+  statuses: PublishStatus | PublishStatus[],
+  thunk: AbstractThunk,
+) => {
+  statuses = ensurePlural(statuses)
 
   return Object.entries(thunk.status)
-    .filter(([_, s]) => incompleteStatuses.includes(s))
-    .map(nth(1))
+    .filter(([_, status]) => statuses.includes(status))
+    .map(nth(0))
 }
 
-export const thunkIsComplete = (thunk: AbstractThunk) => thunkCompleteUrls(thunk).length > 0
+export const getCompleteThunkUrls = (thunk: AbstractThunk) =>
+  getThunkUrlsWithStatus([PublishStatus.Sending, PublishStatus.Pending], thunk)
 
-export const getThunkError = (thunk: Thunk) =>
-  new Promise<string>(resolve => {
-    thunk.subscribe($thunk => {
-      for (const [relay, status] of Object.entries($thunk.status)) {
-        if (status === PublishStatus.Failure) {
-          resolve($thunk.details[relay])
-        }
-      }
+export const getIncompleteThunkUrls = (thunk: AbstractThunk) =>
+  getThunkUrlsWithStatus([PublishStatus.Sending, PublishStatus.Pending], thunk)
 
-      if (thunkIsComplete($thunk)) {
-        resolve("")
-      }
-    })
-  })
+export const getFailedThunkUrls = (thunk: AbstractThunk) =>
+  getThunkUrlsWithStatus([PublishStatus.Failure, PublishStatus.Timeout], thunk)
 
-export const waitForThunkStatus = (thunk: Thunk, status: PublishStatus) =>
-  new Promise<boolean>(resolve => {
-    thunk.subscribe($thunk => {
-      for (const [_, s] of Object.entries($thunk.status)) {
-        if (s === status) {
-          resolve(true)
-        }
-      }
+// Thunk status checks
 
-      if (thunkIsComplete($thunk)) {
-        resolve(false)
-      }
-    })
-  })
+export const thunkHasStatus = (statuses: PublishStatus | PublishStatus[], thunk: AbstractThunk) =>
+  getThunkUrlsWithStatus(statuses, thunk).length > 0
 
-export const waitForThunkCompletion = (thunk: Thunk) =>
-  new Promise<void>(resolve => {
-    thunk.subscribe($thunk => {
-      if (thunkIsComplete($thunk)) {
-        resolve()
-      }
-    })
-  })
+export const thunkIsComplete = (thunk: AbstractThunk) =>
+  !thunkHasStatus([PublishStatus.Sending, PublishStatus.Pending], thunk)
 
-export function* walkThunks(thunks: AbstractThunk[]): Iterable<Thunk> {
-  for (const thunk of thunks) {
-    if (thunk instanceof MergedThunk) {
-      yield* walkThunks(thunk.thunks)
-    } else {
-      yield thunk
+// Thunk errors
+
+export const getThunkError = (thunk: Thunk) => {
+  for (const [relay, status] of Object.entries(thunk.status)) {
+    if (status === PublishStatus.Failure) {
+      return thunk.details[relay]
     }
   }
+
+  if (thunkIsComplete(thunk)) {
+    return ""
+  }
 }
+
+// Thunk utilities that return promises
+
+export const waitForThunkError = (thunk: Thunk) =>
+  new Promise<string>(resolve => {
+    thunk.subscribe($thunk => {
+      const error = getThunkError($thunk)
+
+      if (error !== undefined) {
+        resolve(error)
+      }
+    })
+  })
+
+// Thunk state
 
 export const thunks = writable<Record<string, AbstractThunk>>({})
 
@@ -328,6 +331,21 @@ export const thunkQueue = new TaskQueue<Thunk>({
   },
 })
 
+// Other thunk utilities
+
+export const mergeThunks = (thunks: AbstractThunk[]) =>
+  new MergedThunk(Array.from(flattenThunks(thunks)))
+
+export function* flattenThunks(thunks: AbstractThunk[]): Iterable<Thunk> {
+  for (const thunk of thunks) {
+    if (isMergedThunk(thunk)) {
+      yield* flattenThunks(thunk.thunks)
+    } else {
+      yield thunk
+    }
+  }
+}
+
 export const publishThunk = (options: ThunkOptions) => {
   const thunk = new Thunk(options)
 
@@ -337,15 +355,18 @@ export const publishThunk = (options: ThunkOptions) => {
 
   thunks.update(assoc(thunk.event.id, thunk))
 
-  thunk.controller.signal.addEventListener("abort", () => {
-    repository.removeEvent(thunk.event.id)
-  })
-
   return thunk
 }
 
-export const abortThunk = (thunk: Thunk) => {
-  thunk.controller.abort()
-  thunks.update(dissoc(thunk.event.id))
-  repository.removeEvent(thunk.event.id)
+export const abortThunk = (thunk: AbstractThunk) => {
+  for (const child of flattenThunks([thunk])) {
+    child.controller.abort()
+    thunks.update(dissoc(child.event.id))
+    repository.removeEvent(child.event.id)
+  }
 }
+
+export const retryThunk = (thunk: AbstractThunk) =>
+  isMergedThunk(thunk)
+    ? mergeThunks(thunk.thunks.map(t => publishThunk(t.options)))
+    : publishThunk(thunk.options)

@@ -1062,6 +1062,11 @@ export const poll = ({interval = 300, condition, signal}: PollOptions) =>
       }
     }, interval)
 
+    if (condition()) {
+      resolve()
+      clearInterval(int)
+    }
+
     signal.addEventListener("abort", () => {
       resolve()
       clearInterval(int)

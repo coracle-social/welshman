@@ -12,7 +12,7 @@ import {
   prepEvent,
   publishThunk,
   thunkQueue,
-  walkThunks,
+  flattenThunks,
 } from "../src/thunk"
 
 const secret = makeSecret()
@@ -46,19 +46,19 @@ describe("thunk", () => {
       const thunk2 = new Thunk(mockRequest)
       const merged = new MergedThunk([thunk1, thunk2])
 
-      merged.controller.abort()
+      abortThunk(merged)
 
       expect(thunk1.controller.signal.aborted).toBe(true)
       expect(thunk2.controller.signal.aborted).toBe(true)
     })
   })
 
-  describe("walkThunks", () => {
+  describe("flattenThunks", () => {
     it("should iterate through nested thunks", () => {
       const thunk1 = new Thunk(mockRequest)
       const thunk2 = new Thunk(mockRequest)
       const merged = new MergedThunk([thunk1, thunk2])
-      const thunks = Array.from(walkThunks([merged, thunk1]))
+      const thunks = Array.from(flattenThunks([merged, thunk1]))
 
       expect(thunks).toHaveLength(3)
     })
@@ -78,7 +78,7 @@ describe("thunk", () => {
       const removeEventSpy = vi.spyOn(repository, "removeEvent")
       const thunk = publishThunk(mockRequest)
 
-      thunk.controller.abort()
+      abortThunk(thunk)
 
       expect(removeEventSpy).toHaveBeenCalledWith(thunk.event.id)
     })

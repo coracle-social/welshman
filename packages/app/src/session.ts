@@ -19,6 +19,7 @@ export enum SessionMethod {
   Nip46 = "nip46",
   Nip55 = "nip55",
   Pubkey = "pubkey",
+  Anonymous = "anonymous",
 }
 
 export type SessionNip01 = {
@@ -53,12 +54,17 @@ export type SessionPubkey = {
   pubkey: string
 }
 
+export type SessionAnonymous = {
+  method: SessionMethod.Anonymous
+}
+
 export type SessionAnyMethod =
   | SessionNip01
   | SessionNip07
   | SessionNip46
   | SessionNip55
   | SessionPubkey
+  | SessionAnonymous
 
 export type Session = SessionAnyMethod & {wallet?: Wallet} & Record<string, any>
 
