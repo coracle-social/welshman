@@ -21,13 +21,9 @@ Buffers messages during authentication flow and replays them after successful au
 
 Auto-connects closed sockets when messages are sent (with error cooldown).
 
-### `socketPolicyCloseOnTimeout`
+### `socketPolicyCloseInactive`
 
-Closes sockets after 30 seconds of inactivity.
-
-### `socketPolicyReopenActive`
-
-Reopens sockets that have pending requests or publishes.
+Closes sockets after 30 seconds of inactivity and reopens sockets that have pending requests or publishes.
 
 ## Custom Auth Policy
 

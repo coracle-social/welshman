@@ -1,4 +1,4 @@
-import {on, nthNe, always, call, sleep, ago, now} from "@welshman/lib"
+import {on, ms, nthNe, always, call, sleep, ago, now} from "@welshman/lib"
 import {AUTH_JOIN, StampedEvent, SignedEvent} from "@welshman/util"
 import {
   ClientMessage,
@@ -116,56 +116,28 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
 }
 
 /**
- * Auto-closes a socket after 30 seconds of inactivity
+ * Auto-closes inactive sockets, and re-opens sockets with pending messages
  * @param socket - a Socket object
  * @return a cleanup function
  */
-export const socketPolicyCloseOnTimeout = (socket: Socket) => {
-  let lastActivity = now()
-
-  const unsubscribers = [
-    on(socket, SocketEvent.Send, (message: ClientMessage) => {
-      lastActivity = now()
-    }),
-    on(socket, SocketEvent.Receive, (message: RelayMessage) => {
-      lastActivity = now()
-    }),
-  ]
-
-  const interval = setInterval(() => {
-    if (socket.status === SocketStatus.Open && lastActivity < ago(30)) {
-      socket.close()
-    }
-  }, 3000)
-
-  return () => {
-    unsubscribers.forEach(call)
-    clearInterval(interval)
-  }
-}
-
-/**
- * Automatically re-opens a socket if there are active requests or publishes
- * @param socket - a Socket object
- * @return a cleanup function
- */
-export const socketPolicyReopenActive = (socket: Socket) => {
+export const socketPolicyCloseInactive = (socket: Socket) => {
   const pending = new Map<string, ClientMessage>()
 
-  let lastOpen = Date.now()
+  let lastOpen = now()
+  let lastActivity = now()
 
   const unsubscribers = [
     on(socket, SocketEvent.Status, (newStatus: SocketStatus) => {
       const isClosed = [SocketStatus.Closed, SocketStatus.Error].includes(socket.status)
 
-      // Keep track of the most recent error
+      // Keep track of the most recent open
       if (newStatus === SocketStatus.Open) {
-        lastOpen = Date.now()
+        lastOpen = now()
       }
 
       // If the socket closed and we have no error, reopen it but don't flap
       if (isClosed && pending.size) {
-        sleep(Math.max(0, 5000 - (Date.now() - lastOpen))).then(() => {
+        sleep(Math.max(0, ms(5 - (now() - lastOpen)))).then(() => {
           for (const message of pending.values()) {
             socket.send(message)
           }
@@ -173,6 +145,8 @@ export const socketPolicyReopenActive = (socket: Socket) => {
       }
     }),
     on(socket, SocketEvent.Send, (message: ClientMessage) => {
+      lastActivity = now()
+
       if (isClientEvent(message)) {
         pending.set(message[1].id, message)
       }
@@ -186,13 +160,24 @@ export const socketPolicyReopenActive = (socket: Socket) => {
       }
     }),
     on(socket, SocketEvent.Receive, (message: RelayMessage) => {
+      lastActivity = now()
+
       if (isRelayClosed(message) || isRelayOk(message)) {
         pending.delete(message[1])
       }
     }),
   ]
 
-  return () => unsubscribers.forEach(call)
+  const interval = setInterval(() => {
+    if (socket.status === SocketStatus.Open && lastActivity < ago(30) && pending.size === 0) {
+      socket.close()
+    }
+  }, 3000)
+
+  return () => {
+    unsubscribers.forEach(call)
+    clearInterval(interval)
+  }
 }
 
 export type SocketPolicyAuthOptions = {
@@ -224,6 +209,5 @@ export const makeSocketPolicyAuth = (options: SocketPolicyAuthOptions) => (socke
 export const defaultSocketPolicies = [
   socketPolicyAuthBuffer,
   socketPolicyConnectOnSend,
-  socketPolicyCloseOnTimeout,
-  socketPolicyReopenActive,
+  socketPolicyCloseInactive,
 ]

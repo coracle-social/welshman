@@ -5,8 +5,7 @@ import {AuthStatus, AuthStateEvent} from "../src/auth"
 import {
   socketPolicyAuthBuffer,
   socketPolicyConnectOnSend,
-  socketPolicyCloseOnTimeout,
-  socketPolicyReopenActive,
+  socketPolicyCloseInactive,
 } from "../src/policy"
 import {ClientMessage, RelayMessage} from "../src/message"
 
@@ -267,9 +266,9 @@ describe("policy", () => {
     })
   })
 
-  describe("socketPolicyCloseOnTimeout", () => {
+  describe("socketPolicyCloseInactive", () => {
     it("should close socket after 30 seconds of inactivity", async () => {
-      const cleanup = socketPolicyCloseOnTimeout(socket)
+      const cleanup = socketPolicyCloseInactive(socket)
       const closeSpy = vi.spyOn(socket, "close")
 
       // Set socket as open
@@ -285,7 +284,7 @@ describe("policy", () => {
     })
 
     it("should reset timer on send activity", () => {
-      const cleanup = socketPolicyCloseOnTimeout(socket)
+      const cleanup = socketPolicyCloseInactive(socket)
       const closeSpy = vi.spyOn(socket, "close")
 
       // Set socket as open
@@ -296,6 +295,7 @@ describe("policy", () => {
 
       // Send a message
       socket.emit(SocketEvent.Send, ["EVENT", {id: "123"}])
+      socket.emit(SocketEvent.Receive, ["OK", "123", true, ""])
 
       // Advance time partially again
       vi.advanceTimersByTime(20000)
@@ -313,7 +313,7 @@ describe("policy", () => {
     })
 
     it("should reset timer on receive activity", () => {
-      const cleanup = socketPolicyCloseOnTimeout(socket)
+      const cleanup = socketPolicyCloseInactive(socket)
       const closeSpy = vi.spyOn(socket, "close")
 
       // Set socket as open
@@ -341,7 +341,7 @@ describe("policy", () => {
     })
 
     it("should not close socket if not open", () => {
-      const cleanup = socketPolicyCloseOnTimeout(socket)
+      const cleanup = socketPolicyCloseInactive(socket)
       const closeSpy = vi.spyOn(socket, "close")
 
       // Set socket as closed
@@ -355,11 +355,9 @@ describe("policy", () => {
 
       cleanup()
     })
-  })
 
-  describe("socketPolicyReopenActive", () => {
     it("should reopen socket when closed with pending messages", async () => {
-      const cleanup = socketPolicyReopenActive(socket)
+      const cleanup = socketPolicyCloseInactive(socket)
       const sendSpy = vi.spyOn(socket, "send")
 
       // Send an event that will be pending
@@ -379,7 +377,7 @@ describe("policy", () => {
     })
 
     it("should reopen socket when closed with pending requests", async () => {
-      const cleanup = socketPolicyReopenActive(socket)
+      const cleanup = socketPolicyCloseInactive(socket)
       const sendSpy = vi.spyOn(socket, "send")
 
       // Send a request that will be pending
@@ -399,7 +397,7 @@ describe("policy", () => {
     })
 
     it("should not reopen socket immediately after previous open", async () => {
-      const cleanup = socketPolicyReopenActive(socket)
+      const cleanup = socketPolicyCloseInactive(socket)
       const sendSpy = vi.spyOn(socket, "send")
 
       // Send an event that will be pending
@@ -426,7 +424,7 @@ describe("policy", () => {
     })
 
     it("should remove pending messages when they complete", () => {
-      const cleanup = socketPolicyReopenActive(socket)
+      const cleanup = socketPolicyCloseInactive(socket)
       const sendSpy = vi.spyOn(socket, "send")
 
       // Send an event that will be pending
@@ -449,7 +447,7 @@ describe("policy", () => {
     })
 
     it("should remove pending messages when closed", () => {
-      const cleanup = socketPolicyReopenActive(socket)
+      const cleanup = socketPolicyCloseInactive(socket)
       const sendSpy = vi.spyOn(socket, "send")
 
       // Send a request that will be pending
