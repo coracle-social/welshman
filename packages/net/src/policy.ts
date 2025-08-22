@@ -138,6 +138,8 @@ export const socketPolicyCloseInactive = (socket: Socket) => {
       // If the socket closed and we have no error, reopen it but don't flap
       if (isClosed && pending.size) {
         sleep(Math.max(0, ms(5 - (now() - lastOpen)))).then(() => {
+          socket.attemptToOpen()
+
           for (const message of pending.values()) {
             socket.send(message)
           }
