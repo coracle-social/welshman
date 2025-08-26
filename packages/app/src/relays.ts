@@ -119,6 +119,11 @@ export const {
       const relay = stale.get(url)
       const profile = fresh.get(url)
 
+      if (!url || !isRelayUrl(url)) {
+        console.warn(`Attempted to load invalid relay url: ${url}`)
+        continue
+      }
+
       if (profile) {
         stale.set(url, {...relay, profile, url})
       }
@@ -175,6 +180,11 @@ const updateRelayStats = batch(500, (updates: RelayStatsUpdate[]) => {
 
     for (const [url, items] of $itemsByUrl.entries()) {
       const $relay: Relay = $relaysByUrl.get(url) || {url}
+
+      if (!url || !isRelayUrl(url)) {
+        console.warn(`Attempted to update stats for an invalid relay url: ${url}`)
+        continue
+      }
 
       if (!$relay.stats) {
         $relay.stats = makeRelayStats()
