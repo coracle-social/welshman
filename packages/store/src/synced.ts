@@ -17,12 +17,14 @@ export interface SyncConfig<T> {
   storage: StorageProvider
 }
 
-export const sync = <T>({key, store, storage}: SyncConfig<T>) => {
-  storage.get(key).then((value: T | undefined) => {
-    if (value !== undefined) {
-      store.set(value)
-    }
-  })
+export type Synced<T> = Writable<T> & {ready: Promise<void>}
+
+export const sync = async <T>({key, store, storage}: SyncConfig<T>) => {
+  const storedValue = await storage.get(key)
+
+  if (storedValue !== undefined) {
+    store.set(storedValue)
+  }
 
   store.subscribe(async (value: T) => {
     await storage.set(key, value)
@@ -36,9 +38,10 @@ export interface SyncedConfig<T> {
 }
 
 export const synced = <T>({key, storage, defaultValue}: SyncedConfig<T>) => {
-  const store = writable<T>(defaultValue)
+  const store = writable<T>(defaultValue) as Synced<T>
 
-  sync({key, store, storage})
+  const syncPromise = sync({key, store, storage})
+  store.ready = syncPromise
 
   return store
 }
