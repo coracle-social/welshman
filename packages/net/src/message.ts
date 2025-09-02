@@ -18,7 +18,7 @@ export type RelayAuthPayload = [string]
 
 export type RelayClosedPayload = [string, string]
 
-export type RelayEosePayload = [string, SignedEvent]
+export type RelayEosePayload = [string]
 
 export type RelayEventPayload = [string, SignedEvent]
 

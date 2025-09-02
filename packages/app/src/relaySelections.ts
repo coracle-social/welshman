@@ -1,5 +1,12 @@
 import {batcher} from "@welshman/lib"
-import {RELAYS, asDecryptedEvent, readList, TrustedEvent, PublishedList} from "@welshman/util"
+import {
+  RELAYS,
+  Filter,
+  asDecryptedEvent,
+  readList,
+  TrustedEvent,
+  PublishedList,
+} from "@welshman/util"
 import {deriveEventsMapped, collection} from "@welshman/store"
 import {load, LoadOptions} from "@welshman/net"
 import {Router} from "@welshman/router"
@@ -14,15 +21,18 @@ export const loadUsingOutbox = batcher(200, (optionses: LoadUsingOutboxOptions[]
   return optionses.map(options => load({...options, relays}))
 })
 
-export const makeOutboxLoader = (kind: number) => (pubkey: string, relays: string[]) => {
-  const filters = [{authors: [pubkey], kinds: [kind]}]
+export const makeOutboxLoader =
+  (kind: number, filter: Filter = {}) =>
+  (pubkey: string, relays: string[]) => {
+    const filters = [{...filter, authors: [pubkey], kinds: [kind]}]
 
-  return Promise.all([load({relays, filters}), loadUsingOutbox({filters})])
-}
+    return Promise.all([load({relays, filters}), loadUsingOutbox({filters})])
+  }
 
 export const makeOutboxLoaderWithIndexers =
-  (kind: number) => (pubkey: string, relays: string[]) => {
-    const filters = [{authors: [pubkey], kinds: [kind]}]
+  (kind: number, filter: Filter = {}) =>
+  (pubkey: string, relays: string[]) => {
+    const filters = [{...filter, authors: [pubkey], kinds: [kind]}]
 
     return Promise.all([
       load({relays, filters}),

@@ -242,15 +242,6 @@ importers:
         specifier: ~5.8.0
         version: 5.8.2
 
-  packages/mls:
-    devDependencies:
-      rimraf:
-        specifier: ~6.0.0
-        version: 6.0.1
-      typescript:
-        specifier: ~5.8.0
-        version: 5.8.2
-
   packages/net:
     dependencies:
       '@welshman/lib':

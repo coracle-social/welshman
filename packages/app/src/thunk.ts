@@ -69,7 +69,6 @@ export class Thunk {
     }
 
     this.controller.signal.addEventListener("abort", () => {
-      console.log("abort")
       for (const relay of options.relays) {
         this._setAborted(relay)
       }
@@ -227,8 +226,6 @@ export class MergedThunk {
             }
           }
         }
-
-        console.log(this.status)
 
         this._notify()
 
