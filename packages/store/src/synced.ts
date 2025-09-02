@@ -17,6 +17,8 @@ export interface SyncConfig<T> {
   storage: StorageProvider
 }
 
+export type Synced<T> = Writable<T> & {ready: Promise<void>}
+
 export const sync = async <T>({key, store, storage}: SyncConfig<T>) => {
   const storedValue = await storage.get(key)
 
@@ -35,10 +37,11 @@ export interface SyncedConfig<T> {
   defaultValue: T
 }
 
-export const synced = async <T>({key, storage, defaultValue}: SyncedConfig<T>) => {
-  const store = writable<T>(defaultValue)
+export const synced = <T>({key, storage, defaultValue}: SyncedConfig<T>) => {
+  const store = writable<T>(defaultValue) as Synced<T>
 
-  await sync({key, store, storage})
+  const syncPromise = sync({key, store, storage})
+  store.ready = syncPromise
 
   return store
 }
