@@ -1,3 +1,4 @@
+import {Readable} from "svelte/store"
 import {on, ms, nthNe, always, call, sleep, ago, now} from "@welshman/lib"
 import {AUTH_JOIN, StampedEvent, SignedEvent} from "@welshman/util"
 import {
@@ -10,6 +11,7 @@ import {
   RelayMessage,
   isRelayOk,
   isRelayEose,
+  isRelayEvent,
   isRelayClosed,
 } from "./message.js"
 import {Socket, SocketStatus, SocketEvent} from "./socket.js"

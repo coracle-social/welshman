@@ -28,7 +28,7 @@ import {derived} from "svelte/store"
 import {sortBy, throttleWithValue, tryCatch} from "@welshman/lib"
 import {verifyEvent, isEphemeralKind, isDVMKind, RelayMode, getRelaysFromList} from "@welshman/util"
 import {routerContext} from "@welshman/router"
-import {Pool, SocketEvent, isRelayEvent} from "@welshman/net"
+import {Pool, SocketEvent, isRelayEvent, netContext} from "@welshman/net"
 import {pubkey} from "./session.js"
 import {repository, tracker} from "./core.js"
 import {Relay, relays, loadRelay, trackRelayStats, getRelayQuality} from "./relays.js"
@@ -45,7 +45,11 @@ Pool.get().subscribe(socket => {
     if (isRelayEvent(message)) {
       const event = message[2]
 
-      if (!isEphemeralKind(event.kind) && !isDVMKind(event.kind) && verifyEvent(event)) {
+      if (
+        !isEphemeralKind(event.kind) &&
+        !isDVMKind(event.kind) &&
+        netContext.isEventValid(event, socket.url)
+      ) {
         tracker.track(event.id, socket.url)
         repository.publish(event)
       }
