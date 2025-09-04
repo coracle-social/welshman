@@ -1109,9 +1109,10 @@ export const throttle = <F extends (...args: any[]) => any>(ms: number, f: F) =>
     if (nextArgs) {
       f(...nextArgs)
       nextArgs = undefined
+      setTimeout(unpause, ms)
+    } else {
+      paused = false
     }
-
-    paused = false
   }
 
   return (...thisArgs: Parameters<F>) => {

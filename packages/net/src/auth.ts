@@ -29,6 +29,8 @@ export type AuthStateEvents = {
   [AuthStateEvent.Status]: (status: AuthStatus) => void
 }
 
+type Sign = (event: StampedEvent) => Promise<SignedEvent>
+
 export class AuthState extends EventEmitter {
   challenge: string | undefined
   request: string | undefined
@@ -89,7 +91,7 @@ export class AuthState extends EventEmitter {
     this.emit(AuthStateEvent.Status, status)
   }
 
-  async doAuth(sign: (event: StampedEvent) => Promise<SignedEvent>) {
+  async doAuth(sign: Sign) {
     if (!this.challenge) {
       throw new Error("Attempted to authenticate with no challenge")
     }
@@ -111,7 +113,7 @@ export class AuthState extends EventEmitter {
     }
   }
 
-  async attemptAuth(sign: (event: StampedEvent) => Promise<SignedEvent>) {
+  async attemptAuth(sign: Sign) {
     this.socket.attemptToOpen()
 
     if (![AuthStatus.Forbidden, AuthStatus.Ok].includes(this.status)) {
@@ -129,6 +131,16 @@ export class AuthState extends EventEmitter {
         condition: () => this.status !== AuthStatus.PendingResponse,
       })
     }
+  }
+
+  async retryAuth(sign: Sign) {
+    if (this.challenge) {
+      this.request = undefined
+      this.details = undefined
+      this.setStatus(AuthStatus.Requested)
+    }
+
+    await this.attemptAuth(sign)
   }
 
   cleanup() {

@@ -147,14 +147,14 @@ describe("Tools", () => {
         batchFn("b")
         batchFn("c")
 
-        await vi.advanceTimersByTimeAsync(100)
+        await vi.advanceTimersByTimeAsync(300)
 
         // Second batch
         batchFn("d")
         batchFn("e")
         batchFn("f")
 
-        await vi.advanceTimersByTimeAsync(100)
+        await vi.advanceTimersByTimeAsync(110)
 
         expect(processBatch).toHaveBeenCalledTimes(4)
         expect(processBatch).toHaveBeenCalledWith(["a"])
@@ -233,11 +233,10 @@ describe("Tools", () => {
 
         // Subsequent calls within throttle window should return cached value
         expect(throttledGet()).toBe(1)
-        expect(throttledGet()).toBe(1)
         expect(getValue).toHaveBeenCalledTimes(1)
 
         // After throttle window, should update value
-        await vi.advanceTimersByTimeAsync(100)
+        await vi.advanceTimersByTimeAsync(300)
         // the previous 2 called will have been batched, and the next throttledGet increase the counter to 3
         expect(throttledGet()).toBe(3)
         expect(getValue).toHaveBeenCalledTimes(3)
@@ -253,17 +252,15 @@ describe("Tools", () => {
 
         // Multiple calls within window
         for (let i = 0; i < 4; i++) {
-          throttledGet()
+          expect(throttledGet()).toBe(1)
           await vi.advanceTimersByTimeAsync(20) // 20ms each, still within 100ms window
         }
 
         expect(getValue).toHaveBeenCalledTimes(1)
 
-        // After window
         await vi.advanceTimersByTimeAsync(100)
-        // the previous called will have been batched, and the next throttledGet increase the counter to 3
-        expect(throttledGet()).toBe(3)
-        expect(getValue).toHaveBeenCalledTimes(3)
+        expect(throttledGet()).toBe(2)
+        expect(getValue).toHaveBeenCalledTimes(2)
       })
 
       it("should handle zero throttle time", () => {
