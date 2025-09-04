@@ -99,7 +99,7 @@ export const renderInvoice = (p: ParsedInvoice, r: Renderer) =>
   r.addLink("lightning:" + p.value, p.value.slice(0, 16) + "…")
 
 export const renderLink = (p: ParsedLink, r: Renderer) =>
-  r.addLink(p.value.url.toString(), p.value.url.host + p.value.url.pathname)
+  r.addLink(p.value.url.toString(), p.value.url.host + p.value.url.pathname.replace(/^\/$/, ""))
 
 export const renderNewline = (p: ParsedNewline, r: Renderer) =>
   r.addNewlines(Array.from(p.value).length)
