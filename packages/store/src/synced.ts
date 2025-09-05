@@ -40,8 +40,7 @@ export interface SyncedConfig<T> {
 export const synced = <T>({key, storage, defaultValue}: SyncedConfig<T>) => {
   const store = writable<T>(defaultValue) as Synced<T>
 
-  const syncPromise = sync({key, store, storage})
-  store.ready = syncPromise
+  store.ready = sync({key, store, storage})
 
   return store
 }

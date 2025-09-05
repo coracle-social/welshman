@@ -42,7 +42,7 @@ describe("Store utilities", () => {
 
   describe("synced", () => {
     it("should sync with localStorage", async () => {
-      const store = await synced({
+      const store = synced({
         key: "testKey",
         storage: localStorageProvider,
         defaultValue: "default",
@@ -63,7 +63,7 @@ describe("Store utilities", () => {
 
     it("should load existing value from localStorage", async () => {
       localStorage.setItem("testKey", JSON.stringify("existing"))
-      const store = await synced({
+      const store = synced({
         key: "testKey",
         storage: localStorageProvider,
         defaultValue: "default",
@@ -78,7 +78,7 @@ describe("Store utilities", () => {
 
   describe("getter", () => {
     it("should return current store value", async () => {
-      const store = await synced({
+      const store = synced({
         key: "test",
         storage: localStorageProvider,
         defaultValue: "initial",
@@ -98,7 +98,7 @@ describe("Store utilities", () => {
   describe("withGetter", () => {
     it("should add getter to writable store", async () => {
       const store = withGetter(
-        await synced({
+        synced({
           key: "test",
           storage: localStorageProvider,
           defaultValue: "initial",
@@ -117,7 +117,7 @@ describe("Store utilities", () => {
   describe("throttled", () => {
     it("should throttle updates", async () => {
       const mockFn = vi.fn()
-      const store = await synced({
+      const store = synced({
         key: "test",
         storage: localStorageProvider,
         defaultValue: 0,

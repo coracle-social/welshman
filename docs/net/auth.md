@@ -20,6 +20,7 @@ Manages authentication state for a socket connection.
 **Methods:**
 - `doAuth(sign)` - Authenticate with the relay using provided signing function
 - `attemptAuth(sign)` - Attempt authentication with timeout handling
+- `retryAuth(sign)` - Retry authentication by resetting state and attempting auth again
 - `cleanup()` - Clean up event listeners
 
 **Events:**
@@ -37,6 +38,11 @@ authState.on(AuthStateEvent.Status, (status) => {
 
 // Attempt authentication when relay requests it
 await authState.attemptAuth(async (template) => {
+  return await signer.signEvent(template)
+})
+
+// Retry authentication if needed
+await authState.retryAuth(async (template) => {
   return await signer.signEvent(template)
 })
 ```

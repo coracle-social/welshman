@@ -14,12 +14,13 @@ Creates a writable store that synchronizes with a storage provider using JSON se
   - `storage` - Storage provider implementing the StorageProvider interface
   - `defaultValue` - Default value if nothing exists in storage
 
-**Returns:** Writable Svelte store that persists changes to storage
+**Returns:** `Synced<T>` - A writable Svelte store with a `ready` promise that resolves when initial storage loading completes
 
 The store automatically:
-- Loads initial value from storage on creation
+- Loads initial value from storage asynchronously on creation
 - Saves any changes back to storage
 - Falls back to defaultValue if storage is empty or invalid
+- Provides a `ready` promise that resolves when initial loading is complete
 
 ## Storage Provider Interface
 
@@ -45,6 +46,9 @@ const userPreferences = synced({
     language: "en"
   }
 })
+
+// Wait for initial loading to complete if needed
+await userPreferences.ready
 
 // Use like any writable store
 userPreferences.subscribe(prefs => {
