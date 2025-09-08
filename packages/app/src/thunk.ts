@@ -10,6 +10,7 @@ import {
   sleep,
   assoc,
   nth,
+  without,
 } from "@welshman/lib"
 import {stamp, own, hash} from "@welshman/signer"
 import {
@@ -274,7 +275,10 @@ export const getThunkUrlsWithStatus = (
 }
 
 export const getCompleteThunkUrls = (thunk: AbstractThunk) =>
-  getThunkUrlsWithStatus([PublishStatus.Sending, PublishStatus.Pending], thunk)
+  getThunkUrlsWithStatus(
+    without([PublishStatus.Sending, PublishStatus.Pending], Object.values(PublishStatus)),
+    thunk,
+  )
 
 export const getIncompleteThunkUrls = (thunk: AbstractThunk) =>
   getThunkUrlsWithStatus([PublishStatus.Sending, PublishStatus.Pending], thunk)
