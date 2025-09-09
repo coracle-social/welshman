@@ -2,6 +2,36 @@
 
 The `Tools` module provides a comprehensive collection of utility functions for common programming tasks. It includes functions for array manipulation, object handling, type checking, math operations, and more.
 
+## Working with types
+
+Utility types for TypeScript development:
+
+```typescript
+// Override properties of type T with properties from type R
+export type Override<T, R> = Omit<T, keyof R> & R;
+
+// Make specific properties of type T optional
+export type MakeOptional<T, K extends keyof T> = Override<T, Partial<Pick<T, K>>>;
+```
+
+Examples:
+```typescript
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  age: number;
+}
+
+// Override the id to be a number instead
+type UserWithNumericId = Override<User, { id: number }>;
+// Result: { id: number; name: string; email: string; age: number; }
+
+// Make email and age optional
+type PartialUser = MakeOptional<User, 'email' | 'age'>;
+// Result: { id: string; name: string; email?: string; age?: number; }
+```
+
 ## Basic functional programming utilities
 
 ```typescript

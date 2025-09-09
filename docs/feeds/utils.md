@@ -123,6 +123,23 @@ walkFeed(feed, (node) => {
 })
 ```
 
+Find a specific feed in a feed tree:
+
+```typescript
+const feed = makeIntersectionFeed(
+  makeAuthorFeed("pubkey1"),
+  makeUnionFeed(
+    makeKindFeed(1),
+    makeTagFeed("#t", "bitcoin")
+  )
+)
+
+// Find a feed matching a specific condition
+const bitcoinTagFeed = findFeed(feed, (f) =>
+  isTagFeed(f) && getFeedArgs(f)[1] === "bitcoin"
+)
+```
+
 ## Feed Simplification
 
 Flatten nested feeds of the same type:

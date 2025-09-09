@@ -30,6 +30,12 @@ export class FeedController {
 
   // Load events with specified limit
   load(limit: number): Promise<void>
+
+  // Get listener function (memoized)
+  getListener(): Promise<() => Promise<void>>
+
+  // Listen for new events in the feed
+  listen(): Promise<void>
 }
 ```
 
@@ -90,4 +96,10 @@ await controller.load(50)
 
 // Load more events
 await controller.load(50)
+
+// Listen for new events
+const unlisten = controller.listen()
+
+// Unsubscribe from listener
+unlisten()
 ```

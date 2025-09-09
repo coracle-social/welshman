@@ -350,12 +350,9 @@ export class FeedController {
     }
 
     return () => {
-      const since = now()
       const controller = new AbortController()
       const signal = AbortSignal.any(removeNil([controller.signal, this.options.signal]))
-      const requestFilters = filters!
-        .filter((filter: Filter) => !filter.until || filter.until <= since)
-        .map((filter: Filter) => ({...filter, since}))
+      const requestFilters = filters!.map((filter: Filter) => ({...filter, limit: 0}))
 
       requestPage(
         omitVals([undefined], {

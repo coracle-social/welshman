@@ -214,6 +214,20 @@ export const walkFeed = (feed: Feed, visit: (feed: Feed) => void) => {
   }
 }
 
+export const findFeed = (feed: Feed, match: (feed: Feed) => boolean): Feed | undefined => {
+  if (match(feed)) return feed
+
+  if (hasSubFeeds(feed)) {
+    for (const subFeed of getFeedArgs(feed)) {
+      const found = findFeed(subFeed, match)
+
+      if (found) {
+        return found
+      }
+    }
+  }
+}
+
 export const simplifyFeed = (feed: Feed): Feed => {
   if (isUnionFeed(feed)) {
     const args = getFeedArgs(feed)

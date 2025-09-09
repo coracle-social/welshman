@@ -15,6 +15,14 @@ export const isNotNil = <T>(x: T, ...args: unknown[]) => x !== undefined && x !=
 export const assertNotNil = <T>(x: T, ...args: unknown[]) => x!
 
 // ----------------------------------------------------------------------------
+// Working with types
+// ----------------------------------------------------------------------------
+
+export type Override<T, R> = Omit<T, keyof R> & R
+
+export type MakeOptional<T, K extends keyof T> = Override<T, Partial<Pick<T, K>>>
+
+// ----------------------------------------------------------------------------
 // Basic functional programming utilities
 // ----------------------------------------------------------------------------
 
