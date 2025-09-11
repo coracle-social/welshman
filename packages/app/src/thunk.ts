@@ -321,6 +321,15 @@ export const waitForThunkError = (thunk: Thunk) =>
     })
   })
 
+export const waitForThunkCompletion = (thunk: Thunk) =>
+  new Promise<void>(resolve => {
+    thunk.subscribe($thunk => {
+      if (thunkIsComplete($thunk)) {
+        resolve()
+      }
+    })
+  })
+
 // Thunk state
 
 export const thunks = writable<Record<string, AbstractThunk>>({})
