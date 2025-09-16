@@ -1,5 +1,16 @@
 import {StampedEvent} from "@welshman/util"
-import {nip04, nip44, own, hash, sign, getPubkey, ISigner, makeSecret} from "../util.js"
+import {
+  nip04,
+  nip44,
+  own,
+  hash,
+  sign,
+  getPubkey,
+  ISigner,
+  SignOptions,
+  signWithOptions,
+  makeSecret,
+} from "../util.js"
 
 export class Nip01Signer implements ISigner {
   #pubkey: string
@@ -14,7 +25,8 @@ export class Nip01Signer implements ISigner {
 
   getPubkey = async () => this.#pubkey
 
-  sign = async (event: StampedEvent) => sign(hash(own(event, this.#pubkey)), this.secret)
+  sign = (event: StampedEvent, options: SignOptions = {}) =>
+    signWithOptions(sign(hash(own(event, this.#pubkey)), this.secret), options)
 
   nip04 = {
     encrypt: async (pubkey: string, message: string) => nip04.encrypt(pubkey, this.secret, message),

@@ -8,7 +8,7 @@ class Nip01Signer implements ISigner {
   constructor(private secret: string)
 
   // ISigner implementation
-  sign: (event: StampedEvent) => Promise<SignedEvent>
+  sign: SignWithOptions
   getPubkey: () => Promise<string>
   nip04: { encrypt, decrypt }
   nip44: { encrypt, decrypt }

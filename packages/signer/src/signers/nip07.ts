@@ -1,5 +1,13 @@
 import {StampedEvent} from "@welshman/util"
-import {hash, own, Sign, ISigner, EncryptionImplementation} from "../util.js"
+import {
+  hash,
+  own,
+  signWithOptions,
+  SignOptions,
+  Sign,
+  ISigner,
+  EncryptionImplementation,
+} from "../util.js"
 
 export type Nip07 = {
   signEvent: Sign
@@ -33,11 +41,11 @@ export class Nip07Signer implements ISigner {
 
   getPubkey = async () => this.#then<string>(ext => ext.getPublicKey() as string)
 
-  sign = async (template: StampedEvent) => {
-    const event = hash(own(template, await this.getPubkey()))
-
-    return this.#then(ext => ext.signEvent(event))
-  }
+  sign = (template: StampedEvent, options: SignOptions = {}) =>
+    signWithOptions(
+      this.#then(async ext => ext.signEvent(hash(own(template, await ext.getPublicKey()!)))),
+      options,
+    )
 
   nip04 = {
     encrypt: (pubkey: string, message: string) =>

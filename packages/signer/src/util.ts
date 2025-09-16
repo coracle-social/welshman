@@ -44,6 +44,12 @@ export const nip44 = {
 
 export type Sign = (event: StampedEvent) => Promise<SignedEvent>
 
+export type SignOptions = {
+  signal?: AbortSignal
+}
+
+export type SignWithOptions = (event: StampedEvent, options?: SignOptions) => Promise<SignedEvent>
+
 export type Encrypt = (pubkey: string, message: string) => Promise<string>
 
 export type Decrypt = (pubkey: string, message: string) => Promise<string>
@@ -54,7 +60,7 @@ export type EncryptionImplementation = {
 }
 
 export interface ISigner {
-  sign: Sign
+  sign: SignWithOptions
   nip04: EncryptionImplementation
   nip44: EncryptionImplementation
   getPubkey: () => Promise<string>
@@ -75,8 +81,8 @@ export class WrappedSigner extends Emitter implements ISigner {
     super()
   }
 
-  sign(event: StampedEvent) {
-    return this.wrapMethod("sign", () => this.signer.sign(event))
+  sign(event: StampedEvent, options: SignOptions = {}) {
+    return this.wrapMethod("sign", () => this.signer.sign(event, options))
   }
 
   getPubkey() {
@@ -97,3 +103,12 @@ export class WrappedSigner extends Emitter implements ISigner {
       this.wrapMethod("nip44.decrypt", () => this.signer.nip44.decrypt(pubkey, message)),
   }
 }
+
+export const signWithOptions = (
+  promise: Promise<SignedEvent> | SignedEvent,
+  options: SignOptions,
+) =>
+  new Promise<SignedEvent>((resolve, reject) => {
+    Promise.resolve(promise).then(resolve)
+    options.signal?.addEventListener("abort", () => reject("Signing was aborted"))
+  })

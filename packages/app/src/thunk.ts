@@ -132,9 +132,11 @@ export class Thunk {
       }
 
       try {
-        event = await signer.sign(event)
+        event = await signer.sign(event, {
+          signal: AbortSignal.timeout(15_000),
+        })
       } catch (e: any) {
-        return this._fail(`Failed to sign event: ${String(e.error || e)}`)
+        return this._fail(String(e || "Failed to sign event"))
       }
     }
 

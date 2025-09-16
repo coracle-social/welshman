@@ -5,9 +5,15 @@ It includes methods for signing messages, verifying signatures, and encrypting/d
 
 
 ```typescript
+export type SignOptions = {
+  signal?: AbortSignal
+}
+
+export type SignWithOptions = (event: StampedEvent, options?: SignOptions) => Promise<SignedEvent>
+
 interface ISigner {
   // Core signing functionality
-  sign: (event: StampedEvent) => Promise<SignedEvent>
+  sign: SignWithOptions
   getPubkey: () => Promise<string>
 
   // Encryption capabilities

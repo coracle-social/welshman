@@ -7,7 +7,15 @@ import {
   NOSTR_CONNECT,
 } from "@welshman/util"
 import {publish, request, AdapterContext} from "@welshman/net"
-import {ISigner, EncryptionImplementation, decrypt, hash, own} from "../util.js"
+import {
+  ISigner,
+  EncryptionImplementation,
+  signWithOptions,
+  SignOptions,
+  decrypt,
+  hash,
+  own,
+} from "../util.js"
 import {Nip01Signer} from "./nip01.js"
 
 export type Nip46Context = {
@@ -463,6 +471,9 @@ export class Nip46Signer implements ISigner {
     return this.pubkey
   }
 
-  sign = async (template: StampedEvent) =>
-    this.broker.signEvent(hash(own(template, await this.getPubkey())))
+  sign = (template: StampedEvent, options: SignOptions = {}) =>
+    signWithOptions(
+      this.getPubkey().then(pubkey => this.broker.signEvent(hash(own(template, pubkey)))),
+      options,
+    )
 }

@@ -1,7 +1,7 @@
 import {NostrSignerPlugin, AppInfo} from "nostr-signer-capacitor-plugin"
 import {decode} from "nostr-tools/nip19"
 import {SignedEvent, StampedEvent} from "@welshman/util"
-import {hash, own, ISigner} from "../util.js"
+import {hash, own, signWithOptions, SignOptions, ISigner} from "../util.js"
 
 export const getNip55 = async (): Promise<AppInfo[]> => {
   const {apps} = await NostrSignerPlugin.getInstalledSignerApps()
@@ -64,21 +64,23 @@ export class Nip55Signer implements ISigner {
     })
   }
 
-  sign = async (template: StampedEvent): Promise<SignedEvent> => {
-    const pubkey = await this.getPubkey() // hex-encoded public key
-    const npub = this.#npub! // Bech32-encoded public key
-    const event = {sig: "", ...hash(own(template, pubkey))}
+  sign = (template: StampedEvent, options: SignOptions = {}): Promise<SignedEvent> =>
+    signWithOptions(
+      this.getPubkey().then(pubkey => {
+        const hashedEvent = hash(own(template, pubkey))
 
-    return this.#then(async signer => {
-      const {event: signedEventJson} = await signer.signEvent({
-        eventJson: JSON.stringify(event),
-        eventId: event.id,
-        npub: npub,
-      })
-      const signedEvent = JSON.parse(signedEventJson) as SignedEvent
-      return signedEvent
-    })
-  }
+        return this.#then(async signer => {
+          const {event: json} = await signer.signEvent({
+            eventJson: JSON.stringify({sig: "", ...hashedEvent}),
+            eventId: hashedEvent.id,
+            npub: this.#npub!,
+          })
+
+          return JSON.parse(json) as SignedEvent
+        })
+      }),
+      options,
+    )
 
   nip04 = {
     encrypt: async (recipientPubKey: string, message: string): Promise<string> => {
