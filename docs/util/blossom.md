@@ -84,7 +84,7 @@ const authEvent = makeBlossomAuthEvent({
 })
 
 // Sign the auth event with your signer
-const signedAuthEvent = await signer.signEvent(authEvent)
+const signedAuthEvent = await signer.sign(authEvent)
 
 // Upload a file
 const file = new File(["Hello world"], "hello.txt", { type: "text/plain" })

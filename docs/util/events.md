@@ -87,6 +87,9 @@ export declare const getIdentifier: (e: EventTemplate) => string | undefined;
 export declare const getIdOrAddress: (e: HashedEvent) => string;
 export declare const getIdAndAddress: (e: HashedEvent) => string[];
 
+// Event deduplication by id or address
+export declare const deduplicateEvents: (e: TrustedEvent) => TrustedEvent[];
+
 // Event type checking
 export declare const isEphemeral: (e: EventTemplate) => boolean;
 export declare const isReplaceable: (e: EventTemplate) => boolean;

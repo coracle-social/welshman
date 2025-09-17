@@ -1,7 +1,6 @@
 import {
   on,
   uniq,
-  lte,
   flatten,
   addToMapKey,
   defer,
@@ -13,10 +12,10 @@ import {
 } from "@welshman/lib"
 import {
   Filter,
-  getAddress,
   unionFilters,
   matchFilters,
   TrustedEvent,
+  deduplicateEvents,
   getFilterResultCardinality,
 } from "@welshman/util"
 import {RelayMessage, ClientMessageType, isRelayEvent, isRelayEose} from "./message.js"
@@ -24,20 +23,6 @@ import {getAdapter, AdapterContext, AdapterEvent} from "./adapter.js"
 import {SocketEvent, SocketStatus} from "./socket.js"
 import {netContext} from "./context.js"
 import {Tracker} from "./tracker.js"
-
-const deduplicateEvents = (events: TrustedEvent[]) => {
-  const eventsByAddress = new Map<string, TrustedEvent>()
-
-  for (const event of events) {
-    const address = getAddress(event)
-
-    if (lte(eventsByAddress.get(address)?.created_at, event.created_at)) {
-      eventsByAddress.set(address, event)
-    }
-  }
-
-  return Array.from(eventsByAddress.values())
-}
 
 export type BaseRequestOptions = {
   signal?: AbortSignal

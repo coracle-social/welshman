@@ -1,7 +1,7 @@
 import {verifiedSymbol, verifyEvent as verifyEventPure} from "nostr-tools/pure"
 import {setNostrWasm, verifyEvent as verifyEventWasm} from "nostr-tools/wasm"
 import {initNostrWasm} from "nostr-wasm"
-import {mapVals, first, pick, now} from "@welshman/lib"
+import {mapVals, lte, first, pick, now} from "@welshman/lib"
 import {getReplyTags, getCommentTags, getReplyTagValues, getCommentTagValues} from "./Tags.js"
 import {getAddress, Address} from "./Address.js"
 import {
@@ -135,6 +135,20 @@ export const getIdOrAddress = (e: HashedEvent) => (isReplaceable(e) ? getAddress
 
 export const getIdAndAddress = (e: HashedEvent) =>
   isReplaceable(e) ? [e.id, getAddress(e)] : [e.id]
+
+export const deduplicateEvents = (events: TrustedEvent[]) => {
+  const eventsByKey = new Map<string, TrustedEvent>()
+
+  for (const event of events) {
+    const key = getIdOrAddress(event)
+
+    if (lte(eventsByKey.get(key)?.created_at, event.created_at)) {
+      eventsByKey.set(key, event)
+    }
+  }
+
+  return Array.from(eventsByKey.values())
+}
 
 export const isEphemeral = (e: EventTemplate) => isEphemeralKind(e.kind)
 

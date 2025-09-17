@@ -1,6 +1,6 @@
 {
   "name": "@welshman/feeds",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "author": "hodlbod",
   "license": "MIT",
   "description": "Utilities for building dynamic nostr feeds.",
