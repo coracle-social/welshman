@@ -1,3 +1,4 @@
+import {noop} from "@welshman/lib"
 import {StampedEvent} from "@welshman/util"
 import {
   hash,
@@ -31,10 +32,7 @@ export class Nip07Signer implements ISigner {
     })
 
     // Recover from errors
-    this.#lock = promise.then(
-      () => undefined,
-      () => undefined,
-    )
+    this.#lock = promise.then(noop).catch(noop)
 
     return promise
   }

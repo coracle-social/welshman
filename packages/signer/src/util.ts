@@ -109,6 +109,6 @@ export const signWithOptions = (
   options: SignOptions,
 ) =>
   new Promise<SignedEvent>((resolve, reject) => {
-    Promise.resolve(promise).then(resolve)
+    Promise.resolve(promise).then(resolve).catch(reject)
     options.signal?.addEventListener("abort", () => reject("Signing was aborted"))
   })
