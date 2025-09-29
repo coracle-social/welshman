@@ -36,3 +36,6 @@ export const isWebLNWallet = (wallet: Wallet): wallet is WebLNWallet =>
   wallet.type === WalletType.WebLN
 
 export const isNWCWallet = (wallet: Wallet): wallet is NWCWallet => wallet.type === WalletType.NWC
+
+export const getWalletAddress = (wallet: Wallet) =>
+  isNWCWallet(wallet) ? wallet.info.lud16 : undefined
