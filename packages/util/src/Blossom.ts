@@ -57,15 +57,18 @@ export const buildBlobUrl = (server: string, sha256: string, extension?: string)
 export const checkBlobExists = async (
   server: string,
   sha256: string,
-  options: {
+  {
+    headers = {},
+    authEvent,
+  }: {
+    headers?: Record<string, string>
     authEvent?: SignedEvent
   } = {},
 ): Promise<{exists: boolean; size?: number}> => {
   const url = buildBlobUrl(server, sha256)
-  const headers: Record<string, string> = {}
 
-  if (options.authEvent) {
-    headers.Authorization = makeHttpAuthHeader(options.authEvent)
+  if (authEvent) {
+    headers.Authorization = makeHttpAuthHeader(authEvent)
   }
 
   try {
@@ -88,20 +91,24 @@ export const checkBlobExists = async (
 export const getBlob = async (
   server: string,
   sha256: string,
-  options: {
+  {
+    headers = {},
+    authEvent,
+    range,
+  }: {
+    headers?: Record<string, string>
     authEvent?: SignedEvent
     range?: {start: number; end?: number}
   } = {},
 ) => {
   const url = buildBlobUrl(server, sha256)
-  const headers: Record<string, string> = {}
 
-  if (options.authEvent) {
-    headers.Authorization = makeHttpAuthHeader(options.authEvent)
+  if (authEvent) {
+    headers.Authorization = makeHttpAuthHeader(authEvent)
   }
 
-  if (options.range) {
-    const {end, start} = options.range
+  if (range) {
+    const {end, start} = range
 
     headers.Range = end !== undefined ? `bytes=${start}-${end}` : `bytes=${start}-`
   }
@@ -109,20 +116,43 @@ export const getBlob = async (
   return fetch(url, {headers})
 }
 
+export const canUploadBlob = async (
+  server: string,
+  {
+    headers = {},
+    authEvent,
+  }: {
+    headers?: Record<string, string>
+    authEvent?: SignedEvent
+  } = {},
+) => {
+  const url = new URL(server)
+  const uploadUrl = `${url.origin}/upload`
+
+  if (authEvent) {
+    headers.Authorization = makeHttpAuthHeader(authEvent)
+  }
+
+  return fetch(uploadUrl, {method: "HEAD", headers})
+}
+
 export const uploadBlob = async (
   server: string,
   blob: Blob | ArrayBuffer,
-  options: {
+  {
+    headers = {},
+    authEvent,
+  }: {
+    headers?: Record<string, string>
     authEvent?: SignedEvent
   } = {},
 ) => {
   const url = new URL(server)
   const uploadUrl = `${url.origin}/upload`
   const body = blob instanceof Blob ? blob : new Blob([blob])
-  const headers: Record<string, string> = {}
 
-  if (options.authEvent) {
-    headers.Authorization = makeHttpAuthHeader(options.authEvent)
+  if (authEvent) {
+    headers.Authorization = makeHttpAuthHeader(authEvent)
   }
 
   return fetch(uploadUrl, {method: "PUT", headers, body})
@@ -131,16 +161,18 @@ export const uploadBlob = async (
 export const deleteBlob = async (
   server: string,
   sha256: string,
-  options: {
+  {
+    headers = {},
+    authEvent,
+  }: {
+    headers?: Record<string, string>
     authEvent?: SignedEvent
   } = {},
 ) => {
   const url = buildBlobUrl(server, sha256)
 
-  const headers: Record<string, string> = {}
-
-  if (options.authEvent) {
-    headers.Authorization = makeHttpAuthHeader(options.authEvent)
+  if (authEvent) {
+    headers.Authorization = makeHttpAuthHeader(authEvent)
   }
 
   return fetch(url, {method: "DELETE", headers})
@@ -149,7 +181,13 @@ export const deleteBlob = async (
 export const listBlobs = async (
   server: string,
   pubkey: string,
-  options: {
+  {
+    headers = {},
+    authEvent,
+    since,
+    until,
+  }: {
+    headers?: Record<string, string>
     authEvent?: SignedEvent
     since?: number
     until?: number
@@ -159,19 +197,19 @@ export const listBlobs = async (
   const listUrl = `${url.origin}/list/${pubkey}`
 
   const searchParams = new URLSearchParams()
-  if (options.since !== undefined) {
-    searchParams.append("since", options.since.toString())
+
+  if (since !== undefined) {
+    searchParams.append("since", since.toString())
   }
-  if (options.until !== undefined) {
-    searchParams.append("until", options.until.toString())
+
+  if (until !== undefined) {
+    searchParams.append("until", until.toString())
   }
 
   const fullUrl = searchParams.toString() ? `${listUrl}?${searchParams.toString()}` : listUrl
 
-  const headers: Record<string, string> = {}
-
-  if (options.authEvent) {
-    headers.Authorization = makeHttpAuthHeader(options.authEvent)
+  if (authEvent) {
+    headers.Authorization = makeHttpAuthHeader(authEvent)
   }
 
   return fetch(fullUrl, {headers})

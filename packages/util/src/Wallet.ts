@@ -16,16 +16,23 @@ export type NWCInfo = {
 }
 
 export enum WalletType {
-  WebLn = "webln",
+  WebLN = "webln",
   NWC = "nwc",
 }
 
-export type Wallet =
-  | {
-      type: WalletType.WebLn
-      info: WebLNInfo
-    }
-  | {
-      type: WalletType.NWC
-      info: NWCInfo
-    }
+export type WebLNWallet = {
+  type: WalletType.WebLN
+  info: WebLNInfo
+}
+
+export type NWCWallet = {
+  type: WalletType.NWC
+  info: NWCInfo
+}
+
+export type Wallet = WebLNWallet | NWCWallet
+
+export const isWebLNWallet = (wallet: Wallet): wallet is WebLNWallet =>
+  wallet.type === WalletType.WebLN
+
+export const isNWCWallet = (wallet: Wallet): wallet is NWCWallet => wallet.type === WalletType.NWC
