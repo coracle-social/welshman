@@ -1,12 +1,18 @@
 import {describe, it, vi, expect, beforeEach} from "vitest"
-import {now, randomId} from "@welshman/lib"
+import {now, choice, range} from "@welshman/lib"
 import {getAddress, makeEvent, TrustedEvent, DELETE, MUTES} from "@welshman/util"
 import {Repository} from "../src/repository"
 
+const randomHex = () =>
+  Array.from(range(0, 64))
+    .map(() => choice(Array.from("0123456789abcdef")))
+    .join("")
+
 const createEvent = (kind: number, extra = {}) => ({
   ...makeEvent(kind),
-  pubkey: randomId(),
-  id: randomId(),
+  pubkey: randomHex(),
+  id: randomHex(),
+  sig: "fake",
   ...extra,
 })
 
@@ -55,7 +61,7 @@ describe("Repository", () => {
     })
 
     it("should handle replaceable events", () => {
-      const pubkey = randomId()
+      const pubkey = randomHex()
       const event1 = createEvent(MUTES, {created_at: now() - 100, pubkey})
       const event2 = createEvent(MUTES, {created_at: now(), pubkey})
 
@@ -177,7 +183,7 @@ describe("Repository", () => {
     })
 
     it("should query by tags", () => {
-      const pubkey = randomId()
+      const pubkey = randomHex()
       const event = createEvent(1, {tags: [["p", pubkey]]})
 
       repo.publish(event)

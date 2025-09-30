@@ -89,6 +89,7 @@ export const verifyEvent = (() => {
 // Type guards
 
 export const isEventTemplate = (e: EventTemplate): e is EventTemplate => {
+  if (!e) return false
   if (e.kind % 1 !== 0) return false
   if (typeof e.content !== "string") return false
 
@@ -96,18 +97,19 @@ export const isEventTemplate = (e: EventTemplate): e is EventTemplate => {
 }
 
 export const isStampedEvent = (e: StampedEvent): e is StampedEvent =>
-  Boolean(isEventTemplate(e) && e.created_at >= 0)
+  Boolean(isEventTemplate(e) && e.created_at >= 0 && e.created_at % 1 === 0)
 
 export const isOwnedEvent = (e: OwnedEvent): e is OwnedEvent =>
-  Boolean(isStampedEvent(e) && e.pubkey)
+  Boolean(isStampedEvent(e) && typeof e.pubkey === "string" && e.pubkey.length === 64)
 
-export const isHashedEvent = (e: HashedEvent): e is HashedEvent => Boolean(isOwnedEvent(e) && e.id)
+export const isHashedEvent = (e: HashedEvent): e is HashedEvent =>
+  Boolean(isOwnedEvent(e) && typeof e.id === "string" && e.id.length === 64)
 
 export const isSignedEvent = (e: TrustedEvent): e is SignedEvent =>
-  Boolean(isHashedEvent(e) && e.sig)
+  Boolean(isHashedEvent(e) && typeof e.sig === "string" && e.sig.length > 0)
 
 export const isUnwrappedEvent = (e: TrustedEvent): e is UnwrappedEvent =>
-  Boolean(isHashedEvent(e) && e.wrap)
+  Boolean(isHashedEvent(e) && e.wrap && isSignedEvent(e.wrap))
 
 export const isTrustedEvent = (e: TrustedEvent): e is TrustedEvent =>
   isSignedEvent(e) || isUnwrappedEvent(e)

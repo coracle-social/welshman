@@ -1,6 +1,6 @@
 {
   "name": "@welshman/app",
-  "version": "0.4.7",
+  "version": "0.5.0",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of svelte stores for use in building nostr client applications.",
@@ -30,7 +30,6 @@
     "@welshman/store": "workspace:*",
     "@welshman/util": "workspace:*",
     "fuse.js": "^7.0.0",
-    "idb": "^8.0.0",
     "svelte": "^4.2.18",
     "throttle-debounce": "^5.0.2"
   },
