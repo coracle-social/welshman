@@ -78,14 +78,22 @@ export const verifyEvent = (() => {
     )
   }
 
-  return (event: TrustedEvent) =>
-    Boolean(event.sig && (event[verifiedSymbol] || verify(event as SignedEvent)))
+  return (event: TrustedEvent) => {
+    if (!isSignedEvent(event)) return false
+    if (event[verifiedSymbol]) return true
+
+    return verify(event)
+  }
 })()
 
 // Type guards
 
-export const isEventTemplate = (e: EventTemplate): e is EventTemplate =>
-  Boolean(typeof e.kind === "number" && Array.isArray(e.tags) && typeof e.content === "string")
+export const isEventTemplate = (e: EventTemplate): e is EventTemplate => {
+  if (e.kind % 1 !== 0) return false
+  if (typeof e.content !== "string") return false
+
+  return e.tags?.every?.(t => t?.every?.(x => typeof x === "string"))
+}
 
 export const isStampedEvent = (e: StampedEvent): e is StampedEvent =>
   Boolean(isEventTemplate(e) && e.created_at >= 0)
