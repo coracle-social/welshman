@@ -47,19 +47,22 @@ export declare const makeBlossomAuthEvent: (opts: BlossomAuthEventOpts) => Event
 export declare const buildBlobUrl: (server: string, sha256: string, extension?: string) => string
 
 // Checks if a blob exists on server
-export declare const checkBlobExists: (server: string, sha256: string, options?: { authEvent?: SignedEvent }) => Promise<{exists: boolean; size?: number}>
+export declare const checkBlobExists: (server: string, sha256: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent }) => Promise<{exists: boolean; size?: number}>
 
 // Downloads blob from server
-export declare const getBlob: (server: string, sha256: string, options?: { authEvent?: SignedEvent; range?: {start: number; end?: number} }) => Promise<Response>
+export declare const getBlob: (server: string, sha256: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent; range?: {start: number; end?: number} }) => Promise<Response>
+
+// Checks if uploads are allowed (HEAD request to /upload)
+export declare const canUploadBlob: (server: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent }) => Promise<Response>
 
 // Uploads blob to server
-export declare const uploadBlob: (server: string, blob: Blob | ArrayBuffer, options?: { authEvent?: SignedEvent }) => Promise<Response>
+export declare const uploadBlob: (server: string, blob: Blob | ArrayBuffer, options?: { headers?: Record<string, string>; authEvent?: SignedEvent }) => Promise<Response>
 
 // Deletes blob from server
-export declare const deleteBlob: (server: string, sha256: string, options?: { authEvent?: SignedEvent }) => Promise<Response>
+export declare const deleteBlob: (server: string, sha256: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent }) => Promise<Response>
 
 // Lists blobs for a pubkey
-export declare const listBlobs: (server: string, pubkey: string, options?: { authEvent?: SignedEvent; since?: number; until?: number }) => Promise<Response>
+export declare const listBlobs: (server: string, pubkey: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent; since?: number; until?: number }) => Promise<Response>
 ```
 
 ## File Encryption

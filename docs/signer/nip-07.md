@@ -64,28 +64,3 @@ async function example() {
   }
 }
 ```
-
-## Request Serialization
-The signer implements a lock mechanism to prevent concurrent calls to the extension:
-
-```typescript
-class Nip07Signer implements ISigner {
-  #lock = Promise.resolve()
-
-  #then = async <T>(f: (ext: Nip07) => T | Promise<T>) => {
-    const promise = this.#lock.then(() => {
-      const ext = getNip07()
-      if (!ext) throw new Error("Nip07 is not enabled")
-      return f(ext)
-    })
-
-    // Reset lock after completion or error
-    this.#lock = promise.then(
-      () => undefined,
-      () => undefined
-    )
-
-    return promise
-  }
-}
-```
