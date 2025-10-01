@@ -85,17 +85,30 @@ export const relaysByPubkey = derived(relays, $relays =>
 )
 
 export const fetchRelayProfiles = async (urls: string[]) => {
-  const base = appContext.dufflepudUrl
-
-  if (!base) {
-    throw new Error("ctx.app.dufflepudUrl is required to fetch relay metadata")
-  }
-
-  const res: any = await postJson(`${base}/relay/info`, {urls})
   const profilesByUrl = new Map<string, RelayProfile>()
 
-  for (const {url, info} of res?.data || []) {
-    profilesByUrl.set(url, info)
+  if (appContext.dufflepudUrl) {
+    const res: any = await postJson(`${appContext.dufflepudUrl}/relay/info`, {urls})
+
+    for (const {url, info} of res?.data || []) {
+      profilesByUrl.set(url, info)
+    }
+  } else {
+    await Promise.all(
+      urls.map(async url => {
+        try {
+          const res = await fetch(url.replace(/^ws/, "http"), {
+            headers: {
+              Accept: "application/nostr+json",
+            },
+          })
+
+          profilesByUrl.set(url, await res.json())
+        } catch (e) {
+          // pass
+        }
+      }),
+    )
   }
 
   return profilesByUrl

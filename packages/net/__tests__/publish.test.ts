@@ -1,5 +1,5 @@
 import {describe, expect, it, vi, beforeEach, afterEach} from "vitest"
-import {publishOne, publish} from "../src/publish"
+import {publishOne, publish, PublishStatus} from "../src/publish"
 import {MockAdapter} from "../src/adapter"
 import {ClientMessageType} from "../src/message"
 import {makeEvent} from "@welshman/util"
@@ -40,7 +40,11 @@ describe("publishOne", () => {
 
     await vi.runAllTimers()
 
-    expect(successSpy).toHaveBeenCalledWith("hi")
+    expect(successSpy).toHaveBeenCalledWith({
+      relay: "1",
+      detail: "hi",
+      status: PublishStatus.Success,
+    })
     expect(failureSpy).not.toHaveBeenCalled()
     expect(completeSpy).toHaveBeenCalled()
   })
@@ -72,7 +76,11 @@ describe("publishOne", () => {
     await vi.runAllTimers()
 
     expect(successSpy).not.toHaveBeenCalled()
-    expect(failureSpy).toHaveBeenCalledWith("hi")
+    expect(failureSpy).toHaveBeenCalledWith({
+      relay: "1",
+      detail: "hi",
+      status: PublishStatus.Failure,
+    })
     expect(completeSpy).toHaveBeenCalled()
   })
 
@@ -196,9 +204,21 @@ describe("publish", () => {
 
     await vi.runAllTimersAsync()
 
-    expect(successSpy).toHaveBeenCalledWith("hi", "1")
-    expect(failureSpy).toHaveBeenCalledWith("hi", "2")
+    expect(successSpy).toHaveBeenCalledWith({
+      relay: "1",
+      status: PublishStatus.Success,
+      detail: "hi",
+    })
+    expect(failureSpy).toHaveBeenCalledWith({
+      relay: "2",
+      status: PublishStatus.Failure,
+      detail: "hi",
+    })
     expect(completeSpy).toHaveBeenCalledTimes(1)
-    expect(timeoutSpy).toHaveBeenCalledWith("3")
+    expect(timeoutSpy).toHaveBeenCalledWith({
+      relay: "3",
+      status: PublishStatus.Timeout,
+      detail: "timed out",
+    })
   })
 })

@@ -32,10 +32,10 @@ const publish = async (content: string) => {
     delay: 3000, // 3s window for abort
   })
 
-  // Track publish status
-  thunk.status.subscribe(statuses => {
-    for (const [url, {status, message}] of Object.entries(statuses)) {
-      console.log(`${url}: ${status} ${message}`)
+  // Track publish results
+  thunk.subscribe($thunk => {
+    for (const [url, result] of Object.entries($thunk.results)) {
+      console.log(`${url}: ${result.status} - ${result.detail}`)
     }
   })
 
@@ -47,7 +47,7 @@ const publish = async (content: string) => {
   }, 1000)
 
   // Wait for completion
-  await thunk.result
+  await thunk.complete
 }
 ```
 

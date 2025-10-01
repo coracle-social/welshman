@@ -26,7 +26,13 @@ import {
   isUnwrappedEvent,
   isSignedEvent,
 } from "@welshman/util"
-import {publish, PublishStatus, PublishOptions, PublishStatusByRelay} from "@welshman/net"
+import {
+  publish,
+  PublishStatus,
+  PublishResult,
+  PublishOptions,
+  PublishResultsByRelay,
+} from "@welshman/net"
 import {repository, tracker} from "./core.js"
 import {pubkey, getSession, getSigner} from "./session.js"
 
@@ -57,21 +63,28 @@ export class Thunk {
   _subs: Subscriber<Thunk>[] = []
 
   event: TrustedEvent
-  result = defer<PublishStatusByRelay>()
-  status: PublishStatusByRelay = {}
-  details: Record<string, string> = {}
+  results: PublishResultsByRelay = {}
+  complete = defer<void>()
   controller = new AbortController()
 
   constructor(readonly options: ThunkOptions) {
     this.event = prepEvent(options.event)
 
     for (const relay of options.relays) {
-      this.status[relay] = PublishStatus.Sending
+      this.results[relay] = {
+        relay,
+        status: PublishStatus.Sending,
+        detail: "sending...",
+      }
     }
 
     this.controller.signal.addEventListener("abort", () => {
       for (const relay of options.relays) {
-        this._setAborted(relay)
+        this._setAborted({
+          relay,
+          status: PublishStatus.Aborted,
+          detail: "aborted",
+        })
       }
     })
   }
@@ -82,32 +95,33 @@ export class Thunk {
     }
   }
 
-  _fail(message: string) {
+  _fail(detail: string) {
     for (const relay of this.options.relays) {
-      this.status[relay] = PublishStatus.Failure
-      this.details[relay] = message
+      this.results[relay] = {
+        relay,
+        status: PublishStatus.Failure,
+        detail: detail,
+      }
     }
 
     this._notify()
   }
 
-  _setPending(relay: string) {
-    this.options.onPending?.(relay)
-    this.status[relay] = PublishStatus.Pending
+  _setPending = (result: PublishResult) => {
+    this.options.onPending?.(result)
+    this.results[result.relay] = result
     this._notify()
   }
 
-  _setTimeout(relay: string) {
-    this.options.onTimeout?.(relay)
-    this.status[relay] = PublishStatus.Timeout
-    this.details[relay] = "Publish timed out"
+  _setTimeout = (result: PublishResult) => {
+    this.options.onTimeout?.(result)
+    this.results[result.relay] = result
     this._notify()
   }
 
-  _setAborted(relay: string) {
-    this.options.onAborted?.(relay)
-    this.status[relay] = PublishStatus.Aborted
-    this.details[relay] = "Publish was aborted"
+  _setAborted = (result: PublishResult) => {
+    this.options.onAborted?.(result)
+    this.results[result.relay] = result
     this._notify()
   }
 
@@ -159,38 +173,30 @@ export class Thunk {
     }
 
     // Send it off
-    this.result.resolve(
-      await publish({
-        ...this.options,
-        event: signedEvent,
-        onSuccess: (message: string, relay: string) => {
-          tracker.track(signedEvent.id, relay)
-          this.options.onSuccess?.(message, relay)
-          this.status[relay] = PublishStatus.Success
-          this.details[relay] = message
-          this._notify()
-        },
-        onFailure: (message: string, relay: string) => {
-          this.options.onFailure?.(message, relay)
-          this.status[relay] = PublishStatus.Failure
-          this.details[relay] = message
-          this._notify()
-        },
-        onPending: (relay: string) => {
-          this._setPending(relay)
-        },
-        onTimeout: (relay: string) => {
-          this._setTimeout(relay)
-        },
-        onAborted: (relay: string) => {
-          this._setAborted(relay)
-        },
-        onComplete: () => {
-          this.options.onComplete?.()
-          this._subs = []
-        },
-      }),
-    )
+    await publish({
+      ...this.options,
+      event: signedEvent,
+      onSuccess: (result: PublishResult) => {
+        tracker.track(signedEvent.id, result.relay)
+        this.options.onSuccess?.(result)
+        this.results[result.relay] = result
+        this._notify()
+      },
+      onFailure: (result: PublishResult) => {
+        this.options.onFailure?.(result)
+        this.results[result.relay] = result
+        this._notify()
+      },
+      onPending: this._setPending,
+      onTimeout: this._setTimeout,
+      onAborted: this._setAborted,
+      onComplete: (result: PublishResult) => {
+        this.options.onComplete?.(result)
+        this._subs = []
+      },
+    })
+
+    this.complete.resolve()
   }
 
   subscribe(subscriber: Subscriber<Thunk>) {
@@ -207,8 +213,7 @@ export class Thunk {
 export class MergedThunk {
   _subs: Subscriber<MergedThunk>[] = []
 
-  status: PublishStatusByRelay = {}
-  details: Record<string, string> = {}
+  results: PublishResultsByRelay = {}
 
   constructor(readonly thunks: Thunk[]) {
     const {Aborted, Failure, Timeout, Pending, Sending, Success} = PublishStatus
@@ -216,16 +221,14 @@ export class MergedThunk {
 
     for (const thunk of thunks) {
       thunk.subscribe($thunk => {
-        this.status = {}
-        this.details = {}
+        this.results = {}
 
         for (const relay of relays) {
           for (const status of [Aborted, Failure, Timeout, Pending, Sending, Success]) {
-            const thunk = thunks.find(t => t.status[relay] === status)
+            const thunk = thunks.find(t => t.results[relay]?.status === status)
 
             if (thunk) {
-              this.status[relay] = thunk.status[relay]!
-              this.details[relay] = thunk.details[relay]!
+              this.results[relay] = thunk.results[relay]!
             }
           }
         }
@@ -271,9 +274,9 @@ export const getThunkUrlsWithStatus = (
 ) => {
   statuses = ensurePlural(statuses)
 
-  return Object.entries(thunk.status)
-    .filter(([_, status]) => statuses.includes(status))
-    .map(nth(0))
+  return Object.entries(thunk.results)
+    .filter(([_, {status}]) => statuses.includes(status))
+    .map(nth(0)) as string[]
 }
 
 export const getCompleteThunkUrls = (thunk: AbstractThunk) =>
@@ -299,9 +302,9 @@ export const thunkIsComplete = (thunk: AbstractThunk) =>
 // Thunk errors
 
 export const getThunkError = (thunk: Thunk) => {
-  for (const [relay, status] of Object.entries(thunk.status)) {
+  for (const [_, {status, detail}] of Object.entries(thunk.results)) {
     if (status === PublishStatus.Failure) {
-      return thunk.details[relay]
+      return detail
     }
   }
 

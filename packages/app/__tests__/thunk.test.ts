@@ -104,14 +104,14 @@ describe("thunk", () => {
     // Wait for initial async operations
     await vi.runAllTimersAsync()
 
-    expect(thunk.status[LOCAL_RELAY_URL]).toEqual(PublishStatus.Success)
+    expect(thunk.results[LOCAL_RELAY_URL].status).toEqual(PublishStatus.Success)
 
     // Verify tracker was called on success
     expect(track).toHaveBeenCalledWith(thunk.event.id, LOCAL_RELAY_URL)
 
     await vi.runAllTimersAsync()
+    await thunk.complete
 
-    const finalStatus = await thunk.result
-    expect(finalStatus).toEqual({[LOCAL_RELAY_URL]: PublishStatus.Success})
+    expect(thunk.results[LOCAL_RELAY_URL].status).toEqual(PublishStatus.Success)
   })
 })
