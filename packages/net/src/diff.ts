@@ -80,6 +80,8 @@ export class Difference extends EventEmitter {
 
             if (newMsg) {
               this._adapter.send([RelayMessageType.NegMsg, this._id, newMsg])
+            } else {
+              this.close()
             }
           }
         }
@@ -89,6 +91,7 @@ export class Difference extends EventEmitter {
 
           if (negid === this._id) {
             this.emit(DifferenceEvent.Error, msg, url)
+            this.close()
           }
         }
       },
@@ -141,12 +144,10 @@ export const diff = async ({relays, filters, ...options}: DiffOptions) => {
                 })
 
                 diff.on(DifferenceEvent.Error, (url, message) => {
-                  reject(message)
-                  diff.close()
+                  console.warn(`Negentropy error on ${url}: ${message}`)
                 })
 
                 sleep(30_000).then(() => {
-                  reject("timeout")
                   diff.close()
                 })
               }),
