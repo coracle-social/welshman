@@ -244,11 +244,13 @@ export class Router {
 
   PublishEvent = (event: TrustedEvent) => {
     const pubkeys = getPubkeyTagValues(event.tags)
-
-    return this.merge([
+    const scenarios = [
       this.FromPubkey(event.pubkey),
       ...pubkeys.map(pubkey => this.ForPubkey(pubkey).weight(0.5)),
-    ])
+    ]
+
+    // Override the limit to ensure deliverability even when lots of pubkeys are mentioned
+    return this.merge(scenarios).limit(30)
   }
 }
 
