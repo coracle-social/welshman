@@ -1512,10 +1512,13 @@ export const member =
  * @param v - Value to add
  */
 export const addToKey = <T>(m: Record<string, Set<T>>, k: string, v: T) => {
-  const s = m[k] || new Set<T>()
+  const s = m[k]
 
-  s.add(v)
-  m[k] = s
+  if (s) {
+    s.add(v)
+  } else {
+    m[k] = new Set([v])
+  }
 }
 
 /**
@@ -1525,10 +1528,13 @@ export const addToKey = <T>(m: Record<string, Set<T>>, k: string, v: T) => {
  * @param v - Value to push
  */
 export const pushToKey = <T>(m: Record<string, T[]>, k: string, v: T) => {
-  const a = m[k] || []
+  const a = m[k]
 
-  a.push(v)
-  m[k] = a
+  if (a) {
+    a.push(v)
+  } else {
+    m[k] = [v]
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -1542,10 +1548,13 @@ export const pushToKey = <T>(m: Record<string, T[]>, k: string, v: T) => {
  * @param v - Value to add
  */
 export const addToMapKey = <K, T>(m: Map<K, Set<T>>, k: K, v: T) => {
-  const s = m.get(k) || new Set<T>()
+  const s = m.get(k)
 
-  s.add(v)
-  m.set(k, s)
+  if (s) {
+    s.add(v)
+  } else {
+    m.set(k, new Set([v]))
+  }
 }
 
 /**
@@ -1555,10 +1564,13 @@ export const addToMapKey = <K, T>(m: Map<K, Set<T>>, k: K, v: T) => {
  * @param v - Value to push
  */
 export const pushToMapKey = <K, T>(m: Map<K, T[]>, k: K, v: T) => {
-  const a = m.get(k) || []
+  const a = m.get(k)
 
-  a.push(v)
-  m.set(k, a)
+  if (a) {
+    a.push(v)
+  } else {
+    m.set(k, [v])
+  }
 }
 
 // ----------------------------------------------------------------------------
