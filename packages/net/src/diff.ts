@@ -29,6 +29,7 @@ export type DifferenceOptions = {
   relay: string
   filter: Filter
   events: SignedEvent[]
+  signal?: AbortSignal
   context?: AdapterContext
 }
 
@@ -43,6 +44,9 @@ export class Difference extends EventEmitter {
 
   constructor(readonly options: DifferenceOptions) {
     super()
+
+    // Listen for abort
+    options.signal?.addEventListener("abort", () => this.close())
 
     // Set up our adapter
     this._adapter = getAdapter(this.options.relay, this.options.context)
@@ -120,6 +124,7 @@ export type DiffOptions = {
   relays: string[]
   filters: Filter[]
   events: SignedEvent[]
+  signal?: AbortSignal
   context?: AdapterContext
 }
 
@@ -208,6 +213,7 @@ export const pull = async ({context, ...options}: PullOptions) => {
                 relay,
                 context,
                 filters: [{ids}],
+                signal: options.signal,
                 autoClose: true,
                 onClose: resolve,
                 onEvent: event => result.push(event as SignedEvent),
@@ -239,7 +245,7 @@ export const push = async ({context, events, ...options}: PushOptions) => {
       const relays = relaysById.get(event.id)
 
       if (relays) {
-        await publish({event, relays, context})
+        await publish({event, relays, context, signal: options.signal})
       }
     }),
   )
