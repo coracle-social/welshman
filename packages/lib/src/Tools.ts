@@ -22,6 +22,10 @@ export type Override<T, R> = Omit<T, keyof R> & R
 
 export type MakeOptional<T, K extends keyof T> = Override<T, Partial<Pick<T, K>>>
 
+export type MakeNonOptional<T> = {
+  [K in keyof T]-?: T[K]
+}
+
 // ----------------------------------------------------------------------------
 // Basic functional programming utilities
 // ----------------------------------------------------------------------------
@@ -426,7 +430,7 @@ export const concat = <T>(...xs: T[][]) => xs.flatMap(x => (x === undefined ? []
  * @param xs - Array to append to
  * @returns New array with element appended
  */
-export const append = <T>(x: T, xs: T[]) => concat(xs, [x])
+export const append = <T>(x: T, xs: Iterable<T>) => concat(Array.from(xs), [x])
 
 /**
  * Creates union of two arrays
@@ -434,7 +438,7 @@ export const append = <T>(x: T, xs: T[]) => concat(xs, [x])
  * @param b - Second array
  * @returns Array containing unique elements from both arrays
  */
-export const union = <T>(a: T[], b: T[]) => uniq([...a, ...b])
+export const union = <T>(a: Iterable<T>, b: Iterable<T>) => uniq([...a, ...b])
 
 /**
  * Returns elements common to both arrays
@@ -442,10 +446,10 @@ export const union = <T>(a: T[], b: T[]) => uniq([...a, ...b])
  * @param b - Second array
  * @returns Array of elements present in both inputs
  */
-export const intersection = <T>(a: T[], b: T[]) => {
+export const intersection = <T>(a: Iterable<T>, b: Iterable<T>) => {
   const s = new Set(b)
 
-  return a.filter(x => s.has(x))
+  return Array.from(a).filter(x => s.has(x))
 }
 
 /**
@@ -454,10 +458,10 @@ export const intersection = <T>(a: T[], b: T[]) => {
  * @param b - Array of elements to exclude
  * @returns Array containing elements unique to first array
  */
-export const difference = <T>(a: T[], b: T[]) => {
+export const difference = <T>(a: Iterable<T>, b: Iterable<T>) => {
   const s = new Set(b)
 
-  return a.filter(x => !s.has(x))
+  return Array.from(a).filter(x => !s.has(x))
 }
 
 /**

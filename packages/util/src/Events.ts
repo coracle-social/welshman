@@ -12,6 +12,8 @@ import {
   isParameterizedReplaceableKind,
 } from "./Kinds.js"
 
+export {verifiedSymbol}
+
 export type EventContent = {
   tags: string[][]
   content: string
