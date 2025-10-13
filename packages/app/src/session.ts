@@ -239,7 +239,7 @@ export const getSigner = cached({
   getValue: ([session]: [Session | undefined]) => {
     if (isNip07Session(session)) return wrapSigner(new Nip07Signer())
     if (isNip01Session(session)) return wrapSigner(new Nip01Signer(session.secret))
-    if (isNip55Session(session)) return wrapSigner(new Nip55Signer(session.signer))
+    if (isNip55Session(session)) return wrapSigner(new Nip55Signer(session.signer, session.pubkey))
     if (isNip46Session(session)) {
       const {
         secret: clientSecret,

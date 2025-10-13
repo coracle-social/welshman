@@ -18,7 +18,8 @@ import { Nip55Signer, getNip55 } from '@welshman/signer'
 // Check for available signing apps
 const apps = await getNip55()
 if (apps.length > 0) {
-  const signer = new Nip55Signer(apps[0].packageName)
+  const optionalSavedPubkey = localStorage.getItem('my-saved-pubkey')
+  const signer = new Nip55Signer(apps[0].packageName, optionalSavedPubkey)
 }
 ```
 
@@ -40,28 +41,11 @@ interface AppInfo {
 ### Constructor
 
 ```typescript
-constructor(packageName: string)
+constructor(packageName: string, publicKey?: string)
 ```
 Creates a new signer instance that will communicate with the specified native app.
 - `packageName`: The package identifier of the native signing app
-
-### ISigner implementation
-
-The `Nip55Signer` class implements the [`ISigner`](/signer/) interface
-
-```typescript
-class Nip55Signer implements ISigner {
-  // Constructor
-  constructor(private secret: string)
-
-  // ISigner implementation
-  sign: SignWithOptions
-  getPubkey: () => Promise<string>
-  nip04: { encrypt, decrypt }
-  nip44: { encrypt, decrypt }
-}
-```
-
+- `publicKey`: optional user pubkey. Recommended for resuming existing signer sessions when the signer is managing multiple user accounts.
 
 ## Complete Example
 
@@ -104,62 +88,3 @@ async function example() {
   }
 }
 ```
-
-## Implementation Details
-
-### Request Serialization
-
-The signer implements a lock mechanism to prevent concurrent requests:
-
-```typescript
-class Nip55Signer implements ISigner {
-  #lock = Promise.resolve()
-  #plugin = NostrSignerPlugin
-  #packageName: string
-  #packageNameSet = false
-
-  #then = async <T>(f: (signer: typeof NostrSignerPlugin) => Promise<T>) => {
-    const promise = this.#lock.then(async () => {
-      if (!this.#packageNameSet) {
-        await this.#initialize()
-      }
-      return f(this.#plugin)
-    })
-
-    this.#lock = promise.then(() => Promise.resolve())
-
-    return promise
-  }
-}
-```
-
-### Public Key Caching
-
-The signer caches the public key to minimize native app interactions:
-
-```typescript
-class Nip55Signer {
-  #npub?: string
-  #publicKey?: string
-
-  getPubkey = async (): Promise<string> => {
-    return this.#then(async signer => {
-      if (!this.#publicKey || !this.#npub) {
-        const {npub} = await signer.getPublicKey()
-        this.#npub = npub
-        const {data} = decode(npub)
-        this.#publicKey = data as string
-      }
-      return this.#publicKey
-    })
-  }
-}
-```
-
-
-## Platform Support
-
-- iOS: Requires compatible signing app
-- Android: Requires compatible signing app
-- Operations availability depends on native app implementation
-- Some features might be platform-specific

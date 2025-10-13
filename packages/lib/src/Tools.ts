@@ -622,7 +622,7 @@ export const sortBy = <T>(f: (x: T) => any, xs: T[]) =>
  * @param xs - Array to group
  * @returns Map of groups
  */
-export const groupBy = <T, K>(f: (x: T) => K, xs: T[]) => {
+export const groupBy = <T, K>(f: (x: T) => K, xs: Iterable<T>) => {
   const r = new Map<K, T[]>()
 
   for (const x of xs) {

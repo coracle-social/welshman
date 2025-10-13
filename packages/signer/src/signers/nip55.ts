@@ -1,5 +1,5 @@
 import {NostrSignerPlugin, AppInfo} from "nostr-signer-capacitor-plugin"
-import {decode} from "nostr-tools/nip19"
+import * as nip19 from "nostr-tools/nip19"
 import {SignedEvent, StampedEvent} from "@welshman/util"
 import {hash, own, signWithOptions, SignOptions, ISigner} from "../util.js"
 
@@ -16,8 +16,14 @@ export class Nip55Signer implements ISigner {
   #npub?: string
   #publicKey?: string
 
-  constructor(packageName: string) {
+  constructor(packageName: string, publicKey?: string) {
     this.#packageName = packageName
+
+    if (publicKey) {
+      this.#publicKey = publicKey
+      this.#npub = nip19.npubEncode(publicKey)
+    }
+
     this.#initialize()
   }
 
@@ -53,8 +59,9 @@ export class Nip55Signer implements ISigner {
       if (!this.#publicKey || !this.#npub) {
         try {
           const {npub} = await signer.getPublicKey()
+          const {data} = nip19.decode(npub)
+
           this.#npub = npub
-          const {data} = decode(npub)
           this.#publicKey = data as string
         } catch (error) {
           throw new Error("Failed to get public key")
