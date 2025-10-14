@@ -187,6 +187,7 @@ export const COMMUNITY = 34550
 export const ROOM = 35834
 export const ROOM_META = 39000
 export const ROOM_ADMINS = 39001
+export const ROOM_CREATE_PERMISSION = 39004
 export const FOLLOW_PACK = 39089
 
 export const DEPRECATED_RELAY_RECOMMENDATION = 2
