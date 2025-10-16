@@ -249,12 +249,31 @@ export const parseInvoice = (text: string, context: ParseContext): ParsedInvoice
 
 export const parseLink = (text: string, context: ParseContext): ParsedLink | void => {
   const prev = last(context.results)
-  const link = text.match(
-    /^([a-z\+:]{2,30}:\/\/)?[-\.~\w]+\.[\w]{2,6}([^\s]*[^<>"'\.!,:\s\)\(]+)?/gi,
-  )?.[0]
 
-  // Skip url if it's just the end of a filepath or an ellipse
-  if (!link || (prev?.type === ParsedType.Text && prev.value.endsWith("/")) || link.match(/\.\./)) {
+  // Skip if it's just the end of a filepath
+  if (prev?.type === ParsedType.Text && prev.value.endsWith("/")) {
+    return
+  }
+
+  const regexes = [
+    // Anything with a protocol before it
+    /^([a-z\+:]{2,30}:\/\/)[-\.~\w]+([^\s]*[^<>"'\.!,:\s\)\(]+)?/gi,
+    // Stuff without a protocol, but with a dot
+    /^\w+[-\.~\w]+\.[\w]{2,6}([^\s]*[^<>"'\.!,:\s\)\(]+)?/gi,
+  ]
+
+  let link = ""
+  for (const regex of regexes) {
+    const match = text.match(regex)
+
+    if (match) {
+      link = match[0]
+      break
+    }
+  }
+
+  // Skip url if it's an ellipse
+  if (!link || link.match(/\.\./)) {
     return
   }
 

@@ -148,7 +148,7 @@ export const diff = async ({relays, filters, ...options}: DiffOptions) => {
                   resolve({relay, have: diff.have, need: diff.need})
                 })
 
-                diff.on(DifferenceEvent.Error, (url, message) => {
+                diff.on(DifferenceEvent.Error, (message, url) => {
                   console.warn(`Negentropy error on ${url}: ${message}`)
                 })
 
