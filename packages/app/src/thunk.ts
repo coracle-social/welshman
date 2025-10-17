@@ -1,10 +1,8 @@
 import type {Subscriber} from "svelte/store"
-import {writable, get} from "svelte/store"
-import type {Override} from '@welshman/lib'
+import {writable} from "svelte/store"
+import type {Override} from "@welshman/lib"
 import {
   append,
-  reject,
-  spec,
   TaskQueue,
   ifLet,
   ensurePlural,
@@ -14,20 +12,7 @@ import {
   nth,
   without,
 } from "@welshman/lib"
-import {
-  TrustedEvent,
-  HashedEvent,
-  EventTemplate,
-  SignedEvent,
-  StampedEvent,
-  OwnedEvent,
-  isStampedEvent,
-  isOwnedEvent,
-  isHashedEvent,
-  isUnwrappedEvent,
-  isSignedEvent,
-  WRAPPED_KINDS,
-} from "@welshman/util"
+import {HashedEvent, EventTemplate, SignedEvent, isSignedEvent, WRAPPED_KINDS} from "@welshman/util"
 import {
   publish,
   PublishStatus,
@@ -35,15 +20,18 @@ import {
   PublishOptions,
   PublishResultsByRelay,
 } from "@welshman/net"
-import {ISigner, Nip59, prep} from '@welshman/signer'
+import {ISigner, Nip59, prep} from "@welshman/signer"
 import {repository, tracker} from "./core.js"
-import {pubkey, signer} from "./session.js"
+import {pubkey, signer, wrapManager} from "./session.js"
 
-export type ThunkOptions = Override<PublishOptions, {
-  event: EventTemplate
-  recipient?: string
-  delay?: number
-}>
+export type ThunkOptions = Override<
+  PublishOptions,
+  {
+    event: EventTemplate
+    recipient?: string
+    delay?: number
+  }
+>
 
 export class Thunk {
   _subs: Subscriber<Thunk>[] = []
@@ -54,6 +42,7 @@ export class Thunk {
   results: PublishResultsByRelay = {}
   complete = defer<void>()
   controller = new AbortController()
+  wrap?: SignedEvent
 
   constructor(readonly options: ThunkOptions) {
     if (!options.recipient && WRAPPED_KINDS.includes(options.event.kind)) {
@@ -132,11 +121,6 @@ export class Thunk {
   }
 
   async _publish(event: SignedEvent) {
-    // Copy the signature over since we may have deferred signing
-    ifLet(repository.getEvent(event.id), savedEvent => {
-      savedEvent.sig = event.sig
-    })
-
     // Wait if the thunk is to be delayed
     if (this.options.delay) {
       await sleep(this.options.delay)
@@ -179,17 +163,17 @@ export class Thunk {
     // Handle abort immediately if possible
     if (this.controller.signal.aborted) return
 
-    // If we were given an event with wraps, reject it (this used to be allowed)
-    if (isUnwrappedEvent(this.event)) {
-      throw new Error("Attempted to publish an unwrapped event")
-    }
+    const {recipient} = this.options
 
     // If we're sending it privately, wrap the event using nip 59
-    if (this.options.recipient) {
+    if (recipient) {
       const nip59 = Nip59.fromSigner(this.signer)
-      const event = await nip59.wrap(this.options.recipient, this.event)
 
-      return this._publish(event)
+      this.wrap = await nip59.wrap(recipient, this.event)
+
+      wrapManager.add({recipient, wrap: this.wrap, rumor: this.event})
+
+      return this._publish(this.wrap)
     }
 
     // If the event has been signed, we're good to go
@@ -200,11 +184,16 @@ export class Thunk {
     // Allow for lazily signing events in order to decrease apparent latency in the UI
     // that results from waiting for remote signers
     try {
-      return this._publish(
-        await this.signer.sign(this.event, {
-          signal: AbortSignal.timeout(15_000),
-        })
-      )
+      const signedEvent = await this.signer.sign(this.event, {
+        signal: AbortSignal.timeout(15_000),
+      })
+
+      // Copy the signature over since we deferred signing
+      ifLet(repository.getEvent(signedEvent.id), savedEvent => {
+        savedEvent.sig = signedEvent.sig
+      })
+
+      return this._publish(signedEvent)
     } catch (e: any) {
       return this._fail(String(e || "Failed to sign event"))
     }
@@ -214,6 +203,16 @@ export class Thunk {
     thunkQueue.push(this)
     repository.publish(this.event)
     thunks.update($thunks => append(this, $thunks))
+
+    this.controller.signal.addEventListener("abort", () => {
+      if (this.wrap) {
+        wrapManager.remove(this.wrap.id)
+      } else {
+        repository.removeEvent(this.event.id)
+      }
+
+      thunks.update($thunks => remove(this, $thunks))
+    })
   }
 
   subscribe(subscriber: Subscriber<Thunk>) {
@@ -389,8 +388,6 @@ export const publishThunk = (options: ThunkOptions) => {
 export const abortThunk = (thunk: AbstractThunk) => {
   for (const child of flattenThunks([thunk])) {
     child.controller.abort()
-    repository.removeEvent(child.event.id)
-    thunks.update($thunks => reject(spec({id: child.event.id}), $thunks))
   }
 }
 

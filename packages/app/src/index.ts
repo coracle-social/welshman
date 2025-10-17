@@ -24,10 +24,10 @@ export * from "./zappers.js"
 
 import {derived} from "svelte/store"
 import {sortBy, throttleWithValue, tryCatch} from "@welshman/lib"
-import {isEphemeralKind, isDVMKind, RelayMode, getRelaysFromList} from "@welshman/util"
+import {isEphemeralKind, isDVMKind, WRAP, RelayMode, getRelaysFromList} from "@welshman/util"
 import {routerContext} from "@welshman/router"
 import {Pool, SocketEvent, isRelayEvent, netContext} from "@welshman/net"
-import {pubkey} from "./session.js"
+import {pubkey, unwrapAndStore} from "./session.js"
 import {repository, tracker} from "./core.js"
 import {Relay, relays, loadRelay, trackRelayStats, getRelayQuality} from "./relays.js"
 import {relaySelectionsByPubkey} from "./relaySelections.js"
@@ -44,12 +44,17 @@ Pool.get().subscribe(socket => {
       const event = message[2]
 
       if (
-        !isEphemeralKind(event.kind) &&
         !isDVMKind(event.kind) &&
+        !isEphemeralKind(event.kind) &&
         netContext.isEventValid(event, socket.url)
       ) {
         tracker.track(event.id, socket.url)
-        repository.publish(event)
+
+        if (event.kind === WRAP) {
+          unwrapAndStore(event)
+        } else {
+          repository.publish(event)
+        }
       }
     }
   })

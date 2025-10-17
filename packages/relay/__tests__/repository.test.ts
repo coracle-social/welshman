@@ -282,22 +282,6 @@ describe("Repository", () => {
     })
   })
 
-  describe("wrapped events", () => {
-    let repo: Repository
-
-    beforeEach(() => {
-      repo = new Repository()
-    })
-
-    it("should handle wrapped events", () => {
-      const event: TrustedEvent = createEvent(1, {wraps: [createEvent(1)]})
-
-      repo.publish(event)
-
-      expect(repo.eventsByWrap.get(event.wraps!.[0]!.id)).toEqual(event)
-    })
-  })
-
   describe("event removal", () => {
     let repo: Repository
 
@@ -311,16 +295,6 @@ describe("Repository", () => {
       repo.removeEvent(event.id)
 
       expect(repo.getEvent(event.id)).toBeUndefined()
-    })
-
-    it("should remove wrapped events", () => {
-      const wrapped = createEvent(1)
-      const event = createEvent(1, {wraps: [wrapped]})
-
-      repo.publish(event)
-      repo.removeEvent(event.id)
-
-      expect(repo.eventsByWrap.get(wrapped.id)).toBeUndefined()
     })
 
     it("should emit update on removal", () => {

@@ -266,6 +266,9 @@ importers:
       '@welshman/lib':
         specifier: workspace:*
         version: link:../lib
+      '@welshman/signer':
+        specifier: workspace:*
+        version: link:../signer
       '@welshman/util':
         specifier: workspace:*
         version: link:../util

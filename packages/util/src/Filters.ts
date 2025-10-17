@@ -178,8 +178,6 @@ export const getReplyFilters = (events: TrustedEvent[], filter: Filter = {}) => 
     if (isReplaceableKind(event.kind)) {
       a.push(getAddress(event))
     }
-
-    event.wraps?.forEach(wrap => e.push(wrap.id))
   }
 
   const filters = []

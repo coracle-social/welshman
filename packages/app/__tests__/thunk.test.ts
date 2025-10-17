@@ -1,26 +1,18 @@
 import {PublishStatus} from "@welshman/net"
-import {NOTE, makeEvent} from "@welshman/util"
+import {NOTE, DIRECT_MESSAGE, WRAP, makeEvent} from "@welshman/util"
 import {LOCAL_RELAY_URL} from "@welshman/relay"
-import {getPubkey, makeSecret} from "@welshman/signer"
+import {getPubkey, makeSecret, prep} from "@welshman/signer"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {repository, tracker} from "../src/core"
 import {addSession, dropSession, makeNip01Session} from "../src/session"
-import {
-  abortThunk,
-  Thunk,
-  MergedThunk,
-  prepEvent,
-  publishThunk,
-  thunkQueue,
-  flattenThunks,
-} from "../src/thunk"
+import {abortThunk, MergedThunk, publishThunk, thunkQueue, flattenThunks} from "../src/thunk"
 
 const secret = makeSecret()
 
 const pubkey = getPubkey(secret)
 
 const mockRequest = {
-  event: prepEvent({...makeEvent(NOTE), pubkey}),
+  event: prep({...makeEvent(NOTE), pubkey}),
   relays: [LOCAL_RELAY_URL],
 }
 
@@ -42,8 +34,8 @@ describe("thunk", () => {
 
   describe("MergedThunk", () => {
     it("should abort all thunks when merged controller aborts", () => {
-      const thunk1 = new Thunk(mockRequest)
-      const thunk2 = new Thunk(mockRequest)
+      const thunk1 = publishThunk(mockRequest)
+      const thunk2 = publishThunk(mockRequest)
       const merged = new MergedThunk([thunk1, thunk2])
 
       abortThunk(merged)
@@ -55,8 +47,8 @@ describe("thunk", () => {
 
   describe("flattenThunks", () => {
     it("should iterate through nested thunks", () => {
-      const thunk1 = new Thunk(mockRequest)
-      const thunk2 = new Thunk(mockRequest)
+      const thunk1 = publishThunk(mockRequest)
+      const thunk2 = publishThunk(mockRequest)
       const merged = new MergedThunk([thunk1, thunk2])
       const thunks = Array.from(flattenThunks([merged, thunk1]))
 
@@ -86,20 +78,18 @@ describe("thunk", () => {
 
   describe("abortThunk", () => {
     it("should abort a thunk and clean up", () => {
-      const thunk = new Thunk(mockRequest)
+      const removeEventSpy = vi.spyOn(repository, "removeEvent")
+      const thunk = publishThunk(mockRequest)
 
       abortThunk(thunk)
 
-      expect(repository.removeEvent).toHaveBeenCalledWith(thunk.event.id)
+      expect(removeEventSpy).toHaveBeenCalledWith(thunk.event.id)
     })
   })
 
   it("should update status during publishing", async () => {
     const track = vi.spyOn(tracker, "track")
-    const thunk = new Thunk(mockRequest)
-
-    // Start the publish process
-    thunkQueue.push(thunk)
+    const thunk = publishThunk(mockRequest)
 
     // Wait for initial async operations
     await vi.runAllTimersAsync()
@@ -113,5 +103,19 @@ describe("thunk", () => {
     await thunk.complete
 
     expect(thunk.results[LOCAL_RELAY_URL].status).toEqual(PublishStatus.Success)
+  })
+
+  describe("wrapped events", () => {
+    it("if recipient is included, the event should be wrapped", async () => {
+      const recipient = getPubkey(makeSecret())
+      const event = prep({...makeEvent(DIRECT_MESSAGE), pubkey})
+      const thunk = publishThunk({event, relays: [], recipient})
+      const publishSpy = vi.spyOn(thunk, "_publish")
+
+      await vi.runAllTimersAsync()
+
+      expect(publishSpy.mock.calls[0][0].kind).toBe(WRAP)
+      expect(publishSpy.mock.calls[0][0].id).not.toBe(thunk.event.id)
+    })
   })
 })

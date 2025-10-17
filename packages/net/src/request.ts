@@ -18,11 +18,11 @@ import {
   deduplicateEvents,
   getFilterResultCardinality,
 } from "@welshman/util"
+import {Tracker} from "@welshman/relay"
 import {RelayMessage, ClientMessageType, isRelayEvent, isRelayEose} from "./message.js"
 import {getAdapter, AdapterContext, AdapterEvent} from "./adapter.js"
 import {SocketEvent, SocketStatus} from "./socket.js"
 import {netContext} from "./context.js"
-import {Tracker} from "./tracker.js"
 
 export type BaseRequestOptions = {
   signal?: AbortSignal

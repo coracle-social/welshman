@@ -10,9 +10,9 @@ import {
   RELAYS,
 } from "@welshman/util"
 import {Nip01Signer, ISigner} from "@welshman/signer"
-import {LOCAL_RELAY_URL} from "@welshman/relay"
+import {LOCAL_RELAY_URL, Tracker} from "@welshman/relay"
 import {Router, getFilterSelections, addMinimalFallbacks} from "@welshman/router"
-import {Tracker, AdapterContext, request, publish} from "@welshman/net"
+import {AdapterContext, request, publish} from "@welshman/net"
 
 export type RequestPageOptions = {
   filters: Filter[]

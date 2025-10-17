@@ -1,18 +1,18 @@
 import {Emitter, sleep} from "@welshman/lib"
-import {Filter, TrustedEvent, HashedEvent, matchFilters} from "@welshman/util"
+import {Filter, TrustedEvent, matchFilters} from "@welshman/util"
 import {Repository} from "./repository.js"
 
-export class LocalRelay<E extends HashedEvent = TrustedEvent> extends Emitter {
+export class LocalRelay extends Emitter {
   subs = new Map<string, Filter[]>()
 
-  constructor(readonly repository: Repository<E>) {
+  constructor(readonly repository: Repository) {
     super()
   }
 
   send(type: string, ...message: any[]) {
     switch (type) {
       case "EVENT":
-        return this.handleEVENT(message as [E])
+        return this.handleEVENT(message as [TrustedEvent])
       case "CLOSE":
         return this.handleCLOSE(message as [string])
       case "REQ":
@@ -20,7 +20,7 @@ export class LocalRelay<E extends HashedEvent = TrustedEvent> extends Emitter {
     }
   }
 
-  handleEVENT([event]: [E]) {
+  handleEVENT([event]: [TrustedEvent]) {
     this.repository.publish(event)
 
     // Callers generally expect async relays

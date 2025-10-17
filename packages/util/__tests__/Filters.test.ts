@@ -182,14 +182,6 @@ describe("Filters", () => {
       const result = getReplyFilters([event])
       expect((result[0] as any)["#a"]).toBeDefined()
     })
-
-    it("should handle wrapped events", () => {
-      const event = createEvent({
-        wraps: [createEvent()],
-      })
-      const result = getReplyFilters([event])
-      expect((result[0] as any)["#e"]).toHaveLength(2)
-    })
   })
 
   describe("addRepostFilters", () => {

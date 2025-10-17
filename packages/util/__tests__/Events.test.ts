@@ -101,25 +101,6 @@ describe("Events", () => {
       expect(Events.isSignedEvent(createSignedEvent())).toBe(true)
       expect(Events.isSignedEvent(createHashedEvent())).toBe(false)
     })
-
-    it("should validate TrustedEvent", () => {
-      const unwrapped = {
-        ...createHashedEvent(),
-        wraps: [createSignedEvent()],
-      }
-      expect(Events.isTrustedEvent(createHashedEvent())).toBe(false)
-      expect(Events.isTrustedEvent(createSignedEvent())).toBe(true)
-      expect(Events.isTrustedEvent(unwrapped)).toBe(true)
-    })
-
-    it("should validate UnwrappedEvent", () => {
-      const unwrapped = {
-        ...createHashedEvent(),
-        wraps: [createSignedEvent()],
-      }
-      expect(Events.isUnwrappedEvent(unwrapped)).toBe(true)
-      expect(Events.isUnwrappedEvent(createHashedEvent())).toBe(false)
-    })
   })
 
   describe("event conversion", () => {
@@ -152,33 +133,11 @@ describe("Events", () => {
       const trustedEvent = {
         ...createHashedEvent(),
         sig: sig,
-        wraps: [createSignedEvent()],
+        nonsense: 1,
       }
       const result = Events.asSignedEvent(trustedEvent)
-      expect(result).not.toHaveProperty("wraps")
+      expect(result).not.toHaveProperty("nonsense")
       expect(result).toHaveProperty("sig")
-    })
-
-    it("should convert to UnwrappedEvent", () => {
-      const trustedEvent = {
-        ...createHashedEvent(),
-        sig: sig,
-        wraps: [createSignedEvent()],
-      }
-      const result = Events.asUnwrappedEvent(trustedEvent)
-      expect(result).toHaveProperty("wraps")
-      expect(result).not.toHaveProperty("sig")
-    })
-
-    it("should convert to TrustedEvent", () => {
-      const trustedEvent = {
-        ...createHashedEvent(),
-        sig: sig,
-        wraps: [createSignedEvent()],
-      }
-      const result = Events.asTrustedEvent(trustedEvent)
-      expect(result).toHaveProperty("sig")
-      expect(result).toHaveProperty("wraps")
     })
   })
 

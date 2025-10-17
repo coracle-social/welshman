@@ -1,8 +1,16 @@
 import {derived, writable} from "svelte/store"
 import {cached, randomId, append, omit, equals, assoc} from "@welshman/lib"
 import {withGetter} from "@welshman/store"
-import {Wallet} from "@welshman/util"
 import {
+  Wallet,
+  WRAP,
+  isHashedEvent,
+  getPubkeyTagValues,
+  HashedEvent,
+  SignedEvent,
+} from "@welshman/util"
+import {
+  Nip59,
   WrappedSigner,
   Nip46Broker,
   Nip46Signer,
@@ -12,6 +20,8 @@ import {
   getPubkey,
   ISigner,
 } from "@welshman/signer"
+import {WrapManager} from "@welshman/relay"
+import {relay, tracker} from "./core.js"
 
 export enum SessionMethod {
   Nip01 = "nip01",
@@ -253,6 +263,14 @@ export const getSigner = cached({
   },
 })
 
+export const getSignerFromPubkey = (pubkey: string) => {
+  const session = getSession(pubkey)
+
+  if (session) {
+    return getSigner(session)
+  }
+}
+
 export const signer = withGetter(derived(session, getSigner))
 
 export const nip44EncryptToSelf = (payload: string) => {
@@ -264,4 +282,41 @@ export const nip44EncryptToSelf = (payload: string) => {
   }
 
   return $signer.nip44.encrypt($pubkey!, payload)
+}
+
+export const wrapManager = new WrapManager({relay, tracker})
+
+export const unwrapAndStore = async (wrap: SignedEvent) => {
+  if (wrap.kind !== WRAP) throw new Error("Tried to unwrap an invalid event")
+
+  // First, check index and repository
+  const cached = wrapManager.getRumor(wrap.id)
+
+  if (cached) {
+    return cached
+  }
+
+  let rumor: HashedEvent | undefined
+  let recipient: string | undefined
+
+  // Next, try to decrypt as the recipient
+  for (const pubkey of getPubkeyTagValues(wrap.tags)) {
+    const signer = getSignerFromPubkey(pubkey)
+
+    if (signer) {
+      try {
+        rumor = await Nip59.fromSigner(signer).unwrap(wrap)
+        recipient = pubkey
+        break
+      } catch (e) {
+        // pass
+      }
+    }
+  }
+
+  if (rumor && recipient && isHashedEvent(rumor)) {
+    wrapManager.add({wrap, rumor, recipient})
+  }
+
+  return rumor
 }
