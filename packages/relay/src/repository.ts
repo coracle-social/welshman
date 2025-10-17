@@ -1,47 +1,32 @@
-import {
-  DAY,
-  Emitter,
-  flatten,
-  pluck,
-  sortBy,
-  inc,
-  chunk,
-  uniq,
-  omit,
-  now,
-  range,
-} from "@welshman/lib"
+import {DAY, Emitter, flatten, pluck, sortBy, inc, uniq, omit, now, range} from "@welshman/lib"
 import {
   DELETE,
   EPOCH,
   matchFilter,
   isReplaceable,
-  isUnwrappedEvent,
   getAddress,
   Filter,
   TrustedEvent,
-  HashedEvent,
 } from "@welshman/util"
 
 export const LOCAL_RELAY_URL = "local://welshman.relay/"
 
 const getDay = (ts: number) => Math.floor(ts / DAY)
 
-export let repositorySingleton: Repository<TrustedEvent>
+export let repositorySingleton: Repository
 
 export type RepositoryUpdate = {
   added: TrustedEvent[]
   removed: Set<string>
 }
 
-export class Repository<E extends TrustedEvent = TrustedEvent> extends Emitter {
-  eventsById = new Map<string, E>()
-  eventsByWrap = new Map<string, E>()
-  eventsByAddress = new Map<string, E>()
-  eventsByTag = new Map<string, E[]>()
-  eventsByDay = new Map<number, E[]>()
-  eventsByAuthor = new Map<string, E[]>()
-  eventsByKind = new Map<number, E[]>()
+export class Repository extends Emitter {
+  eventsById = new Map<string, TrustedEvent>()
+  eventsByAddress = new Map<string, TrustedEvent>()
+  eventsByTag = new Map<string, TrustedEvent[]>()
+  eventsByDay = new Map<number, TrustedEvent[]>()
+  eventsByAuthor = new Map<string, TrustedEvent[]>()
+  eventsByKind = new Map<number, TrustedEvent[]>()
   deletes = new Map<string, number>()
   expired = new Map<string, number>()
 
@@ -65,11 +50,10 @@ export class Repository<E extends TrustedEvent = TrustedEvent> extends Emitter {
     return Array.from(this.eventsById.values())
   }
 
-  load = (events: E[], chunkSize = 1000) => {
+  load = (events: TrustedEvent[]) => {
     const stale = new Set(this.eventsById.keys())
 
     this.eventsById.clear()
-    this.eventsByWrap.clear()
     this.eventsByAddress.clear()
     this.eventsByTag.clear()
     this.eventsByDay.clear()
@@ -80,13 +64,11 @@ export class Repository<E extends TrustedEvent = TrustedEvent> extends Emitter {
 
     const added = []
 
-    for (const eventsChunk of chunk(chunkSize, events)) {
-      for (const event of eventsChunk) {
-        if (this.publish(event, {shouldNotify: false})) {
-          // Don't send duplicate events to subscribers
-          if (!stale.has(event.id)) {
-            added.push(event)
-          }
+    for (const event of events) {
+      if (this.publish(event, {shouldNotify: false})) {
+        // Don't send duplicate events to subscribers
+        if (!stale.has(event.id)) {
+          added.push(event)
         }
       }
     }
@@ -121,7 +103,7 @@ export class Repository<E extends TrustedEvent = TrustedEvent> extends Emitter {
       : this.eventsById.get(idOrAddress)
   }
 
-  hasEvent = (event: E) => {
+  hasEvent = (event: TrustedEvent) => {
     const duplicate = this.eventsById.get(event.id) || this.eventsByAddress.get(getAddress(event))
 
     return duplicate && duplicate.created_at >= event.created_at
@@ -132,11 +114,6 @@ export class Repository<E extends TrustedEvent = TrustedEvent> extends Emitter {
 
     if (event) {
       this.eventsById.delete(event.id)
-
-      for (const wrap of event.wraps || []) {
-        this.eventsByWrap.delete(wrap.id)
-      }
-
       this.eventsByAddress.delete(getAddress(event))
 
       for (const [k, v] of event.tags) {
@@ -157,7 +134,7 @@ export class Repository<E extends TrustedEvent = TrustedEvent> extends Emitter {
     filters: Filter[],
     {includeDeleted = false, includeExpired = false, shouldSort = true} = {},
   ) => {
-    const result: E[][] = []
+    const result: TrustedEvent[][] = []
     for (const originalFilter of filters) {
       if (originalFilter.limit !== undefined && !shouldSort) {
         throw new Error("Unable to skip sorting if limit is defined")
@@ -169,7 +146,7 @@ export class Repository<E extends TrustedEvent = TrustedEvent> extends Emitter {
       const events = applied ? this._getEvents(applied!.ids) : this.dump()
       const sorted = this._sortEvents(shouldSort && Boolean(filter.limit), events)
 
-      const chunk: E[] = []
+      const chunk: TrustedEvent[] = []
       for (const event of sorted) {
         if (filter.limit && chunk.length >= filter.limit) {
           break
@@ -197,7 +174,7 @@ export class Repository<E extends TrustedEvent = TrustedEvent> extends Emitter {
     return this._sortEvents(shouldSortAll, uniq(flatten(result)))
   }
 
-  publish = (event: E, {shouldNotify = true} = {}): boolean => {
+  publish = (event: TrustedEvent, {shouldNotify = true} = {}): boolean => {
     if (!event?.id) {
       console.warn("Attempted to publish invalid event to repository", event)
 
@@ -232,11 +209,6 @@ export class Repository<E extends TrustedEvent = TrustedEvent> extends Emitter {
     // Add our new event by address
     if (isReplaceable(event)) {
       this.eventsByAddress.set(address, event)
-    }
-
-    // Save wrapper index
-    for (const wrap of event.wraps || []) {
-      this.eventsByWrap.set(wrap.id, event)
     }
 
     // Update our timestamp and author indexes
@@ -279,13 +251,14 @@ export class Repository<E extends TrustedEvent = TrustedEvent> extends Emitter {
     return true
   }
 
-  isDeletedByAddress = (event: E) => (this.deletes.get(getAddress(event)) || 0) > event.created_at
+  isDeletedByAddress = (event: TrustedEvent) =>
+    (this.deletes.get(getAddress(event)) || 0) > event.created_at
 
-  isDeletedById = (event: E) => (this.deletes.get(event.id) || 0) > event.created_at
+  isDeletedById = (event: TrustedEvent) => (this.deletes.get(event.id) || 0) > event.created_at
 
-  isDeleted = (event: E) => this.isDeletedByAddress(event) || this.isDeletedById(event)
+  isDeleted = (event: TrustedEvent) => this.isDeletedByAddress(event) || this.isDeletedById(event)
 
-  isExpired = (event: E) => {
+  isExpired = (event: TrustedEvent) => {
     const ts = this.expired.get(event.id)
 
     return Boolean(ts && ts < now())
@@ -293,14 +266,19 @@ export class Repository<E extends TrustedEvent = TrustedEvent> extends Emitter {
 
   // Utilities
 
-  _sortEvents = (shouldSort: boolean, events: E[]) =>
+  _sortEvents = (shouldSort: boolean, events: TrustedEvent[]) =>
     shouldSort ? sortBy(e => -e.created_at, events) : events
 
-  _updateIndex = <K>(m: Map<K, E[]>, k: K, add?: E, remove?: E) => {
+  _updateIndex = <K>(
+    m: Map<K, TrustedEvent[]>,
+    k: K,
+    add?: TrustedEvent,
+    remove?: TrustedEvent,
+  ) => {
     let a = m.get(k) || []
 
     if (remove) {
-      a = a.filter((x: E) => x !== remove)
+      a = a.filter((x: TrustedEvent) => x !== remove)
     }
 
     if (add) {
@@ -311,7 +289,7 @@ export class Repository<E extends TrustedEvent = TrustedEvent> extends Emitter {
   }
 
   _getEvents = (ids: Iterable<string>) => {
-    const events: E[] = []
+    const events: TrustedEvent[] = []
 
     for (const id of ids) {
       const event = this.eventsById.get(id)

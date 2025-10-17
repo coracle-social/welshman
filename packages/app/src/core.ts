@@ -1,13 +1,12 @@
 import {throttle} from "@welshman/lib"
-import {Repository, LocalRelay} from "@welshman/relay"
+import {Repository, LocalRelay, Tracker} from "@welshman/relay"
 import {custom} from "@welshman/store"
-import {Tracker} from "@welshman/net"
+
+export const tracker = new Tracker()
 
 export const repository = Repository.get()
 
 export const relay = new LocalRelay(repository)
-
-export const tracker = new Tracker()
 
 // Adapt objects to stores
 

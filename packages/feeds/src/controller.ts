@@ -11,7 +11,7 @@ import {
   now,
 } from "@welshman/lib"
 import {EPOCH, trimFilters, guessFilterDelta, TrustedEvent, Filter} from "@welshman/util"
-import {Tracker} from "@welshman/net"
+import {Tracker} from "@welshman/relay"
 import {Feed, FeedType, RequestItem} from "./core.js"
 import {FeedCompiler, FeedCompilerOptions} from "./compiler.js"
 import {requestPage} from "./request.js"

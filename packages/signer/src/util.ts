@@ -4,7 +4,16 @@ import * as nt04 from "nostr-tools/nip04"
 import * as nt44 from "nostr-tools/nip44"
 import {generateSecretKey, getPublicKey, getEventHash} from "nostr-tools/pure"
 import {Emitter, cached, now} from "@welshman/lib"
-import {SignedEvent, HashedEvent, EventTemplate, StampedEvent, OwnedEvent, isStampedEvent, isOwnedEvent, isHashedEvent} from "@welshman/util"
+import {
+  SignedEvent,
+  HashedEvent,
+  EventTemplate,
+  StampedEvent,
+  OwnedEvent,
+  isStampedEvent,
+  isOwnedEvent,
+  isHashedEvent,
+} from "@welshman/util"
 
 export const makeSecret = () => bytesToHex(generateSecretKey())
 
