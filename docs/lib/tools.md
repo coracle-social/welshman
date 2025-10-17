@@ -260,6 +260,12 @@ export declare const flatten: <T>(xs: T[][]) => T[];
 // Splits array into two arrays based on predicate
 export declare const partition: <T>(f: (x: T) => boolean, xs: T[]) => T[][];
 
+// A function that filters an array, keeping items that pass the predicate
+export declare const filter: <T>(f: (x: T) => any, xs: T[]) => T[];
+
+// A function that filters an array, removing items that pass the predicate
+export declare const reject: <T>(f: (x: T) => any, xs: T[]) => T[];
+
 // Returns array with duplicate elements removed
 export declare const uniq: <T>(xs: T[]) => T[];
 

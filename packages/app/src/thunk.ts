@@ -1,14 +1,15 @@
 import type {Subscriber} from "svelte/store"
 import {writable, get} from "svelte/store"
 import {
+  append,
+  reject,
+  spec,
   TaskQueue,
   ifLet,
   ensurePlural,
-  dissoc,
   remove,
   defer,
   sleep,
-  assoc,
   nth,
   without,
 } from "@welshman/lib"
@@ -337,7 +338,7 @@ export const waitForThunkCompletion = (thunk: Thunk) =>
 
 // Thunk state
 
-export const thunks = writable<Record<string, AbstractThunk>>({})
+export const thunks = writable<Thunk[]>([])
 
 export const thunkQueue = new TaskQueue<Thunk>({
   batchSize: 50,
@@ -368,7 +369,7 @@ export const publishThunk = (options: ThunkOptions) => {
 
   repository.publish(thunk.event)
 
-  thunks.update(assoc(thunk.event.id, thunk))
+  thunks.update($thunks => append(thunk, $thunks))
 
   return thunk
 }
@@ -376,8 +377,8 @@ export const publishThunk = (options: ThunkOptions) => {
 export const abortThunk = (thunk: AbstractThunk) => {
   for (const child of flattenThunks([thunk])) {
     child.controller.abort()
-    thunks.update(dissoc(child.event.id))
     repository.removeEvent(child.event.id)
+    thunks.update($thunks => reject(spec({id: child.event.id}), $thunks))
   }
 }
 
