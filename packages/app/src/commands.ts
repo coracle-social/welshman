@@ -28,7 +28,7 @@ import {
   PINS,
 } from "@welshman/util"
 import type {RoomMeta, Profile} from "@welshman/util"
-import {Nip59, stamp} from "@welshman/signer"
+import {Nip59, stamp, hash, own} from "@welshman/signer"
 import {Router, addMaximalFallbacks} from "@welshman/router"
 import {
   userRelaySelections,
@@ -205,24 +205,19 @@ export const pin = async (tag: string[]) => {
 // NIP 59
 
 export type SendWrappedOptions = Omit<ThunkOptions, "event" | "relays"> & {
-  template: EventTemplate
-  pubkeys: string[]
+  event: EventTemplate
+  recipients: string[]
 }
 
-export const sendWrapped = async ({template, pubkeys, ...options}: SendWrappedOptions) => {
-  const nip59 = Nip59.fromSigner(signer.get()!)
-
-  return new MergedThunk(
-    await Promise.all(
-      uniq(pubkeys).map(async recipient => {
-        const event = await nip59.wrap(recipient, stamp(template))
+export const sendWrapped = async ({event, recipients, ...options}: SendWrappedOptions) =>
+  new MergedThunk(
+    uniq(recipients)
+      .map(recipient => {
         const relays = Router.get().PubkeyInbox(recipient).getUrls()
 
-        return publishThunk({event, relays, ...options})
-      }),
-    ),
+        return publishThunk({event, relays, recipient, ...options})
+      })
   )
-}
 
 // NIP 86
 
