@@ -185,7 +185,7 @@ describe("Filters", () => {
 
     it("should handle wrapped events", () => {
       const event = createEvent({
-        wrap: createEvent(),
+        wraps: [createEvent()],
       })
       const result = getReplyFilters([event])
       expect((result[0] as any)["#e"]).toHaveLength(2)

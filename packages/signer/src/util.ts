@@ -4,7 +4,7 @@ import * as nt04 from "nostr-tools/nip04"
 import * as nt44 from "nostr-tools/nip44"
 import {generateSecretKey, getPublicKey, getEventHash} from "nostr-tools/pure"
 import {Emitter, cached, now} from "@welshman/lib"
-import {SignedEvent, HashedEvent, EventTemplate, StampedEvent, OwnedEvent} from "@welshman/util"
+import {SignedEvent, HashedEvent, EventTemplate, StampedEvent, OwnedEvent, isStampedEvent, isOwnedEvent, isHashedEvent} from "@welshman/util"
 
 export const makeSecret = () => bytesToHex(generateSecretKey())
 
@@ -20,6 +20,22 @@ export const stamp = (event: EventTemplate, created_at = now()) => ({...event, c
 export const own = (event: StampedEvent, pubkey: string) => ({...event, pubkey})
 
 export const hash = (event: OwnedEvent) => ({...event, id: getHash(event)})
+
+export const prep = (event: EventTemplate, pubkey: string, created_at = now()) => {
+  if (!isStampedEvent(event as StampedEvent)) {
+    event = stamp(event, created_at)
+  }
+
+  if (!isOwnedEvent(event as OwnedEvent)) {
+    event = own(event as StampedEvent, pubkey)
+  }
+
+  if (!isHashedEvent(event as HashedEvent)) {
+    event = hash(event as OwnedEvent)
+  }
+
+  return event as HashedEvent
+}
 
 export const sign = (event: HashedEvent, secret: string) => ({...event, sig: getSig(event, secret)})
 

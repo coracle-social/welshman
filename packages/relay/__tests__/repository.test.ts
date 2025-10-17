@@ -290,11 +290,11 @@ describe("Repository", () => {
     })
 
     it("should handle wrapped events", () => {
-      const event: TrustedEvent = createEvent(1, {wrap: createEvent(1)})
+      const event: TrustedEvent = createEvent(1, {wraps: [createEvent(1)]})
 
       repo.publish(event)
 
-      expect(repo.eventsByWrap.get(event.wrap!.id)).toEqual(event)
+      expect(repo.eventsByWrap.get(event.wraps!.[0]!.id)).toEqual(event)
     })
   })
 
@@ -315,7 +315,7 @@ describe("Repository", () => {
 
     it("should remove wrapped events", () => {
       const wrapped = createEvent(1)
-      const event = createEvent(1, {wrap: wrapped})
+      const event = createEvent(1, {wraps: [wrapped]})
 
       repo.publish(event)
       repo.removeEvent(event.id)

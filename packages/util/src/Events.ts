@@ -41,12 +41,12 @@ export type SignedEvent = HashedEvent & {
 }
 
 export type UnwrappedEvent = HashedEvent & {
-  wrap: SignedEvent
+  wraps: SignedEvent[]
 }
 
 export type TrustedEvent = HashedEvent & {
   sig?: string
-  wrap?: SignedEvent
+  wraps?: SignedEvent[]
   [verifiedSymbol]?: boolean
 }
 
@@ -111,7 +111,7 @@ export const isSignedEvent = (e: TrustedEvent): e is SignedEvent =>
   Boolean(isHashedEvent(e) && typeof e.sig === "string" && e.sig.length > 0)
 
 export const isUnwrappedEvent = (e: TrustedEvent): e is UnwrappedEvent =>
-  Boolean(isHashedEvent(e) && e.wrap && isSignedEvent(e.wrap))
+  Boolean(isHashedEvent(e) && e.wraps?.every(isSignedEvent))
 
 export const isTrustedEvent = (e: TrustedEvent): e is TrustedEvent =>
   isSignedEvent(e) || isUnwrappedEvent(e)
@@ -134,10 +134,10 @@ export const asSignedEvent = (e: SignedEvent): SignedEvent =>
   pick(["kind", "tags", "content", "created_at", "pubkey", "id", "sig"], e)
 
 export const asUnwrappedEvent = (e: UnwrappedEvent): UnwrappedEvent =>
-  pick(["kind", "tags", "content", "created_at", "pubkey", "id", "wrap"], e)
+  pick(["kind", "tags", "content", "created_at", "pubkey", "id", "wraps"], e)
 
 export const asTrustedEvent = (e: TrustedEvent): TrustedEvent =>
-  pick(["kind", "tags", "content", "created_at", "pubkey", "id", "sig", "wrap"], e)
+  pick(["kind", "tags", "content", "created_at", "pubkey", "id", "sig", "wraps"], e)
 
 // Utilities for working with events
 

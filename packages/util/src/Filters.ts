@@ -179,9 +179,7 @@ export const getReplyFilters = (events: TrustedEvent[], filter: Filter = {}) => 
       a.push(getAddress(event))
     }
 
-    if (event.wrap) {
-      e.push(event.wrap.id)
-    }
+    event.wraps?.forEach(wrap => e.push(wrap.id))
   }
 
   const filters = []

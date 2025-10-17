@@ -1,14 +1,11 @@
-import {UnwrappedEvent, SignedEvent, HashedEvent, StampedEvent, WRAP, SEAL} from "@welshman/util"
-import {own, hash, decrypt, ISigner} from "./util.js"
+import {isHashedEvent, SignedEvent, HashedEvent, StampedEvent, WRAP, SEAL} from "@welshman/util"
+import {prep, hash, decrypt, ISigner} from "./util.js"
 import {Nip01Signer} from "./signers/nip01.js"
 
-export const seen = new Map<string, UnwrappedEvent | Error>()
+export const seen = new Map<string, HashedEvent | Error>()
 
 export const now = (drift = 0) =>
   Math.round(Date.now() / 1000 - Math.random() * Math.pow(10, drift))
-
-export const getRumor = async (signer: ISigner, template: StampedEvent) =>
-  hash(own(template, await signer.getPubkey()))
 
 export const getSeal = async (signer: ISigner, pubkey: string, rumor: HashedEvent) =>
   signer.sign(
@@ -44,11 +41,12 @@ export const wrap = async (
   template: StampedEvent,
   tags: string[][] = [],
 ) => {
-  const rumor = await getRumor(signer, template)
+  const author = await signer.getPubkey()
+  const rumor = await prep(template, author)
   const seal = await getSeal(signer, pubkey, rumor)
   const wrap = await getWrap(wrapper, pubkey, seal, tags)
 
-  return Object.assign(rumor, {wrap}) as UnwrappedEvent
+  return wrap
 }
 
 export const unwrap = async (signer: ISigner, wrap: SignedEvent) => {
@@ -68,10 +66,11 @@ export const unwrap = async (signer: ISigner, wrap: SignedEvent) => {
     const rumor = JSON.parse(await decrypt(signer, seal.pubkey, seal.content))
 
     if (seal.pubkey !== rumor.pubkey) throw new Error("Seal pubkey does not match rumor pubkey")
+    if (!isHashedEvent(rumor)) throw new Error("Unwrapped object was not a hashed event")
 
     seen.set(wrap.id, rumor)
 
-    return Object.assign(rumor, {wrap}) as UnwrappedEvent
+    return rumor
   } catch (error) {
     seen.set(wrap.id, error as Error)
 

@@ -34,7 +34,7 @@ export type RepositoryUpdate = {
   removed: Set<string>
 }
 
-export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
+export class Repository<E extends TrustedEvent = TrustedEvent> extends Emitter {
   eventsById = new Map<string, E>()
   eventsByWrap = new Map<string, E>()
   eventsByAddress = new Map<string, E>()
@@ -133,8 +133,8 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
     if (event) {
       this.eventsById.delete(event.id)
 
-      if (isUnwrappedEvent(event)) {
-        this.eventsByWrap.delete(event.wrap.id)
+      for (const wrap of event.wraps || []) {
+        this.eventsByWrap.delete(wrap.id)
       }
 
       this.eventsByAddress.delete(getAddress(event))
@@ -235,8 +235,8 @@ export class Repository<E extends HashedEvent = TrustedEvent> extends Emitter {
     }
 
     // Save wrapper index
-    if (isUnwrappedEvent(event)) {
-      this.eventsByWrap.set(event.wrap.id, event)
+    for (const wrap of event.wraps || []) {
+      this.eventsByWrap.set(wrap.id, event)
     }
 
     // Update our timestamp and author indexes

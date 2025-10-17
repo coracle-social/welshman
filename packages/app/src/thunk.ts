@@ -1,5 +1,6 @@
 import type {Subscriber} from "svelte/store"
 import {writable, get} from "svelte/store"
+import type {Override} from '@welshman/lib'
 import {
   append,
   reject,
@@ -13,7 +14,6 @@ import {
   nth,
   without,
 } from "@welshman/lib"
-import {stamp, own, hash} from "@welshman/signer"
 import {
   TrustedEvent,
   HashedEvent,
@@ -26,6 +26,7 @@ import {
   isHashedEvent,
   isUnwrappedEvent,
   isSignedEvent,
+  WRAPPED_KINDS,
 } from "@welshman/util"
 import {
   publish,
@@ -34,42 +35,46 @@ import {
   PublishOptions,
   PublishResultsByRelay,
 } from "@welshman/net"
+import {ISigner, Nip59, prep} from '@welshman/signer'
 import {repository, tracker} from "./core.js"
-import {pubkey, getSession, getSigner} from "./session.js"
+import {pubkey, signer} from "./session.js"
 
-export type ThunkEvent = EventTemplate | StampedEvent | OwnedEvent | TrustedEvent
-
-export const prepEvent = (event: ThunkEvent) => {
-  if (!isStampedEvent(event as StampedEvent)) {
-    event = stamp(event)
-  }
-
-  if (!isOwnedEvent(event as OwnedEvent)) {
-    event = own(event as StampedEvent, get(pubkey)!)
-  }
-
-  if (!isHashedEvent(event as HashedEvent)) {
-    event = hash(event as OwnedEvent)
-  }
-
-  return event as TrustedEvent
-}
-
-export type ThunkOptions = Omit<PublishOptions, "event"> & {
-  event: ThunkEvent
+export type ThunkOptions = Override<PublishOptions, {
+  event: EventTemplate
+  recipient?: string
   delay?: number
-}
+}>
 
 export class Thunk {
   _subs: Subscriber<Thunk>[] = []
 
-  event: TrustedEvent
+  pubkey: string
+  signer: ISigner
+  event: HashedEvent
   results: PublishResultsByRelay = {}
   complete = defer<void>()
   controller = new AbortController()
 
   constructor(readonly options: ThunkOptions) {
-    this.event = prepEvent(options.event)
+    if (!options.recipient && WRAPPED_KINDS.includes(options.event.kind)) {
+      throw new Error(`Attempted to publish a kind ${options.event.kind} without wrapping it`)
+    }
+
+    const $pubkey = pubkey.get()
+
+    if (!$pubkey) {
+      throw new Error(`Attempted to publish an event without an active pubkey`)
+    }
+
+    const $signer = signer.get()
+
+    if (!$signer) {
+      throw new Error(`Attempted to publish an event without an active signer`)
+    }
+
+    this.pubkey = $pubkey
+    this.signer = $signer
+    this.event = prep(options.event, this.pubkey)
 
     for (const relay of options.relays) {
       this.results[relay] = {
@@ -126,41 +131,10 @@ export class Thunk {
     this._notify()
   }
 
-  async publish() {
-    let event = this.event
-
-    // Handle abort immediately if possible
-    if (this.controller.signal.aborted) return
-
-    // If we were given a wrapped event, make sure to publish the wrapper, not the rumor
-    if (isUnwrappedEvent(event)) {
-      event = event.wrap
-    }
-
-    // If the event was already signed, leave it alone. Otherwise, sign it now. This is to
-    // decrease apparent latency in the UI that results from waiting for remote signers
-    if (!isSignedEvent(event)) {
-      const signer = getSigner(getSession(event.pubkey))
-
-      if (!signer) {
-        return this._fail(`No signer found for ${event.pubkey}`)
-      }
-
-      try {
-        event = await signer.sign(event, {
-          signal: AbortSignal.timeout(15_000),
-        })
-      } catch (e: any) {
-        return this._fail(String(e || "Failed to sign event"))
-      }
-    }
-
-    // We're guaranteed to have a signed event at this point
-    const signedEvent = event as SignedEvent
-
-    // Copy the signature over since we had deferred signing
-    ifLet(repository.getEvent(signedEvent.id), savedEvent => {
-      savedEvent.sig = signedEvent.sig
+  async _publish(event: SignedEvent) {
+    // Copy the signature over since we may have deferred signing
+    ifLet(repository.getEvent(event.id), savedEvent => {
+      savedEvent.sig = event.sig
     })
 
     // Wait if the thunk is to be delayed
@@ -176,9 +150,9 @@ export class Thunk {
     // Send it off
     await publish({
       ...this.options,
-      event: signedEvent,
+      event,
       onSuccess: (result: PublishResult) => {
-        tracker.track(signedEvent.id, result.relay)
+        tracker.track(event.id, result.relay)
         this.options.onSuccess?.(result)
         this.results[result.relay] = result
         this._notify()
@@ -197,7 +171,49 @@ export class Thunk {
       },
     })
 
+    // Notify the caller that we're done
     this.complete.resolve()
+  }
+
+  async publish() {
+    // Handle abort immediately if possible
+    if (this.controller.signal.aborted) return
+
+    // If we were given an event with wraps, reject it (this used to be allowed)
+    if (isUnwrappedEvent(this.event)) {
+      throw new Error("Attempted to publish an unwrapped event")
+    }
+
+    // If we're sending it privately, wrap the event using nip 59
+    if (this.options.recipient) {
+      const nip59 = Nip59.fromSigner(this.signer)
+      const event = await nip59.wrap(this.options.recipient, this.event)
+
+      return this._publish(event)
+    }
+
+    // If the event has been signed, we're good to go
+    if (isSignedEvent(this.event)) {
+      return this._publish(this.event)
+    }
+
+    // Allow for lazily signing events in order to decrease apparent latency in the UI
+    // that results from waiting for remote signers
+    try {
+      return this._publish(
+        await this.signer.sign(this.event, {
+          signal: AbortSignal.timeout(15_000),
+        })
+      )
+    } catch (e: any) {
+      return this._fail(String(e || "Failed to sign event"))
+    }
+  }
+
+  enqueue() {
+    thunkQueue.push(this)
+    repository.publish(this.event)
+    thunks.update($thunks => append(this, $thunks))
   }
 
   subscribe(subscriber: Subscriber<Thunk>) {
@@ -365,11 +381,7 @@ export function* flattenThunks(thunks: AbstractThunk[]): Iterable<Thunk> {
 export const publishThunk = (options: ThunkOptions) => {
   const thunk = new Thunk(options)
 
-  thunkQueue.push(thunk)
-
-  repository.publish(thunk.event)
-
-  thunks.update($thunks => append(thunk, $thunks))
+  thunk.enqueue()
 
   return thunk
 }
