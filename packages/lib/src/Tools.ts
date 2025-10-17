@@ -569,6 +569,22 @@ export const partition = <T>(f: (x: T) => boolean, xs: T[]) => {
 }
 
 /**
+ * Keeps items based on predicate
+ * @param f - Whether to remove an item from the array
+ * @param xs - Array of items to filter
+ * @returns Filtered array
+ */
+export const filter = <T>(f: (x: T) => any, xs: T[]) => xs.filter(f)
+
+/**
+ * Removes items based on predicate
+ * @param f - Whether to remove an item from the array
+ * @param xs - Array of items to filter
+ * @returns Filtered array
+ */
+export const reject = <T>(f: (x: T) => any, xs: T[]) => xs.filter(complement(f))
+
+/**
  * Returns array with duplicate elements removed
  * @param xs - Array with possible duplicates
  * @returns Array with unique elements

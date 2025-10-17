@@ -214,13 +214,12 @@ export const sendWrapped = async ({template, pubkeys, ...options}: SendWrappedOp
 
   return new MergedThunk(
     await Promise.all(
-      uniq(pubkeys).map(async recipient =>
-        publishThunk({
-          event: await nip59.wrap(recipient, stamp(template)),
-          relays: Router.get().PubkeyInbox(recipient).getUrls(),
-          ...options,
-        }),
-      ),
+      uniq(pubkeys).map(async recipient => {
+        const event = await nip59.wrap(recipient, stamp(template))
+        const relays = Router.get().PubkeyInbox(recipient).getUrls()
+
+        return publishThunk({event, relays, ...options})
+      }),
     ),
   )
 }
