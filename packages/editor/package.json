@@ -1,6 +1,6 @@
 {
   "name": "@welshman/editor",
-  "version": "0.5.4",
+  "version": "0.6.0",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A batteries-included nostr editor.",
