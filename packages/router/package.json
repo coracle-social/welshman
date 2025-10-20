@@ -22,7 +22,7 @@
   "dependencies": {
     "@welshman/lib": "workspace:*",
     "@welshman/util": "workspace:*",
-    "@welshman/relay": "workspace:*"
+    "@welshman/net": "workspace:*"
   },
   "devDependencies": {
     "rimraf": "~6.0.0",

@@ -7,9 +7,6 @@ Welshman is modular - install only what you need:
 # Core nostr utilities (events, filters, tags)
 npm i @welshman/util
 
-# In-memory event store and relay adapter
-npm i @welshman/relay
-
 # Networking and relay management
 npm i @welshman/net
 

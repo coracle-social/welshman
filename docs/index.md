@@ -30,9 +30,6 @@ features:
   - title: "@welshman/signer"
     details: Implementations of various nostr signing methods (NIP-01, NIP-07, NIP-46, NIP-55).
     link: "/signer"
-  - title: "@welshman/relay"
-    details: In-memory relay and event store.
-    link: "/relay"
   - title: "@welshman/router"
     details: Tools for relay selection.
     link: "/router"

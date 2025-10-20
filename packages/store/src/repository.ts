@@ -1,7 +1,7 @@
 import {derived} from "svelte/store"
 import {sortBy, identity, ensurePlural, removeNil, batch, partition, first} from "@welshman/lib"
-import {Repository} from "@welshman/relay"
 import {matchFilters, getIdAndAddress, getIdFilters, Filter, TrustedEvent} from "@welshman/util"
+import {Repository} from "@welshman/net"
 import {custom} from "./custom.js"
 
 export type DeriveEventsMappedOptions<T> = {

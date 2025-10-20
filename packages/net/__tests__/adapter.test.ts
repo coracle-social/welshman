@@ -1,7 +1,8 @@
-import EventEmitter from "events"
 import {describe, expect, it, vi, beforeEach, afterEach} from "vitest"
-import {LocalRelay, Repository, LOCAL_RELAY_URL} from "@welshman/relay"
+import {makeEvent} from "@welshman/util"
+import {prep, getPubkey, makeSecret} from "@welshman/signer"
 import {AdapterEvent, SocketAdapter, LocalAdapter, getAdapter} from "../src/adapter"
+import {Repository, LOCAL_RELAY_URL} from "../src/repository"
 import {ClientMessage, RelayMessage} from "../src/message"
 import {Socket, SocketEvent} from "../src/socket"
 import {Pool} from "../src/pool"
@@ -69,17 +70,13 @@ describe("SocketAdapter", () => {
 })
 
 describe("LocalAdapter", () => {
-  let relay: LocalRelay & EventEmitter
+  let repository: Repository
   let adapter: LocalAdapter
 
   beforeEach(() => {
-    const mockRelay = new EventEmitter()
-    Object.assign(mockRelay, {
-      send: vi.fn(),
-      removeAllListeners: vi.fn(),
-    })
-    relay = mockRelay as unknown as LocalRelay & EventEmitter
-    adapter = new LocalAdapter(relay)
+    repository = new Repository()
+    adapter = new LocalAdapter(repository)
+    vi.useFakeTimers()
   })
 
   afterEach(() => {
@@ -88,32 +85,35 @@ describe("LocalAdapter", () => {
   })
 
   it("should initialize with correct relay", () => {
-    expect(adapter.relay).toBe(relay)
     expect(adapter.urls).toEqual([LOCAL_RELAY_URL])
     expect(adapter.sockets).toEqual([])
   })
 
   it("should forward received messages", () => {
     const receiveSpy = vi.fn()
+    const pubkey = getPubkey(makeSecret())
+    const event = prep(makeEvent(1), pubkey)
+
+    adapter.send(["REQ", "r1", {kinds: [1]}])
+    adapter.send(["REQ", "r2", {kinds: [2]}])
     adapter.on(AdapterEvent.Receive, receiveSpy)
+    repository.publish(event)
 
-    const message: RelayMessage = ["EVENT", "123", {id: "123", kind: 1}]
-    relay.emit("*", ...message)
-
-    expect(receiveSpy).toHaveBeenCalledWith(message, LOCAL_RELAY_URL)
+    expect(receiveSpy).toHaveBeenCalledTimes(1)
+    expect(receiveSpy).toHaveBeenCalledWith(["EVENT", "r1", event], LOCAL_RELAY_URL)
   })
 
-  it("should send messages to relay", () => {
-    const message: ClientMessage = ["EVENT", {id: "123", kind: 1}]
-    adapter.send(message)
+  it("should send messages to relay", async () => {
+    const publishSpy = vi.spyOn(repository, "publish")
+    const pubkey = getPubkey(makeSecret())
+    const event = prep(makeEvent(1), pubkey)
 
-    expect(relay.send).toHaveBeenCalledWith("EVENT", message[1])
-  })
+    adapter.send(["EVENT", event])
 
-  it("should cleanup properly", () => {
-    const removeListenersSpy = vi.spyOn(adapter, "removeAllListeners")
-    adapter.cleanup()
-    expect(removeListenersSpy).toHaveBeenCalled()
+    await vi.runAllTimersAsync()
+
+    expect(publishSpy).toHaveBeenCalledTimes(1)
+    expect(publishSpy).toHaveBeenCalledWith(event)
   })
 })
 

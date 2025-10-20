@@ -42,7 +42,7 @@ Creates a cached loader function with staleness checking and exponential backoff
 import {writable} from 'svelte/store'
 import {derived, readable} from "svelte/store"
 import {readProfile, PROFILE, PublishedProfile} from "@welshman/util"
-import {Repository} from "@welshman/relay"
+import {Repository} from "@welshman/net"
 import {deriveEventsMapped, collection, withGetter} from "@welshman/store"
 
 const repository = new Repository()

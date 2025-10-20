@@ -6,7 +6,7 @@
     "paths": {
       "@welshman/lib": ["../lib/src/index.js"],
       "@welshman/util": ["../util/src/index.js"],
-      "@welshman/relay": ["../relay/src/index.js"]
+      "@welshman/net": ["../net/src/index.js"]
     }
   },
 

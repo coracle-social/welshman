@@ -88,11 +88,6 @@ export default defineConfig({
           ],
         },
         {
-          text: "@welshman/relay",
-          link: "/relay/",
-          items: [],
-        },
-        {
           text: "@welshman/router",
           link: "/router/",
           items: [],

@@ -5,6 +5,9 @@
     "outDir": "./dist",
     "paths": {
       "@welshman/lib": ["../lib/src/index.js"],
+      "@welshman/net": ["../net/src/index.js"],
+      "@welshman/router": ["../router/src/index.js"],
+      "@welshman/signer": ["../signer/src/index.js"],
       "@welshman/util": ["../util/src/index.js"]
     }
   },

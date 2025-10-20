@@ -35,7 +35,7 @@ import {
   getPubkeyTags,
   RelayMode,
 } from "@welshman/util"
-import {Repository} from "@welshman/relay"
+import {Repository} from "@welshman/net"
 
 export const INDEXED_KINDS = [PROFILE, RELAYS, INBOX_RELAYS, FOLLOWS]
 

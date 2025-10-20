@@ -13,8 +13,8 @@ import {
   getPubkey,
   ISigner,
 } from "@welshman/signer"
-import {WrapManager} from "@welshman/relay"
-import {relay, tracker} from "./core.js"
+import {WrapManager} from "@welshman/net"
+import {tracker, repository} from "./core.js"
 
 export enum SessionMethod {
   Nip01 = "nip01",
@@ -279,7 +279,7 @@ export const nip44EncryptToSelf = (payload: string) => {
 
 // Gift wrap utilities
 
-export const wrapManager = new WrapManager({relay, tracker})
+export const wrapManager = new WrapManager({repository, tracker})
 
 export const shouldUnwrap = withGetter(writable(false))
 

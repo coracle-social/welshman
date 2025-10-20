@@ -6,7 +6,6 @@
     "paths": {
       "@welshman/feeds": ["../feeds/src/index.js"],
       "@welshman/lib": ["../lib/src/index.js"],
-      "@welshman/relay": ["../relay/src/index.js"],
       "@welshman/net": ["../net/src/index.js"],
       "@welshman/signer": ["../signer/src/index.js"],
       "@welshman/store": ["../store/src/index.js"],

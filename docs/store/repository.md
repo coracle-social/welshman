@@ -39,7 +39,7 @@ Creates a reactive store that tracks whether an event is deleted by address.
 ## Example
 
 ```typescript
-import {Repository} from "@welshman/relay"
+import {Repository} from "@welshman/net"
 import {deriveEventsMapped, deriveEvents} from "@welshman/store"
 import {readProfile, PROFILE} from "@welshman/util"
 

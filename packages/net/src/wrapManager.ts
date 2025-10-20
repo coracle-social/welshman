@@ -1,7 +1,7 @@
 import {Emitter, remove, omit} from "@welshman/lib"
 import {HashedEvent, SignedEvent} from "@welshman/util"
 import {Tracker} from "./tracker.js"
-import {LocalRelay} from "./relay.js"
+import {Repository} from "./repository.js"
 
 export type WrapItem = Omit<HashedEvent, "content"> & {
   rumorId: string
@@ -11,24 +11,30 @@ export type WrapItem = Omit<HashedEvent, "content"> & {
 export type WrapReference = string[]
 
 export type WrapManagerOptions = {
-  relay: LocalRelay
+  repository: Repository
   tracker: Tracker
 }
 
 export class WrapManager extends Emitter {
   _wrapIndex = new Map<string, WrapItem>()
   _rumorIndex = new Map<string, WrapReference>()
-  _recipientIndex = new Map<string, WrapReference>()
 
   constructor(readonly options: WrapManagerOptions) {
     super()
   }
 
-  getRumor = (id: string) => {
-    const wrapItem = this._wrapIndex.get(id)
+  // Reading/exporting
+
+  dump = () => Array.from(this._wrapIndex.values())
+
+  getWraps = (rumorId: string) =>
+    this._rumorIndex.get(rumorId).map(wrapId => this._wrapIndex.get(wrapId)!)
+
+  getRumor = (wrapId: string) => {
+    const wrapItem = this._wrapIndex.get(wrapId)
 
     if (wrapItem) {
-      return this.options.relay.repository.getEvent(wrapItem.rumorId)
+      return this.options.repository.getEvent(wrapItem.rumorId)
     }
   }
 
@@ -55,8 +61,8 @@ export class WrapManager extends Emitter {
 
     this._add(wrapItem)
 
-    // Send via our relay so that listeners get notified
-    this.options.relay.send("EVENT", rumor)
+    // Save to our repository
+    this.options.repository.publish(rumor)
 
     // Mark the rumor as having come from the wrap's urls
     this.options.tracker.copy(wrap.id, rumor.id)
@@ -71,7 +77,7 @@ export class WrapManager extends Emitter {
 
     if (wrapItem) {
       this._remove(wrapItem)
-      this.options.relay.repository.removeEvent(wrapItem.rumorId)
+      this.options.repository.removeEvent(wrapItem.rumorId)
       this.emit("remove", wrapItem)
     }
   }

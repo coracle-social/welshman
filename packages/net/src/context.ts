@@ -1,6 +1,6 @@
-import {Repository} from "@welshman/relay"
 import {verifyEvent, TrustedEvent} from "@welshman/util"
 import {AbstractAdapter} from "./adapter.js"
+import {Repository} from "./repository.js"
 import {Pool} from "./pool.js"
 
 export type NetContext = {

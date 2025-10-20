@@ -74,9 +74,6 @@ importers:
       '@welshman/net':
         specifier: workspace:*
         version: link:../net
-      '@welshman/relay':
-        specifier: workspace:*
-        version: link:../relay
       '@welshman/router':
         specifier: workspace:*
         version: link:../router
@@ -194,9 +191,6 @@ importers:
       '@welshman/net':
         specifier: workspace:*
         version: link:../net
-      '@welshman/relay':
-        specifier: workspace:*
-        version: link:../relay
       '@welshman/router':
         specifier: workspace:*
         version: link:../router
@@ -241,9 +235,6 @@ importers:
       '@welshman/lib':
         specifier: workspace:*
         version: link:../lib
-      '@welshman/relay':
-        specifier: workspace:*
-        version: link:../relay
       '@welshman/util':
         specifier: workspace:*
         version: link:../util
@@ -261,33 +252,14 @@ importers:
         specifier: ~5.8.0
         version: 5.8.2
 
-  packages/relay:
-    dependencies:
-      '@welshman/lib':
-        specifier: workspace:*
-        version: link:../lib
-      '@welshman/signer':
-        specifier: workspace:*
-        version: link:../signer
-      '@welshman/util':
-        specifier: workspace:*
-        version: link:../util
-    devDependencies:
-      rimraf:
-        specifier: ~6.0.0
-        version: 6.0.1
-      typescript:
-        specifier: ~5.8.0
-        version: 5.8.2
-
   packages/router:
     dependencies:
       '@welshman/lib':
         specifier: workspace:*
         version: link:../lib
-      '@welshman/relay':
+      '@welshman/net':
         specifier: workspace:*
-        version: link:../relay
+        version: link:../net
       '@welshman/util':
         specifier: workspace:*
         version: link:../util
@@ -338,9 +310,9 @@ importers:
       '@welshman/lib':
         specifier: workspace:*
         version: link:../lib
-      '@welshman/relay':
+      '@welshman/net':
         specifier: workspace:*
-        version: link:../relay
+        version: link:../net
       '@welshman/util':
         specifier: workspace:*
         version: link:../util

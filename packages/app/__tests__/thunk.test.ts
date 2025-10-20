@@ -1,6 +1,5 @@
-import {PublishStatus} from "@welshman/net"
+import {PublishStatus, LOCAL_RELAY_URL} from "@welshman/net"
 import {NOTE, DIRECT_MESSAGE, WRAP, makeEvent} from "@welshman/util"
-import {LOCAL_RELAY_URL} from "@welshman/relay"
 import {getPubkey, makeSecret, prep} from "@welshman/signer"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {repository, tracker} from "../src/core"

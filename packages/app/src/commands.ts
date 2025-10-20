@@ -208,7 +208,7 @@ export type SendWrappedOptions = Omit<ThunkOptions, "event" | "relays"> & {
   recipients: string[]
 }
 
-export const sendWrapped = async ({event, recipients, ...options}: SendWrappedOptions) =>
+export const sendWrapped = ({event, recipients, ...options}: SendWrappedOptions) =>
   new MergedThunk(
     uniq(recipients).map(recipient => {
       const relays = Router.get().PubkeyInbox(recipient).getUrls()
