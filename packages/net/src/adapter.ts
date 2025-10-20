@@ -16,7 +16,7 @@ import {Unsubscriber} from "./util.js"
 import {netContext, NetContext} from "./context.js"
 
 export enum AdapterEvent {
-  Receive = "adapter:event:receive",
+  Receive = "receive",
 }
 
 export type AdapterEvents = {

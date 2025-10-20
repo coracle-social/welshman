@@ -7,13 +7,13 @@ import {Socket, SocketStatus, SocketEvent} from "./socket.js"
 import {Unsubscriber} from "./util.js"
 
 export enum AuthStatus {
-  None = "auth:status:none",
-  Requested = "auth:status:requested",
-  PendingSignature = "auth:status:pending_signature",
-  DeniedSignature = "auth:status:denied_signature",
-  PendingResponse = "auth:status:pending_response",
-  Forbidden = "auth:status:forbidden",
-  Ok = "auth:status:ok",
+  None = "none",
+  Requested = "requested",
+  PendingSignature = "pending_signature",
+  DeniedSignature = "denied_signature",
+  PendingResponse = "pending_response",
+  Forbidden = "forbidden",
+  Ok = "ok",
 }
 
 export type AuthResult = {

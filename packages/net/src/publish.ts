@@ -4,12 +4,12 @@ import {RelayMessage, ClientMessageType, isRelayOk} from "./message.js"
 import {AdapterEvent, AdapterContext, getAdapter} from "./adapter.js"
 
 export enum PublishStatus {
-  Sending = "publish:status:sending",
-  Pending = "publish:status:pending",
-  Success = "publish:status:success",
-  Failure = "publish:status:failure",
-  Timeout = "publish:status:timeout",
-  Aborted = "publish:status:aborted",
+  Sending = "sending",
+  Pending = "pending",
+  Success = "success",
+  Failure = "failure",
+  Timeout = "timeout",
+  Aborted = "aborted",
 }
 
 export type PublishResult = {

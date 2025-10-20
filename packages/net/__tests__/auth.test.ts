@@ -123,7 +123,7 @@ describe("auth", () => {
       socket.auth.status = AuthStatus.PendingResponse
 
       await expect(socket.auth.doAuth(sign)).rejects.toThrow(
-        "Attempted to authenticate when auth is already auth:status:pending_response",
+        "Attempted to authenticate when auth is already pending_response",
       )
     })
 

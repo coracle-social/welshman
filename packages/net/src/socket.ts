@@ -5,20 +5,20 @@ import {RelayMessage, ClientMessage} from "./message.js"
 import {AuthState} from "./auth.js"
 
 export enum SocketStatus {
-  Open = "socket:status:open",
-  Opening = "socket:status:opening",
-  Closing = "socket:status:closing",
-  Closed = "socket:status:closed",
-  Error = "socket:status:error",
+  Open = "open",
+  Opening = "opening",
+  Closing = "closing",
+  Closed = "closed",
+  Error = "error",
 }
 
 export enum SocketEvent {
-  Error = "socket:event:error",
-  Status = "socket:event:status",
-  Send = "socket:event:send",
-  Sending = "socket:event:sending",
-  Receive = "socket:event:receive",
-  Receiving = "socket:event:receiving",
+  Error = "error",
+  Status = "status",
+  Send = "send",
+  Sending = "sending",
+  Receive = "receive",
+  Receiving = "receiving",
 }
 
 export type SocketEvents = {

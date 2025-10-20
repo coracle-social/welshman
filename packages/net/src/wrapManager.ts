@@ -18,6 +18,7 @@ export type WrapManagerOptions = {
 export class WrapManager extends Emitter {
   _wrapIndex = new Map<string, WrapItem>()
   _rumorIndex = new Map<string, WrapReference>()
+  _recipientIndex = new Map<string, WrapReference>()
 
   constructor(readonly options: WrapManagerOptions) {
     super()
@@ -28,7 +29,7 @@ export class WrapManager extends Emitter {
   dump = () => Array.from(this._wrapIndex.values())
 
   getWraps = (rumorId: string) =>
-    this._rumorIndex.get(rumorId).map(wrapId => this._wrapIndex.get(wrapId)!)
+    (this._rumorIndex.get(rumorId) || []).map(wrapId => this._wrapIndex.get(wrapId)!)
 
   getRumor = (wrapId: string) => {
     const wrapItem = this._wrapIndex.get(wrapId)

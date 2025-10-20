@@ -14,9 +14,9 @@ import {requestOne} from "./request.js"
 import {publish} from "./publish.js"
 
 export enum DifferenceEvent {
-  Message = "difference:event:message",
-  Error = "difference:event:error",
-  Close = "difference:event:close",
+  Message = "message",
+  Error = "error",
+  Close = "close",
 }
 
 export type DifferenceEvents = {
