@@ -1,14 +1,7 @@
 import {derived, writable} from "svelte/store"
 import {cached, randomId, append, omit, equals, assoc} from "@welshman/lib"
 import {withGetter} from "@welshman/store"
-import {
-  Wallet,
-  WRAP,
-  isHashedEvent,
-  getPubkeyTagValues,
-  HashedEvent,
-  SignedEvent,
-} from "@welshman/util"
+import {Wallet, WRAP, getPubkeyTagValues, HashedEvent, SignedEvent} from "@welshman/util"
 import {
   Nip59,
   WrappedSigner,
@@ -284,39 +277,55 @@ export const nip44EncryptToSelf = (payload: string) => {
   return $signer.nip44.encrypt($pubkey!, payload)
 }
 
+// Gift wrap utilities
+
 export const wrapManager = new WrapManager({relay, tracker})
 
-export const unwrapAndStore = async (wrap: SignedEvent) => {
-  if (wrap.kind !== WRAP) throw new Error("Tried to unwrap an invalid event")
+export const shouldUnwrap = withGetter(writable(false))
 
-  // First, check index and repository
+export const failedUnwraps = new Set<string>()
+
+export const unwrapAndStore = async (wrap: SignedEvent) => {
+  if (wrap.kind !== WRAP) {
+    throw new Error("Tried to unwrap an invalid event")
+  }
+
+  if (!shouldUnwrap.get()) {
+    throw new Error("Discarding wrapped event because `shouldUnwrap` is not enabled")
+  }
+
+  // Check to see if we already tried to unwrap but failed
+  if (failedUnwraps.has(wrap.id)) {
+    return
+  }
+
+  // Check index and repository
   const cached = wrapManager.getRumor(wrap.id)
 
   if (cached) {
     return cached
   }
 
-  let rumor: HashedEvent | undefined
-  let recipient: string | undefined
+  let result: {rumor: HashedEvent; recipient: string} | undefined
 
   // Next, try to decrypt as the recipient
-  for (const pubkey of getPubkeyTagValues(wrap.tags)) {
-    const signer = getSignerFromPubkey(pubkey)
+  for (const recipient of getPubkeyTagValues(wrap.tags)) {
+    const signer = getSignerFromPubkey(recipient)
 
     if (signer) {
       try {
-        rumor = await Nip59.fromSigner(signer).unwrap(wrap)
-        recipient = pubkey
-        break
+        const rumor = await Nip59.fromSigner(signer).unwrap(wrap)
+
+        result = {rumor, recipient}
       } catch (e) {
-        // pass
+        failedUnwraps.add(wrap.id)
       }
     }
   }
 
-  if (rumor && recipient && isHashedEvent(rumor)) {
-    wrapManager.add({wrap, rumor, recipient})
-  }
+  if (result) {
+    wrapManager.add({wrap, ...result})
 
-  return rumor
+    return result.rumor
+  }
 }

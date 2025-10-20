@@ -49,7 +49,7 @@ export const wrap = async (
   return wrap
 }
 
-export const unwrap = async (signer: ISigner, wrap: SignedEvent) => {
+export const unwrap = async (signer: ISigner, wrap: SignedEvent): Promise<HashedEvent> => {
   // Avoid decrypting the same event multiple times
   if (seen.has(wrap.id)) {
     const rumorOrError = seen.get(wrap.id)
@@ -57,7 +57,7 @@ export const unwrap = async (signer: ISigner, wrap: SignedEvent) => {
     if (rumorOrError instanceof Error) {
       throw rumorOrError
     } else {
-      return rumorOrError
+      return rumorOrError!
     }
   }
 
