@@ -2,14 +2,14 @@ import Fuse, {IFuseOptions, FuseResult} from "fuse.js"
 import {debounce} from "throttle-debounce"
 import {derived} from "svelte/store"
 import {dec, inc, sortBy} from "@welshman/lib"
-import {PROFILE, PublishedProfile} from "@welshman/util"
+import {PROFILE, PublishedProfile, RelayProfile} from "@welshman/util"
 import {load} from "@welshman/net"
 import {throttled} from "@welshman/store"
 import {Router} from "@welshman/router"
 import {wotGraph, maxWot} from "./wot.js"
 import {profiles} from "./profiles.js"
 import {topics, Topic} from "./topics.js"
-import {relays, Relay} from "./relays.js"
+import {relays} from "./relays.js"
 import {handlesByNip05} from "./handles.js"
 
 export type SearchOptions<V, T> = {
@@ -102,7 +102,7 @@ export const topicSearch = derived(topics, $topics =>
 
 export const relaySearch = derived(relays, $relays =>
   createSearch($relays, {
-    getValue: (relay: Relay) => relay.url,
+    getValue: (relay: RelayProfile) => relay.url,
     fuseOptions: {
       keys: ["url", "name", {name: "description", weight: 0.3}],
     },

@@ -10,6 +10,7 @@ export * from "./plaintext.js"
 export * from "./profiles.js"
 export * from "./pins.js"
 export * from "./relays.js"
+export * from "./relayStats.js"
 export * from "./relaySelections.js"
 export * from "./inboxRelaySelections.js"
 export * from "./search.js"
@@ -23,13 +24,21 @@ export * from "./wot.js"
 export * from "./zappers.js"
 
 import {derived} from "svelte/store"
-import {sortBy, throttleWithValue, tryCatch} from "@welshman/lib"
-import {isEphemeralKind, isDVMKind, WRAP, RelayMode, getRelaysFromList} from "@welshman/util"
+import {sortBy, throttleWithValue} from "@welshman/lib"
+import {
+  isEphemeralKind,
+  isDVMKind,
+  WRAP,
+  RelayMode,
+  RelayProfile,
+  getRelaysFromList,
+} from "@welshman/util"
 import {routerContext} from "@welshman/router"
 import {Pool, SocketEvent, isRelayEvent, netContext} from "@welshman/net"
 import {pubkey, unwrapAndStore} from "./session.js"
 import {repository, tracker} from "./core.js"
-import {Relay, relays, loadRelay, trackRelayStats, getRelayQuality} from "./relays.js"
+import {relays, loadRelay} from "./relays.js"
+import {trackRelayStats, getRelayQuality} from "./relayStats.js"
 import {relaySelectionsByPubkey} from "./relaySelections.js"
 import {inboxRelaySelectionsByPubkey} from "./inboxRelaySelections.js"
 
@@ -62,7 +71,7 @@ Pool.get().subscribe(socket => {
 
 // Configure the router and add a few other relay utils
 
-const _relayGetter = (fn?: (relay: Relay) => any) =>
+const _relayGetter = (fn?: (relay: RelayProfile) => any) =>
   throttleWithValue(200, () => {
     let _relays = relays.get()
 
@@ -90,6 +99,4 @@ routerContext.getPubkeyRelays = getPubkeyRelays
 routerContext.getRelayQuality = getRelayQuality
 routerContext.getDefaultRelays = _relayGetter()
 routerContext.getIndexerRelays = _relayGetter()
-routerContext.getSearchRelays = _relayGetter(r =>
-  tryCatch(() => r.profile?.supported_nips?.includes(50)),
-)
+routerContext.getSearchRelays = _relayGetter(r => r?.supported_nips?.includes?.(50))

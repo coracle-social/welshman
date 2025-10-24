@@ -8,11 +8,11 @@ const query = (filters: Filter[]) =>
   repository.query(filters, {shouldSort: filters.every(f => f.limit === undefined)})
 
 export const hasNegentropy = (url: string) => {
-  const p = relaysByUrl.get().get(url)?.profile
+  const relay = relaysByUrl.get().get(url)
 
-  if (p?.negentropy) return true
-  if (p?.supported_nips?.includes?.(77)) return true
-  if (p?.software?.includes?.("strfry") && !p?.version?.match(/^0\./)) return true
+  if (relay?.negentropy) return true
+  if (relay?.supported_nips?.includes?.(77)) return true
+  if (relay?.software?.includes?.("strfry") && !relay?.version?.match(/^0\./)) return true
 
   return false
 }

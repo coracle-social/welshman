@@ -25,22 +25,10 @@ export type SuggestionsWrapperProps = {
   createSuggestion: CreateSuggestion
 }
 
-export interface ISuggestionsWrapperConstructor {
-  new (target: HTMLElement, props: SuggestionsWrapperProps): ISuggestionsWrapper
-}
-
 export interface ISuggestionsWrapper {
-  setProps: (props: SuggestionsWrapperProps) => void
+  setProps: (props: Partial<SuggestionsWrapperProps>) => void
   onKeyDown: (event: Event) => boolean
   destroy: () => void
-}
-
-function createSuggestionsWrapper(
-  ctor: ISuggestionsWrapperConstructor,
-  target: HTMLElement,
-  props: SuggestionsWrapperProps,
-): ISuggestionsWrapper {
-  return new ctor(target, props)
 }
 
 export class DefaultSuggestionsWrapper implements ISuggestionsWrapper {
@@ -126,8 +114,9 @@ export class DefaultSuggestionsWrapper implements ISuggestionsWrapper {
     this.render()
   }
 
-  setProps(props: SuggestionsWrapperProps) {
-    this.props = props
+  setProps(props: Partial<SuggestionsWrapperProps>) {
+    Object.assign(this.props, props)
+
     this.search()
     this.render()
   }
@@ -176,15 +165,27 @@ export class DefaultSuggestionsWrapper implements ISuggestionsWrapper {
   }
 }
 
+type Unsubscribe = () => void
+
+type Subscribe = (fn: () => void) => Unsubscribe
+
+type Signal = {
+  subscribe: Subscribe
+}
+
 export type TippySuggestionOptions = {
   char: string
   name: string
   editor: Editor
   search: (term: string) => string[]
   select: (value: string, props: any) => void
+  updateSignal?: Signal
   allowCreate?: boolean
   createSuggestion?: CreateSuggestion
-  suggestionsWrapper?: ISuggestionsWrapperConstructor
+  createSuggestionsWrapper?: (
+    target: HTMLElement,
+    props: SuggestionsWrapperProps,
+  ) => ISuggestionsWrapper
 }
 
 export const TippySuggestion = ({
@@ -193,9 +194,11 @@ export const TippySuggestion = ({
   editor,
   search,
   select,
+  updateSignal,
   allowCreate = false,
   createSuggestion = defaultCreateSuggestion,
-  suggestionsWrapper = DefaultSuggestionsWrapper,
+  createSuggestionsWrapper = (target: HTMLElement, props: SuggestionsWrapperProps) =>
+    new DefaultSuggestionsWrapper(target, props),
 }: TippySuggestionOptions) =>
   Suggestion({
     char,
@@ -231,6 +234,7 @@ export const TippySuggestion = ({
     render: () => {
       let popover: Instance[]
       let wrapper: ISuggestionsWrapper
+      let unsubscribe: Unsubscribe | undefined
 
       const mapProps = (props: any) => ({
         term: props.query,
@@ -257,7 +261,11 @@ export const TippySuggestion = ({
 
           if (!props.query) popover[0].hide()
 
-          wrapper = createSuggestionsWrapper(suggestionsWrapper, target, mapProps(props))
+          wrapper = createSuggestionsWrapper(target, mapProps(props))
+
+          unsubscribe = updateSignal?.subscribe(() => {
+            wrapper.setProps({})
+          })
         },
         onUpdate: props => {
           if (props.query) {
@@ -286,6 +294,7 @@ export const TippySuggestion = ({
         onExit: () => {
           popover[0].destroy()
           wrapper.destroy()
+          unsubscribe?.()
         },
       }
     },
