@@ -1452,9 +1452,9 @@ export const displayList = <T>(xs: T[], conj = "and", n = 6) => {
   return `${xs.slice(0, -1).join(", ")}, ${conj} ${xs.slice(-1).join("")}`
 }
 
-/** Generates a hash string from input string */
+/** Generates a hash from input string */
 export const hash = (s: string) =>
-  Math.abs(s.split("").reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0)).toString()
+  Math.abs(s.split("").reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0))
 
 // ----------------------------------------------------------------------------
 // Curried utilities for working with collections

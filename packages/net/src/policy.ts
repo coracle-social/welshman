@@ -1,5 +1,5 @@
 import {on, ms, nthNe, always, call, sleep, ago, now} from "@welshman/lib"
-import {AUTH_JOIN, StampedEvent, SignedEvent} from "@welshman/util"
+import {RELAY_JOIN, StampedEvent, SignedEvent} from "@welshman/util"
 import {
   ClientMessage,
   isClientAuth,
@@ -42,7 +42,7 @@ export const socketPolicyAuthBuffer = (socket: Socket) => {
       if (isClientAuth(message)) return
 
       // Always allow sending join requests
-      if (isClientEvent(message) && message[1].kind === AUTH_JOIN) return
+      if (isClientEvent(message) && message[1].kind === RELAY_JOIN) return
 
       // If the auth flow is complete, no need to buffer anymore
       if (terminalStatuses.includes(socket.auth.status)) return

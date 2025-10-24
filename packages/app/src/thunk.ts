@@ -136,7 +136,6 @@ export class Thunk {
       ...this.options,
       event,
       onSuccess: (result: PublishResult) => {
-        tracker.track(event.id, result.relay)
         this.options.onSuccess?.(result)
         this.results[result.relay] = result
         this._notify()
@@ -150,6 +149,10 @@ export class Thunk {
       onTimeout: this._setTimeout,
       onAborted: this._setAborted,
       onComplete: (result: PublishResult) => {
+        if (result.status !== PublishStatus.Success) {
+          tracker.removeRelay(event.id, result.relay)
+        }
+
         this.options.onComplete?.(result)
         this._subs = []
       },
@@ -201,6 +204,11 @@ export class Thunk {
 
   enqueue() {
     thunkQueue.push(this)
+
+    for (const url of this.options.relays) {
+      tracker.track(this.event.id, url)
+    }
+
     repository.publish(this.event)
     thunks.update($thunks => append(this, $thunks))
 

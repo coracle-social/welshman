@@ -17,7 +17,7 @@ export type MakeUserDataOptions<T> = {
   loadItem: UserDataLoader
 }
 
-const makeUserData = <T>({mapStore, loadItem}: MakeUserDataOptions<T>) =>
+export const makeUserData = <T>({mapStore, loadItem}: MakeUserDataOptions<T>) =>
   withGetter(
     derived([mapStore, pubkey], ([$mapStore, $pubkey]) => {
       if (!$pubkey) return undefined
@@ -28,7 +28,7 @@ const makeUserData = <T>({mapStore, loadItem}: MakeUserDataOptions<T>) =>
     }),
   )
 
-const makeUserLoader =
+export const makeUserLoader =
   (loadItem: UserDataLoader) =>
   async (relays: string[] = [], force = false) => {
     const $pubkey = pubkey.get()

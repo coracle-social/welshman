@@ -1,4 +1,4 @@
-import {AUTH_JOIN} from "@welshman/util"
+import {RELAY_JOIN} from "@welshman/util"
 import {describe, expect, it, vi, beforeEach, afterEach} from "vitest"
 import {Socket, SocketStatus, SocketEvent} from "../src/socket"
 import {AuthStatus, AuthStateEvent} from "../src/auth"
@@ -56,7 +56,7 @@ describe("policy", () => {
       expect(sendSpy).toHaveBeenCalledWith(authEvent)
 
       // Auth join event should not be buffered
-      const joinEvent: ClientMessage = ["EVENT", {id: "789", kind: AUTH_JOIN}]
+      const joinEvent: ClientMessage = ["EVENT", {id: "789", kind: RELAY_JOIN}]
       socket.send(joinEvent)
       expect(sendSpy).toHaveBeenCalledWith(joinEvent)
 
@@ -159,21 +159,21 @@ describe("policy", () => {
       cleanup()
     })
 
-    it("should not retry AUTH_JOIN events", () => {
+    it("should not retry RELAY_JOIN events", () => {
       const cleanup = socketPolicyAuthBuffer(socket)
       const sendSpy = vi.spyOn(socket, "send")
 
-      // Send an AUTH_JOIN event
+      // Send an RELAY_JOIN event
       const event: ClientMessage = [
         "EVENT",
-        {id: "123", kind: AUTH_JOIN, content: "", tags: [], pubkey: "", sig: ""},
+        {id: "123", kind: RELAY_JOIN, content: "", tags: [], pubkey: "", sig: ""},
       ]
       socket.emit(SocketEvent.Send, event)
 
       // Receive auth-required rejection
       socket.emit(SocketEvent.Receive, ["OK", "123", false, "auth-required: need to auth first"])
 
-      // Should not retry AUTH_JOIN events
+      // Should not retry RELAY_JOIN events
       expect(sendSpy).not.toHaveBeenCalled()
 
       cleanup()
