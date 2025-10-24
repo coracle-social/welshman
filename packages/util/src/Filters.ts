@@ -74,7 +74,7 @@ export const getFilterId = (filter: Filter) => {
     parts.push(`${k}:${s}`)
   }
 
-  return hash(parts.join("|"))
+  return hash(parts.join("|")).toString()
 }
 
 export const calculateFilterGroup = ({since, until, limit, search, ...filter}: Filter) => {
