@@ -4,8 +4,36 @@ import {Nip01Signer} from "./signers/nip01.js"
 
 export const seen = new Map<string, HashedEvent | Error>()
 
+const cryptoObj =
+  typeof globalThis !== "undefined" && (globalThis as any).crypto?.getRandomValues
+    ? (globalThis as any).crypto
+    : undefined
+
+const getSecureRandomInt = (max: number) => {
+  if (max <= 0) return 0
+  const upper = Math.floor(Math.min(max, 0xffffffff))
+
+  if (upper <= 0) {
+    return 0
+  }
+
+  if (cryptoObj) {
+    const array = new Uint32Array(1)
+    const rejectionThreshold = Math.floor(0xffffffff / upper) * upper
+
+    do {
+      cryptoObj.getRandomValues(array)
+    } while (array[0] >= rejectionThreshold)
+
+    return array[0] % upper
+  }
+
+  // Fallback if a secure RNG is unavailable.
+  return Math.floor(Math.random() * upper)
+}
+
 export const now = (drift = 0) =>
-  Math.round(Date.now() / 1000 - Math.random() * Math.pow(10, drift))
+  Math.round(Date.now() / 1000 - getSecureRandomInt(Math.pow(10, drift)))
 
 export const getSeal = async (signer: ISigner, pubkey: string, rumor: HashedEvent) =>
   signer.sign(
