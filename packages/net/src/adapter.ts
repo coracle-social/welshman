@@ -1,7 +1,7 @@
 import EventEmitter from "events"
 import {call, sleep, mergeRight, on} from "@welshman/lib"
 import {isRelayUrl, matchFilters, Filter} from "@welshman/util"
-import {LOCAL_RELAY_URL, Repository} from "./repository"
+import {LOCAL_RELAY_URL, Repository} from "./repository.js"
 import {
   RelayMessage,
   RelayMessageType,

@@ -20,6 +20,24 @@ export type RepositoryUpdate = {
   removed: Set<string>
 }
 
+export const mergeRepositoryUpdates = (updates: RepositoryUpdate[]): RepositoryUpdate => {
+  const added: TrustedEvent[] = []
+  const removed = new Set<string>()
+
+  for (const update of updates) {
+    for (const event of update.added) {
+      added.push(event)
+      removed.delete(event.id)
+    }
+
+    for (const id of update.removed) {
+      removed.add(id)
+    }
+  }
+
+  return {added, removed}
+}
+
 export class Repository extends Emitter {
   eventsById = new Map<string, TrustedEvent>()
   eventsByAddress = new Map<string, TrustedEvent>()
