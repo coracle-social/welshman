@@ -1,6 +1,6 @@
 import {EventEmitter} from "events"
 import {on, sleep, randomId, groupBy, pushToMapKey, inc, flatten, chunk} from "@welshman/lib"
-import {SignedEvent, Filter} from "@welshman/util"
+import {SignedEvent, TrustedEvent, Filter} from "@welshman/util"
 import {
   RelayMessage,
   isRelayNegErr,
@@ -201,7 +201,8 @@ export const pull = async ({context, ...options}: PullOptions) => {
     }
   }
 
-  const result: SignedEvent[] = []
+  const seen = new Set<string>()
+  const result: TrustedEvent[] = []
 
   await Promise.all(
     Array.from(idsByRelay.entries()).map(([relay, allIds]) => {
@@ -216,7 +217,12 @@ export const pull = async ({context, ...options}: PullOptions) => {
                 signal: options.signal,
                 autoClose: true,
                 onClose: resolve,
-                onEvent: event => result.push(event as SignedEvent),
+                onEvent: event => {
+                  if (!seen.has(event.id)) {
+                    seen.add(event.id)
+                    result.push(event)
+                  }
+                },
               }),
             ),
         ),
