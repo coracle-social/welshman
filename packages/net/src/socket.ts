@@ -31,6 +31,8 @@ export type SocketEvents = {
 }
 
 export class Socket extends EventEmitter {
+  static batchSize = 10
+
   auth: AuthState
   status = SocketStatus.Closed
 
@@ -44,7 +46,7 @@ export class Socket extends EventEmitter {
     this.auth = new AuthState(this)
 
     this._sendQueue = new TaskQueue<ClientMessage>({
-      batchSize: 50,
+      batchSize: Socket.batchSize,
       processItem: (message: ClientMessage) => {
         this._ws?.send(JSON.stringify(message))
         this.emit(SocketEvent.Send, message, this.url)
@@ -52,7 +54,7 @@ export class Socket extends EventEmitter {
     })
 
     this._recvQueue = new TaskQueue<RelayMessage>({
-      batchSize: 50,
+      batchSize: Socket.batchSize,
       processItem: (message: RelayMessage) => {
         this.emit(SocketEvent.Receive, message, this.url)
       },

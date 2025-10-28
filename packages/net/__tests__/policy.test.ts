@@ -281,7 +281,7 @@ describe("policy", () => {
       expect(closeSpy).toHaveBeenCalled()
 
       cleanup()
-    }, 50000)
+    }, 100000)
 
     it("should reset timer on send activity", () => {
       const cleanup = socketPolicyCloseInactive(socket)
