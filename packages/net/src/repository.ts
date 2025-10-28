@@ -154,15 +154,11 @@ export class Repository extends Emitter {
   ) => {
     const result: TrustedEvent[][] = []
     for (const originalFilter of filters) {
-      if (originalFilter.limit !== undefined && !shouldSort) {
-        throw new Error("Unable to skip sorting if limit is defined")
-      }
-
       // Attempt to fulfill the query using one of our indexes. Fall back to all events.
       const applied = this._applyAnyFilter(originalFilter)
       const filter = applied?.filter || originalFilter
       const events = applied ? this._getEvents(applied!.ids) : this.dump()
-      const sorted = this._sortEvents(shouldSort && Boolean(filter.limit), events)
+      const sorted = this._sortEvents(shouldSort || Boolean(filter.limit), events)
 
       const chunk: TrustedEvent[] = []
       for (const event of sorted) {

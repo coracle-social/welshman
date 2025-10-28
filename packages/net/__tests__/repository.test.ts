@@ -154,10 +154,6 @@ describe("Repository", () => {
       repo = new Repository()
     })
 
-    it("should throw on invalid queries", () => {
-      expect(() => repo.query([{limit: 10}], {shouldSort: false})).toThrow()
-    })
-
     it("should query by ids", () => {
       const event = createEvent(1)
       repo.publish(event)

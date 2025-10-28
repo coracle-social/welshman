@@ -1517,9 +1517,9 @@ export const prop =
 
 /** Returns a function that adds/updates a property on object */
 export const assoc =
-  <K extends string, T, U>(k: K, v: T) =>
-  (o: U) =>
-    ({...o, [k as K]: v}) as U & Record<K, T>
+  <K extends string, T>(k: K, v: T) =>
+  <U>(o: U): U =>
+    ({...o, [k]: v}) as U
 
 /** Returns a function that removes a property on object */
 export const dissoc =
