@@ -1,6 +1,7 @@
 export * from "./synced.js"
 export * from "./getter.js"
 export * from "./throttle.js"
+export * from "./memoize.js"
 export * from "./custom.js"
 export * from "./repository.js"
 export * from "./collection.js"

@@ -1030,11 +1030,11 @@ export const call = <T>(f: () => T, ...args: unknown[]) => f()
  * @param f - Function to memoize
  * @returns Memoized function
  */
-export const memoize = <T>(f: (...args: any[]) => T) => {
-  let prevArgs: any[]
+export const memoize = <T, Args extends any[]>(f: (...args: Args) => T) => {
+  let prevArgs: Args
   let result: T
 
-  return (...args: any[]) => {
+  return (...args: Args): T => {
     if (!equals(prevArgs, args)) {
       prevArgs = args
       result = f(...args)

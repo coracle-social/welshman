@@ -1,6 +1,7 @@
 import {readable, derived, writable, Readable, Subscriber} from "svelte/store"
 import {batch, indexBy, remove, assoc, now} from "@welshman/lib"
 import {withGetter, ReadableWithGetter} from "./getter.js"
+import {memoized} from "./memoize.js"
 
 // Collection utility
 
@@ -126,7 +127,7 @@ export const collection = <T>({name, store, getKey, load}: CollectionOptions<T>)
     // store will update when it arrives
     loadItem(key, relays)
 
-    return derived(indexStore, $index => $index.get(key))
+    return memoized<T | undefined>(derived(indexStore, $index => $index.get(key)))
   }
 
   const onItem = (cb: Subscriber<T>) => {

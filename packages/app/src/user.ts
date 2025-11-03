@@ -1,5 +1,5 @@
 import {derived, Readable} from "svelte/store"
-import {withGetter} from "@welshman/store"
+import {withGetter, memoized} from "@welshman/store"
 import {pubkey} from "./session.js"
 import {profilesByPubkey, loadProfile} from "./profiles.js"
 import {followsByPubkey, loadFollows} from "./follows.js"
@@ -19,13 +19,15 @@ export type MakeUserDataOptions<T> = {
 
 export const makeUserData = <T>({mapStore, loadItem}: MakeUserDataOptions<T>) =>
   withGetter(
-    derived([mapStore, pubkey], ([$mapStore, $pubkey]) => {
-      if (!$pubkey) return undefined
+    memoized(
+      derived([mapStore, pubkey], ([$mapStore, $pubkey]) => {
+        if (!$pubkey) return undefined
 
-      loadItem($pubkey)
+        loadItem($pubkey)
 
-      return $mapStore.get($pubkey)
-    }),
+        return $mapStore.get($pubkey)
+      }),
+    ),
   )
 
 export const makeUserLoader =
