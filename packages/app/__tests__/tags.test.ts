@@ -115,32 +115,6 @@ describe("tags", () => {
       expect(e[1][1]).toBe(id)
     })
 
-    it("should handle reply to event with root and mention tags", () => {
-      const eventWithRoots = {
-        ...mockEvent,
-        tags: [
-          ["e", id1, "relay-url"], // deprecated root tag
-          ["e", id2, "relay-url"], // deprecated reply type
-        ],
-      }
-      const result = tagEventForReply(eventWithRoots)
-
-      const p = result.filter(tag => tag[0] === "p")
-      const e = result.filter(tag => tag[0] === "e")
-
-      // p[0] should be the author of the event
-      expect(p[0][1]).toBe(pubkey)
-      // e[0] should be the root propagated
-      expect(e[0][1]).toBe(id1)
-      expect(e[0][3]).toBe("root")
-      // e[1] should be treated as a mention, it is the note the parent replied to
-      expect(e[1][1]).toBe(id2)
-      expect(e[1][3]).toBe("mention")
-      // e[2] should be the event id and marked as a reply
-      expect(e[2][1]).toBe(id)
-      expect(e[2][3]).toBe("reply")
-    })
-
     it("should handle replaceable events", () => {
       const replaceableEvent = {
         ...mockEvent,
@@ -161,12 +135,9 @@ describe("tags", () => {
       // e[0] should be the root propagated
       expect(e[0][1]).toBe(id1)
       expect(e[0][3]).toBe("root")
-      // e[1] should be treated as a mention, it is the note the parent replied to
-      expect(e[1][1]).toBe(id2)
-      expect(e[1][3]).toBe("mention")
-      // e[2] should be the event id and marked as a reply
-      expect(e[2][1]).toBe(id)
-      expect(e[2][3]).toBe("reply")
+      // e[1] should be the event id and marked as a reply
+      expect(e[1][1]).toBe(id)
+      expect(e[1][3]).toBe("reply")
 
       // a[0] should be the address of the replaceable event
       expect(a[0][1]).toBe(getAddress(replaceableEvent))

@@ -1,10 +1,11 @@
-import {uniq, remove, nthEq} from "@welshman/lib"
+import {uniq, remove} from "@welshman/lib"
 import {
   getAddress,
   isReplaceable,
   getReplyTags,
   getPubkeyTagValues,
   isReplaceableKind,
+  isShareableRelayUrl,
 } from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Router} from "@welshman/router"
@@ -48,40 +49,19 @@ export const tagEventForQuote = (event: TrustedEvent) => [
 
 export const tagEventForReply = (event: TrustedEvent) => {
   const tags = tagEventPubkeys(event)
-
-  // Based on NIP 10 legacy tags, order is root, mentions, reply
-  const {roots, replies, mentions} = getReplyTags(event.tags)
-
-  // Root comes first
-  if (roots.length > 0) {
-    for (const t of roots) {
-      tags.push([...t.slice(0, 2), Router.get().EventRoots(event).getUrl() || "", "root"])
-    }
-  } else {
-    for (const t of replies) {
-      tags.push([...t.slice(0, 2), Router.get().EventParents(event).getUrl() || "", "root"])
-    }
-  }
-
-  // Inherit mentions
-  for (const t of mentions) {
-    if (!tags.some(nthEq(1, t[1]))) {
-      tags.push([...t.slice(0, 3), "mention"])
-    }
-  }
-
-  // Inherit replies if they weren't already included
-  if (roots.length > 0) {
-    for (const t of replies) {
-      if (!tags.some(nthEq(1, t[1]))) {
-        tags.push([...t.slice(0, 3), "mention"])
-      }
-    }
-  }
-
-  // Finally, tag the event itself
-  const mark = replies.length > 0 ? "reply" : "root"
+  const {roots, replies} = getReplyTags(event.tags)
+  const parents = roots.length > 0 ? roots : replies
+  const mark = parents.length > 0 ? "reply" : "root"
   const hint = Router.get().Event(event).getUrl() || ""
+
+  // If the parent included roots use them, otherwise use replies as a fallback
+  for (const [k, id, originalHint = "", _, pubkey = ""] of parents) {
+    const hint = isShareableRelayUrl(originalHint)
+      ? originalHint
+      : Router.get().EventRoots(event).getUrl()
+
+    tags.push([k, id, hint || "", "root", pubkey])
+  }
 
   // e-tag the event
   tags.push(["e", event.id, hint, mark, event.pubkey])
