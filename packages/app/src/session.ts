@@ -1,7 +1,14 @@
 import {derived, writable} from "svelte/store"
 import {cached, randomId, append, omit, equals, assoc} from "@welshman/lib"
 import {withGetter} from "@welshman/store"
-import {Wallet, WRAP, getPubkeyTagValues, HashedEvent, SignedEvent} from "@welshman/util"
+import {
+  Wallet,
+  WRAP,
+  getPubkeyTagValues,
+  HashedEvent,
+  StampedEvent,
+  SignedEvent,
+} from "@welshman/util"
 import {
   Nip59,
   WrappedSigner,
@@ -265,6 +272,8 @@ export const getSignerFromPubkey = (pubkey: string) => {
 }
 
 export const signer = withGetter(derived(session, getSigner))
+
+export const sign = (event: StampedEvent) => signer.get()?.sign(event)
 
 export const nip44EncryptToSelf = (payload: string) => {
   const $pubkey = pubkey.get()

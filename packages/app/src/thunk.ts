@@ -188,7 +188,7 @@ export class Thunk {
     // that results from waiting for remote signers
     try {
       const signedEvent = await this.signer.sign(this.event, {
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(30_000),
       })
 
       // Copy the signature over since we deferred signing
