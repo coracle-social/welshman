@@ -1,6 +1,6 @@
 {
   "name": "@welshman/router",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of utilities for nostr relay selection.",
