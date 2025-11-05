@@ -6,11 +6,13 @@ import {
   isClientClose,
   isClientEvent,
   isClientReq,
+  isClientNegOpen,
   isClientNegClose,
   RelayMessage,
   isRelayOk,
   isRelayEose,
   isRelayClosed,
+  isRelayNegErr,
 } from "./message.js"
 import {Socket, SocketStatus, SocketEvent} from "./socket.js"
 import {AuthStatus, AuthStateEvent} from "./auth.js"
@@ -56,8 +58,11 @@ export const socketPolicyAuthBuffer = (socket: Socket) => {
       }
     }),
     on(socket, SocketEvent.Receiving, (message: RelayMessage) => {
-      // If the client is closing a request during auth, don't tell the caller, we'll retry it
-      if (isRelayClosed(message) && message[2]?.startsWith("auth-required:")) {
+      // If the relay is closing a request during auth, don't tell the caller, we'll retry it
+      if (
+        (isRelayClosed(message) || isRelayNegErr(message)) &&
+        message[2]?.startsWith("auth-required:")
+      ) {
         socket._recvQueue.remove(message)
       }
 
@@ -153,11 +158,11 @@ export const socketPolicyCloseInactive = (socket: Socket) => {
         pending.set(message[1].id, message)
       }
 
-      if (isClientReq(message)) {
+      if (isClientReq(message) || isClientNegOpen(message)) {
         pending.set(message[1], message)
       }
 
-      if (isClientClose(message)) {
+      if (isClientClose(message) || isClientNegClose(message)) {
         pending.delete(message[1])
       }
     }),
