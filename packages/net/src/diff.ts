@@ -149,7 +149,7 @@ export const diff = async ({relays, filters, ...options}: DiffOptions) => {
                 })
 
                 diff.on(DifferenceEvent.Error, (message, url) => {
-                  console.warn(`Negentropy error on ${url}: ${message}`)
+                  // Pass, to suppress event emitter's default error propagation
                 })
 
                 sleep(30_000).then(() => {
