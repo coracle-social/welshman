@@ -17,6 +17,8 @@ import {
   makeRoomEditEvent,
   makeRoomJoinEvent,
   makeRoomLeaveEvent,
+  makeRoomAddMemberEvent,
+  makeRoomRemoveMemberEvent,
   isPublishedProfile,
   createProfile,
   editProfile,
@@ -244,3 +246,9 @@ export const joinRoom = (url: string, room: RoomMeta) =>
 
 export const leaveRoom = (url: string, room: RoomMeta) =>
   publishThunk({event: makeRoomLeaveEvent(room), relays: [url]})
+
+export const addRoomMember = (url: string, room: RoomMeta, pubkey: string) =>
+  publishThunk({event: makeRoomAddMemberEvent(room, pubkey), relays: [url]})
+
+export const removeRoomMember = (url: string, room: RoomMeta, pubkey: string) =>
+  publishThunk({event: makeRoomRemoveMemberEvent(room, pubkey), relays: [url]})

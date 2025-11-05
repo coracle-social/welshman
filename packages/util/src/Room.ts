@@ -6,6 +6,8 @@ import {
   ROOM_EDIT_META,
   ROOM_JOIN,
   ROOM_LEAVE,
+  ROOM_ADD_MEMBER,
+  ROOM_REMOVE_MEMBER,
 } from "./Kinds.js"
 import {makeEvent, TrustedEvent, getIdentifier} from "./Events.js"
 import {getTag, getTagValue} from "./Tags.js"
@@ -95,11 +97,25 @@ export const makeRoomEditEvent = (room: RoomMeta) => {
     }
   }
 
-  console.log(room, tags)
-
   return makeEvent(ROOM_EDIT_META, {tags})
 }
 
 export const makeRoomJoinEvent = (room: RoomMeta) => makeEvent(ROOM_JOIN, {tags: [["h", room.h]]})
 
 export const makeRoomLeaveEvent = (room: RoomMeta) => makeEvent(ROOM_LEAVE, {tags: [["h", room.h]]})
+
+export const makeRoomAddMemberEvent = (room: RoomMeta, pubkey: string) =>
+  makeEvent(ROOM_ADD_MEMBER, {
+    tags: [
+      ["h", room.h],
+      ["p", pubkey],
+    ],
+  })
+
+export const makeRoomRemoveMemberEvent = (room: RoomMeta, pubkey: string) =>
+  makeEvent(ROOM_REMOVE_MEMBER, {
+    tags: [
+      ["h", room.h],
+      ["p", pubkey],
+    ],
+  })
