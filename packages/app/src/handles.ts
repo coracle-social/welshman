@@ -11,14 +11,10 @@ export type Handle = {
   relays?: string[]
 }
 
-export const NIP05_REGEX = /^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$/
-
 export async function queryProfile(nip05: string) {
-  const match = nip05.match(NIP05_REGEX)
-
-  if (!match) return undefined
-
-  const [_, name = "_", domain] = match
+  const parts = nip05.split("@")
+  const name = parts.length > 1 ? parts[0] : "_"
+  const domain = last(parts)
 
   try {
     const {

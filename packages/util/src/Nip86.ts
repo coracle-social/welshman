@@ -5,6 +5,7 @@ export enum ManagementMethod {
   SupportedMethods = "supportedmethods",
   BanPubkey = "banpubkey",
   AllowPubkey = "allowpubkey",
+  DisallowPubkey = "disallowpubkey",
   ListBannedPubkeys = "listbannedpubkeys",
   ListAllowedPubkeys = "listallowedpubkeys",
   ListEventsNeedingModeration = "listeventsneedingmoderation",
