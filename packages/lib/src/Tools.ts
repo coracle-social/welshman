@@ -1,18 +1,16 @@
 import {bech32, utf8} from "@scure/base"
 
-type Obj<T = any> = Record<string, T>
+export type Obj<T = any> = Record<string, T>
 
-// ----------------------------------------------------------------------------
-// Working with nil
-// ----------------------------------------------------------------------------
+export type Maybe<T> = T | undefined
 
-export type Nil = null | undefined
+export type MaybeAsync<T> = T | Promise<T>
 
-export const isNil = <T>(x: T, ...args: unknown[]) => x === undefined || x === null
+export const isDefined = <T>(x: T, ...args: unknown[]) => x !== undefined
 
-export const isNotNil = <T>(x: T, ...args: unknown[]) => x !== undefined && x !== null
+export const isUndefined = <T>(x: T, ...args: unknown[]) => x === undefined
 
-export const assertNotNil = <T>(x: T, ...args: unknown[]) => x!
+export const assertDefined = <T>(x: T, ...args: unknown[]) => x!
 
 // ----------------------------------------------------------------------------
 // Working with types
@@ -778,7 +776,7 @@ export const toIterable = (x: any) => (isIterable(x) ? x : [x])
 export const ensurePlural = <T>(x: T | T[]) => (x instanceof Array ? x : [x])
 
 /** Ensures values are not undefined */
-export const removeNil = <T>(xs: T[]) => xs.filter(isNotNil).map(assertNotNil)
+export const removeNil = <T>(xs: T[]) => xs.filter(isDefined).map(assertDefined)
 
 /** Returns a list of overlapping pairs of elements in xs */
 export const overlappingPairs = <T>(xs: T[]): T[][] => {
