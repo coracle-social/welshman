@@ -1,5 +1,5 @@
 import {get} from "svelte/store"
-import {uniq, nthNe, removeNil, nthEq} from "@welshman/lib"
+import {uniq, nthNe, removeUndefined, nthEq} from "@welshman/lib"
 import {
   sendManagementRequest,
   ManagementRequest,
@@ -75,7 +75,7 @@ export const addRelay = async (url: string, mode: RelayMode) => {
 
   const list = get(userRelaySelections) || makeList({kind: RELAYS})
   const dup = getRelayTags(getListTags(list)).find(nthEq(1, url))
-  const tag = removeNil(["r", url, dup && dup[2] !== mode ? undefined : mode])
+  const tag = removeUndefined(["r", url, dup && dup[2] !== mode ? undefined : mode])
   const tags = [...list.publicTags.filter(nthNe(1, url)), tag]
   const event = {kind: list.kind, content: list.event?.content || "", tags}
   const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()

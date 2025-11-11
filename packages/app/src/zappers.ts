@@ -1,7 +1,7 @@
 import {writable, derived} from "svelte/store"
 import {Zapper, TrustedEvent, Zap, getTagValues, getLnUrl, zapFromEvent} from "@welshman/util"
 import {
-  removeNil,
+  removeUndefined,
   fetchJson,
   uniq,
   bech32ToHex,
@@ -22,7 +22,7 @@ export const fetchZappers = async (lnurls: string[]) => {
 
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly
   if (base) {
-    const hexUrls = removeNil(lnurls.map(lnurl => tryCatch(() => bech32ToHex(lnurl))))
+    const hexUrls = removeUndefined(lnurls.map(lnurl => tryCatch(() => bech32ToHex(lnurl))))
 
     if (hexUrls.length > 0) {
       const res: any = await tryCatch(
@@ -102,7 +102,7 @@ export const deriveZapperForPubkey = (pubkey: string, relays: string[] = []) =>
   })
 
 export const getLnUrlsForEvent = async (event: TrustedEvent) => {
-  const lnurls = removeNil(getTagValues("zap", event.tags).map(getLnUrl))
+  const lnurls = removeUndefined(getTagValues("zap", event.tags).map(getLnUrl))
 
   if (lnurls.length > 0) {
     return lnurls
@@ -110,7 +110,7 @@ export const getLnUrlsForEvent = async (event: TrustedEvent) => {
 
   const profile = await loadProfile(event.pubkey)
 
-  return removeNil([profile?.lnurl])
+  return removeUndefined([profile?.lnurl])
 }
 
 export const getZapperForZap = async (zap: TrustedEvent, parent: TrustedEvent) => {
@@ -126,7 +126,7 @@ export const getValidZap = async (zap: TrustedEvent, parent: TrustedEvent) => {
 }
 
 export const getValidZaps = async (zaps: TrustedEvent[], parent: TrustedEvent) =>
-  removeNil(await Promise.all(zaps.map(zap => getValidZap(zap, parent))))
+  removeUndefined(await Promise.all(zaps.map(zap => getValidZap(zap, parent))))
 
 export const deriveValidZaps = (zaps: TrustedEvent[], parent: TrustedEvent) => {
   const store = writable<Zap[]>([])

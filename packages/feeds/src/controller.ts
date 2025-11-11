@@ -1,6 +1,6 @@
 import {
   inc,
-  removeNil,
+  removeUndefined,
   call,
   defer,
   Deferred,
@@ -130,9 +130,10 @@ export class FeedController {
     let delta = initialDelta
     let since = this.options.useWindowing ? maxUntil - delta : 0
     let until = maxUntil
+    let exhausted = false
 
     return async (limit: number) => {
-      if (promise) {
+      if (promise || exhausted) {
         return promise
       }
 
@@ -173,6 +174,7 @@ export class FeedController {
 
       if (this.options.useWindowing) {
         if (since === minSince) {
+          exhausted = true
           onExhausted?.()
         }
 
@@ -185,6 +187,7 @@ export class FeedController {
 
         since = Math.max(minSince, until - delta)
       } else if (count === 0) {
+        exhausted = true
         onExhausted?.()
       }
 
@@ -351,7 +354,7 @@ export class FeedController {
 
     return () => {
       const controller = new AbortController()
-      const signal = AbortSignal.any(removeNil([controller.signal, this.options.signal]))
+      const signal = AbortSignal.any(removeUndefined([controller.signal, this.options.signal]))
       const requestFilters = filters!.map((filter: Filter) => ({...filter, limit: 0}))
 
       requestPage(

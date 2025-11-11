@@ -1,5 +1,13 @@
 import {derived} from "svelte/store"
-import {sortBy, identity, ensurePlural, removeNil, batch, partition, first} from "@welshman/lib"
+import {
+  sortBy,
+  identity,
+  ensurePlural,
+  removeUndefined,
+  batch,
+  partition,
+  first,
+} from "@welshman/lib"
 import {matchFilters, getIdAndAddress, getIdFilters, Filter, TrustedEvent} from "@welshman/util"
 import {Repository} from "@welshman/net"
 import {custom} from "./custom.js"
@@ -34,7 +42,7 @@ export const deriveEventsMapped = <T>(
           if (deferred.has(event.id)) {
             deferred.delete(event.id)
 
-            for (const item of removeNil(ensurePlural(items))) {
+            for (const item of removeUndefined(ensurePlural(items))) {
               data.push(item)
             }
 
@@ -53,7 +61,7 @@ export const deriveEventsMapped = <T>(
         if (items instanceof Promise) {
           defer(event, items)
         } else {
-          for (const item of removeNil(ensurePlural(items))) {
+          for (const item of removeUndefined(ensurePlural(items))) {
             data.push(item)
           }
         }
@@ -89,7 +97,7 @@ export const deriveEventsMapped = <T>(
             } else if (items) {
               dirty = true
 
-              for (const item of removeNil(ensurePlural(items))) {
+              for (const item of removeUndefined(ensurePlural(items))) {
                 data.push(item as T)
               }
             }

@@ -19,14 +19,14 @@ import {get} from "svelte/store"
 import type {Writable} from "svelte/store"
 import type {NodeViewProps} from "@tiptap/core"
 import {Router} from "@welshman/router"
-import {removeNil} from "@welshman/lib"
+import {removeUndefined} from "@welshman/lib"
 import type {FileAttributes} from "@welshman/editor"
 import {Editor, MentionSuggestion, WelshmanExtension} from "@welshman/editor"
 import {profileSearch, deriveProfileDisplay} from "@welshman/app"
 
 export const MentionNodeView = ({node}: NodeViewProps) => {
   const dom = document.createElement("span")
-  const display = deriveProfileDisplay(node.attrs.pubkey, removeNil([url]))
+  const display = deriveProfileDisplay(node.attrs.pubkey, removeUndefined([url]))
 
   dom.classList.add("tiptap-object")
 

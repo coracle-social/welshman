@@ -324,7 +324,7 @@ export declare const toIterable: (x: any) => any;
 export declare const ensurePlural: <T>(x: T | T[]) => T[];
 
 // Ensures values are not undefined
-export declare const removeNil: <T>(xs: T[]) => (T & {})[];
+export declare const removeUndefined: <T>(xs: T[]) => (T & {})[];
 
 // Returns a list of overlapping pairs of elements in xs
 export declare const overlappingPairs: <T>(xs: T[]) => T[][];
