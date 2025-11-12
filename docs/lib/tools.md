@@ -218,6 +218,9 @@ export declare const take: <T>(n: number, xs: Iterable<T>) => T[];
 // Concatenates multiple arrays, filtering out null/undefined
 export declare const concat: <T>(...xs: T[][]) => T[];
 
+// Prepends element to array
+export declare const prepend: <T>(x: T, xs: T[]) => T[];
+
 // Appends element to array
 export declare const append: <T>(x: T, xs: T[]) => T[];
 

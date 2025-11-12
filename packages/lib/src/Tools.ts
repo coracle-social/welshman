@@ -431,6 +431,14 @@ export const concat = <T>(...xs: T[][]) => xs.flatMap(x => (x === undefined ? []
 export const append = <T>(x: T, xs: Iterable<T>) => concat(Array.from(xs), [x])
 
 /**
+ * Prepends element to array
+ * @param x - Element to prepend
+ * @param xs - Array to prepend to
+ * @returns New array with element prepended
+ */
+export const prepend = <T>(x: T, xs: Iterable<T>) => concat([x], Array.from(xs))
+
+/**
  * Creates union of two arrays
  * @param a - First array
  * @param b - Second array
