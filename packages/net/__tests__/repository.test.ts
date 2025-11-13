@@ -303,7 +303,7 @@ describe("Repository", () => {
 
       expect(updateHandler).toHaveBeenLastCalledWith({
         added: [],
-        removed: [event.id],
+        removed: new Set([event.id]),
       })
     })
   })

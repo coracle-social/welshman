@@ -144,7 +144,7 @@ export class Repository extends Emitter {
       this._updateIndex(this.eventsByAuthor, event.pubkey, undefined, event)
       this._updateIndex(this.eventsByKind, event.kind, undefined, event)
 
-      this.emit("update", {added: [], removed: [event.id]})
+      this.emit("update", {added: [], removed: new Set([event.id])})
     }
   }
 
