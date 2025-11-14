@@ -1148,26 +1148,27 @@ export const throttle = <F extends (...args: any[]) => any>(ms: number, f: F) =>
     return f
   }
 
-  let paused = false
-  let nextArgs: Parameters<F> | undefined
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  let lastArgs: Parameters<F> | undefined
 
-  const unpause = () => {
-    if (nextArgs) {
-      f(...nextArgs)
-      nextArgs = undefined
-      setTimeout(unpause, ms)
+  const later = () => {
+    if (lastArgs !== undefined) {
+      const args = lastArgs
+      lastArgs = undefined
+      f(...args)
+      timeoutId = setTimeout(later, ms)
     } else {
-      paused = false
+      timeoutId = undefined
     }
   }
 
-  return (...thisArgs: Parameters<F>) => {
-    if (!paused) {
-      f(...thisArgs)
-      paused = true
-      setTimeout(unpause, ms)
-    } else {
-      nextArgs = thisArgs
+  return (...args: Parameters<F>) => {
+    lastArgs = args
+
+    if (timeoutId === undefined) {
+      f(...args)
+      lastArgs = undefined
+      timeoutId = setTimeout(later, ms)
     }
   }
 }
@@ -1202,11 +1203,26 @@ export const throttleWithValue = <T>(ms: number, f: () => T) => {
  */
 export const batch = <T>(t: number, f: (xs: T[]) => void) => {
   const xs: T[] = []
-  const cb = throttle(t, () => xs.length > 0 && f(xs.splice(0)))
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  const later = () => {
+    if (xs.length > 0) {
+      f(xs.splice(0))
+      timeoutId = setTimeout(later, t)
+    } else {
+      timeoutId = undefined
+    }
+  }
 
   return (x: T) => {
+    const shouldFlush = timeoutId === undefined
+
     xs.push(x)
-    cb()
+
+    if (shouldFlush) {
+      f(xs.splice(0))
+      timeoutId = setTimeout(later, t)
+    }
   }
 }
 
@@ -1218,27 +1234,27 @@ export const batch = <T>(t: number, f: (xs: T[]) => void) => {
  */
 export const batcher = <T, U>(t: number, execute: (request: T[]) => U[] | Promise<U[]>) => {
   const queue: {request: T; resolve: (x: U) => void; reject: (reason?: string) => void}[] = []
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
 
   const _execute = async () => {
+    timeoutId = undefined
     const items = queue.splice(0)
     const results = await execute(items.map(item => item.request))
 
-    results.forEach(async (r, i) => {
-      if (results.length === items.length) {
-        items[i].resolve(await r)
-      } else {
-        items[i].reject("Execute must return a result for each request")
-      }
-    })
+    if (results.length === items.length) {
+      results.forEach((r, i) => items[i].resolve(r))
+    } else {
+      items.forEach(item => item.reject("Execute must return a result for each request"))
+    }
   }
 
   return (request: T): Promise<U> =>
     new Promise((resolve, reject) => {
-      if (queue.length === 0) {
-        setTimeout(_execute, t)
-      }
-
       queue.push({request, resolve, reject})
+
+      if (timeoutId === undefined) {
+        timeoutId = setTimeout(_execute, t)
+      }
     })
 }
 
