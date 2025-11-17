@@ -10,7 +10,7 @@ import {wotGraph, maxWot} from "./wot.js"
 import {profiles} from "./profiles.js"
 import {topics, Topic} from "./topics.js"
 import {relays} from "./relays.js"
-import {handlesByNip05} from "./handles.js"
+import {handles} from "./handles.js"
 
 export type SearchOptions<V, T> = {
   getValue: (item: T) => V
@@ -62,11 +62,11 @@ export const searchProfiles = debounce(500, (search: string) => {
 })
 
 export const profileSearch = derived(
-  [throttled(800, profiles.all$), throttled(800, handlesByNip05)],
-  ([$profiles, $handlesByNip05]) => {
+  [throttled(800, profiles.all$), throttled(800, handles.index$)],
+  ([$profiles, $handles]) => {
     // Remove invalid nip05's from profiles
     const options = $profiles.map(p => {
-      const isNip05Valid = !p.nip05 || $handlesByNip05.get(p.nip05)?.pubkey === p.event.pubkey
+      const isNip05Valid = !p.nip05 || $handles.get(p.nip05)?.pubkey === p.event.pubkey
 
       return isNip05Valid ? p : {...p, nip05: ""}
     })
@@ -100,7 +100,7 @@ export const topicSearch = derived(topics, $topics =>
   }),
 )
 
-export const relaySearch = derived(relays, $relays =>
+export const relaySearch = derived(relays.all$, $relays =>
   createSearch($relays, {
     getValue: (relay: RelayProfile) => relay.url,
     fuseOptions: {

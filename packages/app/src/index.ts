@@ -37,15 +37,15 @@ import {routerContext} from "@welshman/router"
 import {Pool, SocketEvent, isRelayEvent, netContext} from "@welshman/net"
 import {pubkey, unwrapAndStore} from "./session.js"
 import {repository, tracker} from "./core.js"
-import {relays, loadRelay} from "./relays.js"
+import {relays} from "./relays.js"
 import {trackRelayStats, getRelayQuality} from "./relayStats.js"
-import {relaySelectionsByPubkey} from "./relaySelections.js"
-import {inboxRelaySelectionsByPubkey} from "./inboxRelaySelections.js"
+import {relaySelections} from "./relaySelections.js"
+import {inboxRelaySelections} from "./inboxRelaySelections.js"
 
 // Sync relays with our database
 
 Pool.get().subscribe(socket => {
-  loadRelay(socket.url)
+  relays.load(socket.url)
   trackRelayStats(socket)
 
   socket.on(SocketEvent.Receive, message => {
@@ -73,7 +73,7 @@ Pool.get().subscribe(socket => {
 
 const _relayGetter = (fn?: (relay: RelayProfile) => any) =>
   throttleWithValue(200, () => {
-    let _relays = relays.get()
+    let _relays = relays.all()
 
     if (fn) {
       _relays = _relays.filter(fn)
@@ -86,13 +86,13 @@ const _relayGetter = (fn?: (relay: RelayProfile) => any) =>
 
 export const getPubkeyRelays = (pubkey: string, mode?: RelayMode) =>
   mode === RelayMode.Inbox
-    ? getRelaysFromList(inboxRelaySelectionsByPubkey.get().get(pubkey))
-    : getRelaysFromList(relaySelectionsByPubkey.get().get(pubkey), mode)
+    ? getRelaysFromList(inboxRelaySelections.one(pubkey))
+    : getRelaysFromList(relaySelections.one(pubkey), mode)
 
 export const derivePubkeyRelays = (pubkey: string, mode?: RelayMode) =>
   mode === RelayMode.Inbox
-    ? derived(inboxRelaySelectionsByPubkey, $m => getRelaysFromList($m.get(pubkey)))
-    : derived(relaySelectionsByPubkey, $m => getRelaysFromList($m.get(pubkey), mode))
+    ? derived(inboxRelaySelections.one$(pubkey), getRelaysFromList)
+    : derived(relaySelections.one$(pubkey), $l => getRelaysFromList($l, mode))
 
 routerContext.getUserPubkey = () => pubkey.get()
 routerContext.getPubkeyRelays = getPubkeyRelays

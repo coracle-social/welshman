@@ -1,6 +1,6 @@
 import {writable, derived} from "svelte/store"
 import {tryCatch, fetchJson, uniq, batcher, postJson, last} from "@welshman/lib"
-import {collection} from "@welshman/store"
+import {Collection2, CollectionLoaderBackend} from "@welshman/store"
 import {profiles} from "./profiles.js"
 import {appContext} from "./context.js"
 
@@ -40,8 +40,6 @@ export async function queryProfile(nip05: string) {
   }
 }
 
-export const handles = writable<Handle[]>([])
-
 export const fetchHandles = async (nip05s: string[]) => {
   const base = appContext.dufflepudUrl!
   const handlesByNip05 = new Map<string, Handle>()
@@ -75,42 +73,26 @@ export const fetchHandles = async (nip05s: string[]) => {
   return handlesByNip05
 }
 
-export const {
-  indexStore: handlesByNip05,
-  deriveItem: deriveHandle,
-  loadItem: loadHandle,
-  onItem: onHandle,
-} = collection({
-  name: "handles",
-  store: handles,
-  getKey: (handle: Handle) => handle.nip05,
-  load: batcher(800, async (nip05s: string[]) => {
-    const fresh = await fetchHandles(uniq(nip05s))
-    const stale = handlesByNip05.get()
+export const handles = new Collection2({
+  backend: new CollectionLoaderBackend<Handle>('handles', {
+    getKey: handle => handle.nip05,
+    fetch: batcher(800, async (nip05s: string[]) => {
+      const map = await fetchHandles(uniq(nip05s))
 
-    for (const nip05 of nip05s) {
-      const newHandle = fresh.get(nip05)
-
-      if (newHandle) {
-        stale.set(nip05, {...newHandle, nip05})
-      }
-    }
-
-    handles.set(Array.from(stale.values()))
-
-    return nip05s
+      return nip05s.map(nip05 => map.get(nip05))
+    }),
   }),
 })
 
 export const deriveHandleForPubkey = (pubkey: string, relays: string[] = []) =>
-  derived([handlesByNip05, profiles.one$(pubkey, relays)], ([$handlesByNip05, $profile]) => {
+  derived([handles.index$, profiles.one$(pubkey, relays)], ([$index, $profile]) => {
     if (!$profile?.nip05) {
       return undefined
     }
 
-    loadHandle($profile.nip05)
+    handles.load($profile.nip05)
 
-    const handle = $handlesByNip05.get($profile.nip05)
+    const handle = $index.get($profile.nip05)
 
     if (handle?.pubkey === pubkey) {
       return handle

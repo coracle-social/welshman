@@ -10,11 +10,9 @@ import {
   batcher,
   postJson,
 } from "@welshman/lib"
-import {collection} from "@welshman/store"
+import {Collection2, CollectionLoaderBackend} from "@welshman/store"
 import {profiles} from "./profiles.js"
 import {appContext} from "./context.js"
-
-export const zappers = writable<Zapper[]>([])
 
 export const fetchZappers = async (lnurls: string[]) => {
   const base = appContext.dufflepudUrl
@@ -53,30 +51,14 @@ export const fetchZappers = async (lnurls: string[]) => {
   return zappersByLnurl
 }
 
-export const {
-  indexStore: zappersByLnurl,
-  deriveItem: deriveZapper,
-  loadItem: loadZapper,
-  onItem: onZapper,
-} = collection({
-  name: "zappers",
-  store: zappers,
-  getKey: (zapper: Zapper) => zapper.lnurl,
-  load: batcher(800, async (lnurls: string[]) => {
-    const fresh = await fetchZappers(uniq(lnurls))
-    const stale = zappersByLnurl.get()
+export const zappers = new Collection2({
+  backend: new CollectionLoaderBackend<Zapper>('zappers', {
+    getKey: zapper => zapper.lnurl,
+    fetch: batcher(800, async (lnurls: string[]) => {
+      const map = await fetchZappers(uniq(lnurls))
 
-    for (const lnurl of lnurls) {
-      const newZapper = fresh.get(lnurl)
-
-      if (newZapper) {
-        stale.set(lnurl, {...newZapper, lnurl})
-      }
-    }
-
-    zappers.set(Array.from(stale.values()))
-
-    return lnurls
+      return lnurls.map(lnurl => map.get(lnurl))
+    }),
   }),
 })
 
@@ -87,18 +69,18 @@ export const loadZapperForPubkey = async (pubkey: string, relays: string[] = [])
     return undefined
   }
 
-  return loadZapper($profile.lnurl)
+  return zappers.load($profile.lnurl)
 }
 
 export const deriveZapperForPubkey = (pubkey: string, relays: string[] = []) =>
-  derived([zappersByLnurl, profiles.one$(pubkey, relays)], ([$zappersByLnurl, $profile]) => {
+  derived([zappers.index$, profiles.one$(pubkey, relays)], ([$index, $profile]) => {
     if (!$profile?.lnurl) {
       return undefined
     }
 
-    loadZapper($profile.lnurl)
+    zappers.load($profile.lnurl)
 
-    return $zappersByLnurl.get($profile.lnurl)
+    return $index.get($profile.lnurl)
   })
 
 export const getLnUrlsForEvent = async (event: TrustedEvent) => {
@@ -116,7 +98,7 @@ export const getLnUrlsForEvent = async (event: TrustedEvent) => {
 export const getZapperForZap = async (zap: TrustedEvent, parent: TrustedEvent) => {
   const lnurls = await getLnUrlsForEvent(parent)
 
-  return lnurls.length > 0 ? loadZapper(lnurls[0]) : undefined
+  return lnurls.length > 0 ? zappers.load(lnurls[0]) : undefined
 }
 
 export const getValidZap = async (zap: TrustedEvent, parent: TrustedEvent) => {

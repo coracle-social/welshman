@@ -13,6 +13,8 @@ import {Filter, matchFilters, TrustedEvent} from "@welshman/util"
 import {Repository} from "@welshman/net"
 import {getFreshness, setFreshness} from "./freshness.js"
 
+// General purpose utils
+
 export type CachedLoader2Options<T> = {
   name: string
   index: Map<string, T>
@@ -76,9 +78,26 @@ export const makeCachedLoader2 = <T>({name, fetch, index}: CachedLoader2Options<
   }
 }
 
-type Collection2Options<T> = {
-  name: string
+export type CollectionUpdate<T> = {
+  added?: T
+  removed?: T
+  initial?: Map<string, T>
+}
+
+export interface Collection2Backend<T> {
+  name: string,
+  index: Map<string, T>
+  load: (key: string, ...args: unknown[]) => Promise<Maybe<T>>
+  subscribe: (sub?: (update: CollectionUpdate<T>) => void) => Unsubscriber
+  add?: (item: T) => void
+  remove?: (key: string) => void
+}
+
+// Repository backend
+
+export type CollectionRepositoryBackendOptions<T> = {
   filters: Filter[]
+  repository: Repository
   getKey: (item: T) => string
   fetch: (key: string, ...args: any[]) => Promise<unknown>
   eventToItem: (event: TrustedEvent) => MaybeAsync<Maybe<T | T[]>>
@@ -86,27 +105,16 @@ type Collection2Options<T> = {
   includeDeleted?: boolean
 }
 
-type CollectionUpdate<T> = {
-  added?: T
-  removed?: T
-  initial?: Map<string, T>
-}
-
-export class Collection2<T> {
+export class CollectionRepositoryBackend<T> {
   index = new Map<string, T>()
   mapping = new Map<string, string[]>()
   deferred = new Set<string>()
   subscribers: Subscriber<CollectionUpdate<T>>[] = []
   unsubscriber: Unsubscriber | undefined
   load: (key: string, ...args: any[]) => Promise<Maybe<T>>
-  all$: Readable<T[]>
-  index$: Readable<Map<string, T>>
 
-  constructor(
-    readonly repository: Repository,
-    readonly options: Collection2Options<T>,
-  ) {
-    const initialEvents = repository.query(options.filters, {
+  constructor(readonly name: string, readonly options: CollectionRepositoryBackendOptions<T>) {
+    const initialEvents = options.repository.query(options.filters, {
       includeDeleted: options.includeDeleted,
     })
 
@@ -115,13 +123,10 @@ export class Collection2<T> {
     }
 
     this.load = makeCachedLoader2({
-      name: options.name,
-      fetch: options.fetch,
+      name: this.name,
       index: this.index,
+      fetch: options.fetch,
     })
-
-    this.all$ = derived(this, this.all)
-    this.index$ = derived(this, () => this.index)
   }
 
   _addItem = (item: T) => {
@@ -191,7 +196,7 @@ export class Collection2<T> {
     sub({initial: this.index})
 
     if (!this.unsubscriber) {
-      this.unsubscriber = on(this.repository, "update", ({added, removed}) => {
+      this.unsubscriber = on(this.options.repository, "update", ({added, removed}) => {
         for (const event of added) {
           if (matchFilters(this.options.filters, event)) {
             this._addEvent(event)
@@ -217,14 +222,120 @@ export class Collection2<T> {
       }
     }
   }
+}
+
+// Loader backend
+
+type CollectionLoaderBackendOptions<T> = {
+  getKey: (item: T) => string
+  fetch: (key: string, ...args: any[]) => Promise<Maybe<T>>
+}
+
+export class CollectionLoaderBackend<T> {
+  index = new Map<string, T>()
+  mapping = new Map<string, string[]>()
+  deferred = new Set<string>()
+  subscribers: Subscriber<CollectionUpdate<T>>[] = []
+  load: (key: string, ...args: any[]) => Promise<Maybe<T>>
+
+  constructor(readonly name: string, readonly options: CollectionLoaderBackendOptions<T>) {
+    this.load = makeCachedLoader2({
+      name: this.name,
+      index: this.index,
+      fetch: async (key: string, ...args: unknown[]) => {
+        const item = await options.fetch(key, ...args)
+
+        if (item) {
+          this.add(item)
+        }
+      },
+    })
+  }
+
+  _notify = (update: CollectionUpdate<T>) => {
+    for (const sub of this.subscribers) {
+      sub(update)
+    }
+  }
+
+  add = (item: T) => {
+    this.index.set(this.options.getKey(item), item)
+    this._notify({added: item})
+  }
+
+  remove = (key: string) => {
+    const item = this.index.get(key)
+
+    if (item) {
+      this.index.delete(key)
+      this._notify({removed: item})
+    }
+  }
+
+  subscribe = (sub: (update: CollectionUpdate<T>) => void = noop) => {
+    this.subscribers.push(sub)
+
+    sub({initial: this.index})
+
+    return () => {
+      this.subscribers.splice(
+        this.subscribers.findIndex(s => s === sub),
+        1,
+      )
+    }
+  }
+}
+
+// Collection wrapper class
+
+export type Collection2Options<T> = {
+  backend: Collection2Backend<T>
+}
+
+export class Collection2<T> {
+  all$: Readable<T[]>
+  index$: Readable<Map<string, T>>
+
+  constructor(public options: Collection2Options<T>) {
+    this.all$ = derived(this.options.backend, this.all)
+    this.index$ = derived(this.options.backend, () => this.index)
+  }
+
+  get index() {
+    return this.options.backend.index
+  }
+
+  get load() {
+    return this.options.backend.load
+  }
+
+  get subscribe() {
+    return this.options.backend.subscribe
+  }
+
+  add = (item: T) => {
+    if (!this.options.backend.add) {
+      throw new Error(`Backend ${this.options.backend.name} does not support add() method`)
+    }
+
+    this.options.backend.add(item)
+  }
+
+  remove = (key: string) => {
+    if (!this.options.backend.remove) {
+      throw new Error(`Backend ${this.options.backend.name} does not support remove() method`)
+    }
+
+    this.options.backend.remove(key)
+  }
 
   all = () => Array.from(this.index.values())
 
   one = (key: string) => this.index.get(key)
 
   one$ = (key: string, ...args: any[]) => {
-    this.load(key, ...args)
+    this.options.backend.load(key, ...args)
 
-    return derived(this, () => this.one(key))
+    return derived(this.options.backend, () => this.one(key))
   }
 }

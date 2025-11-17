@@ -2,12 +2,12 @@ import {derived, Readable} from "svelte/store"
 import {withGetter, memoized} from "@welshman/store"
 import {pubkey} from "./session.js"
 import {profiles} from "./profiles.js"
-import {followsByPubkey, loadFollows} from "./follows.js"
-import {loadPins, pinsByPubkey} from "./pins.js"
-import {mutesByPubkey, loadMutes} from "./mutes.js"
-import {blossomServersByPubkey, loadBlossomServers} from "./blossom.js"
-import {relaySelectionsByPubkey, loadRelaySelections} from "./relaySelections.js"
-import {inboxRelaySelectionsByPubkey, loadInboxRelaySelections} from "./inboxRelaySelections.js"
+import {follows} from "./follows.js"
+import {mutes} from "./mutes.js"
+import {pins} from "./pins.js"
+import {blossomServers} from "./blossom.js"
+import {relaySelections} from "./relaySelections.js"
+import {inboxRelaySelections} from "./inboxRelaySelections.js"
 import {wotGraph} from "./wot.js"
 
 export type UserDataLoader = (pubkey: string, relays?: string[], force?: boolean) => unknown
@@ -48,46 +48,46 @@ export const userProfile = makeUserData({
 export const loadUserProfile = makeUserLoader(profiles.load)
 
 export const userFollows = makeUserData({
-  mapStore: followsByPubkey,
-  loadItem: loadFollows,
+  mapStore: follows.index$,
+  loadItem: follows.load,
 })
 
-export const loadUserFollows = makeUserLoader(loadFollows)
+export const loadUserFollows = makeUserLoader(follows.load)
 
 export const userMutes = makeUserData({
-  mapStore: mutesByPubkey,
-  loadItem: loadMutes,
+  mapStore: mutes.index$,
+  loadItem: mutes.load,
 })
 
-export const loadUserMutes = makeUserLoader(loadMutes)
+export const loadUserMutes = makeUserLoader(mutes.load)
 
 export const userPins = makeUserData({
-  mapStore: pinsByPubkey,
-  loadItem: loadPins,
+  mapStore: pins.index$,
+  loadItem: pins.load,
 })
 
-export const loadUserPins = makeUserLoader(loadPins)
+export const loadUserPins = makeUserLoader(pins.load)
 
 export const userRelaySelections = makeUserData({
-  mapStore: relaySelectionsByPubkey,
-  loadItem: loadRelaySelections,
+  mapStore: relaySelections.index$,
+  loadItem: relaySelections.load,
 })
 
-export const loadUserRelaySelections = makeUserLoader(loadRelaySelections)
+export const loadUserRelaySelections = makeUserLoader(relaySelections.load)
 
 export const userInboxRelaySelections = makeUserData({
-  mapStore: inboxRelaySelectionsByPubkey,
-  loadItem: loadInboxRelaySelections,
+  mapStore: inboxRelaySelections.index$,
+  loadItem: inboxRelaySelections.load,
 })
 
-export const loadUserInboxRelaySelections = makeUserLoader(loadInboxRelaySelections)
+export const loadUserInboxRelaySelections = makeUserLoader(inboxRelaySelections.load)
 
 export const userBlossomServers = makeUserData({
-  mapStore: blossomServersByPubkey,
-  loadItem: loadBlossomServers,
+  mapStore: blossomServers.index$,
+  loadItem: blossomServers.load,
 })
 
-export const loadUserBlossomServers = makeUserLoader(loadBlossomServers)
+export const loadUserBlossomServers = makeUserLoader(blossomServers.load)
 
 export const getUserWotScore = (tpk: string) => wotGraph.get().get(tpk) || 0
 

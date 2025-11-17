@@ -1,4 +1,4 @@
-import {writable, derived} from "svelte/store"
+import {derived} from "svelte/store"
 import {
   uniq,
   removeUndefined,
@@ -9,13 +9,10 @@ import {
   postJson,
   Maybe,
 } from "@welshman/lib"
-import {withGetter} from "@welshman/store"
 import {RelayProfile} from "@welshman/util"
-import {normalizeRelayUrl, displayRelayUrl, displayRelayProfile, isRelayUrl} from "@welshman/util"
-import {collection} from "@welshman/store"
+import {normalizeRelayUrl, displayRelayUrl, displayRelayProfile} from "@welshman/util"
+import {Collection2, CollectionLoaderBackend} from "@welshman/store"
 import {appContext} from "./context.js"
-
-export const relays = withGetter(writable<RelayProfile[]>([]))
 
 export const fetchRelayProfileDirectly = async (url: string): Promise<Maybe<RelayProfile>> => {
   try {
@@ -66,41 +63,20 @@ export const fetchRelayProfiles = (urls: string[]) =>
     ? fetchRelayProfilesUsingProxy(appContext.dufflepudUrl, urls)
     : fetchRelayProfilesDirectly(urls)
 
-export const {
-  indexStore: relaysByUrl,
-  deriveItem: deriveRelay,
-  loadItem: loadRelay,
-  onItem: onRelay,
-} = collection({
-  name: "relays",
-  store: relays,
-  getKey: (relay: RelayProfile) => relay.url,
-  load: batcher(800, async (rawUrls: string[]) => {
-    const urls = rawUrls.map(normalizeRelayUrl)
-    const fresh = await fetchRelayProfiles(uniq(urls))
-    const stale = relaysByUrl.get()
+export const relays = new Collection2({
+  backend: new CollectionLoaderBackend<RelayProfile>('relays', {
+    getKey: relay => relay.url,
+    fetch: batcher(800, async (raw: string[]) => {
+      const urls = raw.map(normalizeRelayUrl)
+      const map = await fetchRelayProfiles(uniq(raw))
 
-    for (const url of urls) {
-      const profile = fresh.get(url)
-
-      if (!url || !isRelayUrl(url)) {
-        console.warn(`Attempted to load invalid relay url: ${url}`)
-        continue
-      }
-
-      if (profile) {
-        stale.set(url, {...profile, url})
-      }
-    }
-
-    relays.set(Array.from(stale.values()))
-
-    return urls
+      return urls.map(url => map.get(url))
+    }),
   }),
 })
 
 export const displayRelayByPubkey = (url: string) =>
-  displayRelayProfile(relaysByUrl.get().get(url), displayRelayUrl(url))
+  displayRelayProfile(relays.index.get(url), displayRelayUrl(url))
 
 export const deriveRelayDisplay = (url: string) =>
-  derived(deriveRelay(url), $relay => displayRelayProfile($relay, displayRelayUrl(url)))
+  derived(relays.one$(url), $relay => displayRelayProfile($relay, displayRelayUrl(url)))

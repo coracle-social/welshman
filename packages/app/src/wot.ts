@@ -3,14 +3,14 @@ import {max, throttle, addToMapKey, inc, dec} from "@welshman/lib"
 import {getListTags, getPubkeyTagValues} from "@welshman/util"
 import {throttled, withGetter} from "@welshman/store"
 import {pubkey} from "./session.js"
-import {follows, followsByPubkey} from "./follows.js"
-import {mutes, mutesByPubkey} from "./mutes.js"
+import {follows} from "./follows.js"
+import {mutes} from "./mutes.js"
 
 export const getFollows = (pubkey: string) =>
-  getPubkeyTagValues(getListTags(followsByPubkey.get().get(pubkey)))
+  getPubkeyTagValues(getListTags(follows.one(pubkey)))
 
 export const getMutes = (pubkey: string) =>
-  getPubkeyTagValues(getListTags(mutesByPubkey.get().get(pubkey)))
+  getPubkeyTagValues(getListTags(mutes.one(pubkey)))
 
 export const getNetwork = (pubkey: string) => {
   const pubkeys = new Set(getFollows(pubkey))
@@ -28,7 +28,7 @@ export const getNetwork = (pubkey: string) => {
 }
 
 export const followersByPubkey = withGetter(
-  derived(throttled(1000, follows), lists => {
+  derived(throttled(1000, follows.all$), lists => {
     const $followersByPubkey = new Map<string, Set<string>>()
 
     for (const list of lists) {
@@ -42,7 +42,7 @@ export const followersByPubkey = withGetter(
 )
 
 export const mutersByPubkey = withGetter(
-  derived(throttled(1000, mutes), lists => {
+  derived(throttled(1000, mutes.all$), lists => {
     const $mutersByPubkey = new Map<string, Set<string>>()
 
     for (const list of lists) {
@@ -73,9 +73,9 @@ export const maxWot = withGetter(derived(wotGraph, $g => max(Array.from($g.value
 const buildGraph = throttle(1000, () => {
   const $pubkey = pubkey.get()
   const $graph = new Map<string, number>()
-  const $follows = $pubkey ? getFollows($pubkey) : followsByPubkey.get().keys()
+  const followedPubkeys = $pubkey ? getFollows($pubkey) : follows.index.keys()
 
-  for (const follow of $follows) {
+  for (const follow of followedPubkeys) {
     for (const pubkey of getFollows(follow)) {
       $graph.set(pubkey, inc($graph.get(pubkey)))
     }
