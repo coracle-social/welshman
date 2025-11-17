@@ -1,5 +1,4 @@
 export * from "./collection.js"
-export * from "./collection2.js"
 export * from "./custom.js"
 export * from "./freshness.js"
 export * from "./getter.js"

@@ -5,7 +5,6 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {
   custom,
   deriveEvents,
-  deriveEventsMapped,
   deriveIsDeleted,
   getter,
   synced,
@@ -186,70 +185,6 @@ describe("Store utilities", () => {
 
         expect(mockRepository.query).toHaveBeenCalled()
         expect(mockFn).toHaveBeenCalledWith([mockEvent])
-      })
-    })
-
-    describe("deriveEventsMapped", () => {
-      it("should map events to items", async () => {
-        const mockEvent = {id: "1", content: "test"} as TrustedEvent
-        mockRepository.query.mockReturnValue([mockEvent])
-
-        const store = deriveEventsMapped(mockRepository as any, {
-          filters: [],
-          eventToItem: event => ({id: event.id, mapped: true}),
-          itemToEvent: item => ({id: item.id, content: ""}) as TrustedEvent,
-        })
-
-        const mockFn = vi.fn()
-        store.subscribe(mockFn)
-
-        expect(mockRepository.query).toHaveBeenCalled()
-        expect(mockFn).toHaveBeenCalledWith([{id: "1", mapped: true}])
-      })
-
-      it("should handle async eventToItem mapping", async () => {
-        const mockEvent = {id: "1", content: "test"} as TrustedEvent
-        mockRepository.query.mockReturnValue([mockEvent])
-
-        const store = deriveEventsMapped(mockRepository as any, {
-          filters: [],
-          eventToItem: async event => ({id: event.id, mapped: true}),
-          itemToEvent: item => ({id: item.id, content: ""}) as TrustedEvent,
-        })
-
-        const mockFn = vi.fn()
-        store.subscribe(mockFn)
-
-        // Wait for async operations to complete
-        await vi.runAllTimersAsync()
-
-        expect(mockRepository.query).toHaveBeenCalled()
-        expect(mockFn).toHaveBeenCalledWith([{id: "1", mapped: true}])
-      })
-
-      it("should handle repository updates", () => {
-        const mockEvent = {id: "1", content: "test"} as TrustedEvent
-        mockRepository.query.mockReturnValue([mockEvent])
-
-        const store = deriveEventsMapped(mockRepository as any, {
-          filters: [{}],
-          eventToItem: event => ({id: event.id, mapped: true}),
-          itemToEvent: item => ({id: item.id, content: ""}) as TrustedEvent,
-        })
-
-        const mockFn = vi.fn()
-        store.subscribe(mockFn)
-
-        const [[_, callback]] = mockRepository.on.mock.calls
-
-        callback({
-          added: [{id: "2"} as TrustedEvent],
-          removed: new Set([mockEvent.id]),
-        })
-
-        vi.advanceTimersByTime(300) // Wait for batch delay
-
-        expect(mockFn).toHaveBeenLastCalledWith([{id: "2", mapped: true}])
       })
     })
 

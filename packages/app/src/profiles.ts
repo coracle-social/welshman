@@ -1,12 +1,12 @@
 import {derived, readable} from "svelte/store"
 import {readProfile, displayProfile, displayPubkey, PROFILE} from "@welshman/util"
 import {PublishedProfile} from "@welshman/util"
-import {Collection2, CollectionRepositoryBackend} from "@welshman/store"
+import {Collection, CollectionRepositoryBackend} from "@welshman/store"
 import {repository} from "./core.js"
 import {makeOutboxLoaderWithIndexers} from "./relaySelections.js"
 
-export const profiles = new Collection2({
-  backend: new CollectionRepositoryBackend<PublishedProfile>('profiles', {
+export const profiles = new Collection({
+  backend: new CollectionRepositoryBackend<PublishedProfile>("profiles", {
     repository,
     filters: [{kinds: [PROFILE]}],
     fetch: makeOutboxLoaderWithIndexers(PROFILE),

@@ -11,7 +11,7 @@ import {
 } from "@welshman/lib"
 import {RelayProfile} from "@welshman/util"
 import {normalizeRelayUrl, displayRelayUrl, displayRelayProfile} from "@welshman/util"
-import {Collection2, CollectionLoaderBackend} from "@welshman/store"
+import {Collection, CollectionLoaderBackend} from "@welshman/store"
 import {appContext} from "./context.js"
 
 export const fetchRelayProfileDirectly = async (url: string): Promise<Maybe<RelayProfile>> => {
@@ -63,8 +63,8 @@ export const fetchRelayProfiles = (urls: string[]) =>
     ? fetchRelayProfilesUsingProxy(appContext.dufflepudUrl, urls)
     : fetchRelayProfilesDirectly(urls)
 
-export const relays = new Collection2({
-  backend: new CollectionLoaderBackend<RelayProfile>('relays', {
+export const relays = new Collection({
+  backend: new CollectionLoaderBackend<RelayProfile>("relays", {
     getKey: relay => relay.url,
     fetch: batcher(800, async (raw: string[]) => {
       const urls = raw.map(normalizeRelayUrl)

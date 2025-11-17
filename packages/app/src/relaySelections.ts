@@ -7,7 +7,7 @@ import {
   TrustedEvent,
   PublishedList,
 } from "@welshman/util"
-import {Collection2, CollectionRepositoryBackend} from "@welshman/store"
+import {Collection, CollectionRepositoryBackend} from "@welshman/store"
 import {load, LoadOptions} from "@welshman/net"
 import {Router} from "@welshman/router"
 import {repository} from "./core.js"
@@ -43,8 +43,8 @@ export const makeOutboxLoaderWithIndexers =
     )
   }
 
-export const relaySelections = new Collection2({
-  backend: new CollectionRepositoryBackend<PublishedList>('relaySelections', {
+export const relaySelections = new Collection({
+  backend: new CollectionRepositoryBackend<PublishedList>("relaySelections", {
     repository,
     filters: [{kinds: [RELAYS]}],
     itemToEvent: item => item.event,

@@ -10,7 +10,7 @@ import {
   batcher,
   postJson,
 } from "@welshman/lib"
-import {Collection2, CollectionLoaderBackend} from "@welshman/store"
+import {Collection, CollectionLoaderBackend} from "@welshman/store"
 import {profiles} from "./profiles.js"
 import {appContext} from "./context.js"
 
@@ -51,8 +51,8 @@ export const fetchZappers = async (lnurls: string[]) => {
   return zappersByLnurl
 }
 
-export const zappers = new Collection2({
-  backend: new CollectionLoaderBackend<Zapper>('zappers', {
+export const zappers = new Collection({
+  backend: new CollectionLoaderBackend<Zapper>("zappers", {
     getKey: zapper => zapper.lnurl,
     fetch: batcher(800, async (lnurls: string[]) => {
       const map = await fetchZappers(uniq(lnurls))
