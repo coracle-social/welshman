@@ -1,7 +1,7 @@
 import {derived, Readable} from "svelte/store"
 import {withGetter, memoized} from "@welshman/store"
 import {pubkey} from "./session.js"
-import {profilesByPubkey, loadProfile} from "./profiles.js"
+import {profiles} from "./profiles.js"
 import {followsByPubkey, loadFollows} from "./follows.js"
 import {loadPins, pinsByPubkey} from "./pins.js"
 import {mutesByPubkey, loadMutes} from "./mutes.js"
@@ -41,11 +41,11 @@ export const makeUserLoader =
   }
 
 export const userProfile = makeUserData({
-  mapStore: profilesByPubkey,
-  loadItem: loadProfile,
+  mapStore: profiles.index$,
+  loadItem: profiles.load,
 })
 
-export const loadUserProfile = makeUserLoader(loadProfile)
+export const loadUserProfile = makeUserLoader(profiles.load)
 
 export const userFollows = makeUserData({
   mapStore: followsByPubkey,

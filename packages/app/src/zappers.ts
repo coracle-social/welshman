@@ -11,7 +11,7 @@ import {
   postJson,
 } from "@welshman/lib"
 import {collection} from "@welshman/store"
-import {deriveProfile, loadProfile} from "./profiles.js"
+import {profiles} from "./profiles.js"
 import {appContext} from "./context.js"
 
 export const zappers = writable<Zapper[]>([])
@@ -81,7 +81,7 @@ export const {
 })
 
 export const loadZapperForPubkey = async (pubkey: string, relays: string[] = []) => {
-  const $profile = await loadProfile(pubkey, relays)
+  const $profile = await profiles.load(pubkey, relays)
 
   if (!$profile?.lnurl) {
     return undefined
@@ -91,7 +91,7 @@ export const loadZapperForPubkey = async (pubkey: string, relays: string[] = [])
 }
 
 export const deriveZapperForPubkey = (pubkey: string, relays: string[] = []) =>
-  derived([zappersByLnurl, deriveProfile(pubkey, relays)], ([$zappersByLnurl, $profile]) => {
+  derived([zappersByLnurl, profiles.one$(pubkey, relays)], ([$zappersByLnurl, $profile]) => {
     if (!$profile?.lnurl) {
       return undefined
     }
@@ -108,7 +108,7 @@ export const getLnUrlsForEvent = async (event: TrustedEvent) => {
     return lnurls
   }
 
-  const profile = await loadProfile(event.pubkey)
+  const profile = await profiles.load(event.pubkey)
 
   return removeUndefined([profile?.lnurl])
 }

@@ -1,4 +1,4 @@
-import {batcher} from "@welshman/lib"
+import {batcher, flatten} from "@welshman/lib"
 import {
   RELAYS,
   Filter,
@@ -23,22 +23,24 @@ export const loadUsingOutbox = batcher(200, (optionses: LoadUsingOutboxOptions[]
 
 export const makeOutboxLoader =
   (kind: number, filter: Filter = {}) =>
-  (pubkey: string, relays: string[]) => {
+  async (pubkey: string, relays: string[]) => {
     const filters = [{...filter, authors: [pubkey], kinds: [kind]}]
 
-    return Promise.all([load({relays, filters}), loadUsingOutbox({filters})])
+    return flatten(await Promise.all([load({relays, filters}), loadUsingOutbox({filters})]))
   }
 
 export const makeOutboxLoaderWithIndexers =
   (kind: number, filter: Filter = {}) =>
-  (pubkey: string, relays: string[]) => {
+  async (pubkey: string, relays: string[]) => {
     const filters = [{...filter, authors: [pubkey], kinds: [kind]}]
 
-    return Promise.all([
-      load({relays, filters}),
-      loadUsingOutbox({filters}),
-      load({relays: Router.get().Index().getUrls(), filters}),
-    ])
+    return flatten(
+      await Promise.all([
+        load({relays, filters}),
+        loadUsingOutbox({filters}),
+        load({relays: Router.get().Index().getUrls(), filters}),
+      ]),
+    )
   }
 
 export const relaySelections = deriveEventsMapped<PublishedList>(repository, {

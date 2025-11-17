@@ -62,7 +62,7 @@ export const searchProfiles = debounce(500, (search: string) => {
 })
 
 export const profileSearch = derived(
-  [throttled(800, profiles), throttled(800, handlesByNip05)],
+  [throttled(800, profiles.all$), throttled(800, handlesByNip05)],
   ([$profiles, $handlesByNip05]) => {
     // Remove invalid nip05's from profiles
     const options = $profiles.map(p => {

@@ -1,48 +1,21 @@
-import {readable, derived, writable, Readable, Subscriber} from "svelte/store"
-import {batch, indexBy, remove, assoc, now} from "@welshman/lib"
+import {readable, derived, Readable, Subscriber} from "svelte/store"
+import {indexBy, remove, now} from "@welshman/lib"
 import {withGetter, ReadableWithGetter} from "./getter.js"
 import {memoized} from "./memoize.js"
-
-// Collection utility
-
-export type FreshnessUpdate = {
-  ns: string
-  key: string
-  ts: number
-}
-
-export const freshness = withGetter(writable<Record<string, number>>({}))
-
-export const getFreshnessKey = (ns: string, key: string) => `${ns}:${key}`
-
-export const getFreshness = (ns: string, key: string) =>
-  freshness.get()[getFreshnessKey(ns, key)] || 0
-
-export const setFreshnessImmediate = ({ns, key, ts}: FreshnessUpdate) =>
-  freshness.update(assoc(getFreshnessKey(ns, key), ts))
-
-export const setFreshnessThrottled = batch(100, (updates: FreshnessUpdate[]) =>
-  freshness.update($freshness => {
-    for (const {ns, key, ts} of updates) {
-      $freshness[getFreshnessKey(ns, key)] = ts
-    }
-
-    return $freshness
-  }),
-)
+import {getFreshness, setFreshness} from "./freshness.js"
 
 export type CachedLoaderOptions<T> = {
   name: string
   indexStore: ReadableWithGetter<Map<string, T>>
   load: (key: string, relays: string[]) => Promise<any>
-  subscribers?: Subscriber<T>[]
+  subscribers: Subscriber<T>[]
 }
 
 export const makeCachedLoader = <T>({
   name,
   load,
   indexStore,
-  subscribers = [],
+  subscribers,
 }: CachedLoaderOptions<T>) => {
   const pending = new Map<string, Promise<T | void>>()
   const loadAttempts = new Map<string, number>()
@@ -76,7 +49,7 @@ export const makeCachedLoader = <T>({
 
     loadAttempts.set(key, attempt + 1)
 
-    setFreshnessThrottled({ns: name, key, ts: now()})
+    setFreshness(name, key, now())
 
     const promise = load(key, relays)
 

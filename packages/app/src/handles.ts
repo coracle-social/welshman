@@ -1,7 +1,7 @@
 import {writable, derived} from "svelte/store"
 import {tryCatch, fetchJson, uniq, batcher, postJson, last} from "@welshman/lib"
 import {collection} from "@welshman/store"
-import {deriveProfile} from "./profiles.js"
+import {profiles} from "./profiles.js"
 import {appContext} from "./context.js"
 
 export type Handle = {
@@ -103,7 +103,7 @@ export const {
 })
 
 export const deriveHandleForPubkey = (pubkey: string, relays: string[] = []) =>
-  derived([handlesByNip05, deriveProfile(pubkey, relays)], ([$handlesByNip05, $profile]) => {
+  derived([handlesByNip05, profiles.one$(pubkey, relays)], ([$handlesByNip05, $profile]) => {
     if (!$profile?.nip05) {
       return undefined
     }
