@@ -10,7 +10,7 @@ import {
   batcher,
   postJson,
 } from "@welshman/lib"
-import {Collection, CollectionLoaderBackend} from "@welshman/store"
+import {makeLoaderCollection} from "@welshman/store"
 import {profiles} from "./profiles.js"
 import {appContext} from "./context.js"
 
@@ -28,7 +28,7 @@ export const fetchZappers = async (lnurls: string[]) => {
       )
 
       for (const {lnurl, info} of res?.data || []) {
-        tryCatch(() => zappersByLnurl.set(hexToBech32("lnurl", lnurl), info))
+        tryCatch(() => zappersByLnurl.set(hexToBech32("lnurl", lnurl), {...info, lnurl}))
       }
     }
   } else {
@@ -43,7 +43,7 @@ export const fetchZappers = async (lnurls: string[]) => {
 
     for (const {lnurl, info} of results) {
       if (info) {
-        zappersByLnurl.set(lnurl, info)
+        zappersByLnurl.set(lnurl, {...info, lnurl})
       }
     }
   }
@@ -51,14 +51,13 @@ export const fetchZappers = async (lnurls: string[]) => {
   return zappersByLnurl
 }
 
-export const zappers = new Collection({
-  backend: new CollectionLoaderBackend<Zapper>("zappers", {
-    getKey: zapper => zapper.lnurl,
-    fetch: batcher(800, async (lnurls: string[]) => {
-      const map = await fetchZappers(uniq(lnurls))
+export const zappers = makeLoaderCollection<Zapper>({
+  name: "zappers",
+  getKey: zapper => zapper.lnurl,
+  fetch: batcher(800, async (lnurls: string[]) => {
+    const map = await fetchZappers(uniq(lnurls))
 
-      return lnurls.map(lnurl => map.get(lnurl))
-    }),
+    return lnurls.map(lnurl => map.get(lnurl))
   }),
 })
 

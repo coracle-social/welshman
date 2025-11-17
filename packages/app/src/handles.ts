@@ -1,6 +1,6 @@
 import {derived} from "svelte/store"
 import {tryCatch, fetchJson, uniq, batcher, postJson, last} from "@welshman/lib"
-import {Collection, CollectionLoaderBackend} from "@welshman/store"
+import {makeLoaderCollection} from "@welshman/store"
 import {profiles} from "./profiles.js"
 import {appContext} from "./context.js"
 
@@ -73,14 +73,13 @@ export const fetchHandles = async (nip05s: string[]) => {
   return handlesByNip05
 }
 
-export const handles = new Collection({
-  backend: new CollectionLoaderBackend<Handle>("handles", {
-    getKey: handle => handle.nip05,
-    fetch: batcher(800, async (nip05s: string[]) => {
-      const map = await fetchHandles(uniq(nip05s))
+export const handles = makeLoaderCollection<Handle>({
+  name: "handles",
+  getKey: handle => handle.nip05,
+  fetch: batcher(800, async (nip05s: string[]) => {
+    const map = await fetchHandles(uniq(nip05s))
 
-      return nip05s.map(nip05 => map.get(nip05))
-    }),
+    return nip05s.map(nip05 => map.get(nip05))
   }),
 })
 

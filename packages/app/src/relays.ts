@@ -11,7 +11,7 @@ import {
 } from "@welshman/lib"
 import {RelayProfile} from "@welshman/util"
 import {normalizeRelayUrl, displayRelayUrl, displayRelayProfile} from "@welshman/util"
-import {Collection, CollectionLoaderBackend} from "@welshman/store"
+import {makeLoaderCollection} from "@welshman/store"
 import {appContext} from "./context.js"
 
 export const fetchRelayProfileDirectly = async (url: string): Promise<Maybe<RelayProfile>> => {
@@ -52,7 +52,7 @@ export const fetchRelayProfilesUsingProxy = async (
   const res: any = await postJson(`${proxy}/relay/info`, {urls})
 
   for (const {url, info} of res?.data || []) {
-    profilesByUrl.set(url, info)
+    profilesByUrl.set(url, {...info, url})
   }
 
   return profilesByUrl
@@ -63,15 +63,14 @@ export const fetchRelayProfiles = (urls: string[]) =>
     ? fetchRelayProfilesUsingProxy(appContext.dufflepudUrl, urls)
     : fetchRelayProfilesDirectly(urls)
 
-export const relays = new Collection({
-  backend: new CollectionLoaderBackend<RelayProfile>("relays", {
-    getKey: relay => relay.url,
-    fetch: batcher(800, async (raw: string[]) => {
-      const urls = raw.map(normalizeRelayUrl)
-      const map = await fetchRelayProfiles(uniq(raw))
+export const relays = makeLoaderCollection<RelayProfile>({
+  name: "relays",
+  getKey: relay => relay.url,
+  fetch: batcher(800, async (raw: string[]) => {
+    const urls = raw.map(normalizeRelayUrl)
+    const map = await fetchRelayProfiles(uniq(raw))
 
-      return urls.map(url => map.get(url))
-    }),
+    return urls.map(url => map.get(url))
   }),
 })
 

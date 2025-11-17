@@ -7,7 +7,7 @@ import {
   TrustedEvent,
   PublishedList,
 } from "@welshman/util"
-import {Collection, CollectionRepositoryBackend} from "@welshman/store"
+import {makeSimpleRepositoryCollection} from "@welshman/store"
 import {load, LoadOptions} from "@welshman/net"
 import {Router} from "@welshman/router"
 import {repository} from "./core.js"
@@ -43,13 +43,12 @@ export const makeOutboxLoaderWithIndexers =
     )
   }
 
-export const relaySelections = new Collection({
-  backend: new CollectionRepositoryBackend<PublishedList>("relaySelections", {
-    repository,
-    filters: [{kinds: [RELAYS]}],
-    itemToEvent: item => item.event,
-    eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
-    getKey: list => list.event.pubkey,
-    fetch: makeOutboxLoaderWithIndexers(RELAYS),
-  }),
+export const relaySelections = makeSimpleRepositoryCollection<PublishedList>({
+  repository,
+  name: "relaySelections",
+  filters: [{kinds: [RELAYS]}],
+  itemToEvent: item => item.event,
+  eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
+  getKey: list => list.event.pubkey,
+  fetch: makeOutboxLoaderWithIndexers(RELAYS),
 })
