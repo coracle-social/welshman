@@ -1013,14 +1013,17 @@ export const tryCatch = <T>(f: () => T, onError?: (e: Error) => void): T | undef
  * @param f - Function to wrap
  * @returns Function that executes f only on first call
  */
-export const once = (f: (...args: any) => void) => {
+export const once = <T>(f: (...args: any) => T) => {
   let called = false
+  let value: T
 
   return (...args: any) => {
-    if (!called) {
-      called = true
-      f(...args)
-    }
+    if (called) return value as T
+
+    called = true
+    value = f(...args)
+
+    return value
   }
 }
 
@@ -1248,7 +1251,7 @@ export const batcher = <T, U>(t: number, execute: (request: T[]) => U[] | Promis
     }
   }
 
-  return (request: T): Promise<U> =>
+  return (request: T, ..._args: unknown[]): Promise<U> =>
     new Promise((resolve, reject) => {
       queue.push({request, resolve, reject})
 

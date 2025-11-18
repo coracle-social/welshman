@@ -9,7 +9,7 @@ export const memoized = <T>(store: Readable<T>) => {
 
 export const deriveIfChanged = <S extends Stores, T>(
   stores: S,
-  get: (storeValues: StoresValues<S>) => T
+  get: (storeValues: StoresValues<S>) => T,
 ): Readable<T> => {
   let prev: T
 
@@ -22,4 +22,3 @@ export const deriveIfChanged = <S extends Stores, T>(
     }
   })
 }
-

@@ -1,173 +1,34 @@
-import {derived, Subscriber, Readable, Unsubscriber} from "svelte/store"
-import {
-  noop,
-  removeUndefined,
-  on,
-  ensurePlural,
-  addToMapKey,
-  now,
-  MaybeAsync,
-  Maybe,
-} from "@welshman/lib"
-import {Filter, matchFilters, TrustedEvent} from "@welshman/util"
-import {Repository} from "@welshman/net"
+import {Unsubscriber, Subscriber, Readable, derived} from "svelte/store"
+import {Maybe, MaybeAsync, once, isDefined, always, now, indexBy, on} from "@welshman/lib"
+import {Repository, RepositoryUpdate} from "@welshman/net"
+import {Filter, TrustedEvent, matchFilters} from "@welshman/util"
 import {getFreshness, setFreshness} from "./freshness.js"
 import {deriveIfChanged} from "./memoize.js"
 
-// Collections combine a bunch of interleaved concerns into a single utility:
-//
-// - Ability to access values directly, or via reactive store
-// - Efficient derivation from events repository
-// - Emission of updates rather than all records allows for efficient downstream derivations
-// - Auto fetching with deduplication and caching
-//
-// This could be decomposed into the following components:
-// - Adapters to turn a data source into granular updates (event emitters -> observables)
-// - Derivers that collect updates into values (collections, or a single value)
-// - getters for syncing regular access with arbitrary stores
-// - loader that takes load logic and combines it with a getter
+// Subscription Manager
 
-// General purpose utils
-
-export type CachedLoader2Options<T> = {
-  name: string
-  index: Map<string, T>
-  fetch: (key: string, ...args: unknown[]) => Promise<unknown>
-}
-
-export const makeCachedLoader = <T>({name, fetch, index}: CachedLoader2Options<T>) => {
-  const pending = new Map<string, Promise<unknown>>()
-  const loadAttempts = new Map<string, number>()
-
-  return async (key: string, ...args: unknown[]) => {
-    const stale = index.get(key)
-
-    // If we have no loader function, nothing we can do
-    if (!fetch) {
-      return stale
-    }
-
-    const freshness = getFreshness(name, key)
-
-    // If we have an item, reload if it's stale
-    if (stale && freshness > now() - 3600) {
-      return stale
-    }
-
-    // If we already are loading, await and return
-    if (pending.has(key)) {
-      return pending.get(key)!.then(() => index.get(key))
-    }
-
-    const attempt = loadAttempts.get(key) || 0
-
-    // Use exponential backoff to throttle attempts
-    if (freshness > now() - Math.pow(2, attempt)) {
-      return stale
-    }
-
-    loadAttempts.set(key, attempt + 1)
-
-    setFreshness(name, key, now())
-
-    const promise = fetch(key, ...args)
-
-    pending.set(key, promise)
-
-    try {
-      await promise
-    } catch (e) {
-      console.warn(`Failed to load ${name} item ${key}`, e)
-    } finally {
-      pending.delete(key)
-    }
-
-    const fresh = index.get(key)
-
-    if (fresh) {
-      loadAttempts.delete(key)
-    }
-
-    return fresh
-  }
-}
-
-export type CollectionUpdate<T> = {
-  updated?: T[]
-  removed?: T[]
-}
-
-export type CollectionOptions<T> = {
-  name: string
-  add?: (item: T) => void
-  remove?: (key: string) => void
-  fetch?: (key: string, ...args: unknown[]) => Promise<unknown>
+export type SubscriberManagerOptions = {
   start?: () => Unsubscriber
+  stop?: () => void
 }
 
-export class Collection<T> {
-  index = new Map<string, T>()
-  unsubscriber: Unsubscriber | undefined
-  subscribers: Subscriber<CollectionUpdate<T>>[] = []
-  load: (key: string, ...args: unknown[]) => Promise<Maybe<T>>
-  all$: Readable<T[]>
-  index$: Readable<Map<string, T>>
+export class SubscriberManager<T> {
+  private subscribers: Subscriber<T>[] = []
+  private unsubscriber: Unsubscriber | undefined
 
-  constructor(private options: CollectionOptions<T>) {
-    this.all$ = derived(this, this.all)
-    this.index$ = derived(this, () => this.index)
-    this.load = makeCachedLoader({
-      name: options.name,
-      index: this.index,
-      fetch: this.forceLoad,
-    })
-  }
+  constructor(private options: SubscriberManagerOptions) {}
 
-  get add() {
-    if (this.options.add) {
-      return this.options.add
-    }
-
-    throw new Error(`add method is not defined for collection "${this.options.name}"`)
-  }
-
-  get remove() {
-    if (this.options.remove) {
-      return this.options.remove
-    }
-
-    throw new Error(`remove method is not defined for collection "${this.options.name}"`)
-  }
-
-  all = () => Array.from(this.index.values())
-
-  one = (key: string) => this.index.get(key)
-
-  one$ = (key: string, ...args: any[]): Readable<Maybe<T>> => {
-    this.load(key, ...args)
-
-    return deriveIfChanged(this, () => this.one(key))
-  }
-
-  notify = (update: CollectionUpdate<T>) => {
+  notify(item: T) {
     for (const sub of this.subscribers) {
-      sub(update)
+      sub(item)
     }
   }
 
-  forceLoad = async (key: string, ...args: unknown[]) => {
-    await this.options.fetch?.(key, ...args)
-
-    return this.one(key)
-  }
-
-  subscribe = (sub: (update: CollectionUpdate<T>) => void = noop) => {
+  subscribe(sub: Subscriber<T>) {
     this.subscribers.push(sub)
 
-    sub({updated: Array.from(this.index.values())})
-
-    if (!this.unsubscriber) {
-      this.unsubscriber = this.options.start?.()
+    if (!this.unsubscriber && this.options.start) {
+      this.unsubscriber = this.options.start()
     }
 
     return () => {
@@ -178,181 +39,355 @@ export class Collection<T> {
 
       if (this.subscribers.length === 0) {
         this.unsubscriber?.()
+        this.options.stop?.()
       }
     }
   }
 }
 
-export const makeCollection = <T>(options: CollectionOptions<T>) => new Collection(options)
+// Notifier
 
-// Repository collection factory
-
-export type RepositoryCollectionOptions = {
-  name: string
-  filters: Filter[]
-  repository: Repository
-  onEvent: (event: TrustedEvent) => void
-  onRemove?: (id: string) => void
-  fetch?: (key: string, ...args: any[]) => Promise<unknown>
+export enum NotifierPayloadType {
+  Put = "put",
+  Pop = "pop",
 }
 
-export const makeRepositoryCollection = <T>({
-  name,
-  fetch,
-  filters,
-  repository,
-  onEvent,
-  onRemove,
-}: RepositoryCollectionOptions) => {
-  for (const event of repository.query(filters, {includeDeleted: !onRemove})) {
-    onEvent(event)
+export type ItemHandler<T> = (item: T) => void
+
+export class NotifierPayload<T> {
+  constructor(
+    readonly type: NotifierPayloadType,
+    readonly items: T[],
+  ) {}
+
+  static put<T>(items: T[]) {
+    return new NotifierPayload(NotifierPayloadType.Put, items)
   }
 
-  const collection = makeCollection<T>({
-    name,
-    fetch,
-    start: () =>
-      on(repository, "update", ({added, removed}) => {
-        for (const event of added) {
-          if (matchFilters(filters, event)) {
-            onEvent(event)
-          }
-        }
-
-        if (onRemove) {
-          for (const id of removed) {
-            onRemove(id)
-          }
-        }
-      }),
-  })
-
-  return collection
-}
-
-// Simple repository collection factory
-
-export type SimpleRepositoryCollectionOptions<T> = {
-  name: string
-  filters: Filter[]
-  repository: Repository
-  getKey: (item: T) => string
-  eventToItem: (event: TrustedEvent) => MaybeAsync<Maybe<T | T[]>>
-  itemToEvent: (item: T) => TrustedEvent
-  fetch?: (key: string, ...args: any[]) => Promise<unknown>
-}
-
-export const makeSimpleRepositoryCollection = <T>({
-  name,
-  filters,
-  repository,
-  fetch,
-  getKey,
-  eventToItem,
-  itemToEvent,
-}: SimpleRepositoryCollectionOptions<T>) => {
-  const mapping = new Map<string, Set<string>>()
-  const deferred = new Set<string>()
-
-  const addItem = (item: T) => {
-    const key = getKey(item)
-    const event = itemToEvent(item)
-
-    collection.index.set(key, item)
-    addToMapKey(mapping, event.id, key)
-    collection.notify({updated: [item]})
+  static pop<T>(items: T[]) {
+    return new NotifierPayload(NotifierPayloadType.Pop, items)
   }
 
-  const deferMapping = (event: TrustedEvent, promise: Promise<Maybe<T | T[]>>) => {
-    deferred.add(event.id)
-
-    promise.then(items => {
-      if (deferred.has(event.id)) {
-        deferred.delete(event.id)
-
-        for (const item of removeUndefined(ensurePlural(items))) {
-          addItem(item)
-        }
+  handlePut(f: ItemHandler<T>) {
+    if (this.type === NotifierPayloadType.Put) {
+      for (const item of this.items) {
+        f(item)
       }
+    }
+  }
+
+  handlePop(f: ItemHandler<T>) {
+    if (this.type === NotifierPayloadType.Pop) {
+      for (const item of this.items) {
+        f(item)
+      }
+    }
+  }
+}
+
+export type NotifierHandler<T> = (payload: NotifierPayload<T>) => void
+
+export class Notifier<T> {
+  private manager: SubscriberManager<NotifierPayload<T>>
+
+  constructor(private options: SubscriberManagerOptions = {}) {
+    this.manager = new SubscriberManager(options)
+  }
+
+  put(items: T[]) {
+    if (items.length > 0) {
+      this.manager.notify(NotifierPayload.put(items))
+    }
+  }
+
+  pop(items: T[]) {
+    if (items.length > 0) {
+      this.manager.notify(NotifierPayload.pop(items))
+    }
+  }
+
+  subscribe = (sub: NotifierHandler<T>) => {
+    return this.manager.subscribe(sub)
+  }
+}
+
+// Source
+
+export type Source<T> = () => Map<string, T>
+
+// Loader
+
+export type Loader<T> = (key: string, ...args: any[]) => Promise<Maybe<T>>
+
+// Collection
+
+export type CollectionOptions<T> = {
+  name: string
+  source: Source<T>
+  notifier: Notifier<T>
+  getKey: (item: T) => string
+  load?: Loader<T>
+}
+
+export class Collection<T> {
+  private index: Maybe<Map<string, T>>
+  private manager: SubscriberManager<NotifierPayload<T>>
+  private pendingLoads = new Map<string, Promise<Maybe<T>>>()
+  private loadAttempts = new Map<string, number>()
+
+  index$: Readable<Map<string, T>>
+  items$: Readable<T[]>
+
+  constructor(private options: CollectionOptions<T>) {
+    this.manager = new SubscriberManager({
+      start: this.start,
+      stop: this.stop,
+    })
+
+    this.index$ = derived(this.manager, this.getIndex)
+    this.items$ = derived(this.manager, this.getItems)
+  }
+
+  private start = () => {
+    this.index = this.getIndex()
+
+    return this.options.notifier.subscribe(payload => {
+      payload.handlePut(item => {
+        this.index?.set(this.options.getKey(item), item)
+      })
+
+      payload.handlePop(item => {
+        this.index?.delete(this.options.getKey(item))
+      })
+
+      this.manager.notify(payload)
     })
   }
 
-  const collection = makeRepositoryCollection<T>({
-    name,
-    fetch,
-    filters,
-    repository,
-    onEvent: (event: TrustedEvent) => {
-      if (mapping.has(event.id)) return
+  private stop = () => {
+    this.index?.clear()
+  }
 
-      const items = eventToItem(event)
+  subscribe = (sub: NotifierHandler<T>) => {
+    return this.manager.subscribe(sub)
+  }
 
-      if (items instanceof Promise) {
-        deferMapping(event, items)
-      } else if (items) {
-        for (const item of removeUndefined(ensurePlural(items))) {
-          addItem(item)
-        }
-      }
-    },
-    onRemove: (id: string) => {
-      const keys = mapping.get(id)
+  load: Loader<T> = async (key: string, ...args: any[]) => {
+    if (!this.options.load) {
+      throw new Error("load was not provided")
+    }
 
-      if (keys) {
-        const removed: T[] = []
+    const stale = this.one(key)
+    const freshness = getFreshness(this.options.name, key)
 
-        mapping.delete(id)
+    // If we have an item, reload if it's stale
+    if (stale && freshness > now() - 3600) {
+      return stale
+    }
 
-        for (const key of keys) {
-          const item = collection.one(key)
+    // If we already are loading, await and return
+    if (this.pendingLoads.has(key)) {
+      return this.pendingLoads.get(key)!
+    }
 
-          if (item) {
-            removed.push(item)
-            collection.index.delete(key)
-          }
-        }
+    const attempt = this.loadAttempts.get(key) || 0
 
-        collection.notify({removed})
-      }
+    // Use exponential backoff to throttle attempts
+    if (freshness > now() - Math.pow(2, attempt)) {
+      return stale
+    }
 
-      deferred.delete(id)
-    },
-  })
+    this.loadAttempts.set(key, attempt + 1)
 
-  return collection
+    setFreshness(this.options.name, key, now())
+
+    const promise = this.options.load(key, ...args)
+
+    this.pendingLoads.set(key, promise)
+
+    let item: Maybe<T>
+    try {
+      item = await promise
+    } catch (e) {
+      console.warn(`Failed to load ${this.options.name} item ${key}`, e)
+    } finally {
+      this.pendingLoads.delete(key)
+    }
+
+    if (item) {
+      this.options.notifier.put([item])
+      this.loadAttempts.delete(key)
+    }
+
+    return item
+  }
+
+  getIndex = () => this.index || this.options.source()
+
+  getItems = () => Array.from(this.getIndex().values())
+
+  one = (key: string) => this.getIndex().get(key)
+
+  one$ = (key: string, ...args: any[]) => {
+    this.options.load?.(key, ...args)
+
+    return deriveIfChanged(this.manager, () => this.one(key))
+  }
 }
 
-// Loader collection
+// Loader Collection
 
 export type LoaderCollectionOptions<T> = {
   name: string
   getKey: (item: T) => string
-  fetch: (key: string, ...args: any[]) => Promise<Maybe<T>>
+  load: Loader<T>
 }
 
-export const makeLoaderCollection = <T>({name, fetch, getKey}: LoaderCollectionOptions<T>) => {
-  const collection = makeCollection({
-    name,
-    add: (item: T) => {
-      collection.index.set(getKey(item), item)
-      collection.notify({updated: [item]})
-    },
-    remove: (key: string) => {
-      const item = collection.index.get(key)
+export const makeLoaderCollection = <T>({name, getKey, load}: LoaderCollectionOptions<T>) => {
+  const notifier = new Notifier<T>({})
+  const source = once(() => new Map<string, T>())
+  const collection = new Collection<T>({name, getKey, source, notifier, load})
+
+  return collection
+}
+
+// Events Collection
+
+export type EventsCollectionOptions = {
+  name: string
+  filters: Filter[]
+  repository: Repository
+  includeDeleted?: boolean
+}
+
+export const makeEventsCollection = ({
+  name,
+  filters,
+  repository,
+  includeDeleted,
+}: EventsCollectionOptions) => {
+  const getKey = (event: TrustedEvent) => event.id
+
+  const source = () => indexBy(e => e.id, repository.query(filters, {includeDeleted}))
+
+  const notifier = new Notifier<TrustedEvent>({
+    start: () =>
+      on(repository, "update", ({added, removed}: RepositoryUpdate) => {
+        notifier.put(added)
+
+        if (!includeDeleted) {
+          const modifiedFilters = filters.map(f => ({...f, ids: Array.from(removed)}))
+          const deletedEvents = repository.query(modifiedFilters, {includeDeleted: true})
+
+          notifier.pop(deletedEvents)
+        }
+      }),
+  })
+
+  return new Collection({name, getKey, source, notifier})
+}
+
+// Mapped Collection
+
+export type MappedCollectionOptions<T> = {
+  name: string
+  filters: Filter[]
+  repository: Repository
+  includeDeleted?: boolean
+  getKey: (item: T) => string
+  eventToItem: (event: TrustedEvent) => MaybeAsync<Maybe<T>>
+  load: Loader<TrustedEvent>
+}
+
+export const makeMappedCollection = <T>({
+  name,
+  filters,
+  repository,
+  includeDeleted,
+  getKey,
+  eventToItem,
+  ...options
+}: MappedCollectionOptions<T>) => {
+  const source = always(new Map())
+  const deferred = new Map<string, Promise<Maybe<T>>>()
+  const eventIdByKey = new Map<string, string>()
+  const keysByEventId = new Map<string, string>()
+
+  const addEvent = async (event: TrustedEvent): Promise<Maybe<T>> => {
+    const promise = deferred.get(event.id)
+
+    if (promise) {
+      return promise
+    }
+
+    const key = keysByEventId.get(event.id)
+
+    if (key) {
+      const item = collection.one(key)
 
       if (item) {
-        collection.index.delete(key)
-        collection.notify({removed: [item]})
+        return item
       }
-    },
-    fetch: async (key: string, ...args: unknown[]) => {
-      const item = await fetch(key, ...args)
+    }
 
-      if (item) {
-        collection.add(item)
+    const itemOrPromise = eventToItem(event)
+
+    if (itemOrPromise instanceof Promise) {
+      deferred.set(event.id, itemOrPromise)
+    }
+
+    const item = await itemOrPromise
+
+    if (item) {
+      const key = getKey(item)
+
+      keysByEventId.set(event.id, key)
+      eventIdByKey.set(key, event.id)
+
+      notifier.put([item])
+    }
+
+    deferred.delete(event.id)
+
+    return item
+  }
+
+  const notifier = new Notifier<T>({
+    start: () => {
+      for (const event of repository.query(filters, {includeDeleted})) {
+        addEvent(event)
       }
+
+      return on(repository, "update", ({added, removed}: RepositoryUpdate) => {
+        for (const event of added) {
+          if (matchFilters(filters, event)) {
+            addEvent(event)
+          }
+        }
+
+        if (!includeDeleted) {
+          notifier.pop(
+            Array.from(removed)
+              .flatMap(id => keysByEventId.get(id) || [])
+              .map(collection.one)
+              .filter(isDefined),
+          )
+        }
+      })
     },
   })
+
+  const load = async (key: string, ...args: any[]) => {
+    const event = await options.load(key, ...args)
+
+    if (event) {
+      repository.publish(event)
+
+      return addEvent(event)
+    }
+  }
+
+  const collection = new Collection({name, getKey, source, notifier, load})
 
   return collection
 }

@@ -1,15 +1,14 @@
 import {INBOX_RELAYS, asDecryptedEvent, readList} from "@welshman/util"
 import {TrustedEvent, PublishedList} from "@welshman/util"
-import {makeSimpleRepositoryCollection} from "@welshman/store"
+import {makeMappedCollection} from "@welshman/store"
 import {repository} from "./core.js"
 import {makeOutboxLoader} from "./relaySelections.js"
 
-export const inboxRelaySelections = makeSimpleRepositoryCollection<PublishedList>({
+export const inboxRelaySelections = makeMappedCollection<PublishedList>({
   repository,
   name: "inboxRelaySelections",
   filters: [{kinds: [INBOX_RELAYS]}],
-  itemToEvent: item => item.event,
-  eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
   getKey: list => list.event.pubkey,
-  fetch: makeOutboxLoader(INBOX_RELAYS),
+  eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
+  load: makeOutboxLoader(INBOX_RELAYS),
 })

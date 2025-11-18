@@ -1,4 +1,4 @@
-import {batcher, flatten} from "@welshman/lib"
+import {first, batcher, flatten} from "@welshman/lib"
 import {
   RELAYS,
   Filter,
@@ -7,7 +7,7 @@ import {
   TrustedEvent,
   PublishedList,
 } from "@welshman/util"
-import {makeSimpleRepositoryCollection} from "@welshman/store"
+import {makeMappedCollection} from "@welshman/store"
 import {load, LoadOptions} from "@welshman/net"
 import {Router} from "@welshman/router"
 import {repository} from "./core.js"
@@ -26,7 +26,7 @@ export const makeOutboxLoader =
   async (pubkey: string, relays: string[]) => {
     const filters = [{...filter, authors: [pubkey], kinds: [kind]}]
 
-    return flatten(await Promise.all([load({relays, filters}), loadUsingOutbox({filters})]))
+    return first(flatten(await Promise.all([load({relays, filters}), loadUsingOutbox({filters})])))
   }
 
 export const makeOutboxLoaderWithIndexers =
@@ -34,21 +34,22 @@ export const makeOutboxLoaderWithIndexers =
   async (pubkey: string, relays: string[]) => {
     const filters = [{...filter, authors: [pubkey], kinds: [kind]}]
 
-    return flatten(
-      await Promise.all([
-        load({relays, filters}),
-        loadUsingOutbox({filters}),
-        load({relays: Router.get().Index().getUrls(), filters}),
-      ]),
+    return first(
+      flatten(
+        await Promise.all([
+          load({relays, filters}),
+          loadUsingOutbox({filters}),
+          load({relays: Router.get().Index().getUrls(), filters}),
+        ]),
+      ),
     )
   }
 
-export const relaySelections = makeSimpleRepositoryCollection<PublishedList>({
+export const relaySelections = makeMappedCollection<PublishedList>({
   repository,
   name: "relaySelections",
   filters: [{kinds: [RELAYS]}],
-  itemToEvent: item => item.event,
-  eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
   getKey: list => list.event.pubkey,
-  fetch: makeOutboxLoaderWithIndexers(RELAYS),
+  eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
+  load: makeOutboxLoaderWithIndexers(RELAYS),
 })

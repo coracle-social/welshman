@@ -54,7 +54,7 @@ export const fetchZappers = async (lnurls: string[]) => {
 export const zappers = makeLoaderCollection<Zapper>({
   name: "zappers",
   getKey: zapper => zapper.lnurl,
-  fetch: batcher(800, async (lnurls: string[]) => {
+  load: batcher(800, async (lnurls: string[]) => {
     const map = await fetchZappers(uniq(lnurls))
 
     return lnurls.map(lnurl => map.get(lnurl))

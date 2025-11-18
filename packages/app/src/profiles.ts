@@ -1,18 +1,17 @@
 import {derived, readable} from "svelte/store"
 import {readProfile, displayProfile, displayPubkey, PROFILE} from "@welshman/util"
 import {PublishedProfile} from "@welshman/util"
-import {makeSimpleRepositoryCollection} from "@welshman/store"
+import {makeMappedCollection} from "@welshman/store"
 import {repository} from "./core.js"
 import {makeOutboxLoaderWithIndexers} from "./relaySelections.js"
 
-export const profiles = makeSimpleRepositoryCollection<PublishedProfile>({
+export const profiles = makeMappedCollection<PublishedProfile>({
   repository,
   name: "profiles",
   filters: [{kinds: [PROFILE]}],
-  fetch: makeOutboxLoaderWithIndexers(PROFILE),
-  eventToItem: readProfile,
-  itemToEvent: profile => profile.event,
   getKey: profile => profile.event.pubkey,
+  eventToItem: event => readProfile(event),
+  load: makeOutboxLoaderWithIndexers(PROFILE),
 })
 
 export const displayProfileByPubkey = (pubkey: string | undefined) =>

@@ -1,8 +1,8 @@
-import {derived, writable} from "svelte/store"
+import {derived} from "svelte/store"
 import type {Readable, Subscriber} from "svelte/store"
-import {max, sub, call, throttle, noop, addToMapKey, inc, dec} from "@welshman/lib"
+import {max, sub, call, noop, addToMapKey, inc, dec} from "@welshman/lib"
 import {getListTags, getPubkeyTagValues, PublishedList} from "@welshman/util"
-import {custom, withGetter, deriveIfChanged, CollectionUpdate} from "@welshman/store"
+import {custom, withGetter, deriveIfChanged, NotifierPayload} from "@welshman/store"
 import {pubkey} from "./session.js"
 import {follows} from "./follows.js"
 import {mutes} from "./mutes.js"
@@ -27,32 +27,34 @@ export const getNetwork = (pubkey: string) => {
   return Array.from(network)
 }
 
-const buildReverseMapping = (store: Readable<CollectionUpdate<PublishedList>>) =>
-  custom(set => {
-    const value = new Map<string, Set<string>>()
+const buildReverseMapping = (store: Readable<NotifierPayload<PublishedList>>) =>
+  withGetter(
+    custom<Map<string, Set<string>>>(set => {
+      const value = new Map()
 
-    return follows.subscribe(({updated, removed}) => {
-      for (const list of updated || []) {
-        for (const pubkey of getPubkeyTagValues(getListTags(list))) {
-          addToMapKey(value, pubkey, list.event.pubkey)
-        }
-      }
-
-      for (const list of removed || []) {
-        for (const pubkey of getPubkeyTagValues(getListTags(list))) {
-          const pubkeys = value.get(pubkey)
-
-          pubkeys?.delete(list.event.pubkey)
-
-          if (pubkeys?.size === 0) {
-            value.delete(pubkey)
+      return follows.subscribe(payload => {
+        payload.handlePut(list => {
+          for (const pubkey of getPubkeyTagValues(getListTags(list))) {
+            addToMapKey(value, pubkey, list.event.pubkey)
           }
-        }
-      }
+        })
 
-      set(value)
-    })
-  })
+        payload.handlePop(list => {
+          for (const pubkey of getPubkeyTagValues(getListTags(list))) {
+            const pubkeys = value.get(pubkey)
+
+            pubkeys?.delete(list.event.pubkey)
+
+            if (pubkeys?.size === 0) {
+              value.delete(pubkey)
+            }
+          }
+        })
+
+        set(value)
+      })
+    }),
+  )
 
 export const followersByPubkey = buildReverseMapping(follows)
 
@@ -71,44 +73,44 @@ export const getFollowsWhoMute = (pubkey: string, target: string) =>
 const maintainWotGraph = (set: Subscriber<Map<string, number>>) => {
   const userPubkey = pubkey.get()
   const graph = new Map<string, number>()
-  const followedPubkeys = new Set(getFollows(userPubkey))
+  const followedPubkeys = new Set(userPubkey ? getFollows(userPubkey) : [])
 
   const unsubscribers = [
-    follows.subscribe(({updated, removed}) => {
-      for (const list of updated || []) {
+    follows.subscribe(payload => {
+      payload.handlePut(list => {
         if (followedPubkeys.has(list.event.pubkey)) {
           for (const pubkey of getPubkeyTagValues(getListTags(list))) {
             graph.set(pubkey, inc(graph.get(pubkey)))
           }
         }
-      }
+      })
 
-      for (const list of removed || []) {
+      payload.handlePop(list => {
         if (followedPubkeys.has(list.event.pubkey)) {
           for (const pubkey of getPubkeyTagValues(getListTags(list))) {
             graph.set(pubkey, dec(graph.get(pubkey)))
           }
         }
-      }
+      })
 
       set(graph)
     }),
-    mutes.subscribe(({updated, removed}) => {
-      for (const list of updated || []) {
+    mutes.subscribe(payload => {
+      payload.handlePut(list => {
         if (followedPubkeys.has(list.event.pubkey)) {
           for (const pubkey of getPubkeyTagValues(getListTags(list))) {
             graph.set(pubkey, dec(graph.get(pubkey)))
           }
         }
-      }
+      })
 
-      for (const list of removed || []) {
+      payload.handlePut(list => {
         if (followedPubkeys.has(list.event.pubkey)) {
           for (const pubkey of getPubkeyTagValues(getListTags(list))) {
             graph.set(pubkey, inc(graph.get(pubkey)))
           }
         }
-      }
+      })
 
       set(graph)
     }),
@@ -128,7 +130,7 @@ export const wotGraph = withGetter(
     ]
 
     return () => unsubscribers.forEach(call)
-  })
+  }),
 )
 
 export const maxWot = withGetter(derived(wotGraph, $g => max(Array.from($g.values()))))
@@ -142,4 +144,5 @@ export const getWotScore = (pubkey: string, target: string) => {
 
 export const getUserWotScore = (target: string) => wotGraph.get().get(target) || 0
 
-export const deriveUserWotScore = (target: string) => deriveIfChanged(wotGraph, $g => $g.get(target))
+export const deriveUserWotScore = (target: string) =>
+  deriveIfChanged(wotGraph, $g => $g.get(target))

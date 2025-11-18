@@ -87,4 +87,3 @@ export const userBlossomServers = makeUserData({
 })
 
 export const loadUserBlossomServers = makeUserLoader(blossomServers.load)
-

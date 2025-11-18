@@ -76,7 +76,7 @@ export const fetchHandles = async (nip05s: string[]) => {
 export const handles = makeLoaderCollection<Handle>({
   name: "handles",
   getKey: handle => handle.nip05,
-  fetch: batcher(800, async (nip05s: string[]) => {
+  load: batcher(800, async (nip05s: string[]) => {
     const map = await fetchHandles(uniq(nip05s))
 
     return nip05s.map(nip05 => map.get(nip05))

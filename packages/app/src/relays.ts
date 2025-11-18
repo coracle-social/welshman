@@ -66,7 +66,7 @@ export const fetchRelayProfiles = (urls: string[]) =>
 export const relays = makeLoaderCollection<RelayProfile>({
   name: "relays",
   getKey: relay => relay.url,
-  fetch: batcher(800, async (raw: string[]) => {
+  load: batcher(800, async (raw: string[]) => {
     const urls = raw.map(normalizeRelayUrl)
     const map = await fetchRelayProfiles(uniq(raw))
 
@@ -75,7 +75,7 @@ export const relays = makeLoaderCollection<RelayProfile>({
 })
 
 export const displayRelayByPubkey = (url: string) =>
-  displayRelayProfile(relays.index.get(url), displayRelayUrl(url))
+  displayRelayProfile(relays.one(url), displayRelayUrl(url))
 
 export const deriveRelayDisplay = (url: string) =>
   derived(relays.one$(url), $relay => displayRelayProfile($relay, displayRelayUrl(url)))

@@ -73,7 +73,7 @@ Pool.get().subscribe(socket => {
 
 const _relayGetter = (fn?: (relay: RelayProfile) => any) =>
   throttleWithValue(200, () => {
-    let _relays = relays.all()
+    let _relays = relays.getItems()
 
     if (fn) {
       _relays = _relays.filter(fn)
