@@ -17,7 +17,7 @@ export const getPubkeysForScope = (scope: string) => {
     case Scope.Network:
       return getNetwork($pubkey)
     case Scope.Followers:
-      return getFollowers($pubkey)
+      return Array.from(getFollowers($pubkey) || [])
     default:
       return []
   }

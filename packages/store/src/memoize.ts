@@ -1,4 +1,4 @@
-import {Readable, Subscriber} from "svelte/store"
+import {derived, Readable, Subscriber, Stores, StoresValues} from "svelte/store"
 import {memoize} from "@welshman/lib"
 
 export const memoized = <T>(store: Readable<T>) => {
@@ -6,3 +6,20 @@ export const memoized = <T>(store: Readable<T>) => {
 
   return {...store, subscribe: (f: Subscriber<T>) => subscribe(memoize(f))}
 }
+
+export const deriveIfChanged = <S extends Stores, T>(
+  stores: S,
+  get: (storeValues: StoresValues<S>) => T
+): Readable<T> => {
+  let prev: T
+
+  return derived(stores, (storeValues, set) => {
+    const result = get(storeValues)
+
+    if (prev !== result) {
+      prev = result
+      set(result)
+    }
+  })
+}
+

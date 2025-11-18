@@ -1,10 +1,12 @@
 import {derived, writable} from "svelte/store"
-import {max, throttle, addToMapKey, inc, dec} from "@welshman/lib"
-import {getListTags, getPubkeyTagValues} from "@welshman/util"
-import {throttled, withGetter} from "@welshman/store"
+import type {Readable, Subscriber} from "svelte/store"
+import {max, sub, call, throttle, noop, addToMapKey, inc, dec} from "@welshman/lib"
+import {getListTags, getPubkeyTagValues, PublishedList} from "@welshman/util"
+import {custom, withGetter, deriveIfChanged, CollectionUpdate} from "@welshman/store"
 import {pubkey} from "./session.js"
 import {follows} from "./follows.js"
 import {mutes} from "./mutes.js"
+import {userFollows} from "./user.js"
 
 export const getFollows = (pubkey: string) => getPubkeyTagValues(getListTags(follows.one(pubkey)))
 
@@ -25,38 +27,40 @@ export const getNetwork = (pubkey: string) => {
   return Array.from(network)
 }
 
-export const followersByPubkey = withGetter(
-  derived(throttled(1000, follows.all$), lists => {
-    const $followersByPubkey = new Map<string, Set<string>>()
+const buildReverseMapping = (store: Readable<CollectionUpdate<PublishedList>>) =>
+  custom(set => {
+    const value = new Map<string, Set<string>>()
 
-    for (const list of lists) {
-      for (const pubkey of getPubkeyTagValues(getListTags(list))) {
-        addToMapKey($followersByPubkey, pubkey, list.event.pubkey)
+    return follows.subscribe(({updated, removed}) => {
+      for (const list of updated || []) {
+        for (const pubkey of getPubkeyTagValues(getListTags(list))) {
+          addToMapKey(value, pubkey, list.event.pubkey)
+        }
       }
-    }
 
-    return $followersByPubkey
-  }),
-)
+      for (const list of removed || []) {
+        for (const pubkey of getPubkeyTagValues(getListTags(list))) {
+          const pubkeys = value.get(pubkey)
 
-export const mutersByPubkey = withGetter(
-  derived(throttled(1000, mutes.all$), lists => {
-    const $mutersByPubkey = new Map<string, Set<string>>()
+          pubkeys?.delete(list.event.pubkey)
 
-    for (const list of lists) {
-      for (const pubkey of getPubkeyTagValues(getListTags(list))) {
-        addToMapKey($mutersByPubkey, pubkey, list.event.pubkey)
+          if (pubkeys?.size === 0) {
+            value.delete(pubkey)
+          }
+        }
       }
-    }
 
-    return $mutersByPubkey
-  }),
-)
+      set(value)
+    })
+  })
 
-export const getFollowers = (pubkey: string) =>
-  Array.from(followersByPubkey.get().get(pubkey) || [])
+export const followersByPubkey = buildReverseMapping(follows)
 
-export const getMuters = (pubkey: string) => Array.from(mutersByPubkey.get().get(pubkey) || [])
+export const mutersByPubkey = buildReverseMapping(mutes)
+
+export const getFollowers = (pubkey: string) => followersByPubkey.get().get(pubkey)
+
+export const getMuters = (pubkey: string) => mutersByPubkey.get().get(pubkey)
 
 export const getFollowsWhoFollow = (pubkey: string, target: string) =>
   getFollows(pubkey).filter(other => getFollows(other).includes(target))
@@ -64,35 +68,78 @@ export const getFollowsWhoFollow = (pubkey: string, target: string) =>
 export const getFollowsWhoMute = (pubkey: string, target: string) =>
   getFollows(pubkey).filter(other => getMutes(other).includes(target))
 
-export const wotGraph = withGetter(writable(new Map<string, number>()))
+const maintainWotGraph = (set: Subscriber<Map<string, number>>) => {
+  const userPubkey = pubkey.get()
+  const graph = new Map<string, number>()
+  const followedPubkeys = new Set(getFollows(userPubkey))
+
+  const unsubscribers = [
+    follows.subscribe(({updated, removed}) => {
+      for (const list of updated || []) {
+        if (followedPubkeys.has(list.event.pubkey)) {
+          for (const pubkey of getPubkeyTagValues(getListTags(list))) {
+            graph.set(pubkey, inc(graph.get(pubkey)))
+          }
+        }
+      }
+
+      for (const list of removed || []) {
+        if (followedPubkeys.has(list.event.pubkey)) {
+          for (const pubkey of getPubkeyTagValues(getListTags(list))) {
+            graph.set(pubkey, dec(graph.get(pubkey)))
+          }
+        }
+      }
+
+      set(graph)
+    }),
+    mutes.subscribe(({updated, removed}) => {
+      for (const list of updated || []) {
+        if (followedPubkeys.has(list.event.pubkey)) {
+          for (const pubkey of getPubkeyTagValues(getListTags(list))) {
+            graph.set(pubkey, dec(graph.get(pubkey)))
+          }
+        }
+      }
+
+      for (const list of removed || []) {
+        if (followedPubkeys.has(list.event.pubkey)) {
+          for (const pubkey of getPubkeyTagValues(getListTags(list))) {
+            graph.set(pubkey, inc(graph.get(pubkey)))
+          }
+        }
+      }
+
+      set(graph)
+    }),
+  ]
+
+  return () => unsubscribers.forEach(call)
+}
+
+export const wotGraph = withGetter(
+  custom<Map<string, number>>(set => {
+    const unsubscribers = [
+      noop,
+      userFollows.subscribe(() => {
+        unsubscribers[0]()
+        unsubscribers[0] = maintainWotGraph(set)
+      }),
+    ]
+
+    return () => unsubscribers.forEach(call)
+  })
+)
 
 export const maxWot = withGetter(derived(wotGraph, $g => max(Array.from($g.values()))))
 
-const buildGraph = throttle(1000, () => {
-  const $pubkey = pubkey.get()
-  const $graph = new Map<string, number>()
-  const followedPubkeys = $pubkey ? getFollows($pubkey) : follows.index.keys()
-
-  for (const follow of followedPubkeys) {
-    for (const pubkey of getFollows(follow)) {
-      $graph.set(pubkey, inc($graph.get(pubkey)))
-    }
-
-    for (const pubkey of getMutes(follow)) {
-      $graph.set(pubkey, dec($graph.get(pubkey)))
-    }
-  }
-
-  wotGraph.set($graph)
-})
-
-pubkey.subscribe(buildGraph)
-follows.subscribe(buildGraph)
-mutes.subscribe(buildGraph)
-
 export const getWotScore = (pubkey: string, target: string) => {
-  const follows = pubkey ? getFollowsWhoFollow(pubkey, target) : getFollowers(target)
-  const mutes = pubkey ? getFollowsWhoMute(pubkey, target) : getMuters(target)
+  const follows = pubkey ? getFollowsWhoFollow(pubkey, target).length : getFollowers(target)?.size
+  const mutes = pubkey ? getFollowsWhoMute(pubkey, target).length : getMuters(target)?.size
 
-  return follows.length - mutes.length
+  return sub(follows, mutes)
 }
+
+export const getUserWotScore = (target: string) => wotGraph.get().get(target) || 0
+
+export const deriveUserWotScore = (target: string) => deriveIfChanged(wotGraph, $g => $g.get(target))

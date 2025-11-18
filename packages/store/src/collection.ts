@@ -12,6 +12,20 @@ import {
 import {Filter, matchFilters, TrustedEvent} from "@welshman/util"
 import {Repository} from "@welshman/net"
 import {getFreshness, setFreshness} from "./freshness.js"
+import {deriveIfChanged} from "./memoize.js"
+
+// Collections combine a bunch of interleaved concerns into a single utility:
+//
+// - Ability to access values directly, or via reactive store
+// - Efficient derivation from events repository
+// - Emission of updates rather than all records allows for efficient downstream derivations
+// - Auto fetching with deduplication and caching
+//
+// This could be decomposed into the following components:
+// - Adapters to turn a data source into granular updates (event emitters -> observables)
+// - Derivers that collect updates into values (collections, or a single value)
+// - getters for syncing regular access with arbitrary stores
+// - loader that takes load logic and combines it with a getter
 
 // General purpose utils
 
@@ -80,7 +94,7 @@ export const makeCachedLoader = <T>({name, fetch, index}: CachedLoader2Options<T
 
 export type CollectionUpdate<T> = {
   updated?: T[]
-  removed?: Set<string>
+  removed?: T[]
 }
 
 export type CollectionOptions<T> = {
@@ -129,19 +143,10 @@ export class Collection<T> {
 
   one = (key: string) => this.index.get(key)
 
-  one$ = (key: string, ...args: any[]) => {
+  one$ = (key: string, ...args: any[]): Readable<Maybe<T>> => {
     this.load(key, ...args)
 
-    let prev: Maybe<T>
-
-    return derived(this, (_, set) => {
-      const value = this.one(key)
-
-      if (value !== prev) {
-        prev = value
-        set(value)
-      }
-    })
+    return deriveIfChanged(this, () => this.one(key))
   }
 
   notify = (update: CollectionUpdate<T>) => {
@@ -294,13 +299,20 @@ export const makeSimpleRepositoryCollection = <T>({
       const keys = mapping.get(id)
 
       if (keys) {
+        const removed: T[] = []
+
         mapping.delete(id)
 
         for (const key of keys) {
-          collection.index.delete(key)
+          const item = collection.one(key)
+
+          if (item) {
+            removed.push(item)
+            collection.index.delete(key)
+          }
         }
 
-        collection.notify({removed: keys})
+        collection.notify({removed})
       }
 
       deferred.delete(id)
@@ -326,9 +338,11 @@ export const makeLoaderCollection = <T>({name, fetch, getKey}: LoaderCollectionO
       collection.notify({updated: [item]})
     },
     remove: (key: string) => {
-      if (collection.index.has(key)) {
+      const item = collection.index.get(key)
+
+      if (item) {
         collection.index.delete(key)
-        collection.notify({removed: new Set([key])})
+        collection.notify({removed: [item]})
       }
     },
     fetch: async (key: string, ...args: unknown[]) => {

@@ -8,7 +8,6 @@ import {pins} from "./pins.js"
 import {blossomServers} from "./blossom.js"
 import {relaySelections} from "./relaySelections.js"
 import {inboxRelaySelections} from "./inboxRelaySelections.js"
-import {wotGraph} from "./wot.js"
 
 export type UserDataLoader = (pubkey: string, relays?: string[], force?: boolean) => unknown
 
@@ -89,6 +88,3 @@ export const userBlossomServers = makeUserData({
 
 export const loadUserBlossomServers = makeUserLoader(blossomServers.load)
 
-export const getUserWotScore = (tpk: string) => wotGraph.get().get(tpk) || 0
-
-export const deriveUserWotScore = (tpk: string) => derived(wotGraph, $g => $g.get(tpk) || 0)
