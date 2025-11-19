@@ -1,7 +1,4 @@
-import {readable, derived, writable, Readable, Subscriber} from "svelte/store"
-import {Maybe, batch, indexBy, remove, assoc, now} from "@welshman/lib"
-import {withGetter, ReadableWithGetter} from "./getter.js"
-import {memoized} from "./memoize.js"
+import {Maybe, now} from "@welshman/lib"
 
 export type LoaderOptions<T> = {
   getItem: (key: string) => T

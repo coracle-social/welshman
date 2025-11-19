@@ -1,35 +1,32 @@
 import {derived, readable} from "svelte/store"
 import {readProfile, displayProfile, displayPubkey, PROFILE} from "@welshman/util"
-import {PublishedProfile} from "@welshman/util"
-import {deriveEventsMapped, collection, withGetter} from "@welshman/store"
+import {deriveItemsByKey, deriveItems, makeDeriveItem, getter} from "@welshman/store"
 import {repository} from "./core.js"
 import {makeOutboxLoaderWithIndexers} from "./relaySelections.js"
 
-export const profiles = withGetter(
-  deriveEventsMapped<PublishedProfile>(repository, {
-    filters: [{kinds: [PROFILE]}],
-    eventToItem: readProfile,
-    itemToEvent: item => item.event,
-  }),
-)
-
-export const {
-  indexStore: profilesByPubkey,
-  deriveItem: deriveProfile,
-  loadItem: loadProfile,
-} = collection({
-  name: "profiles",
-  store: profiles,
+export const profilesByPubkey = deriveItemsByKey({
+  repository,
+  eventToItem: readProfile,
+  filters: [{kinds: [PROFILE]}],
   getKey: profile => profile.event.pubkey,
-  load: makeOutboxLoaderWithIndexers(PROFILE),
 })
 
-export const displayProfileByPubkey = (pubkey: string | undefined) =>
-  pubkey ? displayProfile(profilesByPubkey.get().get(pubkey), displayPubkey(pubkey)) : ""
+export const profiles = deriveItems(profilesByPubkey)
 
-export const deriveProfileDisplay = (pubkey: string | undefined, relays: string[] = []) =>
+export const loadProfile = makeOutboxLoaderWithIndexers(PROFILE)
+
+export const deriveProfile = makeDeriveItem(profilesByPubkey, loadProfile)
+
+export const getProfilesByPubkey = getter(profilesByPubkey)
+
+export const getProfile = (pubkey: string) => getProfilesByPubkey().get(pubkey)
+
+export const displayProfileByPubkey = (pubkey: string | undefined) =>
+  pubkey ? displayProfile(getProfile(pubkey), displayPubkey(pubkey)) : ""
+
+export const deriveProfileDisplay = (pubkey: string | undefined, ...args: any[]) =>
   pubkey
-    ? derived(deriveProfile(pubkey, relays), $profile =>
+    ? derived(deriveProfile(pubkey, ...args), $profile =>
         displayProfile($profile, displayPubkey(pubkey)),
       )
     : readable("")

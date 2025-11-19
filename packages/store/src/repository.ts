@@ -1,21 +1,8 @@
 import {derived, readable, Readable} from "svelte/store"
-import {
-  on,
-  indexBy,
-  mapPop,
-  Maybe,
-  call,
-  sortBy,
-  identity,
-  ensurePlural,
-  removeUndefined,
-  batch,
-  partition,
-  first,
-} from "@welshman/lib"
-import {matchFilters, getIdAndAddress, getIdFilters, Filter, TrustedEvent} from "@welshman/util"
+import {on, indexBy, mapPop, Maybe, call, sortBy, first} from "@welshman/lib"
+import {matchFilters, getIdFilters, Filter, TrustedEvent} from "@welshman/util"
 import {Repository, RepositoryUpdate, Tracker} from "@welshman/net"
-import {deriveDeduplicated} from './memoize.js'
+import {deriveDeduplicated} from "./misc.js"
 
 // Events by id
 
@@ -179,9 +166,10 @@ export const deriveEventsByIdByUrl = ({
   })
 }
 
-export const deriveEventsByIdForUrl = (url: string, eventsByIdByUrlStore: Readable<EventsByIdByUrl>) =>
-  deriveDeduplicated(eventsByIdByUrlStore, eventsByIdByUrl => eventsByIdByUrl.get(url))
-
+export const deriveEventsByIdForUrl = (
+  url: string,
+  eventsByIdByUrlStore: Readable<EventsByIdByUrl>,
+) => deriveDeduplicated(eventsByIdByUrlStore, eventsByIdByUrl => eventsByIdByUrl.get(url))
 
 // Items by key
 
@@ -274,6 +262,17 @@ export const deriveItems = <T>(itemsByKeyStore: Readable<ItemsByKey<T>>) =>
 export const deriveItemsSorted = <T>(sortFn: (item: T) => number, itemsStore: Readable<T[]>) =>
   deriveDeduplicated(itemsStore, items => sortBy(sortFn, items))
 
+export const makeDeriveItem = <T>(
+  itemsByKeyStore: Readable<ItemsByKey<T>>,
+  onDerive?: (key: string, ...args: any[]) => void,
+) => {
+  return (key: string, ...args: any[]) => {
+    onDerive?.(key, ...args)
+
+    return deriveDeduplicated(itemsByKeyStore, itemsByKey => itemsByKey.get(key))
+  }
+}
+
 // Miscellaneous other stuff
 
 export const deriveEvent = (repository: Repository, idOrAddress: string) =>
@@ -288,7 +287,7 @@ export const deriveEvent = (repository: Repository, idOrAddress: string) =>
 
 export const deriveIsDeleted = (repository: Repository, event: TrustedEvent) =>
   readable(repository.isDeleted(event), set => {
-    const unsubscribe = on(repository, 'update', ({removed}: RepositoryUpdate) => {
+    const unsubscribe = on(repository, "update", ({removed}: RepositoryUpdate) => {
       if (removed.has(event.id)) {
         set(true)
         unsubscribe()
