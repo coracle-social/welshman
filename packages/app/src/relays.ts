@@ -4,14 +4,14 @@ import {
   removeUndefined,
   prop,
   indexBy,
-  batcher,
+  batch,
   fetchJson,
   postJson,
   Maybe,
 } from "@welshman/lib"
 import {RelayProfile} from "@welshman/util"
 import {normalizeRelayUrl, displayRelayUrl, displayRelayProfile} from "@welshman/util"
-import {makeLoaderCollection} from "@welshman/store"
+import {makeCollection} from "@welshman/store"
 import {appContext} from "./context.js"
 
 export const fetchRelayProfileDirectly = async (url: string): Promise<Maybe<RelayProfile>> => {
@@ -63,14 +63,13 @@ export const fetchRelayProfiles = (urls: string[]) =>
     ? fetchRelayProfilesUsingProxy(appContext.dufflepudUrl, urls)
     : fetchRelayProfilesDirectly(urls)
 
-export const relays = makeLoaderCollection<RelayProfile>({
+export const relays = makeCollection<RelayProfile>({
   name: "relays",
   getKey: relay => relay.url,
-  load: batcher(800, async (raw: string[]) => {
-    const urls = raw.map(normalizeRelayUrl)
-    const map = await fetchRelayProfiles(uniq(raw))
+  load: batch(800, async (raw: string[]) => {
+    const relaysByUrl = await fetchRelayProfiles(uniq(raw.map(normalizeRelayUrl)))
 
-    return urls.map(url => map.get(url))
+    relays.stream.update(Array.from(relaysByUrl.values()))
   }),
 })
 

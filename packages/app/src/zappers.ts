@@ -7,10 +7,10 @@ import {
   bech32ToHex,
   hexToBech32,
   tryCatch,
-  batcher,
+  batch,
   postJson,
 } from "@welshman/lib"
-import {makeLoaderCollection} from "@welshman/store"
+import {makeCollection} from "@welshman/store"
 import {profiles} from "./profiles.js"
 import {appContext} from "./context.js"
 
@@ -51,13 +51,13 @@ export const fetchZappers = async (lnurls: string[]) => {
   return zappersByLnurl
 }
 
-export const zappers = makeLoaderCollection<Zapper>({
+export const zappers = makeCollection<Zapper>({
   name: "zappers",
   getKey: zapper => zapper.lnurl,
-  load: batcher(800, async (lnurls: string[]) => {
-    const map = await fetchZappers(uniq(lnurls))
+  load: batch(800, async (lnurls: string[]) => {
+    const zappersByLnurl = await fetchZappers(uniq(lnurls))
 
-    return lnurls.map(lnurl => map.get(lnurl))
+    zappers.stream.update(Array.from(zappersByLnurl.values()))
   }),
 })
 
@@ -72,14 +72,14 @@ export const loadZapperForPubkey = async (pubkey: string, relays: string[] = [])
 }
 
 export const deriveZapperForPubkey = (pubkey: string, relays: string[] = []) =>
-  derived([zappers.index$, profiles.one$(pubkey, relays)], ([$index, $profile]) => {
+  derived([zappers.map$, profiles.one$(pubkey, relays)], ([$map, $profile]) => {
     if (!$profile?.lnurl) {
       return undefined
     }
 
     zappers.load($profile.lnurl)
 
-    return $index.get($profile.lnurl)
+    return $map.get($profile.lnurl)
   })
 
 export const getLnUrlsForEvent = async (event: TrustedEvent) => {

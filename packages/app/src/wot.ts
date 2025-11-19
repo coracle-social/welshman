@@ -1,8 +1,8 @@
 import {derived} from "svelte/store"
-import type {Readable, Subscriber} from "svelte/store"
+import type {Subscriber, Unsubscriber} from "svelte/store"
 import {max, sub, call, noop, addToMapKey, inc, dec} from "@welshman/lib"
 import {getListTags, getPubkeyTagValues, PublishedList} from "@welshman/util"
-import {custom, withGetter, deriveIfChanged, NotifierPayload} from "@welshman/store"
+import {custom, withGetter, deriveIfChanged, Collection} from "@welshman/store"
 import {pubkey} from "./session.js"
 import {follows} from "./follows.js"
 import {mutes} from "./mutes.js"
@@ -27,19 +27,19 @@ export const getNetwork = (pubkey: string) => {
   return Array.from(network)
 }
 
-const buildReverseMapping = (store: Readable<NotifierPayload<PublishedList>>) =>
+const buildReverseMapping = (store: Collection<PublishedList>) =>
   withGetter(
     custom<Map<string, Set<string>>>(set => {
       const value = new Map()
 
-      return follows.subscribe(payload => {
-        payload.handlePut(list => {
+      return store.stream.subscribe(payload => {
+        for (const list of payload.updated) {
           for (const pubkey of getPubkeyTagValues(getListTags(list))) {
             addToMapKey(value, pubkey, list.event.pubkey)
           }
-        })
+        }
 
-        payload.handlePop(list => {
+        for (const list of payload.updated) {
           for (const pubkey of getPubkeyTagValues(getListTags(list))) {
             const pubkeys = value.get(pubkey)
 
@@ -49,7 +49,7 @@ const buildReverseMapping = (store: Readable<NotifierPayload<PublishedList>>) =>
               value.delete(pubkey)
             }
           }
-        })
+        }
 
         set(value)
       })
@@ -75,42 +75,44 @@ const maintainWotGraph = (set: Subscriber<Map<string, number>>) => {
   const graph = new Map<string, number>()
   const followedPubkeys = new Set(userPubkey ? getFollows(userPubkey) : [])
 
+  set(graph)
+
   const unsubscribers = [
-    follows.subscribe(payload => {
-      payload.handlePut(list => {
+    follows.stream.subscribe(payload => {
+      for (const list of payload.updated) {
         if (followedPubkeys.has(list.event.pubkey)) {
           for (const pubkey of getPubkeyTagValues(getListTags(list))) {
             graph.set(pubkey, inc(graph.get(pubkey)))
           }
         }
-      })
+      }
 
-      payload.handlePop(list => {
+      for (const list of payload.updated) {
         if (followedPubkeys.has(list.event.pubkey)) {
           for (const pubkey of getPubkeyTagValues(getListTags(list))) {
             graph.set(pubkey, dec(graph.get(pubkey)))
           }
         }
-      })
+      }
 
       set(graph)
     }),
-    mutes.subscribe(payload => {
-      payload.handlePut(list => {
+    mutes.stream.subscribe(payload => {
+      for (const list of payload.updated) {
         if (followedPubkeys.has(list.event.pubkey)) {
           for (const pubkey of getPubkeyTagValues(getListTags(list))) {
             graph.set(pubkey, dec(graph.get(pubkey)))
           }
         }
-      })
+      }
 
-      payload.handlePut(list => {
+      for (const list of payload.updated) {
         if (followedPubkeys.has(list.event.pubkey)) {
           for (const pubkey of getPubkeyTagValues(getListTags(list))) {
             graph.set(pubkey, inc(graph.get(pubkey)))
           }
         }
-      })
+      }
 
       set(graph)
     }),
@@ -121,13 +123,16 @@ const maintainWotGraph = (set: Subscriber<Map<string, number>>) => {
 
 export const wotGraph = withGetter(
   custom<Map<string, number>>(set => {
-    const unsubscribers = [
-      noop,
+    const unsubscribers: Unsubscriber[] = []
+
+    unsubscribers.push(noop)
+
+    unsubscribers.push(
       userFollows.subscribe(() => {
         unsubscribers[0]()
         unsubscribers[0] = maintainWotGraph(set)
       }),
-    ]
+    )
 
     return () => unsubscribers.forEach(call)
   }),
@@ -145,4 +150,4 @@ export const getWotScore = (pubkey: string, target: string) => {
 export const getUserWotScore = (target: string) => wotGraph.get().get(target) || 0
 
 export const deriveUserWotScore = (target: string) =>
-  deriveIfChanged(wotGraph, $g => $g.get(target))
+  deriveIfChanged(wotGraph, $g => $g.get(target) || 0)

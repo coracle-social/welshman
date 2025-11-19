@@ -1,4 +1,4 @@
-import {first, batcher, flatten} from "@welshman/lib"
+import {batcher, flatten} from "@welshman/lib"
 import {
   RELAYS,
   Filter,
@@ -26,7 +26,7 @@ export const makeOutboxLoader =
   async (pubkey: string, relays: string[]) => {
     const filters = [{...filter, authors: [pubkey], kinds: [kind]}]
 
-    return first(flatten(await Promise.all([load({relays, filters}), loadUsingOutbox({filters})])))
+    return flatten(await Promise.all([load({relays, filters}), loadUsingOutbox({filters})]))
   }
 
 export const makeOutboxLoaderWithIndexers =
@@ -34,14 +34,12 @@ export const makeOutboxLoaderWithIndexers =
   async (pubkey: string, relays: string[]) => {
     const filters = [{...filter, authors: [pubkey], kinds: [kind]}]
 
-    return first(
-      flatten(
-        await Promise.all([
-          load({relays, filters}),
-          loadUsingOutbox({filters}),
-          load({relays: Router.get().Index().getUrls(), filters}),
-        ]),
-      ),
+    return flatten(
+      await Promise.all([
+        load({relays, filters}),
+        loadUsingOutbox({filters}),
+        load({relays: Router.get().Index().getUrls(), filters}),
+      ]),
     )
   }
 

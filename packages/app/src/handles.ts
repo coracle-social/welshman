@@ -1,6 +1,6 @@
 import {derived} from "svelte/store"
-import {tryCatch, fetchJson, uniq, batcher, postJson, last} from "@welshman/lib"
-import {makeLoaderCollection} from "@welshman/store"
+import {tryCatch, fetchJson, uniq, batch, postJson, last} from "@welshman/lib"
+import {makeCollection} from "@welshman/store"
 import {profiles} from "./profiles.js"
 import {appContext} from "./context.js"
 
@@ -73,25 +73,25 @@ export const fetchHandles = async (nip05s: string[]) => {
   return handlesByNip05
 }
 
-export const handles = makeLoaderCollection<Handle>({
+export const handles = makeCollection<Handle>({
   name: "handles",
   getKey: handle => handle.nip05,
-  load: batcher(800, async (nip05s: string[]) => {
-    const map = await fetchHandles(uniq(nip05s))
+  load: batch(800, async (nip05s: string[]) => {
+    const handlesByNip05 = await fetchHandles(uniq(nip05s))
 
-    return nip05s.map(nip05 => map.get(nip05))
+    handles.stream.update(Array.from(handlesByNip05.values()))
   }),
 })
 
 export const deriveHandleForPubkey = (pubkey: string, relays: string[] = []) =>
-  derived([handles.index$, profiles.one$(pubkey, relays)], ([$index, $profile]) => {
+  derived([handles.map$, profiles.one$(pubkey, relays)], ([$map, $profile]) => {
     if (!$profile?.nip05) {
       return undefined
     }
 
     handles.load($profile.nip05)
 
-    const handle = $index.get($profile.nip05)
+    const handle = $map.get($profile.nip05)
 
     if (handle?.pubkey === pubkey) {
       return handle

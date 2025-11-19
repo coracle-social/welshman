@@ -1,9 +1,8 @@
 import {Unsubscriber, Subscriber, Readable, derived} from "svelte/store"
-import {Maybe, MaybeAsync, once, isDefined, always, now, indexBy, on} from "@welshman/lib"
+import {Maybe, MaybeAsync, isDefined, now, on} from "@welshman/lib"
 import {Repository, RepositoryUpdate} from "@welshman/net"
 import {Filter, TrustedEvent, matchFilters} from "@welshman/util"
 import {getFreshness, setFreshness} from "./freshness.js"
-import {deriveIfChanged} from "./memoize.js"
 
 // Subscription Manager
 
@@ -45,134 +44,100 @@ export class SubscriberManager<T> {
   }
 }
 
-// Notifier
+// Stream
 
-export enum NotifierPayloadType {
-  Put = "put",
-  Pop = "pop",
+export type StreamPayload<T> = {
+  updated: T[]
+  removed: T[]
 }
 
-export type ItemHandler<T> = (item: T) => void
-
-export class NotifierPayload<T> {
-  constructor(
-    readonly type: NotifierPayloadType,
-    readonly items: T[],
-  ) {}
-
-  static put<T>(items: T[]) {
-    return new NotifierPayload(NotifierPayloadType.Put, items)
-  }
-
-  static pop<T>(items: T[]) {
-    return new NotifierPayload(NotifierPayloadType.Pop, items)
-  }
-
-  handlePut(f: ItemHandler<T>) {
-    if (this.type === NotifierPayloadType.Put) {
-      for (const item of this.items) {
-        f(item)
-      }
-    }
-  }
-
-  handlePop(f: ItemHandler<T>) {
-    if (this.type === NotifierPayloadType.Pop) {
-      for (const item of this.items) {
-        f(item)
-      }
-    }
-  }
-}
-
-export type NotifierHandler<T> = (payload: NotifierPayload<T>) => void
-
-export class Notifier<T> {
-  private manager: SubscriberManager<NotifierPayload<T>>
+export class Stream<T> {
+  private manager: SubscriberManager<StreamPayload<T>>
 
   constructor(private options: SubscriberManagerOptions = {}) {
     this.manager = new SubscriberManager(options)
   }
 
-  put(items: T[]) {
-    if (items.length > 0) {
-      this.manager.notify(NotifierPayload.put(items))
+  update(updated: T[]) {
+    if (updated.length > 0) {
+      this.manager.notify({updated, removed: []})
     }
   }
 
-  pop(items: T[]) {
-    if (items.length > 0) {
-      this.manager.notify(NotifierPayload.pop(items))
+  remove(removed: T[]) {
+    if (removed.length > 0) {
+      this.manager.notify({removed, updated: []})
     }
   }
 
-  subscribe = (sub: NotifierHandler<T>) => {
+  subscribe = (sub: (payload: StreamPayload<T>) => void) => {
+    sub({updated: [], removed: []})
+
     return this.manager.subscribe(sub)
   }
 }
-
-// Source
-
-export type Source<T> = () => Map<string, T>
-
-// Loader
-
-export type Loader<T> = (key: string, ...args: any[]) => Promise<Maybe<T>>
 
 // Collection
 
-export type CollectionOptions<T> = {
+export type CollectionOptions<T> = SubscriberManagerOptions & {
   name: string
-  source: Source<T>
-  notifier: Notifier<T>
   getKey: (item: T) => string
-  load?: Loader<T>
+  load?: (key: string, ...args: any[]) => unknown
+  autoStart?: boolean
 }
 
 export class Collection<T> {
-  private index: Maybe<Map<string, T>>
-  private manager: SubscriberManager<NotifierPayload<T>>
+  private itemsByKey = new Map<string, T>()
   private pendingLoads = new Map<string, Promise<Maybe<T>>>()
   private loadAttempts = new Map<string, number>()
+  private unsubscriber: Unsubscriber | undefined
 
-  index$: Readable<Map<string, T>>
-  items$: Readable<T[]>
+  stream: Stream<T>
+  map$: Readable<Map<string, T>>
+  all$: Readable<T[]>
 
   constructor(private options: CollectionOptions<T>) {
-    this.manager = new SubscriberManager({
-      start: this.start,
-      stop: this.stop,
+    this.stream = new Stream(options)
+    this.map$ = derived(this.stream, () => this.itemsByKey)
+    this.all$ = derived(this.stream, () => Array.from(this.itemsByKey.values()))
+
+    if (options.autoStart !== false) {
+      this.start()
+    }
+  }
+
+  assertActive = () => {
+    if (!this.unsubscriber) {
+      throw new Error(`Collection ${this.options.name} must be started before it can be accessed`)
+    }
+  }
+
+  start = () => {
+    if (this.unsubscriber) {
+      throw new Error(`Collection ${this.options.name} started multiple times`)
+    }
+
+    this.unsubscriber = this.stream.subscribe(payload => {
+      for (const item of payload.updated) {
+        this.itemsByKey.set(this.options.getKey(item), item)
+      }
+
+      for (const item of payload.removed) {
+        this.itemsByKey.delete(this.options.getKey(item))
+      }
     })
 
-    this.index$ = derived(this.manager, this.getIndex)
-    this.items$ = derived(this.manager, this.getItems)
+    return this.stop
   }
 
-  private start = () => {
-    this.index = this.getIndex()
-
-    return this.options.notifier.subscribe(payload => {
-      payload.handlePut(item => {
-        this.index?.set(this.options.getKey(item), item)
-      })
-
-      payload.handlePop(item => {
-        this.index?.delete(this.options.getKey(item))
-      })
-
-      this.manager.notify(payload)
-    })
+  stop = () => {
+    this.unsubscriber?.()
+    this.unsubscriber = undefined
   }
 
-  private stop = () => {
-    this.index?.clear()
-  }
+  load = async (key: string, ...args: any[]) => {
+    this.assertActive()
 
-  subscribe = (sub: NotifierHandler<T>) => {
-    return this.manager.subscribe(sub)
-  }
-
-  load: Loader<T> = async (key: string, ...args: any[]) => {
     if (!this.options.load) {
       throw new Error("load was not provided")
     }
@@ -186,8 +151,10 @@ export class Collection<T> {
     }
 
     // If we already are loading, await and return
-    if (this.pendingLoads.has(key)) {
-      return this.pendingLoads.get(key)!
+    const pending = this.pendingLoads.get(key)
+
+    if (pending) {
+      return pending
     }
 
     const attempt = this.loadAttempts.get(key) || 0
@@ -201,11 +168,11 @@ export class Collection<T> {
 
     setFreshness(this.options.name, key, now())
 
-    const promise = this.options.load(key, ...args)
+    const promise = Promise.resolve(this.options.load(key, ...args)).then(() => this.one(key))
 
     this.pendingLoads.set(key, promise)
 
-    let item: Maybe<T>
+    let item: T | undefined
     try {
       item = await promise
     } catch (e) {
@@ -215,41 +182,44 @@ export class Collection<T> {
     }
 
     if (item) {
-      this.options.notifier.put([item])
       this.loadAttempts.delete(key)
     }
 
     return item
   }
 
-  getIndex = () => this.index || this.options.source()
+  map = () => {
+    this.assertActive()
 
-  getItems = () => Array.from(this.getIndex().values())
+    return this.itemsByKey
+  }
 
-  one = (key: string) => this.getIndex().get(key)
+  all = () => Array.from(this.map().values())
+
+  one = (key: string) => this.map().get(key)
 
   one$ = (key: string, ...args: any[]) => {
+    this.assertActive()
     this.options.load?.(key, ...args)
 
-    return deriveIfChanged(this.manager, () => this.one(key))
+    let initial = true
+
+    return derived<Stream<T>, Maybe<T>>(this.stream, (payload, set) => {
+      if (initial) {
+        set(this.one(key))
+        initial = false
+      }
+
+      for (const item of payload.updated) {
+        if (this.options.getKey(item) === key) {
+          set(this.one(key))
+        }
+      }
+    })
   }
 }
 
-// Loader Collection
-
-export type LoaderCollectionOptions<T> = {
-  name: string
-  getKey: (item: T) => string
-  load: Loader<T>
-}
-
-export const makeLoaderCollection = <T>({name, getKey, load}: LoaderCollectionOptions<T>) => {
-  const notifier = new Notifier<T>({})
-  const source = once(() => new Map<string, T>())
-  const collection = new Collection<T>({name, getKey, source, notifier, load})
-
-  return collection
-}
+export const makeCollection = <T>(options: CollectionOptions<T>) => new Collection<T>(options)
 
 // Events Collection
 
@@ -268,23 +238,22 @@ export const makeEventsCollection = ({
 }: EventsCollectionOptions) => {
   const getKey = (event: TrustedEvent) => event.id
 
-  const source = () => indexBy(e => e.id, repository.query(filters, {includeDeleted}))
+  const start = () =>
+    on(repository, "update", ({added, removed}: RepositoryUpdate) => {
+      collection.stream.update(added.filter(e => matchFilters(filters, e)))
 
-  const notifier = new Notifier<TrustedEvent>({
-    start: () =>
-      on(repository, "update", ({added, removed}: RepositoryUpdate) => {
-        notifier.put(added)
+      if (!includeDeleted) {
+        collection.stream.remove(
+          Array.from(removed)
+            .map(id => repository.getEvent(id))
+            .filter(event => event && matchFilters(filters, event)) as TrustedEvent[],
+        )
+      }
+    })
 
-        if (!includeDeleted) {
-          const modifiedFilters = filters.map(f => ({...f, ids: Array.from(removed)}))
-          const deletedEvents = repository.query(modifiedFilters, {includeDeleted: true})
+  const collection = new Collection({name, getKey, start})
 
-          notifier.pop(deletedEvents)
-        }
-      }),
-  })
-
-  return new Collection({name, getKey, source, notifier})
+  return collection
 }
 
 // Mapped Collection
@@ -296,7 +265,7 @@ export type MappedCollectionOptions<T> = {
   includeDeleted?: boolean
   getKey: (item: T) => string
   eventToItem: (event: TrustedEvent) => MaybeAsync<Maybe<T>>
-  load: Loader<TrustedEvent>
+  load: (key: string, ...args: any[]) => Promise<TrustedEvent[]>
 }
 
 export const makeMappedCollection = <T>({
@@ -308,7 +277,6 @@ export const makeMappedCollection = <T>({
   eventToItem,
   ...options
 }: MappedCollectionOptions<T>) => {
-  const source = always(new Map())
   const deferred = new Map<string, Promise<Maybe<T>>>()
   const eventIdByKey = new Map<string, string>()
   const keysByEventId = new Map<string, string>()
@@ -344,7 +312,7 @@ export const makeMappedCollection = <T>({
       keysByEventId.set(event.id, key)
       eventIdByKey.set(key, event.id)
 
-      notifier.put([item])
+      collection.stream.update([item])
     }
 
     deferred.delete(event.id)
@@ -352,42 +320,36 @@ export const makeMappedCollection = <T>({
     return item
   }
 
-  const notifier = new Notifier<T>({
-    start: () => {
-      for (const event of repository.query(filters, {includeDeleted})) {
-        addEvent(event)
+  const start = () => {
+    for (const event of repository.query(filters, {includeDeleted})) {
+      addEvent(event)
+    }
+
+    return on(repository, "update", ({added, removed}: RepositoryUpdate) => {
+      for (const event of added) {
+        if (matchFilters(filters, event)) {
+          addEvent(event)
+        }
       }
 
-      return on(repository, "update", ({added, removed}: RepositoryUpdate) => {
-        for (const event of added) {
-          if (matchFilters(filters, event)) {
-            addEvent(event)
-          }
-        }
-
-        if (!includeDeleted) {
-          notifier.pop(
-            Array.from(removed)
-              .flatMap(id => keysByEventId.get(id) || [])
-              .map(collection.one)
-              .filter(isDefined),
-          )
-        }
-      })
-    },
-  })
+      if (!includeDeleted) {
+        collection.stream.remove(
+          Array.from(removed)
+            .flatMap(id => keysByEventId.get(id) || [])
+            .map(collection.one)
+            .filter(isDefined),
+        )
+      }
+    })
+  }
 
   const load = async (key: string, ...args: any[]) => {
-    const event = await options.load(key, ...args)
-
-    if (event) {
+    for (const event of await options.load(key, ...args)) {
       repository.publish(event)
-
-      return addEvent(event)
     }
   }
 
-  const collection = new Collection({name, getKey, source, notifier, load})
+  const collection = new Collection({name, getKey, start, load})
 
   return collection
 }

@@ -62,7 +62,7 @@ export const searchProfiles = debounce(500, (search: string) => {
 })
 
 export const profileSearch = derived(
-  [throttled(800, profiles.items$), throttled(800, handles.index$)],
+  [throttled(800, profiles.all$), throttled(800, handles.map$)],
   ([$profiles, $handles]) => {
     // Remove invalid nip05's from profiles
     const options = $profiles.map(p => {
@@ -100,7 +100,7 @@ export const topicSearch = derived(topics, $topics =>
   }),
 )
 
-export const relaySearch = derived(relays.items$, $relays =>
+export const relaySearch = derived(relays.all$, $relays =>
   createSearch($relays, {
     getValue: (relay: RelayProfile) => relay.url,
     fuseOptions: {

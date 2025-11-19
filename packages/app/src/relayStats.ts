@@ -1,6 +1,6 @@
-import {writable, derived} from "svelte/store"
-import {withGetter} from "@welshman/store"
-import {prop, groupBy, indexBy, batch, now, uniq, ago, DAY, HOUR, MINUTE} from "@welshman/lib"
+import {derived} from "svelte/store"
+import {makeCollection} from "@welshman/store"
+import {groupBy, batch, now, uniq, ago, DAY, HOUR, MINUTE} from "@welshman/lib"
 import {isOnionUrl, isLocalUrl, isIPAddress, isRelayUrl} from "@welshman/util"
 import {Pool, Socket, SocketStatus, SocketEvent, ClientMessage, RelayMessage} from "@welshman/net"
 
@@ -48,33 +48,31 @@ export const makeRelayStats = (url: string): RelayStats => ({
   notice_count: 0,
 })
 
-export const relayStats = withGetter(writable<RelayStats[]>([]))
+export const relayStats = makeCollection<RelayStats>({
+  name: "relayStats",
+  getKey: relayStats => relayStats.url,
+})
 
-export const relayStatsByUrl = withGetter(
-  derived(relayStats, $relayStats => indexBy(prop("url"), $relayStats)),
-)
-
-export const deriveRelayStats = (url: string) =>
-  derived(relayStatsByUrl, $relayStatsByUrl => $relayStatsByUrl.get(url))
+export const deriveRelayStats = (url: string) => derived(relayStats.map$, $m => $m.get(url))
 
 export const getRelayQuality = (url: string) => {
   // Skip non-relays entirely
   if (!isRelayUrl(url)) return 0
 
-  const relayStats = relayStatsByUrl.get().get(url)
+  const stats = relayStats.one(url)
 
   // If we have recent errors, skip it
-  if (relayStats) {
-    if (relayStats.recent_errors.filter(n => n > ago(MINUTE)).length > 0) return 0
-    if (relayStats.recent_errors.filter(n => n > ago(HOUR)).length > 3) return 0
-    if (relayStats.recent_errors.filter(n => n > ago(DAY)).length > 10) return 0
+  if (stats) {
+    if (stats.recent_errors.filter(n => n > ago(MINUTE)).length > 0) return 0
+    if (stats.recent_errors.filter(n => n > ago(HOUR)).length > 3) return 0
+    if (stats.recent_errors.filter(n => n > ago(DAY)).length > 10) return 0
   }
 
   // Prefer stuff we're connected to
   if (Pool.get().has(url)) return 1
 
   // Prefer stuff we've connected to in the past
-  if (relayStats) return 0.9
+  if (stats) return 0.9
 
   // If it's not weird url give it an ok score
   if (!isIPAddress(url) && !isLocalUrl(url) && !isOnionUrl(url) && !url.startsWith("ws://")) {
@@ -90,27 +88,24 @@ export const getRelayQuality = (url: string) => {
 type RelayStatsUpdate = [string, (stats: RelayStats) => void]
 
 const updateRelayStats = batch(500, (updates: RelayStatsUpdate[]) => {
-  relayStats.update($relayStats => {
-    const $relayStatsByUrl = indexBy(r => r.url, $relayStats)
-
-    for (const [url, items] of groupBy(([url]) => url, updates)) {
-      if (!url || !isRelayUrl(url)) {
-        console.warn(`Attempted to update stats for an invalid relay url: ${url}`)
-        continue
-      }
-
-      const $relayStatsItem: RelayStats = $relayStatsByUrl.get(url) || makeRelayStats(url)
-
-      for (const [_, update] of items) {
-        update($relayStatsItem)
-      }
-
-      // Copy so the database gets updated, since we're mutating in updates
-      $relayStatsByUrl.set(url, {...$relayStatsItem})
+  const result: RelayStats[] = []
+  for (const [url, items] of groupBy(([url]) => url, updates)) {
+    if (!url || !isRelayUrl(url)) {
+      console.warn(`Attempted to update stats for an invalid relay url: ${url}`)
+      continue
     }
 
-    return Array.from($relayStatsByUrl.values())
-  })
+    const stats = relayStats.one(url) || makeRelayStats(url)
+
+    for (const [_, update] of items) {
+      update(stats)
+    }
+
+    // Copy since we're mutating in updates
+    result.push({...stats})
+  }
+
+  relayStats.stream.update(result)
 })
 
 const onSocketSend = ([verb]: ClientMessage, url: string) => {

@@ -40,49 +40,49 @@ export const makeUserLoader =
   }
 
 export const userProfile = makeUserData({
-  mapStore: profiles.index$,
+  mapStore: profiles.map$,
   loadItem: profiles.load,
 })
 
 export const loadUserProfile = makeUserLoader(profiles.load)
 
 export const userFollows = makeUserData({
-  mapStore: follows.index$,
+  mapStore: follows.map$,
   loadItem: follows.load,
 })
 
 export const loadUserFollows = makeUserLoader(follows.load)
 
 export const userMutes = makeUserData({
-  mapStore: mutes.index$,
+  mapStore: mutes.map$,
   loadItem: mutes.load,
 })
 
 export const loadUserMutes = makeUserLoader(mutes.load)
 
 export const userPins = makeUserData({
-  mapStore: pins.index$,
+  mapStore: pins.map$,
   loadItem: pins.load,
 })
 
 export const loadUserPins = makeUserLoader(pins.load)
 
 export const userRelaySelections = makeUserData({
-  mapStore: relaySelections.index$,
+  mapStore: relaySelections.map$,
   loadItem: relaySelections.load,
 })
 
 export const loadUserRelaySelections = makeUserLoader(relaySelections.load)
 
 export const userInboxRelaySelections = makeUserData({
-  mapStore: inboxRelaySelections.index$,
+  mapStore: inboxRelaySelections.map$,
   loadItem: inboxRelaySelections.load,
 })
 
 export const loadUserInboxRelaySelections = makeUserLoader(inboxRelaySelections.load)
 
 export const userBlossomServers = makeUserData({
-  mapStore: blossomServers.index$,
+  mapStore: blossomServers.map$,
   loadItem: blossomServers.load,
 })
 
