@@ -7,7 +7,7 @@ import {
   TrustedEvent,
   PublishedList,
 } from "@welshman/util"
-import {deriveEventsMapped, collection} from "@welshman/store"
+import {deriveItemsByKey, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem, getter} from "@welshman/store"
 import {load, LoadOptions} from "@welshman/net"
 import {Router} from "@welshman/router"
 import {repository} from "./core.js"
@@ -41,19 +41,21 @@ export const makeOutboxLoaderWithIndexers =
     ])
   }
 
-export const relaySelections = deriveEventsMapped<PublishedList>(repository, {
-  filters: [{kinds: [RELAYS]}],
-  itemToEvent: item => item.event,
+export const relaySelectionsByPubkey = deriveItemsByKey({
+  repository,
   eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
+  filters: [{kinds: [RELAYS]}],
+  getKey: relaySelections => relaySelections.event.pubkey,
 })
 
-export const {
-  indexStore: relaySelectionsByPubkey,
-  deriveItem: deriveRelaySelections,
-  loadItem: loadRelaySelections,
-} = collection({
-  name: "relaySelections",
-  store: relaySelections,
-  getKey: relaySelections => relaySelections.event.pubkey,
-  load: makeOutboxLoaderWithIndexers(RELAYS),
-})
+export const relaySelections = deriveItems(relaySelectionsByPubkey)
+
+export const getRelaySelectionsByPubkey = getter(relaySelectionsByPubkey)
+
+export const getRelaySelections = (pubkey: string) => getRelaySelectionsByPubkey().get(pubkey)
+
+export const forceLoadRelaySelections = makeForceLoadItem(makeOutboxLoaderWithIndexers(RELAYS), getRelaySelections)
+
+export const loadRelaySelections = makeLoadItem(makeOutboxLoaderWithIndexers(RELAYS), getRelaySelections)
+
+export const deriveRelaySelections = makeDeriveItem(relaySelectionsByPubkey, loadRelaySelections)
