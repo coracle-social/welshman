@@ -15,6 +15,8 @@ export const messagingRelayLists = deriveItems(messagingRelayListsByPubkey)
 
 export const getMessagingRelayListsByPubkey = getter(messagingRelayListsByPubkey)
 
+export const getMessagingRelayLists = getter(messagingRelayLists)
+
 export const getMessagingRelayList = (pubkey: string) => getMessagingRelayListsByPubkey().get(pubkey)
 
 export const forceLoadMessagingRelayList = makeForceLoadItem(makeOutboxLoader(MESSAGING_RELAYS), getMessagingRelayList)

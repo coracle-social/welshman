@@ -13,36 +13,44 @@ Welshman extends Nostr's base subscription model with intelligent caching, repos
 
 The base functionality for subscription management is implemented in `@welshman/net`. Please refer to [the documentation](/net) for that module for details.
 
-## Collections and Loaders
+## Indexed Collections and Loaders
 
-The `collection` utility creates stores that handle caching, loading, and indexing of Nostr data. It provides a consistent pattern for managing entities that need to be fetched from the network and cached locally.
+Create indexed stores with automatic loading using repository derivations and loader utilities:
 
 ```typescript
-const {
-  indexStore,    // Map of all items by key
-  deriveItem,    // Get reactive item by key
-  loadItem       // Trigger network load
-} = collection({
-  name: "storeName",      // For persistence
-  store: writable([]),    // Base store
-  getKey: item => item.id // How to index items
-  load: async (key) => {  // Network loader
-    // Load logic here
-  }
+import {deriveItemsByKey, deriveItems, makeDeriveItem, makeLoadItem, getter} from "@welshman/store"
+
+// Create indexed map from repository
+const itemsByKey = deriveItemsByKey({
+  repository,
+  filters: [{kinds: [SOME_KIND]}],
+  eventToItem: event => transformEvent(event),
+  getKey: item => item.id
 })
+
+// Create array view
+const items = deriveItems(itemsByKey)
+
+// Create getter for accessing map
+const getItemsByKey = getter(itemsByKey)
+
+// Create loader
+const loadItem = makeLoadItem(fetchItem, key => getItemsByKey().get(key))
+
+// Create deriver with automatic loading
+const deriveItem = makeDeriveItem(itemsByKey, loadItem)
 ```
 
 ### Deriving Events
 
-The best way to create collections is by deriving their contents from the app `repository` using `deriveEvents` from `@welshman/store`. For more control, use `deriveEventsMapped`.
+Query events from the repository using `deriveEventsById` and `deriveEvents`:
 
 ```typescript
-import {deriveEventsMapped} from "@welshman/store"
+import {deriveEventsById, deriveEvents} from "@welshman/store"
 
-export const notes = deriveEvents<TrustedEvent>(repository, {filters: [{kinds: [NOTE]}]})
+const noteEventsById = deriveEventsById({repository, filters: [{kinds: [NOTE]}]})
+export const notes = deriveEvents(noteEventsById)
 ```
-
-A collection could then be created by passing the `notes` store to `collection`.
 
 ### Available Collections
 

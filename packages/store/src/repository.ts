@@ -1,5 +1,5 @@
 import {derived, readable, Readable} from "svelte/store"
-import {on, now, indexBy, mapPop, Maybe, MaybeAsync, call, sortBy, first} from "@welshman/lib"
+import {on, assoc, now, indexBy, mapPop, Maybe, MaybeAsync, call, sortBy, first} from "@welshman/lib"
 import {matchFilters, getIdFilters, Filter, TrustedEvent} from "@welshman/util"
 import {Repository, RepositoryUpdate, Tracker} from "@welshman/net"
 import {deriveDeduplicated} from "./misc.js"
@@ -48,128 +48,90 @@ export const deriveEventsById = ({
 export const deriveEvents = (eventsByIdStore: Readable<EventsById>) =>
   deriveDeduplicated(eventsByIdStore, eventsById => Array.from(eventsById.values()))
 
-export const deriveEventsAsc = (eventsStore: Readable<TrustedEvent[]>) =>
-  deriveDeduplicated(eventsStore, events => sortBy(e => e.created_at, events))
+export const deriveEventsAsc = (eventsByIdStore: Readable<EventsById>) =>
+  deriveDeduplicated(eventsByIdStore, eventsById => sortBy(e => e.created_at, eventsById.values()))
 
-export const deriveEventsDesc = (eventsStore: Readable<TrustedEvent[]>) =>
-  deriveDeduplicated(eventsStore, events => sortBy(e => -e.created_at, events))
+export const deriveEventsDesc = (eventsByIdStore: Readable<EventsById>) =>
+  deriveDeduplicated(eventsByIdStore, eventsById => sortBy(e => -e.created_at, eventsById.values()))
 
 // Events by id by url
 
-export type EventsByIdByUrl = Map<string, EventsById>
-
-export type DeriveEventsByIdByUrlOptions = DeriveEventsByIdOptions & {
+export type DeriveEventsByIdForUrlOptions = DeriveEventsByIdOptions & {
+  url: string
   tracker: Tracker
 }
 
-export const deriveEventsByIdByUrl = ({
+export const deriveEventsByIdForUrl = ({
+  url,
   filters,
   tracker,
   repository,
   includeDeleted,
-}: DeriveEventsByIdByUrlOptions) => {
-  const eventsByIdByUrl: EventsByIdByUrl = new Map()
+}: DeriveEventsByIdForUrlOptions) => {
+  const eventsById: EventsById = new Map()
 
-  const addEvent = (url: string, event: TrustedEvent) => {
-    const eventsById = eventsByIdByUrl.get(url)
+  const initialize = () => {
+    const initialIds = Array.from(tracker.getIds(url))
+    const initialFilters = filters.map(assoc('ids', initialIds))
 
-    if (!eventsById?.has(event.id)) {
-      // Create a new map so we can detect which key changed
-      const newEventsById = new Map(eventsById)
-
-      newEventsById.set(event.id, event)
-      eventsByIdByUrl.set(url, newEventsById)
-
-      return true
+    for (const event of repository.query(initialFilters, {includeDeleted})) {
+      eventsById.set(event.id, event)
     }
 
-    return false
+    return eventsById
   }
 
-  const removeEvent = (url: string, id: string) => {
-    const eventsById = eventsByIdByUrl.get(url)
-
-    if (eventsById?.has(id)) {
-      eventsById.delete(id)
-
-      if (eventsById.size === 0) {
-        eventsByIdByUrl.delete(url)
-      } else {
-        // Create a new map so we can detect which key changed
-        eventsByIdByUrl.set(url, new Map(eventsById))
-      }
-
-      return true
-    }
-
-    return false
-  }
-
-  for (const event of repository.query(filters, {includeDeleted})) {
-    for (const url of tracker.getRelays(event.id)) {
-      addEvent(url, event)
-    }
-  }
-
-  return readable(eventsByIdByUrl, set => {
+  return readable(initialize(), set => {
     const unsubscribers = [
       on(repository, "update", ({added, removed}: RepositoryUpdate) => {
         let dirty = false
 
         for (const event of added) {
-          for (const url of tracker.getRelays(event.id)) {
-            dirty = dirty || addEvent(url, event)
+          if (tracker.hasRelay(event.id, url) && !eventsById.has(event.id)) {
+            eventsById.set(event.id, event)
+            dirty = true
           }
         }
 
         for (const id of removed) {
-          for (const url of tracker.getRelays(id)) {
-            dirty = dirty || removeEvent(url, id)
-          }
+          eventsById.delete(id)
+          dirty = true
         }
 
         if (dirty) {
-          set(eventsByIdByUrl)
+          set(eventsById)
         }
       }),
       on(tracker, "add", (id: string, url: string) => {
         const event = repository.getEvent(id)
 
-        if (event && addEvent(url, event)) {
-          set(eventsByIdByUrl)
+        if (event && tracker.hasRelay(id, url) && !eventsById.has(id)) {
+          eventsById.set(id, event)
+          set(eventsById)
         }
       }),
       on(tracker, "remove", (id: string, url: string) => {
-        if (removeEvent(url, id)) {
-          set(eventsByIdByUrl)
+        if (eventsById.has(id)) {
+          eventsById.delete(id)
+          set(eventsById)
         }
       }),
       on(tracker, "load", () => {
-        eventsByIdByUrl.clear()
+        eventsById.clear()
+        initialize()
 
-        for (const event of repository.query(filters, {includeDeleted})) {
-          for (const url of tracker.getRelays(event.id)) {
-            addEvent(url, event)
-          }
-        }
-
-        set(eventsByIdByUrl)
+        set(eventsById)
       }),
       on(tracker, "clear", () => {
-        eventsByIdByUrl.clear()
+        eventsById.clear()
 
-        set(eventsByIdByUrl)
+        set(eventsById)
       }),
     ]
 
     return () => unsubscribers.forEach(call)
   })
 }
-
-export const deriveEventsByIdForUrl = (
-  url: string,
-  eventsByIdByUrlStore: Readable<EventsByIdByUrl>,
-) => deriveDeduplicated(eventsByIdByUrlStore, eventsByIdByUrl => eventsByIdByUrl.get(url))
 
 // Items by key
 
@@ -268,7 +230,9 @@ export const makeDeriveItem = <T>(
   itemsByKeyStore: Readable<ItemsByKey<T>>,
   onDerive?: (key: string, ...args: any[]) => void,
 ) => {
-  return (key: string, ...args: any[]) => {
+  return (key?: string, ...args: any[]) => {
+    if (!key) return readable(undefined)
+
     onDerive?.(key, ...args)
 
     return deriveDeduplicated(itemsByKeyStore, itemsByKey => itemsByKey.get(key))

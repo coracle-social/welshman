@@ -16,15 +16,16 @@ A utility package providing welshman-specific svelte store functionality and uti
 
 ```typescript
 import {Repository, NAMED_PEOPLE, TrustedEvent, PublishedList, readList} from '@welshman/util'
-import {deriveEventsMapped} from '@welshman/store'
+import {deriveItemsByKey} from '@welshman/store'
 
 const repository = new Repository()
 
-// Create a store that performantly maps matching events in the repository to List objects
-const lists = deriveEventsMapped<PublishedList>(repository, {
+// Create a reactive map of lists indexed by pubkey
+const listsByPubkey = deriveItemsByKey<PublishedList>({
+  repository,
   filters: [{kinds: [NAMED_PEOPLE]}],
   eventToItem: (event: TrustedEvent) => (event.tags.length > 1 ? readList(event) : null),
-  itemToEvent: (list: PublishedList) => list.event,
+  getKey: (list: PublishedList) => list.event.pubkey,
 })
 ```
 

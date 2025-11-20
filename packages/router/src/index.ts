@@ -174,14 +174,14 @@ export class Router {
 
   FromUser = () => this.FromRelays(this.getRelaysForUser(RelayMode.Write))
 
-  UserMessages = () => this.FromRelays(this.getRelaysForUser(RelayMode.Messages))
+  MessagesForUser = () => this.FromRelays(this.getRelaysForUser(RelayMode.Messaging))
 
   ForPubkey = (pubkey: string) => this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Read))
 
   FromPubkey = (pubkey: string) => this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Write))
 
   MessagesForPubkey = (pubkey: string) =>
-    this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Messages))
+    this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Messaging))
 
   ForPubkeys = (pubkeys: string[]) => this.merge(pubkeys.map(pubkey => this.ForPubkey(pubkey)))
 
@@ -371,7 +371,7 @@ export const getFilterSelectionsForWraps = (filter: Filter) => {
   return [
     {
       filter: {...filter, kinds: [WRAP]},
-      scenario: Router.get().UserMessages(),
+      scenario: Router.get().MessagesForUser(),
     },
   ]
 }

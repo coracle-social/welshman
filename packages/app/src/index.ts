@@ -85,12 +85,12 @@ const _relayGetter = (fn?: (relay: RelayProfile) => any) =>
   })
 
 export const getPubkeyRelays = (pubkey: string, mode?: RelayMode) =>
-  mode === RelayMode.Messages
+  mode === RelayMode.Messaging
     ? getRelaysFromList(getMessagingRelayList(pubkey))
     : getRelaysFromList(getRelayList(pubkey), mode)
 
 export const derivePubkeyRelays = (pubkey: string, mode?: RelayMode) =>
-  mode === RelayMode.Messages
+  mode === RelayMode.Messaging
     ? derived(deriveMessagingRelayList(pubkey), list => getRelaysFromList(list))
     : derived(deriveRelayList(pubkey), list => getRelaysFromList(list, mode))
 

@@ -634,7 +634,7 @@ export const sort = <T>(xs: T[]) => [...xs].sort()
  * @param xs - Array to sort
  * @returns Sorted array
  */
-export const sortBy = <T>(f: (x: T) => any, xs: T[]) =>
+export const sortBy = <T>(f: (x: T) => any, xs: Iterable<T>) =>
   [...xs].sort((a: T, b: T) => {
     const x = f(a)
     const y = f(b)
