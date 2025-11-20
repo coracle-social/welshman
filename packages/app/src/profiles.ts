@@ -2,7 +2,7 @@ import {derived, readable} from "svelte/store"
 import {readProfile, displayProfile, displayPubkey, PROFILE} from "@welshman/util"
 import {deriveItemsByKey, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem, getter} from "@welshman/store"
 import {repository} from "./core.js"
-import {makeOutboxLoaderWithIndexers} from "./relaySelections.js"
+import {makeOutboxLoaderWithIndexers} from "./relayLists.js"
 
 export const profilesByPubkey = deriveItemsByKey({
   repository,
@@ -14,6 +14,8 @@ export const profilesByPubkey = deriveItemsByKey({
 export const profiles = deriveItems(profilesByPubkey)
 
 export const getProfilesByPubkey = getter(profilesByPubkey)
+
+export const getProfiles = getter(profiles)
 
 export const getProfile = (pubkey: string) => getProfilesByPubkey().get(pubkey)
 

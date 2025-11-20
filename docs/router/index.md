@@ -31,7 +31,7 @@ const router = Router.get()
 // Get relays for reading events from specific pubkeys
 const readRelays = router.FromPubkeys(['pubkey1', 'pubkey2']).getUrls()
 
-// Get relays for publishing an event (author's outbox + mentions' inboxes)
+// Get relays for publishing an event (author's outbox + mentions' messaginges)
 const publishRelays = router.PublishEvent(event).getUrls()
 
 // Try hard to find a quoted note with maximal fallbacks
@@ -65,7 +65,7 @@ The main class for relay selection. Configure it once with your relay discovery 
 
 **Configuration Options:**
 - `getUserPubkey()` - Returns the current user's pubkey
-- `getPubkeyRelays(pubkey, mode)` - Returns relays for a pubkey ("read", "write", or "inbox")
+- `getPubkeyRelays(pubkey, mode)` - Returns relays for a pubkey ("read", "write", or "messaging")
 - `getDefaultRelays()` - Returns fallback relays
 - `getIndexerRelays()` - Returns relays that index profiles and relay lists
 - `getSearchRelays()` - Returns relays that support NIP-50 search
@@ -74,8 +74,8 @@ The main class for relay selection. Configure it once with your relay discovery 
 
 **Scenario Methods:**
 - `FromRelays(relays)` - Use specific relays
-- `ForUser()` / `FromUser()` / `UserInbox()` - User's read/write/inbox relays
-- `ForPubkey(pubkey)` / `FromPubkey(pubkey)` / `PubkeyInbox(pubkey)` - Pubkey's relays
+- `ForUser()` / `FromUser()` / `UserMessaging()` - User's read/write/messaging relays
+- `ForPubkey(pubkey)` / `FromPubkey(pubkey)` / `PubkeyMessaging(pubkey)` - Pubkey's relays
 - `ForPubkeys(pubkeys)` / `FromPubkeys(pubkeys)` - Multiple pubkeys' relays
 - `Event(event)` - Relays for an event's author
 - `PublishEvent(event)` - Relays for publishing (author + mentions)
@@ -105,7 +105,7 @@ Functions that determine how many fallback relays to add:
 
 `getFilterSelections(filters)` automatically chooses appropriate relays based on filter content:
 - Search filters → search relays
-- Wrap events → user's inbox
+- Wrap events → user's messaging
 - Profile/relay kinds → indexer relays  
 - Author filters → authors' relays
 - Everything else → user's relays (low weight)

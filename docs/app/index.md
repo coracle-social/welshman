@@ -36,7 +36,7 @@ defaultSocketPolicies.push(
 
 // This will fetch the user's profile automatically, and return a store that updates
 // automatically. Several different stores exist that are ready to go, including handles,
-// zappers, relaySelections, relays, follows, mutes.
+// zappers, relayLists, relays, follows, mutes.
 const profile = deriveProfile(pubkey.get())
 
 // Publish is done using thunks, which optimistically publish to the local database, deferring

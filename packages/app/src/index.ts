@@ -11,8 +11,8 @@ export * from "./profiles.js"
 export * from "./pins.js"
 export * from "./relays.js"
 export * from "./relayStats.js"
-export * from "./relaySelections.js"
-export * from "./inboxRelaySelections.js"
+export * from "./relayLists.js"
+export * from "./messagingRelayLists.js"
 export * from "./search.js"
 export * from "./session.js"
 export * from "./sync.js"
@@ -37,10 +37,10 @@ import {routerContext} from "@welshman/router"
 import {Pool, SocketEvent, isRelayEvent, netContext} from "@welshman/net"
 import {pubkey, unwrapAndStore} from "./session.js"
 import {repository, tracker} from "./core.js"
-import {relays, loadRelay} from "./relays.js"
+import {getRelays, loadRelay} from "./relays.js"
 import {trackRelayStats, getRelayQuality} from "./relayStats.js"
-import {relaySelectionsByPubkey} from "./relaySelections.js"
-import {inboxRelaySelectionsByPubkey} from "./inboxRelaySelections.js"
+import {deriveRelayList, getRelayList} from "./relayLists.js"
+import {deriveMessagingRelayList, getMessagingRelayList} from "./messagingRelayLists.js"
 
 // Sync relays with our database
 
@@ -73,7 +73,7 @@ Pool.get().subscribe(socket => {
 
 const _relayGetter = (fn?: (relay: RelayProfile) => any) =>
   throttleWithValue(200, () => {
-    let _relays = relays.get()
+    let _relays = getRelays()
 
     if (fn) {
       _relays = _relays.filter(fn)
@@ -85,14 +85,14 @@ const _relayGetter = (fn?: (relay: RelayProfile) => any) =>
   })
 
 export const getPubkeyRelays = (pubkey: string, mode?: RelayMode) =>
-  mode === RelayMode.Inbox
-    ? getRelaysFromList(inboxRelaySelectionsByPubkey.get().get(pubkey))
-    : getRelaysFromList(relaySelectionsByPubkey.get().get(pubkey), mode)
+  mode === RelayMode.Messages
+    ? getRelaysFromList(getMessagingRelayList(pubkey))
+    : getRelaysFromList(getRelayList(pubkey), mode)
 
 export const derivePubkeyRelays = (pubkey: string, mode?: RelayMode) =>
-  mode === RelayMode.Inbox
-    ? derived(inboxRelaySelectionsByPubkey, $m => getRelaysFromList($m.get(pubkey)))
-    : derived(relaySelectionsByPubkey, $m => getRelaysFromList($m.get(pubkey), mode))
+  mode === RelayMode.Messages
+    ? derived(deriveMessagingRelayList(pubkey), list => getRelaysFromList(list))
+    : derived(deriveRelayList(pubkey), list => getRelaysFromList(list, mode))
 
 routerContext.getUserPubkey = () => pubkey.get()
 routerContext.getPubkeyRelays = getPubkeyRelays

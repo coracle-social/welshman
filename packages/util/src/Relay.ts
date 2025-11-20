@@ -5,7 +5,7 @@ import {last, normalizeUrl, stripProtocol} from "@welshman/lib"
 export enum RelayMode {
   Read = "read",
   Write = "write",
-  Inbox = "inbox",
+  Messages = "messages",
 }
 
 export type RelayProfile = {

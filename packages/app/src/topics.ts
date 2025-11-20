@@ -1,5 +1,7 @@
-import {inc, throttle} from "@welshman/lib"
-import {custom} from "@welshman/store"
+import {readable} from 'svelte/store'
+import {on, call} from "@welshman/lib"
+import {deriveItems} from "@welshman/store"
+import {getTopicTagValues} from "@welshman/util"
 import {repository} from "./core.js"
 
 export type Topic = {
@@ -7,25 +9,41 @@ export type Topic = {
   count: number
 }
 
-export const topics = custom<Topic[]>(setter => {
-  const getTopics = () => {
-    const topics = new Map<string, number>()
-    for (const tagString of repository.eventsByTag.keys()) {
-      if (tagString.startsWith("t:")) {
-        const topic = tagString.slice(2).toLowerCase()
+export const topicsByName = call(() => {
+  const topicsByName = new Map<string, Topic>()
 
-        topics.set(topic, inc(topics.get(topic)))
-      }
+  const addTopic = (name: string) => {
+    const topic = topicsByName.get(name)
+
+    if (topic) {
+      topic.count++
+    } else {
+      topicsByName.set(name, {name, count: 0})
     }
-
-    return Array.from(topics.entries()).map(([name, count]) => ({name, count}))
   }
 
-  setter(getTopics())
+  for (const tagString of repository.eventsByTag.keys()) {
+    if (tagString.startsWith("t:")) {
+      addTopic(tagString.slice(2).toLowerCase())
+    }
+  }
 
-  const onUpdate = throttle(3000, () => setter(getTopics()))
+  return readable<Map<string, Topic>>(topicsByName, set => {
+    return on(repository, 'update', ({added}) => {
+      let dirty = false
 
-  repository.on("update", onUpdate)
+      for (const event of added) {
+        for (const name of getTopicTagValues(event.tags)) {
+          addTopic(name)
+          dirty = true
+        }
+      }
 
-  return () => repository.off("update", onUpdate)
+      if (dirty) {
+        set(topicsByName)
+      }
+    })
+  })
 })
+
+export const topics = deriveItems(topicsByName)

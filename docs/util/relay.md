@@ -11,7 +11,7 @@ The `Relay` module provides utilities for working with Nostr relays, including U
 export enum RelayMode {
   Read = "read",
   Write = "write",
-  Inbox = "inbox"
+  Messaging = "messaging"
 }
 
 // Relay information from NIP-11

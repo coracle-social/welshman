@@ -2,13 +2,13 @@ import type {Filter} from "@welshman/util"
 import {isSignedEvent, SignedEvent} from "@welshman/util"
 import {push as basePush, pull as basePull, publishOne, requestOne} from "@welshman/net"
 import {repository} from "./core.js"
-import {relaysByUrl} from "./relays.js"
+import {getRelay} from "./relays.js"
 
 const query = (filters: Filter[]) =>
   repository.query(filters, {shouldSort: filters.every(f => f.limit === undefined)})
 
 export const hasNegentropy = (url: string) => {
-  const relay = relaysByUrl.get().get(url)
+  const relay = getRelay(url)
 
   if (relay?.negentropy) return true
   if (relay?.supported_nips?.includes?.(77)) return true

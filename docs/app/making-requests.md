@@ -59,8 +59,8 @@ pins → pinsByPubkey → derivePins → loadPins
 
 // Relays
 relays → relaysByUrl → deriveRelay → loadRelay
-relaySelections → relaySelectionsByPubkey → deriveRelaySelections → loadRelaySelections
-inboxRelaySelections → inboxRelaySelectionsByPubkey → deriveInboxRelaySelections → loadInboxRelaySelections
+relayLists → relayListsByPubkey → deriveRelayLists → loadRelayLists
+messagingRelayLists → messagingRelayListsByPubkey → deriveMessagingRelayLists → loadMessagingRelayLists
 
 // Identity
 handles → handlesByNip05 → deriveHandle → loadHandle

@@ -39,10 +39,10 @@ export const userMutes: Store<List | undefined>
 export const userPins: Store<List | undefined>
 
 // User relay selections
-export const userRelaySelections: Store<List | undefined>
+export const userRelayLists: Store<List | undefined>
 
-// User inbox relay selections
-export const userInboxRelaySelections: Store<List | undefined>
+// User messaging relay selections
+export const userMessagingRelayLists: Store<List | undefined>
 
 // User blossom servers
 export const userBlossomServers: Store<List | undefined>
@@ -66,10 +66,10 @@ function loadUserMutes(relays?: string[], force?: boolean): Promise<void>
 function loadUserPins(relays?: string[], force?: boolean): Promise<void>
 
 // Load user relay selections
-function loadUserRelaySelections(relays?: string[], force?: boolean): Promise<void>
+function loadUserRelayLists(relays?: string[], force?: boolean): Promise<void>
 
-// Load user inbox relay selections
-function loadUserInboxRelaySelections(relays?: string[], force?: boolean): Promise<void>
+// Load user messaging relay selections
+function loadUserMessagingRelayLists(relays?: string[], force?: boolean): Promise<void>
 
 // Load user blossom servers
 function loadUserBlossomServers(relays?: string[], force?: boolean): Promise<void>
@@ -94,13 +94,13 @@ const follows = userFollows.get()
 
 ### Manual Loading
 ```typescript
-import { loadUserMutes, loadUserRelaySelections } from '@welshman/app'
+import { loadUserMutes, loadUserRelayLists } from '@welshman/app'
 
 // Load user mutes from specific relays
 await loadUserMutes(['wss://relay1.com', 'wss://relay2.com'])
 
 // Force refresh user relay selections
-await loadUserRelaySelections([], true)
+await loadUserRelayLists([], true)
 
 // Load from default relays
 await loadUserProfile()

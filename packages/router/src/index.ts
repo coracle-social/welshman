@@ -21,7 +21,7 @@ import {
   isShareableRelayUrl,
   PROFILE,
   RELAYS,
-  INBOX_RELAYS,
+  MESSAGING_RELAYS,
   FOLLOWS,
   WRAP,
   getPubkeyTagValues,
@@ -37,7 +37,7 @@ import {
 } from "@welshman/util"
 import {Repository} from "@welshman/net"
 
-export const INDEXED_KINDS = [PROFILE, RELAYS, INBOX_RELAYS, FOLLOWS]
+export const INDEXED_KINDS = [PROFILE, RELAYS, MESSAGING_RELAYS, FOLLOWS]
 
 export type RelaysAndFilters = {
   relays: string[]
@@ -54,7 +54,7 @@ export type RouterOptions = {
   /**
    * Retrieves relays for the specified public key and mode.
    * @param pubkey - The public key to retrieve relays for.
-   * @param mode - The relay mode (optional). May be "read", "write", or "inbox".
+   * @param mode - The relay mode (optional). May be "read", "write", or "messaging".
    * @returns An array of relay URLs as strings.
    */
   getPubkeyRelays?: (pubkey: string, mode?: RelayMode) => string[]
@@ -174,20 +174,20 @@ export class Router {
 
   FromUser = () => this.FromRelays(this.getRelaysForUser(RelayMode.Write))
 
-  UserInbox = () => this.FromRelays(this.getRelaysForUser(RelayMode.Inbox))
+  UserMessages = () => this.FromRelays(this.getRelaysForUser(RelayMode.Messages))
 
   ForPubkey = (pubkey: string) => this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Read))
 
   FromPubkey = (pubkey: string) => this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Write))
 
-  PubkeyInbox = (pubkey: string) =>
-    this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Inbox))
+  MessagesForPubkey = (pubkey: string) =>
+    this.FromRelays(this.getRelaysForPubkey(pubkey, RelayMode.Messages))
 
   ForPubkeys = (pubkeys: string[]) => this.merge(pubkeys.map(pubkey => this.ForPubkey(pubkey)))
 
   FromPubkeys = (pubkeys: string[]) => this.merge(pubkeys.map(pubkey => this.FromPubkey(pubkey)))
 
-  PubkeyInboxes = (pubkeys: string[]) => this.merge(pubkeys.map(pubkey => this.PubkeyInbox(pubkey)))
+  MessagesForPubkeys = (pubkeys: string[]) => this.merge(pubkeys.map(pubkey => this.MessagesForPubkey(pubkey)))
 
   Event = (event: TrustedEvent) =>
     this.FromRelays(this.getRelaysForPubkey(event.pubkey, RelayMode.Write))
@@ -371,7 +371,7 @@ export const getFilterSelectionsForWraps = (filter: Filter) => {
   return [
     {
       filter: {...filter, kinds: [WRAP]},
-      scenario: Router.get().UserInbox(),
+      scenario: Router.get().UserMessages(),
     },
   ]
 }

@@ -3,14 +3,14 @@ import {max, throttle, addToMapKey, inc, dec} from "@welshman/lib"
 import {getListTags, getPubkeyTagValues} from "@welshman/util"
 import {throttled, withGetter} from "@welshman/store"
 import {pubkey} from "./session.js"
-import {follows, followsByPubkey} from "./follows.js"
-import {mutes, mutesByPubkey} from "./mutes.js"
+import {followLists, getFollowListsByPubkey, getFollowList} from "./follows.js"
+import {muteLists, getMuteList} from "./mutes.js"
 
 export const getFollows = (pubkey: string) =>
-  getPubkeyTagValues(getListTags(followsByPubkey.get().get(pubkey)))
+  getPubkeyTagValues(getListTags(getFollowList(pubkey)))
 
 export const getMutes = (pubkey: string) =>
-  getPubkeyTagValues(getListTags(mutesByPubkey.get().get(pubkey)))
+  getPubkeyTagValues(getListTags(getMuteList(pubkey)))
 
 export const getNetwork = (pubkey: string) => {
   const pubkeys = new Set(getFollows(pubkey))
@@ -28,7 +28,7 @@ export const getNetwork = (pubkey: string) => {
 }
 
 export const followersByPubkey = withGetter(
-  derived(throttled(1000, follows), lists => {
+  derived(throttled(1000, followLists), lists => {
     const $followersByPubkey = new Map<string, Set<string>>()
 
     for (const list of lists) {
@@ -42,7 +42,7 @@ export const followersByPubkey = withGetter(
 )
 
 export const mutersByPubkey = withGetter(
-  derived(throttled(1000, mutes), lists => {
+  derived(throttled(1000, muteLists), lists => {
     const $mutersByPubkey = new Map<string, Set<string>>()
 
     for (const list of lists) {
@@ -73,7 +73,7 @@ export const maxWot = withGetter(derived(wotGraph, $g => max(Array.from($g.value
 const buildGraph = throttle(1000, () => {
   const $pubkey = pubkey.get()
   const $graph = new Map<string, number>()
-  const $follows = $pubkey ? getFollows($pubkey) : followsByPubkey.get().keys()
+  const $follows = $pubkey ? getFollows($pubkey) : getFollowListsByPubkey().keys()
 
   for (const follow of $follows) {
     for (const pubkey of getFollows(follow)) {
@@ -89,8 +89,8 @@ const buildGraph = throttle(1000, () => {
 })
 
 pubkey.subscribe(buildGraph)
-follows.subscribe(buildGraph)
-mutes.subscribe(buildGraph)
+followLists.subscribe(buildGraph)
+muteLists.subscribe(buildGraph)
 
 export const getWotScore = (pubkey: string, target: string) => {
   const follows = pubkey ? getFollowsWhoFollow(pubkey, target) : getFollowers(target)

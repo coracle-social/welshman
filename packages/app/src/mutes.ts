@@ -3,9 +3,9 @@ import {TrustedEvent, PublishedList} from "@welshman/util"
 import {deriveItemsByKey, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem, getter} from "@welshman/store"
 import {repository} from "./core.js"
 import {ensurePlaintext} from "./plaintext.js"
-import {makeOutboxLoader} from "./relaySelections.js"
+import {makeOutboxLoader} from "./relayLists.js"
 
-export const mutesByPubkey = deriveItemsByKey({
+export const muteListsByPubkey = deriveItemsByKey<PublishedList>({
   repository,
   eventToItem: async (event: TrustedEvent) =>
     readList(
@@ -17,14 +17,16 @@ export const mutesByPubkey = deriveItemsByKey({
   getKey: mute => mute.event.pubkey,
 })
 
-export const mutes = deriveItems(mutesByPubkey)
+export const muteLists = deriveItems(muteListsByPubkey)
 
-export const getMutesByPubkey = getter(mutesByPubkey)
+export const getMuteListsByPubkey = getter(muteListsByPubkey)
 
-export const getMutes = (pubkey: string) => getMutesByPubkey().get(pubkey)
+export const getMuteLists = getter(muteLists)
 
-export const forceLoadMutes = makeForceLoadItem(makeOutboxLoader(MUTES), getMutes)
+export const getMuteList = (pubkey: string) => getMuteListsByPubkey().get(pubkey)
 
-export const loadMutes = makeLoadItem(makeOutboxLoader(MUTES), getMutes)
+export const forceLoadMuteList = makeForceLoadItem(makeOutboxLoader(MUTES), getMuteList)
 
-export const deriveMutes = makeDeriveItem(mutesByPubkey, loadMutes)
+export const loadMuteList = makeLoadItem(makeOutboxLoader(MUTES), getMuteList)
+
+export const deriveMuteList = makeDeriveItem(muteListsByPubkey, loadMuteList)

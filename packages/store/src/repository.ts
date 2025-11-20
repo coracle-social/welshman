@@ -1,5 +1,5 @@
 import {derived, readable, Readable} from "svelte/store"
-import {on, now, indexBy, mapPop, Maybe, call, sortBy, first} from "@welshman/lib"
+import {on, now, indexBy, mapPop, Maybe, MaybeAsync, call, sortBy, first} from "@welshman/lib"
 import {matchFilters, getIdFilters, Filter, TrustedEvent} from "@welshman/util"
 import {Repository, RepositoryUpdate, Tracker} from "@welshman/net"
 import {deriveDeduplicated} from "./misc.js"
@@ -175,7 +175,7 @@ export const deriveEventsByIdForUrl = (
 
 export type ItemsByKey<T> = Map<string, T>
 
-export type EventToItem<T> = (event: TrustedEvent) => T
+export type EventToItem<T> = (event: TrustedEvent) => MaybeAsync<Maybe<T>>
 
 export type GetItem<T> = (key: string, ...args: any[]) => Maybe<T>
 

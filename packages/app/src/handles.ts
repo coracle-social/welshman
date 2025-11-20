@@ -1,7 +1,7 @@
 import {writable, derived} from "svelte/store"
 import {tryCatch, fetchJson, uniq, batcher, postJson, last} from "@welshman/lib"
-import {collection} from "@welshman/store"
-import {deriveProfile} from "./profiles.js"
+import {getter, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem} from "@welshman/store"
+import {deriveProfile, loadProfile} from "./profiles.js"
 import {appContext} from "./context.js"
 
 export type Handle = {
@@ -40,16 +40,23 @@ export async function queryProfile(nip05: string) {
   }
 }
 
-export const handles = writable<Handle[]>([])
+export const handlesByNip05 = writable(new Map<string, Handle>())
 
-export const fetchHandles = async (nip05s: string[]) => {
-  const base = appContext.dufflepudUrl!
+export const handles = deriveItems(handlesByNip05)
+
+export const getHandlesByNip05 = getter(handlesByNip05)
+
+export const getHandles = getter(handles)
+
+export const getHandle = (nip05: string) => getHandlesByNip05().get(nip05)
+
+export const fetchHandle = batcher(800, async (nip05s: string[]) => {
   const handlesByNip05 = new Map<string, Handle>()
 
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly
-  if (base) {
+  if (appContext.dufflepudUrl) {
     const res: any = await tryCatch(
-      async () => await postJson(`${base}/handle/info`, {handles: nip05s}),
+      async () => await postJson(`${appContext.dufflepudUrl}/handle/info`, {handles: nip05s}),
     )
 
     for (const {handle: nip05, info} of res?.data || []) {
@@ -72,50 +79,40 @@ export const fetchHandles = async (nip05s: string[]) => {
     }
   }
 
-  return handlesByNip05
-}
+  return nip05s.map(nip05 => {
+    const info = handlesByNip05.get(nip05)
 
-export const {
-  indexStore: handlesByNip05,
-  deriveItem: deriveHandle,
-  loadItem: loadHandle,
-  onItem: onHandle,
-} = collection({
-  name: "handles",
-  store: handles,
-  getKey: (handle: Handle) => handle.nip05,
-  load: batcher(800, async (nip05s: string[]) => {
-    const fresh = await fetchHandles(uniq(nip05s))
-    const stale = handlesByNip05.get()
-
-    for (const nip05 of nip05s) {
-      const newHandle = fresh.get(nip05)
-
-      if (newHandle) {
-        stale.set(nip05, {...newHandle, nip05})
-      }
+    if (info) {
+      return {...info, nip05}
     }
-
-    handles.set(Array.from(stale.values()))
-
-    return nip05s
-  }),
+  })
 })
 
-export const deriveHandleForPubkey = (pubkey: string, relays: string[] = []) =>
-  derived([handlesByNip05, deriveProfile(pubkey, relays)], ([$handlesByNip05, $profile]) => {
-    if (!$profile?.nip05) {
-      return undefined
-    }
+export const forceLoadHandle = makeForceLoadItem(fetchHandle, getHandle)
 
-    loadHandle($profile.nip05)
+export const loadHandle = makeLoadItem(fetchHandle, getHandle)
+
+export const deriveHandle = makeDeriveItem(handlesByNip05, loadHandle)
+
+export const loadHandleForPubkey = async (pubkey: string, relays: string[] = []) => {
+  const $profile = await loadProfile(pubkey, relays)
+
+  return $profile?.nip05 ? loadHandle($profile.nip05) : undefined
+}
+
+export const deriveHandleForPubkey = (pubkey: string, relays: string[] = []) => {
+  loadHandleForPubkey(pubkey, relays)
+
+  return derived([handlesByNip05, deriveProfile(pubkey, relays)], ([$handlesByNip05, $profile]) => {
+    if (!$profile?.nip05) return undefined
 
     const handle = $handlesByNip05.get($profile.nip05)
 
-    if (handle?.pubkey === pubkey) {
-      return handle
-    }
+    if (handle?.pubkey !== pubkey) return undefined
+
+    return handle
   })
+}
 
 export const displayNip05 = (nip05: string) =>
   nip05?.startsWith("_@") ? last(nip05.split("@")) : nip05

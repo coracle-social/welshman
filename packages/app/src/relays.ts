@@ -8,99 +8,73 @@ import {
   fetchJson,
   postJson,
   Maybe,
+  noop,
 } from "@welshman/lib"
 import {withGetter} from "@welshman/store"
 import {RelayProfile} from "@welshman/util"
 import {normalizeRelayUrl, displayRelayUrl, displayRelayProfile, isRelayUrl} from "@welshman/util"
-import {collection} from "@welshman/store"
+import {getter, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem} from "@welshman/store"
 import {appContext} from "./context.js"
 
-export const relays = withGetter(writable<RelayProfile[]>([]))
+export const relaysByUrl = writable(new Map<string, RelayProfile>())
 
-export const fetchRelayProfileDirectly = async (url: string): Promise<Maybe<RelayProfile>> => {
+export const relays = deriveItems(relaysByUrl)
+
+export const getRelaysByUrl = getter(relaysByUrl)
+
+export const getRelays = getter(relays)
+
+export const getRelay = (url: string) => getRelaysByUrl().get(url)
+
+export const fetchRelayDirectly = async (url: string): Promise<Maybe<RelayProfile>> => {
   try {
-    return fetchJson(url.replace(/^ws/, "http"), {
+    const json = fetchJson(url.replace(/^ws/, "http"), {
       headers: {
         Accept: "application/nostr+json",
       },
     })
+
+    if (json) {
+      return {...json, url}
+    }
   } catch (e) {
     // pass
   }
 }
 
-export const fetchRelayProfilesDirectly = async (
-  urls: string[],
-): Promise<Map<string, RelayProfile>> =>
-  indexBy(
-    prop("url"),
-    removeUndefined(
-      await Promise.all(
-        urls.map(async url => {
-          const profile = await fetchRelayProfileDirectly(url)
-
-          if (profile) {
-            return {...profile, url}
-          }
-        }),
-      ),
-    ),
-  )
-
-export const fetchRelayProfilesUsingProxy = async (
-  proxy: string,
-  urls: string[],
-): Promise<Map<string, RelayProfile>> => {
-  const profilesByUrl = new Map<string, RelayProfile>()
-  const res: any = await postJson(`${proxy}/relay/info`, {urls})
-
-  for (const {url, info} of res?.data || []) {
-    profilesByUrl.set(url, info)
+export const fetchRelayUsingProxy = batcher(800, async (urls: string[]) => {
+  // Handle a race condition edge case where dufflepud url changes under us
+  if (!appContext.dufflepudUrl) {
+    return urls.map(noop)
   }
 
-  return profilesByUrl
-}
+  const res: any = await postJson(`${appContext.dufflepudUrl}/relay/info`, {urls})
+  const relaysByUrl = new Map<string, RelayProfile>()
 
-export const fetchRelayProfiles = (urls: string[]) =>
-  appContext.dufflepudUrl
-    ? fetchRelayProfilesUsingProxy(appContext.dufflepudUrl, urls)
-    : fetchRelayProfilesDirectly(urls)
+  for (const {url, info} of res?.data || []) {
+    relaysByUrl.set(url, info)
+  }
 
-export const {
-  indexStore: relaysByUrl,
-  deriveItem: deriveRelay,
-  loadItem: loadRelay,
-  onItem: onRelay,
-} = collection({
-  name: "relays",
-  store: relays,
-  getKey: (relay: RelayProfile) => relay.url,
-  load: batcher(800, async (rawUrls: string[]) => {
-    const urls = rawUrls.map(normalizeRelayUrl)
-    const fresh = await fetchRelayProfiles(uniq(urls))
-    const stale = relaysByUrl.get()
+  return urls.map(url => {
+    const info = relaysByUrl.get(url)
 
-    for (const url of urls) {
-      const profile = fresh.get(url)
-
-      if (!url || !isRelayUrl(url)) {
-        console.warn(`Attempted to load invalid relay url: ${url}`)
-        continue
-      }
-
-      if (profile) {
-        stale.set(url, {...profile, url})
-      }
+    if (info) {
+      return {...info, url}
     }
-
-    relays.set(Array.from(stale.values()))
-
-    return urls
-  }),
+  })
 })
 
+export const fetchRelay = (url: string) =>
+  appContext.dufflepudUrl ? fetchRelayUsingProxy(url) : fetchRelayDirectly(url)
+
+export const forceLoadRelay = makeForceLoadItem(fetchRelay, getRelay)
+
+export const loadRelay = makeLoadItem(fetchRelay, getRelay)
+
+export const deriveRelay = makeDeriveItem(relaysByUrl, loadRelay)
+
 export const displayRelayByPubkey = (url: string) =>
-  displayRelayProfile(relaysByUrl.get().get(url), displayRelayUrl(url))
+  displayRelayProfile(getRelay(url), displayRelayUrl(url))
 
 export const deriveRelayDisplay = (url: string) =>
   derived(deriveRelay(url), $relay => displayRelayProfile($relay, displayRelayUrl(url)))

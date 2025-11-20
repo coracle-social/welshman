@@ -2,23 +2,25 @@ import {PINS, asDecryptedEvent, readList} from "@welshman/util"
 import {TrustedEvent, PublishedList} from "@welshman/util"
 import {deriveItemsByKey, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem, getter} from "@welshman/store"
 import {repository} from "./core.js"
-import {makeOutboxLoader} from "./relaySelections.js"
+import {makeOutboxLoader} from "./relayLists.js"
 
-export const pinsByPubkey = deriveItemsByKey({
+export const pinListsByPubkey = deriveItemsByKey({
   repository,
   eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
   filters: [{kinds: [PINS]}],
   getKey: pins => pins.event.pubkey,
 })
 
-export const pins = deriveItems(pinsByPubkey)
+export const pinLists = deriveItems(pinListsByPubkey)
 
-export const getPinsByPubkey = getter(pinsByPubkey)
+export const getPinListsByPubkey = getter(pinListsByPubkey)
 
-export const getPins = (pubkey: string) => getPinsByPubkey().get(pubkey)
+export const getPinLists = getter(pinLists)
 
-export const forceLoadPins = makeForceLoadItem(makeOutboxLoader(PINS), getPins)
+export const getPinList = (pubkey: string) => getPinListsByPubkey().get(pubkey)
 
-export const loadPins = makeLoadItem(makeOutboxLoader(PINS), getPins)
+export const forceLoadPinList = makeForceLoadItem(makeOutboxLoader(PINS), getPinList)
 
-export const derivePins = makeDeriveItem(pinsByPubkey, loadPins)
+export const loadPinList = makeLoadItem(makeOutboxLoader(PINS), getPinList)
+
+export const derivePinList = makeDeriveItem(pinListsByPubkey, loadPinList)

@@ -9,11 +9,11 @@ removeRelay(url: string, mode: RelayMode): Promise<Thunk>
 addRelay(url: string, mode: RelayMode): Promise<Thunk>
 ```
 
-## Inbox Relay Management (NIP 17)
+## Messaging Relay Management (NIP 17)
 
 ```typescript
-removeInboxRelay(url: string): Promise<Thunk>
-addInboxRelay(url: string): Promise<Thunk>
+removeMessagingRelay(url: string): Promise<Thunk>
+addMessagingRelay(url: string): Promise<Thunk>
 ```
 
 ## Profile Management (NIP 01)

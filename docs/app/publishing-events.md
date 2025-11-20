@@ -57,8 +57,8 @@ Several thunk factories are provided for common or more complicated scenarios li
 
 - `removeRelay(url: string, mode: RelayMode)`
 - `addRelay(url: string, mode: RelayMode)`
-- `removeInboxRelay(url: string)`
-- `addInboxRelay(url: string)`
+- `removeMessagingRelay(url: string)`
+- `addMessagingRelay(url: string)`
 - `setProfile(profile: Profile)`
 - `unfollow(value: string)`
 - `follow(tag: string[])`

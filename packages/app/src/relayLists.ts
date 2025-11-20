@@ -41,21 +41,23 @@ export const makeOutboxLoaderWithIndexers =
     ])
   }
 
-export const relaySelectionsByPubkey = deriveItemsByKey({
+export const relayListsByPubkey = deriveItemsByKey({
   repository,
   eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
   filters: [{kinds: [RELAYS]}],
-  getKey: relaySelections => relaySelections.event.pubkey,
+  getKey: relayList => relayList.event.pubkey,
 })
 
-export const relaySelections = deriveItems(relaySelectionsByPubkey)
+export const relayLists = deriveItems(relayListsByPubkey)
 
-export const getRelaySelectionsByPubkey = getter(relaySelectionsByPubkey)
+export const getRelayListsByPubkey = getter(relayListsByPubkey)
 
-export const getRelaySelections = (pubkey: string) => getRelaySelectionsByPubkey().get(pubkey)
+export const getRelayLists = getter(relayLists)
 
-export const forceLoadRelaySelections = makeForceLoadItem(makeOutboxLoaderWithIndexers(RELAYS), getRelaySelections)
+export const getRelayList = (pubkey: string) => getRelayListsByPubkey().get(pubkey)
 
-export const loadRelaySelections = makeLoadItem(makeOutboxLoaderWithIndexers(RELAYS), getRelaySelections)
+export const forceLoadRelayList = makeForceLoadItem(makeOutboxLoaderWithIndexers(RELAYS), getRelayList)
 
-export const deriveRelaySelections = makeDeriveItem(relaySelectionsByPubkey, loadRelaySelections)
+export const loadRelayList = makeLoadItem(makeOutboxLoaderWithIndexers(RELAYS), getRelayList)
+
+export const deriveRelayList = makeDeriveItem(relayListsByPubkey, loadRelayList)

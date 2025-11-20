@@ -10,15 +10,21 @@ import {
   batcher,
   postJson,
 } from "@welshman/lib"
-import {collection} from "@welshman/store"
+import {getter, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem} from "@welshman/store"
 import {deriveProfile, loadProfile} from "./profiles.js"
 import {appContext} from "./context.js"
 
-export const zappers = writable<Zapper[]>([])
+export const zappersByLnurl = writable(new Map<string, Zapper>())
 
-export const fetchZappers = async (lnurls: string[]) => {
+export const zappers = deriveItems(zappersByLnurl)
+
+export const getZappersByLnurl = getter(zappersByLnurl)
+
+export const getZapper = (lnurl: string) => getZappersByLnurl().get(lnurl)
+
+export const fetchZapper = batcher(800, async (lnurls: string[]) => {
   const base = appContext.dufflepudUrl
-  const zappersByLnurl = new Map<string, Zapper>()
+  const result = new Map<string, Zapper>()
 
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly
   if (base) {
@@ -30,7 +36,7 @@ export const fetchZappers = async (lnurls: string[]) => {
       )
 
       for (const {lnurl, info} of res?.data || []) {
-        tryCatch(() => zappersByLnurl.set(hexToBech32("lnurl", lnurl), info))
+        tryCatch(() => result.set(hexToBech32("lnurl", lnurl), info))
       }
     }
   } else {
@@ -45,61 +51,39 @@ export const fetchZappers = async (lnurls: string[]) => {
 
     for (const {lnurl, info} of results) {
       if (info) {
-        zappersByLnurl.set(lnurl, info)
+        result.set(lnurl, info)
       }
     }
   }
 
-  return zappersByLnurl
-}
+  return lnurls.map(lnurl => {
+    const info = result.get(lnurl)
 
-export const {
-  indexStore: zappersByLnurl,
-  deriveItem: deriveZapper,
-  loadItem: loadZapper,
-  onItem: onZapper,
-} = collection({
-  name: "zappers",
-  store: zappers,
-  getKey: (zapper: Zapper) => zapper.lnurl,
-  load: batcher(800, async (lnurls: string[]) => {
-    const fresh = await fetchZappers(uniq(lnurls))
-    const stale = zappersByLnurl.get()
-
-    for (const lnurl of lnurls) {
-      const newZapper = fresh.get(lnurl)
-
-      if (newZapper) {
-        stale.set(lnurl, {...newZapper, lnurl})
-      }
+    if (info) {
+      return {...info, lnurl}
     }
-
-    zappers.set(Array.from(stale.values()))
-
-    return lnurls
-  }),
+  })
 })
+
+export const forceLoadZapper = makeForceLoadItem(fetchZapper, getZapper)
+
+export const loadZapper = makeLoadItem(fetchZapper, getZapper)
+
+export const deriveZapper = makeDeriveItem(zappersByLnurl, loadZapper)
 
 export const loadZapperForPubkey = async (pubkey: string, relays: string[] = []) => {
   const $profile = await loadProfile(pubkey, relays)
 
-  if (!$profile?.lnurl) {
-    return undefined
-  }
-
-  return loadZapper($profile.lnurl)
+  return $profile?.lnurl ? loadZapper($profile.lnurl) : undefined
 }
 
-export const deriveZapperForPubkey = (pubkey: string, relays: string[] = []) =>
-  derived([zappersByLnurl, deriveProfile(pubkey, relays)], ([$zappersByLnurl, $profile]) => {
-    if (!$profile?.lnurl) {
-      return undefined
-    }
+export const deriveZapperForPubkey = (pubkey: string, relays: string[] = []) => {
+  loadZapperForPubkey(pubkey, relays)
 
-    loadZapper($profile.lnurl)
-
-    return $zappersByLnurl.get($profile.lnurl)
+  return derived([zappersByLnurl, deriveProfile(pubkey, relays)], ([$zappersByLnurl, $profile]) => {
+    return $profile?.lnurl ? $zappersByLnurl.get($profile.lnurl) : undefined
   })
+}
 
 export const getLnUrlsForEvent = async (event: TrustedEvent) => {
   const lnurls = removeUndefined(getTagValues("zap", event.tags).map(getLnUrl))

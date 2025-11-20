@@ -2,23 +2,25 @@ import {FOLLOWS, asDecryptedEvent, readList} from "@welshman/util"
 import {TrustedEvent, PublishedList} from "@welshman/util"
 import {deriveItemsByKey, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem, getter} from "@welshman/store"
 import {repository} from "./core.js"
-import {makeOutboxLoader} from "./relaySelections.js"
+import {makeOutboxLoader} from "./relayLists.js"
 
-export const followsByPubkey = deriveItemsByKey({
+export const followListsByPubkey = deriveItemsByKey({
   repository,
-  eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
   filters: [{kinds: [FOLLOWS]}],
-  getKey: follows => follows.event.pubkey,
+  eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
+  getKey: followList => followList.event.pubkey,
 })
 
-export const follows = deriveItems(followsByPubkey)
+export const followLists = deriveItems(followListsByPubkey)
 
-export const getFollowsByPubkey = getter(followsByPubkey)
+export const getFollowListsByPubkey = getter(followListsByPubkey)
 
-export const getFollows = (pubkey: string) => getFollowsByPubkey().get(pubkey)
+export const getFollowLists = getter(followLists)
 
-export const forceLoadFollows = makeForceLoadItem(makeOutboxLoader(FOLLOWS), getFollows)
+export const getFollowList = (pubkey: string) => getFollowListsByPubkey().get(pubkey)
 
-export const loadFollows = makeLoadItem(makeOutboxLoader(FOLLOWS), getFollows)
+export const forceLoadFollowList = makeForceLoadItem(makeOutboxLoader(FOLLOWS), getFollowList)
 
-export const deriveFollows = makeDeriveItem(followsByPubkey, loadFollows)
+export const loadFollowList = makeLoadItem(makeOutboxLoader(FOLLOWS), getFollowList)
+
+export const deriveFollowList = makeDeriveItem(followListsByPubkey, loadFollowList)
