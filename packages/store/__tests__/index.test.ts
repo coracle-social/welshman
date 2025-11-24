@@ -3,9 +3,7 @@ import {Repository} from "@welshman/net"
 import {get} from "svelte/store"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {
-  custom,
   deriveEvents,
-  deriveEventsMapped,
   deriveIsDeleted,
   getter,
   synced,

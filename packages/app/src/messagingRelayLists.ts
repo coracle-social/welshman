@@ -1,6 +1,13 @@
 import {MESSAGING_RELAYS, asDecryptedEvent, readList} from "@welshman/util"
-import {TrustedEvent, PublishedList} from "@welshman/util"
-import {deriveItemsByKey, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem, getter} from "@welshman/store"
+import {TrustedEvent} from "@welshman/util"
+import {
+  deriveItemsByKey,
+  deriveItems,
+  makeForceLoadItem,
+  makeLoadItem,
+  makeDeriveItem,
+  getter,
+} from "@welshman/store"
 import {repository} from "./core.js"
 import {makeOutboxLoader} from "./relayLists.js"
 
@@ -17,10 +24,20 @@ export const getMessagingRelayListsByPubkey = getter(messagingRelayListsByPubkey
 
 export const getMessagingRelayLists = getter(messagingRelayLists)
 
-export const getMessagingRelayList = (pubkey: string) => getMessagingRelayListsByPubkey().get(pubkey)
+export const getMessagingRelayList = (pubkey: string) =>
+  getMessagingRelayListsByPubkey().get(pubkey)
 
-export const forceLoadMessagingRelayList = makeForceLoadItem(makeOutboxLoader(MESSAGING_RELAYS), getMessagingRelayList)
+export const forceLoadMessagingRelayList = makeForceLoadItem(
+  makeOutboxLoader(MESSAGING_RELAYS),
+  getMessagingRelayList,
+)
 
-export const loadMessagingRelayList = makeLoadItem(makeOutboxLoader(MESSAGING_RELAYS), getMessagingRelayList)
+export const loadMessagingRelayList = makeLoadItem(
+  makeOutboxLoader(MESSAGING_RELAYS),
+  getMessagingRelayList,
+)
 
-export const deriveMessagingRelayList = makeDeriveItem(messagingRelayListsByPubkey, loadMessagingRelayList)
+export const deriveMessagingRelayList = makeDeriveItem(
+  messagingRelayListsByPubkey,
+  loadMessagingRelayList,
+)

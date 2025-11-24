@@ -1,6 +1,13 @@
 import {derived, readable} from "svelte/store"
 import {readProfile, displayProfile, displayPubkey, PROFILE} from "@welshman/util"
-import {deriveItemsByKey, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem, getter} from "@welshman/store"
+import {
+  deriveItemsByKey,
+  deriveItems,
+  makeForceLoadItem,
+  makeLoadItem,
+  makeDeriveItem,
+  getter,
+} from "@welshman/store"
 import {repository} from "./core.js"
 import {makeOutboxLoaderWithIndexers} from "./relayLists.js"
 

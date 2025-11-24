@@ -559,7 +559,7 @@ export const flatten = <T>(xs: (T | T[])[], ...args: unknown[]) => xs.flatMap(id
  * @param xs - Array to partition
  * @returns Tuple of [matching, non-matching] arrays
  */
-export const partition = <T>(f: (x: T) => boolean, xs: T[]) => {
+export const partition = <T>(f: (x: T) => boolean, xs: Iterable<T>) => {
   const a: T[] = []
   const b: T[] = []
 
@@ -574,21 +574,50 @@ export const partition = <T>(f: (x: T) => boolean, xs: T[]) => {
   return [a, b]
 }
 
+/** Maps any iterable */
+export const map = <T, R>(f: (x: T) => R, xs: Iterable<T>) => Array.from(xs).map(f)
+
 /**
  * Keeps items based on predicate
- * @param f - Whether to remove an item from the array
- * @param xs - Array of items to filter
+ * @param f - Whether to keep an item
+ * @param xs - Items to filter
  * @returns Filtered array
  */
-export const filter = <T>(f: (x: T) => any, xs: T[]) => xs.filter(f)
+export const filter = <T>(f: (x: T) => any, xs: Iterable<T>) => Array.from(xs).filter(f)
 
 /**
  * Removes items based on predicate
  * @param f - Whether to remove an item from the array
- * @param xs - Array of items to filter
+ * @param xs - Items to filter
  * @returns Filtered array
  */
-export const reject = <T>(f: (x: T) => any, xs: T[]) => xs.filter(complement(f))
+export const reject = <T>(f: (x: T) => any, xs: Iterable<T>) => Array.from(xs).filter(complement(f))
+
+/**
+ * Finds a single item based on predicate
+ * @param f - Whether an item matches
+ * @param xs - Items to filter
+ * @returns first matching item
+ */
+export const find = <T>(f: (x: T) => any, xs: Iterable<T>) => {
+  for (const x of xs) {
+    if (f(x)) return x
+  }
+}
+
+/**
+ * Finds a single item based on predicate
+ * @param f - Whether an item matches
+ * @param xs - Items to filter
+ * @returns whether an item matches
+ */
+export const some = <T>(f: (x: T) => any, xs: Iterable<T>) => {
+  for (const x of xs) {
+    if (f(x)) return true
+  }
+
+  return false
+}
 
 /**
  * Returns array with duplicate elements removed
@@ -603,7 +632,7 @@ export const uniq = <T>(xs: T[]) => Array.from(new Set(xs))
  * @param xs - Input array
  * @returns Array with elements unique by key
  */
-export const uniqBy = <T>(f: (x: T) => any, xs: T[]) => {
+export const uniqBy = <T>(f: (x: T) => any, xs: Iterable<T>) => {
   const s = new Set<any>()
   const r = []
 

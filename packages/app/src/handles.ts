@@ -1,5 +1,5 @@
-import {writable, derived} from "svelte/store"
-import {tryCatch, fetchJson, uniq, batcher, postJson, last} from "@welshman/lib"
+import {writable, derived, Subscriber} from "svelte/store"
+import {tryCatch, fetchJson, batcher, postJson, last} from "@welshman/lib"
 import {getter, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem} from "@welshman/store"
 import {deriveProfile, loadProfile} from "./profiles.js"
 import {appContext} from "./context.js"
@@ -50,8 +50,22 @@ export const getHandles = getter(handles)
 
 export const getHandle = (nip05: string) => getHandlesByNip05().get(nip05)
 
+export const handleSubscribers: Subscriber<Handle>[] = []
+
+export const notifyHandle = (handle: Handle) => handleSubscribers.forEach(sub => sub(handle))
+
+export const onHandle = (sub: (handle: Handle) => void) => {
+  handleSubscribers.push(sub)
+
+  return () =>
+    handleSubscribers.splice(
+      handleSubscribers.findIndex(s => s === sub),
+      1,
+    )
+}
+
 export const fetchHandle = batcher(800, async (nip05s: string[]) => {
-  const handlesByNip05 = new Map<string, Handle>()
+  const result = new Map<string, Handle>()
 
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly
   if (appContext.dufflepudUrl) {
@@ -61,7 +75,7 @@ export const fetchHandle = batcher(800, async (nip05s: string[]) => {
 
     for (const {handle: nip05, info} of res?.data || []) {
       if (info) {
-        handlesByNip05.set(nip05, info)
+        result.set(nip05, {...info, nip05})
       }
     }
   } else {
@@ -74,18 +88,24 @@ export const fetchHandle = batcher(800, async (nip05s: string[]) => {
 
     for (const {nip05, info} of results) {
       if (info) {
-        handlesByNip05.set(nip05, info)
+        result.set(nip05, {...info, nip05})
       }
     }
   }
 
-  return nip05s.map(nip05 => {
-    const info = handlesByNip05.get(nip05)
-
-    if (info) {
-      return {...info, nip05}
+  handlesByNip05.update($handlesByNip05 => {
+    for (const [nip05, info] of result) {
+      $handlesByNip05.set(nip05, info)
     }
+
+    return $handlesByNip05
   })
+
+  for (const info of result.values()) {
+    notifyHandle(info)
+  }
+
+  return nip05s.map(nip05 => result.get(nip05))
 })
 
 export const forceLoadHandle = makeForceLoadItem(fetchHandle, getHandle)

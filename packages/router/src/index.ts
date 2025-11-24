@@ -187,7 +187,8 @@ export class Router {
 
   FromPubkeys = (pubkeys: string[]) => this.merge(pubkeys.map(pubkey => this.FromPubkey(pubkey)))
 
-  MessagesForPubkeys = (pubkeys: string[]) => this.merge(pubkeys.map(pubkey => this.MessagesForPubkey(pubkey)))
+  MessagesForPubkeys = (pubkeys: string[]) =>
+    this.merge(pubkeys.map(pubkey => this.MessagesForPubkey(pubkey)))
 
   Event = (event: TrustedEvent) =>
     this.FromRelays(this.getRelaysForPubkey(event.pubkey, RelayMode.Write))

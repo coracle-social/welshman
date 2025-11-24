@@ -1,18 +1,7 @@
-import {writable, derived} from "svelte/store"
-import {
-  uniq,
-  removeUndefined,
-  prop,
-  indexBy,
-  batcher,
-  fetchJson,
-  postJson,
-  Maybe,
-  noop,
-} from "@welshman/lib"
-import {withGetter} from "@welshman/store"
+import {writable, derived, Subscriber} from "svelte/store"
+import {batcher, fetchJson, postJson, Maybe, noop} from "@welshman/lib"
 import {RelayProfile} from "@welshman/util"
-import {normalizeRelayUrl, displayRelayUrl, displayRelayProfile, isRelayUrl} from "@welshman/util"
+import {displayRelayUrl, displayRelayProfile} from "@welshman/util"
 import {getter, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem} from "@welshman/store"
 import {appContext} from "./context.js"
 
@@ -26,6 +15,20 @@ export const getRelays = getter(relays)
 
 export const getRelay = (url: string) => getRelaysByUrl().get(url)
 
+export const relaySubscribers: Subscriber<RelayProfile>[] = []
+
+export const notifyRelay = (relay: RelayProfile) => relaySubscribers.forEach(sub => sub(relay))
+
+export const onRelay = (sub: (relay: RelayProfile) => void) => {
+  relaySubscribers.push(sub)
+
+  return () =>
+    relaySubscribers.splice(
+      relaySubscribers.findIndex(s => s === sub),
+      1,
+    )
+}
+
 export const fetchRelayDirectly = async (url: string): Promise<Maybe<RelayProfile>> => {
   try {
     const json = fetchJson(url.replace(/^ws/, "http"), {
@@ -35,7 +38,17 @@ export const fetchRelayDirectly = async (url: string): Promise<Maybe<RelayProfil
     })
 
     if (json) {
-      return {...json, url}
+      const info = {...json, url}
+
+      relaysByUrl.update($relaysByUrl => {
+        $relaysByUrl.set(url, info)
+
+        return $relaysByUrl
+      })
+
+      notifyRelay(info)
+
+      return info
     }
   } catch (e) {
     // pass
@@ -49,19 +62,27 @@ export const fetchRelayUsingProxy = batcher(800, async (urls: string[]) => {
   }
 
   const res: any = await postJson(`${appContext.dufflepudUrl}/relay/info`, {urls})
-  const relaysByUrl = new Map<string, RelayProfile>()
+  const result = new Map<string, RelayProfile>()
 
   for (const {url, info} of res?.data || []) {
-    relaysByUrl.set(url, info)
+    if (info) {
+      result.set(url, {...info, url})
+    }
   }
 
-  return urls.map(url => {
-    const info = relaysByUrl.get(url)
-
-    if (info) {
-      return {...info, url}
+  relaysByUrl.update($relaysByUrl => {
+    for (const [url, info] of result) {
+      $relaysByUrl.set(url, info)
     }
+
+    return $relaysByUrl
   })
+
+  for (const info of result.values()) {
+    notifyRelay(info)
+  }
+
+  return urls.map(url => result.get(url))
 })
 
 export const fetchRelay = (url: string) =>

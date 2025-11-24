@@ -1,13 +1,13 @@
 import {batcher} from "@welshman/lib"
+import {RELAYS, Filter, asDecryptedEvent, readList, TrustedEvent} from "@welshman/util"
 import {
-  RELAYS,
-  Filter,
-  asDecryptedEvent,
-  readList,
-  TrustedEvent,
-  PublishedList,
-} from "@welshman/util"
-import {deriveItemsByKey, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem, getter} from "@welshman/store"
+  deriveItemsByKey,
+  deriveItems,
+  makeForceLoadItem,
+  makeLoadItem,
+  makeDeriveItem,
+  getter,
+} from "@welshman/store"
 import {load, LoadOptions} from "@welshman/net"
 import {Router} from "@welshman/router"
 import {repository} from "./core.js"
@@ -56,7 +56,10 @@ export const getRelayLists = getter(relayLists)
 
 export const getRelayList = (pubkey: string) => getRelayListsByPubkey().get(pubkey)
 
-export const forceLoadRelayList = makeForceLoadItem(makeOutboxLoaderWithIndexers(RELAYS), getRelayList)
+export const forceLoadRelayList = makeForceLoadItem(
+  makeOutboxLoaderWithIndexers(RELAYS),
+  getRelayList,
+)
 
 export const loadRelayList = makeLoadItem(makeOutboxLoaderWithIndexers(RELAYS), getRelayList)
 

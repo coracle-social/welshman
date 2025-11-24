@@ -6,11 +6,9 @@ import {pubkey} from "./session.js"
 import {followLists, getFollowListsByPubkey, getFollowList} from "./follows.js"
 import {muteLists, getMuteList} from "./mutes.js"
 
-export const getFollows = (pubkey: string) =>
-  getPubkeyTagValues(getListTags(getFollowList(pubkey)))
+export const getFollows = (pubkey: string) => getPubkeyTagValues(getListTags(getFollowList(pubkey)))
 
-export const getMutes = (pubkey: string) =>
-  getPubkeyTagValues(getListTags(getMuteList(pubkey)))
+export const getMutes = (pubkey: string) => getPubkeyTagValues(getListTags(getMuteList(pubkey)))
 
 export const getNetwork = (pubkey: string) => {
   const pubkeys = new Set(getFollows(pubkey))

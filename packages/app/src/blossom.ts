@@ -1,6 +1,13 @@
 import {BLOSSOM_SERVERS, asDecryptedEvent, readList} from "@welshman/util"
-import {TrustedEvent, PublishedList} from "@welshman/util"
-import {deriveItemsByKey, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem, getter} from "@welshman/store"
+import {TrustedEvent} from "@welshman/util"
+import {
+  deriveItemsByKey,
+  deriveItems,
+  makeForceLoadItem,
+  makeLoadItem,
+  makeDeriveItem,
+  getter,
+} from "@welshman/store"
 import {repository} from "./core.js"
 import {makeOutboxLoader} from "./relayLists.js"
 
@@ -17,8 +24,17 @@ export const getBlossomServerListsByPubkey = getter(blossomServerListsByPubkey)
 
 export const getBlossomServerList = (pubkey: string) => getBlossomServerListsByPubkey().get(pubkey)
 
-export const forceLoadBlossomServerList = makeForceLoadItem(makeOutboxLoader(BLOSSOM_SERVERS), getBlossomServerList)
+export const forceLoadBlossomServerList = makeForceLoadItem(
+  makeOutboxLoader(BLOSSOM_SERVERS),
+  getBlossomServerList,
+)
 
-export const loadBlossomServerList = makeLoadItem(makeOutboxLoader(BLOSSOM_SERVERS), getBlossomServerList)
+export const loadBlossomServerList = makeLoadItem(
+  makeOutboxLoader(BLOSSOM_SERVERS),
+  getBlossomServerList,
+)
 
-export const deriveBlossomServerList = makeDeriveItem(blossomServerListsByPubkey, loadBlossomServerList)
+export const deriveBlossomServerList = makeDeriveItem(
+  blossomServerListsByPubkey,
+  loadBlossomServerList,
+)

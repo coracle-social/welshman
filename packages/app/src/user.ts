@@ -5,9 +5,17 @@ import {profilesByPubkey, forceLoadProfile, loadProfile} from "./profiles.js"
 import {followListsByPubkey, forceLoadFollowList, loadFollowList} from "./follows.js"
 import {pinListsByPubkey, forceLoadPinList, loadPinList} from "./pins.js"
 import {muteListsByPubkey, forceLoadMuteList, loadMuteList} from "./mutes.js"
-import {blossomServerListsByPubkey, forceLoadBlossomServerList, loadBlossomServerList} from "./blossom.js"
+import {
+  blossomServerListsByPubkey,
+  forceLoadBlossomServerList,
+  loadBlossomServerList,
+} from "./blossom.js"
 import {relayListsByPubkey, forceLoadRelayList, loadRelayList} from "./relayLists.js"
-import {messagingRelayListsByPubkey, forceLoadMessagingRelayList, loadMessagingRelayList} from "./messagingRelayLists.js"
+import {
+  messagingRelayListsByPubkey,
+  forceLoadMessagingRelayList,
+  loadMessagingRelayList,
+} from "./messagingRelayLists.js"
 import {wotGraph} from "./wot.js"
 
 export type UserDataLoader = (pubkey: string, relays?: string[], force?: boolean) => unknown

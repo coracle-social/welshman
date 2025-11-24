@@ -1,6 +1,6 @@
-import {writable, derived} from "svelte/store"
-import {withGetter} from "@welshman/store"
-import {prop, groupBy, indexBy, batch, now, uniq, ago, DAY, HOUR, MINUTE} from "@welshman/lib"
+import {writable, Subscriber} from "svelte/store"
+import {getter, makeDeriveItem} from "@welshman/store"
+import {groupBy, batch, now, uniq, ago, DAY, HOUR, MINUTE} from "@welshman/lib"
 import {isOnionUrl, isLocalUrl, isIPAddress, isRelayUrl} from "@welshman/util"
 import {Pool, Socket, SocketStatus, SocketEvent, ClientMessage, RelayMessage} from "@welshman/net"
 
@@ -48,20 +48,34 @@ export const makeRelayStats = (url: string): RelayStats => ({
   notice_count: 0,
 })
 
-export const relayStats = withGetter(writable<RelayStats[]>([]))
+export const relayStatsByUrl = writable(new Map<string, RelayStats>())
 
-export const relayStatsByUrl = withGetter(
-  derived(relayStats, $relayStats => indexBy(prop("url"), $relayStats)),
-)
+export const getRelayStatsByUrl = getter(relayStatsByUrl)
 
-export const deriveRelayStats = (url: string) =>
-  derived(relayStatsByUrl, $relayStatsByUrl => $relayStatsByUrl.get(url))
+export const getRelayStats = (url: string) => getRelayStatsByUrl().get(url)
+
+export const relayStatsSubscribers: Subscriber<RelayStats>[] = []
+
+export const notifyRelayStats = (relayStats: RelayStats) =>
+  relayStatsSubscribers.forEach(sub => sub(relayStats))
+
+export const onRelayStats = (sub: (relayStats: RelayStats) => void) => {
+  relayStatsSubscribers.push(sub)
+
+  return () =>
+    relayStatsSubscribers.splice(
+      relayStatsSubscribers.findIndex(s => s === sub),
+      1,
+    )
+}
+
+export const deriveRelayStats = makeDeriveItem(relayStatsByUrl)
 
 export const getRelayQuality = (url: string) => {
   // Skip non-relays entirely
   if (!isRelayUrl(url)) return 0
 
-  const relayStats = relayStatsByUrl.get().get(url)
+  const relayStats = getRelayStats(url)
 
   // If we have recent errors, skip it
   if (relayStats) {
@@ -90,9 +104,7 @@ export const getRelayQuality = (url: string) => {
 type RelayStatsUpdate = [string, (stats: RelayStats) => void]
 
 const updateRelayStats = batch(500, (updates: RelayStatsUpdate[]) => {
-  relayStats.update($relayStats => {
-    const $relayStatsByUrl = indexBy(r => r.url, $relayStats)
-
+  relayStatsByUrl.update($relayStatsByUrl => {
     for (const [url, items] of groupBy(([url]) => url, updates)) {
       if (!url || !isRelayUrl(url)) {
         console.warn(`Attempted to update stats for an invalid relay url: ${url}`)
@@ -109,7 +121,7 @@ const updateRelayStats = batch(500, (updates: RelayStatsUpdate[]) => {
       $relayStatsByUrl.set(url, {...$relayStatsItem})
     }
 
-    return Array.from($relayStatsByUrl.values())
+    return $relayStatsByUrl
   })
 })
 

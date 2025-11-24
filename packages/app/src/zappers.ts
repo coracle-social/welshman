@@ -1,9 +1,8 @@
-import {writable, derived} from "svelte/store"
+import {writable, derived, Subscriber} from "svelte/store"
 import {Zapper, TrustedEvent, Zap, getTagValues, getLnUrl, zapFromEvent} from "@welshman/util"
 import {
   removeUndefined,
   fetchJson,
-  uniq,
   bech32ToHex,
   hexToBech32,
   tryCatch,
@@ -22,6 +21,20 @@ export const getZappersByLnurl = getter(zappersByLnurl)
 
 export const getZapper = (lnurl: string) => getZappersByLnurl().get(lnurl)
 
+export const zapperSubscribers: Subscriber<Zapper>[] = []
+
+export const notifyZapper = (zapper: Zapper) => zapperSubscribers.forEach(sub => sub(zapper))
+
+export const onZapper = (sub: (zapper: Zapper) => void) => {
+  zapperSubscribers.push(sub)
+
+  return () =>
+    zapperSubscribers.splice(
+      zapperSubscribers.findIndex(s => s === sub),
+      1,
+    )
+}
+
 export const fetchZapper = batcher(800, async (lnurls: string[]) => {
   const base = appContext.dufflepudUrl
   const result = new Map<string, Zapper>()
@@ -35,8 +48,12 @@ export const fetchZapper = batcher(800, async (lnurls: string[]) => {
         async () => await postJson(`${base}/zapper/info`, {lnurls: hexUrls}),
       )
 
-      for (const {lnurl, info} of res?.data || []) {
-        tryCatch(() => result.set(hexToBech32("lnurl", lnurl), info))
+      for (const {hexUrl, info} of res?.data || []) {
+        if (info) {
+          const lnurl = hexToBech32("lnurl", hexUrl)
+
+          tryCatch(() => result.set(lnurl, {...info, lnurl}))
+        }
       }
     }
   } else {
@@ -51,9 +68,21 @@ export const fetchZapper = batcher(800, async (lnurls: string[]) => {
 
     for (const {lnurl, info} of results) {
       if (info) {
-        result.set(lnurl, info)
+        result.set(lnurl, {...info, lnurl})
       }
     }
+  }
+
+  zappersByLnurl.update($zappersByLnurl => {
+    for (const [nip05, info] of result) {
+      $zappersByLnurl.set(nip05, info)
+    }
+
+    return $zappersByLnurl
+  })
+
+  for (const info of result.values()) {
+    notifyZapper(info)
   }
 
   return lnurls.map(lnurl => {

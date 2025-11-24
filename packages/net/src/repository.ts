@@ -110,6 +110,7 @@ export class Repository extends Emitter {
       removed.add(id)
     }
 
+    console.log("UPDATE")
     this.emit("update", {added, removed})
   }
 
