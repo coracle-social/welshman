@@ -64,11 +64,6 @@ export const not = (x: any, ...args: unknown[]) => !x
 export const equals = (a: any, b: any) => {
   if (a === b) return true
 
-  if (a instanceof Set && b instanceof Set) {
-    a = Array.from(a)
-    b = Array.from(b)
-  }
-
   if (a instanceof Set) {
     if (!(b instanceof Set) || a.size !== b.size) {
       return false

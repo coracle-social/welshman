@@ -77,13 +77,14 @@ export const makeDeriveEvent = ({
     onDerive?.(filters, ...args)
 
     return readable<Maybe<TrustedEvent>>(undefined, set => {
-      const event = first(repository.query(filters, {includeDeleted}))
+      let event = first(repository.query(filters, {includeDeleted}))
 
       set(event)
 
       return on(repository, "update", ({added, removed}: RepositoryUpdate) => {
-        for (const event of added) {
-          if (matchFilters(filters, event)) {
+        for (const newEvent of added) {
+          if (matchFilters(filters, newEvent)) {
+            event = newEvent
             set(event)
           }
         }
@@ -226,19 +227,21 @@ export const deriveEventsByIdForUrl = ({
 }: DeriveEventsByIdForUrlOptions) => {
   const eventsById: EventsById = new Map()
 
-  const initialize = () => {
-    const initialIds = Array.from(tracker.getIds(url))
-    const initialFilters = filters.map(assoc("ids", initialIds))
+  return readable(eventsById, set => {
+    const reset = () => {
+      const initialIds = Array.from(tracker.getIds(url))
+      const initialFilters = filters.map(assoc("ids", initialIds))
 
-    for (const event of repository.query(initialFilters, {includeDeleted})) {
-      eventsById.set(event.id, event)
+      eventsById.clear()
+
+      for (const event of repository.query(initialFilters, {includeDeleted})) {
+        eventsById.set(event.id, event)
+      }
+
+      set(eventsById)
     }
 
-    return eventsById
-  }
-
-  return readable(initialize(), set => {
-    set(initialize())
+    reset()
 
     const unsubscribers = [
       on(repository, "update", ({added, removed}: RepositoryUpdate) => {
@@ -276,15 +279,8 @@ export const deriveEventsByIdForUrl = ({
           set(eventsById)
         }
       }),
-      on(tracker, "load", () => {
-        eventsById.clear()
-        set(initialize())
-      }),
-      on(tracker, "clear", () => {
-        eventsById.clear()
-
-        set(eventsById)
-      }),
+      on(tracker, "load", reset),
+      on(tracker, "clear", reset),
     ]
 
     return () => unsubscribers.forEach(call)
@@ -330,18 +326,20 @@ export const deriveItemsByKey = <T>({
         deferred.set(event.id, itemOrPromise)
       }
 
-      const item = await itemOrPromise
+      try {
+        const item = await itemOrPromise
 
-      deferred.delete(event.id)
+        if (item) {
+          const key = getKey(item)
 
-      if (item) {
-        const key = getKey(item)
+          itemsByKey.set(key, item)
+          idsByKey.set(key, event.id)
+          keysById.set(event.id, key)
 
-        itemsByKey.set(key, item)
-        idsByKey.set(key, event.id)
-        keysById.set(event.id, key)
-
-        set(itemsByKey)
+          set(itemsByKey)
+        }
+      } finally {
+        deferred.delete(event.id)
       }
     }
 
@@ -350,16 +348,15 @@ export const deriveItemsByKey = <T>({
     }
 
     return on(repository, "update", ({added, removed}: RepositoryUpdate) => {
-      let dirty = false
-
       for (const event of added) {
         if (matchFilters(filters, event)) {
           addEvent(event)
-          dirty = true
         }
       }
 
       if (!includeDeleted) {
+        let dirty = false
+
         for (const id of removed) {
           const key = mapPop(id, keysById)
 
@@ -369,10 +366,10 @@ export const deriveItemsByKey = <T>({
             dirty = true
           }
         }
-      }
 
-      if (dirty) {
-        set(itemsByKey)
+        if (dirty) {
+          set(itemsByKey)
+        }
       }
     })
   })
@@ -427,7 +424,7 @@ export const makeLoadItem = <T>(
     const stale = getItem(key)
     const fetched = getFetched(key)
 
-    // If we have an item, reload if it's stale
+    // If we have an item, reload if it's relatively recent
     if (stale && fetched > now() - timeout) {
       return stale
     }
@@ -458,7 +455,7 @@ export const makeLoadItem = <T>(
     try {
       item = await promise
     } catch (e) {
-      console.warn(`Failed to load ${name} item ${key}`, e)
+      console.warn(`Failed to load item ${key}`, e)
     } finally {
       pending.delete(key)
     }
