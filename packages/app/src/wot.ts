@@ -1,7 +1,7 @@
 import {derived, writable} from "svelte/store"
 import {max, throttle, addToMapKey, inc, dec} from "@welshman/lib"
 import {getListTags, getPubkeyTagValues} from "@welshman/util"
-import {throttled, withGetter} from "@welshman/store"
+import {throttled, getter} from "@welshman/store"
 import {pubkey} from "./session.js"
 import {followLists, getFollowListsByPubkey, getFollowList} from "./follows.js"
 import {muteLists, getMuteList} from "./mutes.js"
@@ -25,38 +25,37 @@ export const getNetwork = (pubkey: string) => {
   return Array.from(network)
 }
 
-export const followersByPubkey = withGetter(
-  derived(throttled(1000, followLists), lists => {
-    const $followersByPubkey = new Map<string, Set<string>>()
+export const followersByPubkey = derived(throttled(1000, followLists), lists => {
+  const $followersByPubkey = new Map<string, Set<string>>()
 
-    for (const list of lists) {
-      for (const pubkey of getPubkeyTagValues(getListTags(list))) {
-        addToMapKey($followersByPubkey, pubkey, list.event.pubkey)
-      }
+  for (const list of lists) {
+    for (const pubkey of getPubkeyTagValues(getListTags(list))) {
+      addToMapKey($followersByPubkey, pubkey, list.event.pubkey)
     }
+  }
 
-    return $followersByPubkey
-  }),
-)
+  return $followersByPubkey
+})
 
-export const mutersByPubkey = withGetter(
-  derived(throttled(1000, muteLists), lists => {
-    const $mutersByPubkey = new Map<string, Set<string>>()
+export const getFollowersByPubkey = getter(followersByPubkey)
 
-    for (const list of lists) {
-      for (const pubkey of getPubkeyTagValues(getListTags(list))) {
-        addToMapKey($mutersByPubkey, pubkey, list.event.pubkey)
-      }
+export const mutersByPubkey = derived(throttled(1000, muteLists), lists => {
+  const $mutersByPubkey = new Map<string, Set<string>>()
+
+  for (const list of lists) {
+    for (const pubkey of getPubkeyTagValues(getListTags(list))) {
+      addToMapKey($mutersByPubkey, pubkey, list.event.pubkey)
     }
+  }
 
-    return $mutersByPubkey
-  }),
-)
+  return $mutersByPubkey
+})
 
-export const getFollowers = (pubkey: string) =>
-  Array.from(followersByPubkey.get().get(pubkey) || [])
+export const getMutersByPubkey = getter(mutersByPubkey)
 
-export const getMuters = (pubkey: string) => Array.from(mutersByPubkey.get().get(pubkey) || [])
+export const getFollowers = (pubkey: string) => Array.from(getFollowersByPubkey().get(pubkey) || [])
+
+export const getMuters = (pubkey: string) => Array.from(getMutersByPubkey().get(pubkey) || [])
 
 export const getFollowsWhoFollow = (pubkey: string, target: string) =>
   getFollows(pubkey).filter(other => getFollows(other).includes(target))
@@ -64,9 +63,13 @@ export const getFollowsWhoFollow = (pubkey: string, target: string) =>
 export const getFollowsWhoMute = (pubkey: string, target: string) =>
   getFollows(pubkey).filter(other => getMutes(other).includes(target))
 
-export const wotGraph = withGetter(writable(new Map<string, number>()))
+export const wotGraph = writable(new Map<string, number>())
 
-export const maxWot = withGetter(derived(wotGraph, $g => max(Array.from($g.values()))))
+export const getWotGraph = getter(wotGraph)
+
+export const maxWot = derived(wotGraph, $g => max(Array.from($g.values())))
+
+export const getMaxWot = getter(maxWot)
 
 const buildGraph = throttle(1000, () => {
   const $pubkey = pubkey.get()

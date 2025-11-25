@@ -1,6 +1,6 @@
 import {Scope, FeedController, FeedControllerOptions, Feed} from "@welshman/feeds"
 import {pubkey, signer} from "./session.js"
-import {wotGraph, maxWot, getFollows, getNetwork, getFollowers} from "./wot.js"
+import {getWotGraph, getMaxWot, getFollows, getNetwork, getFollowers} from "./wot.js"
 
 export const getPubkeysForScope = (scope: string) => {
   const $pubkey = pubkey.get()
@@ -25,10 +25,11 @@ export const getPubkeysForScope = (scope: string) => {
 
 export const getPubkeysForWOTRange = (min: number, max: number) => {
   const pubkeys = []
-  const thresholdMin = maxWot.get() * min
-  const thresholdMax = maxWot.get() * max
+  const $maxWot = getMaxWot()
+  const thresholdMin = $maxWot * min
+  const thresholdMax = $maxWot * max
 
-  for (const [tpk, score] of wotGraph.get().entries()) {
+  for (const [tpk, score] of getWotGraph().entries()) {
     if (score >= thresholdMin && score <= thresholdMax) {
       pubkeys.push(tpk)
     }

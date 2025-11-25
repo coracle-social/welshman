@@ -1,5 +1,5 @@
 import {derived, Readable} from "svelte/store"
-import {withGetter, memoized} from "@welshman/store"
+import {ItemsByKey} from "@welshman/store"
 import {pubkey} from "./session.js"
 import {profilesByPubkey, forceLoadProfile, loadProfile} from "./profiles.js"
 import {followListsByPubkey, forceLoadFollowList, loadFollowList} from "./follows.js"
@@ -16,94 +16,61 @@ import {
   forceLoadMessagingRelayList,
   loadMessagingRelayList,
 } from "./messagingRelayLists.js"
-import {wotGraph} from "./wot.js"
+import {wotGraph, getWotGraph} from "./wot.js"
 
-export type UserDataLoader = (pubkey: string, relays?: string[], force?: boolean) => unknown
+export const makeUserData = <T>(
+  itemsByKey: Readable<ItemsByKey<T>>,
+  onDerive?: (key: string, ...args: any[]) => void,
+) =>
+  derived([itemsByKey, pubkey], ([$itemsByKey, $pubkey]) => {
+    if (!$pubkey) return undefined
 
-export type MakeUserDataOptions<T> = {
-  mapStore: Readable<Map<string, T>>
-  loadItem: UserDataLoader
-}
+    onDerive?.($pubkey)
 
-export const makeUserData = <T>({mapStore, loadItem}: MakeUserDataOptions<T>) =>
-  withGetter(
-    memoized(
-      derived([mapStore, pubkey], ([$mapStore, $pubkey]) => {
-        if (!$pubkey) return undefined
-
-        loadItem($pubkey)
-
-        return $mapStore.get($pubkey)
-      }),
-    ),
-  )
+    return $itemsByKey.get($pubkey)
+  })
 
 export const makeUserLoader =
-  (loadItem: UserDataLoader) =>
-  async (relays: string[] = [], force = false) => {
+  (loadItem: (key: string, ...args: any[]) => void) =>
+  async (...args: any[]) => {
     const $pubkey = pubkey.get()
 
     if ($pubkey) {
-      await loadItem($pubkey, relays, force)
+      await loadItem($pubkey, ...args)
     }
   }
 
-export const userProfile = makeUserData({
-  mapStore: profilesByPubkey,
-  loadItem: loadProfile,
-})
-
+export const userProfile = makeUserData(profilesByPubkey, loadProfile)
 export const forceLoadUserProfile = makeUserLoader(forceLoadProfile)
 export const loadUserProfile = makeUserLoader(loadProfile)
 
-export const userFollowList = makeUserData({
-  mapStore: followListsByPubkey,
-  loadItem: loadFollowList,
-})
-
+export const userFollowList = makeUserData(followListsByPubkey, loadFollowList)
 export const forceLoadUserFollowList = makeUserLoader(forceLoadFollowList)
 export const loadUserFollowList = makeUserLoader(loadFollowList)
 
-export const userMuteList = makeUserData({
-  mapStore: muteListsByPubkey,
-  loadItem: loadMuteList,
-})
-
+export const userMuteList = makeUserData(muteListsByPubkey, loadMuteList)
 export const forceLoadUserMuteList = makeUserLoader(forceLoadMuteList)
 export const loadUserMuteList = makeUserLoader(loadMuteList)
 
-export const userPinList = makeUserData({
-  mapStore: pinListsByPubkey,
-  loadItem: loadPinList,
-})
-
+export const userPinList = makeUserData(pinListsByPubkey, loadPinList)
 export const forceLoadUserPinList = makeUserLoader(forceLoadPinList)
 export const loadUserPinList = makeUserLoader(loadPinList)
 
-export const userRelayList = makeUserData({
-  mapStore: relayListsByPubkey,
-  loadItem: loadRelayList,
-})
-
+export const userRelayList = makeUserData(relayListsByPubkey, loadRelayList)
 export const forceLoadUserRelayList = makeUserLoader(forceLoadRelayList)
 export const loadUserRelayList = makeUserLoader(loadRelayList)
 
-export const userMessagingRelayList = makeUserData({
-  mapStore: messagingRelayListsByPubkey,
-  loadItem: loadMessagingRelayList,
-})
-
+export const userMessagingRelayList = makeUserData(
+  messagingRelayListsByPubkey,
+  loadMessagingRelayList,
+)
 export const forceLoadUserMessagingRelayList = makeUserLoader(forceLoadMessagingRelayList)
 export const loadUserMessagingRelayList = makeUserLoader(loadMessagingRelayList)
 
-export const userBlossomServerList = makeUserData({
-  mapStore: blossomServerListsByPubkey,
-  loadItem: loadBlossomServerList,
-})
-
+export const userBlossomServerList = makeUserData(blossomServerListsByPubkey, loadBlossomServerList)
 export const forceLoadUserBlossomServerList = makeUserLoader(forceLoadBlossomServerList)
 export const loadUserBlossomServerList = makeUserLoader(loadBlossomServerList)
 
-export const getUserWotScore = (tpk: string) => wotGraph.get().get(tpk) || 0
+export const getUserWotScore = (tpk: string) => getWotGraph().get(tpk) || 0
 
 export const deriveUserWotScore = (tpk: string) => derived(wotGraph, $g => $g.get(tpk) || 0)

@@ -6,7 +6,7 @@ import {PROFILE, PublishedProfile, RelayProfile} from "@welshman/util"
 import {load} from "@welshman/net"
 import {throttled} from "@welshman/store"
 import {Router} from "@welshman/router"
-import {wotGraph, maxWot} from "./wot.js"
+import {getWotGraph, getMaxWot} from "./wot.js"
 import {profiles} from "./profiles.js"
 import {topics, Topic} from "./topics.js"
 import {relays} from "./relays.js"
@@ -75,9 +75,9 @@ export const profileSearch = derived(
       onSearch: searchProfiles,
       getValue: (profile: PublishedProfile) => profile.event.pubkey,
       sortFn: ({score = 1, item}) => {
-        const wotScore = wotGraph.get().get(item.event.pubkey) || 0
+        const wotScore = getWotGraph().get(item.event.pubkey) || 0
 
-        return dec(score) * inc(wotScore / maxWot.get())
+        return dec(score) * inc(wotScore / getMaxWot())
       },
       fuseOptions: {
         keys: [
