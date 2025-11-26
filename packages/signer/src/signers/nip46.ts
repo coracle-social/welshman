@@ -1,14 +1,36 @@
-import {Emitter, throttle, makePromise, defer, sleep, tryCatch, randomId} from "@welshman/lib"
+import {trustedKeyDeal, hexShard, hexPubShard, KeyShard} from "@jsr/fiatjaf__promenade-trusted-dealer"
+import {bytesToHex, hexToBytes, numberToBytesBE} from "@noble/curves/abstract/utils"
+import type {AffinePoint} from "@noble/curves/abstract/curve"
 import {
+  Emitter,
+  uniq,
+  spec,
+  inc,
+  throttle,
+  makePromise,
+  defer,
+  sleep,
+  tryCatch,
+  randomId,
+  MaybeAsync,
+  shuffle,
+} from "@welshman/lib"
+import {
+  getPubkey,
+  HashedEvent,
   makeEvent,
+  makeSecret,
   normalizeRelayUrl,
-  TrustedEvent,
-  StampedEvent,
   NOSTR_CONNECT,
-  hash,
-  own,
+  prep,
+  PROMENADE_REGISTER_ACCOUNT,
+  PROMENADE_SHARD_ACK,
+  PROMENADE_SHARD_SHARE,
+  RelayMode,
+  StampedEvent,
+  TrustedEvent,
 } from "@welshman/util"
-import {publish, request, AdapterContext} from "@welshman/net"
+import {publish, request, PublishStatus, AdapterContext} from "@welshman/net"
 import {ISigner, EncryptionImplementation, signWithOptions, SignOptions, decrypt} from "../util.js"
 import {Nip01Signer} from "./nip01.js"
 
@@ -18,6 +40,12 @@ export type Nip46Context = {
 
 export const nip46Context = {
   debug: false,
+}
+
+const nip46Log = (...args: any[]) => {
+  if (nip46Context.debug) {
+    console.log(...args)
+  }
 }
 
 export type Nip46Algorithm = "nip04" | "nip44"
@@ -56,6 +84,68 @@ export type Nip46ResponseWithError = {
   url: string
   event: TrustedEvent
   error: string
+}
+
+export type PromenadeOptions = {
+  secret: string
+  policy: [number, number]
+  coordinatorUrl: string
+  signerPubkeys: string[]
+  onProgress?: (progress: number) => void
+  generatePow: (event: HashedEvent, difficulty: number) => MaybeAsync<HashedEvent>
+  getPubkeyRelays: (pubkey: string, mode: RelayMode) => MaybeAsync<string[]>
+}
+
+/*
+
+const secret = 'fd8a80772a55d82ed963305b0f55299ac07e2fdf06d341f9e7c7223ec7bf57b0'
+const pubkey = getPubkey(secret)
+const coordinatorUrl = 'wss://promenade.coracle.social/'
+const event = prep(
+  makeEvent(10002, {
+    tags: [["r", "wss://bucket.coracle.social/"], ["r", "wss://relay.damus.io/"], ["r", "wss://nos.lol/"]],
+  }),
+  pubkey,
+)
+event.sig = getSig(event, secret)
+repository.publish(event)
+nip46Context.debug = true
+publish({event, relays: ["wss://purplepag.es/", "wss://indexer.coracle.social/"]}).then(async () => {
+  console.log("Published outbox relays")
+  const broker = await Nip46Broker.fromPromenade({
+    secret,
+    policy: [2, 3],
+    coordinatorUrl,
+    signerPubkeys: [
+      // '4440e4f93c9dcb0a5521f0bf949a1222698b72a1b1e3534b10537100fc94f97f',
+      // '23a3ff76766f5ffc852fa6f2fc5058c1306ee25927632e0f8e213af11a5b8de5',
+      'aa4f53d8041b88adee44cefb62fb49fdeb85d151d1a346e655850c213508ed2e',
+      // 'ad1c6fa1daca939685d34ab541fc9e7b450ef6295aa273addafee74a579d57fb',
+      // '3fcd012e970d9dfba4bc638ae9b6420e2ceca76f3b8e31d0ee3f408023a7c5fd',
+      // '4be49a6175734b43c7083ceac11e47bf684ffe65bd021c949bea1702409c119a',
+      '290238f7811a50b2b3ded97e42695f906b039fb3f5e2e2e3f77fd5a0b0c9a027',
+      'c66bebe38406a0b57593fcd8c893762dd9af8e488664c6d1a4eb3868b1f65526',
+    ],
+    onProgress: p => console.log('progress', p),
+    generatePow: (e, d) => makePow(e, d).result,
+    getPubkeyRelays: async (k, m) => {
+      await forceLoadRelayList(k)
+      return getPubkeyRelays(k, m)
+    },
+  })
+  console.log('connect', await broker.connect(broker.params.connectSecret))
+  console.log('sign', await broker.signEvent(makeEvent(1)))
+})
+
+*/
+
+export class PromenadeShardError extends Error {
+  constructor(
+    message: string,
+    readonly errorsBySignerPubkey: Map<string, string>,
+  ) {
+    super(message)
+  }
 }
 
 const popupManager = (() => {
@@ -188,9 +278,7 @@ export class Nip46Sender extends Emitter {
         try {
           await this.send(request)
         } catch (error: any) {
-          if (nip46Context.debug) {
-            console.log("nip46 error:", error, request)
-          }
+          nip46Log("nip46 error:", error, request)
         }
       }
     } finally {
@@ -286,6 +374,154 @@ export class Nip46Broker extends Emitter {
     return {relays, signerPubkey, connectSecret}
   }
 
+  static fromBunkerUrl = (url: string) => {
+    const clientSecret = makeSecret()
+    const {relays, signerPubkey, connectSecret} = Nip46Broker.parseBunkerUrl(url)
+
+    return new Nip46Broker({
+      relays,
+      clientSecret,
+      signerPubkey,
+      connectSecret,
+    })
+  }
+
+  static fromPromenade = async (options: PromenadeOptions) => {
+    const [m, n] = options.policy
+
+    if (options.signerPubkeys.length < n) {
+      throw new Error("Not enough signers to create all shards")
+    }
+
+    const deal = trustedKeyDeal(BigInt("0x" + options.secret), m, n)
+
+    // Add the VSS commits to each shard
+    // for (const shard of deal.shards) {
+    //   shard.pubShard.vssCommit = deal.commits
+    // }
+
+    // Use the pubkey and adjusted secret from the deal (BIP-340 adjusted if needed)
+    const signer = Nip01Signer.fromSecret(options.secret)
+    const ourPubkey = await signer.getPubkey()
+    const ackRelays = await options.getPubkeyRelays(ourPubkey, RelayMode.Read)
+    const remainingSignerPubkeys = shuffle(uniq(options.signerPubkeys))
+    const errorsBySignerPubkey = new Map<string, string>()
+    const shardsBySignerPubkey = new Map<string, KeyShard>()
+
+    if (ackRelays.length === 0) {
+      throw new Error("No read relays returned for user pubkey")
+    }
+
+    nip46Log(`generated promenade shards for user ${ourPubkey}`, deal)
+
+    await Promise.all(
+      deal.shards.map(async (shard, i) => {
+        while (remainingSignerPubkeys.length > 0) {
+          const signerPubkey = remainingSignerPubkeys.shift()!
+
+          nip46Log(`generating proof of work for shard ${i}`)
+
+          const shardTemplate = makeEvent(PROMENADE_SHARD_SHARE, {
+            content: await signer.nip44.encrypt(signerPubkey, hexShard(shard)),
+            tags: [
+              ["p", signerPubkey],
+              ["coordinator", options.coordinatorUrl],
+              ...ackRelays.map(url => ["reply", url]),
+            ],
+          })
+
+          const shardTemplateWithWork = await tryCatch(() =>
+            options.generatePow(prep(shardTemplate, ourPubkey), 20),
+          )
+
+          if (!shardTemplateWithWork) {
+            errorsBySignerPubkey.set(signerPubkey, "Failed to generate work")
+            continue
+          }
+
+          const shardEvent = await signer.sign(shardTemplateWithWork)
+          const shardRelays = await options.getPubkeyRelays(signerPubkey, RelayMode.Read)
+          const publishResults = await publish({relays: shardRelays, event: shardEvent})
+
+          nip46Log(`published shard ${i} to signer ${signerPubkey}`, shardRelays, publishResults)
+
+          if (!Object.values(publishResults).some(spec({status: PublishStatus.Success}))) {
+            errorsBySignerPubkey.set(signerPubkey, "Failed to publish shard")
+            continue
+          }
+
+          const controller = new AbortController()
+          const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)])
+
+          await request({
+            signal,
+            relays: ackRelays,
+            filters: [
+              {
+                kinds: [PROMENADE_SHARD_ACK],
+                authors: [signerPubkey],
+                "#p": [ourPubkey],
+                "#e": [shardEvent.id],
+              },
+            ],
+            onEvent: (event: TrustedEvent, url: string) => {
+              nip46Log(`received ack for shard ${i} from signer ${signerPubkey} on ${url}`)
+              shardsBySignerPubkey.set(signerPubkey, shard)
+              options.onProgress?.(shardsBySignerPubkey.size / inc(n))
+              controller.abort()
+            },
+          })
+
+          if (shardsBySignerPubkey.has(signerPubkey)) {
+            break
+          } else {
+            errorsBySignerPubkey.set(signerPubkey, "Failed to receive shard ACK")
+            nip46Log(`failed to receive ack for shard ${i} from signer ${signerPubkey}`)
+          }
+        }
+      }),
+    )
+
+    if (shardsBySignerPubkey.size < deal.shards.length) {
+      throw new PromenadeShardError("Failed to publish all shards", errorsBySignerPubkey)
+    }
+
+    const connectSecret = randomId()
+    const signerSecret = makeSecret()
+    const signerPubkey = getPubkey(signerSecret)
+    const tags = [
+      ["h", signerPubkey],
+      ["threshold", String(m)],
+      ["handlersecret", signerSecret],
+      ["profile", "MAIN", connectSecret, ""],
+    ]
+
+    for (const [pubkey, shard] of shardsBySignerPubkey) {
+      tags.push(["p", pubkey, hexPubShard(shard.pubShard)])
+    }
+
+    nip46Log(`registering coordinator account`, tags)
+
+    const relays = [options.coordinatorUrl]
+    const event = await signer.sign(makeEvent(PROMENADE_REGISTER_ACCOUNT, {tags}))
+    const accountResults = await publish({relays, event})
+
+    if (!Object.values(accountResults).some(spec({status: PublishStatus.Success}))) {
+      throw new Error("Failed to publish accounts to coordinator")
+    }
+
+    nip46Log(`successfully created promenade broker`)
+
+    const clientSecret = makeSecret()
+
+    return new Nip46Broker({
+      relays,
+      clientSecret,
+      signerPubkey,
+      connectSecret,
+    })
+  }
+
   // Getters for helper objects
 
   makeSigner = () => new Nip01Signer(this.params.clientSecret)
@@ -294,9 +530,7 @@ export class Nip46Broker extends Emitter {
     const sender = new Nip46Sender(this.signer, this.params)
 
     sender.on(Nip46Event.Send, (data: any) => {
-      if (nip46Context.debug) {
-        console.log("nip46 send:", data)
-      }
+      nip46Log("nip46 send:", data)
     })
 
     return sender
@@ -306,9 +540,7 @@ export class Nip46Broker extends Emitter {
     const receiver = new Nip46Receiver(this.signer, this.params)
 
     receiver.on(Nip46Event.Receive, (data: any) => {
-      if (nip46Context.debug) {
-        console.log("nip46 receive:", data)
-      }
+      nip46Log("nip46 receive:", data)
     })
 
     return receiver
@@ -467,7 +699,7 @@ export class Nip46Signer implements ISigner {
 
   sign = (template: StampedEvent, options: SignOptions = {}) =>
     signWithOptions(
-      this.getPubkey().then(pubkey => this.broker.signEvent(hash(own(template, pubkey)))),
+      this.getPubkey().then(pubkey => this.broker.signEvent(prep(template, pubkey))),
       options,
     )
 }

@@ -16,8 +16,8 @@ A Nostr signer implementation that supports multiple authentication methods and 
 ## Quick Example
 
 ```typescript
-import { makeEvent } from '@welshman/util'
-import { ISigner, Nip01Signer, makeSecret } from '@welshman/signer'
+import { makeEvent, makeSecret } from '@welshman/util'
+import { ISigner, Nip01Signer } from '@welshman/signer'
 
 const signer: ISigner = new Nip01Signer(makeSecret())
 const options = {

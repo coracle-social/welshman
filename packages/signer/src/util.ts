@@ -1,4 +1,4 @@
-import {hexToBytes} from "@noble/hashes/utils"
+import {hexToBytes} from "@noble/curves/abstract/utils"
 import * as nt04 from "nostr-tools/nip04"
 import * as nt44 from "nostr-tools/nip44"
 import {Emitter, cached} from "@welshman/lib"

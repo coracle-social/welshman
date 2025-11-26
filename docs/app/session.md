@@ -22,7 +22,7 @@ Sessions are stored in local storage and can be:
 The simplest type of login is NIP 01, although it's generally a bad idea to be handling user keys. NIP 46, 44, or 07 login are preferable. However, NIP 01 can be useful for supporting signup, local profiles, or ephemeral keys.
 
 ```typescript
-import {makeSecret} from '@welshman/signer'
+import {makeSecret} from '@welshman/util'
 import {loginWithNip01} from '@welshman/app'
 
 loginWithNip01(makeSecret())
@@ -54,7 +54,8 @@ The best default signing scheme is [NIP 46](https://github.com/nostr-protocol/ni
 The simpler `bunker://` handshake is done by asking the user to provide a bunker URL, either by QR code, or by pasting it manually into your application.
 
 ```typescript
-import {Nip46Broker, makeSecret} from "@welshman/signer"
+import {makeSecret} from "@welshman/util"
+import {Nip46Broker} from "@welshman/signer"
 import {loginWithNip46, nip46Perms} from "@welshman/app"
 import {isKeyValid} from "src/util/nostr"
 
@@ -96,7 +97,8 @@ if (!isKeyValid(signerPubkey)) {
 Alternatively, you can provide the user with a `nostrconnect://` URL which they can copy or scan with their signer. This is a better UX for users using a signer on their mobile phone.
 
 ```typescript
-import {Nip46Broker, makeSecret} from "@welshman/signer"
+import {makeSecret} from "@welshman/util"
+import {Nip46Broker} from "@welshman/signer"
 import {loginWithNip46, nip46Perms} from "@welshman/app"
 
 // Create a client secret
