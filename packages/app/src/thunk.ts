@@ -12,7 +12,14 @@ import {
   nth,
   without,
 } from "@welshman/lib"
-import {HashedEvent, EventTemplate, SignedEvent, isSignedEvent, WRAPPED_KINDS} from "@welshman/util"
+import {
+  HashedEvent,
+  EventTemplate,
+  SignedEvent,
+  isSignedEvent,
+  WRAPPED_KINDS,
+  prep,
+} from "@welshman/util"
 import {
   publish,
   PublishStatus,
@@ -20,7 +27,7 @@ import {
   PublishOptions,
   PublishResultsByRelay,
 } from "@welshman/net"
-import {ISigner, Nip59, prep} from "@welshman/signer"
+import {ISigner, Nip59} from "@welshman/signer"
 import {repository, tracker} from "./core.js"
 import {pubkey, signer, wrapManager} from "./session.js"
 

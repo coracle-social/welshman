@@ -1,5 +1,14 @@
-import {isHashedEvent, SignedEvent, HashedEvent, StampedEvent, WRAP, SEAL} from "@welshman/util"
-import {prep, hash, decrypt, ISigner} from "./util.js"
+import {
+  isHashedEvent,
+  SignedEvent,
+  HashedEvent,
+  StampedEvent,
+  WRAP,
+  SEAL,
+  prep,
+  hash,
+} from "@welshman/util"
+import {decrypt, ISigner} from "./util.js"
 import {Nip01Signer} from "./signers/nip01.js"
 
 export const seen = new Map<string, HashedEvent | Error>()

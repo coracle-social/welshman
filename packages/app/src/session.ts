@@ -8,6 +8,7 @@ import {
   HashedEvent,
   StampedEvent,
   SignedEvent,
+  getPubkey,
 } from "@welshman/util"
 import {
   Nip59,
@@ -17,7 +18,6 @@ import {
   Nip07Signer,
   Nip01Signer,
   Nip55Signer,
-  getPubkey,
   ISigner,
 } from "@welshman/signer"
 import {WrapManager} from "@welshman/net"

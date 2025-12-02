@@ -5,17 +5,11 @@ import {
   TrustedEvent,
   StampedEvent,
   NOSTR_CONNECT,
-} from "@welshman/util"
-import {publish, request, AdapterContext} from "@welshman/net"
-import {
-  ISigner,
-  EncryptionImplementation,
-  signWithOptions,
-  SignOptions,
-  decrypt,
   hash,
   own,
-} from "../util.js"
+} from "@welshman/util"
+import {publish, request, AdapterContext} from "@welshman/net"
+import {ISigner, EncryptionImplementation, signWithOptions, SignOptions, decrypt} from "../util.js"
 import {Nip01Signer} from "./nip01.js"
 
 export type Nip46Context = {

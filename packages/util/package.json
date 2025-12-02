@@ -20,6 +20,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
+    "@noble/curves": "^1.8.1",
     "@types/ws": "^8.5.13",
     "@welshman/lib": "workspace:*",
     "js-base64": "^3.7.7",

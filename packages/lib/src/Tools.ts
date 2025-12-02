@@ -1033,6 +1033,13 @@ export const tryCatch = <T>(f: () => T, onError?: (e: Error) => void): T | undef
 }
 
 /**
+ * Throws an error with the given message
+ */
+export const thrower = (message: string) => () => {
+  throw new Error(message)
+}
+
+/**
  * Creates function that only executes once
  * @param f - Function to wrap
  * @returns Function that executes f only on first call

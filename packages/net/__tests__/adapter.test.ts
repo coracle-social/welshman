@@ -1,6 +1,5 @@
 import {describe, expect, it, vi, beforeEach, afterEach} from "vitest"
-import {makeEvent} from "@welshman/util"
-import {prep, getPubkey, makeSecret} from "@welshman/signer"
+import {makeEvent, prep, getPubkey, makeSecret} from "@welshman/util"
 import {AdapterEvent, SocketAdapter, LocalAdapter, getAdapter} from "../src/adapter"
 import {Repository, LOCAL_RELAY_URL} from "../src/repository"
 import {ClientMessage, RelayMessage} from "../src/message"

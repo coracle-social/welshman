@@ -439,6 +439,9 @@ importers:
 
   packages/util:
     dependencies:
+      '@noble/curves':
+        specifier: ^1.8.1
+        version: 1.8.1
       '@types/ws':
         specifier: ^8.5.13
         version: 8.18.1

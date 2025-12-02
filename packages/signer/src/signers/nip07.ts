@@ -1,14 +1,6 @@
 import {noop} from "@welshman/lib"
-import {StampedEvent} from "@welshman/util"
-import {
-  hash,
-  own,
-  signWithOptions,
-  SignOptions,
-  Sign,
-  ISigner,
-  EncryptionImplementation,
-} from "../util.js"
+import {StampedEvent, hash, own} from "@welshman/util"
+import {signWithOptions, SignOptions, Sign, ISigner, EncryptionImplementation} from "../util.js"
 
 export type Nip07 = {
   signEvent: Sign

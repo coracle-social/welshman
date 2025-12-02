@@ -1,7 +1,7 @@
 import {NostrSignerPlugin, AppInfo} from "nostr-signer-capacitor-plugin"
 import * as nip19 from "nostr-tools/nip19"
-import {SignedEvent, StampedEvent} from "@welshman/util"
-import {hash, own, signWithOptions, SignOptions, ISigner} from "../util.js"
+import {SignedEvent, StampedEvent, hash, own} from "@welshman/util"
+import {signWithOptions, SignOptions, ISigner} from "../util.js"
 
 export const getNip55 = async (): Promise<AppInfo[]> => {
   const {apps} = await NostrSignerPlugin.getInstalledSignerApps()

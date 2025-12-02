@@ -1,52 +1,8 @@
-import {schnorr} from "@noble/curves/secp256k1"
-import {bytesToHex, hexToBytes} from "@noble/hashes/utils"
+import {hexToBytes} from "@noble/hashes/utils"
 import * as nt04 from "nostr-tools/nip04"
 import * as nt44 from "nostr-tools/nip44"
-import {generateSecretKey, getPublicKey, getEventHash} from "nostr-tools/pure"
-import {Emitter, cached, now} from "@welshman/lib"
-import {
-  SignedEvent,
-  HashedEvent,
-  EventTemplate,
-  StampedEvent,
-  OwnedEvent,
-  isStampedEvent,
-  isOwnedEvent,
-  isHashedEvent,
-} from "@welshman/util"
-
-export const makeSecret = () => bytesToHex(generateSecretKey())
-
-export const getPubkey = (secret: string) => getPublicKey(hexToBytes(secret))
-
-export const getHash = (event: OwnedEvent) => getEventHash(event)
-
-export const getSig = (event: HashedEvent, secret: string) =>
-  bytesToHex(schnorr.sign(event.id, secret))
-
-export const stamp = (event: EventTemplate, created_at = now()) => ({...event, created_at})
-
-export const own = (event: StampedEvent, pubkey: string) => ({...event, pubkey})
-
-export const hash = (event: OwnedEvent) => ({...event, id: getHash(event)})
-
-export const prep = (event: EventTemplate, pubkey: string, created_at = now()) => {
-  if (!isStampedEvent(event as StampedEvent)) {
-    event = stamp(event, created_at)
-  }
-
-  if (!isOwnedEvent(event as OwnedEvent)) {
-    event = own(event as StampedEvent, pubkey)
-  }
-
-  if (!isHashedEvent(event as HashedEvent)) {
-    event = hash(event as OwnedEvent)
-  }
-
-  return event as HashedEvent
-}
-
-export const sign = (event: HashedEvent, secret: string) => ({...event, sig: getSig(event, secret)})
+import {Emitter, cached} from "@welshman/lib"
+import {SignedEvent, StampedEvent} from "@welshman/util"
 
 export const nip04 = {
   detect: (m: string) => m.includes("?iv="),
