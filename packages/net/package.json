@@ -1,6 +1,6 @@
 {
   "name": "@welshman/net",
-  "version": "0.6.8",
+  "version": "0.7.0",
   "author": "hodlbod",
   "license": "MIT",
   "description": "Utilities for connecting with nostr relays.",
