@@ -1,6 +1,9 @@
-import {trustedKeyDeal, hexShard, hexPubShard, KeyShard} from "@jsr/fiatjaf__promenade-trusted-dealer"
-import {bytesToHex, hexToBytes, numberToBytesBE} from "@noble/curves/abstract/utils"
-import type {AffinePoint} from "@noble/curves/abstract/curve"
+import {
+  trustedKeyDeal,
+  hexShard,
+  hexPubShard,
+  KeyShard,
+} from "@jsr/fiatjaf__promenade-trusted-dealer"
 import {
   Emitter,
   uniq,
@@ -95,49 +98,6 @@ export type PromenadeOptions = {
   generatePow: (event: HashedEvent, difficulty: number) => MaybeAsync<HashedEvent>
   getPubkeyRelays: (pubkey: string, mode: RelayMode) => MaybeAsync<string[]>
 }
-
-/*
-
-const secret = 'fd8a80772a55d82ed963305b0f55299ac07e2fdf06d341f9e7c7223ec7bf57b0'
-const pubkey = getPubkey(secret)
-const coordinatorUrl = 'wss://promenade.coracle.social/'
-const event = prep(
-  makeEvent(10002, {
-    tags: [["r", "wss://bucket.coracle.social/"], ["r", "wss://relay.damus.io/"], ["r", "wss://nos.lol/"]],
-  }),
-  pubkey,
-)
-event.sig = getSig(event, secret)
-repository.publish(event)
-nip46Context.debug = true
-publish({event, relays: ["wss://purplepag.es/", "wss://indexer.coracle.social/"]}).then(async () => {
-  console.log("Published outbox relays")
-  const broker = await Nip46Broker.fromPromenade({
-    secret,
-    policy: [2, 3],
-    coordinatorUrl,
-    signerPubkeys: [
-      // '4440e4f93c9dcb0a5521f0bf949a1222698b72a1b1e3534b10537100fc94f97f',
-      // '23a3ff76766f5ffc852fa6f2fc5058c1306ee25927632e0f8e213af11a5b8de5',
-      'aa4f53d8041b88adee44cefb62fb49fdeb85d151d1a346e655850c213508ed2e',
-      // 'ad1c6fa1daca939685d34ab541fc9e7b450ef6295aa273addafee74a579d57fb',
-      // '3fcd012e970d9dfba4bc638ae9b6420e2ceca76f3b8e31d0ee3f408023a7c5fd',
-      // '4be49a6175734b43c7083ceac11e47bf684ffe65bd021c949bea1702409c119a',
-      '290238f7811a50b2b3ded97e42695f906b039fb3f5e2e2e3f77fd5a0b0c9a027',
-      'c66bebe38406a0b57593fcd8c893762dd9af8e488664c6d1a4eb3868b1f65526',
-    ],
-    onProgress: p => console.log('progress', p),
-    generatePow: (e, d) => makePow(e, d).result,
-    getPubkeyRelays: async (k, m) => {
-      await forceLoadRelayList(k)
-      return getPubkeyRelays(k, m)
-    },
-  })
-  console.log('connect', await broker.connect(broker.params.connectSecret))
-  console.log('sign', await broker.signEvent(makeEvent(1)))
-})
-
-*/
 
 export class PromenadeShardError extends Error {
   constructor(
