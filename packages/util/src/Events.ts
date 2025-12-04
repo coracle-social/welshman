@@ -1,7 +1,7 @@
 import {verifiedSymbol, verifyEvent as verifyEventPure} from "nostr-tools/pure"
 import {setNostrWasm, verifyEvent as verifyEventWasm} from "nostr-tools/wasm"
 import {initNostrWasm} from "nostr-wasm"
-import {mapVals, lte, first, pick, now} from "@welshman/lib"
+import {mapVals, sortBy, lte, first, pick, now} from "@welshman/lib"
 import {getReplyTags, getCommentTags, getReplyTagValues, getCommentTagValues} from "./Tags.js"
 import {getAddress, Address} from "./Address.js"
 import {
@@ -195,3 +195,7 @@ export const isChildOf = (child: EventTemplate, parent: HashedEvent) => {
 
   return getIdAndAddress(parent).some(x => idsAndAddrs.includes(x))
 }
+
+export const sortEventsAsc = (events: Iterable<TrustedEvent>) => sortBy(e => e.created_at, events)
+
+export const sortEventsDesc = (events: Iterable<TrustedEvent>) => sortBy(e => -e.created_at, events)

@@ -368,7 +368,7 @@ describe("policy", () => {
       socket.emit(SocketEvent.Status, SocketStatus.Closed)
 
       // Advance past the reopen delay
-      await vi.advanceTimersByTimeAsync(30000)
+      await vi.advanceTimersByTimeAsync(31000)
 
       // Should resend the pending event
       expect(sendSpy).toHaveBeenCalledWith(event)

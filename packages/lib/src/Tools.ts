@@ -207,7 +207,6 @@ export const round = (precision: number, x: number) =>
 // ----------------------------------------------------------------------------
 
 /** One minute in seconds */
-
 export const MINUTE = 60
 
 /** One hour in seconds */

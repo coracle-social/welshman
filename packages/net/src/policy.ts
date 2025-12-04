@@ -1,5 +1,5 @@
-import {on, ms, nthNe, always, call, sleep, ago, now} from "@welshman/lib"
-import {RELAY_JOIN, StampedEvent, SignedEvent} from "@welshman/util"
+import {on, ms, omit, nthNe, always, call, sleep, ago, now} from "@welshman/lib"
+import {RELAY_JOIN, StampedEvent, SignedEvent, Filter} from "@welshman/util"
 import {
   ClientMessage,
   isClientAuth,
@@ -142,11 +142,29 @@ export const socketPolicyCloseInactive = (socket: Socket) => {
 
       // If the socket closed and we have no error, reopen it but don't flap
       if (isClosed && pending.size) {
-        sleep(Math.max(0, ms(5 - (now() - lastOpen)))).then(() => {
+        const since = now()
+        const delay = Math.max(0, ms(5 - (now() - lastOpen)))
+
+        sleep(delay).then(() => {
           socket.attemptToOpen()
 
           for (const message of pending.values()) {
-            socket.send(message)
+            // Add since to avoid re-downloading stuff on reconnect. If limit=0, remove it to catch up
+            if (isClientReq(message) && delay > 0) {
+              const filters: Filter[] = []
+
+              for (let filter of message.slice(2) as Filter[]) {
+                if (filter.limit === 0) {
+                  filter = omit(["limit"], filter)
+                }
+
+                filters.push({...filter, since})
+              }
+
+              socket.send([...message.slice(0, 2), ...filters])
+            } else {
+              socket.send(message)
+            }
           }
         })
       }

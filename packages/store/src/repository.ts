@@ -1,6 +1,13 @@
 import {readable, Readable} from "svelte/store"
 import {on, assoc, now, mapPop, Maybe, MaybeAsync, call, sortBy, first} from "@welshman/lib"
-import {matchFilters, getIdFilters, Filter, TrustedEvent} from "@welshman/util"
+import {
+  matchFilters,
+  getIdFilters,
+  Filter,
+  TrustedEvent,
+  sortEventsAsc,
+  sortEventsDesc,
+} from "@welshman/util"
 import {Repository, RepositoryUpdate, Tracker} from "@welshman/net"
 import {deriveDeduplicated} from "./misc.js"
 
@@ -8,23 +15,25 @@ import {deriveDeduplicated} from "./misc.js"
 
 export type EventsById = Map<string, TrustedEvent>
 
-export type DeriveEventsByIdOptions = {
+export type EventsByIdOptions = {
   filters: Filter[]
   repository: Repository
   includeDeleted?: boolean
 }
 
-export const deriveEventsById = ({
-  filters,
-  repository,
-  includeDeleted,
-}: DeriveEventsByIdOptions) => {
+export const getEventsById = ({filters, repository, includeDeleted}: EventsByIdOptions) => {
   const eventsById = new Map<string, TrustedEvent>()
 
-  return readable(eventsById, set => {
-    for (const event of repository.query(filters, {includeDeleted})) {
-      eventsById.set(event.id, event)
-    }
+  for (const event of repository.query(filters, {includeDeleted})) {
+    eventsById.set(event.id, event)
+  }
+
+  return eventsById
+}
+
+export const deriveEventsById = ({filters, repository, includeDeleted}: EventsByIdOptions) =>
+  readable<EventsById>(new Map(), set => {
+    const eventsById = getEventsById({filters, repository, includeDeleted})
 
     set(eventsById)
 
@@ -49,28 +58,23 @@ export const deriveEventsById = ({
       }
     })
   })
-}
 
 export const deriveArray = <T>(itemsByIdStore: Readable<Map<string, T>>) =>
   deriveDeduplicated(itemsByIdStore, itemsById => Array.from(itemsById.values()))
 
 export const deriveEventsAsc = (eventsByIdStore: Readable<EventsById>) =>
-  deriveDeduplicated(eventsByIdStore, eventsById => sortBy(e => e.created_at, eventsById.values()))
+  deriveDeduplicated(eventsByIdStore, eventsById => sortEventsAsc(eventsById.values()))
 
 export const deriveEventsDesc = (eventsByIdStore: Readable<EventsById>) =>
-  deriveDeduplicated(eventsByIdStore, eventsById => sortBy(e => -e.created_at, eventsById.values()))
+  deriveDeduplicated(eventsByIdStore, eventsById => sortEventsDesc(eventsById.values()))
 
-export type DeriveEventOptions = {
+export type EventOptions = {
   repository: Repository
   includeDeleted?: boolean
   onDerive?: (filters: Filter[], ...args: any[]) => void
 }
 
-export const makeDeriveEvent = ({
-  repository,
-  includeDeleted = false,
-  onDerive,
-}: DeriveEventOptions) => {
+export const makeDeriveEvent = ({repository, includeDeleted = false, onDerive}: EventOptions) => {
   return (idOrAddress: string, ...args: any[]) => {
     const filters = getIdFilters([idOrAddress])
 
@@ -103,8 +107,31 @@ export const makeDeriveEvent = ({
 
 export type EventsByIdByUrl = Map<string, EventsById>
 
-export type DeriveEventsByIdByUrlOptions = DeriveEventsByIdOptions & {
+export type EventsByIdByUrlOptions = EventsByIdOptions & {
   tracker: Tracker
+}
+
+export const getEventsByIdByUrl = ({
+  filters,
+  tracker,
+  repository,
+  includeDeleted,
+}: EventsByIdByUrlOptions) => {
+  const eventsByIdByUrl: EventsByIdByUrl = new Map()
+
+  for (const event of repository.query(filters, {includeDeleted})) {
+    for (const url of tracker.getRelays(event.id)) {
+      let eventsById = eventsByIdByUrl.get(url)
+      if (!eventsById) {
+        eventsById = new Map()
+        eventsByIdByUrl.set(url, eventsById)
+      }
+
+      eventsById.set(event.id, event)
+    }
+  }
+
+  return eventsByIdByUrl
 }
 
 export const deriveEventsByIdByUrl = ({
@@ -112,49 +139,43 @@ export const deriveEventsByIdByUrl = ({
   tracker,
   repository,
   includeDeleted,
-}: DeriveEventsByIdByUrlOptions) => {
-  const eventsByIdByUrl: EventsByIdByUrl = new Map()
+}: EventsByIdByUrlOptions) =>
+  readable<EventsByIdByUrl>(new Map(), set => {
+    const eventsByIdByUrl = getEventsByIdByUrl({filters, tracker, repository, includeDeleted})
 
-  const addEvent = (url: string, event: TrustedEvent) => {
-    if (!matchFilters(filters, event)) return false
+    const addEvent = (url: string, event: TrustedEvent) => {
+      if (!matchFilters(filters, event)) return false
 
-    const eventsById = eventsByIdByUrl.get(url)
+      const eventsById = eventsByIdByUrl.get(url)
 
-    if (eventsById?.has(event.id)) return false
+      if (eventsById?.has(event.id)) return false
 
-    // Create a new map so we can detect which key changed
-    const newEventsById = new Map(eventsById)
+      // Create a new map so we can detect which key changed
+      const newEventsById = new Map(eventsById)
 
-    newEventsById.set(event.id, event)
-    eventsByIdByUrl.set(url, newEventsById)
-
-    return true
-  }
-
-  const removeEvent = (url: string, id: string) => {
-    const eventsById = eventsByIdByUrl.get(url)
-
-    if (eventsById?.has(id)) {
-      eventsById.delete(id)
-
-      if (eventsById.size === 0) {
-        eventsByIdByUrl.delete(url)
-      } else {
-        // Create a new map so we can detect which key changed
-        eventsByIdByUrl.set(url, new Map(eventsById))
-      }
+      newEventsById.set(event.id, event)
+      eventsByIdByUrl.set(url, newEventsById)
 
       return true
     }
 
-    return false
-  }
+    const removeEvent = (url: string, id: string) => {
+      const eventsById = eventsByIdByUrl.get(url)
 
-  return readable(eventsByIdByUrl, set => {
-    for (const event of repository.query(filters, {includeDeleted})) {
-      for (const url of tracker.getRelays(event.id)) {
-        addEvent(url, event)
+      if (eventsById?.has(id)) {
+        eventsById.delete(id)
+
+        if (eventsById.size === 0) {
+          eventsByIdByUrl.delete(url)
+        } else {
+          // Create a new map so we can detect which key changed
+          eventsByIdByUrl.set(url, new Map(eventsById))
+        }
+
+        return true
       }
+
+      return false
     }
 
     set(eventsByIdByUrl)
@@ -211,11 +232,28 @@ export const deriveEventsByIdByUrl = ({
 
     return () => unsubscribers.forEach(call)
   })
-}
 
-export type DeriveEventsByIdForUrlOptions = DeriveEventsByIdOptions & {
+export type EventsByIdForUrlOptions = EventsByIdOptions & {
   url: string
   tracker: Tracker
+}
+
+export const getEventsByIdForUrl = ({
+  url,
+  filters,
+  tracker,
+  repository,
+  includeDeleted,
+}: EventsByIdForUrlOptions) => {
+  const initialIds = Array.from(tracker.getIds(url))
+  const initialFilters = filters.map(assoc("ids", initialIds))
+  const eventsById: EventsById = new Map()
+
+  for (const event of repository.query(initialFilters, {includeDeleted})) {
+    eventsById.set(event.id, event)
+  }
+
+  return eventsById
 }
 
 export const deriveEventsByIdForUrl = ({
@@ -224,20 +262,12 @@ export const deriveEventsByIdForUrl = ({
   tracker,
   repository,
   includeDeleted,
-}: DeriveEventsByIdForUrlOptions) => {
-  const eventsById: EventsById = new Map()
+}: EventsByIdForUrlOptions) => {
+  let eventsById = getEventsByIdForUrl({url, filters, tracker, repository, includeDeleted})
 
   return readable(eventsById, set => {
     const reset = () => {
-      const initialIds = Array.from(tracker.getIds(url))
-      const initialFilters = filters.map(assoc("ids", initialIds))
-
-      eventsById.clear()
-
-      for (const event of repository.query(initialFilters, {includeDeleted})) {
-        eventsById.set(event.id, event)
-      }
-
+      eventsById = getEventsByIdForUrl({url, filters, tracker, repository, includeDeleted})
       set(eventsById)
     }
 
@@ -295,7 +325,7 @@ export type EventToItem<T> = (event: TrustedEvent) => MaybeAsync<Maybe<T>>
 
 export type GetItem<T> = (key: string, ...args: any[]) => Maybe<T>
 
-export type DeriveItemsByKeyOptions<T> = {
+export type ItemsByKeyOptions<T> = {
   getKey: (item: T) => string
   filters: Filter[]
   repository: Repository
@@ -309,7 +339,7 @@ export const deriveItemsByKey = <T>({
   repository,
   eventToItem,
   includeDeleted,
-}: DeriveItemsByKeyOptions<T>) => {
+}: ItemsByKeyOptions<T>) => {
   const deferred = new Map<string, Promise<Maybe<T>>>()
   const itemsByKey = new Map<string, T>()
   const idsByKey = new Map<string, string>()
