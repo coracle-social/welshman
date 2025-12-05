@@ -39,59 +39,53 @@ export const fetchZapper = batcher(800, async (lnurls: string[]) => {
   const base = appContext.dufflepudUrl
   const result = new Map<string, Zapper>()
 
+  for (const lnurl of lnurls) {
+    if (!lnurl.startsWith("lnurl1")) {
+      throw new Error(`Invalid lnurl ${lnurl}`)
+    }
+  }
+
+  const addZapper = (lnurl: string, info: any) => {
+    if (info) {
+      try {
+        result.set(lnurl, {...info, lnurl})
+      } catch (e) {
+        // pass
+      }
+    }
+  }
+
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly
   if (base) {
-    const hexUrls = removeUndefined(lnurls.map(lnurl => tryCatch(() => bech32ToHex(lnurl))))
+    const hexUrls = lnurls.map(bech32ToHex)
+    const res = await tryCatch(() => postJson(`${base}/zapper/info`, {lnurls: hexUrls}))
 
-    if (hexUrls.length > 0) {
-      const res: any = await tryCatch(
-        async () => await postJson(`${base}/zapper/info`, {lnurls: hexUrls}),
-      )
-
-      for (const {hexUrl, info} of res?.data || []) {
-        if (info) {
-          const lnurl = hexToBech32("lnurl", hexUrl)
-
-          tryCatch(() => result.set(lnurl, {...info, lnurl}))
-        }
-      }
+    for (const {lnurl, info} of res?.data || []) {
+      addZapper(hexToBech32("lnurl", lnurl), info)
     }
   } else {
-    const results = await Promise.all(
+    await Promise.all(
       lnurls.map(async lnurl => {
-        const hexUrl = tryCatch(() => bech32ToHex(lnurl))
-        const info = hexUrl ? await tryCatch(async () => await fetchJson(hexUrl)) : undefined
-
-        return {lnurl, hexUrl, info}
+        addZapper(lnurl, await tryCatch(() => fetchJson(bech32ToHex(lnurl))))
       }),
     )
+  }
 
-    for (const {lnurl, info} of results) {
-      if (info) {
-        result.set(lnurl, {...info, lnurl})
+  if (result.size > 0) {
+    zappersByLnurl.update($zappersByLnurl => {
+      for (const [lnurl, zapper] of result) {
+        $zappersByLnurl.set(lnurl, zapper)
       }
+
+      return $zappersByLnurl
+    })
+
+    for (const zapper of result.values()) {
+      notifyZapper(zapper)
     }
   }
 
-  zappersByLnurl.update($zappersByLnurl => {
-    for (const [nip05, info] of result) {
-      $zappersByLnurl.set(nip05, info)
-    }
-
-    return $zappersByLnurl
-  })
-
-  for (const info of result.values()) {
-    notifyZapper(info)
-  }
-
-  return lnurls.map(lnurl => {
-    const info = result.get(lnurl)
-
-    if (info) {
-      return {...info, lnurl}
-    }
-  })
+  return lnurls.map(lnurl => result.get(lnurl))
 })
 
 export const forceLoadZapper = makeForceLoadItem(fetchZapper, getZapper)

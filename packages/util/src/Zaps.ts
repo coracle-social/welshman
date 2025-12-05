@@ -58,11 +58,12 @@ export const getInvoiceAmount = (bolt11: string) => {
 export const getLnUrl = (address: string) => {
   address = address.toLowerCase()
 
+  // If it's already a lud06 we're good
   if (address.startsWith("lnurl1")) {
     return address
   }
 
-  // If it's a regular url, just encode it
+  // If it's a regular url, encode it
   if (address.includes("://")) {
     return hexToBech32("lnurl", address)
   }
@@ -75,8 +76,6 @@ export const getLnUrl = (address: string) => {
       return hexToBech32("lnurl", `https://${domain}/.well-known/lnurlp/${name}`)
     }
   }
-
-  return undefined
 }
 
 export type Zapper = {
