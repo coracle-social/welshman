@@ -31,7 +31,7 @@ export const onRelay = (sub: (relay: RelayProfile) => void) => {
 
 export const fetchRelayDirectly = async (url: string): Promise<Maybe<RelayProfile>> => {
   try {
-    const json = fetchJson(url.replace(/^ws/, "http"), {
+    const json = await fetchJson(url.replace(/^ws/, "http"), {
       headers: {
         Accept: "application/nostr+json",
       },

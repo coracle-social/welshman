@@ -6,6 +6,8 @@ export type Maybe<T> = T | undefined
 
 export type MaybeAsync<T> = T | Promise<T>
 
+export const maybe = <T>(x?: T) => x
+
 export const isDefined = <T>(x: T, ...args: unknown[]) => x !== undefined
 
 export const isUndefined = <T>(x: T, ...args: unknown[]) => x === undefined
@@ -1034,9 +1036,11 @@ export const tryCatch = <T>(f: () => T, onError?: (e: Error) => void): T | undef
 /**
  * Throws an error with the given message
  */
-export const thrower = (message: string) => () => {
-  throw new Error(message)
-}
+export const thrower =
+  (message: string) =>
+  (...args: unknown[]) => {
+    throw new Error(message)
+  }
 
 /**
  * Creates function that only executes once
