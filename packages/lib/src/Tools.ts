@@ -1085,10 +1085,18 @@ export const memoize = <T, Args extends any[]>(f: (...args: Args) => T) => {
 }
 
 /**
+ * Executes a function on the given value
+ * @param x - The value
+ * @param f - Function to execute
+ * @returns result of f(x)
+ */
+export const doLet = <T>(x: T, f: <R>(x: T) => R) => f(x)
+
+/**
  * Executes a function if the value is defined
  * @param x - The value to check
  * @param f - Function to execute if x is defined
- * @returns Result of f(x) if x is defined, undefined otherwise
+ * @returns result of f(x) if x is defined, undefined otherwise
  */
 export const ifLet = <T>(x: T | undefined, f: (x: T) => void) =>
   x === undefined ? undefined : f(x)
