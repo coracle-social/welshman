@@ -9,3 +9,4 @@ results
 *.tsbuildinfo
 .vscode
 docs/**/*.html
+.turbo
