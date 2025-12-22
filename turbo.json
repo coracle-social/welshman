@@ -1,0 +1,97 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*"
+      ],
+      "outputs": [
+        "dist/**",
+        ".svelte-kit/**"
+      ]
+    },
+    "lint": {
+      "dependsOn": [
+        "^lint"
+      ]
+    },
+    "check-types": {
+      "dependsOn": [
+        "^check-types"
+      ]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "@welshman/app#build": {
+      "dependsOn": [
+        "@welshman/feeds#build",
+        "@welshman/lib#build",
+        "@welshman/net#build",
+        "@welshman/router#build",
+        "@welshman/signer#build",
+        "@welshman/store#build",
+        "@welshman/util#build"
+      ]
+    },
+    "@welshman/content#build": {
+      "dependsOn": []
+    },
+    "@welshman/editor#build": {
+      "dependsOn": [
+        "@welshman/lib#build",
+        "@welshman/util#build"
+      ]
+    },
+    "@welshman/feeds#build": {
+      "dependsOn": [
+        "@welshman/lib#build",
+        "@welshman/net#build",
+        "@welshman/router#build",
+        "@welshman/signer#build",
+        "@welshman/util#build"
+      ]
+    },
+    "@welshman/lib#build": {
+      "dependsOn": []
+    },
+    "@welshman/net#build": {
+      "dependsOn": [
+        "@welshman/lib#build",
+        "@welshman/util#build"
+      ]
+    },
+    "@welshman/router#build": {
+      "dependsOn": [
+        "@welshman/lib#build",
+        "@welshman/net#build",
+        "@welshman/util#build"
+      ]
+    },
+    "@welshman/signer#build": {
+      "dependsOn": [
+        "@welshman/lib#build",
+        "@welshman/net#build",
+        "@welshman/util#build"
+      ]
+    },
+    "@welshman/store#build": {
+      "dependsOn": [
+        "@welshman/lib#build",
+        "@welshman/net#build",
+        "@welshman/util#build"
+      ]
+    },
+    "@welshman/util#build": {
+      "dependsOn": [
+        "@welshman/lib#build"
+      ]
+    }
+  }
+}
