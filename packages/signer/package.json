@@ -20,7 +20,9 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@jsr/fiatjaf__promenade-trusted-dealer": "^0.4.1",
+    "@jsr/fiatjaf__promenade-trusted-dealer": "https://npm.jsr.io/~/11/@jsr/fiatjaf__promenade-trusted-dealer/0.4.1.tgz",
+    "@jsr/henrygd__semaphore": "https://npm.jsr.io/~/11/@jsr/henrygd__semaphore/0.0.2.tgz",
+    "@jsr/nostr__tools": "https://npm.jsr.io/~/11/@jsr/nostr__tools/2.16.2.tgz",
     "@noble/curves": "^1.9.7",
     "@noble/hashes": "^2.0.1",
     "@welshman/lib": "workspace:*",
