@@ -9,8 +9,6 @@ import {
   TrustedEvent,
 } from "@welshman/util"
 
-export const LOCAL_RELAY_URL = "local://welshman.relay/"
-
 const getDay = (ts: number) => Math.floor(ts / DAY)
 
 export let repositorySingleton: Repository

@@ -1,6 +1,6 @@
 {
   "name": "@welshman/signer",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A nostr signer implemenation supporting several login methods.",
@@ -26,7 +26,8 @@
     "@welshman/lib": "workspace:*",
     "@welshman/net": "workspace:*",
     "@welshman/util": "workspace:*",
-    "nostr-tools": "^2.18.2"
+    "nostr-tools": "^2.18.2",
+    "@pomade/core": "^0.0.4"
   },
   "devDependencies": {
     "@capacitor/core": "^7.2.0",

@@ -1,3 +1,4 @@
+import {Client, ClientOptions} from "@pomade/core"
 import {derived, writable} from "svelte/store"
 import {cached, randomId, append, omit, equals, assoc} from "@welshman/lib"
 import {withGetter} from "@welshman/store"
@@ -13,6 +14,7 @@ import {
 import {
   Nip59,
   WrappedSigner,
+  PomadeSigner,
   Nip46Broker,
   Nip46Signer,
   Nip07Signer,
@@ -28,6 +30,7 @@ export enum SessionMethod {
   Nip07 = "nip07",
   Nip46 = "nip46",
   Nip55 = "nip55",
+  Pomade = "pomade",
   Pubkey = "pubkey",
   Anonymous = "anonymous",
 }
@@ -59,6 +62,12 @@ export type SessionNip55 = {
   signer: string
 }
 
+export type SessionPomade = {
+  method: SessionMethod.Pomade
+  pubkey: string
+  clientOptions: ClientOptions
+}
+
 export type SessionPubkey = {
   method: SessionMethod.Pubkey
   pubkey: string
@@ -73,6 +82,7 @@ export type SessionAnyMethod =
   | SessionNip07
   | SessionNip46
   | SessionNip55
+  | SessionPomade
   | SessionPubkey
   | SessionAnonymous
 
@@ -107,6 +117,10 @@ export const dropSession = (_pubkey: string) => {
 
   if ($signer instanceof Nip46Signer) {
     $signer.broker.cleanup()
+  }
+
+  if ($signer instanceof PomadeSigner) {
+    $signer.client.rpc.stop()
   }
 
   pubkey.update($pubkey => ($pubkey === _pubkey ? undefined : $pubkey))
@@ -150,6 +164,12 @@ export const makeNip55Session = (pubkey: string, signer: string): SessionNip55 =
   signer,
 })
 
+export const makePomadeSession = (pubkey: string, clientOptions: ClientOptions): SessionPomade => ({
+  method: SessionMethod.Pomade,
+  pubkey,
+  clientOptions,
+})
+
 export const makePubkeySession = (pubkey: string): SessionPubkey => ({
   method: SessionMethod.Pubkey,
   pubkey,
@@ -169,6 +189,9 @@ export const isNip46Session = (session?: Session): session is SessionNip46 =>
 export const isNip55Session = (session?: Session): session is SessionNip55 =>
   session?.method === SessionMethod.Nip55
 
+export const isPomadeSession = (session?: Session): session is SessionPomade =>
+  session?.method === SessionMethod.Pomade
+
 export const isPubkeySession = (session?: Session): session is SessionPubkey =>
   session?.method === SessionMethod.Pubkey
 
@@ -187,6 +210,9 @@ export const loginWithNip46 = (
 
 export const loginWithNip55 = (pubkey: string, signer: string) =>
   addSession(makeNip55Session(pubkey, signer))
+
+export const loginWithPomade = (pubkey: string, clientOptions: ClientOptions) =>
+  addSession(makePomadeSession(pubkey, clientOptions))
 
 export const loginWithPubkey = (pubkey: string) => addSession(makePubkeySession(pubkey))
 
@@ -250,6 +276,8 @@ export const getSigner = cached({
     if (isNip07Session(session)) return wrapSigner(new Nip07Signer())
     if (isNip01Session(session)) return wrapSigner(new Nip01Signer(session.secret))
     if (isNip55Session(session)) return wrapSigner(new Nip55Signer(session.signer, session.pubkey))
+    if (isPomadeSession(session))
+      return wrapSigner(new PomadeSigner(new Client(session.clientOptions)))
     if (isNip46Session(session)) {
       const {
         secret: clientSecret,

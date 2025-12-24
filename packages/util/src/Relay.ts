@@ -32,6 +32,8 @@ export type RelayProfile = {
 
 // Utils related to bare urls
 
+export const LOCAL_RELAY_URL = "local://welshman.relay/"
+
 export const isRelayUrl = (url: string) => {
   if (!url.includes("://")) {
     url = "wss://" + url
@@ -65,6 +67,8 @@ export const isIPAddress = (url: string) => Boolean(url.match(/\d+\.\d+\.\d+\.\d
 export const isShareableRelayUrl = (url: string) => Boolean(isRelayUrl(url) && !isLocalUrl(url))
 
 export const normalizeRelayUrl = (url: string) => {
+  if (url === LOCAL_RELAY_URL) return url
+
   const prefix = url.match(/^wss?:\/\//)?.[0] || (isOnionUrl(url) ? "ws://" : "wss://")
 
   // Use our library to normalize
