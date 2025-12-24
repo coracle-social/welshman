@@ -37,7 +37,8 @@
   "pnpm": {
     "overrides": {
       "@tiptap/core": "^2.11.7",
-      "@tiptap/pm": "^2.11.7"
+      "@tiptap/pm": "^2.11.7",
+      "@pomade/core": "link:../pomade/packages/core"
     }
   }
 }

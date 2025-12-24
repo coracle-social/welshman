@@ -28,13 +28,15 @@
     "@welshman/util": "workspace:*",
     "nostr-tools": "^2.18.2"
   },
+  "peerDependencies": {
+    "nostr-signer-capacitor-plugin": "~0.0.4",
+    "@pomade/core": "^0.0.4"
+  },
   "devDependencies": {
     "@capacitor/core": "^7.2.0",
     "nostr-signer-capacitor-plugin": "~0.0.4",
     "rimraf": "~6.0.0",
-    "typescript": "~5.8.0"
-  },
-  "peerDependencies": {
-    "nostr-signer-capacitor-plugin": "~0.0.4"
+    "typescript": "~5.8.0",
+    "@pomade/core": "^0.0.4"
   }
 }
