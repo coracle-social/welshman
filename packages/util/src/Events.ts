@@ -51,6 +51,19 @@ export type MakeEventOpts = {
   created_at?: number
 }
 
+const canUseWasm = () => {
+  if (typeof WebAssembly !== "object") return false
+  try {
+    // Probe minimal WASM for runtime support.
+    const module_bytes = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])
+    const module = new WebAssembly.Module(module_bytes)
+    new WebAssembly.Instance(module)
+    return true
+  } catch {
+    return false
+  }
+}
+
 // Event template creation
 
 export const makeEvent = (
@@ -63,7 +76,7 @@ export const makeEvent = (
 export const verifyEvent = (() => {
   let verify = verifyEventPure
 
-  if (typeof WebAssembly === "object") {
+  if (canUseWasm()) {
     initNostrWasm().then(
       nostrWasm => {
         setNostrWasm(nostrWasm)
