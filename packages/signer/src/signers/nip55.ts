@@ -1,7 +1,7 @@
-import * as nip19 from "nostr-tools/nip19"
 import {randomId as random_id} from "@welshman/lib"
 import {SignedEvent, StampedEvent, hash, own} from "@welshman/util"
-import {signWithOptions, SignOptions, ISigner} from "../util.js"
+import * as nip19 from "nostr-tools/nip19"
+import {ISigner, SignOptions, signWithOptions} from "../util.js"
 
 export type Nip55AppInfo = {
   name: string
@@ -75,14 +75,12 @@ type Nip55PluginModule = {
   NostrSignerPlugin: Nip55Plugin
 }
 
-const get_nip55_module_name = (): string => "nostr-signer-capacitor-plugin"
-
 let nip55_plugin: Nip55Plugin | undefined
 
 const load_nip55_plugin = async (): Promise<Nip55Plugin> => {
   if (nip55_plugin) return nip55_plugin
   try {
-    const plugin_module = (await import(get_nip55_module_name())) as Nip55PluginModule
+    const plugin_module = (await import("nostr-signer-capacitor-plugin")) as Nip55PluginModule
     nip55_plugin = plugin_module.NostrSignerPlugin
     return nip55_plugin
   } catch {
