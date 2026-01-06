@@ -30,13 +30,13 @@
   },
   "peerDependencies": {
     "nostr-signer-capacitor-plugin": "~0.0.4",
-    "@pomade/core": "^0.0.4"
+    "@pomade/core": "^0.0.5"
   },
   "devDependencies": {
     "@capacitor/core": "^7.2.0",
     "nostr-signer-capacitor-plugin": "~0.0.4",
     "rimraf": "~6.0.0",
     "typescript": "~5.8.0",
-    "@pomade/core": "^0.0.4"
+    "@pomade/core": "^0.0.5"
   }
 }

@@ -91,5 +91,6 @@ export const signWithOptions = (
 ) =>
   new Promise<SignedEvent>((resolve, reject) => {
     Promise.resolve(promise).then(resolve).catch(reject)
+    setTimeout(() => reject("Signing timed out"), 30_000)
     options.signal?.addEventListener("abort", () => reject("Signing was aborted"))
   })

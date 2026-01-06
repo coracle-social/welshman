@@ -220,17 +220,12 @@ export const loginWithPubkey = (pubkey: string) => addSession(makePubkeySession(
 
 export const nip46Perms = "sign_event:22242,nip04_encrypt,nip04_decrypt,nip44_encrypt,nip44_decrypt"
 
-export enum SignerLogEntryStatus {
-  Pending = "pending",
-  Success = "success",
-  Failure = "failure",
-}
-
 export type SignerLogEntry = {
   id: string
   method: string
-  status: SignerLogEntryStatus
-  duration: number
+  started_at: number
+  finished_at?: number
+  ok?: boolean
 }
 
 export const signerLog = withGetter(writable<SignerLogEntry[]>([]))
@@ -238,31 +233,20 @@ export const signerLog = withGetter(writable<SignerLogEntry[]>([]))
 export const wrapSigner = (signer: ISigner) =>
   new WrappedSigner(signer, async <T>(method: string, thunk: () => Promise<T>) => {
     const id = randomId()
-    const now = Date.now()
 
-    signerLog.update(log =>
-      append({id, method, status: SignerLogEntryStatus.Pending, duration: 0}, log),
-    )
+    signerLog.update(log => append({id, method, started_at: Date.now()}, log))
 
     try {
       const result = await thunk()
 
       signerLog.update(log =>
-        log.map(x =>
-          x.id === id
-            ? {...x, status: SignerLogEntryStatus.Success, duration: Date.now() - now}
-            : x,
-        ),
+        log.map(x => (x.id === id ? {...x, finished_at: Date.now(), ok: true} : x)),
       )
 
       return result
     } catch (error: any) {
       signerLog.update(log =>
-        log.map(x =>
-          x.id === id
-            ? {...x, status: SignerLogEntryStatus.Failure, duration: Date.now() - now}
-            : x,
-        ),
+        log.map(x => (x.id === id ? {...x, finished_at: Date.now(), ok: false} : x)),
       )
 
       throw error

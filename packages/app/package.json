@@ -33,11 +33,11 @@
     "throttle-debounce": "^5.0.2"
   },
   "peerDependencies": {
-    "@pomade/core": "^0.0.4"
+    "@pomade/core": "^0.0.5"
   },
   "devDependencies": {
     "rimraf": "~6.0.0",
     "typescript": "~5.8.0",
-    "@pomade/core": "^0.0.4"
+    "@pomade/core": "^0.0.5"
   }
 }
