@@ -1,9 +1,8 @@
 import {writable, derived, Subscriber} from "svelte/store"
-import {batcher, fetchJson, postJson, Maybe, noop} from "@welshman/lib"
+import {fetchJson, Maybe} from "@welshman/lib"
 import {RelayProfile} from "@welshman/util"
 import {displayRelayUrl, displayRelayProfile} from "@welshman/util"
 import {getter, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem} from "@welshman/store"
-import {appContext} from "./context.js"
 
 export const relaysByUrl = writable(new Map<string, RelayProfile>())
 
@@ -29,7 +28,7 @@ export const onRelay = (sub: (relay: RelayProfile) => void) => {
     )
 }
 
-export const fetchRelayDirectly = async (url: string): Promise<Maybe<RelayProfile>> => {
+export const fetchRelay = async (url: string): Promise<Maybe<RelayProfile>> => {
   try {
     const json = await fetchJson(url.replace(/^ws/, "http"), {
       headers: {
@@ -54,39 +53,6 @@ export const fetchRelayDirectly = async (url: string): Promise<Maybe<RelayProfil
     // pass
   }
 }
-
-export const fetchRelayUsingProxy = batcher(800, async (urls: string[]) => {
-  // Handle a race condition edge case where dufflepud url changes under us
-  if (!appContext.dufflepudUrl) {
-    return urls.map(noop)
-  }
-
-  const res: any = await postJson(`${appContext.dufflepudUrl}/relay/info`, {urls})
-  const result = new Map<string, RelayProfile>()
-
-  for (const {url, info} of res?.data || []) {
-    if (info) {
-      result.set(url, {...info, url})
-    }
-  }
-
-  relaysByUrl.update($relaysByUrl => {
-    for (const [url, info] of result) {
-      $relaysByUrl.set(url, info)
-    }
-
-    return $relaysByUrl
-  })
-
-  for (const info of result.values()) {
-    notifyRelay(info)
-  }
-
-  return urls.map(url => result.get(url))
-})
-
-export const fetchRelay = (url: string) =>
-  appContext.dufflepudUrl ? fetchRelayUsingProxy(url) : fetchRelayDirectly(url)
 
 export const forceLoadRelay = makeForceLoadItem(fetchRelay, getRelay)
 
