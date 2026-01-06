@@ -354,13 +354,6 @@ export class Nip46Broker extends Emitter {
     }
 
     const deal = trustedKeyDeal(BigInt("0x" + options.secret), m, n)
-
-    // Add the VSS commits to each shard
-    // for (const shard of deal.shards) {
-    //   shard.pubShard.vssCommit = deal.commits
-    // }
-
-    // Use the pubkey and adjusted secret from the deal (BIP-340 adjusted if needed)
     const signer = Nip01Signer.fromSecret(options.secret)
     const ourPubkey = await signer.getPubkey()
     const ackRelays = await options.getPubkeyRelays(ourPubkey, RelayMode.Read)

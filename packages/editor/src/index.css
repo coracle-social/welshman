@@ -86,12 +86,6 @@
   color: var(--tiptap-active-fg);
 }
 
-.tiptap-suggestions__empty {
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-}
-
 @keyframes tiptapFileUpload {
   0% {
     opacity: 0.2;
