@@ -9,7 +9,7 @@ import {
   getter,
 } from "@welshman/store"
 import {repository} from "./core.js"
-import {makeOutboxLoaderWithIndexers} from "./relayLists.js"
+import {makeOutboxLoader} from "./relayLists.js"
 
 export const profilesByPubkey = deriveItemsByKey({
   repository,
@@ -26,9 +26,9 @@ export const getProfiles = getter(profiles)
 
 export const getProfile = (pubkey: string) => getProfilesByPubkey().get(pubkey)
 
-export const forceLoadProfile = makeForceLoadItem(makeOutboxLoaderWithIndexers(PROFILE), getProfile)
+export const forceLoadProfile = makeForceLoadItem(makeOutboxLoader(PROFILE), getProfile)
 
-export const loadProfile = makeLoadItem(makeOutboxLoaderWithIndexers(PROFILE), getProfile)
+export const loadProfile = makeLoadItem(makeOutboxLoader(PROFILE), getProfile)
 
 export const deriveProfile = makeDeriveItem(profilesByPubkey, loadProfile)
 

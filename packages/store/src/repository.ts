@@ -68,6 +68,8 @@ export const deriveEventsAsc = (eventsByIdStore: Readable<EventsById>) =>
 export const deriveEventsDesc = (eventsByIdStore: Readable<EventsById>) =>
   deriveDeduplicated(eventsByIdStore, eventsById => sortEventsDesc(eventsById.values()))
 
+export const deriveEvents = (options: EventsByIdOptions) => deriveArray(deriveEventsById(options))
+
 export type EventOptions = {
   repository: Repository
   includeDeleted?: boolean
