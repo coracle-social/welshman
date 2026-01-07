@@ -26,6 +26,35 @@ import {Unsubscriber} from "./util.js"
 export type SocketPolicy = (socket: Socket) => Unsubscriber
 
 /**
+ * Sends a ping message every so often to ensure connection health
+ * @param socket - a Socket object
+ * @return a cleanup function
+ */
+export const socketPolicyPing = (socket: Socket) => {
+  let lastActivity = 0
+
+  const unsubscribers = [
+    on(socket, SocketEvent.Send, (message: ClientMessage) => {
+      lastActivity = Date.now()
+    }),
+    on(socket, SocketEvent.Receive, (message: ClientMessage) => {
+      lastActivity = Date.now()
+    }),
+  ]
+
+  const interval = setInterval(() => {
+    if (socket.status === SocketStatus.Open && lastActivity < Date.now() - 30_000) {
+      socket._ws?.send('["PING"]')
+    }
+  }, 30_000)
+
+  return () => {
+    unsubscribers.forEach(call)
+    clearInterval(interval)
+  }
+}
+
+/**
  * Handles auth-related message management:
  * - Defers sending messages when a challenge is pending
  * - Re-enqueues event/req messages once if rejected due to auth-required
@@ -232,6 +261,7 @@ export const makeSocketPolicyAuth = (options: SocketPolicyAuthOptions) => (socke
 }
 
 export const defaultSocketPolicies = [
+  socketPolicyPing,
   socketPolicyAuthBuffer,
   socketPolicyConnectOnSend,
   socketPolicyCloseInactive,

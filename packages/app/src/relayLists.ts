@@ -5,6 +5,7 @@ import {
   TrustedEvent,
   getRelaysFromList,
   RelayMode,
+  Filter,
 } from "@welshman/util"
 import {
   deriveItemsByKey,
@@ -52,9 +53,9 @@ export const deriveRelayList = makeDeriveItem(relayListsByPubkey, loadRelayList)
 // Outbox loader
 
 export const makeOutboxLoader =
-  (kind: number) =>
+  (kind: number, filter: Filter = {}) =>
   async (pubkey: string, relayHints: string[] = []) => {
-    const filters = [{kinds: [kind], authors: [pubkey]}]
+    const filters = [{...filter, kinds: [kind], authors: [pubkey]}]
     const relays = Router.get().FromRelays(relayHints).policy(addMinimalFallbacks).getUrls()
 
     await Promise.all([
