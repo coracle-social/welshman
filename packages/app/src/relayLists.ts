@@ -1,5 +1,11 @@
-import {batcher} from "@welshman/lib"
-import {RELAYS, Filter, asDecryptedEvent, readList, TrustedEvent} from "@welshman/util"
+import {
+  RELAYS,
+  asDecryptedEvent,
+  readList,
+  TrustedEvent,
+  getRelaysFromList,
+  RelayMode,
+} from "@welshman/util"
 import {
   deriveItemsByKey,
   deriveItems,
@@ -8,38 +14,19 @@ import {
   makeDeriveItem,
   getter,
 } from "@welshman/store"
-import {load, LoadOptions} from "@welshman/net"
-import {Router} from "@welshman/router"
+import {load} from "@welshman/net"
+import {Router, addMinimalFallbacks} from "@welshman/router"
 import {repository} from "./core.js"
 
-export type LoadUsingOutboxOptions = Omit<LoadOptions, "relays">
+export const fetchRelayList = async (pubkey: string, relayHints: string[] = []) => {
+  const filters = [{kinds: [RELAYS], authors: [pubkey]}]
 
-export const loadUsingOutbox = batcher(200, (optionses: LoadUsingOutboxOptions[]) => {
-  const pubkeys = optionses.flatMap(o => o.filters.flatMap(f => f.authors || []))
-  const relays = Router.get().FromPubkeys(pubkeys).getUrls()
-
-  return optionses.map(options => load({...options, relays}))
-})
-
-export const makeOutboxLoader =
-  (kind: number, filter: Filter = {}) =>
-  (pubkey: string, relays: string[]) => {
-    const filters = [{...filter, authors: [pubkey], kinds: [kind]}]
-
-    return Promise.all([load({relays, filters}), loadUsingOutbox({filters})])
-  }
-
-export const makeOutboxLoaderWithIndexers =
-  (kind: number, filter: Filter = {}) =>
-  (pubkey: string, relays: string[]) => {
-    const filters = [{...filter, authors: [pubkey], kinds: [kind]}]
-
-    return Promise.all([
-      load({relays, filters}),
-      loadUsingOutbox({filters}),
-      load({relays: Router.get().Index().getUrls(), filters}),
-    ])
-  }
+  await Promise.all([
+    load({filters, relays: Router.get().FromRelays(relayHints).getUrls()}),
+    load({filters, relays: Router.get().FromPubkey(pubkey).getUrls()}),
+    load({filters, relays: Router.get().Index().getUrls()}),
+  ])
+}
 
 export const relayListsByPubkey = deriveItemsByKey({
   repository,
@@ -56,11 +43,28 @@ export const getRelayLists = getter(relayLists)
 
 export const getRelayList = (pubkey: string) => getRelayListsByPubkey().get(pubkey)
 
-export const forceLoadRelayList = makeForceLoadItem(
-  makeOutboxLoaderWithIndexers(RELAYS),
-  getRelayList,
-)
+export const forceLoadRelayList = makeForceLoadItem(fetchRelayList, getRelayList)
 
-export const loadRelayList = makeLoadItem(makeOutboxLoaderWithIndexers(RELAYS), getRelayList)
+export const loadRelayList = makeLoadItem(fetchRelayList, getRelayList)
 
 export const deriveRelayList = makeDeriveItem(relayListsByPubkey, loadRelayList)
+
+// Outbox loader
+
+export const makeOutboxLoader =
+  (kind: number) =>
+  async (pubkey: string, relayHints: string[] = []) => {
+    const filters = [{kinds: [kind], authors: [pubkey]}]
+    const relays = Router.get().FromRelays(relayHints).policy(addMinimalFallbacks).getUrls()
+
+    await Promise.all([
+      load({filters, relays}),
+      loadRelayList(pubkey).then(async () => {
+        const relayList = getRelayList(pubkey)
+        const writeRelays = getRelaysFromList(relayList, RelayMode.Write)
+        const relays = Router.get().FromRelays(writeRelays).getUrls()
+
+        await load({filters, relays})
+      }),
+    ])
+  }
