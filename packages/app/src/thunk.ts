@@ -205,6 +205,7 @@ export class Thunk {
 
       return this._publish(signedEvent)
     } catch (e: any) {
+      console.error("Failed to sign event", e)
       return this._fail(String(e || "Failed to sign event"))
     }
   }
