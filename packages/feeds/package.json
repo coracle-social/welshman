@@ -20,15 +20,22 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
+    "trava": "^1.2.1"
+  },
+  "peerDependencies": {
     "@welshman/lib": "workspace:*",
     "@welshman/net": "workspace:*",
     "@welshman/router": "workspace:*",
     "@welshman/signer": "workspace:*",
-    "@welshman/util": "workspace:*",
-    "trava": "^1.2.1"
+    "@welshman/util": "workspace:*"
   },
   "devDependencies": {
     "rimraf": "~6.0.0",
-    "typescript": "~5.8.0"
+    "typescript": "~5.8.0",
+    "@welshman/lib": "workspace:*",
+    "@welshman/net": "workspace:*",
+    "@welshman/router": "workspace:*",
+    "@welshman/signer": "workspace:*",
+    "@welshman/util": "workspace:*"
   }
 }

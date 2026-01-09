@@ -20,13 +20,17 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@welshman/lib": "workspace:*",
-    "@welshman/util": "workspace:*",
     "events": "^3.3.0",
     "isomorphic-ws": "^5.0.0"
   },
+  "peerDependencies": {
+    "@welshman/lib": "workspace:*",
+    "@welshman/util": "workspace:*"
+  },
   "devDependencies": {
     "rimraf": "~6.0.0",
-    "typescript": "~5.8.0"
+    "typescript": "~5.8.0",
+    "@welshman/lib": "workspace:*",
+    "@welshman/util": "workspace:*"
   }
 }

@@ -20,23 +20,29 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@jsr/fiatjaf__promenade-trusted-dealer": "^0.4.1",
+    "@jsr/fiatjaf__promenade-trusted-dealer": "^0.4.1"
+  },
+  "peerDependencies": {
     "@noble/curves": "^1.9.7",
     "@noble/hashes": "^2.0.1",
+    "@pomade/core": "^0.0.5",
     "@welshman/lib": "workspace:*",
     "@welshman/net": "workspace:*",
     "@welshman/util": "workspace:*",
-    "nostr-tools": "^2.18.2"
-  },
-  "peerDependencies": {
     "nostr-signer-capacitor-plugin": "~0.0.4",
-    "@pomade/core": "^0.0.5"
+    "nostr-tools": "^2.19.4"
   },
   "devDependencies": {
     "@capacitor/core": "^7.2.0",
+    "@noble/curves": "^1.9.7",
+    "@noble/hashes": "^2.0.1",
+    "@pomade/core": "^0.0.5",
+    "@welshman/lib": "workspace:*",
+    "@welshman/net": "workspace:*",
+    "@welshman/util": "workspace:*",
     "nostr-signer-capacitor-plugin": "~0.0.4",
+    "nostr-tools": "^2.19.4",
     "rimraf": "~6.0.0",
-    "typescript": "~5.8.0",
-    "@pomade/core": "^0.0.5"
+    "typescript": "~5.8.0"
   }
 }

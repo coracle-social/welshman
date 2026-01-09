@@ -20,6 +20,24 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
+    "fuse.js": "^7.0.0",
+    "throttle-debounce": "^5.0.2"
+  },
+  "peerDependencies": {
+    "@pomade/core": "^0.0.5",
+    "@welshman/feeds": "workspace:*",
+    "@welshman/lib": "workspace:*",
+    "@welshman/net": "workspace:*",
+    "@welshman/router": "workspace:*",
+    "@welshman/signer": "workspace:*",
+    "@welshman/store": "workspace:*",
+    "@welshman/util": "workspace:*",
+    "svelte": "^4.2.18"
+  },
+  "devDependencies": {
+    "rimraf": "~6.0.0",
+    "typescript": "~5.8.0",
+    "@pomade/core": "^0.0.5",
     "@types/throttle-debounce": "^5.0.2",
     "@welshman/feeds": "workspace:*",
     "@welshman/lib": "workspace:*",
@@ -28,16 +46,6 @@
     "@welshman/signer": "workspace:*",
     "@welshman/store": "workspace:*",
     "@welshman/util": "workspace:*",
-    "fuse.js": "^7.0.0",
-    "svelte": "^4.2.18",
-    "throttle-debounce": "^5.0.2"
-  },
-  "peerDependencies": {
-    "@pomade/core": "^0.0.5"
-  },
-  "devDependencies": {
-    "rimraf": "~6.0.0",
-    "typescript": "~5.8.0",
-    "@pomade/core": "^0.0.5"
+    "svelte": "^4.2.18"
   }
 }

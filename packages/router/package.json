@@ -19,13 +19,16 @@
     "compile": "tsc -b tsconfig.build.json",
     "prepublishOnly": "pnpm run build"
   },
-  "dependencies": {
+  "peerDependencies": {
     "@welshman/lib": "workspace:*",
-    "@welshman/util": "workspace:*",
-    "@welshman/net": "workspace:*"
+    "@welshman/net": "workspace:*",
+    "@welshman/util": "workspace:*"
   },
   "devDependencies": {
     "rimraf": "~6.0.0",
-    "typescript": "~5.8.0"
+    "typescript": "~5.8.0",
+    "@welshman/lib": "workspace:*",
+    "@welshman/net": "workspace:*",
+    "@welshman/util": "workspace:*"
   }
 }

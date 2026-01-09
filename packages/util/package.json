@@ -20,14 +20,19 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@noble/curves": "^1.8.1",
     "@types/ws": "^8.5.13",
-    "@welshman/lib": "workspace:*",
     "js-base64": "^3.7.7",
-    "nostr-tools": "^2.14.2",
     "nostr-wasm": "^0.1.0"
   },
+  "peerDependencies": {
+    "@noble/curves": "^1.9.7",
+    "@welshman/lib": "workspace:*",
+    "nostr-tools": "^2.19.4"
+  },
   "devDependencies": {
+    "@noble/curves": "^1.9.7",
+    "@welshman/lib": "workspace:*",
+    "nostr-tools": "^2.19.4",
     "rimraf": "~6.0.0",
     "typescript": "~5.8.0"
   }
