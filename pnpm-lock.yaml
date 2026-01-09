@@ -7,7 +7,6 @@ settings:
 overrides:
   '@tiptap/core': ^2.11.7
   '@tiptap/pm': ^2.11.7
-  '@pomade/core': link:../pomade/packages/core
 
 importers:
 
@@ -173,9 +172,6 @@ importers:
 
   packages/app:
     dependencies:
-      '@pomade/core':
-        specifier: link:../../../pomade/packages/core
-        version: link:../../../pomade/packages/core
       '@types/throttle-debounce':
         specifier: ^5.0.2
         version: 5.0.2
@@ -210,6 +206,9 @@ importers:
         specifier: ^5.0.2
         version: 5.0.2
     devDependencies:
+      '@pomade/core':
+        specifier: ^0.0.5
+        version: 0.0.5(typescript@5.8.2)(ws@8.18.1)
       rimraf:
         specifier: ~6.0.0
         version: 6.0.1
@@ -396,9 +395,6 @@ importers:
       '@noble/hashes':
         specifier: ^2.0.1
         version: 2.0.1
-      '@pomade/core':
-        specifier: link:../../../pomade/packages/core
-        version: link:../../../pomade/packages/core
       '@welshman/lib':
         specifier: workspace:*
         version: link:../lib
@@ -415,6 +411,9 @@ importers:
       '@capacitor/core':
         specifier: ^7.2.0
         version: 7.2.0
+      '@pomade/core':
+        specifier: ^0.0.5
+        version: 0.0.5(typescript@5.8.2)(ws@8.18.1)
       nostr-signer-capacitor-plugin:
         specifier: ~0.0.4
         version: 0.0.4(@capacitor/core@7.2.0)
@@ -581,6 +580,15 @@ packages:
 
   '@capacitor/core@7.2.0':
     resolution: {integrity: sha512-2zCnA6RJeZ9ec4470o8QMZEQTWpekw9FNoqm5TLc10jeCrhvHVI8MPgxdZVc3mOdFlyieYu4AS1fNxSqbS57Pw==}
+
+  '@cmdcode/buff@2.2.5':
+    resolution: {integrity: sha512-+nc3QDoJ+MU/fp+YkX6WuEjJrXLF6ME+eVX1sj5a+MfBKO9LWb4R9Y2zH6APBrySd7nFr48ozscAui7SKvLmXg==}
+
+  '@cmdcode/frost@1.1.3':
+    resolution: {integrity: sha512-Aap5+IqJCisHJzdFJS4h+i5IRaw/yrZ5m5tpoGpKPBljMWjH3K17iD53VvLEQPI85l2asDrjj8vnrFKlwnK7zw==}
+
+  '@cmdcode/nostr-p2p@2.0.11':
+    resolution: {integrity: sha512-hZpWYqRPdvXoaG5LaP2/dR1ObloQxPUYHAA1japQveGdhPbXWiS5aKPxOyUXqgjHDShWeXQ3giOTg6SsCJwnYA==}
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -797,6 +805,9 @@ packages:
     resolution: {integrity: sha512-ZAoA40rNMPwSm+AeHpCq8STiNAwzWLJuP8Xv4CHIc9wv/PSuExjMrmjfYNj682vW0OOiZ1HKxzvjQr9XZIisQA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
+  '@frostr/bifrost@1.0.7':
+    resolution: {integrity: sha512-9PO8s8ra7Cf94HqsF0sArRkLLFYqDyGfRKUOflTWMGgaDvSWIksNA8PckcXvy5/G6u4RtAkTAqki47+ga+7yow==}
+
   '@gerrit0/mini-shiki@3.2.2':
     resolution: {integrity: sha512-vaZNGhGLKMY14HbF53xxHNgFO9Wz+t5lTlGNpl2N9xFiKQ0I5oIe0vKjU9dh7Nb3Dw6lZ7wqUE0ri+zcdpnK+Q==}
 
@@ -884,6 +895,10 @@ packages:
   '@noble/ciphers@0.5.3':
     resolution: {integrity: sha512-B0+6IIHiqEs3BPMT0hcRmHvEj2QHOLu+uwt+tqDDeVd0oyVzh7BPrDcPjRnV1PV/5LaknXJJQvOuRGR0zQJz+w==}
 
+  '@noble/ciphers@1.3.0':
+    resolution: {integrity: sha512-2I0gnIVPtfnMw9ee9h1dJG7tp81+8Ob3OJb3Mv37rx5L40/b0i7djjCVvGOVqc9AEIQyvyu1i6ypKdFw8R8gQw==}
+    engines: {node: ^14.21.3 || >=16}
+
   '@noble/curves@1.1.0':
     resolution: {integrity: sha512-091oBExgENk/kGj3AZmtBDMpxQPDtxQABR2B9lb1JbVTs6ytdzZNwvhxQ4MWasRNEzlbEH8jCWFCwhF/Obj5AA==}
 
@@ -933,6 +948,10 @@ packages:
   '@pkgr/core@0.2.0':
     resolution: {integrity: sha512-vsJDAkYR6qCPu+ioGScGiMYR7LvZYIXh/dlQeviqoTWNCVfKTLYD/LkNWH4Mxsv2a5vpIRc77FN5DnmK1eBggQ==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
+
+  '@pomade/core@0.0.5':
+    resolution: {integrity: sha512-LNKV+R/Il+Bmo4Wq7W+oWdsbcA784GhfjXVU4YXKBlhKvFfv2Mqw8JL+mYtS4REzs7MgUnwTtgUD7thD9GWTfg==}
+    engines: {node: '>=12.0.0'}
 
   '@popperjs/core@2.11.8':
     resolution: {integrity: sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==}
@@ -1717,6 +1736,16 @@ packages:
   '@vueuse/shared@12.8.2':
     resolution: {integrity: sha512-dznP38YzxZoNloI0qpEfpkms8knDtaoQ6Y/sfS0L7Yki4zh40LFHEhur0odJC6xTHG5dxWVPiUWBXn+wCG2s5w==}
 
+  '@welshman/lib@0.7.1':
+    resolution: {integrity: sha512-NQkxPwnAoUY4uSroQcfvR4YPG63j7Ke0R9YrLNXF9SQn2t2p6iAQ6A3GEOVu/koUQiVBseYn514lS7X1XkCP3A==}
+    engines: {node: '>=12.0.0'}
+
+  '@welshman/net@0.7.1':
+    resolution: {integrity: sha512-S3dFH73Cy4phLy5I2KKEeefkRmNBYWB2qONK8txUVDhx1u7ezpALzZEMSPVqVIZk/vCQU3KJ0CyagvbuGF+F9Q==}
+
+  '@welshman/util@0.7.1':
+    resolution: {integrity: sha512-UGryq1jfwRHFS7mjGa4fmuqN851iwKeR+616LmUpTJQHAfhGU7ifer2+JLdDLYBU/neI5iKHdRDO5hg92U6k8Q==}
+
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
     peerDependencies:
@@ -1811,6 +1840,10 @@ packages:
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
+
+  base58-js@3.0.3:
+    resolution: {integrity: sha512-3hf42BysHnUqmZO7mK6e5X/hs1AvyEJIhdVLbG/Mxn/fhFnhGxOO37mWbMHg1RT4TxqcPKXgqj9/bp1YG0GBXA==}
+    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
 
   binary-extensions@2.3.0:
     resolution: {integrity: sha512-Ceh+7ox5qe7LJuLHoY0feh3pHuUDHAcRUeyL2VYghZwfpkNIy/+8Ocg0a3UuSoYzavmylwuLWQOf3hl0jjMMIw==}
@@ -2180,6 +2213,9 @@ packages:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
     engines: {node: '>=8'}
 
+  hash-wasm@4.12.0:
+    resolution: {integrity: sha512-+/2B2rYLb48I/evdOIhP+K/DD2ca2fgBjp6O+GBEnCDk2e4rpeXIK8GvIyRPjTezgmWn9gmKwkQjjx6BtqDHVQ==}
+
   hasown@2.0.2:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
@@ -2477,6 +2513,14 @@ packages:
 
   nostr-tools@2.18.2:
     resolution: {integrity: sha512-lUCJQd9YZG3kEvxV5Zgm7qUkBpaeuvFrtqBz4TJLAxHzUn2pE7nmZZRDQmNzp5neEw20tQS3jR16o7XzzF8ncg==}
+    peerDependencies:
+      typescript: '>=5.0.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
+  nostr-tools@2.19.4:
+    resolution: {integrity: sha512-qVLfoTpZegNYRJo5j+Oi6RPu0AwLP6jcvzcB3ySMnIT5DrAGNXfs5HNBspB/2HiGfH3GY+v6yXkTtcKSBQZwSg==}
     peerDependencies:
       typescript: '>=5.0.0'
     peerDependenciesMeta:
@@ -3206,6 +3250,12 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
+  zod@4.3.5:
+    resolution: {integrity: sha512-k7Nwx6vuWx1IJ9Bjuf4Zt1PEllcwe7cls3VNzm4CQ1/hgtFUK2bRNG3rvnpPUhFjmqJKAKtjV576KnUkHocg/g==}
+
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
@@ -3343,6 +3393,27 @@ snapshots:
   '@capacitor/core@7.2.0':
     dependencies:
       tslib: 2.8.1
+
+  '@cmdcode/buff@2.2.5':
+    dependencies:
+      '@noble/hashes': 1.8.0
+      '@scure/base': 1.2.4
+
+  '@cmdcode/frost@1.1.3':
+    dependencies:
+      '@cmdcode/buff': 2.2.5
+      '@noble/curves': 1.9.7
+      '@noble/hashes': 1.8.0
+
+  '@cmdcode/nostr-p2p@2.0.11(typescript@5.8.2)':
+    dependencies:
+      '@cmdcode/buff': 2.2.5
+      '@noble/ciphers': 1.3.0
+      '@noble/curves': 1.9.7
+      nostr-tools: 2.19.4(typescript@5.8.2)
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - typescript
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
@@ -3504,6 +3575,17 @@ snapshots:
       '@eslint/core': 0.13.0
       levn: 0.4.1
 
+  '@frostr/bifrost@1.0.7(typescript@5.8.2)':
+    dependencies:
+      '@cmdcode/buff': 2.2.5
+      '@cmdcode/frost': 1.1.3
+      '@cmdcode/nostr-p2p': 2.0.11(typescript@5.8.2)
+      '@noble/ciphers': 1.3.0
+      '@noble/curves': 1.9.7
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - typescript
+
   '@gerrit0/mini-shiki@3.2.2':
     dependencies:
       '@shikijs/engine-oniguruma': 3.2.1
@@ -3624,6 +3706,8 @@ snapshots:
 
   '@noble/ciphers@0.5.3': {}
 
+  '@noble/ciphers@1.3.0': {}
+
   '@noble/curves@1.1.0':
     dependencies:
       '@noble/hashes': 1.3.1
@@ -3663,6 +3747,21 @@ snapshots:
       fastq: 1.19.1
 
   '@pkgr/core@0.2.0': {}
+
+  '@pomade/core@0.0.5(typescript@5.8.2)(ws@8.18.1)':
+    dependencies:
+      '@frostr/bifrost': 1.0.7(typescript@5.8.2)
+      '@noble/hashes': 2.0.1
+      '@welshman/lib': 0.7.1
+      '@welshman/net': 0.7.1(typescript@5.8.2)(ws@8.18.1)
+      '@welshman/util': 0.7.1(typescript@5.8.2)
+      base58-js: 3.0.3
+      hash-wasm: 4.12.0
+      nostr-tools: 2.19.4(typescript@5.8.2)
+      zod: 4.3.5
+    transitivePeerDependencies:
+      - typescript
+      - ws
 
   '@popperjs/core@2.11.8': {}
 
@@ -4513,6 +4612,33 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
+  '@welshman/lib@0.7.1':
+    dependencies:
+      '@scure/base': 1.2.4
+      '@types/events': 3.0.3
+      events: 3.3.0
+
+  '@welshman/net@0.7.1(typescript@5.8.2)(ws@8.18.1)':
+    dependencies:
+      '@welshman/lib': 0.7.1
+      '@welshman/util': 0.7.1(typescript@5.8.2)
+      events: 3.3.0
+      isomorphic-ws: 5.0.0(ws@8.18.1)
+    transitivePeerDependencies:
+      - typescript
+      - ws
+
+  '@welshman/util@0.7.1(typescript@5.8.2)':
+    dependencies:
+      '@noble/curves': 1.9.7
+      '@types/ws': 8.18.1
+      '@welshman/lib': 0.7.1
+      js-base64: 3.7.7
+      nostr-tools: 2.19.4(typescript@5.8.2)
+      nostr-wasm: 0.1.0
+    transitivePeerDependencies:
+      - typescript
+
   acorn-jsx@5.3.2(acorn@8.14.1):
     dependencies:
       acorn: 8.14.1
@@ -4602,6 +4728,8 @@ snapshots:
   axobject-query@4.1.0: {}
 
   balanced-match@1.0.2: {}
+
+  base58-js@3.0.3: {}
 
   binary-extensions@2.3.0: {}
 
@@ -5020,6 +5148,8 @@ snapshots:
 
   has-flag@4.0.0: {}
 
+  hash-wasm@4.12.0: {}
+
   hasown@2.0.2:
     dependencies:
       function-bind: 1.1.2
@@ -5303,6 +5433,18 @@ snapshots:
       typescript: 5.8.2
 
   nostr-tools@2.18.2(typescript@5.8.2):
+    dependencies:
+      '@noble/ciphers': 0.5.3
+      '@noble/curves': 1.2.0
+      '@noble/hashes': 1.3.1
+      '@scure/base': 1.1.1
+      '@scure/bip32': 1.3.1
+      '@scure/bip39': 1.2.1
+      nostr-wasm: 0.1.0
+    optionalDependencies:
+      typescript: 5.8.2
+
+  nostr-tools@2.19.4(typescript@5.8.2):
     dependencies:
       '@noble/ciphers': 0.5.3
       '@noble/curves': 1.2.0
@@ -6165,5 +6307,9 @@ snapshots:
   yn@3.1.1: {}
 
   yocto-queue@0.1.0: {}
+
+  zod@3.25.76: {}
+
+  zod@4.3.5: {}
 
   zwitch@2.0.4: {}
