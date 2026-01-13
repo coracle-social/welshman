@@ -1,6 +1,6 @@
 {
   "name": "@welshman/app",
-  "version": "0.7.1",
+  "version": "0.8.0-pre.1",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of svelte stores for use in building nostr client applications.",
@@ -32,6 +32,7 @@
     "@welshman/signer": "workspace:*",
     "@welshman/store": "workspace:*",
     "@welshman/util": "workspace:*",
+    "nostr-tools": "^2.19.4",
     "svelte": "^4.2.18"
   },
   "devDependencies": {

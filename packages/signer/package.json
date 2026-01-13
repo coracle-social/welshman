@@ -1,6 +1,6 @@
 {
   "name": "@welshman/signer",
-  "version": "0.7.1",
+  "version": "0.8.0-pre.1",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A nostr signer implemenation supporting several login methods.",
@@ -19,13 +19,9 @@
     "compile": "tsc -b tsconfig.build.json",
     "prepublishOnly": "pnpm run build"
   },
-  "dependencies": {
-    "@jsr/fiatjaf__promenade-trusted-dealer": "^0.4.1"
-  },
   "peerDependencies": {
     "@noble/curves": "^1.9.7",
     "@noble/hashes": "^2.0.1",
-    "@pomade/core": "^0.0.5",
     "@welshman/lib": "workspace:*",
     "@welshman/net": "workspace:*",
     "@welshman/util": "workspace:*",
@@ -36,7 +32,6 @@
     "@capacitor/core": "^7.2.0",
     "@noble/curves": "^1.9.7",
     "@noble/hashes": "^2.0.1",
-    "@pomade/core": "^0.0.5",
     "@welshman/lib": "workspace:*",
     "@welshman/net": "workspace:*",
     "@welshman/util": "workspace:*",

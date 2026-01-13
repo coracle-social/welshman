@@ -1,14 +1,5 @@
 import {
-  trustedKeyDeal,
-  hexShard,
-  hexPubShard,
-  KeyShard,
-} from "@jsr/fiatjaf__promenade-trusted-dealer"
-import {
   Emitter,
-  uniq,
-  spec,
-  inc,
   throttle,
   makePromise,
   defer,
@@ -16,24 +7,19 @@ import {
   tryCatch,
   randomId,
   MaybeAsync,
-  shuffle,
 } from "@welshman/lib"
 import {
-  getPubkey,
   HashedEvent,
   makeEvent,
   makeSecret,
   normalizeRelayUrl,
   NOSTR_CONNECT,
   prep,
-  PROMENADE_REGISTER_ACCOUNT,
-  PROMENADE_SHARD_ACK,
-  PROMENADE_SHARD_SHARE,
   RelayMode,
   StampedEvent,
   TrustedEvent,
 } from "@welshman/util"
-import {publish, request, PublishStatus, AdapterContext} from "@welshman/net"
+import {publish, request, AdapterContext} from "@welshman/net"
 import {ISigner, EncryptionImplementation, signWithOptions, SignOptions, decrypt} from "../util.js"
 import {Nip01Signer} from "./nip01.js"
 
@@ -337,135 +323,6 @@ export class Nip46Broker extends Emitter {
   static fromBunkerUrl = (url: string) => {
     const clientSecret = makeSecret()
     const {relays, signerPubkey, connectSecret} = Nip46Broker.parseBunkerUrl(url)
-
-    return new Nip46Broker({
-      relays,
-      clientSecret,
-      signerPubkey,
-      connectSecret,
-    })
-  }
-
-  static fromPromenade = async (options: PromenadeOptions) => {
-    const [m, n] = options.policy
-
-    if (options.signerPubkeys.length < n) {
-      throw new Error("Not enough signers to create all shards")
-    }
-
-    const deal = trustedKeyDeal(BigInt("0x" + options.secret), m, n)
-    const signer = Nip01Signer.fromSecret(options.secret)
-    const ourPubkey = await signer.getPubkey()
-    const ackRelays = await options.getPubkeyRelays(ourPubkey, RelayMode.Read)
-    const remainingSignerPubkeys = shuffle(uniq(options.signerPubkeys))
-    const errorsBySignerPubkey = new Map<string, string>()
-    const shardsBySignerPubkey = new Map<string, KeyShard>()
-
-    if (ackRelays.length === 0) {
-      throw new Error("No read relays returned for user pubkey")
-    }
-
-    nip46Log(`generated promenade shards for user ${ourPubkey}`, deal)
-
-    await Promise.all(
-      deal.shards.map(async (shard, i) => {
-        while (remainingSignerPubkeys.length > 0) {
-          const signerPubkey = remainingSignerPubkeys.shift()!
-
-          nip46Log(`generating proof of work for shard ${i}`)
-
-          const shardTemplate = makeEvent(PROMENADE_SHARD_SHARE, {
-            content: await signer.nip44.encrypt(signerPubkey, hexShard(shard)),
-            tags: [
-              ["p", signerPubkey],
-              ["coordinator", options.coordinatorUrl],
-              ...ackRelays.map(url => ["reply", url]),
-            ],
-          })
-
-          const shardTemplateWithWork = await tryCatch(() =>
-            options.generatePow(prep(shardTemplate, ourPubkey), 20),
-          )
-
-          if (!shardTemplateWithWork) {
-            errorsBySignerPubkey.set(signerPubkey, "Failed to generate work")
-            continue
-          }
-
-          const shardEvent = await signer.sign(shardTemplateWithWork)
-          const shardRelays = await options.getPubkeyRelays(signerPubkey, RelayMode.Read)
-          const publishResults = await publish({relays: shardRelays, event: shardEvent})
-
-          nip46Log(`published shard ${i} to signer ${signerPubkey}`, shardRelays, publishResults)
-
-          if (!Object.values(publishResults).some(spec({status: PublishStatus.Success}))) {
-            errorsBySignerPubkey.set(signerPubkey, "Failed to publish shard")
-            continue
-          }
-
-          const controller = new AbortController()
-          const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)])
-
-          await request({
-            signal,
-            relays: ackRelays,
-            filters: [
-              {
-                kinds: [PROMENADE_SHARD_ACK],
-                authors: [signerPubkey],
-                "#p": [ourPubkey],
-                "#e": [shardEvent.id],
-              },
-            ],
-            onEvent: (event: TrustedEvent, url: string) => {
-              nip46Log(`received ack for shard ${i} from signer ${signerPubkey} on ${url}`)
-              shardsBySignerPubkey.set(signerPubkey, shard)
-              options.onProgress?.(shardsBySignerPubkey.size / inc(n))
-              controller.abort()
-            },
-          })
-
-          if (shardsBySignerPubkey.has(signerPubkey)) {
-            break
-          } else {
-            errorsBySignerPubkey.set(signerPubkey, "Failed to receive shard ACK")
-            nip46Log(`failed to receive ack for shard ${i} from signer ${signerPubkey}`)
-          }
-        }
-      }),
-    )
-
-    if (shardsBySignerPubkey.size < deal.shards.length) {
-      throw new PromenadeShardError("Failed to publish all shards", errorsBySignerPubkey)
-    }
-
-    const connectSecret = randomId()
-    const signerSecret = makeSecret()
-    const signerPubkey = getPubkey(signerSecret)
-    const tags = [
-      ["h", signerPubkey],
-      ["threshold", String(m)],
-      ["handlersecret", signerSecret],
-      ["profile", "MAIN", connectSecret, ""],
-    ]
-
-    for (const [pubkey, shard] of shardsBySignerPubkey) {
-      tags.push(["p", pubkey, hexPubShard(shard.pubShard)])
-    }
-
-    nip46Log(`registering coordinator account`, tags)
-
-    const relays = [options.coordinatorUrl]
-    const event = await signer.sign(makeEvent(PROMENADE_REGISTER_ACCOUNT, {tags}))
-    const accountResults = await publish({relays, event})
-
-    if (!Object.values(accountResults).some(spec({status: PublishStatus.Success}))) {
-      throw new Error("Failed to publish accounts to coordinator")
-    }
-
-    nip46Log(`successfully created promenade broker`)
-
-    const clientSecret = makeSecret()
 
     return new Nip46Broker({
       relays,
