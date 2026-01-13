@@ -23,7 +23,7 @@
     "@welshman/lib": "workspace:*",
     "@welshman/net": "workspace:*",
     "@welshman/util": "workspace:*",
-    "svelte": "^4.2.18"
+    "svelte": "^4.0.0 || ^5.0.0"
   },
   "devDependencies": {
     "rimraf": "~6.0.0",
@@ -31,6 +31,6 @@
     "@welshman/lib": "workspace:*",
     "@welshman/net": "workspace:*",
     "@welshman/util": "workspace:*",
-    "svelte": "^4.2.18"
+    "svelte": "^5.39.12"
   }
 }

@@ -1,14 +1,10 @@
-import {
-  get,
-  derived,
-  Readable,
-  Unsubscriber,
-  Writable,
-  Subscriber,
-  Stores,
-  StoresValues,
-} from "svelte/store"
+import {get, derived, Readable, Unsubscriber, Writable, Subscriber} from "svelte/store"
 import {memoize, throttle} from "@welshman/lib"
+
+// Define Stores and StoresValues types locally since they're not exported in Svelte 5
+type Stores = Readable<any> | [Readable<any>, ...Array<Readable<any>>] | Array<Readable<any>>
+type StoresValues<T> =
+  T extends Readable<infer U> ? U : {[K in keyof T]: T[K] extends Readable<infer U> ? U : never}
 
 // Smart getter that adjusts between svelte's get and aggressive subscription depending on how hot
 // the path is

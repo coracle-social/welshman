@@ -24,7 +24,7 @@
     "throttle-debounce": "^5.0.2"
   },
   "peerDependencies": {
-    "@pomade/core": "^0.0.5",
+    "@pomade/core": "^0.0.9",
     "@welshman/feeds": "workspace:*",
     "@welshman/lib": "workspace:*",
     "@welshman/net": "workspace:*",
@@ -32,13 +32,12 @@
     "@welshman/signer": "workspace:*",
     "@welshman/store": "workspace:*",
     "@welshman/util": "workspace:*",
-    "nostr-tools": "^2.19.4",
-    "svelte": "^4.2.18"
+    "svelte": "^4.0.0 || ^5.0.0"
   },
   "devDependencies": {
     "rimraf": "~6.0.0",
     "typescript": "~5.8.0",
-    "@pomade/core": "^0.0.5",
+    "@pomade/core": "^0.0.9",
     "@types/throttle-debounce": "^5.0.2",
     "@welshman/feeds": "workspace:*",
     "@welshman/lib": "workspace:*",
@@ -47,6 +46,6 @@
     "@welshman/signer": "workspace:*",
     "@welshman/store": "workspace:*",
     "@welshman/util": "workspace:*",
-    "svelte": "^4.2.18"
+    "svelte": "^5.39.12"
   }
 }
