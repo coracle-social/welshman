@@ -113,16 +113,7 @@ export const updateSession = (pubkey: string, f: (session: Session) => Session) 
   putSession(f(getSession(pubkey)))
 
 export const dropSession = (_pubkey: string) => {
-  const $signer = getSigner.pop(getSession(_pubkey))
-
-  if ($signer instanceof Nip46Signer) {
-    $signer.broker.cleanup()
-  }
-
-  if ($signer instanceof PomadeSigner) {
-    $signer.client.rpc.stop()
-  }
-
+  getSigner.pop(getSession(_pubkey))?.cleanup()
   pubkey.update($pubkey => ($pubkey === _pubkey ? undefined : $pubkey))
   sessions.update($sessions => omit([_pubkey], $sessions))
 }

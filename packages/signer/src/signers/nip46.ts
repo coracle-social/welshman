@@ -512,4 +512,6 @@ export class Nip46Signer implements ISigner {
       this.getPubkey().then(pubkey => this.broker.signEvent(prep(template, pubkey))),
       options,
     )
+
+  cleanup = async () => this.broker.cleanup()
 }

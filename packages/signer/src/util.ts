@@ -45,6 +45,7 @@ export interface ISigner {
   nip04: EncryptionImplementation
   nip44: EncryptionImplementation
   getPubkey: () => Promise<string>
+  cleanup?: () => Promise<void>
 }
 
 export const decrypt = async (signer: ISigner, pubkey: string, message: string) =>
@@ -82,6 +83,10 @@ export class WrappedSigner extends Emitter implements ISigner {
       this.wrapMethod("nip44.encrypt", () => this.signer.nip44.encrypt(pubkey, message)),
     decrypt: async (pubkey: string, message: string) =>
       this.wrapMethod("nip44.decrypt", () => this.signer.nip44.decrypt(pubkey, message)),
+  }
+
+  async cleanup() {
+    await this.signer.cleanup?.()
   }
 }
 
