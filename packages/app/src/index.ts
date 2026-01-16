@@ -12,6 +12,7 @@ export * from "./pins.js"
 export * from "./relays.js"
 export * from "./relayStats.js"
 export * from "./relayLists.js"
+export * from "./blockedRelayLists.js"
 export * from "./messagingRelayLists.js"
 export * from "./search.js"
 export * from "./session.js"
@@ -40,6 +41,7 @@ import {repository, tracker} from "./core.js"
 import {getRelays, loadRelay} from "./relays.js"
 import {trackRelayStats, getRelayQuality} from "./relayStats.js"
 import {deriveRelayList, getRelayList} from "./relayLists.js"
+import {deriveBlockedRelayList, getBlockedRelayList} from "./blockedRelayLists.js"
 import {deriveMessagingRelayList, getMessagingRelayList} from "./messagingRelayLists.js"
 
 // Sync relays with our database
@@ -84,15 +86,19 @@ const _relayGetter = (fn?: (relay: RelayProfile) => any) =>
       .map(r => r.url)
   })
 
-export const getPubkeyRelays = (pubkey: string, mode?: RelayMode) =>
-  mode === RelayMode.Messaging
-    ? getRelaysFromList(getMessagingRelayList(pubkey))
-    : getRelaysFromList(getRelayList(pubkey), mode)
+export const getPubkeyRelays = (pubkey: string, mode?: RelayMode) => {
+  if (mode === RelayMode.Blocked) return getRelaysFromList(getBlockedRelayList(pubkey))
+  if (mode === RelayMode.Messaging) return getRelaysFromList(getMessagingRelayList(pubkey))
+  return getRelaysFromList(getRelayList(pubkey), mode)
+}
 
-export const derivePubkeyRelays = (pubkey: string, mode?: RelayMode) =>
-  mode === RelayMode.Messaging
-    ? derived(deriveMessagingRelayList(pubkey), list => getRelaysFromList(list))
-    : derived(deriveRelayList(pubkey), list => getRelaysFromList(list, mode))
+export const derivePubkeyRelays = (pubkey: string, mode?: RelayMode) => {
+  if (mode === RelayMode.Blocked)
+    return derived(deriveBlockedRelayList(pubkey), list => getRelaysFromList(list))
+  if (mode === RelayMode.Messaging)
+    return derived(deriveMessagingRelayList(pubkey), list => getRelaysFromList(list))
+  return derived(deriveRelayList(pubkey), list => getRelaysFromList(list, mode))
+}
 
 routerContext.getUserPubkey = () => pubkey.get()
 routerContext.getPubkeyRelays = getPubkeyRelays

@@ -24,6 +24,7 @@ import {
   editProfile,
   RelayMode,
   MESSAGING_RELAYS,
+  BLOCKED_RELAYS,
   FOLLOWS,
   RELAYS,
   MUTES,
@@ -36,6 +37,8 @@ import {
   forceLoadUserRelayList,
   userMessagingRelayList,
   forceLoadUserMessagingRelayList,
+  userBlockedRelayList,
+  forceLoadUserBlockedRelayList,
   userFollowList,
   forceLoadUserFollowList,
   userMuteList,
@@ -99,6 +102,28 @@ export const addMessagingRelay = async (url: string) => {
   await forceLoadUserMessagingRelayList([])
 
   const list = get(userMessagingRelayList) || makeList({kind: MESSAGING_RELAYS})
+  const event = await addToListPublicly(list, ["relay", url]).reconcile(nip44EncryptToSelf)
+  const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
+
+  return publishThunk({event, relays})
+}
+
+// NIP 51
+
+export const removeBlockedRelay = async (url: string) => {
+  await forceLoadUserBlockedRelayList([])
+
+  const list = get(userBlockedRelayList) || makeList({kind: BLOCKED_RELAYS})
+  const event = await removeFromList(list, url).reconcile(nip44EncryptToSelf)
+  const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
+
+  return publishThunk({event, relays})
+}
+
+export const addBlockedRelay = async (url: string) => {
+  await forceLoadUserBlockedRelayList([])
+
+  const list = get(userBlockedRelayList) || makeList({kind: BLOCKED_RELAYS})
   const event = await addToListPublicly(list, ["relay", url]).reconcile(nip44EncryptToSelf)
   const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
 

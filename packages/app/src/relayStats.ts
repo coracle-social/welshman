@@ -1,8 +1,10 @@
 import {writable, Subscriber} from "svelte/store"
 import {getter, makeDeriveItem} from "@welshman/store"
 import {groupBy, batch, now, uniq, ago, DAY, HOUR, MINUTE} from "@welshman/lib"
-import {isOnionUrl, isLocalUrl, isIPAddress, isRelayUrl} from "@welshman/util"
+import {isOnionUrl, isLocalUrl, isIPAddress, isRelayUrl, getRelaysFromList} from "@welshman/util"
 import {Pool, Socket, SocketStatus, SocketEvent, ClientMessage, RelayMessage} from "@welshman/net"
+import {getBlockedRelayList} from "./blockedRelayLists.js"
+import {pubkey} from "./session.js"
 
 export type RelayStats = {
   url: string
@@ -74,6 +76,10 @@ export const deriveRelayStats = makeDeriveItem(relayStatsByUrl)
 export const getRelayQuality = (url: string) => {
   // Skip non-relays entirely
   if (!isRelayUrl(url)) return 0
+
+  const $pubkey = pubkey.get()
+
+  if ($pubkey && getRelaysFromList(getBlockedRelayList($pubkey)).includes(url)) return 0
 
   const relayStats = getRelayStats(url)
 

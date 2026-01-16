@@ -1,6 +1,6 @@
 {
   "name": "@welshman/content",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of utilities for parsing nostr note content.",

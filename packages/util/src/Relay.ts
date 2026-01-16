@@ -5,6 +5,8 @@ import {last, normalizeUrl, stripProtocol} from "@welshman/lib"
 export enum RelayMode {
   Read = "read",
   Write = "write",
+  Search = "search",
+  Blocked = "blocked",
   Messaging = "messaging",
 }
 
