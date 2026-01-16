@@ -310,6 +310,7 @@ export class RouterScenario {
     const limit = this.getLimit()
     const fallbackPolicy = this.getPolicy()
     const relayWeights = new Map<string, number>()
+    const {getRelayQuality} = this.router.options
     const {allowOnion, allowLocal, allowInsecure} = this.options
 
     for (const {weight, relays} of this.selections) {
@@ -324,13 +325,13 @@ export class RouterScenario {
     }
 
     const scoreRelay = (relay: string) => {
-      const quality = this.router.options.getRelayQuality?.(relay) || 1
       const weight = relayWeights.get(relay)!
+      const quality = getRelayQuality ? getRelayQuality(relay) : 1
 
       // Log the weight, since it's a straight count which ends up over-weighting hubs.
       // Also add some random noise so that we'll occasionally pick lower quality/less
       // popular relays.
-      return quality ? -(quality * inc(Math.log(weight)) * Math.random()) : 0
+      return -(quality * inc(Math.log(weight)) * Math.random())
     }
 
     const relays = take(
