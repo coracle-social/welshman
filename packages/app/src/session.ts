@@ -113,7 +113,7 @@ export const updateSession = (pubkey: string, f: (session: Session) => Session) 
   putSession(f(getSession(pubkey)))
 
 export const dropSession = (_pubkey: string) => {
-  getSigner.pop(getSession(_pubkey))?.cleanup()
+  getSigner.pop(getSession(_pubkey))?.cleanup?.()
   pubkey.update($pubkey => ($pubkey === _pubkey ? undefined : $pubkey))
   sessions.update($sessions => omit([_pubkey], $sessions))
 }

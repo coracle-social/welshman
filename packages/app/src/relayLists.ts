@@ -1,10 +1,10 @@
+import {uniq, batcher, flatten} from "@welshman/lib"
 import {
   RELAYS,
   asDecryptedEvent,
   readList,
   TrustedEvent,
-  getRelaysFromList,
-  RelayMode,
+  unionFilters,
   Filter,
 } from "@welshman/util"
 import {
@@ -52,20 +52,24 @@ export const deriveRelayList = makeDeriveItem(relayListsByPubkey, loadRelayList)
 
 // Outbox loader
 
+export const loadUsingOutbox = batcher(100, async (filterses: Filter[][]) => {
+  const filters = unionFilters(flatten(filterses))
+  const pubkeys = uniq(filters.flatMap(f => f.authors || []))
+
+  await Promise.all(pubkeys.map(pubkey => loadRelayList(pubkey)))
+
+  const relays = Router.get().FromPubkeys(pubkeys).policy(addMinimalFallbacks).getUrls()
+
+  await load({filters, relays})
+
+  return filterses.map(() => undefined)
+})
+
 export const makeOutboxLoader =
   (kind: number, filter: Filter = {}) =>
   async (pubkey: string, relayHints: string[] = []) => {
     const filters = [{...filter, kinds: [kind], authors: [pubkey]}]
-    const relays = Router.get().FromRelays(relayHints).policy(addMinimalFallbacks).getUrls()
+    const relays = Router.get().FromRelays(relayHints).getUrls()
 
-    await Promise.all([
-      load({filters, relays}),
-      loadRelayList(pubkey).then(async () => {
-        const relayList = getRelayList(pubkey)
-        const writeRelays = getRelaysFromList(relayList, RelayMode.Write)
-        const relays = Router.get().FromRelays(writeRelays).getUrls()
-
-        await load({filters, relays})
-      }),
-    ])
+    await Promise.all([load({filters, relays}), loadUsingOutbox(filters)])
   }
