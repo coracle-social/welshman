@@ -11,6 +11,7 @@ import {
   makeHttpAuth,
   getListTags,
   getRelayTags,
+  getRelayTagValues,
   makeList,
   makeRoomCreateEvent,
   makeRoomDeleteEvent,
@@ -23,6 +24,7 @@ import {
   createProfile,
   editProfile,
   RelayMode,
+  makeEvent,
   MESSAGING_RELAYS,
   BLOCKED_RELAYS,
   FOLLOWS,
@@ -86,6 +88,16 @@ export const addRelay = async (url: string, mode: RelayMode) => {
   return publishThunk({event, relays})
 }
 
+export const setRelays = async (tags: string[][]) => {
+  const router = Router.get()
+  const event = makeEvent(RELAYS, {tags})
+  const relays = router
+    .merge([router.Index(), router.FromRelays(getRelayTagValues(tags))])
+    .getUrls()
+
+  return publishThunk({event, relays})
+}
+
 // NIP 17
 
 export const removeMessagingRelay = async (url: string) => {
@@ -108,6 +120,13 @@ export const addMessagingRelay = async (url: string) => {
   return publishThunk({event, relays})
 }
 
+export const setMessagingRelays = async (urls: string[]) => {
+  const event = makeEvent(MESSAGING_RELAYS, {tags: urls.map(url => ["relay", url])})
+  const relays = Router.get().FromUser().getUrls()
+
+  return publishThunk({event, relays})
+}
+
 // NIP 51
 
 export const removeBlockedRelay = async (url: string) => {
@@ -126,6 +145,13 @@ export const addBlockedRelay = async (url: string) => {
   const list = get(userBlockedRelayList) || makeList({kind: BLOCKED_RELAYS})
   const event = await addToListPublicly(list, ["relay", url]).reconcile(nip44EncryptToSelf)
   const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
+
+  return publishThunk({event, relays})
+}
+
+export const setBlockedRelays = async (urls: string[]) => {
+  const event = makeEvent(BLOCKED_RELAYS, {tags: urls.map(url => ["relay", url])})
+  const relays = Router.get().FromUser().getUrls()
 
   return publishThunk({event, relays})
 }
