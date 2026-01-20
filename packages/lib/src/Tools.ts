@@ -1363,11 +1363,11 @@ export const displayDomain = (url: string) => displayUrl(first(url.split(/[\/\?]
  * @param json - JSON string to parse
  * @returns Parsed object or null if invalid
  */
-export const parseJson = (json: string | undefined) => {
+export function parseJson<T = any>(json: string | undefined) {
   if (!json) return undefined
 
   try {
-    return JSON.parse(json)
+    return JSON.parse(json) as T
   } catch (e) {
     return undefined
   }

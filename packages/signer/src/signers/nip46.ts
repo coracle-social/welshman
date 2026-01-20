@@ -7,6 +7,7 @@ import {
   tryCatch,
   randomId,
   MaybeAsync,
+  parseJson,
 } from "@welshman/lib"
 import {
   HashedEvent,
@@ -398,39 +399,43 @@ export class Nip46Broker extends Emitter {
   waitForNostrconnect = (url: string, signal: AbortSignal) => {
     const secret = new URL(url).searchParams.get("secret")
 
-    return makePromise<Nip46ResponseWithResult, Nip46Response | undefined>((resolve, reject) => {
-      const onReceive = (response: Nip46Response) => {
-        if (response.result === "auth_url") return
+    return makePromise<Nip46ResponseWithResult, Nip46Response | undefined>(
+      async (resolve, reject) => {
+        const onReceive = async (response: Nip46Response) => {
+          if (response.result === "auth_url") return
 
-        if (["ack", secret].includes(response.result!)) {
-          this.params.signerPubkey = response.event.pubkey
+          if (["ack", secret].includes(response.result!)) {
+            this.params.signerPubkey = response.event.pubkey
 
-          if (response.result === "ack") {
-            console.warn(
-              "Bunker responded to nostrconnect with 'ack', which can lead to session hijacking",
-            )
+            if (response.result === "ack") {
+              console.warn(
+                "Bunker responded to nostrconnect with 'ack', which can lead to session hijacking",
+              )
+            }
+
+            this.switchRelays()
+
+            resolve(response as Nip46ResponseWithResult)
+          } else {
+            reject(response)
           }
 
-          resolve(response as Nip46ResponseWithResult)
-        } else {
-          reject(response)
+          cleanup()
         }
 
-        cleanup()
-      }
+        const cleanup = () => {
+          this.receiver.off(Nip46Event.Receive, onReceive)
+        }
 
-      const cleanup = () => {
-        this.receiver.off(Nip46Event.Receive, onReceive)
-      }
+        this.receiver.on(Nip46Event.Receive, onReceive)
+        this.receiver.start()
 
-      this.receiver.on(Nip46Event.Receive, onReceive)
-      this.receiver.start()
-
-      signal.addEventListener("abort", () => {
-        reject(undefined)
-        cleanup()
-      })
-    })
+        signal.addEventListener("abort", () => {
+          reject(undefined)
+          cleanup()
+        })
+      },
+    )
   }
 
   // Methods for serializing a connection
@@ -467,7 +472,11 @@ export class Nip46Broker extends Emitter {
       throw new Error("Attempted to `connect` with no signerPubkey")
     }
 
-    return this.send("connect", [this.params.signerPubkey, connectSecret, perms])
+    const result = await this.send("connect", [this.params.signerPubkey, connectSecret, perms])
+
+    this.switchRelays()
+
+    return result
   }
 
   signEvent = async (event: StampedEvent) =>
@@ -480,6 +489,22 @@ export class Nip46Broker extends Emitter {
   nip44Encrypt = (pk: string, message: string) => this.send("nip44_encrypt", [pk, message])
 
   nip44Decrypt = (pk: string, message: string) => this.send("nip44_decrypt", [pk, message])
+
+  switchRelays = async () => {
+    const relays = parseJson<string[]>(await this.send("switch_relays", []))
+
+    if (relays && relays.length > 0) {
+      this.params.relays = relays.map(normalizeRelayUrl)
+
+      this.sender.stop()
+      this.sender = this.makeSender()
+
+      this.receiver.stop()
+      this.receiver = this.makeReceiver()
+    }
+
+    return this.params.relays
+  }
 }
 
 export class Nip46Signer implements ISigner {

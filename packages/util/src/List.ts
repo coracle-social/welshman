@@ -38,7 +38,7 @@ const isValidTag = (tag: string[]) => {
 
 export const readList = (event: DecryptedEvent): PublishedList => {
   const getTags = (tags: string[][]) => (Array.isArray(tags) ? tags.filter(isValidTag) : [])
-  const privateTags = getTags(parseJson(event.plaintext?.content))
+  const privateTags = getTags(parseJson(event.plaintext?.content) || [])
   const publicTags = getTags(event.tags)
 
   return {event, kind: event.kind, publicTags, privateTags}
