@@ -1,5 +1,5 @@
 import {get, derived, Readable, Unsubscriber, Writable, Subscriber} from "svelte/store"
-import {memoize, throttle} from "@welshman/lib"
+import {memoize, equals, throttle} from "@welshman/lib"
 
 // Define Stores and StoresValues types locally since they're not exported in Svelte 5
 type Stores = Readable<any> | [Readable<any>, ...Array<Readable<any>>] | Array<Readable<any>>
@@ -88,6 +88,22 @@ export const deriveDeduplicated = <S extends Stores, T>(
     const result = get(storeValues)
 
     if (prev !== result) {
+      prev = result
+      set(result)
+    }
+  })
+}
+
+export const deriveDeduplicatedByValue = <S extends Stores, T>(
+  stores: S,
+  get: (storeValues: StoresValues<S>) => T,
+): Readable<T> => {
+  let prev: T
+
+  return derived(stores, (storeValues, set) => {
+    const result = get(storeValues)
+
+    if (!equals(prev, result)) {
       prev = result
       set(result)
     }
