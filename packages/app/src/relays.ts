@@ -39,6 +39,12 @@ export const fetchRelay = async (url: string): Promise<Maybe<RelayProfile>> => {
     if (json) {
       const info = {...json, url}
 
+      if (!Array.isArray(info.supported_nips)) {
+        info.supported_nips = []
+      }
+
+      info.supported_nips = info.supported_nips.map(String)
+
       relaysByUrl.update($relaysByUrl => {
         $relaysByUrl.set(url, info)
 

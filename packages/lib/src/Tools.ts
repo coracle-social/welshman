@@ -1390,6 +1390,7 @@ export const setJson = (k: string, v: any) => localStorage.setItem(k, JSON.strin
 /** Options for fetch requests */
 type FetchOpts = {
   method?: string
+  signal?: AbortSignal
   headers?: Record<string, string | boolean>
   body?: string | FormData
 }

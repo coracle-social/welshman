@@ -11,7 +11,7 @@ export const hasNegentropy = (url: string) => {
   const relay = getRelay(url)
 
   if (relay?.negentropy) return true
-  if (relay?.supported_nips?.includes?.(77)) return true
+  if (relay?.supported_nips?.includes?.("77")) return true
   if (relay?.software?.includes?.("strfry") && !relay?.version?.match(/^0\./)) return true
 
   return false

@@ -22,7 +22,7 @@ export type RelayProfile = {
   version?: string
   negentropy?: number
   description?: string
-  supported_nips?: number[]
+  supported_nips?: string[]
   privacy_policy?: string
   terms_of_service?: string
   limitation?: {

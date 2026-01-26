@@ -105,4 +105,4 @@ routerContext.getPubkeyRelays = getPubkeyRelays
 routerContext.getRelayQuality = getRelayQuality
 routerContext.getDefaultRelays = _relayGetter()
 routerContext.getIndexerRelays = _relayGetter()
-routerContext.getSearchRelays = _relayGetter(r => r?.supported_nips?.includes?.(50))
+routerContext.getSearchRelays = _relayGetter(r => r?.supported_nips?.includes?.("50"))
