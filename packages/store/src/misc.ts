@@ -1,5 +1,5 @@
 import {get, derived, Readable, Unsubscriber, Writable, Subscriber} from "svelte/store"
-import {memoize, equals, throttle} from "@welshman/lib"
+import {memoize, identity, equals, throttle} from "@welshman/lib"
 
 // Define Stores and StoresValues types locally since they're not exported in Svelte 5
 type Stores = Readable<any> | [Readable<any>, ...Array<Readable<any>>] | Array<Readable<any>>
@@ -109,3 +109,5 @@ export const deriveDeduplicatedByValue = <S extends Stores, T>(
     }
   })
 }
+
+export const merged = <S extends Stores>(stores: S) => derived(stores, identity)

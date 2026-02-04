@@ -7,6 +7,7 @@ import {
   TrustedEvent,
   sortEventsAsc,
   sortEventsDesc,
+  getIdOrAddress,
 } from "@welshman/util"
 import {Repository, RepositoryUpdate, Tracker} from "@welshman/net"
 import {deriveDeduplicated} from "./misc.js"
@@ -88,16 +89,18 @@ export const makeDeriveEvent = ({repository, includeDeleted = false, onDerive}: 
       set(event)
 
       return on(repository, "update", ({added, removed}: RepositoryUpdate) => {
+        if (!includeDeleted) {
+          for (const id of removed) {
+            if (event?.id === id) {
+              set(undefined)
+            }
+          }
+        }
+
         for (const newEvent of added) {
           if (matchFilters(filters, newEvent)) {
             event = newEvent
             set(event)
-          }
-        }
-
-        for (const id of removed) {
-          if (event?.id === id) {
-            set(undefined)
           }
         }
       })
@@ -504,14 +507,19 @@ export const makeLoadItem = <T>(
 
 export const deriveIsDeleted = (repository: Repository, event: TrustedEvent) =>
   readable(false, set => {
+    const idOrAddress = getIdOrAddress(event)
+
     set(repository.isDeleted(event))
 
-    const unsubscribe = on(repository, "update", ({removed}: RepositoryUpdate) => {
+    return on(repository, "update", ({removed, added}: RepositoryUpdate) => {
       if (removed.has(event.id)) {
         set(true)
-        unsubscribe()
+      }
+
+      for (const event of added) {
+        if (getIdOrAddress(event) === idOrAddress) {
+          set(false)
+        }
       }
     })
-
-    return unsubscribe
   })
