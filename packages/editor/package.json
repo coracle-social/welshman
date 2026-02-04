@@ -39,7 +39,7 @@
     "@tiptap/extension-text": "^2.11.7",
     "@tiptap/pm": "^2.11.7",
     "@tiptap/suggestion": "^2.11.7",
-    "nostr-editor": "^1.0.2",
+    "nostr-editor": "^1.1.1",
     "tippy.js": "^6.3.7"
   },
   "peerDependencies": {
