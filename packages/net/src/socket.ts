@@ -31,8 +31,8 @@ export type SocketEvents = {
 }
 
 export class Socket extends EventEmitter {
-  static batchSize = 10
-  static batchDelay = 50
+  static batchSize = 20
+  static batchDelay = 100
 
   auth: AuthState
   status = SocketStatus.Closed
