@@ -1,5 +1,5 @@
 import {derived, Readable} from "svelte/store"
-import {ItemsByKey} from "@welshman/store"
+import {ItemsByKey, deriveDeduplicated} from "@welshman/store"
 import {pubkey} from "./session.js"
 import {profilesByPubkey, forceLoadProfile, loadProfile} from "./profiles.js"
 import {followListsByPubkey, forceLoadFollowList, loadFollowList} from "./follows.js"
@@ -27,7 +27,7 @@ export const makeUserData = <T>(
   itemsByKey: Readable<ItemsByKey<T>>,
   onDerive?: (key: string, ...args: any[]) => void,
 ) =>
-  derived([itemsByKey, pubkey], ([$itemsByKey, $pubkey]) => {
+  deriveDeduplicated([itemsByKey, pubkey], ([$itemsByKey, $pubkey]) => {
     if (!$pubkey) return undefined
 
     onDerive?.($pubkey)

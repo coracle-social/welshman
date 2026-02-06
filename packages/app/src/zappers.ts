@@ -1,4 +1,4 @@
-import {writable, derived, Subscriber} from "svelte/store"
+import {writable, Subscriber} from "svelte/store"
 import {Zapper, TrustedEvent, Zap, getTagValues, getLnUrl, zapFromEvent} from "@welshman/util"
 import {
   removeUndefined,
@@ -9,7 +9,14 @@ import {
   batcher,
   postJson,
 } from "@welshman/lib"
-import {getter, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem} from "@welshman/store"
+import {
+  getter,
+  deriveItems,
+  deriveDeduplicated,
+  makeForceLoadItem,
+  makeLoadItem,
+  makeDeriveItem,
+} from "@welshman/store"
 import {deriveProfile, loadProfile} from "./profiles.js"
 import {appContext} from "./context.js"
 
@@ -103,9 +110,12 @@ export const loadZapperForPubkey = async (pubkey: string, relays: string[] = [])
 export const deriveZapperForPubkey = (pubkey: string, relays: string[] = []) => {
   loadZapperForPubkey(pubkey, relays)
 
-  return derived([zappersByLnurl, deriveProfile(pubkey, relays)], ([$zappersByLnurl, $profile]) => {
-    return $profile?.lnurl ? $zappersByLnurl.get($profile.lnurl) : undefined
-  })
+  return deriveDeduplicated(
+    [zappersByLnurl, deriveProfile(pubkey, relays)],
+    ([$zappersByLnurl, $profile]) => {
+      return $profile?.lnurl ? $zappersByLnurl.get($profile.lnurl) : undefined
+    },
+  )
 }
 
 export const getLnUrlsForEvent = async (event: TrustedEvent) => {

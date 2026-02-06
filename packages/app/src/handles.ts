@@ -1,6 +1,13 @@
-import {writable, derived, Subscriber} from "svelte/store"
+import {writable, Subscriber} from "svelte/store"
 import {tryCatch, fetchJson, batcher, postJson, last} from "@welshman/lib"
-import {getter, deriveItems, makeForceLoadItem, makeLoadItem, makeDeriveItem} from "@welshman/store"
+import {
+  getter,
+  deriveItems,
+  deriveDeduplicated,
+  makeForceLoadItem,
+  makeLoadItem,
+  makeDeriveItem,
+} from "@welshman/store"
 import {deriveProfile, loadProfile} from "./profiles.js"
 import {appContext} from "./context.js"
 
@@ -123,15 +130,18 @@ export const loadHandleForPubkey = async (pubkey: string, relays: string[] = [])
 export const deriveHandleForPubkey = (pubkey: string, relays: string[] = []) => {
   loadHandleForPubkey(pubkey, relays)
 
-  return derived([handlesByNip05, deriveProfile(pubkey, relays)], ([$handlesByNip05, $profile]) => {
-    if (!$profile?.nip05) return undefined
+  return deriveDeduplicated(
+    [handlesByNip05, deriveProfile(pubkey, relays)],
+    ([$handlesByNip05, $profile]) => {
+      if (!$profile?.nip05) return undefined
 
-    const handle = $handlesByNip05.get($profile.nip05)
+      const handle = $handlesByNip05.get($profile.nip05)
 
-    if (handle?.pubkey !== pubkey) return undefined
+      if (handle?.pubkey !== pubkey) return undefined
 
-    return handle
-  })
+      return handle
+    },
+  )
 }
 
 export const displayNip05 = (nip05: string) =>

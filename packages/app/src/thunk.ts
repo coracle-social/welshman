@@ -372,7 +372,8 @@ export const waitForThunkCompletion = (thunk: Thunk) =>
 export const thunks = writable<Thunk[]>([])
 
 export const thunkQueue = new TaskQueue<Thunk>({
-  batchSize: 50,
+  batchSize: 10,
+  batchDelay: 100,
   processItem: (thunk: Thunk) => {
     thunk.publish()
   },

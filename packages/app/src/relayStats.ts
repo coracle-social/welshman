@@ -109,7 +109,7 @@ export const getRelayQuality = (url: string) => {
 
 type RelayStatsUpdate = [string, (stats: RelayStats) => void]
 
-const updateRelayStats = batch(500, (updates: RelayStatsUpdate[]) => {
+const updateRelayStats = batch(1000, (updates: RelayStatsUpdate[]) => {
   relayStatsByUrl.update($relayStatsByUrl => {
     for (const [url, items] of groupBy(([url]) => url, updates)) {
       if (!url || !isRelayUrl(url)) {

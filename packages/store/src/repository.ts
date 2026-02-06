@@ -455,27 +455,27 @@ export const makeLoadItem = <T>(
   const pending = new Map<string, Promise<Maybe<T>>>()
   const attempts = new Map<string, number>()
 
-  return async (key: string, ...args: any[]): Promise<Maybe<T>> => {
+  return (key: string, ...args: any[]): Promise<Maybe<T>> => {
     const stale = getItem(key)
     const fetched = getFetched(key)
 
     // If we have an item, reload if it's relatively recent
     if (stale && fetched > now() - timeout) {
-      return stale
+      return Promise.resolve(stale)
     }
 
     const pendingItem = pending.get(key)
 
     // If we already are loading, await and return
     if (pendingItem) {
-      return pendingItem
+      return Promise.resolve(pendingItem)
     }
 
     const attempt = attempts.get(key) || 0
 
     // Use exponential backoff to throttle attempts
     if (fetched > now() - Math.pow(2, attempt)) {
-      return stale
+      return Promise.resolve(stale)
     }
 
     attempts.set(key, attempt + 1)
@@ -486,20 +486,22 @@ export const makeLoadItem = <T>(
 
     pending.set(key, promise)
 
-    let item
-    try {
-      item = await promise
-    } catch (e) {
-      console.warn(`Failed to load item ${key}`, e)
-    } finally {
-      pending.delete(key)
-    }
+    return call(async () => {
+      let item
+      try {
+        item = await promise
+      } catch (e) {
+        console.warn(`Failed to load item ${key}`, e)
+      } finally {
+        pending.delete(key)
+      }
 
-    if (item) {
-      attempts.delete(key)
-    }
+      if (item) {
+        attempts.delete(key)
+      }
 
-    return item
+      return item
+    })
   }
 }
 

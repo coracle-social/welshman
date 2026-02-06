@@ -1257,11 +1257,9 @@ export const batch = <T>(t: number, f: (xs: T[]) => void) => {
   }
 
   return (x: T) => {
-    const shouldFlush = timeoutId === undefined
-
     xs.push(x)
 
-    if (shouldFlush) {
+    if (!timeoutId) {
       f(xs.splice(0))
       timeoutId = setTimeout(later, t)
     }
