@@ -6,7 +6,6 @@ import {
   Wallet,
   WRAP,
   getPubkeyTagValues,
-  HashedEvent,
   StampedEvent,
   SignedEvent,
   getPubkey,
@@ -323,8 +322,6 @@ export const unwrapAndStore = async (wrap: SignedEvent) => {
     return cached
   }
 
-  let result: {rumor: HashedEvent; recipient: string} | undefined
-
   // Next, try to decrypt as the recipient
   for (const recipient of getPubkeyTagValues(wrap.tags)) {
     const signer = getSignerFromPubkey(recipient)
@@ -333,16 +330,12 @@ export const unwrapAndStore = async (wrap: SignedEvent) => {
       try {
         const rumor = await Nip59.fromSigner(signer).unwrap(wrap)
 
-        result = {rumor, recipient}
+        wrapManager.add({wrap, rumor, recipient})
+
+        return rumor
       } catch (e) {
         failedUnwraps.add(wrap.id)
       }
     }
-  }
-
-  if (result) {
-    wrapManager.add({wrap, ...result})
-
-    return result.rumor
   }
 }

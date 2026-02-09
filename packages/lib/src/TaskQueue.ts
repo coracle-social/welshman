@@ -39,22 +39,26 @@ export class TaskQueue<Item> {
     this.isProcessing = true
 
     setTimeout(async () => {
-      for (const item of this.items.splice(0, this.options.batchSize)) {
-        try {
-          for (const subscriber of this._subs) {
-            subscriber(item)
+      if (this.isPaused) {
+        this.isProcessing = false
+      } else {
+        for (const item of this.items.splice(0, this.options.batchSize)) {
+          try {
+            for (const subscriber of this._subs) {
+              subscriber(item)
+            }
+
+            await this.options.processItem(item)
+          } catch (e) {
+            console.error(e)
           }
-
-          await this.options.processItem(item)
-        } catch (e) {
-          console.error(e)
         }
-      }
 
-      this.isProcessing = false
+        this.isProcessing = false
 
-      if (this.items.length > 0) {
-        this.process()
+        if (this.items.length > 0) {
+          this.process()
+        }
       }
     }, this.options.batchDelay)
   }
