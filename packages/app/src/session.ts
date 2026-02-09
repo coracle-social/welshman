@@ -1,6 +1,6 @@
 import {Client, ClientOptions, PomadeSigner} from "@pomade/core"
 import {derived, writable} from "svelte/store"
-import {cached, randomId, append, omit, equals, assoc} from "@welshman/lib"
+import {cached, randomId, append, omit, equals, assoc, TaskQueue} from "@welshman/lib"
 import {withGetter} from "@welshman/store"
 import {
   Wallet,
@@ -301,6 +301,28 @@ export const shouldUnwrap = withGetter(writable(false))
 
 export const failedUnwraps = new Set<string>()
 
+export const wrapQueue = new TaskQueue({
+  batchSize: 5,
+  batchDelay: 30,
+  processItem: async (wrap: SignedEvent) => {
+    for (const recipient of getPubkeyTagValues(wrap.tags)) {
+      const signer = getSignerFromPubkey(recipient)
+
+      if (signer) {
+        try {
+          const rumor = await Nip59.fromSigner(signer).unwrap(wrap)
+
+          wrapManager.add({wrap, rumor, recipient})
+
+          return rumor
+        } catch (e) {
+          failedUnwraps.add(wrap.id)
+        }
+      }
+    }
+  },
+})
+
 export const unwrapAndStore = async (wrap: SignedEvent) => {
   if (wrap.kind !== WRAP) {
     throw new Error("Tried to unwrap an invalid event")
@@ -310,32 +332,7 @@ export const unwrapAndStore = async (wrap: SignedEvent) => {
     throw new Error("Discarding wrapped event because `shouldUnwrap` is not enabled")
   }
 
-  // Check to see if we already tried to unwrap but failed
-  if (failedUnwraps.has(wrap.id)) {
-    return
-  }
-
-  // Check index and repository
-  const cached = wrapManager.getRumor(wrap.id)
-
-  if (cached) {
-    return cached
-  }
-
-  // Next, try to decrypt as the recipient
-  for (const recipient of getPubkeyTagValues(wrap.tags)) {
-    const signer = getSignerFromPubkey(recipient)
-
-    if (signer) {
-      try {
-        const rumor = await Nip59.fromSigner(signer).unwrap(wrap)
-
-        wrapManager.add({wrap, rumor, recipient})
-
-        return rumor
-      } catch (e) {
-        failedUnwraps.add(wrap.id)
-      }
-    }
+  if (!failedUnwraps.has(wrap.id) && !wrapManager.getRumor(wrap.id)) {
+    wrapQueue.push(wrap)
   }
 }
