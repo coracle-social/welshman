@@ -5,6 +5,10 @@ import {repository, tracker} from "../src/core"
 import {addSession, dropSession, makeNip01Session} from "../src/session"
 import {abortThunk, MergedThunk, publishThunk, thunkQueue, flattenThunks} from "../src/thunk"
 
+vi.mock("../src/messagingRelayLists", () => ({
+  forceLoadMessagingRelayList: vi.fn().mockResolvedValue(undefined),
+}))
+
 const secret = makeSecret()
 
 const pubkey = getPubkey(secret)
@@ -114,6 +118,38 @@ describe("thunk", () => {
 
       expect(publishSpy.mock.calls[0][0].kind).toBe(WRAP)
       expect(publishSpy.mock.calls[0][0].id).not.toBe(thunk.event.id)
+    })
+
+    it("should force-load relay list when relays are empty for wrapped send", async () => {
+      const {forceLoadMessagingRelayList} = await import("../src/messagingRelayLists")
+      const {Router} = await import("@welshman/router")
+      const recipient = getPubkey(makeSecret())
+      const event = prep({...makeEvent(DIRECT_MESSAGE), pubkey})
+
+      // Mock Router to return LOCAL_RELAY_URL after force-load (uses local adapter, no WebSocket)
+      const getUrlsMock = vi.fn().mockReturnValue([LOCAL_RELAY_URL])
+      const messagesForPubkeyMock = vi.fn().mockReturnValue({getUrls: getUrlsMock})
+      vi.spyOn(Router, "get").mockReturnValue({
+        MessagesForPubkey: messagesForPubkeyMock,
+      } as any)
+
+      const thunk = publishThunk({event, relays: [], recipient})
+      const publishSpy = vi.spyOn(thunk, "_publish")
+
+      await vi.runAllTimersAsync()
+
+      // forceLoadMessagingRelayList should have been called since relays were empty
+      expect(forceLoadMessagingRelayList).toHaveBeenCalledWith(recipient)
+
+      // Relays should have been populated from the Router after force-load
+      expect(thunk.options.relays).toEqual([LOCAL_RELAY_URL])
+      expect(thunk.results[LOCAL_RELAY_URL]).toBeDefined()
+
+      // The event should still be wrapped and published
+      expect(publishSpy).toHaveBeenCalled()
+      expect(publishSpy.mock.calls[0][0].kind).toBe(WRAP)
+
+      vi.restoreAllMocks()
     })
   })
 })

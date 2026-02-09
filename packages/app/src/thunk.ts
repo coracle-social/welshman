@@ -28,8 +28,10 @@ import {
   PublishResultsByRelay,
 } from "@welshman/net"
 import {ISigner, Nip59} from "@welshman/signer"
+import {Router} from "@welshman/router"
 import {repository, tracker} from "./core.js"
 import {pubkey, signer, wrapManager} from "./session.js"
+import {forceLoadMessagingRelayList} from "./messagingRelayLists.js"
 
 export type ThunkOptions = Override<
   PublishOptions,
@@ -177,6 +179,31 @@ export class Thunk {
 
     // If we're sending it privately, wrap the event using nip 59
     if (recipient) {
+      // If relays are empty, the initial synchronous lookup missed the recipient's
+      // messaging relay list (kind 10050). This commonly happens because load()
+      // resolves at threshold 0.5 — fast EOSE from relays that don't have the event
+      // can resolve the request before the relay that does have it responds.
+      // Force-load bypasses the backoff cache and waits for the full network round-trip.
+      if (this.options.relays.length === 0) {
+        await forceLoadMessagingRelayList(recipient)
+
+        const relays = Router.get().MessagesForPubkey(recipient).getUrls()
+
+        if (relays.length > 0) {
+          this.options.relays = relays
+
+          for (const relay of relays) {
+            this.results[relay] = {
+              relay,
+              status: PublishStatus.Sending,
+              detail: "sending...",
+            }
+          }
+
+          this._notify()
+        }
+      }
+
       const nip59 = Nip59.fromSigner(this.signer)
 
       this.wrap = await nip59.wrap(recipient, this.event)
