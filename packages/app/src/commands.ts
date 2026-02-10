@@ -12,6 +12,7 @@ import {
   getListTags,
   getRelayTags,
   getRelayTagValues,
+  getRelaysFromList,
   makeList,
   makeRoomCreateEvent,
   makeRoomDeleteEvent,
@@ -50,6 +51,7 @@ import {
 } from "./user.js"
 import {nip44EncryptToSelf, signer} from "./session.js"
 import {ThunkOptions, MergedThunk, publishThunk} from "./thunk.js"
+import {loadMessagingRelayList} from "./messagingRelayLists.js"
 
 // NIP 65
 
@@ -261,13 +263,15 @@ export type SendWrappedOptions = Omit<ThunkOptions, "event" | "relays"> & {
   recipients: string[]
 }
 
-export const sendWrapped = ({event, recipients, ...options}: SendWrappedOptions) =>
+export const sendWrapped = async ({event, recipients, ...options}: SendWrappedOptions) =>
   new MergedThunk(
-    uniq(recipients).map(recipient => {
-      const relays = Router.get().MessagesForPubkey(recipient).getUrls()
+    await Promise.all(
+      uniq(recipients).map(async recipient => {
+        const relays = getRelaysFromList(await loadMessagingRelayList(recipient))
 
-      return publishThunk({event, relays, recipient, ...options})
-    }),
+        return publishThunk({event, relays, recipient, ...options})
+      }),
+    ),
   )
 
 // NIP 86
