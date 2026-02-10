@@ -26,8 +26,11 @@ export const tagPubkey = (pubkey: string, ...args: unknown[]) => [
   displayProfileByPubkey(pubkey),
 ]
 
-export const tagEvent = (event: TrustedEvent, mark = "") => {
-  const url = Router.get().Event(event).getUrl() || ""
+export const tagEvent = (event: TrustedEvent, url = "", mark = "") => {
+  if (!url) {
+    url = Router.get().Event(event).getUrl() || ""
+  }
+
   const tags = [["e", event.id, url, mark, event.pubkey]]
 
   if (isReplaceable(event)) {
@@ -40,19 +43,18 @@ export const tagEvent = (event: TrustedEvent, mark = "") => {
 export const tagEventPubkeys = (event: TrustedEvent) =>
   uniq(remove(pubkey.get()!, [event.pubkey, ...getPubkeyTagValues(event.tags)])).map(tagPubkey)
 
-export const tagEventForQuote = (event: TrustedEvent) => [
-  "q",
-  event.id,
-  Router.get().Event(event).getUrl() || "",
-  event.pubkey,
-]
+export const tagEventForQuote = (event: TrustedEvent, relay?: string) => {
+  const hint = relay || Router.get().Event(event).getUrl() || ""
 
-export const tagEventForReply = (event: TrustedEvent) => {
+  return ["q", event.id, hint, event.pubkey]
+}
+
+export const tagEventForReply = (event: TrustedEvent, relay?: string) => {
   const tags = tagEventPubkeys(event)
   const {roots, replies} = getReplyTags(event.tags)
   const parents = roots.length > 0 ? roots : replies
   const mark = parents.length > 0 ? "reply" : "root"
-  const hint = Router.get().Event(event).getUrl() || ""
+  const hint = relay || Router.get().Event(event).getUrl() || ""
 
   // If the parent included roots use them, otherwise use replies as a fallback
   for (const [k, id, originalHint = "", _, pubkey = ""] of parents) {
@@ -74,9 +76,9 @@ export const tagEventForReply = (event: TrustedEvent) => {
   return tags
 }
 
-export const tagEventForComment = (event: TrustedEvent) => {
+export const tagEventForComment = (event: TrustedEvent, relay?: string) => {
   const pubkeyHint = Router.get().FromPubkey(event.pubkey).getUrl() || ""
-  const eventHint = Router.get().Event(event).getUrl() || ""
+  const eventHint = relay || Router.get().Event(event).getUrl() || ""
   const address = getAddress(event)
   const seenRoots = new Set<string>()
   const tags: string[][] = []
@@ -109,8 +111,8 @@ export const tagEventForComment = (event: TrustedEvent) => {
   return tags
 }
 
-export const tagEventForReaction = (event: TrustedEvent) => {
-  const hint = Router.get().Event(event).getUrl() || ""
+export const tagEventForReaction = (event: TrustedEvent, relay?: string) => {
+  const hint = relay || Router.get().Event(event).getUrl() || ""
   const tags: string[][] = []
 
   // Mention the event's author
