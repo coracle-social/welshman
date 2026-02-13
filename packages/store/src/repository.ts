@@ -1,5 +1,5 @@
 import {readable, Readable} from "svelte/store"
-import {on, assoc, now, mapPop, Maybe, MaybeAsync, call, sortBy, first} from "@welshman/lib"
+import {on, now, mapPop, Maybe, MaybeAsync, call, sortBy, first} from "@welshman/lib"
 import {
   matchFilters,
   getIdFilters,
@@ -251,7 +251,7 @@ export const getEventsByIdForUrl = ({
   includeDeleted,
 }: EventsByIdForUrlOptions) => {
   const initialIds = Array.from(tracker.getIds(url))
-  const initialFilters = filters.map(assoc("ids", initialIds))
+  const initialFilters = filters.map(filter => ({ids: initialIds, ...filter}))
   const eventsById: EventsById = new Map()
 
   for (const event of repository.query(initialFilters, {includeDeleted})) {
