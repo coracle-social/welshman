@@ -58,6 +58,26 @@ export const always =
 export const not = (x: any, ...args: unknown[]) => !x
 
 /**
+ * Bind function
+ * @param f - Function to bind
+ * @returns bound function
+ */
+export const bind = <F extends (...args: any[]) => any>(f: F, ...args: Parameters<F>) =>
+  f.bind(null, ...args)
+
+/**
+ * Runs the provided function on the given value and returns the value
+ * @param f - Function to call
+ * @returns tapped function
+ */
+export const tap =
+  <T, F extends (x: T) => unknown>(f: F) =>
+  (x: T) => {
+    f(x)
+    return x
+  }
+
+/**
  * Deep equality comparison
  * @param a - First value
  * @param b - Second value

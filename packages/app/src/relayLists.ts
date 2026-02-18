@@ -8,6 +8,7 @@ import {
   getRelaysFromList,
   RelayMode,
   Filter,
+  isPlainReplaceableKind,
 } from "@welshman/util"
 import {
   deriveItemsByKey,
@@ -55,13 +56,17 @@ export const deriveRelayList = makeDeriveItem(relayListsByPubkey, loadRelayList)
 // Outbox loader
 
 export const loadUsingOutbox = async (kind: number, pubkey: string, filter: Filter = {}) => {
-  const filters = [{...filter, kinds: [kind], authors: [pubkey], limit: 1}]
+  const filters = [{...filter, kinds: [kind], authors: [pubkey]}]
   const writeRelays = getRelaysFromList(await loadRelayList(pubkey), RelayMode.Write)
   const allRelays = Router.get()
     .FromRelays(writeRelays)
     .policy(addMinimalFallbacks)
     .limit(8)
     .getUrls()
+
+  if (isPlainReplaceableKind(kind)) {
+    filters[0].limit = 1
+  }
 
   for (const relays of chunk(2, allRelays)) {
     const events = await load({filters, relays})
@@ -73,7 +78,7 @@ export const loadUsingOutbox = async (kind: number, pubkey: string, filter: Filt
 }
 
 export const makeOutboxLoader =
-  (kind: number, filter: Filter = {}) =>
+  (kind: number, filter: Filter = {}, limit = 1) =>
   async (pubkey: string, relayHints: string[] = []) => {
     const filters = [{...filter, kinds: [kind], authors: [pubkey]}]
     const relays = Router.get().FromRelays(relayHints).getUrls()

@@ -64,7 +64,7 @@ export const requestPage = async ({
           onEvent,
           relays,
           filters,
-          threshold: 0.8,
+          threshold: 0.5,
           autoClose,
         }),
       ),
