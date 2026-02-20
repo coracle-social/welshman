@@ -180,8 +180,8 @@ importers:
         version: 5.0.2
     devDependencies:
       '@pomade/core':
-        specifier: ^0.0.9
-        version: 0.0.9(@frostr/bifrost@1.0.7(typescript@5.8.2))(@noble/hashes@2.0.1)(@welshman/lib@packages+lib)(@welshman/net@packages+net)(@welshman/signer@packages+signer)(@welshman/util@packages+util)(nostr-tools@2.19.4(typescript@5.8.2))
+        specifier: ^0.1.0
+        version: 0.1.0(@frostr/bifrost@1.0.7(typescript@5.8.2))(@noble/hashes@2.0.1)(@welshman/lib@packages+lib)(@welshman/net@packages+net)(@welshman/signer@packages+signer)(@welshman/util@packages+util)(nostr-tools@2.19.4(typescript@5.8.2))
       '@types/throttle-debounce':
         specifier: ^5.0.2
         version: 5.0.2
@@ -922,8 +922,8 @@ packages:
     resolution: {integrity: sha512-vsJDAkYR6qCPu+ioGScGiMYR7LvZYIXh/dlQeviqoTWNCVfKTLYD/LkNWH4Mxsv2a5vpIRc77FN5DnmK1eBggQ==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
 
-  '@pomade/core@0.0.9':
-    resolution: {integrity: sha512-eCdzs4BGjkG89Jew1YpeTfcpOaLVJWGQqlfBrjaxpzhYz7qdAOsoL1NzzycE9FRzvkvz7Rt8UWMdUpir88Kpqg==}
+  '@pomade/core@0.1.0':
+    resolution: {integrity: sha512-ZVR+u1bUOIjCYVcZMlkC1rKFyHvg5NLaqvtpniiOF8qhtwpJLTGCRGjg0LyTRJrWSyrLKY/qLzblJ38SRamK8A==}
     engines: {node: '>=12.0.0'}
     peerDependencies:
       '@frostr/bifrost': ^1.0.7
@@ -1816,10 +1816,6 @@ packages:
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
-
-  base58-js@3.0.3:
-    resolution: {integrity: sha512-3hf42BysHnUqmZO7mK6e5X/hs1AvyEJIhdVLbG/Mxn/fhFnhGxOO37mWbMHg1RT4TxqcPKXgqj9/bp1YG0GBXA==}
-    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
 
   binary-extensions@2.3.0:
     resolution: {integrity: sha512-Ceh+7ox5qe7LJuLHoY0feh3pHuUDHAcRUeyL2VYghZwfpkNIy/+8Ocg0a3UuSoYzavmylwuLWQOf3hl0jjMMIw==}
@@ -3695,7 +3691,7 @@ snapshots:
 
   '@pkgr/core@0.2.0': {}
 
-  '@pomade/core@0.0.9(@frostr/bifrost@1.0.7(typescript@5.8.2))(@noble/hashes@2.0.1)(@welshman/lib@packages+lib)(@welshman/net@packages+net)(@welshman/signer@packages+signer)(@welshman/util@packages+util)(nostr-tools@2.19.4(typescript@5.8.2))':
+  '@pomade/core@0.1.0(@frostr/bifrost@1.0.7(typescript@5.8.2))(@noble/hashes@2.0.1)(@welshman/lib@packages+lib)(@welshman/net@packages+net)(@welshman/signer@packages+signer)(@welshman/util@packages+util)(nostr-tools@2.19.4(typescript@5.8.2))':
     dependencies:
       '@frostr/bifrost': 1.0.7(typescript@5.8.2)
       '@noble/hashes': 2.0.1
@@ -3703,7 +3699,6 @@ snapshots:
       '@welshman/net': link:packages/net
       '@welshman/signer': link:packages/signer
       '@welshman/util': link:packages/util
-      base58-js: 3.0.3
       hash-wasm: 4.12.0
       nostr-tools: 2.19.4(typescript@5.8.2)
       zod: 4.3.5
@@ -4650,8 +4645,6 @@ snapshots:
   axobject-query@4.1.0: {}
 
   balanced-match@1.0.2: {}
-
-  base58-js@3.0.3: {}
 
   binary-extensions@2.3.0: {}
 
