@@ -6,21 +6,24 @@ import {npubEncode} from "nostr-tools/nip19"
 
 vi.mock("nostr-signer-capacitor-plugin", () => ({
   NostrSignerPlugin: {
-    setPackageName: vi.fn().mockResolvedValue(undefined),
     getPublicKey: vi.fn(() => ({npub: npubEncode("ee".repeat(32))})),
-    signEvent: vi.fn().mockResolvedValue({
+    signEvent: vi.fn(() => ({
       event: JSON.stringify({sig: "ee".repeat(64)}),
-    }),
-    nip04Encrypt: vi.fn(({plainText}) => ({result: "encrypted:" + plainText})),
-    nip04Decrypt: vi.fn(({encryptedText}) => ({result: encryptedText.split("encrypted:")[1]})),
-    nip44Encrypt: vi.fn(({plainText}) => ({result: "encrypted:" + plainText})),
-    nip44Decrypt: vi.fn(({encryptedText}) => ({result: encryptedText.split("encrypted:")[1]})),
+    })),
+    nip04Encrypt: vi.fn((_, plainText: string) => ({result: "encrypted:" + plainText})),
+    nip04Decrypt: vi.fn((_, encryptedText: string) => ({
+      result: encryptedText.split("encrypted:")[1],
+    })),
+    nip44Encrypt: vi.fn((_, plainText: string) => ({result: "encrypted:" + plainText})),
+    nip44Decrypt: vi.fn((_, encryptedText: string) => ({
+      result: encryptedText.split("encrypted:")[1],
+    })),
   },
 }))
 
 describe("Nip55Signer", () => {
   beforeEach(() => {
-    // Mock NostrSignerPlugin
+    vi.clearAllMocks()
   })
 
   testSigner("Nip55Signer", () => new Nip55Signer("test-package"))
@@ -29,6 +32,6 @@ describe("Nip55Signer", () => {
   it("should handle package initialization", async () => {
     const signer = new Nip55Signer("test-package")
     await signer.getPubkey()
-    expect(NostrSignerPlugin.setPackageName).toHaveBeenCalledWith({packageName: "test-package"})
+    expect(NostrSignerPlugin.getPublicKey).toHaveBeenCalledWith("test-package")
   })
 })
