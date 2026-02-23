@@ -35,10 +35,12 @@
     "vitest": "^3.1.1"
   },
   "pnpm": {
+    "onlyBuiltDependencies": [
+      "nostr-signer-capacitor-plugin"
+    ],
     "overrides": {
       "@tiptap/core": "^2.11.7",
-      "@tiptap/pm": "^2.11.7",
-      "nostr-signer-capacitor-plugin": "github:coracle-social/nostr-signer-capacitor-plugin#main"
+      "@tiptap/pm": "^2.11.7"
     }
   }
 }
