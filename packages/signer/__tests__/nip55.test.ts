@@ -6,6 +6,7 @@ import {npubEncode} from "nostr-tools/nip19"
 
 vi.mock("nostr-signer-capacitor-plugin", () => ({
   NostrSignerPlugin: {
+    setPackageName: vi.fn(() => Promise.resolve()),
     getPublicKey: vi.fn(() => ({npub: npubEncode("ee".repeat(32))})),
     signEvent: vi.fn(() => ({
       event: JSON.stringify({sig: "ee".repeat(64)}),
