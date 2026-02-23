@@ -181,8 +181,8 @@ importers:
         version: 5.0.2
     devDependencies:
       '@pomade/core':
-        specifier: ^0.1.0
-        version: 0.1.0(@frostr/bifrost@1.0.7(typescript@5.8.2))(@noble/hashes@2.0.1)(@welshman/lib@packages+lib)(@welshman/net@packages+net)(@welshman/signer@packages+signer)(@welshman/util@packages+util)(nostr-tools@2.19.4(typescript@5.8.2))
+        specifier: ^0.1.1
+        version: 0.1.1(@frostr/bifrost@1.0.7(typescript@5.8.2))(@noble/hashes@2.0.1)(@welshman/lib@packages+lib)(@welshman/net@packages+net)(@welshman/signer@packages+signer)(@welshman/util@packages+util)(nostr-tools@2.19.4(typescript@5.8.2))
       '@types/throttle-debounce':
         specifier: ^5.0.2
         version: 5.0.2
@@ -924,8 +924,8 @@ packages:
     resolution: {integrity: sha512-vsJDAkYR6qCPu+ioGScGiMYR7LvZYIXh/dlQeviqoTWNCVfKTLYD/LkNWH4Mxsv2a5vpIRc77FN5DnmK1eBggQ==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
 
-  '@pomade/core@0.1.0':
-    resolution: {integrity: sha512-ZVR+u1bUOIjCYVcZMlkC1rKFyHvg5NLaqvtpniiOF8qhtwpJLTGCRGjg0LyTRJrWSyrLKY/qLzblJ38SRamK8A==}
+  '@pomade/core@0.1.1':
+    resolution: {integrity: sha512-v/lg9nQvL1ReOx1xLmjS70mAO5hW2ZcR9OXl9GdB0rxyg0gBIh45seqzJTDI8ye+MAk7AZRvhn8H6lPE6oohNQ==}
     engines: {node: '>=12.0.0'}
     peerDependencies:
       '@frostr/bifrost': ^1.0.7
@@ -3694,7 +3694,7 @@ snapshots:
 
   '@pkgr/core@0.2.0': {}
 
-  '@pomade/core@0.1.0(@frostr/bifrost@1.0.7(typescript@5.8.2))(@noble/hashes@2.0.1)(@welshman/lib@packages+lib)(@welshman/net@packages+net)(@welshman/signer@packages+signer)(@welshman/util@packages+util)(nostr-tools@2.19.4(typescript@5.8.2))':
+  '@pomade/core@0.1.1(@frostr/bifrost@1.0.7(typescript@5.8.2))(@noble/hashes@2.0.1)(@welshman/lib@packages+lib)(@welshman/net@packages+net)(@welshman/signer@packages+signer)(@welshman/util@packages+util)(nostr-tools@2.19.4(typescript@5.8.2))':
     dependencies:
       '@frostr/bifrost': 1.0.7(typescript@5.8.2)
       '@noble/hashes': 2.0.1
