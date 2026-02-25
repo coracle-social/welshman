@@ -1,5 +1,5 @@
 import {get} from "svelte/store"
-import {uniq, nthNe, removeUndefined, nthEq} from "@welshman/lib"
+import {uniq, now, nthNe, removeUndefined, nthEq} from "@welshman/lib"
 import {
   sendManagementRequest,
   ManagementRequest,
@@ -32,6 +32,7 @@ import {
   RELAYS,
   MUTES,
   PINS,
+  prep,
 } from "@welshman/util"
 import type {RoomMeta, Profile} from "@welshman/util"
 import {Router, addMaximalFallbacks} from "@welshman/router"
@@ -49,7 +50,7 @@ import {
   userPinList,
   forceLoadUserPinList,
 } from "./user.js"
-import {nip44EncryptToSelf, signer} from "./session.js"
+import {nip44EncryptToSelf, signer, pubkey} from "./session.js"
 import {ThunkOptions, MergedThunk, publishThunk} from "./thunk.js"
 import {loadMessagingRelayList} from "./messagingRelayLists.js"
 
@@ -263,8 +264,15 @@ export type SendWrappedOptions = Omit<ThunkOptions, "event" | "relays"> & {
   recipients: string[]
 }
 
-export const sendWrapped = async ({event, recipients, ...options}: SendWrappedOptions) =>
-  new MergedThunk(
+export const sendWrapped = async ({event, recipients, ...options}: SendWrappedOptions) => {
+  const $pubkey = pubkey.get()
+
+  // Stabilize the event id across different wraps
+  if ($pubkey) {
+    event = prep(event, $pubkey, now())
+  }
+
+  return new MergedThunk(
     await Promise.all(
       uniq(recipients).map(async recipient => {
         const relays = getRelaysFromList(await loadMessagingRelayList(recipient))
@@ -273,6 +281,7 @@ export const sendWrapped = async ({event, recipients, ...options}: SendWrappedOp
       }),
     ),
   )
+}
 
 // NIP 86
 
