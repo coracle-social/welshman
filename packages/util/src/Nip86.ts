@@ -4,8 +4,9 @@ import {makeHttpAuthHeader} from "./Nip98.js"
 export enum ManagementMethod {
   SupportedMethods = "supportedmethods",
   BanPubkey = "banpubkey",
+  UnbanPubkey = "unbanpubkey",
   AllowPubkey = "allowpubkey",
-  DisallowPubkey = "disallowpubkey",
+  UnallowPubkey = "unallowpubkey",
   ListBannedPubkeys = "listbannedpubkeys",
   ListAllowedPubkeys = "listallowedpubkeys",
   ListEventsNeedingModeration = "listeventsneedingmoderation",

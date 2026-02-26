@@ -8,7 +8,9 @@ Implementation of NIP-86 for managing Nostr relays through authenticated RPC req
 export enum ManagementMethod {
   SupportedMethods = "supportedmethods",
   BanPubkey = "banpubkey",
+  UnbanPubkey = "unbanpubkey",
   AllowPubkey = "allowpubkey",
+  UnallowPubkey = "unallowpubkey",
   ListBannedPubkeys = "listbannedpubkeys",
   ListAllowedPubkeys = "listallowedpubkeys",
   ListEventsNeedingModeration = "listeventsneedingmoderation",
