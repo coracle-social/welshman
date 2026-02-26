@@ -18,7 +18,13 @@ import {
   deduplicateEvents,
   getFilterResultCardinality,
 } from "@welshman/util"
-import {RelayMessage, ClientMessageType, isRelayEvent, isRelayEose} from "./message.js"
+import {
+  RelayMessage,
+  ClientMessageType,
+  isRelayEvent,
+  isRelayEose,
+  isRelayClosed,
+} from "./message.js"
 import {getAdapter, AdapterContext, AdapterEvent} from "./adapter.js"
 import {SocketEvent, SocketStatus} from "./socket.js"
 import {netContext} from "./context.js"
@@ -38,6 +44,7 @@ export type BaseRequestOptions = {
   onDuplicate?: (event: TrustedEvent, url: string) => void
   onDisconnect?: (url: string) => void
   onEose?: (url: string) => void
+  onClosed?: (message: string, url: string) => void
   onClose?: () => void
 }
 
@@ -106,6 +113,19 @@ export const requestOne = (options: RequestOneOptions) => {
             if (options.autoClose) {
               close()
             }
+          }
+        }
+      }
+
+      if (isRelayClosed(message)) {
+        const [_, id, reason] = message
+
+        if (ids.has(id)) {
+          ids.delete(id)
+          options.onClosed?.(reason, url)
+
+          if (ids.size === 0) {
+            close()
           }
         }
       }
