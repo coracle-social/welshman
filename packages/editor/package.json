@@ -39,19 +39,20 @@
     "@tiptap/extension-text": "^2.11.7",
     "@tiptap/pm": "^2.11.7",
     "@tiptap/suggestion": "^2.11.7",
-    "nostr-editor": "^1.1.1",
     "tippy.js": "^6.3.7"
   },
   "peerDependencies": {
     "@welshman/lib": "workspace:*",
     "@welshman/util": "workspace:*",
-    "nostr-tools": "^2.19.4"
+    "nostr-tools": "^2.19.4",
+    "nostr-editor": "^1.1.1"
   },
   "devDependencies": {
     "rimraf": "~6.0.0",
     "typescript": "~5.8.0",
     "@welshman/lib": "workspace:*",
     "@welshman/util": "workspace:*",
-    "nostr-tools": "^2.19.4"
+    "nostr-tools": "^2.19.4",
+    "nostr-editor": "^1.1.2"
   }
 }
