@@ -764,7 +764,7 @@ export const initArray = <T>(n: number, f: () => T) => {
  * @param xs - Array to split
  * @returns Array of chunks
  */
-export const chunk = <T>(chunkLength: number, xs: T[]) => {
+export const chunk = <T>(chunkLength: number, xs: Iterable<T>) => {
   const result: T[][] = []
   const current: T[] = []
 
