@@ -12,6 +12,7 @@ import {
   add,
   take,
   chunks,
+  sampleBeta,
 } from "@welshman/lib"
 import {
   getFilterId,
@@ -83,6 +84,14 @@ export type RouterOptions = {
    * @returns The quality of the relay as a number between 0 and 1 inclusive.
    */
   getRelayQuality?: (url: string) => number
+
+  /**
+   * Retrieves Thompson Sampling priors for a relay (global per-relay, not per-pubkey).
+   * When provided, the Router uses Beta-distributed sampling instead of
+   * uniform random, biasing toward relays with better delivery history.
+   * Return undefined for relays with no history (falls back to Math.random).
+   */
+  getRelayPrior?: (url: string) => {alpha: number; beta: number} | undefined
 
   /**
    * Retrieves the limit setting, which is the maximum number of relays that should be
@@ -310,7 +319,7 @@ export class RouterScenario {
     const limit = this.getLimit()
     const fallbackPolicy = this.getPolicy()
     const relayWeights = new Map<string, number>()
-    const {getRelayQuality} = this.router.options
+    const {getRelayQuality, getRelayPrior} = this.router.options
     const {allowOnion, allowLocal, allowInsecure} = this.options
 
     for (const {weight, relays} of this.selections) {
@@ -327,11 +336,13 @@ export class RouterScenario {
     const scoreRelay = (relay: string) => {
       const weight = relayWeights.get(relay)!
       const quality = getRelayQuality ? getRelayQuality(relay) : 1
+      const prior = getRelayPrior ? getRelayPrior(relay) : undefined
+      const sample = prior ? sampleBeta(prior.alpha, prior.beta) : Math.random()
 
       // Log the weight, since it's a straight count which ends up over-weighting hubs.
-      // Also add some random noise so that we'll occasionally pick lower quality/less
-      // popular relays.
-      return -(quality * inc(Math.log(weight)) * Math.random())
+      // When delivery priors exist, Beta sampling biases toward relays that actually
+      // delivered events; otherwise uniform random provides exploration.
+      return -(quality * inc(Math.log(weight)) * sample)
     }
 
     const relays = take(
