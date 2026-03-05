@@ -336,9 +336,9 @@ export class RouterScenario {
     const scoreRelay = (relay: string) => {
       const weight = relayWeights.get(relay)!
       const quality = getRelayQuality ? getRelayQuality(relay) : 1
-      const prior = getRelayPrior?.(relay)
       let sample: number
       try {
+        const prior = getRelayPrior?.(relay)
         sample = prior ? sampleBeta(prior.alpha, prior.beta) : Math.random()
       } catch {
         sample = Math.random()

@@ -113,14 +113,20 @@ export const getRelayQuality = (url: string) => {
 const THOMPSON_DECAY = 0.95
 const THOMPSON_DECAY_INTERVAL = HOUR
 
+/** Sanitize a stored prior param: non-finite or non-positive values reset to 1 (uniform). */
+const sanitizePrior = (value: number | undefined) => {
+  if (value == null || !Number.isFinite(value) || value <= 0) return 1
+  return value
+}
+
 /** Decay raw stored alpha/beta to their effective values at the current time. */
 const decayPrior = (stats: RelayStats) => {
   const elapsed = now() - (stats.last_delivery_update ?? stats.first_seen)
   const intervals = elapsed / THOMPSON_DECAY_INTERVAL
   const decay = Math.pow(THOMPSON_DECAY, intervals)
   return {
-    alpha: 1 + ((stats.alpha ?? 1) - 1) * decay,
-    beta: 1 + ((stats.beta ?? 1) - 1) * decay,
+    alpha: 1 + (sanitizePrior(stats.alpha) - 1) * decay,
+    beta: 1 + (sanitizePrior(stats.beta) - 1) * decay,
   }
 }
 
