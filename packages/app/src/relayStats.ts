@@ -26,6 +26,9 @@ export type RelayStats = {
   publish_failure_count: number
   eose_count: number
   notice_count: number
+  alpha?: number
+  beta?: number
+  last_delivery_update?: number
 }
 
 export const makeRelayStats = (url: string): RelayStats => ({
@@ -103,6 +106,53 @@ export const getRelayQuality = (url: string) => {
 
   // Default to a "meh" score
   return 0.7
+}
+
+// Thompson Sampling priors for relay delivery scoring
+
+const THOMPSON_DECAY = 0.95
+const THOMPSON_DECAY_INTERVAL = HOUR
+
+/**
+ * Retrieve Thompson Sampling priors for a relay (global per-relay, not per-pubkey).
+ * Returns undefined when no delivery data exists, letting the Router fall back to Math.random().
+ * Applies time-based exponential decay to prevent prior ossification.
+ */
+export const getRelayPrior = (url: string) => {
+  const stats = getRelayStats(url)
+  if (!stats?.alpha || !stats?.beta) return undefined
+
+  const elapsed = now() - (stats.last_delivery_update ?? stats.first_seen)
+  const intervals = elapsed / THOMPSON_DECAY_INTERVAL
+  const decay = Math.pow(THOMPSON_DECAY, intervals)
+  const alpha = 1 + (stats.alpha - 1) * decay
+  const beta = 1 + (stats.beta - 1) * decay
+
+  if (alpha < 1.01 && beta < 1.01) return undefined
+
+  return {alpha, beta}
+}
+
+/**
+ * Record relay delivery outcome for Thompson Sampling.
+ * Call after observing how many events a relay delivered vs expected.
+ * Priors are global per-relay — the Router's scoreRelay doesn't know
+ * the pubkey context, so this captures "is this relay reliable?" overall.
+ * @param url - Relay URL
+ * @param delivered - Number of events the relay returned
+ * @param expected - Number of events expected (from baseline or other relays)
+ */
+export const recordRelayDelivery = (url: string, delivered: number, expected: number) => {
+  if (expected <= 0) return
+  const fraction = Math.min(delivered / expected, 1)
+  updateRelayStats([
+    url,
+    stats => {
+      stats.alpha = (stats.alpha ?? 1) + fraction
+      stats.beta = (stats.beta ?? 1) + (1 - fraction)
+      stats.last_delivery_update = now()
+    },
+  ])
 }
 
 // Utilities for syncing stats from connections to relays
