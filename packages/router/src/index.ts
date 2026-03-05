@@ -336,8 +336,13 @@ export class RouterScenario {
     const scoreRelay = (relay: string) => {
       const weight = relayWeights.get(relay)!
       const quality = getRelayQuality ? getRelayQuality(relay) : 1
-      const prior = getRelayPrior ? getRelayPrior(relay) : undefined
-      const sample = prior ? sampleBeta(prior.alpha, prior.beta) : Math.random()
+      const prior = getRelayPrior?.(relay)
+      let sample: number
+      try {
+        sample = prior ? sampleBeta(prior.alpha, prior.beta) : Math.random()
+      } catch {
+        sample = Math.random()
+      }
 
       // Log the weight, since it's a straight count which ends up over-weighting hubs.
       // When delivery priors exist, Beta sampling biases toward relays that actually

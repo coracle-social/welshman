@@ -113,6 +113,17 @@ export const getRelayQuality = (url: string) => {
 const THOMPSON_DECAY = 0.95
 const THOMPSON_DECAY_INTERVAL = HOUR
 
+/** Decay raw stored alpha/beta to their effective values at the current time. */
+const decayPrior = (stats: RelayStats) => {
+  const elapsed = now() - (stats.last_delivery_update ?? stats.first_seen)
+  const intervals = elapsed / THOMPSON_DECAY_INTERVAL
+  const decay = Math.pow(THOMPSON_DECAY, intervals)
+  return {
+    alpha: 1 + ((stats.alpha ?? 1) - 1) * decay,
+    beta: 1 + ((stats.beta ?? 1) - 1) * decay,
+  }
+}
+
 /**
  * Retrieve Thompson Sampling priors for a relay (global per-relay, not per-pubkey).
  * Returns undefined when no delivery data exists, letting the Router fall back to Math.random().
@@ -122,12 +133,9 @@ export const getRelayPrior = (url: string) => {
   const stats = getRelayStats(url)
   if (!stats?.alpha || !stats?.beta) return undefined
 
-  const elapsed = now() - (stats.last_delivery_update ?? stats.first_seen)
-  const intervals = elapsed / THOMPSON_DECAY_INTERVAL
-  const decay = Math.pow(THOMPSON_DECAY, intervals)
-  const alpha = 1 + (stats.alpha - 1) * decay
-  const beta = 1 + (stats.beta - 1) * decay
+  const {alpha, beta} = decayPrior(stats)
 
+  if (!Number.isFinite(alpha) || !Number.isFinite(beta) || alpha <= 0 || beta <= 0) return undefined
   if (alpha < 1.01 && beta < 1.01) return undefined
 
   return {alpha, beta}
@@ -139,17 +147,21 @@ export const getRelayPrior = (url: string) => {
  * Priors are global per-relay — the Router's scoreRelay doesn't know
  * the pubkey context, so this captures "is this relay reliable?" overall.
  * @param url - Relay URL
- * @param delivered - Number of events the relay returned
+ * @param delivered - Number of events the relay returned (>= 0)
  * @param expected - Number of events expected (from baseline or other relays)
  */
 export const recordRelayDelivery = (url: string, delivered: number, expected: number) => {
-  if (expected <= 0) return
+  if (expected <= 0 || !Number.isFinite(delivered) || !Number.isFinite(expected) || delivered < 0)
+    return
   const fraction = Math.min(delivered / expected, 1)
   updateRelayStats([
     url,
     stats => {
-      stats.alpha = (stats.alpha ?? 1) + fraction
-      stats.beta = (stats.beta ?? 1) + (1 - fraction)
+      // Decay stored priors before adding new observation so that stale
+      // values don't snap back after idle periods.
+      const decayed = decayPrior(stats)
+      stats.alpha = decayed.alpha + fraction
+      stats.beta = decayed.beta + (1 - fraction)
       stats.last_delivery_update = now()
     },
   ])
