@@ -1555,11 +1555,23 @@ export const nthEq =
   (xs: any[], ...args: unknown[]) =>
     xs[i] === v
 
+/** Returns a function that checks if nth element is in value */
+export const nthIn =
+  (i: number, v: any[]) =>
+  (xs: any[], ...args: unknown[]) =>
+    v.includes(xs[i])
+
 /** Returns a function that checks if nth element does not equal value */
 export const nthNe =
   (i: number, v: any) =>
   (xs: any[], ...args: unknown[]) =>
     xs[i] !== v
+
+/** Returns a function that checks if nth element is not in value */
+export const nthNotIn =
+  (i: number, v: any[]) =>
+  (xs: any[], ...args: unknown[]) =>
+    !v.includes(xs[i])
 
 /** Returns a function that checks if key/value pairs of x match all pairs in spec */
 export const spec =

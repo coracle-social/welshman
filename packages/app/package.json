@@ -1,6 +1,6 @@
 {
   "name": "@welshman/app",
-  "version": "0.8.7",
+  "version": "0.8.8",
   "author": "hodlbod",
   "license": "MIT",
   "description": "A collection of svelte stores for use in building nostr client applications.",
@@ -24,7 +24,7 @@
     "throttle-debounce": "^5.0.2"
   },
   "peerDependencies": {
-    "@pomade/core": "^0.1.1",
+    "@pomade/core": "^0.1.3",
     "@welshman/feeds": "workspace:*",
     "@welshman/lib": "workspace:*",
     "@welshman/net": "workspace:*",
@@ -37,7 +37,7 @@
   "devDependencies": {
     "rimraf": "~6.0.0",
     "typescript": "~5.8.0",
-    "@pomade/core": "^0.1.1",
+    "@pomade/core": "^0.1.3",
     "@types/throttle-debounce": "^5.0.2",
     "@welshman/feeds": "workspace:*",
     "@welshman/lib": "workspace:*",

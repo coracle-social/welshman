@@ -22,6 +22,8 @@ export type RoomMeta = {
   isHidden?: boolean
   isPrivate?: boolean
   isRestricted?: boolean
+  noText?: boolean
+  livekit?: boolean
   event?: TrustedEvent
 }
 
@@ -64,6 +66,8 @@ export const readRoomMeta = (event: TrustedEvent): PublishedRoomMeta => {
     isHidden: event.tags.some(spec(["hidden"])),
     isPrivate: event.tags.some(spec(["private"])),
     isRestricted: event.tags.some(spec(["restricted"])),
+    noText: event.tags.some(spec(["no-text"])),
+    livekit: event.tags.some(spec(["livekit"])),
   }
 }
 
@@ -93,11 +97,14 @@ export const makeRoomEditEvent = (room: RoomMeta) => {
   if (room.isHidden) tags.push(["hidden"])
   if (room.isPrivate) tags.push(["private"])
   if (room.isRestricted) tags.push(["restricted"])
+  if (room.noText) tags.push(["no-text"])
+  if (room.livekit) tags.push(["livekit"])
 
   if (room.event) {
     for (const t of room.event.tags) {
       if (tags.some(spec(t.slice(0, 1)))) continue
-      if (["closed", "hidden", "private", "restricted"].includes(t[0])) continue
+      if (["closed", "hidden", "private", "restricted", "no-text", "livekit"].includes(t[0]))
+        continue
 
       tags.push(t)
     }
