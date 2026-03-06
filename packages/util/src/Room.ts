@@ -1,4 +1,4 @@
-import {randomId, spec} from "@welshman/lib"
+import {spec} from "@welshman/lib"
 import {
   ROOM_META,
   ROOM_DELETE,
@@ -30,8 +30,14 @@ export type PublishedRoomMeta = Omit<RoomMeta, "event"> & {
 }
 
 export const makeRoomMeta = (room: Partial<RoomMeta> = {}): RoomMeta => {
+  const v = ["a", "e", "i", "o", "u", "ay", "ey", "oy", "ou", "ia", "ea", "ough", "oo", "ee", "argh"]
+  const c = ["p", "b", "t", "d", "k", "g", "ch", "sh", "th", "f", "v", "s", "z", "l", "r", "m", "n", "pl", "bl", "cl", "gl", "pr", "br", "tr", "dr", "kr", "gr", "fl", "sl", "fr", "thr", "str", "sk", "sp", "st"]
+  const n = 6 + Math.random()*2|0, s = [c, v]
+  Math.random() < 0.5 && s.reverse()
+  const pronounceableId = Array.from({length: n}, (_, i) => s[i%2].splice(Math.random()*s[i%2].length|0, 1)).join("") + (1 + Math.floor(Math.random() * 9))
+
   return {
-    h: randomId(),
+    h: room.h ?? pronounceableId,
     ...room,
   }
 }
