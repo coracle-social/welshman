@@ -21,6 +21,11 @@ import {
   forceLoadBlockedRelayList,
   loadBlockedRelayList,
 } from "./blockedRelayLists.js"
+import {
+  searchRelayListsByPubkey,
+  forceLoadSearchRelayList,
+  loadSearchRelayList,
+} from "./searchRelayLists.js"
 import {wotGraph, getWotGraph} from "./wot.js"
 
 export const makeUserData = <T>(
@@ -71,6 +76,10 @@ export const userMessagingRelayList = makeUserData(
 )
 export const forceLoadUserMessagingRelayList = makeUserLoader(forceLoadMessagingRelayList)
 export const loadUserMessagingRelayList = makeUserLoader(loadMessagingRelayList)
+
+export const userSearchRelayList = makeUserData(searchRelayListsByPubkey, loadSearchRelayList)
+export const forceLoadUserSearchRelayList = makeUserLoader(forceLoadSearchRelayList)
+export const loadUserSearchRelayList = makeUserLoader(loadSearchRelayList)
 
 export const userBlockedRelayList = makeUserData(blockedRelayListsByPubkey, loadBlockedRelayList)
 export const forceLoadUserBlockedRelayList = makeUserLoader(forceLoadBlockedRelayList)

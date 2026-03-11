@@ -41,6 +41,7 @@ import {repository, tracker} from "./core.js"
 import {getRelays, loadRelay} from "./relays.js"
 import {trackRelayStats, getRelayQuality} from "./relayStats.js"
 import {deriveRelayList, getRelayList} from "./relayLists.js"
+import {deriveSearchRelayList, getSearchRelayList} from "./searchRelayLists.js"
 import {deriveBlockedRelayList, getBlockedRelayList} from "./blockedRelayLists.js"
 import {deriveMessagingRelayList, getMessagingRelayList} from "./messagingRelayLists.js"
 
@@ -87,12 +88,15 @@ const _relayGetter = (fn?: (relay: RelayProfile) => any) =>
   })
 
 export const getPubkeyRelays = (pubkey: string, mode?: RelayMode) => {
+  if (mode === RelayMode.Search) return getRelaysFromList(getSearchRelayList(pubkey))
   if (mode === RelayMode.Blocked) return getRelaysFromList(getBlockedRelayList(pubkey))
   if (mode === RelayMode.Messaging) return getRelaysFromList(getMessagingRelayList(pubkey))
   return getRelaysFromList(getRelayList(pubkey), mode)
 }
 
 export const derivePubkeyRelays = (pubkey: string, mode?: RelayMode) => {
+  if (mode === RelayMode.Search)
+    return derived(deriveSearchRelayList(pubkey), list => getRelaysFromList(list))
   if (mode === RelayMode.Blocked)
     return derived(deriveBlockedRelayList(pubkey), list => getRelaysFromList(list))
   if (mode === RelayMode.Messaging)

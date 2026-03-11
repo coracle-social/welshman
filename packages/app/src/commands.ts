@@ -28,6 +28,7 @@ import {
   makeEvent,
   MESSAGING_RELAYS,
   BLOCKED_RELAYS,
+  SEARCH_RELAYS,
   FOLLOWS,
   RELAYS,
   MUTES,
@@ -43,6 +44,8 @@ import {
   forceLoadUserMessagingRelayList,
   userBlockedRelayList,
   forceLoadUserBlockedRelayList,
+  userSearchRelayList,
+  forceLoadUserSearchRelayList,
   userFollowList,
   forceLoadUserFollowList,
   userMuteList,
@@ -154,6 +157,33 @@ export const addBlockedRelay = async (url: string) => {
 
 export const setBlockedRelays = async (urls: string[]) => {
   const event = makeEvent(BLOCKED_RELAYS, {tags: urls.map(url => ["relay", url])})
+  const relays = Router.get().FromUser().getUrls()
+
+  return publishThunk({event, relays})
+}
+
+export const removeSearchRelay = async (url: string) => {
+  await forceLoadUserSearchRelayList([])
+
+  const list = get(userSearchRelayList) || makeList({kind: SEARCH_RELAYS})
+  const event = await removeFromList(list, url).reconcile(nip44EncryptToSelf)
+  const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
+
+  return publishThunk({event, relays})
+}
+
+export const addSearchRelay = async (url: string) => {
+  await forceLoadUserSearchRelayList([])
+
+  const list = get(userSearchRelayList) || makeList({kind: SEARCH_RELAYS})
+  const event = await addToListPublicly(list, ["relay", url]).reconcile(nip44EncryptToSelf)
+  const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
+
+  return publishThunk({event, relays})
+}
+
+export const setSearchRelays = async (urls: string[]) => {
+  const event = makeEvent(SEARCH_RELAYS, {tags: urls.map(url => ["relay", url])})
   const relays = Router.get().FromUser().getUrls()
 
   return publishThunk({event, relays})

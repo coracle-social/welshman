@@ -258,7 +258,8 @@ export class Repository extends Emitter {
       }
     }
 
-    if (shouldNotify) {
+    // Notify, but only if the event hasn't been deleted
+    if (shouldNotify && !this.isDeleted(event)) {
       this.emit("update", {added: [event], removed})
     }
 
