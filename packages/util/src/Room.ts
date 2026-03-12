@@ -117,8 +117,7 @@ export const makeRoomEditEvent = (room: RoomMeta) => {
   if (room.event) {
     for (const t of room.event.tags) {
       if (tags.some(spec(t.slice(0, 1)))) continue
-      if (["closed", "hidden", "private", "restricted", "livekit"].includes(t[0]))
-        continue
+      if (["closed", "hidden", "private", "restricted", "livekit"].includes(t[0])) continue
 
       tags.push(t)
     }
