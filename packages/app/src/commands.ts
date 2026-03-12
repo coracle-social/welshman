@@ -1,5 +1,5 @@
 import {get} from "svelte/store"
-import {uniq, now, nthNe, removeUndefined, nthEq} from "@welshman/lib"
+import {uniq, reject, nth, now, nthNe, removeUndefined, nthEq} from "@welshman/lib"
 import {
   sendManagementRequest,
   ManagementRequest,
@@ -104,6 +104,34 @@ export const setRelays = async (tags: string[][]) => {
   return publishThunk({event, relays})
 }
 
+export const setReadRelays = async (urls: string[]) => {
+  await forceLoadUserRelayList([])
+
+  const list = get(userRelayList) || makeList({kind: RELAYS})
+  const writeRelays = reject(nthEq(2, RelayMode.Read), getRelayTags(getListTags(list))).map(nth(1))
+  const writeTags = writeRelays.map(url => ["r", url, RelayMode.Write])
+  const readTags = urls.map(url => ["r", url, RelayMode.Read])
+  const tags = [...writeTags, ...readTags]
+  const event = {kind: list.kind, content: list.event?.content || "", tags}
+  const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
+
+  return publishThunk({event, relays})
+}
+
+export const setWriteRelays = async (urls: string[]) => {
+  await forceLoadUserRelayList([])
+
+  const list = get(userRelayList) || makeList({kind: RELAYS})
+  const readRelays = reject(nthEq(2, RelayMode.Write), getRelayTags(getListTags(list))).map(nth(1))
+  const readTags = readRelays.map(url => ["r", url, RelayMode.Read])
+  const writeTags = urls.map(url => ["r", url, RelayMode.Write])
+  const tags = [...readTags, ...writeTags]
+  const event = {kind: list.kind, content: list.event?.content || "", tags}
+  const relays = Router.get().FromUser().policy(addMaximalFallbacks).getUrls()
+
+  return publishThunk({event, relays})
+}
+
 // NIP 17
 
 export const removeMessagingRelay = async (url: string) => {
@@ -133,7 +161,7 @@ export const setMessagingRelays = async (urls: string[]) => {
   return publishThunk({event, relays})
 }
 
-// NIP 51
+// Blocked Relays
 
 export const removeBlockedRelay = async (url: string) => {
   await forceLoadUserBlockedRelayList([])
@@ -161,6 +189,8 @@ export const setBlockedRelays = async (urls: string[]) => {
 
   return publishThunk({event, relays})
 }
+
+// Search Relays
 
 export const removeSearchRelay = async (url: string) => {
   await forceLoadUserSearchRelayList([])
