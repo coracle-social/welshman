@@ -1150,9 +1150,9 @@ export const randomId = (): string => Math.random().toString().slice(2)
  */
 export const sleep = (t: number) => new Promise(resolve => setTimeout(resolve, t))
 
-export type PollOptions = {
+export type PollOptions<T> = {
   signal: AbortSignal
-  condition: () => boolean
+  condition: () => T
   interval?: number
 }
 
@@ -1161,17 +1161,21 @@ export type PollOptions = {
  * @param options - PollOptions
  * @returns void Promise
  */
-export const poll = ({interval = 300, condition, signal}: PollOptions) =>
-  new Promise<void>(resolve => {
+export const poll = <T>({interval = 300, condition, signal}: PollOptions<T>) =>
+  new Promise<T | void>(resolve => {
     const int = setInterval(() => {
-      if (condition()) {
-        resolve()
+      const value = condition()
+
+      if (value !== undefined) {
+        resolve(value)
         clearInterval(int)
       }
     }, interval)
 
-    if (condition()) {
-      resolve()
+    const value = condition()
+
+    if (value !== undefined) {
+      resolve(value)
       clearInterval(int)
     }
 
@@ -1609,6 +1613,12 @@ export const prop =
   <T>(k: string) =>
   (x: Record<string, unknown>) =>
     x[k] as T
+
+/** Returns a function that checks whether the object's property value is in a list */
+export const propIn =
+  <T>(k: string, xs: T[]) =>
+  (x: Record<string, unknown>) =>
+    xs.includes(x[k] as T)
 
 /** Returns a function that adds/updates a property on object */
 export const assoc =

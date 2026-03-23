@@ -1,4 +1,17 @@
-import {DAY, Emitter, flatten, pluck, sortBy, inc, uniq, omit, now, range} from "@welshman/lib"
+import {
+  DAY,
+  Emitter,
+  flatten,
+  pick,
+  pushToMapKey,
+  pluck,
+  sortBy,
+  inc,
+  uniq,
+  omit,
+  now,
+  range,
+} from "@welshman/lib"
 import {
   DELETE,
   EPOCH,
@@ -45,7 +58,7 @@ export class Repository extends Emitter {
   eventsByDay = new Map<number, TrustedEvent[]>()
   eventsByAuthor = new Map<string, TrustedEvent[]>()
   eventsByKind = new Map<number, TrustedEvent[]>()
-  deletes = new Map<string, number>()
+  deletes = new Map<string, {created_at: number; pubkey: string}[]>()
   expired = new Map<string, number>()
 
   static get() {
@@ -101,8 +114,12 @@ export class Repository extends Emitter {
     }
 
     // Anything removed via delete or replace has been removed
-    for (const id of this.deletes.keys()) {
-      removed.add(id)
+    for (const idOrAddress of this.deletes.keys()) {
+      const event = this.getEvent(idOrAddress)
+
+      if (event && this.isDeleted(event)) {
+        removed.add(event.id)
+      }
     }
 
     // Anything expired has been removed
@@ -211,7 +228,7 @@ export class Repository extends Emitter {
       }
 
       // If our event is newer than what it's replacing, delete the old version
-      this.deletes.set(duplicate.id, event.created_at)
+      pushToMapKey(this.deletes, duplicate.id, pick(["pubkey", "created_at"], event))
 
       // Notify listeners that it's been removed
       removed.add(duplicate.id)
@@ -238,7 +255,7 @@ export class Repository extends Emitter {
         // If this is a delete event, the tag value is an id or address. Track when it was
         // deleted so that replaceables can be restored.
         if (event.kind === DELETE && ["a", "e"].includes(tag[0]) && tag[1]) {
-          this.deletes.set(tag[1], Math.max(event.created_at, this.deletes.get(tag[1]) || 0))
+          pushToMapKey(this.deletes, tag[1], pick(["pubkey", "created_at"], event))
 
           const deletedEvent = this.getEvent(tag[1])
 
@@ -266,12 +283,22 @@ export class Repository extends Emitter {
     return true
   }
 
-  isDeletedByAddress = (event: TrustedEvent) =>
-    (this.deletes.get(getAddress(event)) || 0) > event.created_at
+  _isDeleted = (key: string, event: TrustedEvent) => {
+    for (const {pubkey, created_at} of this.deletes.get(key) || []) {
+      if (pubkey === event.pubkey && created_at > event.created_at) {
+        return true
+      }
+    }
 
-  isDeletedById = (event: TrustedEvent) => (this.deletes.get(event.id) || 0) > event.created_at
+    return false
+  }
 
-  isDeleted = (event: TrustedEvent) => this.isDeletedByAddress(event) || this.isDeletedById(event)
+  isDeletedByAddress = (event: TrustedEvent) => this._isDeleted(getAddress(event), event)
+
+  isDeletedById = (event: TrustedEvent) => this._isDeleted(event.id, event)
+
+  isDeleted = (event: TrustedEvent) =>
+    this._isDeleted(event.id, event) || this._isDeleted(getAddress(event), event)
 
   isExpired = (event: TrustedEvent) => {
     const ts = this.expired.get(event.id)

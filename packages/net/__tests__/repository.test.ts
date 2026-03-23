@@ -102,8 +102,13 @@ describe("Repository", () => {
     })
 
     it("should handle delete events", () => {
-      const event = createEvent(1)
-      const deleteEvent = createEvent(DELETE, {tags: [["e", event.id]], created_at: now() + 100})
+      const pubkey = randomHex()
+      const event = createEvent(1, {pubkey})
+      const deleteEvent = createEvent(DELETE, {
+        pubkey,
+        tags: [["e", event.id]],
+        created_at: now() + 100,
+      })
 
       repo.publish(event)
       repo.publish(deleteEvent)
@@ -112,8 +117,10 @@ describe("Repository", () => {
     })
 
     it("should handle delete by address", () => {
-      const event = createEvent(MUTES)
+      const pubkey = randomHex()
+      const event = createEvent(MUTES, {pubkey})
       const deleteEvent = createEvent(DELETE, {
+        pubkey,
         tags: [["a", `10000:${event.pubkey}:`]],
         created_at: now() + 100,
       })
@@ -122,6 +129,16 @@ describe("Repository", () => {
       repo.publish(deleteEvent)
 
       expect(repo.isDeletedByAddress(event)).toBe(true)
+    })
+
+    it("should not delete events with mismatched pubkeys", () => {
+      const event = createEvent(1)
+      const deleteEvent = createEvent(DELETE, {tags: [["e", event.id]], created_at: now() + 1})
+
+      repo.publish(event)
+      repo.publish(deleteEvent)
+
+      expect(repo.isDeleted(event)).toBe(false)
     })
   })
 
@@ -224,8 +241,13 @@ describe("Repository", () => {
     })
 
     it("should not return deleted events", () => {
-      const event = createEvent(1)
-      const deleteEvent = createEvent(DELETE, {tags: [["e", event.id]], created_at: now() + 1})
+      const pubkey = randomHex()
+      const event = createEvent(1, {pubkey})
+      const deleteEvent = createEvent(DELETE, {
+        pubkey,
+        tags: [["e", event.id]],
+        created_at: now() + 1,
+      })
 
       repo.publish(event)
       repo.publish(deleteEvent)
