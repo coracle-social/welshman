@@ -1,17 +1,7 @@
 import type {Subscriber} from "svelte/store"
 import {writable} from "svelte/store"
 import type {Override} from "@welshman/lib"
-import {
-  append,
-  TaskQueue,
-  ifLet,
-  ensurePlural,
-  remove,
-  defer,
-  sleep,
-  nth,
-  without,
-} from "@welshman/lib"
+import {append, TaskQueue, ensurePlural, remove, defer, sleep, nth, without} from "@welshman/lib"
 import {
   HashedEvent,
   EventTemplate,
@@ -19,6 +9,7 @@ import {
   isSignedEvent,
   WRAPPED_KINDS,
   prep,
+  makePow,
 } from "@welshman/util"
 import {
   publish,
@@ -27,7 +18,7 @@ import {
   PublishOptions,
   PublishResultsByRelay,
 } from "@welshman/net"
-import {ISigner, Nip59} from "@welshman/signer"
+import {ISigner, Nip01Signer, Nip59} from "@welshman/signer"
 import {repository, tracker} from "./core.js"
 import {pubkey, signer, wrapManager} from "./session.js"
 
@@ -37,6 +28,7 @@ export type ThunkOptions = Override<
     event: EventTemplate
     recipient?: string
     delay?: number
+    pow?: number
   }
 >
 
@@ -177,9 +169,18 @@ export class Thunk {
 
     // If we're sending it privately, wrap the event using nip 59
     if (recipient) {
-      const nip59 = Nip59.fromSigner(this.signer)
+      const wrapper = Nip01Signer.ephemeral()
+      const nip59 = new Nip59(this.signer, wrapper)
 
       this.wrap = await nip59.wrap(recipient, this.event)
+
+      // If we're calculating pow, update the hash and re-sign
+      if (this.options.pow) {
+        this.wrap = await wrapper.sign(
+          await makePow(this.wrap, this.options.pow).result,
+          {signal: AbortSignal.timeout(30_000)}
+        )
+      }
 
       wrapManager.add({recipient, wrap: this.wrap, rumor: this.event})
 
@@ -188,20 +189,34 @@ export class Thunk {
 
     // If the event has been signed, we're good to go
     if (isSignedEvent(this.event)) {
+      if (this.options.pow) {
+        console.warn("Event is already signed, skipping proof of work calculation")
+      }
+
       return this._publish(this.event)
     }
 
-    // Allow for lazily signing events in order to decrease apparent latency in the UI
+    // Allow for lazily signing/powing events in order to decrease apparent latency in the UI
     // that results from waiting for remote signers
     try {
+      if (this.options.pow) {
+        this.event = await makePow(this.event, this.options.pow).result
+      }
+
       const signedEvent = await this.signer.sign(this.event, {
         signal: AbortSignal.timeout(30_000),
       })
 
-      // Copy the signature over since we deferred signing
-      ifLet(repository.getEvent(signedEvent.id), savedEvent => {
-        savedEvent.sig = signedEvent.sig
-      })
+      // Update tracker and repository with the signed event since the id will have changed
+      if (this.options.pow) {
+        for (const url of this.options.relays) {
+          tracker.removeRelay(this.event.id, url)
+          tracker.track(signedEvent.id, url)
+        }
+      }
+
+      repository.removeEvent(this.event.id)
+      repository.publish(signedEvent)
 
       return this._publish(signedEvent)
     } catch (e: any) {
