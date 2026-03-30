@@ -176,10 +176,9 @@ export class Thunk {
 
       // If we're calculating pow, update the hash and re-sign
       if (this.options.pow) {
-        this.wrap = await wrapper.sign(
-          await makePow(this.wrap, this.options.pow).result,
-          {signal: AbortSignal.timeout(30_000)}
-        )
+        this.wrap = await wrapper.sign(await makePow(this.wrap, this.options.pow).result, {
+          signal: AbortSignal.timeout(30_000),
+        })
       }
 
       wrapManager.add({recipient, wrap: this.wrap, rumor: this.event})
