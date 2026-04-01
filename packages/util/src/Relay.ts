@@ -41,20 +41,21 @@ export const isRelayUrl = (url: string) => {
     url = "wss://" + url
   }
 
-  // Skip non-ws urls
-  if (!url.match(/^wss?:\/\//)) return false
-
-  // Skip urls with a slash before the dot
-  if (url.match(/\\.*\./)) return false
-
-  // Skip non-localhost urls without a dot
-  if (!url.match(/\./) && !url.includes("localhost")) return false
-
+  let parsed: URL
   try {
-    new URL(url)
+    parsed = new URL(url)
   } catch (e) {
     return false
   }
+
+  // Skip non-ws urls
+  if (!parsed.protocol.match(/^wss?:$/)) return false
+
+  // Host is required (rejects local file paths like /home/foo/bar.png)
+  if (!parsed.hostname) return false
+
+  // Skip non-localhost hosts without a dot (checks host, not path)
+  if (!parsed.hostname.includes(".") && parsed.hostname !== "localhost") return false
 
   return true
 }
