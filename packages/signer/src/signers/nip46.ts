@@ -496,10 +496,16 @@ export class Nip46Broker extends Emitter {
     if (relays && relays.length > 0) {
       this.params.relays = relays.map(normalizeRelayUrl)
 
-      this.sender.stop()
-      this.sender = this.makeSender()
+      const oldSender = this.sender
+      const oldReceiver = this.receiver
 
-      this.receiver.stop()
+      // Let any in-flight requests finish first
+      setTimeout(() => {
+        oldSender.stop()
+        oldReceiver.stop()
+      }, 5_000)
+
+      this.sender = this.makeSender()
       this.receiver = this.makeReceiver()
     }
 
