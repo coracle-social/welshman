@@ -1150,9 +1150,9 @@ export const randomId = (): string => Math.random().toString().slice(2)
  */
 export const sleep = (t: number) => new Promise(resolve => setTimeout(resolve, t))
 
-export type PollOptions<T> = {
+export type PollOptions = {
   signal: AbortSignal
-  condition: () => T
+  condition: () => unknown
   interval?: number
 }
 
@@ -1161,21 +1161,17 @@ export type PollOptions<T> = {
  * @param options - PollOptions
  * @returns void Promise
  */
-export const poll = <T>({interval = 300, condition, signal}: PollOptions<T>) =>
-  new Promise<T | void>(resolve => {
+export const poll = ({interval = 300, condition, signal}: PollOptions) =>
+  new Promise<void>(resolve => {
     const int = setInterval(() => {
-      const value = condition()
-
-      if (value !== undefined) {
-        resolve(value)
+      if (condition()) {
+        resolve()
         clearInterval(int)
       }
     }, interval)
 
-    const value = condition()
-
-    if (value !== undefined) {
-      resolve(value)
+    if (condition()) {
+      resolve()
       clearInterval(int)
     }
 
