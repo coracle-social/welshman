@@ -39,7 +39,7 @@ import {Pool, SocketEvent, isRelayEvent, netContext} from "@welshman/net"
 import {pubkey, unwrapAndStore} from "./session.js"
 import {repository, tracker} from "./core.js"
 import {getRelays, loadRelay} from "./relays.js"
-import {trackRelayStats, getRelayQuality} from "./relayStats.js"
+import {trackRelayStats, getRelayQuality, getRelayPrior} from "./relayStats.js"
 import {deriveRelayList, getRelayList} from "./relayLists.js"
 import {deriveSearchRelayList, getSearchRelayList} from "./searchRelayLists.js"
 import {deriveBlockedRelayList, getBlockedRelayList} from "./blockedRelayLists.js"
@@ -107,6 +107,7 @@ export const derivePubkeyRelays = (pubkey: string, mode?: RelayMode) => {
 routerContext.getUserPubkey = () => pubkey.get()
 routerContext.getPubkeyRelays = getPubkeyRelays
 routerContext.getRelayQuality = getRelayQuality
+routerContext.getRelayPrior = getRelayPrior
 routerContext.getDefaultRelays = _relayGetter()
 routerContext.getIndexerRelays = _relayGetter()
 routerContext.getSearchRelays = _relayGetter(r => r?.supported_nips?.includes?.("50"))
