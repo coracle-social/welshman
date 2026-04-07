@@ -354,13 +354,14 @@ export const formatTimestampAsTime = (ts: number) => timeFormatter.format(second
  */
 export const formatTimestampRelative = (ts: number) => {
   let unit
-  let delta = Math.abs(now() - ts)
-  if (delta < int(MINUTE)) {
+  let delta = now() - ts
+  const absDelta = Math.abs(delta)
+  if (absDelta < int(MINUTE)) {
     unit = "second"
-  } else if (delta < int(HOUR)) {
+  } else if (absDelta < int(HOUR)) {
     unit = "minute"
     delta = Math.round(delta / int(MINUTE))
-  } else if (delta < int(DAY, 2)) {
+  } else if (absDelta < int(DAY, 2)) {
     unit = "hour"
     delta = Math.round(delta / int(HOUR))
   } else {

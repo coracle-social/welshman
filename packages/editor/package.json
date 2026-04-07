@@ -13,7 +13,7 @@
       "import": "./dist/editor/src/index.js",
       "types": "./dist/editor/src/index.d.ts"
     },
-    "./index.css": "src/index.css"
+    "./index.css": "./src/index.css"
   },
   "files": [
     "dist",
