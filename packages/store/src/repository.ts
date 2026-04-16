@@ -300,16 +300,18 @@ export const deriveEventsByIdForUrl = ({
           set(eventsById)
         }
       }),
-      on(tracker, "add", (id: string, url: string) => {
-        const event = repository.getEvent(id)
+      on(tracker, "add", (id: string, trackedUrl: string) => {
+        if (trackedUrl === url) {
+          const event = repository.getEvent(id)
 
-        if (event && tracker.hasRelay(id, url) && matchFilters(filters, event)) {
-          eventsById.set(id, event)
-          set(eventsById)
+          if (event && tracker.hasRelay(id, trackedUrl) && matchFilters(filters, event)) {
+            eventsById.set(id, event)
+            set(eventsById)
+          }
         }
       }),
-      on(tracker, "remove", (id: string, url: string) => {
-        if (eventsById.has(id)) {
+      on(tracker, "remove", (id: string, trackedUrl: string) => {
+        if (trackedUrl === url && eventsById.has(id)) {
           eventsById.delete(id)
           set(eventsById)
         }
