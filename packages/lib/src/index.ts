@@ -1,3 +1,4 @@
+export * from "./Beta.js"
 export * from "./Deferred.js"
 export * from "./Emitter.js"
 export * from "./LRUCache.js"
