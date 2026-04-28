@@ -1,0 +1,51 @@
+{
+  "name": "@welshman/app",
+  "version": "0.8.13",
+  "author": "hodlbod",
+  "license": "MIT",
+  "description": "A collection of svelte stores for use in building nostr client applications.",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "dist/app/src/index.js",
+  "types": "dist/app/src/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "pnpm run clean && pnpm run compile --force",
+    "clean": "rimraf ./dist",
+    "compile": "tsc -b tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "fuse.js": "^7.0.0",
+    "throttle-debounce": "^5.0.2"
+  },
+  "peerDependencies": {
+    "@pomade/core": "^0.2.1",
+    "@welshman/feeds": "workspace:*",
+    "@welshman/lib": "workspace:*",
+    "@welshman/net": "workspace:*",
+    "@welshman/router": "workspace:*",
+    "@welshman/signer": "workspace:*",
+    "@welshman/store": "workspace:*",
+    "@welshman/util": "workspace:*",
+    "svelte": "^4.0.0 || ^5.0.0"
+  },
+  "devDependencies": {
+    "rimraf": "~6.0.0",
+    "typescript": "~5.8.0",
+    "@pomade/core": "^0.2.1",
+    "@types/throttle-debounce": "^5.0.2",
+    "@welshman/feeds": "workspace:*",
+    "@welshman/lib": "workspace:*",
+    "@welshman/net": "workspace:*",
+    "@welshman/router": "workspace:*",
+    "@welshman/signer": "workspace:*",
+    "@welshman/store": "workspace:*",
+    "@welshman/util": "workspace:*",
+    "svelte": "^5.39.12"
+  }
+}
