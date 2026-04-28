@@ -162,10 +162,18 @@ export const getAdapter = (url: string, adapterContext: AdapterContext = {}) => 
   }
 
   if (url === LOCAL_RELAY_URL) {
+    if (!context.repository) {
+      throw new Error("LOCAL_RELAY_URL cannot be used without context.repository")
+    }
+
     return new LocalAdapter(context.repository)
   }
 
   if (isRelayUrl(url)) {
+    if (!context.pool) {
+      throw new Error("Unable to connect to relays without context.pool")
+    }
+
     return new SocketAdapter(context.pool.get(url))
   }
 

@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.build.json",
+
+  "compilerOptions": {
+    "outDir": "./dist",
+    "paths": {
+      "@welshman/feeds": ["../feeds/src/index.js"],
+      "@welshman/lib": ["../lib/src/index.js"],
+      "@welshman/net": ["../net/src/index.js"],
+      "@welshman/signer": ["../signer/src/index.js"],
+      "@welshman/store": ["../store/src/index.js"],
+      "@welshman/util": ["../util/src/index.js"]
+    }
+  },
+
+  "include": [
+    "src/**/*"
+  ]
+}

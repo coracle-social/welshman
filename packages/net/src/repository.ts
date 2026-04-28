@@ -26,8 +26,6 @@ export const LOCAL_RELAY_URL = "local://welshman.relay/"
 
 const getDay = (ts: number) => Math.floor(ts / DAY)
 
-export let repositorySingleton: Repository
-
 export type RepositoryUpdate = {
   added: TrustedEvent[]
   removed: Set<string>
@@ -60,14 +58,6 @@ export class Repository extends Emitter {
   eventsByKind = new Map<number, TrustedEvent[]>()
   deletes = new Map<string, {created_at: number; pubkey: string}[]>()
   expired = new Map<string, number>()
-
-  static get() {
-    if (!repositorySingleton) {
-      repositorySingleton = new Repository()
-    }
-
-    return repositorySingleton
-  }
 
   constructor() {
     super()

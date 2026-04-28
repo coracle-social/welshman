@@ -9,19 +9,9 @@ export type PoolOptions = {
   makeSocket?: (url: string) => Socket
 }
 
-export let poolSingleton: Pool
-
 export class Pool {
   _data = new Map<string, Socket>()
   _subs: PoolSubscription[] = []
-
-  static get() {
-    if (!poolSingleton) {
-      poolSingleton = new Pool()
-    }
-
-    return poolSingleton
-  }
 
   constructor(readonly options: PoolOptions = {}) {}
 
