@@ -13,11 +13,14 @@ import {
 } from "@welshman/util"
 import {PublishStatus, PublishResult, PublishOptions, PublishResultsByRelay} from "@welshman/net"
 import {Nip01Signer, Nip59} from "@welshman/signer"
+import type {Client} from './client.js'
+import type {User} from './user.js'
 
 export type ThunkOptions = Override<
   PublishOptions,
   {
     user: User
+    client: Client
     event: EventTemplate
     recipient?: string
     delay?: number
@@ -108,7 +111,7 @@ export class Thunk {
     }
 
     // Send it off
-    await this.user.publish({
+    await this.options.client.publish({
       ...this.options,
       event,
       onSuccess: (result: PublishResult) => {
@@ -126,7 +129,7 @@ export class Thunk {
       onAborted: this._setAborted,
       onComplete: (result: PublishResult) => {
         if (result.status !== PublishStatus.Success) {
-          this.options.user.tracker.removeRelay(event.id, result.relay)
+          this.options.client.tracker.removeRelay(event.id, result.relay)
         }
 
         this.options.onComplete?.(result)
@@ -158,7 +161,7 @@ export class Thunk {
         })
       }
 
-      this.user.wrapManager.add({recipient, wrap: this.wrap, rumor: this.event})
+      this.options.client.wrapManager.add({recipient, wrap: this.wrap, rumor: this.event})
 
       return this._publish(this.wrap)
     }
@@ -186,13 +189,13 @@ export class Thunk {
       // Update tracker and repository with the signed event since the id will have changed
       if (this.options.pow) {
         for (const url of this.options.relays) {
-          this.options.user.tracker.removeRelay(this.event.id, url)
-          this.options.user.tracker.track(signedEvent.id, url)
+          this.options.client.tracker.removeRelay(this.event.id, url)
+          this.options.client.tracker.track(signedEvent.id, url)
         }
       }
 
-      this.options.user.repository.removeEvent(this.event.id)
-      this.options.user.repository.publish(signedEvent)
+      this.options.client.repository.removeEvent(this.event.id)
+      this.options.client.repository.publish(signedEvent)
 
       return this._publish(signedEvent)
     } catch (e: any) {
@@ -205,17 +208,17 @@ export class Thunk {
     thunkQueue.push(this)
 
     for (const url of this.options.relays) {
-      this.options.user.tracker.track(this.event.id, url)
+      this.options.client.tracker.track(this.event.id, url)
     }
 
-    this.options.user.repository.publish(this.event)
+    this.options.client.repository.publish(this.event)
     thunks.update($thunks => append(this, $thunks))
 
     this.controller.signal.addEventListener("abort", () => {
       if (this.wrap) {
-        this.user.wrapManager.remove(this.wrap.id)
+        this.options.client.wrapManager.remove(this.wrap.id)
       } else {
-        this.options.user.repository.removeEvent(this.event.id)
+        this.options.client.repository.removeEvent(this.event.id)
       }
 
       thunks.update($thunks => remove(this, $thunks))
