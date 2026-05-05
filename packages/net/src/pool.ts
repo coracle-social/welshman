@@ -3,16 +3,6 @@ import {normalizeRelayUrl} from "@welshman/util"
 import {Socket} from "./socket.js"
 import {defaultSocketPolicies} from "./policy.js"
 
-export const makeSocket = (url: string, policies = defaultSocketPolicies) => {
-  const socket = new Socket(url)
-
-  for (const applyPolicy of policies) {
-    applyPolicy(socket)
-  }
-
-  return socket
-}
-
 export type PoolSubscription = (socket: Socket) => void
 
 export type PoolOptions = {
@@ -44,7 +34,7 @@ export class Pool {
       return this.options.makeSocket(url)
     }
 
-    return makeSocket(url)
+    return new Socket(url, defaultSocketPolicies)
   }
 
   get(_url: string): Socket {

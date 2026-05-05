@@ -14,16 +14,8 @@ import {
   isRelayClosed,
   isRelayNegErr,
 } from "./message.js"
-import {Socket, SocketStatus, SocketEvent} from "./socket.js"
+import {Socket, SocketStatus, SocketEvent, SocketPolicy} from "./socket.js"
 import {AuthStatus, AuthStateEvent} from "./auth.js"
-import {Unsubscriber} from "./util.js"
-
-/**
- * The contract for socket policies
- * @param socket - a Socket object
- * @return a cleanup function
- */
-export type SocketPolicy = (socket: Socket) => Unsubscriber
 
 /**
  * Sends a ping message every so often to ensure connection health
@@ -260,7 +252,7 @@ export const makeSocketPolicyAuth = (options: SocketPolicyAuthOptions) => (socke
   }
 }
 
-export const defaultSocketPolicies = [
+export const defaultSocketPolicies: SocketPolicy[] = [
   socketPolicyPing,
   socketPolicyAuthBuffer,
   socketPolicyConnectOnSend,

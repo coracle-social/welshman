@@ -1,8 +1,9 @@
 import WebSocket from "isomorphic-ws"
 import EventEmitter from "events"
-import {TaskQueue} from "@welshman/lib"
+import {TaskQueue, call} from "@welshman/lib"
 import {RelayMessage, ClientMessage} from "./message.js"
 import {AuthState} from "./auth.js"
+import {Unsubscriber} from "./util.js"
 
 export enum SocketStatus {
   Open = "open",
@@ -30,18 +31,24 @@ export type SocketEvents = {
   [SocketEvent.Receiving]: (message: RelayMessage, url: string) => void
 }
 
+export type SocketPolicy = (socket: Socket) => Unsubscriber
+
 export class Socket extends EventEmitter {
   static batchSize = 20
   static batchDelay = 100
 
   auth: AuthState
   status = SocketStatus.Closed
+  unsubscribers: Unsubscriber[]
 
   _ws?: WebSocket
   _sendQueue: TaskQueue<ClientMessage>
   _recvQueue: TaskQueue<RelayMessage>
 
-  constructor(readonly url: string) {
+  constructor(
+    readonly url: string,
+    readonly policies: SocketPolicy[] = [],
+  ) {
     super()
 
     this.auth = new AuthState(this)
@@ -69,6 +76,7 @@ export class Socket extends EventEmitter {
 
     this._sendQueue.stop()
     this.setMaxListeners(1000)
+    this.unsubscribers = policies.map(p => p(this))
   }
 
   open = () => {
@@ -135,6 +143,7 @@ export class Socket extends EventEmitter {
   cleanup = () => {
     this.close()
     this.auth.cleanup()
+    this.unsubscribers.forEach(call)
     this._recvQueue.clear()
     this._sendQueue.clear()
     this.removeAllListeners()
