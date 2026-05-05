@@ -41,10 +41,15 @@ export class WrapManager extends Emitter {
 
   // Adding/importing
 
-  load = (wrapItems: WrapItem[]) => {
+  clear = () => {
     this._wrapIndex.clear()
     this._rumorIndex.clear()
     this._recipientIndex.clear()
+    this.emit("load")
+  }
+
+  load = (wrapItems: WrapItem[]) => {
+    this.clear()
 
     for (const wrapItem of wrapItems) {
       this._add(wrapItem)

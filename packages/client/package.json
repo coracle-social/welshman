@@ -1,15 +1,15 @@
 {
-  "name": "@welshman/app",
+  "name": "@welshman/client",
   "version": "0.8.13",
   "author": "hodlbod",
   "license": "MIT",
-  "description": "A collection of svelte stores for use in building nostr client applications.",
+  "description": "A client god-object for building nostr applications",
   "publishConfig": {
     "access": "public"
   },
   "type": "module",
-  "main": "dist/app/src/index.js",
-  "types": "dist/app/src/index.d.ts",
+  "main": "dist/client/src/index.js",
+  "types": "dist/client/src/index.d.ts",
   "files": [
     "dist"
   ],

@@ -71,9 +71,7 @@ export class Repository extends Emitter {
     return Array.from(this.eventsById.values())
   }
 
-  load = (events: TrustedEvent[]) => {
-    const stale = new Set(this.eventsById.keys())
-
+  clear = () => {
     this.eventsById.clear()
     this.eventsByAddress.clear()
     this.eventsByTag.clear()
@@ -82,6 +80,13 @@ export class Repository extends Emitter {
     this.eventsByKind.clear()
     this.deletes.clear()
     this.expired.clear()
+    this.emit("clear")
+  }
+
+  load = (events: TrustedEvent[]) => {
+    const stale = new Set(this.eventsById.keys())
+
+    this.clear()
 
     const added = []
 
