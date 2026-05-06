@@ -10,6 +10,7 @@ import {
   ParsedInvoice,
   ParsedEvent,
   ParsedEmoji,
+  ParsedEmail,
   ParsedEllipsis,
   ParsedCode,
   ParsedCashu,
@@ -93,6 +94,8 @@ export const renderCode = (p: ParsedCode, r: Renderer) => r.addText(p.value)
 
 export const renderEllipsis = (p: ParsedEllipsis, r: Renderer) => r.addText("…")
 
+export const renderEmail = (p: ParsedEmail, r: Renderer) => r.addLink("mailto:" + p.value, p.value)
+
 export const renderEmoji = (p: ParsedEmoji, r: Renderer) => r.addText(p.raw)
 
 export const renderInvoice = (p: ParsedInvoice, r: Renderer) =>
@@ -129,6 +132,9 @@ export const renderOne = (parsed: Parsed, renderer: Renderer) => {
       break
     case ParsedType.Ellipsis:
       renderEllipsis(parsed as ParsedEllipsis, renderer)
+      break
+    case ParsedType.Email:
+      renderEmail(parsed as ParsedEmail, renderer)
       break
     case ParsedType.Emoji:
       renderEmoji(parsed as ParsedEmoji, renderer)

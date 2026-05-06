@@ -41,6 +41,7 @@ export enum ParsedType {
   Cashu = "cashu",
   Code = "code",
   Ellipsis = "ellipsis",
+  Email = "email",
   Emoji = "emoji",
   Event = "event",
   Invoice = "invoice",
@@ -68,6 +69,11 @@ export type ParsedCode = ParsedBase & {
 
 export type ParsedEllipsis = ParsedBase & {
   type: ParsedType.Ellipsis
+  value: string
+}
+
+export type ParsedEmail = ParsedBase & {
+  type: ParsedType.Email
   value: string
 }
 
@@ -140,6 +146,7 @@ export type Parsed =
   | ParsedCashu
   | ParsedCode
   | ParsedEllipsis
+  | ParsedEmail
   | ParsedEmoji
   | ParsedEvent
   | ParsedInvoice
@@ -158,6 +165,7 @@ export const isCashu = (parsed: Parsed): parsed is ParsedCashu => parsed.type ==
 export const isCode = (parsed: Parsed): parsed is ParsedCode => parsed.type === ParsedType.Code
 export const isEllipsis = (parsed: Parsed): parsed is ParsedEllipsis =>
   parsed.type === ParsedType.Ellipsis
+export const isEmail = (parsed: Parsed): parsed is ParsedEmail => parsed.type === ParsedType.Email
 export const isEmoji = (parsed: Parsed): parsed is ParsedEmoji => parsed.type === ParsedType.Emoji
 export const isEvent = (parsed: Parsed): parsed is ParsedEvent => parsed.type === ParsedType.Event
 export const isInvoice = (parsed: Parsed): parsed is ParsedInvoice =>
@@ -236,6 +244,15 @@ export const parseEvent = (text: string, context: ParseContext): ParsedEvent | v
     } catch (e) {
       // Pass
     }
+  }
+}
+
+export const parseEmail = (text: string, context: ParseContext): ParsedEmail | void => {
+  const [raw, _, value] =
+    text.match(/^(mailto:)?([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})\b/i) || []
+
+  if (raw && value) {
+    return {type: ParsedType.Email, value, raw}
   }
 }
 
@@ -368,6 +385,7 @@ export const parsers = [
   parseEvent,
   parseCashu,
   parseInvoice,
+  parseEmail,
   parseLink,
 ]
 
