@@ -396,10 +396,10 @@ export class Nip46Broker extends Emitter {
     return `nostrconnect://${clientPubkey}?${params.toString()}`
   }
 
-  waitForNostrconnect = (url: string, signal: AbortSignal) => {
+  waitForNostrconnect = async (url: string, signal: AbortSignal) => {
     const secret = new URL(url).searchParams.get("secret")
 
-    return makePromise<Nip46ResponseWithResult, Nip46Response | undefined>(
+    const result = await makePromise<Nip46ResponseWithResult, Nip46Response | undefined>(
       async (resolve, reject) => {
         const onReceive = async (response: Nip46Response) => {
           if (response.result === "auth_url") return
@@ -412,8 +412,6 @@ export class Nip46Broker extends Emitter {
                 "Bunker responded to nostrconnect with 'ack', which can lead to session hijacking",
               )
             }
-
-            this.switchRelays()
 
             resolve(response as Nip46ResponseWithResult)
           } else {
@@ -436,6 +434,10 @@ export class Nip46Broker extends Emitter {
         })
       },
     )
+
+    await this.switchRelays()
+
+    return result
   }
 
   // Methods for serializing a connection
@@ -474,7 +476,7 @@ export class Nip46Broker extends Emitter {
 
     const result = await this.send("connect", [this.params.signerPubkey, connectSecret, perms])
 
-    this.switchRelays()
+    await this.switchRelays()
 
     return result
   }
