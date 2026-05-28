@@ -149,8 +149,9 @@ export const requestOne = (options: RequestOneOptions) => {
 
   // Handle abort signal
   if (options.signal) {
-    options.signal.addEventListener("abort", close)
-    unsubscribers.push(() => options.signal.removeEventListener("abort", close))
+    const signal = options.signal
+    signal.addEventListener("abort", close)
+    unsubscribers.push(() => signal.removeEventListener("abort", close))
   }
 
   // If we're auto-closing, make sure it happens even if the relay doesn't send an eose
@@ -250,7 +251,7 @@ export const makeLoader = (options: LoaderOptions) =>
     const threshold = options.threshold || 1
     const tracker = new Tracker()
 
-    const abortHandlersByRequest = new Map<LoadOptions, (relay: string) => void>()
+    const abortHandlersByRequest = new Map<LoadOptions, () => void>()
 
     const close = (relay: string, request: LoadOptions) => {
       addToMapKey(closedRequestsByRelay, relay, request)

@@ -18,7 +18,7 @@ export const topicsByName = call(() => {
     if (topic) {
       topic.count++
     } else {
-      topicsByName.set(name, {name, count: 0})
+      topicsByName.set(name, {name, count: 1})
     }
   }
 

@@ -1,5 +1,5 @@
 import {writable, Subscriber} from "svelte/store"
-import {Zapper, TrustedEvent, Zap, getTagValues, getLnUrl, zapFromEvent} from "@welshman/util"
+import {Zapper, TrustedEvent, Zap, getTagValues, zapFromEvent} from "@welshman/util"
 import {
   removeUndefined,
   fetchJson,
@@ -35,22 +35,17 @@ export const notifyZapper = (zapper: Zapper) => zapperSubscribers.forEach(sub =>
 export const onZapper = (sub: (zapper: Zapper) => void) => {
   zapperSubscribers.push(sub)
 
-  return () =>
-    zapperSubscribers.splice(
-      zapperSubscribers.findIndex(s => s === sub),
-      1,
-    )
+  return () => {
+    const i = zapperSubscribers.findIndex(s => s === sub)
+
+    if (i !== -1) zapperSubscribers.splice(i, 1)
+  }
 }
 
 export const fetchZapper = batcher(800, async (lnurls: string[]) => {
   const base = appContext.dufflepudUrl
   const result = new Map<string, Zapper>()
-
-  for (const lnurl of lnurls) {
-    if (!lnurl.startsWith("lnurl1")) {
-      throw new Error(`Invalid lnurl ${lnurl}`)
-    }
-  }
+  const valid = lnurls.filter(lnurl => lnurl.startsWith("lnurl1"))
 
   const addZapper = (lnurl: string, info: any) => {
     if (info) {
@@ -64,7 +59,7 @@ export const fetchZapper = batcher(800, async (lnurls: string[]) => {
 
   // Use dufflepud if we it's set up to protect user privacy, otherwise fetch directly
   if (base) {
-    const hexUrls = lnurls.map(bech32ToHex)
+    const hexUrls = valid.map(bech32ToHex)
     const res = await tryCatch(() => postJson(`${base}/zapper/info`, {lnurls: hexUrls}))
 
     for (const {lnurl, info} of res?.data || []) {
@@ -72,7 +67,7 @@ export const fetchZapper = batcher(800, async (lnurls: string[]) => {
     }
   } else {
     await Promise.all(
-      lnurls.map(async lnurl => {
+      valid.map(async lnurl => {
         addZapper(lnurl, await tryCatch(() => fetchJson(bech32ToHex(lnurl))))
       }),
     )
@@ -119,10 +114,15 @@ export const deriveZapperForPubkey = (pubkey: string, relays: string[] = []) => 
 }
 
 export const getLnUrlsForEvent = async (event: TrustedEvent) => {
-  const lnurls = removeUndefined(getTagValues("zap", event.tags).map(getLnUrl))
+  const pubkeys = getTagValues("zap", event.tags)
 
-  if (lnurls.length > 0) {
-    return lnurls
+  if (pubkeys.length > 0) {
+    const profiles = await Promise.all(pubkeys.map(pubkey => loadProfile(pubkey)))
+    const lnurls = removeUndefined(profiles.map(profile => profile?.lnurl))
+
+    if (lnurls.length > 0) {
+      return lnurls
+    }
   }
 
   const profile = await loadProfile(event.pubkey)

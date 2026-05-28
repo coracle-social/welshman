@@ -21,11 +21,11 @@ export const notifyRelay = (relay: RelayProfile) => relaySubscribers.forEach(sub
 export const onRelay = (sub: (relay: RelayProfile) => void) => {
   relaySubscribers.push(sub)
 
-  return () =>
-    relaySubscribers.splice(
-      relaySubscribers.findIndex(s => s === sub),
-      1,
-    )
+  return () => {
+    const i = relaySubscribers.findIndex(s => s === sub)
+
+    if (i !== -1) relaySubscribers.splice(i, 1)
+  }
 }
 
 export const fetchRelay = async (url: string): Promise<Maybe<RelayProfile>> => {

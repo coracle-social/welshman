@@ -1,6 +1,6 @@
 import {writable, Subscriber} from "svelte/store"
 import {getter, makeDeriveItem} from "@welshman/store"
-import {groupBy, batch, now, uniq, ago, DAY, HOUR, MINUTE} from "@welshman/lib"
+import {groupBy, batch, now, ago, DAY, HOUR, MINUTE} from "@welshman/lib"
 import {isOnionUrl, isLocalUrl, isIPAddress, isRelayUrl, getRelaysFromList} from "@welshman/util"
 import {Pool, Socket, SocketStatus, SocketEvent, ClientMessage, RelayMessage} from "@welshman/net"
 import {getBlockedRelayList} from "./blockedRelayLists.js"
@@ -124,7 +124,9 @@ const updateRelayStats = batch(1000, (updates: RelayStatsUpdate[]) => {
       }
 
       // Copy so the database gets updated, since we're mutating in updates
-      $relayStatsByUrl.set(url, {...$relayStatsItem})
+      const next = {...$relayStatsItem}
+      $relayStatsByUrl.set(url, next)
+      notifyRelayStats(next)
     }
 
     return $relayStatsByUrl
@@ -223,7 +225,7 @@ const onSocketStatus = (status: string, url: string) => {
       url,
       stats => {
         stats.last_error = now()
-        stats.recent_errors = uniq(stats.recent_errors.concat(now())).slice(-10)
+        stats.recent_errors = stats.recent_errors.concat(now()).slice(-100)
       },
     ])
   }

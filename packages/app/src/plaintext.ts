@@ -13,7 +13,10 @@ export const setPlaintext = (e: TrustedEvent, content: string) =>
   plaintext.update(assoc(e.id, content))
 
 export const ensurePlaintext = async (e: TrustedEvent) => {
-  if (e.content && !getPlaintext(e)) {
+  // Check for key presence rather than truthiness so a legitimately empty decrypted
+  // result ("") is treated as cached and we don't re-decrypt (and re-hit the signer) on
+  // every call.
+  if (e.content && plaintext.get()[e.id] === undefined) {
     const $session = getSession(e.pubkey)
 
     if (!$session) return
@@ -32,7 +35,7 @@ export const ensurePlaintext = async (e: TrustedEvent) => {
       }
     }
 
-    if (result) {
+    if (result !== undefined) {
       setPlaintext(e, result)
     }
   }

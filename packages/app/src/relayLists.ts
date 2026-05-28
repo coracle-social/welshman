@@ -80,7 +80,7 @@ export const loadUsingOutbox = async (kind: number, pubkey: string, filter: Filt
 export const makeOutboxLoader =
   (kind: number, filter: Filter = {}, limit = 1) =>
   async (pubkey: string, relayHints: string[] = []) => {
-    const filters = [{...filter, kinds: [kind], authors: [pubkey]}]
+    const filters = [{...filter, kinds: [kind], authors: [pubkey], limit}]
     const relays = Router.get().FromRelays(relayHints).getUrls()
 
     await Promise.all([load({filters, relays}), loadUsingOutbox(kind, pubkey, filter)])

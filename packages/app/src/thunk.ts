@@ -140,18 +140,21 @@ export class Thunk {
         this._notify()
       },
       onFailure: (result: PublishResult) => {
+        tracker.removeRelay(event.id, result.relay)
         this.options.onFailure?.(result)
         this.results[result.relay] = result
         this._notify()
       },
       onPending: this._setPending,
-      onTimeout: this._setTimeout,
-      onAborted: this._setAborted,
+      onTimeout: (result: PublishResult) => {
+        tracker.removeRelay(event.id, result.relay)
+        this._setTimeout(result)
+      },
+      onAborted: (result: PublishResult) => {
+        tracker.removeRelay(event.id, result.relay)
+        this._setAborted(result)
+      },
       onComplete: (result: PublishResult) => {
-        if (result.status !== PublishStatus.Success) {
-          tracker.removeRelay(event.id, result.relay)
-        }
-
         this.options.onComplete?.(result)
         this._subs = []
       },

@@ -60,7 +60,7 @@ export const publishOne = (options: PublishOneOptions) =>
     const cleanup = once(() => {
       options.signal?.removeEventListener("abort", abort)
       options.onComplete?.(result)
-      clearTimeout(timeoutId)
+      if (timeoutId) clearTimeout(timeoutId)
       adapter.cleanup()
       resolve(result)
     })

@@ -64,11 +64,11 @@ export const notifyHandle = (handle: Handle) => handleSubscribers.forEach(sub =>
 export const onHandle = (sub: (handle: Handle) => void) => {
   handleSubscribers.push(sub)
 
-  return () =>
-    handleSubscribers.splice(
-      handleSubscribers.findIndex(s => s === sub),
-      1,
-    )
+  return () => {
+    const i = handleSubscribers.findIndex(s => s === sub)
+
+    if (i !== -1) handleSubscribers.splice(i, 1)
+  }
 }
 
 export const fetchHandle = batcher(800, async (nip05s: string[]) => {
