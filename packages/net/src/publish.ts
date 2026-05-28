@@ -1,4 +1,4 @@
-import {fromPairs} from "@welshman/lib"
+import {fromPairs, once} from "@welshman/lib"
 import {SignedEvent} from "@welshman/util"
 import {RelayMessage, ClientMessageType, isRelayOk} from "./message.js"
 import {AdapterEvent, AdapterContext, getAdapter} from "./adapter.js"
@@ -44,11 +44,26 @@ export const publishOne = (options: PublishOneOptions) =>
 
     options.onPending?.(result)
 
-    const cleanup = () => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+    const abort = () => {
+      if (result.status === PublishStatus.Pending) {
+        result.status = PublishStatus.Aborted
+        result.detail = "aborted"
+
+        options.onAborted?.(result)
+      }
+
+      cleanup()
+    }
+
+    const cleanup = once(() => {
+      options.signal?.removeEventListener("abort", abort)
       options.onComplete?.(result)
+      clearTimeout(timeoutId)
       adapter.cleanup()
       resolve(result)
-    }
+    })
 
     adapter.on(AdapterEvent.Receive, (message: RelayMessage, url: string) => {
       if (isRelayOk(message)) {
@@ -72,18 +87,11 @@ export const publishOne = (options: PublishOneOptions) =>
       }
     })
 
-    options.signal?.addEventListener("abort", () => {
-      if (result.status === PublishStatus.Pending) {
-        result.status = PublishStatus.Aborted
-        result.detail = "aborted"
+    if (options.signal) {
+      options.signal.addEventListener("abort", abort)
+    }
 
-        options.onAborted?.(result)
-      }
-
-      cleanup()
-    })
-
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
       if (result.status === PublishStatus.Pending) {
         result.status = PublishStatus.Timeout
         result.detail = "timed out"

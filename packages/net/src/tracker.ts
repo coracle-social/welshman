@@ -40,10 +40,10 @@ export class Tracker extends Emitter {
   }
 
   removeRelay = (eventId: string, relay: string) => {
-    const didDeleteRelay = this.relaysById.get(eventId)?.delete(relay)
-    const didDeleteId = this.idsByRelay.get(relay)?.delete(eventId)
+    const didDeleteRelay = this.relaysById.get(eventId)?.delete(relay) ?? false
+    const didDeleteId = this.idsByRelay.get(relay)?.delete(eventId) ?? false
 
-    if (!didDeleteRelay && !didDeleteId) return
+    if (!didDeleteRelay || !didDeleteId) return
 
     this.emit("remove", eventId, relay)
   }

@@ -94,7 +94,7 @@ describe("Pool", () => {
 
   describe("remove", () => {
     it("should remove and cleanup existing socket", () => {
-      const mockSocket = {url: "wss://test.relay", cleanup: vi.fn()}
+      const mockSocket = {url: "wss://test.relay/", cleanup: vi.fn()}
 
       pool._data.set(mockSocket.url, mockSocket as unknown as Socket)
       pool.remove(mockSocket.url)
@@ -111,7 +111,7 @@ describe("Pool", () => {
 
   describe("clear", () => {
     it("should remove all sockets", () => {
-      const urls = ["wss://test1.relay", "wss://test2.relay"]
+      const urls = ["wss://test1.relay/", "wss://test2.relay/"]
       const mockSockets = urls.map(url => ({url, cleanup: vi.fn()}))
 
       for (const mockSocket of mockSockets) {

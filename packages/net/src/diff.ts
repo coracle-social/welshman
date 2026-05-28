@@ -41,6 +41,7 @@ export class Difference extends EventEmitter {
   _unsubscriber: () => void
   _adapter: AbstractAdapter
   _closed = false
+  _reconcileQueue: Promise<void> = Promise.resolve()
 
   constructor(readonly options: DifferenceOptions) {
     super()
@@ -70,23 +71,27 @@ export class Difference extends EventEmitter {
           const [_, negid, msg] = message
 
           if (negid === this._id) {
-            const [newMsg, have, need] = await neg.reconcile(msg)
+            // Serialize reconcile calls through a promise queue so that concurrent
+            // messages don't corrupt negentropy's internal timestamp state.
+            await (this._reconcileQueue = this._reconcileQueue.then(async () => {
+              const [newMsg, have, need] = await neg.reconcile(msg)
 
-            for (const id of have) {
-              this.have.add(id)
-            }
+              for (const id of have) {
+                this.have.add(id)
+              }
 
-            for (const id of need) {
-              this.need.add(id)
-            }
+              for (const id of need) {
+                this.need.add(id)
+              }
 
-            this.emit(DifferenceEvent.Message, {have, need}, url)
+              this.emit(DifferenceEvent.Message, {have, need}, url)
 
-            if (newMsg) {
-              this._adapter.send([RelayMessageType.NegMsg, this._id, newMsg])
-            } else {
-              this.close()
-            }
+              if (newMsg) {
+                this._adapter.send([RelayMessageType.NegMsg, this._id, newMsg])
+              } else {
+                this.close()
+              }
+            }))
           }
         }
 

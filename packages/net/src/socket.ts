@@ -141,9 +141,9 @@ export class Socket extends EventEmitter {
   }
 
   cleanup = () => {
+    this.unsubscribers.forEach(call)
     this.close()
     this.auth.cleanup()
-    this.unsubscribers.forEach(call)
     this._recvQueue.clear()
     this._sendQueue.clear()
     this.removeAllListeners()

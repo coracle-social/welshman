@@ -327,7 +327,11 @@ export class Repository extends Emitter {
       a.push(add)
     }
 
-    m.set(k, a)
+    if (a.length > 0) {
+      m.set(k, a)
+    } else {
+      m.delete(k)
+    }
   }
 
   _getEvents = (ids: Iterable<string>) => {

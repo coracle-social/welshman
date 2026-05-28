@@ -154,7 +154,7 @@ export const socketPolicyCloseInactive = (socket: Socket) => {
 
   const unsubscribers = [
     on(socket, SocketEvent.Status, (newStatus: SocketStatus) => {
-      const isClosed = [SocketStatus.Closed, SocketStatus.Error].includes(socket.status)
+      const isClosed = [SocketStatus.Closed, SocketStatus.Error].includes(newStatus)
 
       // Keep track of the most recent open
       if (newStatus === SocketStatus.Open) {

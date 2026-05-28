@@ -148,7 +148,10 @@ export const requestOne = (options: RequestOneOptions) => {
   }
 
   // Handle abort signal
-  options.signal?.addEventListener("abort", close)
+  if (options.signal) {
+    options.signal.addEventListener("abort", close)
+    unsubscribers.push(() => options.signal.removeEventListener("abort", close))
+  }
 
   // If we're auto-closing, make sure it happens even if the relay doesn't send an eose
   // and the caller doesn't provide a signal, in order to avoid memory leaks
@@ -247,6 +250,8 @@ export const makeLoader = (options: LoaderOptions) =>
     const threshold = options.threshold || 1
     const tracker = new Tracker()
 
+    const abortHandlersByRequest = new Map<LoadOptions, (relay: string) => void>()
+
     const close = (relay: string, request: LoadOptions) => {
       addToMapKey(closedRequestsByRelay, relay, request)
       addToMapKey(closedRelaysByRequest, request, relay)
@@ -257,6 +262,13 @@ export const makeLoader = (options: LoaderOptions) =>
 
         request.onClose?.()
         resultsByRequest.get(request)?.resolve(events)
+
+        // Clean up the abort listener once the request is fully resolved
+        const abortHandler = abortHandlersByRequest.get(request)
+        if (abortHandler) {
+          request.signal?.removeEventListener("abort", abortHandler)
+          abortHandlersByRequest.delete(request)
+        }
       }
 
       if (closedRequestsByRelay.get(relay)?.size === requestsByRelay.get(relay)?.length) {
@@ -270,7 +282,11 @@ export const makeLoader = (options: LoaderOptions) =>
         resultsByRequest.set(request, defer())
 
         // Propagate abort when all requests have been closed for a given relay
-        request.signal?.addEventListener("abort", () => close(relay, request))
+        if (request.signal) {
+          const abortHandler = () => close(relay, request)
+          abortHandlersByRequest.set(request, abortHandler)
+          request.signal.addEventListener("abort", abortHandler)
+        }
       }
     }
 

@@ -100,12 +100,20 @@ export class AuthState extends EventEmitter {
       throw new Error(`Attempted to authenticate when auth is already ${this.status}`)
     }
 
+    const challenge = this.challenge
+
     this.setStatus(AuthStatus.PendingSignature)
 
-    const template = makeRelayAuth(this.socket.url, this.challenge)
+    const template = makeRelayAuth(this.socket.url, challenge)
     const event = await tryCatch(() => sign(template))
 
     if (event) {
+      // If a new challenge arrived while signing, our signature is stale, so
+      // abort rather than responding to an obsolete challenge
+      if (this.challenge !== challenge) {
+        return
+      }
+
       this.request = event.id
       this.socket.send(["AUTH", event])
     } else {
