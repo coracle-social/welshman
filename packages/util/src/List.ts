@@ -1,4 +1,4 @@
-import {parseJson, uniq, nthEq} from "@welshman/lib"
+import {parseJson, nth, uniqBy, nthEq} from "@welshman/lib"
 import {Address} from "./Address.js"
 import {uniqTags, getRelayTags} from "./Tags.js"
 import {isRelayUrl, RelayMode, normalizeRelayUrl} from "./Relay.js"
@@ -115,5 +115,5 @@ export const getRelaysFromList = (list?: List, mode?: RelayMode): string[] => {
     tags = tags.filter((t: string[]) => !t[2] || t[2] === mode)
   }
 
-  return uniq(tags.map(t => normalizeRelayUrl(t[1])))
+  return uniqBy(normalizeRelayUrl, tags.map(nth(1)))
 }
