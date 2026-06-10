@@ -12,15 +12,10 @@ A connection pool that creates and manages Socket instances for different relay 
 - `static get()` - Returns the singleton pool instance
 - `has(url)` - Checks if a socket exists for the given URL
 - `get(url)` - Gets or creates a socket for the given URL
+- `makeSocket(url)` - Creates a Socket for the given URL, using `PoolOptions.makeSocket` if provided, otherwise applies `defaultSocketPolicies`
 - `subscribe(callback)` - Subscribes to new socket creation events
 - `remove(url)` - Removes and cleans up a socket
 - `clear()` - Removes all sockets from the pool
-
-## Functions
-
-### makeSocket(url, policies)
-
-Creates a new Socket instance with the given URL and applies default policies.
 
 ## Example
 

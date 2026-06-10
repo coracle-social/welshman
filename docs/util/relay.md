@@ -11,6 +11,8 @@ The `Relay` module provides utilities for working with Nostr relays, including U
 export enum RelayMode {
   Read = "read",
   Write = "write",
+  Search = "search",
+  Blocked = "blocked",
   Messaging = "messaging"
 }
 
@@ -26,7 +28,7 @@ export type RelayProfile = {
   version?: string;
   negentropy?: number;
   description?: string;
-  supported_nips?: number[];
+  supported_nips?: string[];
   limitation?: {
     min_pow_difficulty?: number;
     payment_required?: boolean;

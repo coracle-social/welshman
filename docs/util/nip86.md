@@ -32,13 +32,18 @@ export type ManagementRequest = {
   method: ManagementMethod
   params: string[]
 }
+
+export type ManagementResponse = {
+  result?: any
+  error?: string
+}
 ```
 
 ## Functions
 
 ```typescript
 // Sends a management request to a relay
-export declare const sendManagementRequest: (url: string, request: ManagementRequest, authEvent: SignedEvent) => Promise<any>
+export declare const sendManagementRequest: (url: string, request: ManagementRequest, authEvent: SignedEvent) => Promise<ManagementResponse>
 ```
 
 ## Example

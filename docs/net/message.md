@@ -5,6 +5,7 @@ Type definitions and utilities for Nostr protocol messages.
 ## Relay Message Types
 
 **Enums:**
+- `RelayMessageType.Notice` - Human-readable notice from relay
 - `RelayMessageType.Auth` - Authentication challenge
 - `RelayMessageType.Closed` - Subscription closed
 - `RelayMessageType.Eose` - End of stored events
@@ -15,11 +16,11 @@ Type definitions and utilities for Nostr protocol messages.
 
 **Type Definitions:**
 - `RelayMessage` - Base relay message type
-- `RelayAuth`, `RelayClosed`, `RelayEose`, `RelayEvent`, `RelayNegErr`, `RelayNegMsg`, `RelayOk` - Specific message types
-- `RelayAuthPayload`, `RelayClosedPayload`, etc. - Payload types for each message
+- `RelayNotice`, `RelayAuth`, `RelayClosed`, `RelayEose`, `RelayEvent`, `RelayNegErr`, `RelayNegMsg`, `RelayOk` - Specific message types
+- `RelayNoticePayload`, `RelayAuthPayload`, `RelayClosedPayload`, etc. - Payload types for each message
 
 **Type Guards:**
-- `isRelayAuth()`, `isRelayClosed()`, `isRelayEose()`, `isRelayEvent()`, `isRelayNegErr()`, `isRelayNegMsg()`, `isRelayOk()`
+- `isRelayNotice()`, `isRelayAuth()`, `isRelayClosed()`, `isRelayEose()`, `isRelayEvent()`, `isRelayNegErr()`, `isRelayNegMsg()`, `isRelayOk()`
 
 ## Client Message Types
 

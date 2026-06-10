@@ -31,7 +31,7 @@ const router = Router.get()
 // Get relays for reading events from specific pubkeys
 const readRelays = router.FromPubkeys(['pubkey1', 'pubkey2']).getUrls()
 
-// Get relays for publishing an event (author's outbox + mentions' messaginges)
+// Get relays for publishing (author's outbox + mentions' inbox/read relays)
 const publishRelays = router.PublishEvent(event).getUrls()
 
 // Try hard to find a quoted note with maximal fallbacks
@@ -74,8 +74,8 @@ The main class for relay selection. Configure it once with your relay discovery 
 
 **Scenario Methods:**
 - `FromRelays(relays)` - Use specific relays
-- `ForUser()` / `FromUser()` / `UserMessaging()` - User's read/write/messaging relays
-- `ForPubkey(pubkey)` / `FromPubkey(pubkey)` / `PubkeyMessaging(pubkey)` - Pubkey's relays
+- `ForUser()` / `FromUser()` / `MessagesForUser()` - User's read/write/messaging relays
+- `ForPubkey(pubkey)` / `FromPubkey(pubkey)` / `MessagesForPubkey(pubkey)` - Pubkey's relays
 - `ForPubkeys(pubkeys)` / `FromPubkeys(pubkeys)` - Multiple pubkeys' relays
 - `Event(event)` - Relays for an event's author
 - `PublishEvent(event)` - Relays for publishing (author + mentions)
@@ -106,8 +106,8 @@ Functions that determine how many fallback relays to add:
 `getFilterSelections(filters)` automatically chooses appropriate relays based on filter content:
 - Search filters → search relays
 - Wrap events → user's messaging
-- Profile/relay kinds → indexer relays  
+- Profile/relay/follow/messaging-relay kinds → indexer relays
 - Author filters → authors' relays
-- Everything else → user's relays (low weight)
+- All filters → user's read relays (low-weight baseline, always fires)
 
 Returns `RelaysAndFilters[]` with optimized relay-filter combinations.

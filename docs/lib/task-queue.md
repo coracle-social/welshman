@@ -8,6 +8,7 @@ The `TaskQueue` class provides a simple queue processing system with batched ope
 // Task queue options
 export type TaskQueueOptions<Item> = {
   batchSize: number;
+  batchDelay: number;
   processItem: (item: Item) => unknown;
 };
 
@@ -17,7 +18,7 @@ export declare class TaskQueue<Item> {
   push(item: Item): void;
   remove(item: Item): void;
   subscribe(subscriber: (item: Item) => void): () => void;
-  process(): Promise<void>;
+  process(): void;
   stop(): void;
   start(): void;
   clear(): void;
@@ -32,6 +33,7 @@ import { TaskQueue } from '@welshman/lib';
 // Create a task queue that processes 3 items at a time
 const queue = new TaskQueue({
   batchSize: 3,
+  batchDelay: 0,
   processItem: async (message: string) => {
     console.log('Processing:', message);
     // Simulate async work

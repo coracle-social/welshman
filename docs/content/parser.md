@@ -11,6 +11,7 @@ Defines all supported content types:
 - `Cashu` - Cashu token strings
 - `Code` - Code blocks and inline code
 - `Ellipsis` - Truncation indicators
+- `Email` - Email addresses
 - `Emoji` - Custom emoji references
 - `Event` - Event references (note/nevent)
 - `Invoice` - Lightning invoices
@@ -57,13 +58,12 @@ reduceLinks(content: Parsed[]) => Parsed[]
 ## Type Guards
 
 Utility functions to check parsed element types:
-- `isAddress(parsed)`, `isCashu(parsed)`, `isCode(parsed)`, etc.
+- `isAddress(parsed)`, `isCashu(parsed)`, `isCode(parsed)`, `isEmail(parsed)`, etc.
 - `isImage(parsed)` - special check for image links
 
 ## Utilities
 
 - `urlIsMedia(url)` - Checks if URL points to media file
-- `fromNostrURI(s)` - Removes nostr: protocol prefix
 
 ## Example Usage
 

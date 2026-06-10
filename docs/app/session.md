@@ -174,7 +174,7 @@ getNip55().then(signerApps => {
 A fun feature of nostr is that you can log in as other people, and see what nostr is like from their perspective (minus encrypted data or course).
 
 ```typescript
-import {loginWithPubkey} from "@welshman/signer"
+import {loginWithPubkey} from "@welshman/app"
 
 // Log in as hodlbod
 loginWithPubkey("97c70a44366a6535c145b333f973ea86dfdc2d7a99da618c40c64705ad98e322")

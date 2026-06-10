@@ -38,15 +38,9 @@ export type SignedEvent = HashedEvent & {
   sig: string;
 };
 
-// Wrapped event (NIP-59)
-export type UnwrappedEvent = HashedEvent & {
-  wrap: SignedEvent;
-};
-
-// Event that can be either signed or wrapped
+// Event that may or may not be signed
 export type TrustedEvent = HashedEvent & {
   sig?: string;
-  wrap?: SignedEvent;
 };
 ```
 
@@ -72,8 +66,6 @@ export declare const isStampedEvent: (e: StampedEvent) => e is StampedEvent;
 export declare const isOwnedEvent: (e: OwnedEvent) => e is OwnedEvent;
 export declare const isHashedEvent: (e: HashedEvent) => e is HashedEvent;
 export declare const isSignedEvent: (e: TrustedEvent) => e is SignedEvent;
-export declare const isUnwrappedEvent: (e: TrustedEvent) => e is UnwrappedEvent;
-export declare const isTrustedEvent: (e: TrustedEvent) => e is TrustedEvent;
 ```
 
 ### Event Utilities
@@ -88,7 +80,7 @@ export declare const getIdOrAddress: (e: HashedEvent) => string;
 export declare const getIdAndAddress: (e: HashedEvent) => string[];
 
 // Event deduplication by id or address
-export declare const deduplicateEvents: (e: TrustedEvent) => TrustedEvent[];
+export declare const deduplicateEvents: (events: TrustedEvent[]) => TrustedEvent[];
 
 // Event type checking
 export declare const isEphemeral: (e: EventTemplate) => boolean;

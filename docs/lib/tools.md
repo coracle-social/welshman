@@ -35,17 +35,17 @@ type PartialUser = MakeOptional<User, 'email' | 'age'>;
 ## Basic functional programming utilities
 
 ```typescript
-// Null or undefined
-export type Nil = null | undefined;
+// Undefined or T
+export type Maybe<T> = T | undefined;
 
-// Check whether something is null or undefined
-export declare const isNil: <T>(x: T, ...args: unknown[]) => boolean;
+// Check whether something is not undefined
+export declare const isDefined: <T>(x: T, ...args: unknown[]) => boolean;
 
-// Check whether something is not null or undefined
-export declare const isNotNil: <T>(x: T, ...args: unknown[]) => x is (T & null) | (T & {}) | (T & undefined);
+// Check whether something is undefined
+export declare const isUndefined: <T>(x: T, ...args: unknown[]) => boolean;
 
-// Assert that a nullable type is not null or undefined
-export declare const assertNotNil: <T>(x: T, ...args: unknown[]) => NonNullable<T>;
+// Assert that a value is not undefined
+export declare const assertDefined: <T>(x: T, ...args: unknown[]) => NonNullable<T>;
 
 // Function that does nothing and returns undefined
 export declare const noop: (...args: unknown[]) => undefined;
@@ -215,7 +215,7 @@ export declare const drop: <T>(n: number, xs: Iterable<T>) => T[];
 // Returns first n elements of array
 export declare const take: <T>(n: number, xs: Iterable<T>) => T[];
 
-// Concatenates multiple arrays, filtering out null/undefined
+// Concatenates multiple arrays, skipping undefined array arguments
 export declare const concat: <T>(...xs: T[][]) => T[];
 
 // Prepends element to array
@@ -417,7 +417,7 @@ export declare const yieldThread: () => any;
 // Poll options for condition checking
 type PollOptions = {
   signal: AbortSignal;
-  condition: () => boolean;
+  condition: () => unknown;
   interval?: number;
 };
 
@@ -468,6 +468,7 @@ export declare const setJson: (k: string, v: any) => void;
 // Options for fetch requests
 type FetchOpts = {
     method?: string;
+    signal?: AbortSignal;
     headers?: Record<string, string | boolean>;
     body?: string | FormData;
 };
@@ -497,8 +498,8 @@ export declare const ellipsize: (s: string, l: number, suffix?: string) => strin
 // Displays a list of items with oxford commas and a chosen conjunction
 export declare const displayList: <T>(xs: T[], conj?: string, n?: number) => string;
 
-// Generates a hash string from input string
-export declare const hash: (s: string) => string;
+// Generates a hash number from input string
+export declare const hash: (s: string) => number;
 ```
 
 ## Curried utilities for working with collections
@@ -564,8 +565,8 @@ export declare const hexToBech32: (prefix: string, hex: string) => `${Lowercase<
 // Converts bech32 string to hex format
 export declare const bech32ToHex: (b32: string) => string;
 
-// Converts an array buffer to hex format
-export declare const bytesToHex: (buffer: ArrayBuffer) => string;
+// Converts an array buffer or Uint8Array to hex format
+export declare const bytesToHex: (buffer: ArrayBuffer | Uint8Array) => string;
 
 // Converts a hex string to a Uint8Array buffer
 export declare const hexToBytes: (hex: string) => Uint8Array;

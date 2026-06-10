@@ -52,7 +52,7 @@ const thunk = publishThunk({
 thunk.controller.abort()
 
 // Some commands are included
-const thunk = follow('97c70a44366a6535c145b333f973ea86dfdc2d7a99da618c40c64705ad98e322')
+const thunk = follow(['p', '97c70a44366a6535c145b333f973ea86dfdc2d7a99da618c40c64705ad98e322'])
 
 // Load events as a promise
 const events = await load({

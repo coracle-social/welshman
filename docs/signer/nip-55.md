@@ -51,7 +51,7 @@ Creates a new signer instance that will communicate with the specified native ap
 
 ```typescript
 import { Nip55Signer, getNip55 } from '@welshman/signer'
-import { createEvent, NOTE } from '@welshman/util'
+import { makeEvent, NOTE } from '@welshman/util'
 
 async function example() {
   try {
@@ -69,7 +69,7 @@ async function example() {
     console.log('Public key:', pubkey)
 
     // Sign an event
-    const event = createEvent(NOTE, {
+    const event = makeEvent(NOTE, {
       content: "Hello from native app!",
       tags: [["t", "test"]]
     })

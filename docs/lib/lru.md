@@ -40,9 +40,9 @@ cache.set('c', 3);
 
 console.log(cache.get('a')); // 1
 
-// Adding 'd' will evict 'b' (least recently used)
+// Adding 'd' will evict 'a' (its stale key entry is at the front of the tracking queue)
 cache.set('d', 4);
 
-console.log(cache.has('b')); // false
-console.log(cache.has('a')); // true (recently accessed)
+console.log(cache.has('b')); // true
+console.log(cache.has('a')); // false
 ```

@@ -63,10 +63,11 @@ Several thunk factories are provided for common or more complicated scenarios li
 - `unfollow(value: string)`
 - `follow(tag: string[])`
 - `unmute(value: string)`
-- `mute(tag: string[])`
+- `mutePublicly(tag: string[])`
+- `mutePrivately(tag: string[])`
 - `unpin(value: string)`
 - `pin(tag: string[])`
-- `sendWrapped({template, pubkeys, ...options}: SendWrappedOptions)`
+- `sendWrapped({event, recipients, ...options}: SendWrappedOptions)`
 - `manageRelay(url: string, request: ManagementRequest)`
 - `createRoom(url: string, room: RoomMeta)`
 - `deleteRoom(url: string, room: RoomMeta)`

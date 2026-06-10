@@ -15,7 +15,8 @@ A utility package providing welshman-specific svelte store functionality and uti
 ## Quick Example
 
 ```typescript
-import {Repository, NAMED_PEOPLE, TrustedEvent, PublishedList, readList} from '@welshman/util'
+import {Repository} from '@welshman/net'
+import {NAMED_PEOPLE, TrustedEvent, PublishedList, readList} from '@welshman/util'
 import {deriveItemsByKey} from '@welshman/store'
 
 const repository = new Repository()

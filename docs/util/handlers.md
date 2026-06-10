@@ -79,7 +79,8 @@ const handlers = readHandlers(event)
 ```typescript
 // Get unique handler identifier
 const key = getHandlerKey(handler)
-// => "1:30023:note-viewer" (kind:pubkey:identifier)
+// => "1:31990:pubkey:identifier" (handler-kind:address)
+// where address is the "kind:pubkey:identifier" of the handler event
 
 // Display handler name
 const name = displayHandler(handler, "Unknown Handler")

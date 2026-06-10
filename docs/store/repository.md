@@ -13,16 +13,16 @@ deriveEventsById(options: {
 }): Readable<Map<string, TrustedEvent>>
 
 // Convert events by ID to array
-deriveEvents(eventsByIdStore: Readable<Map<string, TrustedEvent>>): Readable<TrustedEvent[]>
+deriveEvents(options: { repository: Repository, filters: Filter[], includeDeleted?: boolean }): Readable<TrustedEvent[]>
 
 // Sort events ascending by created_at
-deriveEventsAsc(eventsStore: Readable<TrustedEvent[]>): Readable<TrustedEvent[]>
+deriveEventsAsc(eventsByIdStore: Readable<Map<string, TrustedEvent>>): Readable<TrustedEvent[]>
 
 // Sort events descending by created_at
-deriveEventsDesc(eventsStore: Readable<TrustedEvent[]>): Readable<TrustedEvent[]>
+deriveEventsDesc(eventsByIdStore: Readable<Map<string, TrustedEvent>>): Readable<TrustedEvent[]>
 
 // Derive single event by ID or address
-deriveEvent(repository: Repository, idOrAddress: string): Readable<TrustedEvent | undefined>
+makeDeriveEvent(options: { repository: Repository, includeDeleted?: boolean, onDerive?: (filters: Filter[], ...args: any[]) => void }): (idOrAddress: string, ...args: any[]) => Readable<TrustedEvent | undefined>
 
 // Track if event is deleted
 deriveIsDeleted(repository: Repository, event: TrustedEvent): Readable<boolean>
@@ -52,14 +52,14 @@ makeDeriveItem<T>(
 // Create cached loader with staleness checking and exponential backoff
 makeLoadItem<T>(
   loadItem: (key: string, ...args: any[]) => Promise<unknown>,
-  getItem: (key: string) => T | undefined,
+  getItem: (key: string, ...args: any[]) => T | undefined,
   options?: {getFetched?, setFetched?, timeout?}
 ): (key: string, ...args: any[]) => Promise<T | undefined>
 
 // Create loader that always fetches fresh data
 makeForceLoadItem<T>(
   loadItem: (key: string, ...args: any[]) => Promise<unknown>,
-  getItem: (key: string) => T | undefined
+  getItem: (key: string, ...args: any[]) => T | undefined
 ): (key: string, ...args: any[]) => Promise<T | undefined>
 
 // Optimized getter that switches to subscription when hot
@@ -70,17 +70,13 @@ getter<T>(store: Readable<T>, options?: {threshold?: number}): () => T
 
 ```typescript
 import {Repository} from "@welshman/net"
-import {deriveEventsById, deriveEvents, deriveItemsByKey, deriveItems} from "@welshman/store"
+import {deriveEvents, deriveItemsByKey, deriveItems} from "@welshman/store"
 import {readProfile, PROFILE} from "@welshman/util"
 
 const repository = new Repository()
 
 // Reactive store of text notes
-const noteEventsById = deriveEventsById({
-  repository,
-  filters: [{kinds: [1], limit: 100}]
-})
-const notes = deriveEvents(noteEventsById)
+const notes = deriveEvents({ repository, filters: [{kinds: [1], limit: 100}] })
 
 // Reactive store of profiles indexed by pubkey
 const profilesByPubkey = deriveItemsByKey({

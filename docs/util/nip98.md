@@ -6,7 +6,7 @@ Implementation of NIP-98 HTTP Authentication for authenticating HTTP requests wi
 
 ```typescript
 // Creates an HTTP auth event for authenticating requests
-export declare const makeHttpAuth: (url: string, method?: string, body?: string) => Promise<Event>
+export declare const makeHttpAuth: (url: string, method?: string, body?: string) => Promise<StampedEvent>
 
 // Creates Authorization header from signed HTTP auth event
 export declare const makeHttpAuthHeader: (event: SignedEvent) => string

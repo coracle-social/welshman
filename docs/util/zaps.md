@@ -44,7 +44,7 @@ export declare const hrpToMillisat: (hrpString: string) => bigint;
 export declare const getInvoiceAmount: (bolt11: string) => number;
 
 // Convert lightning address or URL to LNURL
-export declare const getLnUrl: (address: string) => string | null;
+export declare const getLnUrl: (address: string) => string | undefined;
 ```
 
 ### Zap Validation

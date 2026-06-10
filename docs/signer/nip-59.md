@@ -14,22 +14,19 @@ The `Nip59` class provides utilities for implementing the Gift Wrap protocol (NI
 
 ```typescript
 import { Nip59 } from '@welshman/signer'
-import { createEvent, DIRECT_MESSAGE } from '@welshman/util'
+import { makeEvent, DIRECT_MESSAGE } from '@welshman/util'
 
 // Create a NIP-59 instance from any signer
 const nip59 = Nip59.fromSigner(mySigner)
 
-// Wrap an event
-const rumor = await nip59.wrap(
+// Wrap an event — returns the gift-wrap SignedEvent to publish
+const wrappedEvent = await nip59.wrap(
   recipientPubkey,
-  createEvent(DIRECT_MESSAGE, {
+  makeEvent(DIRECT_MESSAGE, {
     content: "Secret message",
     tags: [["p", recipientPubkey]]
   })
 )
-
-// The wrapped event to publish
-const wrappedEvent = rumor.wrap
 
 // Unwrap a received event
 const unwrapped = await nip59.unwrap(receivedWrappedEvent)
@@ -51,11 +48,12 @@ export const wrap = async (
   template: StampedEvent,
   tags: string[][] = []
 ) => {
-  const rumor = await getRumor(signer, template)
+  const author = await signer.getPubkey()
+  const rumor = await prep(template, author)
   const seal = await getSeal(signer, pubkey, rumor)
   const wrap = await getWrap(wrapper, pubkey, seal, tags)
 
-  return Object.assign(rumor, {wrap})
+  return wrap
 }
 ```
 
@@ -79,20 +77,20 @@ class Nip59 {
    * @param pubkey Recipient's public key
    * @param template The event to wrap
    * @param tags Additional tags for the wrap event (optional)
-   * @returns Promise<UnwrappedEvent> Original event and its wrapped version
+   * @returns Promise<SignedEvent> The gift-wrap event to publish
    */
   wrap(
     pubkey: string,
     template: StampedEvent,
     tags?: string[][]
-  ): Promise<UnwrappedEvent>
+  ): Promise<SignedEvent>
 
   /**
    * Unwraps a received wrapped event
    * @param event The wrapped event to decrypt
-   * @returns Promise<UnwrappedEvent> The original unwrapped event
+   * @returns Promise<HashedEvent> The original unwrapped event
    */
-  unwrap(event: SignedEvent): Promise<UnwrappedEvent>
+  unwrap(event: SignedEvent): Promise<HashedEvent>
 
   /**
    * Creates a new instance with a specific wrapper signer
@@ -109,24 +107,20 @@ class Nip59 {
 
 ```typescript
 import { Nip59, Nip01Signer } from '@welshman/signer'
-import { createEvent, DIRECT_MESSAGE } from '@welshman/util'
+import { makeEvent, DIRECT_MESSAGE } from '@welshman/util'
 
 async function example() {
   // Create NIP-59 instance
   const signer = new Nip01Signer(mySecret)
   const nip59 = Nip59.fromSigner(signer)
 
-  // Create and wrap an event
-  const event = createEvent(DIRECT_MESSAGE, {
+  // Create and wrap an event — returns the gift-wrap SignedEvent to publish
+  const event = makeEvent(DIRECT_MESSAGE, {
     content: "Secret message",
     tags: [["p", recipientPubkey]]
   })
 
-  const rumor = await nip59.wrap(recipientPubkey, event)
-
-  // rumor contains:
-  // - The original event (rumor)
-  // - The wrapped version to publish (rumor.wrap)
+  const wrappedEvent = await nip59.wrap(recipientPubkey, event)
 
   // Later, unwrap a received event
   const unwrapped = await nip59.unwrap(receivedEvent)

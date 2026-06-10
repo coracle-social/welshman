@@ -15,6 +15,7 @@ interface ISigner {
   // Core signing functionality
   sign: SignWithOptions
   getPubkey: () => Promise<string>
+  cleanup?: () => Promise<void>
 
   // Encryption capabilities
   nip04: {

@@ -27,7 +27,7 @@ The `netContext` global provides sensible defaults:
 import {netContext} from '@welshman/net'
 
 // Override event validation
-netContext.isEventValid: (event, url) => {
+netContext.isEventValid = (event, url) => {
   return event.kind < 30000 && verifyEvent(event)
 }
 

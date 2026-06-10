@@ -16,13 +16,13 @@ import {
   Nip46Broker,
   Nip46Signer
 } from '@welshman/signer'
-import { createEvent, NOTE } from '@welshman/util'
+import { makeEvent, NOTE } from '@welshman/util'
 
 async function connectToRemoteSigner() {
   // Initial setup
   const clientSecret = makeSecret()
   const relays = ['wss://relay.example.com']
-  const broker = Nip46Broker.get({ relays, clientSecret })
+  const broker = new Nip46Broker({ relays, clientSecret })
   const signer = new Nip46Signer(broker)
 
   // Generate connection URL
@@ -36,9 +36,10 @@ async function connectToRemoteSigner() {
 
   try {
     // Wait for connection
+    const abortController = new AbortController()
     const response = await broker.waitForNostrconnect(
       ncUrl,
-      new AbortController()
+      abortController.signal
     )
 
     // Store signer info for later
@@ -46,7 +47,7 @@ async function connectToRemoteSigner() {
     localStorage.setItem('bunkerUrl', bunkerUrl)
 
     // Use the signer
-    const event = createEvent(NOTE, {
+    const event = makeEvent(NOTE, {
       content: "Signed with remote signer!",
       tags: [["t", "test"]]
     })
@@ -72,7 +73,7 @@ async function reconnect() {
     relays
   } = Nip46Broker.parseBunkerUrl(bunkerUrl)
 
-  const broker = Nip46Broker.get({
+  const broker = new Nip46Broker({
     relays,
     clientSecret: makeSecret(),
     signerPubkey,
@@ -88,8 +89,8 @@ async function reconnect() {
 ### Constructor and Factory
 
 ```typescript
-// Recommended: use the singleton factory
-const broker = Nip46Broker.get({
+// Direct instantiation
+new Nip46Broker({
   relays: string[],
   clientSecret: string,
   connectSecret?: string,
@@ -97,8 +98,8 @@ const broker = Nip46Broker.get({
   algorithm?: "nip04" | "nip44"
 })
 
-// Direct instantiation (not recommended)
-new Nip46Broker(params)
+// Static factory: create a broker from a bunker:// URL
+Nip46Broker.fromBunkerUrl(url: string): Nip46Broker
 ```
 
 ### Connection Methods
@@ -110,7 +111,7 @@ broker.makeNostrconnectUrl(metadata: Record<string, string>): Promise<string>
 // Wait for connection approval
 broker.waitForNostrconnect(
   url: string,
-  abort?: AbortController
+  signal: AbortSignal
 ): Promise<Nip46ResponseWithResult>
 
 // Get bunker URL for later reconnection

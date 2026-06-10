@@ -53,7 +53,7 @@ followersByPubkey: Readable<Map<string, Set<string>>>
 mutersByPubkey: Readable<Map<string, Set<string>>>
 
 // The full WOT graph with scores (pubkey → score)
-wotGraph: Readable<Map<string, number>>
+wotGraph: Writable<Map<string, number>>
 
 // The maximum WOT score in the graph
 maxWot: Readable<number>

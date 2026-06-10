@@ -13,6 +13,10 @@ The contract for socket policies. Takes a Socket object and returns a cleanup fu
 
 ## Built-in Policies
 
+### `socketPolicyPing`
+
+Sends a PING message every 30 seconds when the socket is open and has been idle (no send or receive activity in the last 30 seconds). Keeps connections alive through NAT/firewall idle timeouts.
+
 ### `socketPolicyAuthBuffer`
 
 Buffers messages during authentication flow and replays them after successful auth.

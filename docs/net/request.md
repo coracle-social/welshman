@@ -16,7 +16,9 @@ Requests events from a single relay using the given filters. Returns a promise t
 - `context?` - Adapter context
 - `autoClose?` - Auto-close subscription after EOSE
 - Validation functions: `isEventValid`, `isEventDeleted`
-- Callback functions: `onEvent`, `onDeleted`, `onInvalid`, `onFiltered`, `onDuplicate`, `onDisconnect`, `onEose`, `onClose`
+- Callback functions: `onEvent`, `onDeleted`, `onInvalid`, `onFiltered`, `onDuplicate`, `onDisconnect`, `onEose`, `onClosed`, `onClose`
+  - `onClosed?: (message: string, url: string) => void` - Called when the relay sends a CLOSED message, receiving the close reason and relay URL
+  - `onClose?: () => void` - Called when the subscription is fully closed
 
 ### request(options)
 
@@ -38,9 +40,9 @@ Creates a batched loader function that delays and combines requests for efficien
 - `threshold?` - Relay completion threshold
 - Validation functions and context options
 
-### load(filters, relays, options)
+### load(options)
 
-Pre-configured loader with 200ms delay, 3s timeout, and 0.5 threshold.
+Pre-configured loader with 200ms delay, 3s timeout, and 0.5 threshold. Takes a `LoadOptions` object containing `relays`, `filters`, and optional callback fields (`onEvent`, `onDisconnect`, `onEose`, `onClose`) and an optional `signal`.
 
 ## Example
 

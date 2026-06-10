@@ -30,7 +30,7 @@ const signer = new Nip07Signer()
 
 ```typescript
 import { Nip07Signer, getNip07 } from '@welshman/signer'
-import { createEvent, NOTE } from '@welshman/util'
+import { makeEvent, NOTE } from '@welshman/util'
 
 async function example() {
   // Check for NIP-07 provider
@@ -47,7 +47,7 @@ async function example() {
     console.log('Public key:', pubkey)
 
     // Create and sign an event (will prompt user)
-    const event = createEvent(NOTE, {
+    const event = makeEvent(NOTE, {
       content: "Hello via browser extension!",
       tags: [["t", "test"]]
     })

@@ -61,14 +61,14 @@ Several common collections are built-in and ready for use:
 profiles → profilesByPubkey → deriveProfile → loadProfile
 
 // Lists
-follows → followsByPubkey → deriveFollows → loadFollows
-mutes → mutesByPubkey → deriveMutes → loadMutes
-pins → pinsByPubkey → derivePins → loadPins
+followLists → followListsByPubkey → deriveFollowList → loadFollowList
+muteLists → muteListsByPubkey → deriveMuteList → loadMuteList
+pinLists → pinListsByPubkey → derivePinList → loadPinList
 
 // Relays
 relays → relaysByUrl → deriveRelay → loadRelay
-relayLists → relayListsByPubkey → deriveRelayLists → loadRelayLists
-messagingRelayLists → messagingRelayListsByPubkey → deriveMessagingRelayLists → loadMessagingRelayLists
+relayLists → relayListsByPubkey → deriveRelayList → loadRelayList
+messagingRelayLists → messagingRelayListsByPubkey → deriveMessagingRelayList → loadMessagingRelayList
 
 // Identity
 handles → handlesByNip05 → deriveHandle → loadHandle
@@ -97,24 +97,20 @@ const name = deriveProfileDisplay(pubkey)
 Several modules provide user-specific derived stores that automatically load data for the currently signed-in user:
 
 ```typescript
-import { userProfile, userFollows, userMutes, userPins } from '@welshman/app'
+import { userProfile, userFollowList, userMuteList, userPinList } from '@welshman/app'
 
 userProfile.subscribe(profile => {
   // Current user's profile data
 })
 
-userFollows.subscribe(follows => {
+userFollowList.subscribe(follows => {
   // Current user's follow list
 })
 ```
 
 ### Repository Integration
 
-All events from subscriptions are automatically:
-
-- Saved to the repository
-- Tracked to their source relay
-- Checked against deletion status
+Events from subscriptions are automatically tracked to their source relay and saved to the repository, unless they are DVM-kind or ephemeral events (which are discarded). WRAP (kind 1059) events are handled separately and only processed when `shouldUnwrap` is set to `true`.
 
 The repository serves as an intelligent cache layer, making subsequent queries for the same data faster.
 

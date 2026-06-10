@@ -25,8 +25,8 @@ type RenderOptions = {
 
 ## Built-in Renderers
 
-- `makeTextRenderer` - renders an array of `Parsed` elements as text
-- `makeHtmlRenderer` - renders an array of `Parsed` elements as HTML
+- `makeTextRenderer` - creates a `Renderer` configured for plain-text output
+- `makeHtmlRenderer` - creates a `Renderer` configured for HTML output
 
 ## Main Functions
 
@@ -54,7 +54,7 @@ const html = renderAsHtml(parsed, {
 }).toString()
 
 // Result:
-// Check out this cool #nostr client!<br>
-// Visit <a href="https://njump.me/nprofile1...">npub1jlrs53p...</a> for more info<br>
+// Check out this cool #nostr client!
+// Visit <a href="https://njump.me/nprofile1...">npub1jlrs53p...</a> for more info
 // <a href="https://github.com/coracle-social/welshman" class="custom-link">github.com/coracle-social/welshman</a>
 ```

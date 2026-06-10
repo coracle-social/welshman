@@ -52,8 +52,8 @@ pin(tag: string[]): Promise<Thunk>
 
 ```typescript
 type SendWrappedOptions = Omit<ThunkOptions, "event" | "relays"> & {
-  template: EventTemplate
-  pubkeys: string[]
+  event: EventTemplate
+  recipients: string[]
 }
 
 sendWrapped(options: SendWrappedOptions): Promise<MergedThunk>

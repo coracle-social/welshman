@@ -32,10 +32,10 @@ export class FeedController {
   load(limit: number): Promise<void>
 
   // Get listener function (memoized)
-  getListener(): Promise<() => Promise<void>>
+  getListener(): Promise<() => () => void>
 
-  // Listen for new events in the feed
-  listen(): Promise<void>
+  // Listen for new events in the feed; returns an unsubscribe function
+  listen(): () => Promise<void>
 }
 ```
 

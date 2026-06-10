@@ -32,6 +32,6 @@ emitter.on('*', (eventType, ...args) => {
 // Emit an event - triggers both listeners
 emitter.emit('message', 'Hello world');
 // Output:
-// Event: message ['Hello world']
 // Message: Hello world
+// Event: message ['Hello world']
 ```
