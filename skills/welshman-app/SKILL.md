@@ -521,6 +521,105 @@ abort.abort()
 
 ---
 
+## Using Welshman Stores Outside Svelte
+
+All welshman stores implement the Svelte store contract: a `subscribe(callback) → unsubscribe` method where the callback fires **synchronously** with the current value on first call, then again on every change. This makes them trivially adaptable to any reactive framework — no Svelte runtime required, only the type imports.
+
+### React
+
+```typescript
+import {useState, useEffect} from 'react'
+import type {Readable, Writable} from 'svelte/store'
+
+// Returns the current store value; re-renders when it changes.
+function useReadable<T>(store: Readable<T>): T {
+  const [value, setValue] = useState<T>(() => {
+    // subscribe fires synchronously — capture the initial value then unsub immediately
+    let initial!: T
+    store.subscribe(v => { initial = v })()
+    return initial
+  })
+  useEffect(() => store.subscribe(setValue), [store])
+  return value
+}
+
+// Returns [currentValue, setter] — setter calls store.set directly.
+function useWritable<T>(store: Writable<T>): [T, (value: T) => void] {
+  return [useReadable(store), store.set]
+}
+```
+
+Usage:
+
+```tsx
+import {userProfile, pubkey} from '@welshman/app'
+
+function ProfileHeader() {
+  const profile = useReadable(userProfile)
+  const [currentPubkey, setPubkey] = useWritable(pubkey)
+
+  return <div>{profile?.name ?? currentPubkey}</div>
+}
+```
+
+### SolidJS
+
+```typescript
+import {createSignal, onCleanup} from 'solid-js'
+import type {Readable, Writable} from 'svelte/store'
+
+// Returns a SolidJS accessor (getter function); updates reactively.
+function useReadable<T>(store: Readable<T>): () => T {
+  let initial!: T
+  store.subscribe(v => { initial = v })()   // sync capture then unsubscribe
+
+  const [value, setValue] = createSignal<T>(initial)
+  onCleanup(store.subscribe(v => setValue(() => v)))
+  return value
+}
+
+// Returns [accessor, setter].
+function useWritable<T>(store: Writable<T>): [() => T, (value: T) => void] {
+  return [useReadable(store), store.set]
+}
+```
+
+Usage:
+
+```tsx
+import {userProfile} from '@welshman/app'
+
+function ProfileHeader() {
+  const profile = useReadable(userProfile)
+  return <div>{profile()?.name}</div>
+}
+```
+
+### Vue
+
+```typescript
+import {ref, onUnmounted} from 'vue'
+import type {Readable, Writable} from 'svelte/store'
+
+function useReadable<T>(store: Readable<T>) {
+  let initial!: T
+  store.subscribe(v => { initial = v })()
+
+  const value = ref<T>(initial)
+  const unsub = store.subscribe(v => { value.value = v as any })
+  onUnmounted(unsub)
+  return value  // use as a readonly ref
+}
+```
+
+### Notes
+
+- **No Svelte runtime needed.** Only `svelte/store` types are imported. The store objects themselves ship with `@welshman/app`.
+- **Welshman stores with `.get()`** (created via `withGetter`) can be read synchronously without subscribing — useful in event handlers and callbacks outside any reactive context. Most writable stores in `@welshman/app` expose `.get()`.
+- **`subscribe` always fires immediately.** Unlike many observable libraries, the initial emission is synchronous, so the `useState` / `createSignal` initial value is always populated on first render.
+
+---
+
 ## Gotchas & Tips
 
 - **Thunks sign lazily.** `publishThunk` returns synchronously and immediately writes an unsigned/hashed event to `repository` for optimistic UI. Actual signing happens in a background queue. Do not assume the event has an `id` suitable for embedding in other events until signing completes.

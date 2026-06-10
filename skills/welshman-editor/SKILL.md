@@ -25,7 +25,7 @@ npm install @welshman/lib @welshman/util nostr-tools nostr-editor
 
 Import the bundled CSS to get default object/suggestion styles (optional but recommended):
 
-```ts
+```typescript
 import "@welshman/editor/index.css"
 ```
 
@@ -57,19 +57,34 @@ These are drop-in Tiptap node-view factory functions that render inline pill ele
 
 | Export | Description |
 |--------|-------------|
-| `TippySuggestion` | Generic Tippy.js-powered `@tiptap/suggestion` wrapper. Requires `char` (trigger character), `name` (ProseMirror node type name), `editor`, `search` (returns string items), and `select` (handles item selection). |
-| `MentionSuggestion` | Pre-configured `TippySuggestion` for `@`-triggered nprofile autocomplete. Requires `editor`, `search`, and `getRelays`; accepts optional UI customization. |
+| `TippySuggestion` | Generic Tippy.js-powered `@tiptap/suggestion` wrapper. Requires `char`, `name`, `editor`, `search`, and `select`. Optional: `updateSignal`, `createSuggestion`. |
+| `MentionSuggestion` | Pre-configured `TippySuggestion` for `@`-triggered nprofile autocomplete. Requires `editor`, `search`, and `getRelays`. Optional: `updateSignal`, `createSuggestion`. |
 | `DefaultSuggestionsWrapper` | Default dropdown renderer used by `TippySuggestion`. Implements `ISuggestionsWrapper`; replace to use a framework component. |
+
+**`TippySuggestion` options:**
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `char` | yes | Trigger character (e.g. `"@"`, `"~"`) |
+| `name` | yes | ProseMirror node type name to insert on selection |
+| `editor` | yes | The Tiptap `Editor` instance |
+| `search` | yes | `(term: string) => string[]` — returns item values matching the query |
+| `select` | yes | `(value: string, props) => void` — called when the user picks an item; call `props.command({...attrs})` to insert the node |
+| `updateSignal` | no | A Svelte `Readable` store; when it emits, the suggestion list re-renders (use for async/reactive search results) |
+| `createSuggestion` | no | `(value: string) => Element` — renders a custom DOM element for each dropdown item |
+
+`MentionSuggestion` is a pre-wired `TippySuggestion` for nprofile nodes. It handles `select` internally (encodes the pubkey as an nprofile with relay hints from `getRelays`) so you only need to supply `editor`, `search`, and `getRelays`.
 
 ### Re-exports from upstream
 
 | Export | Source |
 |--------|--------|
 | `Editor` | `@tiptap/core` — the editor instance class |
-| `NodeViewProps` | `@tiptap/core` — prop type for node view factories |
+| `NodeViewProps` | `@tiptap/core` — prop type for node view factories (Tiptap's type) |
+| `NodeViewRendererProps` | `@tiptap/core` — alternate props type used in `Node.create({ addNodeView })` |
 | `UploadTask` | `nostr-editor` — shape of an in-progress or completed file upload |
 | `FileAttributes` | `nostr-editor` — `{ file: File, … }` passed to the `upload` callback |
-| `editorProps` | `nostr-editor` — base ProseMirror `editorProps` used by nostr-editor |
+| `editorProps` | `nostr-editor` — base ProseMirror `editorProps` used by nostr-editor; pass directly to `new Editor({ editorProps })` |
 
 ---
 
@@ -77,7 +92,7 @@ These are drop-in Tiptap node-view factory functions that render inline pill ele
 
 All keys are optional. Pass `false` to disable a built-in extension entirely. Pass `{ extend?, config? }` to override defaults.
 
-```ts
+```typescript
 type WelshmanExtensionOptions = {
   bolt11?:        false
   breakOrSubmit?: false | { extend?, config?: BreakOrSubmitOptions }
@@ -103,169 +118,205 @@ type WelshmanExtensionOptions = {
 }
 ```
 
-`fileUpload.config` requires at minimum an `upload` function. Default allowed MIME types: `image/jpeg`, `image/png`, `image/gif`, `image/webp`, `video/mp4`, `video/mpeg`, `video/webm`. `immediateUpload` defaults to `true`.
+`fileUpload.config` requires at minimum an `upload` function. The `upload` callback must return `Promise<UploadTask>`:
+
+```typescript
+interface UploadResult { url: string; sha256: string; tags: string[][] }
+interface UploadTask   { result?: UploadResult; error?: string }
+```
+
+Default allowed MIME types: `image/jpeg`, `image/png`, `image/gif`, `image/webp`, `video/mp4`, `video/mpeg`, `video/webm`. `immediateUpload` defaults to `true`.
 
 ---
 
-## Common Patterns
+## Example
 
-### 1. Minimal editor with submit on Mod-Enter
+A full-featured editor factory covering file upload, @-mention and custom-trigger autocomplete, reactive node views, word count, and draft persistence.
 
-```ts
-import {Editor} from "@welshman/editor"
-import {WelshmanExtension} from "@welshman/editor"
-
-const editor = new Editor({
-  element: document.getElementById("editor")!,
-  extensions: [
-    WelshmanExtension.configure({
-      submit: () => {
-        const content = editor.getText({blockSeparator: "\n"}).trim()
-        const tags = editor.storage.nostr.getEditorTags()
-        console.log({content, tags})
-        editor.chain().clearContent().run()
-      },
-    }),
-  ],
-})
-```
-
-### 2. Chat-style editor (Enter submits)
-
-```ts
-WelshmanExtension.configure({
-  submit,
-  extensions: {
-    breakOrSubmit: {
-      config: {aggressive: true}, // Enter submits; Shift-Enter inserts line break
-    },
-    placeholder: {
-      config: {placeholder: "Send a message…"},
-    },
-  },
-})
-```
-
-### 3. File upload with Blossom/NIP-96 server
-
-```ts
-import type {FileAttributes} from "@welshman/editor"
-
-WelshmanExtension.configure({
-  submit,
-  extensions: {
-    fileUpload: {
-      config: {
-        upload: async (attrs: FileAttributes) => {
-          try {
-            const {uploaded, url} = await uploadFile("https://cdn.satellite.earth", attrs.file)
-            if (!uploaded) return {error: "Server refused the file"}
-            return {result: {url, tags: []}}
-          } catch (e) {
-            return {error: String(e)}
-          }
-        },
-        onDrop() { uploading.set(true) },
-        onComplete() { uploading.set(false) },
-        onUploadError(ed, task) {
-          ed.commands.removeFailedUploads()
-          uploading.set(false)
-        },
-      },
-    },
-  },
-})
-
-// Trigger the file picker programmatically:
-editor.chain().selectFiles().run()
-```
-
-### 4. @-mention autocomplete with custom node view
-
-```ts
-import {get} from "svelte/store"
-import type {NodeViewProps} from "@welshman/editor"
-import {WelshmanExtension, MentionSuggestion} from "@welshman/editor"
-import {profileSearch, deriveProfileDisplay} from "@welshman/app"
+```typescript
+import {get, writable} from "svelte/store"
+import {Node, Extension, mergeAttributes} from "@tiptap/core"
+import {Plugin, PluginKey} from "@tiptap/pm/state"
+import type {NodeViewRendererProps} from "@tiptap/core"
 import {Router} from "@welshman/router"
+import {createSearch, profiles, searchProfiles, deriveProfileDisplay} from "@welshman/app"
+import {
+  Editor, WelshmanExtension, MentionSuggestion, TippySuggestion, editorProps,
+} from "@welshman/editor"
+import type {FileAttributes, UploadTask} from "@welshman/editor"
 
-const CustomMentionNodeView = ({node}: NodeViewProps) => {
-  const dom = document.createElement("span")
-  dom.classList.add("tiptap-object")
+// ── Custom inline node: room reference (~) ───────────────────────────────────
+// Defines a new ProseMirror node type for inline room references.
+// Register it alongside WelshmanExtension so Tiptap knows about the "roomref" name.
 
-  const display = deriveProfileDisplay(node.attrs.pubkey)
-  const unsub = display.subscribe($d => { dom.textContent = "@" + $d })
+const RoomReferenceExtension = Node.create({
+  name: "roomref",
+  atom: true, inline: true, group: "inline", selectable: true, priority: 1000,
+  addAttributes: () => ({url: {default: undefined}, h: {default: undefined}}),
+  parseHTML:  () => [{tag: 'span[data-type="roomref"]'}],
+  renderHTML: ({HTMLAttributes}) =>
+    ["span", mergeAttributes(HTMLAttributes, {"data-type": "roomref"}), "~"],
+  renderText: ({node}) => `~${node.attrs.url ?? ""}:${node.attrs.h ?? ""}`,
+  addNodeView: () => ({node}: NodeViewRendererProps) => {
+    const dom = document.createElement("span")
+    dom.classList.add("room-ref")
+    const unsub = deriveRoomDisplay(node.attrs.url, node.attrs.h)
+      .subscribe(d => { dom.textContent = "~" + d })
+    return {
+      dom, destroy: unsub,
+      selectNode:   () => dom.classList.add("room-ref--active"),
+      deselectNode: () => dom.classList.remove("room-ref--active"),
+    }
+  },
+})
 
-  return {
-    dom,
-    destroy: unsub,
-    selectNode()   { dom.classList.add("tiptap-active") },
-    deselectNode() { dom.classList.remove("tiptap-active") },
-  }
-}
+// ── Editor factory ────────────────────────────────────────────────────────────
 
-WelshmanExtension.configure({
+export const makeEditor = ({
+  content = "" as string | object,
+  placeholder = "",
+  uploading,   // optional Writable<boolean>
+  wordCount,   // optional Writable<number>
+  charCount,   // optional Writable<number>
   submit,
-  extensions: {
-    nprofile: {
-      extend: {
-        addNodeView: () => CustomMentionNodeView,
-        addProseMirrorPlugins() {
-          return [
-            MentionSuggestion({
-              editor: (this as any).editor,
-              search: (term: string) => get(profileSearch).searchValues(term),
-              getRelays: (pubkey: string) => Router.get().FromPubkeys([pubkey]).getUrls(),
-              // Optional: render a richer item in the dropdown
-              createSuggestion: (pubkey: string) => {
-                const el = document.createElement("span")
-                el.textContent = pubkey.slice(0, 12) + "…"
-                return el
+}: {
+  content?: string | object
+  placeholder?: string
+  uploading?: ReturnType<typeof writable<boolean>>
+  wordCount?: ReturnType<typeof writable<number>>
+  charCount?: ReturnType<typeof writable<number>>
+  submit: () => void
+}) => {
+  const profileSearch = createSearch(get(profiles), {
+    onSearch: searchProfiles,
+    getValue: (p: any) => p.event.pubkey,
+    fuseOptions: {keys: ["nip05", "name", "display_name"], threshold: 0.3},
+  })
+
+  const editor = new Editor({
+    content,
+    editorProps,
+    element: document.createElement("div"),
+    extensions: [
+      RoomReferenceExtension,
+      WelshmanExtension.configure({
+        submit,
+        extensions: {
+          // Chat-style: Enter submits, Shift-Enter inserts line break
+          breakOrSubmit: {config: {aggressive: true}},
+          placeholder: {config: {placeholder}},
+
+          // File upload — upload() must return Promise<UploadTask>
+          fileUpload: {
+            config: {
+              upload: async (attrs: FileAttributes): Promise<UploadTask> => {
+                try {
+                  const {url, sha256, tags} = await myUploadServer(attrs.file)
+                  return {result: {url, sha256, tags}}
+                } catch (e) {
+                  return {error: String(e)}
+                }
               },
-            }),
-          ]
+              onDrop:        () => uploading?.set(true),
+              onComplete:    () => uploading?.set(false),
+              onUploadError: (ed, _task) => {
+                ed.commands.removeFailedUploads()
+                uploading?.set(false)
+              },
+            },
+          },
+
+          // Custom reactive nprofile node view + "@" and "~" autocomplete
+          nprofile: {
+            extend: {
+              addNodeView: () => ({node}: NodeViewRendererProps) => {
+                const dom = document.createElement("span")
+                dom.classList.add("mention")
+                const unsub = deriveProfileDisplay(node.attrs.pubkey)
+                  .subscribe($d => { dom.textContent = "@" + $d })
+                return {
+                  dom, destroy: unsub,
+                  selectNode:   () => dom.classList.add("mention--active"),
+                  deselectNode: () => dom.classList.remove("mention--active"),
+                }
+              },
+              addProseMirrorPlugins() {
+                return [
+                  // "@" — nprofile mention; updateSignal re-renders when search index changes
+                  MentionSuggestion({
+                    editor: (this as any).editor,
+                    search: term => profileSearch.searchValues(term),
+                    getRelays: pubkey => Router.get().FromPubkeys([pubkey]).getUrls(),
+                    createSuggestion: pubkey => {
+                      const el = document.createElement("span")
+                      el.textContent = pubkey.slice(0, 12) + "…"
+                      return el
+                    },
+                  }),
+                  // "~" — custom roomref node; select must call props.command({...attrs})
+                  TippySuggestion({
+                    char: "~", name: "roomref",
+                    editor: (this as any).editor,
+                    search: term => roomSearch.searchValues(term),
+                    select: (id, props) => {
+                      const [url, h] = splitRoomId(id)
+                      if (url && h) props.command({url, h})
+                    },
+                    createSuggestion: id => {
+                      const el = document.createElement("span")
+                      el.textContent = id.slice(0, 16) + "…"
+                      return el
+                    },
+                  }),
+                ]
+              },
+            },
+          },
         },
-      },
+      }),
+    ],
+    onUpdate({editor}) {
+      wordCount?.set(editor.storage.wordCount.words)
+      charCount?.set(editor.storage.wordCount.chars)
     },
-  },
-})
-```
+  })
 
-### 5. Reading content and tags after submit
-
-```ts
-const submit = () => {
-  // Plain text with newlines between paragraphs
-  const content = editor.getText({blockSeparator: "\n"}).trim()
-
-  // NIP-10 / NIP-27 tags built from inline nostr objects
-  const tags = editor.storage.nostr.getEditorTags()
-
-  // Full ProseMirror JSON (for saving draft state)
-  const json = editor.getJSON()
-
-  // Restore from saved JSON
-  editor.commands.setContent(json)
+  return editor
 }
+
+// ── Reading content on submit ─────────────────────────────────────────────────
+
+const onSubmit = (editor: Editor) => {
+  const content = editor.getText({blockSeparator: "\n"}).trim()
+  const tags    = editor.storage.nostr.getEditorTags()  // NIP-10 / NIP-27 tags
+  console.log({content, tags})
+  editor.chain().clearContent().run()
+}
+
+// ── Mounting in Svelte ────────────────────────────────────────────────────────
 ```
 
-### 6. Tracking word / character count
+```svelte
+<script lang="ts">
+  import type {Editor} from "@welshman/editor"
+  import {onMount, onDestroy} from "svelte"
 
-```ts
-import {writable} from "svelte/store"
-import {Editor, WelshmanExtension} from "@welshman/editor"
+  const {editor, autofocus = false}: {editor: Editor; autofocus?: boolean} = $props()
 
-const wordCount = writable(0)
-const charCount = writable(0)
+  let element: HTMLElement
 
-const editor = new Editor({
-  element,
-  extensions: [WelshmanExtension.configure({submit})],
-  onUpdate({editor}) {
-    wordCount.set(editor.storage.wordCount.words)
-    charCount.set(editor.storage.wordCount.chars)
-  },
-})
+  onMount(() => {
+    element.append(editor.options.element)
+    if (autofocus) {
+      const atEnd = editor.getText().trim().length > 0
+      requestAnimationFrame(() => editor.commands.focus(atEnd ? "end" : "start"))
+    }
+  })
+
+  onDestroy(() => editor.destroy())
+</script>
+
+<div bind:this={element}></div>
 ```
 
 ---
@@ -292,3 +343,5 @@ const editor = new Editor({
 - **`getEditorTags()` returns NIP-10/27 tags.** This method on `editor.storage.nostr` collects all inline nostr objects (mentions, links, embeds) and returns the appropriate `p`, `e`, `a`, `t`, `r` tags for the published event. Always call this when building the event to publish.
 - **Initial content.** Pass either a plain string or a ProseMirror JSON object to `new Editor({content})`. To restore a draft, save `editor.getJSON()` and pass it back as `content`.
 - **`removeFailedUploads()` command.** Call `editor.commands.removeFailedUploads()` in `onUploadError` to clean up any partially-inserted upload nodes so the composer stays in a clean state.
+- **`addFile(file, pos)` command.** Programmatically inserts a file upload node at a given ProseMirror position — useful for native clipboard paste (e.g. mobile) where the browser paste event carries no file data.
+- **`editor.commands.focus('start' | 'end' | number)`.** Pass `"end"` to place the cursor after existing content (restoring a draft), `"start"` for a fresh empty editor. Call inside `requestAnimationFrame` when the editor element was just mounted.
