@@ -1,6 +1,6 @@
 ---
 name: welshman-net
-description: Use this skill when working with @welshman/net: relay connections, request/publish flows, auth, relay pool management, adapters, policies, or low-level nostr network I/O.
+description: "Use this skill when working with @welshman/net: relay connections, request/publish flows, auth, relay pool management, adapters, policies, or low-level nostr network I/O."
 ---
 
 # welshman/net — Relay Network Layer

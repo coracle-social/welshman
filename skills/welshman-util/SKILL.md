@@ -1,6 +1,6 @@
 ---
 name: welshman-util
-description: Use this skill when working with @welshman/util: nostr event types, kinds, tags, filters, addresses, NIPs (42/86/98), profiles, relays, zaps, wallets, or any core nostr data structures.
+description: "Use this skill when working with @welshman/util: nostr event types, kinds, tags, filters, addresses, NIPs (42/86/98), profiles, relays, zaps, wallets, or any core nostr data structures."
 ---
 
 # welshman/util — Core Nostr Utilities

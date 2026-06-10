@@ -1,6 +1,6 @@
 ---
 name: welshman-feeds
-description: Use this skill when working with @welshman/feeds: building nostr feeds, FeedController, FeedCompiler, feed definitions, dynamic filtering, or composing feed sources.
+description: "Use this skill when working with @welshman/feeds: building nostr feeds, FeedController, FeedCompiler, feed definitions, dynamic filtering, or composing feed sources."
 ---
 
 # welshman/feeds — Dynamic Feed Construction

@@ -1,6 +1,6 @@
 ---
 name: welshman-signer
-description: Use this skill when working with @welshman/signer: nostr signing, login methods (NIP-07, NIP-46, NIP-55, NIP-59, NIP-01), ISigner interface, or encrypted events.
+description: "Use this skill when working with @welshman/signer: nostr signing, login methods (NIP-07, NIP-46, NIP-55, NIP-59, NIP-01), ISigner interface, or encrypted events."
 ---
 
 # welshman/signer — Signing & Login

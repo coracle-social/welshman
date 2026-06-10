@@ -1,6 +1,6 @@
 ---
 name: welshman-editor
-description: Use this skill when working with @welshman/editor: the batteries-included Tiptap-based rich-text editor for composing nostr notes with mention autocomplete, media upload, and inline nostr objects.
+description: "Use this skill when working with @welshman/editor: the batteries-included Tiptap-based rich-text editor for composing nostr notes with mention autocomplete, media upload, and inline nostr objects."
 ---
 
 # welshman/editor — Nostr Editor Component

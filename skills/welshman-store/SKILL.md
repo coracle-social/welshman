@@ -1,6 +1,6 @@
 ---
 name: welshman-store
-description: Use this skill when working with @welshman/store: Repository pattern for nostr events, synced Svelte stores, throttled stores, or getter/derived store utilities.
+description: "Use this skill when working with @welshman/store: Repository pattern for nostr events, synced Svelte stores, throttled stores, or getter/derived store utilities."
 ---
 
 # welshman/store — Svelte Store Utilities

@@ -1,6 +1,6 @@
 ---
 name: welshman-app
-description: Use this skill when working with @welshman/app: high-level Svelte stores for nostr apps, session management, WoT (web of trust), making requests, publishing events, user data, or relay selection at the app layer.
+description: "Use this skill when working with @welshman/app: high-level Svelte stores for nostr apps, session management, WoT (web of trust), making requests, publishing events, user data, or relay selection at the app layer."
 ---
 
 # welshman/app — Application Layer Stores

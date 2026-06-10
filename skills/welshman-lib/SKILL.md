@@ -1,6 +1,6 @@
 ---
 name: welshman-lib
-description: Use this skill when working with @welshman/lib: general-purpose utilities including LRU cache, EventEmitter, Deferred promises, TaskQueue, URL normalization, or other standalone helpers.
+description: "Use this skill when working with @welshman/lib: general-purpose utilities including LRU cache, EventEmitter, Deferred promises, TaskQueue, URL normalization, or other standalone helpers."
 ---
 
 # welshman/lib — General Utilities

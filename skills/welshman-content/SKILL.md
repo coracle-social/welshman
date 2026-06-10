@@ -1,6 +1,6 @@
 ---
 name: welshman-content
-description: Use this skill when working with @welshman/content: parsing nostr note content, extracting mentions/links/media/topics, or rendering parsed content to HTML or custom formats.
+description: "Use this skill when working with @welshman/content: parsing nostr note content, extracting mentions/links/media/topics, or rendering parsed content to HTML or custom formats."
 ---
 
 # welshman/content — Note Content Parsing

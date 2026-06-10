@@ -1,6 +1,6 @@
 ---
 name: welshman-router
-description: Use this skill when working with @welshman/router: relay selection, routing strategies, scenario-based relay routing, or choosing which relays to use for reads/writes.
+description: "Use this skill when working with @welshman/router: relay selection, routing strategies, scenario-based relay routing, or choosing which relays to use for reads/writes."
 ---
 
 # welshman/router — Relay Selection
