@@ -1,22 +1,27 @@
-import {chunk, first} from "@welshman/lib"
+import {reject, nth, nthNe, nthEq, removeUndefined} from "@welshman/lib"
 import {
   RELAYS,
   RelayMode,
   asDecryptedEvent,
   readList,
   getRelaysFromList,
-  sortEventsDesc,
+  getRelayTags,
+  getListTags,
+  getRelayTagValues,
+  makeList,
+  makeEvent,
 } from "@welshman/util"
-import type {Filter, TrustedEvent, PublishedList} from "@welshman/util"
+import type {TrustedEvent, PublishedList} from "@welshman/util"
 import {RepositoryCollection} from "./repositoryCollection.js"
-import {Router, addMinimalFallbacks} from "./router.js"
-import {Networking} from "./networking.js"
+import {Router} from "./router.js"
+import {Network} from "./network.js"
+import {User} from "./user.js"
+import {Thunks} from "./thunk.js"
 import type {IClient} from "./client.js"
 
 /**
  * NIP-65 relay lists, keyed by pubkey. This is the routing substrate every other
- * outbox-model load depends on, so it also exposes `loadUsingOutbox` for other
- * collections to use as their fetcher.
+ * outbox-model load depends on (see `Network.loadUsingOutbox`).
  */
 export class RelayLists extends RepositoryCollection<PublishedList> {
   constructor(ctx: IClient) {
@@ -29,7 +34,7 @@ export class RelayLists extends RepositoryCollection<PublishedList> {
 
   fetch(pubkey: string, relayHints: string[] = []) {
     const filters = [{kinds: [RELAYS], authors: [pubkey], limit: 1}]
-    const networking = this.ctx.use(Networking)
+    const networking = this.ctx.use(Network)
     const router = this.ctx.use(Router)
 
     return Promise.all([
@@ -42,27 +47,68 @@ export class RelayLists extends RepositoryCollection<PublishedList> {
   getRelaysForPubkey = (pubkey: string, mode?: RelayMode) =>
     getRelaysFromList(this.get(pubkey), mode)
 
-  // Load a pubkey's events using their advertised write relays (outbox model),
-  // plus any explicit relay hints. This is the fetcher outbox-loaded collections
-  // (profiles, follows, mutes, …) delegate to — it's a stable method, so calling
-  // it doesn't build a fresh loader per call.
+  // NIP-65 relay-list mutations for the client's user
 
-  loadUsingOutbox = async (pubkey: string, filter: Filter = {}, relayHints: string[] = []) => {
-    const filters: Filter[] = [{...filter, authors: [pubkey]}]
-    const writeRelays = getRelaysFromList(await this.load(pubkey), RelayMode.Write)
-    const allRelays = this.ctx
-      .use(Router)
-      .FromRelays([...relayHints, ...writeRelays])
-      .policy(addMinimalFallbacks)
-      .limit(8)
+  addRelay = async (url: string, mode: RelayMode) => {
+    const user = User.require(this.ctx)
+    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: RELAYS})
+    const dup = getRelayTags(getListTags(list)).find(nthEq(1, url))
+    const tag = removeUndefined(["r", url, dup && dup[2] !== mode ? undefined : mode])
+    const tags = [...list.publicTags.filter(nthNe(1, url)), tag]
+    const event = {kind: list.kind, content: list.event?.content || "", tags}
+
+    return this.ctx.use(Thunks).publishToOutbox({event})
+  }
+
+  removeRelay = async (url: string, mode: RelayMode) => {
+    const user = User.require(this.ctx)
+    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: RELAYS})
+    const dup = getRelayTags(getListTags(list)).find(nthEq(1, url))
+    const alt = mode === RelayMode.Read ? RelayMode.Write : RelayMode.Read
+    const tags = list.publicTags.filter(nthNe(1, url))
+
+    // If we had a duplicate that was used as the alt mode, keep the alt
+    if (dup && (!dup[2] || dup[2] === alt)) {
+      tags.push(["r", url, alt])
+    }
+
+    const event = {kind: list.kind, content: list.event?.content || "", tags}
+
+    // Pass the old relay as an extra so it's notified of the removal too
+    return this.ctx.use(Thunks).publishToOutbox({event, relays: [url]})
+  }
+
+  setRelays = (tags: string[][]) => {
+    const router = this.ctx.use(Router)
+    const event = makeEvent(RELAYS, {tags})
+    const relays = router
+      .merge([router.Index(), router.FromRelays(getRelayTagValues(tags))])
       .getUrls()
 
-    for (const relays of chunk(2, allRelays)) {
-      const events = await this.ctx.use(Networking).load({filters, relays})
+    return this.ctx.use(Thunks).publish({event, relays})
+  }
 
-      if (events.length > 0) {
-        return first(sortEventsDesc(events))
-      }
-    }
+  setReadRelays = async (urls: string[]) => {
+    const user = User.require(this.ctx)
+    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: RELAYS})
+    const writeRelays = reject(nthEq(2, RelayMode.Read), getRelayTags(getListTags(list))).map(nth(1))
+    const writeTags = writeRelays.map(url => ["r", url, RelayMode.Write])
+    const readTags = urls.map(url => ["r", url, RelayMode.Read])
+    const tags = [...writeTags, ...readTags]
+    const event = {kind: list.kind, content: list.event?.content || "", tags}
+
+    return this.ctx.use(Thunks).publishToOutbox({event})
+  }
+
+  setWriteRelays = async (urls: string[]) => {
+    const user = User.require(this.ctx)
+    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: RELAYS})
+    const readRelays = reject(nthEq(2, RelayMode.Write), getRelayTags(getListTags(list))).map(nth(1))
+    const readTags = readRelays.map(url => ["r", url, RelayMode.Read])
+    const writeTags = urls.map(url => ["r", url, RelayMode.Write])
+    const tags = [...readTags, ...writeTags]
+    const event = {kind: list.kind, content: list.event?.content || "", tags}
+
+    return this.ctx.use(Thunks).publishToOutbox({event})
   }
 }

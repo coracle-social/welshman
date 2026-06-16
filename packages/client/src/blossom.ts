@@ -1,7 +1,7 @@
 import {BLOSSOM_SERVERS, asDecryptedEvent, readList} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {RepositoryCollection} from "./repositoryCollection.js"
-import {RelayLists} from "./relayLists.js"
+import {Network} from "./network.js"
 import type {IClient} from "./client.js"
 
 /**
@@ -18,6 +18,6 @@ export class BlossomServerLists extends RepositoryCollection<ReturnType<typeof r
   }
 
   fetch(pubkey: string, relayHints: string[] = []) {
-    return this.ctx.use(RelayLists).loadUsingOutbox(pubkey, {kinds: [BLOSSOM_SERVERS]}, relayHints)
+    return this.ctx.use(Network).loadUsingOutbox(pubkey, {kinds: [BLOSSOM_SERVERS]}, relayHints)
   }
 }

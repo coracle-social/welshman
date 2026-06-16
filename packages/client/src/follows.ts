@@ -1,7 +1,16 @@
-import {FOLLOWS, asDecryptedEvent, readList} from "@welshman/util"
+import {
+  FOLLOWS,
+  asDecryptedEvent,
+  readList,
+  makeList,
+  addToListPublicly,
+  removeFromList,
+} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {RepositoryCollection} from "./repositoryCollection.js"
-import {RelayLists} from "./relayLists.js"
+import {Network} from "./network.js"
+import {Thunks} from "./thunk.js"
+import {User} from "./user.js"
 import type {IClient} from "./client.js"
 
 /**
@@ -18,6 +27,22 @@ export class FollowLists extends RepositoryCollection<ReturnType<typeof readList
   }
 
   fetch(pubkey: string, relayHints: string[] = []) {
-    return this.ctx.use(RelayLists).loadUsingOutbox(pubkey, {kinds: [FOLLOWS]}, relayHints)
+    return this.ctx.use(Network).loadUsingOutbox(pubkey, {kinds: [FOLLOWS]}, relayHints)
+  }
+
+  follow = async (tag: string[]) => {
+    const user = User.require(this.ctx)
+    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: FOLLOWS})
+    const event = await addToListPublicly(list, tag).reconcile(user.nip44EncryptToSelf)
+
+    return this.ctx.use(Thunks).publishToOutbox({event})
+  }
+
+  unfollow = async (value: string) => {
+    const user = User.require(this.ctx)
+    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: FOLLOWS})
+    const event = await removeFromList(list, value).reconcile(user.nip44EncryptToSelf)
+
+    return this.ctx.use(Thunks).publishToOutbox({event})
   }
 }
