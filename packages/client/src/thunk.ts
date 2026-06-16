@@ -13,14 +13,15 @@ import {
 } from "@welshman/util"
 import {PublishStatus, PublishResult, PublishOptions, PublishResultsByRelay} from "@welshman/net"
 import {Nip01Signer, Nip59} from "@welshman/signer"
-import type {ClientContext} from './client.js'
-import type {User} from './user.js'
+import type {IClient} from "./client.js"
+import {Networking} from "./networking.js"
+import type {User} from "./user.js"
 
 export type ThunkOptions = Override<
   PublishOptions,
   {
     user: User
-    client: ClientContext
+    client: IClient
     event: EventTemplate
     recipient?: string
     delay?: number
@@ -111,7 +112,7 @@ export class Thunk {
     }
 
     // Send it off
-    await this.options.client.publish({
+    await this.options.client.use(Networking).publish({
       ...this.options,
       event,
       onSuccess: (result: PublishResult) => {

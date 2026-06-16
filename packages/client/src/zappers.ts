@@ -12,8 +12,8 @@ import {getTagValues, zapFromEvent} from "@welshman/util"
 import type {Zapper, Zap, TrustedEvent} from "@welshman/util"
 import {deriveDeduplicated} from "@welshman/store"
 import {LoadableData} from "./clientData.js"
-import type {ClientContext} from "./client.js"
-import type {Profiles} from "./profiles.js"
+import type {IClient} from "./client.js"
+import {Profiles} from "./profiles.js"
 
 /**
  * Lightning zapper info, keyed by lnurl. A "local" loadable collection: items
@@ -22,11 +22,7 @@ import type {Profiles} from "./profiles.js"
  * profiles collection to resolve a pubkey's lnurl.
  */
 export class Zappers extends LoadableData<Zapper> {
-  constructor(
-    ctx: ClientContext,
-    readonly profiles: Profiles,
-    readonly options: {dufflepudUrl?: string} = {},
-  ) {
+  constructor(ctx: IClient) {
     super(ctx)
   }
 
@@ -45,11 +41,11 @@ export class Zappers extends LoadableData<Zapper> {
     }
 
     // Use dufflepud if it's set up to protect user privacy, otherwise fetch directly
-    if (this.options.dufflepudUrl) {
+    if (this.ctx.config.dufflepudUrl) {
       const hexUrls = valid.map(bech32ToHex)
       const res: any = await tryCatch(
         async () =>
-          await postJson(`${this.options.dufflepudUrl}/zapper/info`, {lnurls: hexUrls}),
+          await postJson(`${this.ctx.config.dufflepudUrl}/zapper/info`, {lnurls: hexUrls}),
       )
 
       for (const {lnurl, info} of res?.data || []) {
@@ -71,7 +67,7 @@ export class Zappers extends LoadableData<Zapper> {
   })
 
   loadForPubkey = async (pubkey: string, relays: string[] = []) => {
-    const $profile = await this.profiles.load(pubkey, relays)
+    const $profile = await this.ctx.use(Profiles).load(pubkey, relays)
 
     return $profile?.lnurl ? this.load($profile.lnurl) : undefined
   }
@@ -80,7 +76,7 @@ export class Zappers extends LoadableData<Zapper> {
     this.loadForPubkey(pubkey, relays)
 
     return deriveDeduplicated(
-      [this.index, this.profiles.derive(pubkey, relays)],
+      [this.index, this.ctx.use(Profiles).derive(pubkey, relays)],
       ([$zappersByLnurl, $profile]) =>
         $profile?.lnurl ? $zappersByLnurl.get($profile.lnurl) : undefined,
     )
@@ -90,7 +86,7 @@ export class Zappers extends LoadableData<Zapper> {
     const pubkeys = getTagValues("zap", event.tags)
 
     if (pubkeys.length > 0) {
-      const profiles = await Promise.all(pubkeys.map(pubkey => this.profiles.load(pubkey)))
+      const profiles = await Promise.all(pubkeys.map(pubkey => this.ctx.use(Profiles).load(pubkey)))
       const lnurls = removeUndefined(profiles.map(profile => profile?.lnurl))
 
       if (lnurls.length > 0) {
@@ -98,7 +94,7 @@ export class Zappers extends LoadableData<Zapper> {
       }
     }
 
-    const profile = await this.profiles.load(event.pubkey)
+    const profile = await this.ctx.use(Profiles).load(event.pubkey)
 
     return removeUndefined([profile?.lnurl])
   }

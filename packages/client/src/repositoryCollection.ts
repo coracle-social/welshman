@@ -3,7 +3,8 @@ import type {Maybe} from "@welshman/lib"
 import type {Filter} from "@welshman/util"
 import {deriveItems, getter, makeLoadItem, makeForceLoadItem, makeDeriveItem} from "@welshman/store"
 import type {EventToItem, ItemsByKey, MakeLoadItemOptions} from "@welshman/store"
-import type {ClientContext} from "./client.js"
+import type {IClient} from "./client.js"
+import {Stores} from "./stores.js"
 
 export type RepositoryCollectionOptions<T> = {
   filters: Filter[]
@@ -19,7 +20,7 @@ export type RepositoryCollectionOptions<T> = {
  * `fetch` (how to load an item by key from the network) and pass the
  * filters/decoder via `super`.
  *
- * Like `ClientData`, subclasses depend only on the `ClientContext` seam.
+ * Like `ClientData`, subclasses depend only on the `IClient` seam.
  */
 export abstract class RepositoryCollection<T> {
   byKey: Readable<ItemsByKey<T>>
@@ -40,12 +41,12 @@ export abstract class RepositoryCollection<T> {
   abstract fetch(key: string, ...args: any[]): Promise<unknown>
 
   constructor(
-    protected readonly ctx: ClientContext,
+    protected readonly ctx: IClient,
     options: RepositoryCollectionOptions<T>,
   ) {
     const fetch = (key: string, ...args: any[]) => this.fetch(key, ...args)
 
-    this.byKey = ctx.deriveItemsByKey<T>({
+    this.byKey = ctx.use(Stores).deriveItemsByKey<T>({
       filters: options.filters,
       eventToItem: options.eventToItem,
       getKey: options.getKey,

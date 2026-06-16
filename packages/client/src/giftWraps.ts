@@ -1,37 +1,22 @@
 import {get, writable} from "svelte/store"
-import type {Unsubscriber} from "svelte/store"
-import {on, TaskQueue} from "@welshman/lib"
-import {WRAP, getPubkeyTagValues} from "@welshman/util"
+import {TaskQueue} from "@welshman/lib"
+import {getPubkeyTagValues} from "@welshman/util"
 import type {TrustedEvent, SignedEvent} from "@welshman/util"
 import {Nip59} from "@welshman/signer"
-import type {ClientContext} from "./client.js"
-
-export type GiftWrapsOptions = {
-  shouldUnwrap?: boolean
-}
+import type {IClient} from "./client.js"
 
 /**
- * Per-client gift-wrap (NIP-59) ingestion. Watches the client's repository for
- * kind-1059 wraps and unwraps the ones addressed to THIS client's user, storing
- * the resulting rumors via the wrap manager.
- *
- * In the old global model a single queue tried every logged-in account's signer
- * against every wrap, depositing all rumors into one shared repository — which
- * is exactly how DM history got merged across accounts. Here a client only ever
- * unwraps its own user's messages into its own repository.
+ * Per-client gift-wrap (NIP-59) state: the unwrap queue plus failure/dedup
+ * tracking. Scoped to `ctx.user`, so a client only ever unwraps its own user's
+ * messages into its own repository — which is what keeps DM history from being
+ * merged across identities. The repository subscription that feeds it lives in
+ * `clientPolicyGiftWraps`.
  */
 export class GiftWraps {
-  shouldUnwrap = writable(false)
   failedUnwraps = new Set<string>()
   queue: TaskQueue<TrustedEvent>
-  cleanup: Unsubscriber
 
-  constructor(
-    readonly ctx: ClientContext,
-    options: GiftWrapsOptions = {},
-  ) {
-    this.shouldUnwrap.set(options.shouldUnwrap ?? false)
-
+  constructor(readonly ctx: IClient) {
     this.queue = new TaskQueue<TrustedEvent>({
       batchSize: 5,
       batchDelay: 30,
@@ -53,23 +38,9 @@ export class GiftWraps {
         }
       },
     })
-
-    // Process wraps already in the repository, then any that arrive later
-    for (const wrap of this.ctx.repository.query([{kinds: [WRAP]}])) {
-      this.enqueue(wrap)
-    }
-
-    this.cleanup = on(this.ctx.repository, "update", ({added}: {added: TrustedEvent[]}) => {
-      for (const event of added) {
-        if (event.kind === WRAP) {
-          this.enqueue(event)
-        }
-      }
-    })
   }
 
   enqueue = (wrap: TrustedEvent) => {
-    if (!get(this.shouldUnwrap)) return
     if (this.failedUnwraps.has(wrap.id)) return
     if (this.ctx.wrapManager.getRumor(wrap.id)) return
 

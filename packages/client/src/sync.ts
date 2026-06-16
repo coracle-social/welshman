@@ -1,7 +1,8 @@
 import {isSignedEvent} from "@welshman/util"
 import type {Filter, SignedEvent} from "@welshman/util"
-import type {ClientContext} from "./client.js"
-import type {Relays} from "./relays.js"
+import type {IClient} from "./client.js"
+import {Networking} from "./networking.js"
+import {Relays} from "./relays.js"
 
 export type AppSyncOpts = {
   relays: string[]
@@ -12,19 +13,16 @@ export type AppSyncOpts = {
  * Negentropy-aware sync. Pulls/pushes events between the local repository and a
  * set of relays, using NIP-77 reconciliation where the relay supports it and
  * falling back to plain request/publish otherwise. Reads NIP-11 relay profiles
- * from the injected `Relays` collection to detect negentropy support.
+ * from the `Relays` collection to detect negentropy support.
  */
 export class Sync {
-  constructor(
-    readonly ctx: ClientContext,
-    readonly relays: Relays,
-  ) {}
+  constructor(readonly ctx: IClient) {}
 
   query = (filters: Filter[]) =>
     this.ctx.repository.query(filters, {shouldSort: filters.every(f => f.limit === undefined)})
 
   hasNegentropy = (url: string) => {
-    const relay = this.relays.get(url)
+    const relay = this.ctx.use(Relays).get(url)
 
     if (relay?.negentropy) return true
     if (relay?.supported_nips?.includes?.("77")) return true
@@ -34,27 +32,27 @@ export class Sync {
   }
 
   pull = async ({relays, filters}: AppSyncOpts) => {
+    const net = this.ctx.use(Networking)
     const events = this.query(filters).filter(isSignedEvent)
 
     await Promise.all(
       relays.map(async relay => {
         await (this.hasNegentropy(relay)
-          ? this.ctx.pull({filters, events, relays: [relay]})
-          : this.ctx.request({filters, relays: [relay], autoClose: true}))
+          ? net.pull({filters, events, relays: [relay]})
+          : net.request({filters, relays: [relay], autoClose: true}))
       }),
     )
   }
 
   push = async ({relays, filters}: AppSyncOpts) => {
+    const net = this.ctx.use(Networking)
     const events = this.query(filters).filter(isSignedEvent)
 
     await Promise.all(
       relays.map(async relay => {
         await (this.hasNegentropy(relay)
-          ? this.ctx.push({filters, events, relays: [relay]})
-          : Promise.all(
-              events.map((event: SignedEvent) => this.ctx.publish({event, relays: [relay]})),
-            ))
+          ? net.push({filters, events, relays: [relay]})
+          : Promise.all(events.map((event: SignedEvent) => net.publish({event, relays: [relay]}))))
       }),
     )
   }

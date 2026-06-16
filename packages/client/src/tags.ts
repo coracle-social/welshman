@@ -8,9 +8,9 @@ import {
   isShareableRelayUrl,
 } from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import type {Router} from "./router.js"
-import type {Profiles} from "./profiles.js"
-import type {ClientContext} from "./client.js"
+import {Router} from "./router.js"
+import {Profiles} from "./profiles.js"
+import type {IClient} from "./client.js"
 
 /**
  * Builders for nostr tags (p/e/a/q/zap/reply/comment/reaction). Needs the router
@@ -18,29 +18,25 @@ import type {ClientContext} from "./client.js"
  * user to avoid self-tagging.
  */
 export class Tags {
-  constructor(
-    readonly ctx: ClientContext,
-    readonly router: Router,
-    readonly profiles: Profiles,
-  ) {}
+  constructor(readonly ctx: IClient) {}
 
   tagZapSplit = (pubkey: string, split = 1) => [
     "zap",
     pubkey,
-    this.router.FromPubkey(pubkey).getUrl() || "",
+    this.ctx.use(Router).FromPubkey(pubkey).getUrl() || "",
     String(split),
   ]
 
   tagPubkey = (pubkey: string) => [
     "p",
     pubkey,
-    this.router.FromPubkey(pubkey).getUrl() || "",
-    this.profiles.display(pubkey),
+    this.ctx.use(Router).FromPubkey(pubkey).getUrl() || "",
+    this.ctx.use(Profiles).display(pubkey),
   ]
 
   tagEvent = (event: TrustedEvent, url = "", mark = "") => {
     if (!url) {
-      url = this.router.Event(event).getUrl() || ""
+      url = this.ctx.use(Router).Event(event).getUrl() || ""
     }
 
     const tags = [["e", event.id, url, mark, event.pubkey]]
@@ -58,7 +54,7 @@ export class Tags {
     ).map(pubkey => this.tagPubkey(pubkey))
 
   tagEventForQuote = (event: TrustedEvent, relay?: string) => {
-    const hint = relay || this.router.Event(event).getUrl() || ""
+    const hint = relay || this.ctx.use(Router).Event(event).getUrl() || ""
 
     return ["q", event.id, hint, event.pubkey]
   }
@@ -68,13 +64,13 @@ export class Tags {
     const {roots, replies} = getReplyTags(event.tags)
     const parents = roots.length > 0 ? roots : replies
     const mark = parents.length > 0 ? "reply" : "root"
-    const hint = relay || this.router.Event(event).getUrl() || ""
+    const hint = relay || this.ctx.use(Router).Event(event).getUrl() || ""
 
     // If the parent included roots use them, otherwise use replies as a fallback
     for (const [k, id, originalHint = "", _, pubkey = ""] of parents) {
       const hint = isShareableRelayUrl(originalHint)
         ? originalHint
-        : this.router.EventRoots(event).getUrl()
+        : this.ctx.use(Router).EventRoots(event).getUrl()
 
       tags.push([k, id, hint || "", "root", pubkey])
     }
@@ -91,8 +87,8 @@ export class Tags {
   }
 
   tagEventForComment = (event: TrustedEvent, relay?: string) => {
-    const pubkeyHint = this.router.FromPubkey(event.pubkey).getUrl() || ""
-    const eventHint = relay || this.router.Event(event).getUrl() || ""
+    const pubkeyHint = this.ctx.use(Router).FromPubkey(event.pubkey).getUrl() || ""
+    const eventHint = relay || this.ctx.use(Router).Event(event).getUrl() || ""
     const address = getAddress(event)
     const seenRoots = new Set<string>()
     const tags: string[][] = []
@@ -126,7 +122,7 @@ export class Tags {
   }
 
   tagEventForReaction = (event: TrustedEvent, relay?: string) => {
-    const hint = relay || this.router.Event(event).getUrl() || ""
+    const hint = relay || this.ctx.use(Router).Event(event).getUrl() || ""
     const tags: string[][] = []
 
     // Mention the event's author

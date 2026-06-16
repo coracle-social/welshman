@@ -11,53 +11,13 @@ import {
   RelayMode,
 } from "@welshman/util"
 import type {TrustedEvent, Filter} from "@welshman/util"
-import type {ClientContext} from "./client.js"
+import type {IClient} from "./client.js"
+import {RelayLists} from "./relayLists.js"
+import {RelayStats} from "./relayStats.js"
 
 export type RelaysAndFilters = {
   relays: string[]
   filters: Filter[]
-}
-
-export type RouterOptions = {
-  /**
-   * Retrieves default relays, for use as fallbacks when no other relays can be selected.
-   * @returns An array of relay URLs as strings.
-   */
-  getDefaultRelays?: () => string[]
-
-  /**
-   * Retrieves relays that index profiles and relay selections.
-   * @returns An array of relay URLs as strings.
-   */
-  getIndexerRelays?: () => string[]
-
-  /**
-   * Retrieves relays likely to support NIP-50 search.
-   * @returns An array of relay URLs as strings.
-   */
-  getSearchRelays?: () => string[]
-
-  /**
-   * Retrieves the limit setting, which is the maximum number of relays that should be
-   * returned from getUrls and getSelections.
-   * @returns The limit setting as a number.
-   */
-  getLimit?: () => number
-
-  /**
-   * Retrieves a pubkey's relays for a given mode. Injected (rather than read off
-   * a relay-list module directly) so the router has no dependency on its sibling
-   * data modules. See `createApp`.
-   * @returns An array of relay URLs as strings.
-   */
-  getRelaysForPubkey?: (pubkey: string, mode?: RelayMode) => string[]
-
-  /**
-   * Scores a relay url for ranking (higher is better). Injected so the router
-   * doesn't depend on the relay-stats module.
-   * @returns A quality score, typically between 0 and 1.
-   */
-  getRelayQuality?: (url: string) => number
 }
 
 export type Selection = {
@@ -83,15 +43,12 @@ export const addMaximalFallbacks = (count: number, limit: number) => limit - cou
 // Router class
 
 export class Router {
-  constructor(
-    readonly ctx: ClientContext,
-    readonly options: RouterOptions,
-  ) {}
+  constructor(readonly ctx: IClient) {}
 
-  // Utilities derived from options
+  // Utilities derived from the relay-list collection and client config
 
   getRelaysForPubkey = (pubkey: string, mode?: RelayMode) =>
-    this.options.getRelaysForPubkey?.(pubkey, mode) || []
+    this.ctx.use(RelayLists).getRelaysForPubkey(pubkey, mode)
 
   getRelaysForPubkeys = (pubkeys: string[], mode?: RelayMode) =>
     pubkeys.map(pubkey => this.getRelaysForPubkey(pubkey, mode))
@@ -113,11 +70,11 @@ export class Router {
 
   FromRelays = (relays: string[]) => this.scenario([makeSelection(relays)])
 
-  Search = () => this.FromRelays(this.options.getSearchRelays?.() || [])
+  Search = () => this.FromRelays(this.ctx.config.getSearchRelays?.() || [])
 
-  Index = () => this.FromRelays(this.options.getIndexerRelays?.() || [])
+  Index = () => this.FromRelays(this.ctx.config.getIndexerRelays?.() || [])
 
-  Default = () => this.FromRelays(this.options.getDefaultRelays?.() || [])
+  Default = () => this.FromRelays(this.ctx.config.getDefaultRelays?.() || [])
 
   ForUser = () => this.FromRelays(this.getRelaysForUser(RelayMode.Read))
 
@@ -251,9 +208,9 @@ export class RouterScenario {
   weight = (scale: number) =>
     this.update(selection => ({...selection, weight: selection.weight * scale}))
 
-  getPolicy = () => this.options.policy || addNoFallbacks
+  getPolicy = () => this.options.policy ?? addNoFallbacks
 
-  getLimit = () => this.options.limit || this.router.options.getLimit?.() || 3
+  getLimit = () => this.options.limit ?? 3
 
   getUrls = () => {
     const limit = this.getLimit()
@@ -274,7 +231,7 @@ export class RouterScenario {
 
     const scoreRelay = (relay: string) => {
       const weight = relayWeights.get(relay)!
-      const quality = this.router.options.getRelayQuality?.(relay) ?? 1
+      const quality = this.router.ctx.use(RelayStats).getQuality(relay)
 
       // Log the weight, since it's a straight count which ends up over-weighting hubs.
       // Also add some random noise so that we'll occasionally pick lower quality/less
@@ -288,7 +245,7 @@ export class RouterScenario {
     )
 
     const fallbacksNeeded = fallbackPolicy(relays.length, limit)
-    const allFallbackRelays: string[] = this.router.options.getDefaultRelays?.() || []
+    const allFallbackRelays: string[] = this.router.ctx.config.getDefaultRelays?.() || []
     const fallbackRelays = shuffle(allFallbackRelays).slice(0, fallbacksNeeded)
 
     for (const fallbackRelay of fallbackRelays) {

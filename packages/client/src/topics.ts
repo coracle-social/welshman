@@ -3,7 +3,7 @@ import type {Readable} from "svelte/store"
 import {on} from "@welshman/lib"
 import {getTopicTagValues} from "@welshman/util"
 import {deriveItems} from "@welshman/store"
-import type {ClientContext} from "./client.js"
+import type {IClient} from "./client.js"
 
 export type Topic = {
   name: string
@@ -18,7 +18,7 @@ export class Topics {
   byName: Readable<Map<string, Topic>>
   all: Readable<Topic[]>
 
-  constructor(readonly ctx: ClientContext) {
+  constructor(readonly ctx: IClient) {
     const topicsByName = new Map<string, Topic>()
 
     const addTopic = (name: string) => {
