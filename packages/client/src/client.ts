@@ -1,7 +1,7 @@
 import type {Unsubscriber} from "svelte/store"
 import {call} from "@welshman/lib"
 import {Pool, Socket, Tracker, Repository, WrapManager, defaultSocketPolicies} from "@welshman/net"
-import type {AdapterContext, AdapterFactory, SocketPolicy} from "@welshman/net"
+import type {NetContext, AdapterFactory, SocketPolicy} from "@welshman/net"
 import type {User} from "./user.js"
 import type {ClientPolicy} from "./policies.js"
 
@@ -24,7 +24,7 @@ export interface IClient {
   user?: User
   config: ClientConfig
   use: <T>(Ctor: new (ctx: IClient) => T) => T
-  netContext: AdapterContext
+  netContext: NetContext
   pool: Pool
   tracker: Tracker
   repository: Repository
@@ -40,7 +40,7 @@ export interface IClient {
 export class Client implements IClient {
   user?: User
   config: ClientConfig
-  netContext: AdapterContext
+  netContext: NetContext
   pool: Pool
   tracker: Tracker
   repository: Repository

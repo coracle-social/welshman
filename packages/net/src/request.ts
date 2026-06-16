@@ -15,6 +15,7 @@ import {
   unionFilters,
   matchFilters,
   TrustedEvent,
+  verifyEvent,
   deduplicateEvents,
   getFilterResultCardinality,
 } from "@welshman/util"
@@ -27,7 +28,6 @@ import {
 } from "./message.js"
 import {getAdapter, AdapterContext, AdapterEvent} from "./adapter.js"
 import {SocketEvent, SocketStatus} from "./socket.js"
-import {netContext} from "./context.js"
 import {Tracker} from "./tracker.js"
 
 export type BaseRequestOptions = {
@@ -36,7 +36,6 @@ export type BaseRequestOptions = {
   context?: AdapterContext
   autoClose?: boolean
   isEventValid?: (event: TrustedEvent, url: string) => boolean
-  isEventDeleted?: (event: TrustedEvent, url: string) => boolean
   onEvent?: (event: TrustedEvent, url: string) => void
   onDeleted?: (event: unknown, url: string) => void
   onInvalid?: (event: unknown, url: string) => void
@@ -60,8 +59,8 @@ export const requestOne = (options: RequestOneOptions) => {
   const deferred = defer<TrustedEvent[]>()
   const tracker = options.tracker || new Tracker()
   const adapter = getAdapter(options.relay, options.context)
-  const isEventValid = options.isEventValid || netContext.isEventValid
-  const isEventDeleted = options.isEventDeleted || netContext.isEventDeleted
+  const isEventValid: (event: TrustedEvent, url: string) => boolean =
+    options.isEventValid || (event => verifyEvent(event))
 
   let closed = false
 
@@ -88,7 +87,7 @@ export const requestOne = (options: RequestOneOptions) => {
         if (ids.has(id)) {
           if (tracker.track(event.id, url)) {
             options.onDuplicate?.(event, url)
-          } else if (isEventDeleted(event, url)) {
+          } else if (options.context?.repository?.isDeleted(event)) {
             options.onDeleted?.(event, url)
           } else if (!isEventValid(event, url)) {
             options.onInvalid?.(event, url)
@@ -216,7 +215,6 @@ export type LoaderOptions = {
   threshold?: number
   context?: AdapterContext
   isEventValid?: (event: TrustedEvent, url: string) => boolean
-  isEventDeleted?: (event: TrustedEvent, url: string) => boolean
 }
 
 export type LoadOptions = {
@@ -320,7 +318,6 @@ export const makeLoader = (options: LoaderOptions) =>
         signal: signalsByRelay.get(relay),
         context: options.context,
         isEventValid: options.isEventValid,
-        isEventDeleted: options.isEventDeleted,
         onEvent: (event: TrustedEvent, url: string) => {
           for (const request of getOpenRequests()) {
             if (matchFilters(request.filters, event)) {

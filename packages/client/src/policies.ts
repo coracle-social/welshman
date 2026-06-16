@@ -1,8 +1,8 @@
 import type {Unsubscriber} from "svelte/store"
 import {on} from "@welshman/lib"
-import {WRAP, isDVMKind, isEphemeralKind} from "@welshman/util"
+import {WRAP, isDVMKind, isEphemeralKind, verifyEvent} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {SocketEvent, netContext, isRelayEvent} from "@welshman/net"
+import {SocketEvent, isRelayEvent} from "@welshman/net"
 import type {RelayMessage} from "@welshman/net"
 import type {IClient} from "./client.js"
 import {RelayStats} from "./relayStats.js"
@@ -30,7 +30,7 @@ export const clientPolicyIngest: ClientPolicy = client =>
       const event = message[2]
 
       if (isDVMKind(event.kind) || isEphemeralKind(event.kind)) return
-      if (!netContext.isEventValid(event, socket.url)) return
+      if (!verifyEvent(event)) return
 
       client.tracker.track(event.id, socket.url)
       client.repository.publish(event)
