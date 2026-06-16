@@ -18,6 +18,6 @@ export class BlossomServerLists extends RepositoryCollection<ReturnType<typeof r
   }
 
   fetch(pubkey: string, relayHints: string[] = []) {
-    return this.ctx.use(RelayLists).makeOutboxLoader(BLOSSOM_SERVERS)(pubkey, relayHints)
+    return this.ctx.use(RelayLists).loadUsingOutbox(pubkey, {kinds: [BLOSSOM_SERVERS]}, relayHints)
   }
 }

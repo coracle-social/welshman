@@ -33,6 +33,6 @@ export class MuteLists extends RepositoryCollection<PublishedList> {
   }
 
   fetch(pubkey: string, relayHints: string[] = []) {
-    return this.ctx.use(RelayLists).makeOutboxLoader(MUTES)(pubkey, relayHints)
+    return this.ctx.use(RelayLists).loadUsingOutbox(pubkey, {kinds: [MUTES]}, relayHints)
   }
 }

@@ -345,4 +345,4 @@ export const makeLoader = (options: LoaderOptions) =>
     return allRequests.map(r => resultsByRequest.get(r) || [])
   }) as Loader
 
-export const load = makeLoader({delay: 200, timeout: 3000, threshold: 0.5})
+export const load = makeLoader({delay: 30, timeout: 3000, threshold: 0.5})
