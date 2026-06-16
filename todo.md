@@ -1,5 +1,0 @@
-- [ ] domain package
-- [ ] client package
-- [ ] storage package
-  - [ ] provide an interface which client can use to save/load
-  - [ ] don't implement anything unless in separate packages

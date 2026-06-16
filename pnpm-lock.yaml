@@ -110,6 +110,52 @@ importers:
         specifier: ~5.8.0
         version: 5.8.2
 
+  packages/client:
+    dependencies:
+      fuse.js:
+        specifier: ^7.0.0
+        version: 7.1.0
+      throttle-debounce:
+        specifier: ^5.0.2
+        version: 5.0.2
+    devDependencies:
+      '@pomade/core':
+        specifier: ^0.2.1
+        version: 0.2.1(@frostr/bifrost@1.0.7(typescript@5.8.2))(@noble/hashes@2.0.1)(@welshman/lib@packages+lib)(@welshman/net@packages+net)(@welshman/signer@packages+signer)(@welshman/util@packages+util)(nostr-tools@2.19.4(typescript@5.8.2))
+      '@types/throttle-debounce':
+        specifier: ^5.0.2
+        version: 5.0.2
+      '@welshman/feeds':
+        specifier: workspace:*
+        version: link:../feeds
+      '@welshman/lib':
+        specifier: workspace:*
+        version: link:../lib
+      '@welshman/net':
+        specifier: workspace:*
+        version: link:../net
+      '@welshman/router':
+        specifier: workspace:*
+        version: link:../router
+      '@welshman/signer':
+        specifier: workspace:*
+        version: link:../signer
+      '@welshman/store':
+        specifier: workspace:*
+        version: link:../store
+      '@welshman/util':
+        specifier: workspace:*
+        version: link:../util
+      rimraf:
+        specifier: ~6.0.0
+        version: 6.0.1
+      svelte:
+        specifier: ^5.39.12
+        version: 5.46.3
+      typescript:
+        specifier: ~5.8.0
+        version: 5.8.2
+
   packages/content:
     dependencies:
       '@braintree/sanitize-url':

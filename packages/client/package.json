@@ -3,7 +3,7 @@
   "version": "0.8.13",
   "author": "hodlbod",
   "license": "MIT",
-  "description": "A client god-object for building nostr applications",
+  "description": "An instance-based, composable client for building nostr applications",
   "publishConfig": {
     "access": "public"
   },
