@@ -1,9 +1,9 @@
 import type {Unsubscriber} from "svelte/store"
-import {on} from "@welshman/lib"
+import {on, noop, always} from "@welshman/lib"
 import {WRAP, isDVMKind, isEphemeralKind, verifyEvent} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {SocketEvent, isRelayEvent} from "@welshman/net"
-import type {RelayMessage} from "@welshman/net"
+import {SocketEvent, isRelayEvent, makeSocketPolicyAuth} from "@welshman/net"
+import type {RelayMessage, Socket} from "@welshman/net"
 import type {IClient} from "./client.js"
 import {RelayStats} from "./relayStats.js"
 import {GiftWraps} from "./giftWraps.js"
@@ -16,6 +16,41 @@ import {GiftWraps} from "./giftWraps.js"
  * pure and free of subscriptions, and teardown is centralized in `cleanup()`.
  */
 export type ClientPolicy = (client: IClient) => Unsubscriber
+
+/**
+ * Builds a client policy that authenticates the client's sockets (NIP-42) with
+ * the user's signer. It appends an auth socket policy to the pool's
+ * `socketPolicies`, so every socket the pool creates answers AUTH challenges
+ * according to `shouldAuth`; the policy is spliced back out on cleanup. No-op
+ * when the client has no user.
+ *
+ * Use the `clientPolicyAuthAlways` / `clientPolicyAuthNever` presets below, or
+ * call this with a custom predicate.
+ */
+export const makeClientPolicyAuth =
+  (shouldAuth: (socket: Socket) => boolean): ClientPolicy =>
+  client => {
+    if (!client.user) {
+      return noop
+    }
+
+    const {sign} = client.user.signer
+    const policy = makeSocketPolicyAuth({sign, shouldAuth})
+
+    client.pool.socketPolicies.push(policy)
+
+    return () => {
+      const index = client.pool.socketPolicies.indexOf(policy)
+
+      if (index !== -1) {
+        client.pool.socketPolicies.splice(index, 1)
+      }
+    }
+  }
+
+export const clientPolicyAuthNever = makeClientPolicyAuth(always(false))
+
+export const clientPolicyAuthAlways = makeClientPolicyAuth(always(true))
 
 /**
  * Ingests every event received on any socket into the client's repository. The

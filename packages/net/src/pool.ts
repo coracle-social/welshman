@@ -5,26 +5,13 @@ import {defaultSocketPolicies} from "./policy.js"
 
 export type PoolSubscription = (socket: Socket) => void
 
-export type PoolOptions = {
-  makeSocket?: (url: string) => Socket
-}
-
 export class Pool {
+  socketPolicies = [...defaultSocketPolicies]
   _data = new Map<string, Socket>()
   _subs: PoolSubscription[] = []
 
-  constructor(readonly options: PoolOptions = {}) {}
-
   has(url: string) {
     return this._data.has(normalizeRelayUrl(url))
-  }
-
-  makeSocket(url: string) {
-    if (this.options.makeSocket) {
-      return this.options.makeSocket(url)
-    }
-
-    return new Socket(url, defaultSocketPolicies)
   }
 
   get(_url: string): Socket {
@@ -35,7 +22,7 @@ export class Pool {
       return socket
     }
 
-    const newSocket = this.makeSocket(url)
+    const newSocket = new Socket(url, this.socketPolicies)
 
     this._data.set(url, newSocket)
 

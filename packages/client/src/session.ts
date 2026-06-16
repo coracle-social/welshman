@@ -13,7 +13,6 @@ import {
 } from "@welshman/signer"
 import type {ISigner} from "@welshman/signer"
 import {User} from "./user.js"
-import type {UserOptions} from "./user.js"
 
 /**
  * Session descriptors and the signer construction that turns them into a
@@ -214,36 +213,32 @@ export const getSigner = (session?: Session): ISigner | undefined => {
  * for sessions that can't sign (e.g. read-only Pubkey or Anonymous). Pass the
  * result to `new Client({user})` / `createApp({user})`.
  */
-export const userFromSession = (session: Session, options: UserOptions = {}): User | undefined => {
+export const userFromSession = (session: Session): User | undefined => {
   const signer = getSigner(session)
 
   return signer && typeof session.pubkey === "string"
-    ? new User(session.pubkey, signer, options)
+    ? new User(session.pubkey, signer)
     : undefined
 }
 
 // Login helpers — each returns a User to build a client/app with
 
-export const loginWithNip01 = (secret: string, options?: UserOptions) =>
-  userFromSession(makeNip01Session(secret), options)
+export const loginWithNip01 = (secret: string) => userFromSession(makeNip01Session(secret))
 
-export const loginWithNip07 = (pubkey: string, options?: UserOptions) =>
-  userFromSession(makeNip07Session(pubkey), options)
+export const loginWithNip07 = (pubkey: string) => userFromSession(makeNip07Session(pubkey))
 
 export const loginWithNip46 = (
   pubkey: string,
   clientSecret: string,
   signerPubkey: string,
   relays: string[],
-  options?: UserOptions,
-) => userFromSession(makeNip46Session(pubkey, clientSecret, signerPubkey, relays), options)
+) => userFromSession(makeNip46Session(pubkey, clientSecret, signerPubkey, relays))
 
-export const loginWithNip55 = (pubkey: string, signer: string, options?: UserOptions) =>
-  userFromSession(makeNip55Session(pubkey, signer), options)
+export const loginWithNip55 = (pubkey: string, signer: string) =>
+  userFromSession(makeNip55Session(pubkey, signer))
 
 export const loginWithPomade = (
   pubkey: string,
   email: string,
   clientOptions: PomadeClientOptions,
-  options?: UserOptions,
-) => userFromSession(makePomadeSession(pubkey, email, clientOptions), options)
+) => userFromSession(makePomadeSession(pubkey, email, clientOptions))

@@ -1,7 +1,7 @@
 import type {Unsubscriber} from "svelte/store"
 import {call} from "@welshman/lib"
-import {Pool, Socket, Tracker, Repository, WrapManager, defaultSocketPolicies} from "@welshman/net"
-import type {NetContext, AdapterFactory, SocketPolicy} from "@welshman/net"
+import {Pool, Tracker, Repository, WrapManager} from "@welshman/net"
+import type {NetContext, AdapterFactory} from "@welshman/net"
 import type {User} from "./user.js"
 import type {ClientPolicy} from "./policies.js"
 
@@ -16,7 +16,6 @@ export type ClientOptions = {
   user?: User
   config?: ClientConfig
   getAdapter?: AdapterFactory
-  socketPolicies?: SocketPolicy[]
   policies?: ClientPolicy[]
 }
 
@@ -46,26 +45,13 @@ export class Client implements IClient {
   repository: Repository
   wrapManager: WrapManager
 
-  // Per-client singletons of data modules, keyed by constructor. Owned by the
-  // client (so it's GC'd with the client — no WeakMap needed), this is what
-  // `use` memoizes against.
   private singletons = new Map<Function, unknown>()
-  private policyCleanups: Unsubscriber[] = []
+  private unsubscribers: Unsubscriber[] = []
 
   constructor(options: ClientOptions = {}) {
     this.user = options.user
     this.config = options.config ?? {}
-    this.pool = new Pool({
-      makeSocket: (url: string) => {
-        let socketPolicies = options.socketPolicies ?? defaultSocketPolicies
-
-        if (this.user) {
-          socketPolicies = [...socketPolicies, this.user.makeSocketPolicyAuth()]
-        }
-
-        return new Socket(url, socketPolicies)
-      },
-    })
+    this.pool = new Pool()
     this.tracker = new Tracker()
     this.repository = new Repository()
     this.wrapManager = new WrapManager({
@@ -78,9 +64,9 @@ export class Client implements IClient {
       getAdapter: options.getAdapter,
     }
 
-    // Apply policies last, once the primitives and `use` registry exist. They
-    // own all side effects; their cleanups run on `cleanup()`.
-    this.policyCleanups = (options.policies ?? []).map(policy => policy(this))
+    for (const policy of options.policies ?? []) {
+      this.unsubscribers.push(policy(this))
+    }
   }
 
   // Resolve the per-client singleton of a data module, constructing it on first
@@ -97,7 +83,7 @@ export class Client implements IClient {
   }
 
   cleanup() {
-    this.policyCleanups.forEach(call)
+    this.unsubscribers.forEach(call)
     this.pool.clear()
     this.tracker.clear()
     this.repository.clear()
