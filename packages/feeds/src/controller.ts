@@ -159,6 +159,7 @@ export class FeedController {
       await requestPage(
         omitVals([undefined], {
           relays,
+          router: this.options.router,
           autoClose: true,
           filters: trimFilters(requestFilters),
           signal: this.options.signal,
@@ -360,6 +361,7 @@ export class FeedController {
       requestPage(
         omitVals([undefined], {
           relays,
+          router: this.options.router,
           signal,
           onEvent: (event: TrustedEvent) => onEvent?.(event),
           filters: trimFilters(requestFilters),

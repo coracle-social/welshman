@@ -2,6 +2,7 @@ import {Scope, FeedController} from "@welshman/feeds"
 import type {FeedControllerOptions, Feed} from "@welshman/feeds"
 import type {AdapterContext} from "@welshman/net"
 import type {IClient} from "./client.js"
+import {Router} from "./router.js"
 import {Wot} from "./wot.js"
 
 export type MakeFeedControllerOptions = Partial<Omit<FeedControllerOptions, "feed">> & {feed: Feed}
@@ -58,6 +59,7 @@ export class Feeds {
 
   makeFeedController = (options: MakeFeedControllerOptions) =>
     new FeedController({
+      router: this.ctx.use(Router),
       getPubkeysForScope: this.getPubkeysForScope,
       getPubkeysForWOTRange: this.getPubkeysForWOTRange,
       signer: this.ctx.user?.signer,

@@ -10,6 +10,7 @@ import {
 } from "@welshman/util"
 import {ISigner} from "@welshman/signer"
 import {AdapterContext} from "@welshman/net"
+import type {Router} from "@welshman/router"
 import {
   CreatedAtItem,
   RequestItem,
@@ -25,6 +26,7 @@ import {getFeedArgs, feedsFromTags} from "./utils.js"
 import {requestPage, requestDVM} from "./request.js"
 
 export type FeedCompilerOptions = {
+  router: Router
   signer?: ISigner
   signal?: AbortSignal
   context?: AdapterContext
@@ -157,6 +159,7 @@ export class FeedCompiler {
       items.map(({mappings, ...request}) =>
         requestDVM({
           ...request,
+          router: this.options.router,
           signer: this.options.signer,
           context: this.options.context,
           onResult: async (e: TrustedEvent) => {
@@ -267,6 +270,7 @@ export class FeedCompiler {
     const eventsByAddress = new Map<string, TrustedEvent>()
 
     await requestPage({
+      router: this.options.router,
       autoClose: true,
       signal: this.options.signal,
       context: this.options.context,
@@ -304,6 +308,7 @@ export class FeedCompiler {
       labelItems.map(({mappings, relays, ...filter}) =>
         requestPage({
           relays,
+          router: this.options.router,
           autoClose: true,
           signal: this.options.signal,
           context: this.options.context,
