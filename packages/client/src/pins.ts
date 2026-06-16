@@ -18,6 +18,6 @@ export class PinLists extends RepositoryCollection<ReturnType<typeof readList>> 
   }
 
   fetch(pubkey: string, relayHints: string[] = []) {
-    return this.ctx.use(RelayLists).makeOutboxLoader(PINS)(pubkey, relayHints)
+    return this.ctx.use(RelayLists).loadUsingOutbox(pubkey, {kinds: [PINS]}, relayHints)
   }
 }

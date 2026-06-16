@@ -18,7 +18,7 @@ export class Profiles extends RepositoryCollection<ReturnType<typeof readProfile
   }
 
   fetch(pubkey: string, relayHints: string[] = []) {
-    return this.ctx.use(RelayLists).makeOutboxLoader(PROFILE)(pubkey, relayHints)
+    return this.ctx.use(RelayLists).loadUsingOutbox(pubkey, {kinds: [PROFILE]}, relayHints)
   }
 
   display = (pubkey: string | undefined) =>

@@ -19,7 +19,7 @@ export class BlockedRelayLists extends RepositoryCollection<ReturnType<typeof re
   }
 
   fetch(pubkey: string, relayHints: string[] = []) {
-    return this.ctx.use(RelayLists).makeOutboxLoader(BLOCKED_RELAYS)(pubkey, relayHints)
+    return this.ctx.use(RelayLists).loadUsingOutbox(pubkey, {kinds: [BLOCKED_RELAYS]}, relayHints)
   }
 
   getBlockedRelays = (pubkey: string) => getRelaysFromList(this.get(pubkey))

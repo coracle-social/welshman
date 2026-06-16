@@ -18,6 +18,6 @@ export class FollowLists extends RepositoryCollection<ReturnType<typeof readList
   }
 
   fetch(pubkey: string, relayHints: string[] = []) {
-    return this.ctx.use(RelayLists).makeOutboxLoader(FOLLOWS)(pubkey, relayHints)
+    return this.ctx.use(RelayLists).loadUsingOutbox(pubkey, {kinds: [FOLLOWS]}, relayHints)
   }
 }

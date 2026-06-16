@@ -19,6 +19,6 @@ export class SearchRelayLists extends RepositoryCollection<ReturnType<typeof rea
   }
 
   fetch(pubkey: string, relayHints: string[] = []) {
-    return this.ctx.use(RelayLists).makeOutboxLoader(SEARCH_RELAYS)(pubkey, relayHints)
+    return this.ctx.use(RelayLists).loadUsingOutbox(pubkey, {kinds: [SEARCH_RELAYS]}, relayHints)
   }
 }
