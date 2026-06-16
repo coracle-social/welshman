@@ -2,7 +2,6 @@ import {
   nth,
   uniq,
   intersection,
-  mergeLeft,
   first,
   clamp,
   sortBy,
@@ -28,14 +27,10 @@ import {
   normalizeRelayUrl,
   TrustedEvent,
   Filter,
-  readList,
   getAncestorTags,
-  asDecryptedEvent,
-  getRelaysFromList,
   getPubkeyTags,
   RelayMode,
 } from "@welshman/util"
-import {Repository} from "@welshman/net"
 
 export const INDEXED_KINDS = [PROFILE, RELAYS, MESSAGING_RELAYS, FOLLOWS]
 
@@ -114,30 +109,8 @@ export const addMaximalFallbacks = (count: number, limit: number) => limit - cou
 
 // Router class
 
-export const routerContext: RouterOptions = {
-  getPubkeyRelays: (pubkey: string, mode?: RelayMode) => {
-    return uniq(
-      Repository.get()
-        .query([{kinds: [RELAYS], authors: [pubkey]}])
-        .flatMap(event => getRelaysFromList(readList(asDecryptedEvent(event)), mode)),
-    )
-  },
-}
-
 export class Router {
-  readonly options: RouterOptions
-
-  static configure(options: RouterOptions) {
-    Object.assign(routerContext, options)
-  }
-
-  static get() {
-    return new Router(routerContext)
-  }
-
-  constructor(options: RouterOptions) {
-    this.options = mergeLeft(options, routerContext)
-  }
+  constructor(readonly options: RouterOptions) {}
 
   // Utilities derived from options
 
@@ -357,58 +330,58 @@ export class RouterScenario {
 
 type FilterScenario = {filter: Filter; scenario: RouterScenario}
 
-type FilterSelectionRule = (filter: Filter) => FilterScenario[]
+type FilterSelectionRule = (filter: Filter, router: Router) => FilterScenario[]
 
-export const getFilterSelectionsForSearch = (filter: Filter) => {
+export const getFilterSelectionsForSearch = (filter: Filter, router: Router) => {
   if (!filter.search) return []
 
-  const relays = routerContext.getSearchRelays?.() || []
+  const relays = router.options.getSearchRelays?.() || []
 
-  return [{filter, scenario: Router.get().FromRelays(relays).weight(10)}]
+  return [{filter, scenario: router.FromRelays(relays).weight(10)}]
 }
 
-export const getFilterSelectionsForWraps = (filter: Filter) => {
+export const getFilterSelectionsForWraps = (filter: Filter, router: Router) => {
   if (!filter.kinds?.includes(WRAP) || filter.authors) return []
 
   return [
     {
       filter: {...filter, kinds: [WRAP]},
-      scenario: Router.get().MessagesForUser(),
+      scenario: router.MessagesForUser(),
     },
   ]
 }
 
-export const getFilterSelectionsForIndexedKinds = (filter: Filter) => {
+export const getFilterSelectionsForIndexedKinds = (filter: Filter, router: Router) => {
   const kinds = intersection(INDEXED_KINDS, filter.kinds || [])
 
   if (kinds.length === 0) return []
 
-  const relays = routerContext.getIndexerRelays?.() || []
+  const relays = router.options.getIndexerRelays?.() || []
 
   return [
     {
       filter: {...filter, kinds},
-      scenario: Router.get().FromRelays(relays),
+      scenario: router.FromRelays(relays),
     },
   ]
 }
 
-export const getFilterSelectionsForAuthors = (filter: Filter) => {
+export const getFilterSelectionsForAuthors = (filter: Filter, router: Router) => {
   if (!filter.authors) return []
 
   const chunkCount = clamp([1, 30], Math.round(filter.authors.length / 30))
 
   return chunks(chunkCount, filter.authors).map(authors => ({
     filter: {...filter, authors},
-    scenario: Router.get().FromPubkeys(authors),
+    scenario: router.FromPubkeys(authors),
   }))
 }
 
-export const getFilterSelectionsForUser = (filter: Filter) => [
-  {filter, scenario: Router.get().ForUser().weight(0.2)},
+export const getFilterSelectionsForUser = (filter: Filter, router: Router) => [
+  {filter, scenario: router.ForUser().weight(0.2)},
 ]
 
-export const defaultFilterSelectionRules = [
+export const defaultFilterSelectionRules: FilterSelectionRule[] = [
   getFilterSelectionsForSearch,
   getFilterSelectionsForWraps,
   getFilterSelectionsForIndexedKinds,
@@ -418,13 +391,14 @@ export const defaultFilterSelectionRules = [
 
 export const getFilterSelections = (
   filters: Filter[],
+  router: Router,
   rules: FilterSelectionRule[] = defaultFilterSelectionRules,
 ): RelaysAndFilters[] => {
   const filtersById = new Map<string, Filter>()
   const scenariosById = new Map<string, RouterScenario[]>()
 
   for (const filter of filters) {
-    for (const filterScenario of rules.flatMap(rule => rule(filter))) {
+    for (const filterScenario of rules.flatMap(rule => rule(filter, router))) {
       const id = getFilterId(filterScenario.filter)
 
       filtersById.set(id, filterScenario.filter)
@@ -435,9 +409,7 @@ export const getFilterSelections = (
   const result = []
 
   for (const [id, filter] of filtersById.entries()) {
-    const scenario = Router.get()
-      .merge(scenariosById.get(id) || [])
-      .policy(addMinimalFallbacks)
+    const scenario = router.merge(scenariosById.get(id) || []).policy(addMinimalFallbacks)
 
     result.push({filters: [filter], relays: scenario.getUrls()})
   }

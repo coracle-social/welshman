@@ -15,6 +15,7 @@ import {LOCAL_RELAY_URL, Tracker, AdapterContext, request, publish} from "@welsh
 
 export type RequestPageOptions = {
   filters: Filter[]
+  router: Router
   onEvent: (event: TrustedEvent) => void
   relays?: string[]
   tracker?: Tracker
@@ -25,6 +26,7 @@ export type RequestPageOptions = {
 
 export const requestPage = async ({
   filters,
+  router,
   onEvent,
   relays = [],
   tracker = new Tracker(),
@@ -49,14 +51,14 @@ export const requestPage = async ({
         threshold: 0.1,
         autoClose,
         filters: withSearch,
-        relays: Router.get().Search().getUrls(),
+        relays: router.Search().getUrls(),
       }),
     )
   }
 
   if (withoutSearch.length > 0) {
     promises.push(
-      ...getFilterSelections(filters).flatMap(({relays, filters}) =>
+      ...getFilterSelections(filters, router).flatMap(({relays, filters}) =>
         request({
           tracker,
           signal,
@@ -91,6 +93,7 @@ export const requestPage = async ({
 
 export type RequestDVMOptions = {
   kind: number
+  router: Router
   tags?: string[][]
   relays?: string[]
   signer?: ISigner
@@ -100,6 +103,7 @@ export type RequestDVMOptions = {
 
 export const requestDVM = async ({
   kind,
+  router,
   onResult,
   tags = [],
   relays = [],
@@ -110,10 +114,10 @@ export const requestDVM = async ({
     const events = await request({
       autoClose: true,
       filters: [{kinds: [RELAYS], authors: getPubkeyTagValues(tags)}],
-      relays: Router.get().Index().policy(addMinimalFallbacks).getUrls(),
+      relays: router.Index().policy(addMinimalFallbacks).getUrls(),
     })
 
-    relays = Router.get()
+    relays = router
       .FromRelays(events.flatMap(e => getRelaysFromList(readList(asDecryptedEvent(e)))))
       .policy(addMinimalFallbacks)
       .getUrls()
