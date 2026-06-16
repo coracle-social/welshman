@@ -1,5 +1,5 @@
 import type {Unsubscriber} from "svelte/store"
-import {on, noop, always} from "@welshman/lib"
+import {on, noop, always, call} from "@welshman/lib"
 import {WRAP, isDVMKind, isEphemeralKind, verifyEvent} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {SocketEvent, isRelayEvent, makeSocketPolicyAuth} from "@welshman/net"
@@ -7,6 +7,8 @@ import type {RelayMessage, Socket} from "@welshman/net"
 import type {IClient} from "./client.js"
 import {RelayStats} from "./relayStats.js"
 import {GiftWraps} from "./giftWraps.js"
+import {LoggingSigner} from "./logging.js"
+import type {LogMessage} from "./logging.js"
 
 /**
  * A client policy is a side effect applied once per client at construction,
@@ -114,6 +116,23 @@ export const clientPolicyGiftWraps: ClientPolicy = client => {
     }
   })
 }
+
+/**
+ * Forwards "message" events from the user's signer to `onMessage`. Opt-in —
+ * add `clientPolicyLogger(handler)` to a client's `policies`.
+ */
+export const makeClientPolicyLogger =
+  (onMessage: (message: LogMessage) => void): ClientPolicy =>
+  client => {
+    const unsubscribers: Unsubscriber[] = []
+    const signer = client.user?.signer
+
+    if (signer instanceof LoggingSigner) {
+      unsubscribers.push(on(signer, "message", onMessage))
+    }
+
+    return () => unsubscribers.forEach(call)
+  }
 
 export const defaultClientPolicies: ClientPolicy[] = [
   clientPolicyIngest,

@@ -1,244 +1,82 @@
 import {Client as PomadeClient, PomadeSigner} from "@pomade/core"
 import type {ClientOptions as PomadeClientOptions} from "@pomade/core"
-import {writable} from "svelte/store"
-import {randomId, append} from "@welshman/lib"
-import {getPubkey} from "@welshman/util"
-import {
-  WrappedSigner,
-  Nip46Broker,
-  Nip46Signer,
-  Nip07Signer,
-  Nip01Signer,
-  Nip55Signer,
-} from "@welshman/signer"
+import type {MaybeAsync} from "@welshman/lib"
+import {Nip46Broker, Nip46Signer, Nip07Signer, Nip01Signer, Nip55Signer} from "@welshman/signer"
 import type {ISigner} from "@welshman/signer"
-import {User} from "./user.js"
 
-/**
- * Session descriptors and the signer construction that turns them into a
- * `User`. In the old global package these fed a multi-account registry (a single
- * `sessions` map + `pubkey` pointer over one shared repository — the root of the
- * merged-DM bug). In the per-client model each session becomes its own `User`
- * (and thus its own `Client` with its own repository), so "multi-account" is
- * just "multiple clients" and lives above this module.
- */
+// ── Sessions: serializable {method, data} descriptors ──
 
-export enum SessionMethod {
-  Nip01 = "nip01",
-  Nip07 = "nip07",
-  Nip46 = "nip46",
-  Nip55 = "nip55",
-  Pomade = "pomade",
-  Pubkey = "pubkey",
-  Anonymous = "anonymous",
+export type Session<M extends string = string, D = unknown> = {
+  method: M
+  data: D
 }
 
-export type SessionNip01 = {
-  method: SessionMethod.Nip01
-  pubkey: string
-  secret: string
-}
+// ── Session handlers: a method string, its data shape, and how to build a signer ──
 
-export type SessionNip07 = {
-  method: SessionMethod.Nip07
-  pubkey: string
-}
-
-export type SessionNip46 = {
-  method: SessionMethod.Nip46
-  pubkey: string
-  secret: string
-  handler: {
-    pubkey: string
-    relays: string[]
-  }
-}
-
-export type SessionNip55 = {
-  method: SessionMethod.Nip55
-  pubkey: string
-  signer: string
-}
-
-export type SessionPomade = {
-  method: SessionMethod.Pomade
-  pubkey: string
-  clientOptions: PomadeClientOptions
-  email: string
-}
-
-export type SessionPubkey = {
-  method: SessionMethod.Pubkey
-  pubkey: string
-}
-
-export type SessionAnonymous = {
-  method: SessionMethod.Anonymous
-}
-
-export type SessionAnyMethod =
-  | SessionNip01
-  | SessionNip07
-  | SessionNip46
-  | SessionNip55
-  | SessionPomade
-  | SessionPubkey
-  | SessionAnonymous
-
-export type Session = SessionAnyMethod & Record<string, any>
-
-// Session factories
-
-export const makeNip01Session = (secret: string): SessionNip01 => ({
-  method: SessionMethod.Nip01,
-  secret,
-  pubkey: getPubkey(secret),
-})
-
-export const makeNip07Session = (pubkey: string): SessionNip07 => ({
-  method: SessionMethod.Nip07,
-  pubkey,
-})
-
-export const makeNip46Session = (
-  pubkey: string,
-  clientSecret: string,
-  signerPubkey: string,
-  relays: string[],
-): SessionNip46 => ({
-  method: SessionMethod.Nip46,
-  pubkey,
-  secret: clientSecret,
-  handler: {pubkey: signerPubkey, relays},
-})
-
-export const makeNip55Session = (pubkey: string, signer: string): SessionNip55 => ({
-  method: SessionMethod.Nip55,
-  pubkey,
-  signer,
-})
-
-export const makePomadeSession = (
-  pubkey: string,
-  email: string,
-  clientOptions: PomadeClientOptions,
-): SessionPomade => ({
-  method: SessionMethod.Pomade,
-  pubkey,
-  clientOptions,
-  email,
-})
-
-export const makePubkeySession = (pubkey: string): SessionPubkey => ({
-  method: SessionMethod.Pubkey,
-  pubkey,
-})
-
-// Type guards
-
-export const isNip01Session = (session?: Session): session is SessionNip01 =>
-  session?.method === SessionMethod.Nip01
-
-export const isNip07Session = (session?: Session): session is SessionNip07 =>
-  session?.method === SessionMethod.Nip07
-
-export const isNip46Session = (session?: Session): session is SessionNip46 =>
-  session?.method === SessionMethod.Nip46
-
-export const isNip55Session = (session?: Session): session is SessionNip55 =>
-  session?.method === SessionMethod.Nip55
-
-export const isPomadeSession = (session?: Session): session is SessionPomade =>
-  session?.method === SessionMethod.Pomade
-
-export const isPubkeySession = (session?: Session): session is SessionPubkey =>
-  session?.method === SessionMethod.Pubkey
-
-// Signer construction
-
-export const nip46Perms = "sign_event:22242,nip04_encrypt,nip04_decrypt,nip44_encrypt,nip44_decrypt"
-
-export type SignerLogEntry = {
-  id: string
-  method: string
-  started_at: number
-  finished_at?: number
-  ok?: boolean
-}
-
-export const signerLog = writable<SignerLogEntry[]>([])
-
-export const wrapSigner = (signer: ISigner) =>
-  new WrappedSigner(signer, async <T>(method: string, thunk: () => Promise<T>) => {
-    const id = randomId()
-
-    signerLog.update(log => append({id, method, started_at: Date.now()}, log))
-
-    try {
-      const result = await thunk()
-
-      signerLog.update(log =>
-        log.map(x => (x.id === id ? {...x, finished_at: Date.now(), ok: true} : x)),
-      )
-
-      return result
-    } catch (error: any) {
-      signerLog.update(log =>
-        log.map(x => (x.id === id ? {...x, finished_at: Date.now(), ok: false} : x)),
-      )
-
-      throw error
-    }
-  })
-
-export const getSigner = (session?: Session): ISigner | undefined => {
-  if (isNip07Session(session)) return wrapSigner(new Nip07Signer())
-  if (isNip01Session(session)) return wrapSigner(new Nip01Signer(session.secret))
-  if (isNip55Session(session)) return wrapSigner(new Nip55Signer(session.signer, session.pubkey))
-  if (isPomadeSession(session))
-    return wrapSigner(new PomadeSigner(new PomadeClient(session.clientOptions)))
-  if (isNip46Session(session)) {
-    const {
-      secret: clientSecret,
-      handler: {relays, pubkey: signerPubkey},
-    } = session
-    const broker = new Nip46Broker({clientSecret, signerPubkey, relays})
-
-    return wrapSigner(new Nip46Signer(broker))
-  }
+export type SessionHandler<M extends string, D> = {
+  method: M
+  getSigner: (data: D) => MaybeAsync<ISigner>
 }
 
 /**
- * Build a `User` (pubkey + signer) from a session descriptor. Returns undefined
- * for sessions that can't sign (e.g. read-only Pubkey or Anonymous). Pass the
- * result to `new Client({user})` / `createApp({user})`.
+ * Define a session handler. `M` and `D` are inferred from the arguments, so
+ * `getSigner` is type-checked against the data shape — and the same handler is
+ * used to build typed sessions (`toSession`) and to reconstruct signers.
  */
-export const userFromSession = (session: Session): User | undefined => {
-  const signer = getSigner(session)
+export const defineSessionHandler = <M extends string, D>(handler: SessionHandler<M, D>) => handler
 
-  return signer && typeof session.pubkey === "string"
-    ? new User(session.pubkey, signer)
-    : undefined
+/** Build a typed, serializable session from a handler and its data. */
+export const toSession = <M extends string, D>(
+  handler: SessionHandler<M, D>,
+  data: D,
+): Session<M, D> => ({method: handler.method, data})
+
+// ── Built-in handlers ──
+
+export const nip01 = defineSessionHandler({
+  method: "nip01",
+  getSigner: (data: {secret: string}) => new Nip01Signer(data.secret),
+})
+
+export const nip07 = defineSessionHandler({
+  method: "nip07",
+  getSigner: (_data: Record<string, never>) => new Nip07Signer(),
+})
+
+export const nip46 = defineSessionHandler({
+  method: "nip46",
+  getSigner: (data: {clientSecret: string; signerPubkey: string; relays: string[]}) =>
+    new Nip46Signer(new Nip46Broker(data)),
+})
+
+export const nip55 = defineSessionHandler({
+  method: "nip55",
+  getSigner: (data: {pubkey: string; signer: string}) => new Nip55Signer(data.signer, data.pubkey),
+})
+
+export const pomade = defineSessionHandler({
+  method: "pomade",
+  getSigner: (data: {clientOptions: PomadeClientOptions; email: string}) =>
+    new PomadeSigner(new PomadeClient(data.clientOptions)),
+})
+
+// ── Registry: deserialize a stored session back into a signer ──
+
+export const sessionHandlers = new Map<string, SessionHandler<string, any>>()
+
+export const registerSessionHandler = (handler: SessionHandler<string, any>) => {
+  sessionHandlers.set(handler.method, handler)
 }
 
-// Login helpers — each returns a User to build a client/app with
+export const unregisterSessionHandler = (handler: SessionHandler<string, any>) => {
+  sessionHandlers.delete(handler.method)
+}
 
-export const loginWithNip01 = (secret: string) => userFromSession(makeNip01Session(secret))
+export const getSignerFromSession = (session: Session): MaybeAsync<ISigner> | undefined =>
+  sessionHandlers.get(session.method)?.getSigner(session.data)
 
-export const loginWithNip07 = (pubkey: string) => userFromSession(makeNip07Session(pubkey))
+// ── Initialize default session handlers ──
 
-export const loginWithNip46 = (
-  pubkey: string,
-  clientSecret: string,
-  signerPubkey: string,
-  relays: string[],
-) => userFromSession(makeNip46Session(pubkey, clientSecret, signerPubkey, relays))
-
-export const loginWithNip55 = (pubkey: string, signer: string) =>
-  userFromSession(makeNip55Session(pubkey, signer))
-
-export const loginWithPomade = (
-  pubkey: string,
-  email: string,
-  clientOptions: PomadeClientOptions,
-) => userFromSession(makePomadeSession(pubkey, email, clientOptions))
+for (const sessionHandler of [nip01, nip07, nip46, nip55, pomade]) {
+  registerSessionHandler(sessionHandler)
+}
