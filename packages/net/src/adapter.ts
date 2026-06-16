@@ -1,5 +1,5 @@
 import EventEmitter from "events"
-import {call, sleep, mergeRight, on} from "@welshman/lib"
+import {call, sleep, on} from "@welshman/lib"
 import {isRelayUrl, matchFilters, Filter} from "@welshman/util"
 import {LOCAL_RELAY_URL, Repository} from "./repository.js"
 import {
@@ -13,7 +13,7 @@ import {
 } from "./message.js"
 import {Socket, SocketEvent} from "./socket.js"
 import {Unsubscriber} from "./util.js"
-import {netContext, NetContext} from "./context.js"
+import type {NetContext} from "./context.js"
 
 export enum AdapterEvent {
   Receive = "receive",
@@ -150,9 +150,7 @@ export class MockAdapter extends AbstractAdapter {
 
 export type AdapterContext = Partial<NetContext>
 
-export const getAdapter = (url: string, adapterContext: AdapterContext = {}) => {
-  const context = mergeRight(netContext, adapterContext as any)
-
+export const getAdapter = (url: string, context: AdapterContext = {}) => {
   if (context.getAdapter) {
     const adapter = context.getAdapter(url, context)
 

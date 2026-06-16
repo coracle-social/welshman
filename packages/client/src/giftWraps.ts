@@ -18,7 +18,7 @@ export class GiftWraps {
 
   constructor(readonly ctx: IClient) {
     this.queue = new TaskQueue<TrustedEvent>({
-      batchSize: 5,
+      batchSize: 50,
       batchDelay: 30,
       processItem: async (wrap: TrustedEvent) => {
         const signer = this.ctx.user?.signer
