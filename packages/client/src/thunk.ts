@@ -13,14 +13,14 @@ import {
 } from "@welshman/util"
 import {PublishStatus, PublishResult, PublishOptions, PublishResultsByRelay} from "@welshman/net"
 import {Nip01Signer, Nip59} from "@welshman/signer"
-import type {Client} from './client.js'
+import type {ClientContext} from './client.js'
 import type {User} from './user.js'
 
 export type ThunkOptions = Override<
   PublishOptions,
   {
     user: User
-    client: Client
+    client: ClientContext
     event: EventTemplate
     recipient?: string
     delay?: number

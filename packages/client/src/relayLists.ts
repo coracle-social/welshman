@@ -1,67 +1,59 @@
 import {chunk, first} from "@welshman/lib"
 import {
   RELAYS,
+  RelayMode,
   asDecryptedEvent,
   readList,
-  TrustedEvent,
-  sortEventsDesc,
   getRelaysFromList,
-  RelayMode,
-  Filter,
   isPlainReplaceableKind,
+  sortEventsDesc,
 } from "@welshman/util"
-import {
-  deriveItemsByKey,
-  deriveItems,
-  makeForceLoadItem,
-  makeLoadItem,
-  makeDeriveItem,
-  getter,
-} from "@welshman/store"
-import {load} from "@welshman/net"
-import {Router, addMinimalFallbacks} from "@welshman/router"
-import type {Client} from './client.ts'
+import type {Filter, TrustedEvent, PublishedList} from "@welshman/util"
+import {RepositoryCollection} from "./repositoryCollection.js"
+import {addMinimalFallbacks} from "./router.js"
+import type {Router} from "./router.js"
+import type {ClientContext} from "./client.js"
 
-export class RelayLists extends ClientData<RelayStatsItem> {
-  constructor(readonly client: Client) {}
+/**
+ * NIP-65 relay lists, keyed by pubkey. This is the routing substrate every
+ * other outbox-model load depends on, so it also exposes `loadUsingOutbox` /
+ * `makeOutboxLoader` for other collections to build their fetchers on.
+ *
+ * It depends on a `Router`, and the `Router` depends (via injected functions) on
+ * this collection — a genuine domain cycle that `createApp` breaks by wiring the
+ * router's `getRelaysForPubkey` to a lazily-resolved closure.
+ */
+export class RelayLists extends RepositoryCollection<PublishedList> {
+  constructor(
+    ctx: ClientContext,
+    readonly router: Router,
+  ) {
+    super(ctx, {
+      filters: [{kinds: [RELAYS]}],
+      eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
+      getKey: (list: PublishedList) => list.event.pubkey,
+    })
+  }
 
-  fetch = async (pubkey: string, relayHints: string[] = []) => {
+  fetch(pubkey: string, relayHints: string[] = []) {
     const filters = [{kinds: [RELAYS], authors: [pubkey], limit: 1}]
 
-    await Promise.all([
-      this.client.load({filters, relays: Router.get().FromRelays(relayHints).getUrls()}),
-      this.client.load({filters, relays: Router.get().FromPubkey(pubkey).getUrls()}),
-      this.client.load({filters, relays: Router.get().Index().getUrls()}),
+    return Promise.all([
+      this.ctx.load({filters, relays: this.router.FromRelays(relayHints).getUrls()}),
+      this.ctx.load({filters, relays: this.router.FromPubkey(pubkey).getUrls()}),
+      this.ctx.load({filters, relays: this.router.Index().getUrls()}),
     ])
   }
 
-  export const relayListsByPubkey = deriveItemsByKey({
-    repository,
-    eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
-    filters: [{kinds: [RELAYS]}],
-    getKey: relayList => relayList.event.pubkey,
-  })
+  getRelaysForPubkey = (pubkey: string, mode?: RelayMode) =>
+    getRelaysFromList(this.get(pubkey), mode)
 
-  export const relayLists = deriveItems(relayListsByPubkey)
+  // Load a pubkey's events using their advertised write relays (outbox model)
 
-  export const getRelayListsByPubkey = getter(relayListsByPubkey)
-
-  export const getRelayLists = getter(relayLists)
-
-  export const getRelayList = (pubkey: string) => getRelayListsByPubkey().get(pubkey)
-
-  export const forceLoadRelayList = makeForceLoadItem(fetchRelayList, getRelayList)
-
-  export const loadRelayList = makeLoadItem(fetchRelayList, getRelayList)
-
-  export const deriveRelayList = makeDeriveItem(relayListsByPubkey, loadRelayList)
-
-  // Outbox loader
-
-  export const loadUsingOutbox = async (kind: number, pubkey: string, filter: Filter = {}) => {
-    const filters = [{...filter, kinds: [kind], authors: [pubkey]}]
-    const writeRelays = getRelaysFromList(await loadRelayList(pubkey), RelayMode.Write)
-    const allRelays = Router.get()
+  loadUsingOutbox = async (kind: number, pubkey: string, filter: Filter = {}) => {
+    const filters: Filter[] = [{...filter, kinds: [kind], authors: [pubkey]}]
+    const writeRelays = getRelaysFromList(await this.load(pubkey), RelayMode.Write)
+    const allRelays = this.router
       .FromRelays(writeRelays)
       .policy(addMinimalFallbacks)
       .limit(8)
@@ -72,7 +64,7 @@ export class RelayLists extends ClientData<RelayStatsItem> {
     }
 
     for (const relays of chunk(2, allRelays)) {
-      const events = await load({filters, relays})
+      const events = await this.ctx.load({filters, relays})
 
       if (events.length > 0) {
         return first(sortEventsDesc(events))
@@ -80,12 +72,15 @@ export class RelayLists extends ClientData<RelayStatsItem> {
     }
   }
 
-  export const makeOutboxLoader =
-    (kind: number, filter: Filter = {}, limit = 1) =>
+  makeOutboxLoader =
+    (kind: number, filter: Filter = {}) =>
     async (pubkey: string, relayHints: string[] = []) => {
-      const filters = [{...filter, kinds: [kind], authors: [pubkey]}]
-      const relays = Router.get().FromRelays(relayHints).getUrls()
+      const filters: Filter[] = [{...filter, kinds: [kind], authors: [pubkey]}]
+      const relays = this.router.FromRelays(relayHints).getUrls()
 
-      await Promise.all([load({filters, relays}), loadUsingOutbox(kind, pubkey, filter)])
+      await Promise.all([
+        this.ctx.load({filters, relays}),
+        this.loadUsingOutbox(kind, pubkey, filter),
+      ])
     }
 }

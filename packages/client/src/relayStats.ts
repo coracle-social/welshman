@@ -1,11 +1,10 @@
-import {writable, Subscriber} from "svelte/store"
-import {getter, makeDeriveItem} from "@welshman/store"
+import type {Unsubscriber} from "svelte/store"
 import {groupBy, batch, now, uniq, ago, DAY, HOUR, MINUTE} from "@welshman/lib"
-import {isOnionUrl, isLocalUrl, isIPAddress, isRelayUrl, getRelaysFromList} from "@welshman/util"
-import {Socket, SocketStatus, SocketEvent, ClientMessage, RelayMessage} from "@welshman/net"
-import {getBlockedRelayList} from "./blockedRelayLists.js"
-import type {Client} from "./client.js"
-
+import {isOnionUrl, isLocalUrl, isIPAddress, isRelayUrl} from "@welshman/util"
+import {SocketStatus, SocketEvent} from "@welshman/net"
+import type {Socket, ClientMessage, RelayMessage} from "@welshman/net"
+import {ClientData} from "./clientData.js"
+import type {ClientContext} from "./client.js"
 
 export type RelayStatsUpdate = [string, (stats: RelayStatsItem) => void]
 
@@ -53,11 +52,27 @@ export const makeRelayStatsItem = (url: string): RelayStatsItem => ({
   notice_count: 0,
 })
 
+export type RelayStatsOptions = {
+  // Allows a host app to zero out blocked relays once a blocked-relay-list
+  // module is composed in, without RelayStats depending on it.
+  isRelayBlocked?: (url: string) => boolean
+}
+
+/**
+ * Tracks per-relay connection statistics by listening to socket activity on the
+ * client's pool, and exposes a `getQuality` heuristic the router uses to rank
+ * relays. A "local" collection — its data isn't backed by the repository.
+ */
 export class RelayStats extends ClientData<RelayStatsItem> {
   cleanup: Unsubscriber
 
-  constructor(readonly client: Client) {
-    this.cleanup = client.pool.subscribe(socket => {
+  constructor(
+    ctx: ClientContext,
+    readonly statsOptions: RelayStatsOptions = {},
+  ) {
+    super(ctx)
+
+    this.cleanup = ctx.pool.subscribe(socket => {
       socket.on(SocketEvent.Send, this.onSocketSend)
       socket.on(SocketEvent.Receive, this.onSocketReceive)
       socket.on(SocketEvent.Status, this.onSocketStatus)
@@ -70,14 +85,50 @@ export class RelayStats extends ClientData<RelayStatsItem> {
     })
   }
 
+  getQuality = (url: string) => {
+    // Skip non-relays entirely
+    if (!isRelayUrl(url)) return 0
+
+    // Skip blocked relays (when a host app provides the check)
+    if (this.statsOptions.isRelayBlocked?.(url)) return 0
+
+    const stats = this.get(url)
+
+    // If we have recent errors, skip it
+    if (stats) {
+      if (stats.recent_errors.filter(n => n > ago(MINUTE)).length > 0) return 0
+      if (stats.recent_errors.filter(n => n > ago(HOUR)).length > 3) return 0
+      if (stats.recent_errors.filter(n => n > ago(DAY)).length > 10) return 0
+    }
+
+    // Prefer stuff we're connected to
+    if (this.ctx.pool.has(url)) return 1
+
+    // Prefer stuff we've connected to in the past
+    if (stats) return 0.9
+
+    // If it's not a weird url give it an ok score
+    if (!isIPAddress(url) && !isLocalUrl(url) && !isOnionUrl(url) && !url.startsWith("ws://")) {
+      return 0.8
+    }
+
+    // Default to a "meh" score
+    return 0.7
+  }
+
   // Utilities for syncing stats from connections to relays
 
   private updateRelayStats = batch(150, (batched: RelayStatsUpdate[]) => {
     for (const [url, updates] of groupBy(([url]) => url, batched)) {
+      if (!url || !isRelayUrl(url)) {
+        console.warn(`Attempted to update stats for an invalid relay url: ${url}`)
+        continue
+      }
+
       const prev = this.get(url)
       const next = prev ? {...prev} : makeRelayStatsItem(url)
 
-      for (const [_, update] of updates) {
+      for (const [, update] of updates) {
         update(next)
       }
 
@@ -107,7 +158,7 @@ export class RelayStats extends ClientData<RelayStatsItem> {
 
   private onSocketReceive = ([verb, ...extra]: RelayMessage, url: string) => {
     if (verb === "OK") {
-      const [_, ok] = extra
+      const [, ok] = extra
 
       this.updateRelayStats([
         url,

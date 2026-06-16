@@ -1,41 +1,17 @@
+import {nth, uniq, first, sortBy, shuffle, inc, add, take} from "@welshman/lib"
 import {
-  nth,
-  uniq,
-  intersection,
-  mergeLeft,
-  first,
-  clamp,
-  sortBy,
-  shuffle,
-  pushToMapKey,
-  inc,
-  add,
-  take,
-  chunks,
-} from "@welshman/lib"
-import {
-  getFilterId,
   isRelayUrl,
   isOnionUrl,
   isLocalUrl,
   isShareableRelayUrl,
-  PROFILE,
-  RELAYS,
-  MESSAGING_RELAYS,
-  FOLLOWS,
-  WRAP,
   getPubkeyTagValues,
   normalizeRelayUrl,
-  TrustedEvent,
-  Filter,
-  readList,
   getAncestorTags,
-  asDecryptedEvent,
-  getRelaysFromList,
   getPubkeyTags,
   RelayMode,
 } from "@welshman/util"
-import {Repository} from "@welshman/net"
+import type {TrustedEvent, Filter} from "@welshman/util"
+import type {ClientContext} from "./client.js"
 
 export type RelaysAndFilters = {
   relays: string[]
@@ -67,6 +43,21 @@ export type RouterOptions = {
    * @returns The limit setting as a number.
    */
   getLimit?: () => number
+
+  /**
+   * Retrieves a pubkey's relays for a given mode. Injected (rather than read off
+   * a relay-list module directly) so the router has no dependency on its sibling
+   * data modules. See `createApp`.
+   * @returns An array of relay URLs as strings.
+   */
+  getRelaysForPubkey?: (pubkey: string, mode?: RelayMode) => string[]
+
+  /**
+   * Scores a relay url for ranking (higher is better). Injected so the router
+   * doesn't depend on the relay-stats module.
+   * @returns A quality score, typically between 0 and 1.
+   */
+  getRelayQuality?: (url: string) => number
 }
 
 export type Selection = {
@@ -92,18 +83,24 @@ export const addMaximalFallbacks = (count: number, limit: number) => limit - cou
 // Router class
 
 export class Router {
-  constructor(readonly client: Client, readonly options: RouterOptions) {}
+  constructor(
+    readonly ctx: ClientContext,
+    readonly options: RouterOptions,
+  ) {}
 
   // Utilities derived from options
 
   getRelaysForPubkey = (pubkey: string, mode?: RelayMode) =>
-    getRelaysFromList(this.client.relayList.get(pubkey), mode)
+    this.options.getRelaysForPubkey?.(pubkey, mode) || []
 
   getRelaysForPubkeys = (pubkeys: string[], mode?: RelayMode) =>
     pubkeys.map(pubkey => this.getRelaysForPubkey(pubkey, mode))
 
-  getRelaysForUser = (mode?: RelayMode) =>
-    this.getRelaysForPubkey(this.client.pubkey, mode)
+  getRelaysForUser = (mode?: RelayMode) => {
+    const pubkey = this.ctx.user?.pubkey
+
+    return pubkey ? this.getRelaysForPubkey(pubkey, mode) : []
+  }
 
   // Utilities for creating scenarios
 
@@ -277,7 +274,7 @@ export class RouterScenario {
 
     const scoreRelay = (relay: string) => {
       const weight = relayWeights.get(relay)!
-      const quality = this.router.client.getRelayQuality(relay)
+      const quality = this.router.options.getRelayQuality?.(relay) ?? 1
 
       // Log the weight, since it's a straight count which ends up over-weighting hubs.
       // Also add some random noise so that we'll occasionally pick lower quality/less
