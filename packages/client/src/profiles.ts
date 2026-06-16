@@ -1,7 +1,18 @@
 import {derived, readable} from "svelte/store"
-import {readProfile, displayProfile, displayPubkey, PROFILE} from "@welshman/util"
+import {
+  readProfile,
+  displayProfile,
+  displayPubkey,
+  isPublishedProfile,
+  createProfile,
+  editProfile,
+  PROFILE,
+} from "@welshman/util"
+import type {Profile} from "@welshman/util"
 import {RepositoryCollection} from "./repositoryCollection.js"
-import {RelayLists} from "./relayLists.js"
+import {Network} from "./network.js"
+import {Router} from "./router.js"
+import {Thunks} from "./thunk.js"
 import type {IClient} from "./client.js"
 
 /**
@@ -18,7 +29,15 @@ export class Profiles extends RepositoryCollection<ReturnType<typeof readProfile
   }
 
   fetch(pubkey: string, relayHints: string[] = []) {
-    return this.ctx.use(RelayLists).loadUsingOutbox(pubkey, {kinds: [PROFILE]}, relayHints)
+    return this.ctx.use(Network).loadUsingOutbox(pubkey, {kinds: [PROFILE]}, relayHints)
+  }
+
+  publish = (profile: Profile) => {
+    const router = this.ctx.use(Router)
+    const relays = router.merge([router.Index(), router.FromUser()]).getUrls()
+    const event = isPublishedProfile(profile) ? editProfile(profile) : createProfile(profile)
+
+    return this.ctx.use(Thunks).publish({event, relays})
   }
 
   display = (pubkey: string | undefined) =>

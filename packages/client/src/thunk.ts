@@ -1,7 +1,7 @@
 import type {Subscriber} from "svelte/store"
 import {writable} from "svelte/store"
 import type {Override} from "@welshman/lib"
-import {append, TaskQueue, ensurePlural, remove, defer, sleep, nth, without} from "@welshman/lib"
+import {append, TaskQueue, ensurePlural, remove, defer, sleep, nth, uniq, without} from "@welshman/lib"
 import {
   HashedEvent,
   EventTemplate,
@@ -14,8 +14,9 @@ import {
 import {PublishStatus, PublishResult, PublishOptions, PublishResultsByRelay} from "@welshman/net"
 import {Nip01Signer, Nip59} from "@welshman/signer"
 import type {IClient} from "./client.js"
-import {Networking} from "./networking.js"
-import type {User} from "./user.js"
+import {Network} from "./network.js"
+import {Router, addMaximalFallbacks} from "./router.js"
+import {User} from "./user.js"
 
 export type ThunkOptions = Override<
   PublishOptions,
@@ -112,7 +113,7 @@ export class Thunk {
     }
 
     // Send it off
-    await this.options.client.use(Networking).publish({
+    await this.options.client.use(Network).publish({
       ...this.options,
       event,
       onSuccess: (result: PublishResult) => {
@@ -203,27 +204,6 @@ export class Thunk {
       console.error("Failed to sign event", e)
       return this._fail(String(e || "Failed to sign event"))
     }
-  }
-
-  enqueue() {
-    thunkQueue.push(this)
-
-    for (const url of this.options.relays) {
-      this.options.client.tracker.track(this.event.id, url)
-    }
-
-    this.options.client.repository.publish(this.event)
-    thunks.update($thunks => append(this, $thunks))
-
-    this.controller.signal.addEventListener("abort", () => {
-      if (this.wrap) {
-        this.options.client.wrapManager.remove(this.wrap.id)
-      } else {
-        this.options.client.repository.removeEvent(this.event.id)
-      }
-
-      thunks.update($thunks => remove(this, $thunks))
-    })
   }
 
   subscribe(subscriber: Subscriber<Thunk>) {
@@ -362,18 +342,6 @@ export const waitForThunkCompletion = (thunk: Thunk) =>
     })
   })
 
-// Thunk state
-
-export const thunks = writable<Thunk[]>([])
-
-export const thunkQueue = new TaskQueue<Thunk>({
-  batchSize: 10,
-  batchDelay: 100,
-  processItem: (thunk: Thunk) => {
-    thunk.publish()
-  },
-})
-
 // Other thunk utilities
 
 export const mergeThunks = (thunks: AbstractThunk[]) =>
@@ -389,21 +357,76 @@ export function* flattenThunks(thunks: AbstractThunk[]): Iterable<Thunk> {
   }
 }
 
-export const publishThunk = (options: ThunkOptions) => {
-  const thunk = new Thunk(options)
-
-  thunk.enqueue()
-
-  return thunk
-}
-
 export const abortThunk = (thunk: AbstractThunk) => {
   for (const child of flattenThunks([thunk])) {
     child.controller.abort()
   }
 }
 
-export const retryThunk = (thunk: AbstractThunk) =>
-  isMergedThunk(thunk)
-    ? mergeThunks(thunk.thunks.map(t => publishThunk(t.options)))
-    : publishThunk(thunk.options)
+/**
+ * Per-client thunk manager — the publish-side counterpart of `Network`. Owns
+ * the client's optimistic-publish `history` store and the `queue` that paces
+ * publishing. Reach it via `client.use(Thunks)`; `publish` fills in the client
+ * and user, enqueues the thunk (optimistically writing it to the repository),
+ * and returns it.
+ */
+export class Thunks {
+  history = writable<Thunk[]>([])
+
+  queue = new TaskQueue<Thunk>({
+    batchSize: 10,
+    batchDelay: 100,
+    processItem: (thunk: Thunk) => {
+      thunk.publish()
+    },
+  })
+
+  constructor(readonly ctx: IClient) {}
+
+  publish = (options: Omit<ThunkOptions, "client" | "user">) => {
+    const thunk = new Thunk({...options, client: this.ctx, user: User.require(this.ctx)})
+
+    this.enqueue(thunk)
+
+    return thunk
+  }
+
+  // Publish as the user to their outbox (write) relays, plus any extra `relays`.
+  publishToOutbox = ({
+    relays = [],
+    ...options
+  }: Omit<ThunkOptions, "client" | "user" | "relays"> & {relays?: string[]}) =>
+    this.publish({
+      ...options,
+      relays: uniq([
+        ...relays,
+        ...this.ctx.use(Router).FromUser().policy(addMaximalFallbacks).getUrls(),
+      ]),
+    })
+
+  retry = (thunk: AbstractThunk) =>
+    isMergedThunk(thunk)
+      ? mergeThunks(thunk.thunks.map(t => this.publish(t.options)))
+      : this.publish(thunk.options)
+
+  private enqueue(thunk: Thunk) {
+    this.queue.push(thunk)
+
+    for (const url of thunk.options.relays) {
+      this.ctx.tracker.track(thunk.event.id, url)
+    }
+
+    this.ctx.repository.publish(thunk.event)
+    this.history.update($history => append(thunk, $history))
+
+    thunk.controller.signal.addEventListener("abort", () => {
+      if (thunk.wrap) {
+        this.ctx.wrapManager.remove(thunk.wrap.id)
+      } else {
+        this.ctx.repository.removeEvent(thunk.event.id)
+      }
+
+      this.history.update($history => remove(thunk, $history))
+    })
+  }
+}

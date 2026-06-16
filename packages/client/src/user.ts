@@ -3,6 +3,7 @@ import type {ISigner} from "@welshman/signer"
 import {LoggingSigner} from "./logging.js"
 import {getSignerFromSession} from "./session.js"
 import type {Session} from "./session.js"
+import type {IClient} from "./client.js"
 
 /**
  * A single identity: a pubkey plus the signer that proves it. A `Client` is
@@ -36,6 +37,18 @@ export class User {
     const signer = await getSignerFromSession(session)
 
     return signer ? User.fromSigner(signer) : undefined
+  }
+
+  /**
+   * Return the client's signed-in user, throwing if there isn't one — the entry
+   * point for actions that can only run as a user (publishing, signing).
+   */
+  static require(ctx: IClient): User {
+    if (!ctx.user) {
+      throw new Error("This action requires a signed-in user")
+    }
+
+    return ctx.user
   }
 
   sign = (event: StampedEvent) => this.signer.sign(event)

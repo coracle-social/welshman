@@ -8,7 +8,7 @@ import {PROFILE} from "@welshman/util"
 import type {PublishedProfile, RelayProfile} from "@welshman/util"
 import {throttled, deriveItems} from "@welshman/store"
 import type {IClient} from "./client.js"
-import {Networking} from "./networking.js"
+import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {Profiles} from "./profiles.js"
 import {Topics} from "./topics.js"
@@ -119,7 +119,7 @@ export class Searches {
 
   searchProfiles = debounce(500, (search: string) => {
     if (search.length > 2) {
-      this.ctx.use(Networking).load({
+      this.ctx.use(Network).load({
         filters: [{kinds: [PROFILE], search}],
         relays: this.ctx.use(Router).Search().getUrls(),
       })

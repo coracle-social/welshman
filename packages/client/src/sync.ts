@@ -1,7 +1,7 @@
 import {isSignedEvent} from "@welshman/util"
 import type {Filter, SignedEvent} from "@welshman/util"
 import type {IClient} from "./client.js"
-import {Networking} from "./networking.js"
+import {Network} from "./network.js"
 import {Relays} from "./relays.js"
 
 export type AppSyncOpts = {
@@ -32,7 +32,7 @@ export class Sync {
   }
 
   pull = async ({relays, filters}: AppSyncOpts) => {
-    const net = this.ctx.use(Networking)
+    const net = this.ctx.use(Network)
     const events = this.query(filters).filter(isSignedEvent)
 
     await Promise.all(
@@ -45,7 +45,7 @@ export class Sync {
   }
 
   push = async ({relays, filters}: AppSyncOpts) => {
-    const net = this.ctx.use(Networking)
+    const net = this.ctx.use(Network)
     const events = this.query(filters).filter(isSignedEvent)
 
     await Promise.all(
