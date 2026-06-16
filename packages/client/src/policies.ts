@@ -7,6 +7,7 @@ import type {RelayMessage, Socket} from "@welshman/net"
 import type {IClient} from "./client.js"
 import {RelayStats} from "./relayStats.js"
 import {GiftWraps} from "./giftWraps.js"
+import {BlockedRelayLists} from "./blockedRelayLists.js"
 import {LoggingSigner} from "./logging.js"
 import type {LogMessage} from "./logging.js"
 
@@ -30,14 +31,16 @@ export type ClientPolicy = (client: IClient) => Unsubscriber
  * call this with a custom predicate.
  */
 export const makeClientPolicyAuth =
-  (shouldAuth: (socket: Socket) => boolean): ClientPolicy =>
+  (shouldAuth: (socket: Socket, client: IClient) => boolean): ClientPolicy =>
   client => {
     if (!client.user) {
       return noop
     }
 
-    const {sign} = client.user.signer
-    const policy = makeSocketPolicyAuth({sign, shouldAuth})
+    const policy = makeSocketPolicyAuth({
+      sign: client.user.signer.sign,
+      shouldAuth: socket => shouldAuth(socket, client),
+    })
 
     client.pool.socketPolicies.push(policy)
 
@@ -53,6 +56,17 @@ export const makeClientPolicyAuth =
 export const clientPolicyAuthNever = makeClientPolicyAuth(always(false))
 
 export const clientPolicyAuthAlways = makeClientPolicyAuth(always(true))
+
+export const clientPolicyAuthUnlessBlocked = makeClientPolicyAuth((socket, client) => {
+  if (!client.user) {
+    return false
+  }
+
+  return !client
+    .use(BlockedRelayLists)
+    .getBlockedRelays(client.user.pubkey)
+    .includes(socket.url)
+})
 
 /**
  * Ingests every event received on any socket into the client's repository. The
@@ -138,4 +152,5 @@ export const defaultClientPolicies: ClientPolicy[] = [
   clientPolicyIngest,
   clientPolicyRelayStats,
   clientPolicyGiftWraps,
+  clientPolicyAuthUnlessBlocked,
 ]
