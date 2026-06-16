@@ -1,11 +1,5 @@
-import {makeSocketPolicyAuth} from "@welshman/net"
-import type {Socket} from "@welshman/net"
 import type {StampedEvent} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
-
-export type UserOptions = {
-  shouldAuth?: (socket: Socket) => boolean
-}
 
 /**
  * A single identity: a pubkey plus the signer that proves it. A `Client` is
@@ -16,20 +10,13 @@ export class User {
   constructor(
     readonly pubkey: string,
     readonly signer: ISigner,
-    readonly options: UserOptions = {},
   ) {}
 
-  static async fromSigner(signer: ISigner, options: UserOptions = {}) {
+  static async fromSigner(signer: ISigner) {
     const pubkey = await signer.getPubkey()
 
-    return new User(pubkey, signer, options)
+    return new User(pubkey, signer)
   }
-
-  makeSocketPolicyAuth = () =>
-    makeSocketPolicyAuth({
-      sign: this.signer.sign,
-      shouldAuth: this.options.shouldAuth,
-    })
 
   sign = (event: StampedEvent) => this.signer.sign(event)
 
