@@ -196,7 +196,8 @@ export const getSigner = (session?: Session): ISigner | undefined => {
   if (isNip07Session(session)) return wrapSigner(new Nip07Signer())
   if (isNip01Session(session)) return wrapSigner(new Nip01Signer(session.secret))
   if (isNip55Session(session)) return wrapSigner(new Nip55Signer(session.signer, session.pubkey))
-  if (isPomadeSession(session)) return wrapSigner(new PomadeSigner(new PomadeClient(session.clientOptions)))
+  if (isPomadeSession(session))
+    return wrapSigner(new PomadeSigner(new PomadeClient(session.clientOptions)))
   if (isNip46Session(session)) {
     const {
       secret: clientSecret,

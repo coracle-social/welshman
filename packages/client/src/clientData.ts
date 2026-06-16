@@ -3,7 +3,7 @@ import type {Readable, Unsubscriber} from "svelte/store"
 import type {Maybe} from "@welshman/lib"
 import {getter, makeDeriveItem, makeLoadItem, makeForceLoadItem} from "@welshman/store"
 import type {MakeLoadItemOptions} from "@welshman/store"
-import type {ClientContext} from "./client.js"
+import type {IClient} from "./client.js"
 
 /**
  * Base class for a reactive, keyed collection of "local" (non-event) data —
@@ -11,7 +11,7 @@ import type {ClientContext} from "./client.js"
  * repository. The collection owns its own map and is its own Svelte store: its
  * `subscribe` emits the underlying `Map`.
  *
- * Subclasses reach the client through the `ClientContext` seam, never the
+ * Subclasses reach the client through the `IClient` seam, never the
  * concrete `Client`, so they never create a dependency cycle.
  */
 export class ClientData<T> {
@@ -20,7 +20,7 @@ export class ClientData<T> {
   protected itemSubscribers: ((key: string, value: Maybe<T>) => void)[] = []
   public derive: (key?: string, ...args: any[]) => Readable<Maybe<T>>
 
-  constructor(protected readonly ctx: ClientContext) {
+  constructor(protected readonly ctx: IClient) {
     this.derive = makeDeriveItem(this.index)
   }
 
@@ -92,7 +92,7 @@ export abstract class LoadableData<T> extends ClientData<T> {
 
   abstract fetch(key: string, ...args: any[]): Promise<unknown>
 
-  constructor(ctx: ClientContext, options: MakeLoadItemOptions = {}) {
+  constructor(ctx: IClient, options: MakeLoadItemOptions = {}) {
     super(ctx)
 
     // Subclasses implement `fetch` as an arrow field, whose initializer runs

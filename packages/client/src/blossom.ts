@@ -1,18 +1,15 @@
 import {BLOSSOM_SERVERS, asDecryptedEvent, readList} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {RepositoryCollection} from "./repositoryCollection.js"
-import type {ClientContext} from "./client.js"
-import type {RelayLists} from "./relayLists.js"
+import {RelayLists} from "./relayLists.js"
+import type {IClient} from "./client.js"
 
 /**
  * Blossom server lists (kind 10063), keyed by pubkey. Loaded via the outbox
  * model (the author's write relays), so it depends on the relay-list collection.
  */
 export class BlossomServerLists extends RepositoryCollection<ReturnType<typeof readList>> {
-  constructor(
-    ctx: ClientContext,
-    readonly relayLists: RelayLists,
-  ) {
+  constructor(ctx: IClient) {
     super(ctx, {
       filters: [{kinds: [BLOSSOM_SERVERS]}],
       eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
@@ -21,6 +18,6 @@ export class BlossomServerLists extends RepositoryCollection<ReturnType<typeof r
   }
 
   fetch(pubkey: string, relayHints: string[] = []) {
-    return this.relayLists.makeOutboxLoader(BLOSSOM_SERVERS)(pubkey, relayHints)
+    return this.ctx.use(RelayLists).makeOutboxLoader(BLOSSOM_SERVERS)(pubkey, relayHints)
   }
 }

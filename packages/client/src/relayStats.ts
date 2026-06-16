@@ -1,10 +1,9 @@
-import type {Unsubscriber} from "svelte/store"
 import {groupBy, batch, now, uniq, ago, DAY, HOUR, MINUTE} from "@welshman/lib"
 import {isOnionUrl, isLocalUrl, isIPAddress, isRelayUrl} from "@welshman/util"
-import {SocketStatus, SocketEvent} from "@welshman/net"
-import type {Socket, ClientMessage, RelayMessage} from "@welshman/net"
+import {SocketStatus} from "@welshman/net"
+import type {ClientMessage, RelayMessage} from "@welshman/net"
 import {ClientData} from "./clientData.js"
-import type {ClientContext} from "./client.js"
+import {BlockedRelayLists} from "./blockedRelayLists.js"
 
 export type RelayStatsUpdate = [string, (stats: RelayStatsItem) => void]
 
@@ -52,45 +51,22 @@ export const makeRelayStatsItem = (url: string): RelayStatsItem => ({
   notice_count: 0,
 })
 
-export type RelayStatsOptions = {
-  // Allows a host app to zero out blocked relays once a blocked-relay-list
-  // module is composed in, without RelayStats depending on it.
-  isRelayBlocked?: (url: string) => boolean
-}
-
 /**
- * Tracks per-relay connection statistics by listening to socket activity on the
- * client's pool, and exposes a `getQuality` heuristic the router uses to rank
- * relays. A "local" collection — its data isn't backed by the repository.
+ * Per-relay connection statistics, keyed by url, plus the `getQuality` heuristic
+ * the router uses to rank relays. A pure store — the socket wiring that fills it
+ * lives in `clientPolicyRelayStats`.
  */
 export class RelayStats extends ClientData<RelayStatsItem> {
-  cleanup: Unsubscriber
-
-  constructor(
-    ctx: ClientContext,
-    readonly statsOptions: RelayStatsOptions = {},
-  ) {
-    super(ctx)
-
-    this.cleanup = ctx.pool.subscribe(socket => {
-      socket.on(SocketEvent.Send, this.onSocketSend)
-      socket.on(SocketEvent.Receive, this.onSocketReceive)
-      socket.on(SocketEvent.Status, this.onSocketStatus)
-
-      return () => {
-        socket.off(SocketEvent.Send, this.onSocketSend)
-        socket.off(SocketEvent.Receive, this.onSocketReceive)
-        socket.off(SocketEvent.Status, this.onSocketStatus)
-      }
-    })
-  }
-
   getQuality = (url: string) => {
     // Skip non-relays entirely
     if (!isRelayUrl(url)) return 0
 
-    // Skip blocked relays (when a host app provides the check)
-    if (this.statsOptions.isRelayBlocked?.(url)) return 0
+    // Skip relays the user has blocked
+    const pubkey = this.ctx.user?.pubkey
+
+    if (pubkey && this.ctx.use(BlockedRelayLists).getBlockedRelays(pubkey).includes(url)) {
+      return 0
+    }
 
     const stats = this.get(url)
 
@@ -116,9 +92,7 @@ export class RelayStats extends ClientData<RelayStatsItem> {
     return 0.7
   }
 
-  // Utilities for syncing stats from connections to relays
-
-  private updateRelayStats = batch(150, (batched: RelayStatsUpdate[]) => {
+  private update = batch(150, (batched: RelayStatsUpdate[]) => {
     for (const [url, updates] of groupBy(([url]) => url, batched)) {
       if (!url || !isRelayUrl(url)) {
         console.warn(`Attempted to update stats for an invalid relay url: ${url}`)
@@ -136,9 +110,9 @@ export class RelayStats extends ClientData<RelayStatsItem> {
     }
   })
 
-  private onSocketSend = ([verb]: ClientMessage, url: string) => {
+  onSocketSend = ([verb]: ClientMessage, url: string) => {
     if (verb === "REQ") {
-      this.updateRelayStats([
+      this.update([
         url,
         stats => {
           stats.request_count++
@@ -146,7 +120,7 @@ export class RelayStats extends ClientData<RelayStatsItem> {
         },
       ])
     } else if (verb === "EVENT") {
-      this.updateRelayStats([
+      this.update([
         url,
         stats => {
           stats.publish_count++
@@ -156,11 +130,11 @@ export class RelayStats extends ClientData<RelayStatsItem> {
     }
   }
 
-  private onSocketReceive = ([verb, ...extra]: RelayMessage, url: string) => {
+  onSocketReceive = ([verb, ...extra]: RelayMessage, url: string) => {
     if (verb === "OK") {
       const [, ok] = extra
 
-      this.updateRelayStats([
+      this.update([
         url,
         stats => {
           if (ok) {
@@ -171,14 +145,9 @@ export class RelayStats extends ClientData<RelayStatsItem> {
         },
       ])
     } else if (verb === "AUTH") {
-      this.updateRelayStats([
-        url,
-        stats => {
-          stats.last_auth = now()
-        },
-      ])
+      this.update([url, stats => (stats.last_auth = now())])
     } else if (verb === "EVENT") {
-      this.updateRelayStats([
+      this.update([
         url,
         stats => {
           stats.event_count++
@@ -186,25 +155,15 @@ export class RelayStats extends ClientData<RelayStatsItem> {
         },
       ])
     } else if (verb === "EOSE") {
-      this.updateRelayStats([
-        url,
-        stats => {
-          stats.eose_count++
-        },
-      ])
+      this.update([url, stats => stats.eose_count++])
     } else if (verb === "NOTICE") {
-      this.updateRelayStats([
-        url,
-        stats => {
-          stats.notice_count++
-        },
-      ])
+      this.update([url, stats => stats.notice_count++])
     }
   }
 
-  private onSocketStatus = (status: string, url: string) => {
+  onSocketStatus = (status: string, url: string) => {
     if (status === SocketStatus.Open) {
-      this.updateRelayStats([
+      this.update([
         url,
         stats => {
           stats.last_open = now()
@@ -214,7 +173,7 @@ export class RelayStats extends ClientData<RelayStatsItem> {
     }
 
     if (status === SocketStatus.Closed) {
-      this.updateRelayStats([
+      this.update([
         url,
         stats => {
           stats.last_close = now()
@@ -224,7 +183,7 @@ export class RelayStats extends ClientData<RelayStatsItem> {
     }
 
     if (status === SocketStatus.Error) {
-      this.updateRelayStats([
+      this.update([
         url,
         stats => {
           stats.last_error = now()

@@ -3,9 +3,9 @@ import type {Readable, Writable} from "svelte/store"
 import {max, throttle, addToMapKey, inc, dec} from "@welshman/lib"
 import {getListTags, getPubkeyTagValues} from "@welshman/util"
 import {throttled, getter} from "@welshman/store"
-import type {ClientContext} from "./client.js"
-import type {FollowLists} from "./follows.js"
-import type {MuteLists} from "./mutes.js"
+import type {IClient} from "./client.js"
+import {FollowLists} from "./follows.js"
+import {MuteLists} from "./mutes.js"
 
 /**
  * Web-of-trust scoring derived from follow and mute lists. The trust graph is
@@ -23,12 +23,11 @@ export class Wot {
   private getWotGraphStore: () => Map<string, number>
   private getMaxWotStore: () => number | undefined
 
-  constructor(
-    readonly ctx: ClientContext,
-    readonly followLists: FollowLists,
-    readonly muteLists: MuteLists,
-  ) {
-    this.followersByPubkey = derived(throttled(1000, this.followLists.all), lists => {
+  constructor(readonly ctx: IClient) {
+    const followLists = this.ctx.use(FollowLists)
+    const muteLists = this.ctx.use(MuteLists)
+
+    this.followersByPubkey = derived(throttled(1000, followLists.all), lists => {
       const $followersByPubkey = new Map<string, Set<string>>()
 
       for (const list of lists) {
@@ -40,7 +39,7 @@ export class Wot {
       return $followersByPubkey
     })
 
-    this.mutersByPubkey = derived(throttled(1000, this.muteLists.all), lists => {
+    this.mutersByPubkey = derived(throttled(1000, muteLists.all), lists => {
       const $mutersByPubkey = new Map<string, Set<string>>()
 
       for (const list of lists) {
@@ -61,13 +60,15 @@ export class Wot {
     this.getWotGraphStore = getter(this.wotGraph)
     this.getMaxWotStore = getter(this.maxWot)
 
-    this.followLists.subscribe(this.buildGraph)
-    this.muteLists.subscribe(this.buildGraph)
+    followLists.subscribe(this.buildGraph)
+    muteLists.subscribe(this.buildGraph)
   }
 
-  getFollows = (pubkey: string) => getPubkeyTagValues(getListTags(this.followLists.get(pubkey)))
+  getFollows = (pubkey: string) =>
+    getPubkeyTagValues(getListTags(this.ctx.use(FollowLists).get(pubkey)))
 
-  getMutes = (pubkey: string) => getPubkeyTagValues(getListTags(this.muteLists.get(pubkey)))
+  getMutes = (pubkey: string) =>
+    getPubkeyTagValues(getListTags(this.ctx.use(MuteLists).get(pubkey)))
 
   getNetwork = (pubkey: string) => {
     const pubkeys = new Set(this.getFollows(pubkey))
@@ -105,7 +106,9 @@ export class Wot {
   buildGraph = throttle(1000, () => {
     const $pubkey = this.ctx.user?.pubkey
     const $graph = new Map<string, number>()
-    const $follows = $pubkey ? this.getFollows($pubkey) : Array.from(this.followLists.keys())
+    const $follows = $pubkey
+      ? this.getFollows($pubkey)
+      : Array.from(this.ctx.use(FollowLists).keys())
 
     for (const follow of $follows) {
       for (const pubkey of this.getFollows(follow)) {

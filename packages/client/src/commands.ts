@@ -33,32 +33,18 @@ import {
   prep,
 } from "@welshman/util"
 import type {ManagementRequest, EventTemplate, RoomMeta, Profile} from "@welshman/util"
-import {addMaximalFallbacks} from "./router.js"
-import type {Router} from "./router.js"
+import {addMaximalFallbacks, Router} from "./router.js"
 import {MergedThunk, publishThunk} from "./thunk.js"
 import type {ThunkOptions} from "./thunk.js"
-import type {ClientContext} from "./client.js"
+import type {IClient} from "./client.js"
 import type {User} from "./user.js"
-import type {RelayLists} from "./relayLists.js"
-import type {MessagingRelayLists} from "./messagingRelayLists.js"
-import type {BlockedRelayLists} from "./blockedRelayLists.js"
-import type {SearchRelayLists} from "./searchRelayLists.js"
-import type {FollowLists} from "./follows.js"
-import type {MuteLists} from "./mutes.js"
-import type {PinLists} from "./pins.js"
-
-export type CommandsDeps = {
-  client: ClientContext
-  user: User
-  router: Router
-  relayLists: RelayLists
-  messagingRelayLists: MessagingRelayLists
-  blockedRelayLists: BlockedRelayLists
-  searchRelayLists: SearchRelayLists
-  followLists: FollowLists
-  muteLists: MuteLists
-  pinLists: PinLists
-}
+import {RelayLists} from "./relayLists.js"
+import {MessagingRelayLists} from "./messagingRelayLists.js"
+import {BlockedRelayLists} from "./blockedRelayLists.js"
+import {SearchRelayLists} from "./searchRelayLists.js"
+import {FollowLists} from "./follows.js"
+import {MuteLists} from "./mutes.js"
+import {PinLists} from "./pins.js"
 
 export type SendWrappedOptions = Omit<
   ThunkOptions,
@@ -70,37 +56,54 @@ export type SendWrappedOptions = Omit<
 
 /**
  * The high-level "do an action" API: each method builds an event for the
- * client's user and publishes it via a thunk. Replaces the old module of global
- * functions; everything that used a global (current pubkey, signer, router, the
- * user's lists) is now injected.
+ * client's user and publishes it via a thunk. Siblings (the user's lists, the
+ * router) are resolved lazily through `ctx.use`; the acting user is `ctx.user`.
  */
 export class Commands {
-  readonly client: ClientContext
-  readonly user: User
-  readonly router: Router
-  readonly relayLists: RelayLists
-  readonly messagingRelayLists: MessagingRelayLists
-  readonly blockedRelayLists: BlockedRelayLists
-  readonly searchRelayLists: SearchRelayLists
-  readonly followLists: FollowLists
-  readonly muteLists: MuteLists
-  readonly pinLists: PinLists
+  constructor(readonly ctx: IClient) {}
 
-  constructor(deps: CommandsDeps) {
-    this.client = deps.client
-    this.user = deps.user
-    this.router = deps.router
-    this.relayLists = deps.relayLists
-    this.messagingRelayLists = deps.messagingRelayLists
-    this.blockedRelayLists = deps.blockedRelayLists
-    this.searchRelayLists = deps.searchRelayLists
-    this.followLists = deps.followLists
-    this.muteLists = deps.muteLists
-    this.pinLists = deps.pinLists
+  private get user(): User {
+    if (!this.ctx.user) {
+      throw new Error("Commands require a signed-in user")
+    }
+
+    return this.ctx.user
+  }
+
+  private get router() {
+    return this.ctx.use(Router)
+  }
+
+  private get relayLists() {
+    return this.ctx.use(RelayLists)
+  }
+
+  private get messagingRelayLists() {
+    return this.ctx.use(MessagingRelayLists)
+  }
+
+  private get blockedRelayLists() {
+    return this.ctx.use(BlockedRelayLists)
+  }
+
+  private get searchRelayLists() {
+    return this.ctx.use(SearchRelayLists)
+  }
+
+  private get followLists() {
+    return this.ctx.use(FollowLists)
+  }
+
+  private get muteLists() {
+    return this.ctx.use(MuteLists)
+  }
+
+  private get pinLists() {
+    return this.ctx.use(PinLists)
   }
 
   private publish = (options: Omit<ThunkOptions, "client" | "user">) =>
-    publishThunk({...options, client: this.client, user: this.user})
+    publishThunk({...options, client: this.ctx, user: this.user})
 
   private fromUser = () => this.router.FromUser().policy(addMaximalFallbacks).getUrls()
 
@@ -149,7 +152,9 @@ export class Commands {
 
   setReadRelays = async (urls: string[]) => {
     const list = (await this.relayLists.forceLoad(this.user.pubkey, [])) || makeList({kind: RELAYS})
-    const writeRelays = reject(nthEq(2, RelayMode.Read), getRelayTags(getListTags(list))).map(nth(1))
+    const writeRelays = reject(nthEq(2, RelayMode.Read), getRelayTags(getListTags(list))).map(
+      nth(1),
+    )
     const writeTags = writeRelays.map(url => ["r", url, RelayMode.Write])
     const readTags = urls.map(url => ["r", url, RelayMode.Read])
     const tags = [...writeTags, ...readTags]
@@ -160,7 +165,9 @@ export class Commands {
 
   setWriteRelays = async (urls: string[]) => {
     const list = (await this.relayLists.forceLoad(this.user.pubkey, [])) || makeList({kind: RELAYS})
-    const readRelays = reject(nthEq(2, RelayMode.Write), getRelayTags(getListTags(list))).map(nth(1))
+    const readRelays = reject(nthEq(2, RelayMode.Write), getRelayTags(getListTags(list))).map(
+      nth(1),
+    )
     const readTags = readRelays.map(url => ["r", url, RelayMode.Read])
     const writeTags = urls.map(url => ["r", url, RelayMode.Write])
     const tags = [...readTags, ...writeTags]
@@ -259,14 +266,16 @@ export class Commands {
   // NIP 02
 
   unfollow = async (value: string) => {
-    const list = (await this.followLists.forceLoad(this.user.pubkey, [])) || makeList({kind: FOLLOWS})
+    const list =
+      (await this.followLists.forceLoad(this.user.pubkey, [])) || makeList({kind: FOLLOWS})
     const event = await removeFromList(list, value).reconcile(this.encryptToSelf)
 
     return this.publish({event, relays: this.fromUser()})
   }
 
   follow = async (tag: string[]) => {
-    const list = (await this.followLists.forceLoad(this.user.pubkey, [])) || makeList({kind: FOLLOWS})
+    const list =
+      (await this.followLists.forceLoad(this.user.pubkey, [])) || makeList({kind: FOLLOWS})
     const event = await addToListPublicly(list, tag).reconcile(this.encryptToSelf)
 
     return this.publish({event, relays: this.fromUser()})

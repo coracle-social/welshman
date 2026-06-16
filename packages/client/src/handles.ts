@@ -2,8 +2,8 @@ import {tryCatch, fetchJson, batcher, postJson, last} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import {deriveDeduplicated} from "@welshman/store"
 import {LoadableData} from "./clientData.js"
-import type {ClientContext} from "./client.js"
-import type {Profiles} from "./profiles.js"
+import type {IClient} from "./client.js"
+import {Profiles} from "./profiles.js"
 
 export type Handle = {
   nip05: string
@@ -54,11 +54,7 @@ export const displayHandle = (handle: Handle) => displayNip05(handle.nip05)
  * handle.
  */
 export class Handles extends LoadableData<Handle> {
-  constructor(
-    ctx: ClientContext,
-    readonly profiles: Profiles,
-    readonly options: {dufflepudUrl?: string} = {},
-  ) {
+  constructor(ctx: IClient) {
     super(ctx)
   }
 
@@ -66,9 +62,10 @@ export class Handles extends LoadableData<Handle> {
     const result = new Map<string, Handle>()
 
     // Use dufflepud if it's set up to protect user privacy, otherwise fetch directly
-    if (this.options.dufflepudUrl) {
+    if (this.ctx.config.dufflepudUrl) {
       const res: any = await tryCatch(
-        async () => await postJson(`${this.options.dufflepudUrl}/handle/info`, {handles: nip05s}),
+        async () =>
+          await postJson(`${this.ctx.config.dufflepudUrl}/handle/info`, {handles: nip05s}),
       )
 
       for (const {handle: nip05, info} of res?.data || []) {
@@ -99,7 +96,7 @@ export class Handles extends LoadableData<Handle> {
   })
 
   loadForPubkey = async (pubkey: string, relays: string[] = []) => {
-    const $profile = await this.profiles.load(pubkey, relays)
+    const $profile = await this.ctx.use(Profiles).load(pubkey, relays)
 
     return $profile?.nip05 ? this.load($profile.nip05) : undefined
   }
@@ -108,7 +105,7 @@ export class Handles extends LoadableData<Handle> {
     this.loadForPubkey(pubkey, relays)
 
     return deriveDeduplicated(
-      [this.index, this.profiles.derive(pubkey, relays)],
+      [this.index, this.ctx.use(Profiles).derive(pubkey, relays)],
       ([$handlesByNip05, $profile]) => {
         if (!$profile?.nip05) return undefined
 

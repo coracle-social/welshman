@@ -1,21 +1,18 @@
 import {Scope, FeedController} from "@welshman/feeds"
 import type {FeedControllerOptions, Feed} from "@welshman/feeds"
 import type {AdapterContext} from "@welshman/net"
-import type {ClientContext} from "./client.js"
-import type {Wot} from "./wot.js"
+import type {IClient} from "./client.js"
+import {Wot} from "./wot.js"
 
 export type MakeFeedControllerOptions = Partial<Omit<FeedControllerOptions, "feed">> & {feed: Feed}
 
 /**
  * Builds `FeedController`s wired to this client. Scope/WOT pubkey resolution is
- * delegated to the injected `Wot`, and feeds fetch through THIS client's net
- * context (pool + repository) rather than the global one.
+ * delegated to `Wot`, and feeds fetch through THIS client's net context (pool +
+ * repository) rather than the global one.
  */
 export class Feeds {
-  constructor(
-    readonly ctx: ClientContext,
-    readonly wot: Wot,
-  ) {}
+  constructor(readonly ctx: IClient) {}
 
   getPubkeysForScope = (scope: Scope): string[] => {
     const $pubkey = this.ctx.user?.pubkey
@@ -28,11 +25,11 @@ export class Feeds {
       case Scope.Self:
         return [$pubkey]
       case Scope.Follows:
-        return this.wot.getFollows($pubkey)
+        return this.ctx.use(Wot).getFollows($pubkey)
       case Scope.Network:
-        return this.wot.getNetwork($pubkey)
+        return this.ctx.use(Wot).getNetwork($pubkey)
       case Scope.Followers:
-        return this.wot.getFollowers($pubkey)
+        return this.ctx.use(Wot).getFollowers($pubkey)
       default:
         return []
     }
@@ -40,11 +37,11 @@ export class Feeds {
 
   getPubkeysForWOTRange = (min: number, max: number): string[] => {
     const pubkeys = []
-    const $maxWot = this.wot.getMaxWot() ?? 0
+    const $maxWot = this.ctx.use(Wot).getMaxWot() ?? 0
     const thresholdMin = $maxWot * min
     const thresholdMax = $maxWot * max
 
-    for (const [tpk, score] of this.wot.getWotGraph().entries()) {
+    for (const [tpk, score] of this.ctx.use(Wot).getWotGraph().entries()) {
       if (score >= thresholdMin && score <= thresholdMax) {
         pubkeys.push(tpk)
       }

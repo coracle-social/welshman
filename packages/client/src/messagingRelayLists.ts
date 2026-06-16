@@ -1,8 +1,8 @@
 import {MESSAGING_RELAYS, asDecryptedEvent, readList} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {RepositoryCollection} from "./repositoryCollection.js"
-import type {ClientContext} from "./client.js"
-import type {RelayLists} from "./relayLists.js"
+import {RelayLists} from "./relayLists.js"
+import type {IClient} from "./client.js"
 
 /**
  * Kind-10050 messaging relay lists (NIP-17), keyed by pubkey. Loaded via the
@@ -10,10 +10,7 @@ import type {RelayLists} from "./relayLists.js"
  * collection.
  */
 export class MessagingRelayLists extends RepositoryCollection<ReturnType<typeof readList>> {
-  constructor(
-    ctx: ClientContext,
-    readonly relayLists: RelayLists,
-  ) {
+  constructor(ctx: IClient) {
     super(ctx, {
       filters: [{kinds: [MESSAGING_RELAYS]}],
       eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
@@ -22,6 +19,6 @@ export class MessagingRelayLists extends RepositoryCollection<ReturnType<typeof 
   }
 
   fetch(pubkey: string, relayHints: string[] = []) {
-    return this.relayLists.makeOutboxLoader(MESSAGING_RELAYS)(pubkey, relayHints)
+    return this.ctx.use(RelayLists).makeOutboxLoader(MESSAGING_RELAYS)(pubkey, relayHints)
   }
 }

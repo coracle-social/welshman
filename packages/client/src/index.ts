@@ -1,4 +1,7 @@
 export * from "./client.js"
+export * from "./policies.js"
+export * from "./networking.js"
+export * from "./stores.js"
 export * from "./clientData.js"
 export * from "./repositoryCollection.js"
 export * from "./user.js"
