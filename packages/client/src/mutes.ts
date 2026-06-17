@@ -27,16 +27,6 @@ export class MuteLists extends RepositoryCollection<PublishedList> {
       eventToItem: async (event: TrustedEvent) => {
         const content = await ctx.use(Plaintext).ensure(event)
 
-        // If this is our own mute list but it couldn't be decrypted yet because
-        // no signer is available, don't cache a result with empty private tags —
-        // that would get stuck permanently since the repository view won't
-        // re-process an already-seen event id. Returning undefined leaves it
-        // uncached so it's retried once a signer is available. For other
-        // pubkeys' lists we fall through and read just the public tags.
-        if (event.content && content === undefined && event.pubkey === ctx.user?.pubkey) {
-          return undefined
-        }
-
         return readList(asDecryptedEvent(event, {content}))
       },
       getKey: mute => mute.event.pubkey,
