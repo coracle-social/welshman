@@ -13,7 +13,7 @@ import {
 } from "@welshman/util"
 import type {TrustedEvent, PublishedList} from "@welshman/util"
 import {RepositoryCollection} from "./repositoryCollection.js"
-import {Router} from "./router.js"
+import {Router, addMinimalFallbacks} from "./router.js"
 import {Network} from "./network.js"
 import {User} from "./user.js"
 import {Thunks} from "./thunk.js"
@@ -74,8 +74,11 @@ export class RelayLists extends RepositoryCollection<PublishedList> {
 
     const event = {kind: list.kind, content: list.event?.content || "", tags}
 
-    // Pass the old relay as an extra so it's notified of the removal too
-    return this.ctx.use(Thunks).publishToOutbox({event, relays: [url]})
+    // publishToOutbox is outbox-only, so build relays here to also notify the
+    // removed relay of its removal
+    const relays = [url, ...this.ctx.use(Router).FromUser().policy(addMinimalFallbacks).getUrls()]
+
+    return this.ctx.use(Thunks).publish({event, relays})
   }
 
   setRelays = (tags: string[][]) => {
