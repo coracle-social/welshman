@@ -1,7 +1,7 @@
 import {groupBy, batch, now, uniq, ago, DAY, HOUR, MINUTE} from "@welshman/lib"
 import {isOnionUrl, isLocalUrl, isIPAddress, isRelayUrl} from "@welshman/util"
-import {SocketStatus} from "@welshman/net"
-import type {ClientMessage, RelayMessage} from "@welshman/net"
+import {SocketStatus, SocketEvent} from "@welshman/net"
+import type {ClientMessage, RelayMessage, Socket} from "@welshman/net"
 import {ClientData} from "./clientData.js"
 import {BlockedRelayLists} from "./blockedRelayLists.js"
 
@@ -110,7 +110,7 @@ export class RelayStats extends ClientData<RelayStatsItem> {
     }
   })
 
-  onSocketSend = ([verb]: ClientMessage, url: string) => {
+  private onSocketSend = ([verb]: ClientMessage, url: string) => {
     if (verb === "REQ") {
       this.update([
         url,
@@ -130,7 +130,7 @@ export class RelayStats extends ClientData<RelayStatsItem> {
     }
   }
 
-  onSocketReceive = ([verb, ...extra]: RelayMessage, url: string) => {
+  private onSocketReceive = ([verb, ...extra]: RelayMessage, url: string) => {
     if (verb === "OK") {
       const [, ok] = extra
 
@@ -161,7 +161,7 @@ export class RelayStats extends ClientData<RelayStatsItem> {
     }
   }
 
-  onSocketStatus = (status: string, url: string) => {
+  private onSocketStatus = (status: string, url: string) => {
     if (status === SocketStatus.Open) {
       this.update([
         url,
@@ -190,6 +190,18 @@ export class RelayStats extends ClientData<RelayStatsItem> {
           stats.recent_errors = uniq(stats.recent_errors.concat(now())).slice(-10)
         },
       ])
+    }
+  }
+
+  monitorSocket = (socket: Socket) => {
+    socket.on(SocketEvent.Send, this.onSocketSend)
+    socket.on(SocketEvent.Receive, this.onSocketReceive)
+    socket.on(SocketEvent.Status, this.onSocketStatus)
+
+    return () => {
+      socket.off(SocketEvent.Send, this.onSocketSend)
+      socket.off(SocketEvent.Receive, this.onSocketReceive)
+      socket.off(SocketEvent.Status, this.onSocketStatus)
     }
   }
 }

@@ -93,22 +93,10 @@ export const clientPolicyIngest: ClientPolicy = client =>
   })
 
 /**
- * Wires socket activity on the client's pool into the RelayStats store.
+ * Listens to socket activity on the client's pool into the RelayStats store.
  */
 export const clientPolicyRelayStats: ClientPolicy = client => {
-  const stats = client.use(RelayStats)
-
-  return client.pool.subscribe(socket => {
-    socket.on(SocketEvent.Send, stats.onSocketSend)
-    socket.on(SocketEvent.Receive, stats.onSocketReceive)
-    socket.on(SocketEvent.Status, stats.onSocketStatus)
-
-    return () => {
-      socket.off(SocketEvent.Send, stats.onSocketSend)
-      socket.off(SocketEvent.Receive, stats.onSocketReceive)
-      socket.off(SocketEvent.Status, stats.onSocketStatus)
-    }
-  })
+  return client.pool.subscribe(client.use(RelayStats).monitorSocket)
 }
 
 /**

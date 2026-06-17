@@ -1,4 +1,4 @@
-import {writable} from "svelte/store"
+import type {Readable} from "svelte/store"
 import {
   removeUndefined,
   fetchJson,
@@ -8,9 +8,9 @@ import {
   batcher,
   postJson,
 } from "@welshman/lib"
-import {getTagValues, zapFromEvent} from "@welshman/util"
+import {getTagValue, getZapSplits, zapFromEvent} from "@welshman/util"
 import type {Zapper, Zap, TrustedEvent} from "@welshman/util"
-import {deriveDeduplicated} from "@welshman/store"
+import {deriveDeduplicated, deriveDeduplicatedByValue} from "@welshman/store"
 import {LoadableData} from "./clientData.js"
 import type {IClient} from "./client.js"
 import {Profiles} from "./profiles.js"
@@ -22,10 +22,6 @@ import {Profiles} from "./profiles.js"
  * profiles collection to resolve a pubkey's lnurl.
  */
 export class Zappers extends LoadableData<Zapper> {
-  constructor(ctx: IClient) {
-    super(ctx)
-  }
-
   fetch = batcher(800, async (lnurls: string[]) => {
     const result = new Map<string, Zapper>()
     const valid = lnurls.filter(lnurl => lnurl.startsWith("lnurl1"))
@@ -40,7 +36,6 @@ export class Zappers extends LoadableData<Zapper> {
       }
     }
 
-    // Use dufflepud if it's set up to protect user privacy, otherwise fetch directly
     if (this.ctx.config.dufflepudUrl) {
       const hexUrls = valid.map(bech32ToHex)
       const res: any = await tryCatch(
@@ -82,45 +77,69 @@ export class Zappers extends LoadableData<Zapper> {
     )
   }
 
-  getLnUrlsForEvent = async (event: TrustedEvent) => {
-    const pubkeys = getTagValues("zap", event.tags)
+  /**
+   * Resolve the zapper a zap receipt should be validated against. A receipt's
+   * `p` tag is the recipient (copied from the zap request), so we honor only
+   * receipts addressed to one of the parent's designated split recipients and
+   * load *that* recipient's zapper. The old lookup always used the first
+   * recipient's lnurl, which silently dropped legitimate zaps to any of the
+   * other split recipients.
+   */
+  loadZapperForZap = async (zapReceipt: TrustedEvent, parent: TrustedEvent) => {
+    const recipient = getTagValue("p", zapReceipt.tags)
+    const split = getZapSplits(parent).find(split => split.pubkey === recipient)
 
-    if (pubkeys.length > 0) {
-      const profiles = await Promise.all(pubkeys.map(pubkey => this.ctx.use(Profiles).load(pubkey)))
-      const lnurls = removeUndefined(profiles.map(profile => profile?.lnurl))
+    if (!split) return
 
-      if (lnurls.length > 0) {
-        return lnurls
-      }
+    return this.loadForPubkey(split.pubkey, removeUndefined([split.relay]))
+  }
+
+  validateZapReceipt = async (zapReceipt: TrustedEvent, parent: TrustedEvent) => {
+    const zapper = await this.loadZapperForZap(zapReceipt, parent)
+
+    return zapper ? zapFromEvent(zapReceipt, zapper) : undefined
+  }
+
+  validateZapReceipts = async (zapReceipts: TrustedEvent[], parent: TrustedEvent) =>
+    removeUndefined(
+      await Promise.all(zapReceipts.map(zapReceipt => this.validateZapReceipt(zapReceipt, parent))),
+    )
+
+  deriveValidZapReceipts = (zapReceipts: TrustedEvent[], parent: TrustedEvent): Readable<Zap[]> => {
+    const splits = getZapSplits(parent)
+    const profiles = this.ctx.use(Profiles)
+
+    // Ensure each recipient's profile (-> lnurl) and zapper are being loaded.
+    for (const split of splits) {
+      this.loadForPubkey(split.pubkey, removeUndefined([split.relay]))
     }
 
-    const profile = await this.ctx.use(Profiles).load(event.pubkey)
+    const stores: Readable<any>[] = [
+      this.index,
+      ...splits.map(split => profiles.derive(split.pubkey)),
+    ]
 
-    return removeUndefined([profile?.lnurl])
-  }
+    return deriveDeduplicatedByValue(stores, (values: any[]) => {
+      const $zappersByLnurl = values[0] as Map<string, Zapper>
+      const $profiles = values.slice(1) as Array<{lnurl?: string} | undefined>
 
-  getZapperForZap = async (zap: TrustedEvent, parent: TrustedEvent) => {
-    const lnurls = await this.getLnUrlsForEvent(parent)
+      const zapperByPubkey = new Map<string, Zapper>()
 
-    return lnurls.length > 0 ? this.load(lnurls[0]) : undefined
-  }
+      splits.forEach((split, i) => {
+        const lnurl = $profiles[i]?.lnurl
+        const zapper = lnurl ? $zappersByLnurl.get(lnurl) : undefined
 
-  getValidZap = async (zap: TrustedEvent, parent: TrustedEvent) => {
-    const zapper = await this.getZapperForZap(zap, parent)
+        if (zapper) zapperByPubkey.set(split.pubkey, zapper)
+      })
 
-    return zapper ? zapFromEvent(zap, zapper) : undefined
-  }
+      return removeUndefined(
+        zapReceipts.map(zapReceipt => {
+          const recipient = getTagValue("p", zapReceipt.tags)
+          const zapper = recipient ? zapperByPubkey.get(recipient) : undefined
 
-  getValidZaps = async (zaps: TrustedEvent[], parent: TrustedEvent) =>
-    removeUndefined(await Promise.all(zaps.map(zap => this.getValidZap(zap, parent))))
-
-  deriveValidZaps = (zaps: TrustedEvent[], parent: TrustedEvent) => {
-    const store = writable<Zap[]>([])
-
-    this.getValidZaps(zaps, parent).then(validZaps => {
-      store.set(validZaps)
+          return zapper ? zapFromEvent(zapReceipt, zapper) : undefined
+        }),
+      )
     })
-
-    return store
   }
 }
