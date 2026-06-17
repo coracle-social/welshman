@@ -6,7 +6,7 @@ import type {EventToItem, ItemsByKey, MakeLoadItemOptions} from "@welshman/store
 import type {IClient} from "./client.js"
 import {Stores} from "./stores.js"
 
-export type RepositoryCollectionOptions<T> = {
+export type CollectionOptions<T> = {
   filters: Filter[]
   eventToItem: EventToItem<T>
   getKey: (item: T) => string
@@ -22,7 +22,7 @@ export type RepositoryCollectionOptions<T> = {
  *
  * Like `ClientData`, subclasses depend only on the `IClient` seam.
  */
-export abstract class RepositoryCollection<T> {
+export abstract class Collection<T> {
   byKey: Readable<ItemsByKey<T>>
   all: Readable<T[]>
   subscribe: Readable<ItemsByKey<T>>["subscribe"]
@@ -32,9 +32,6 @@ export abstract class RepositoryCollection<T> {
   values: () => IterableIterator<T>
   load: (key: string, ...args: any[]) => Promise<Maybe<T>>
   forceLoad: (key: string, ...args: any[]) => Promise<Maybe<T>>
-  // Reactive view of a single key that also triggers a load
-  derive: (key?: string, ...args: any[]) => Readable<Maybe<T>>
-  // Reactive view of a single key that does not trigger a load
   derived: (key?: string, ...args: any[]) => Readable<Maybe<T>>
   private getByKey: () => ItemsByKey<T>
 
@@ -42,7 +39,7 @@ export abstract class RepositoryCollection<T> {
 
   constructor(
     protected readonly ctx: IClient,
-    options: RepositoryCollectionOptions<T>,
+    options: CollectionOptions<T>,
   ) {
     const fetch = (key: string, ...args: any[]) => this.fetch(key, ...args)
 
@@ -60,8 +57,7 @@ export abstract class RepositoryCollection<T> {
     this.values = () => this.getByKey().values()
     this.load = makeLoadItem(fetch, this.get, options.loadOptions)
     this.forceLoad = makeForceLoadItem(fetch, this.get)
-    this.derive = makeDeriveItem(this.byKey, this.load)
-    this.derived = makeDeriveItem(this.byKey)
+    this.derived = makeDeriveItem(this.byKey, this.load)
   }
 
   // Convenience views of the current user's own item (replaces the old
@@ -73,7 +69,7 @@ export abstract class RepositoryCollection<T> {
     return pubkey ? this.get(pubkey) : undefined
   }
 
-  deriveForUser = (...args: any[]) => this.derive(this.ctx.user?.pubkey, ...args)
+  deriveForUser = (...args: any[]) => this.derived(this.ctx.user?.pubkey, ...args)
 
   loadForUser = (...args: any[]) => {
     const pubkey = this.ctx.user?.pubkey

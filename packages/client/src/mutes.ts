@@ -9,7 +9,7 @@ import {
   updateList,
 } from "@welshman/util"
 import type {TrustedEvent, PublishedList} from "@welshman/util"
-import {RepositoryCollection} from "./repositoryCollection.js"
+import {Collection} from "./collection.js"
 import type {IClient} from "./client.js"
 import {Network} from "./network.js"
 import {Thunks} from "./thunk.js"
@@ -20,7 +20,7 @@ import {User} from "./user.js"
  * Kind-10000 mute lists, keyed by pubkey. Mute lists carry private entries in
  * encrypted content, so decoding goes through the plaintext cache.
  */
-export class MuteLists extends RepositoryCollection<PublishedList> {
+export class MuteLists extends Collection<PublishedList> {
   constructor(ctx: IClient) {
     super(ctx, {
       filters: [{kinds: [MUTES]}],

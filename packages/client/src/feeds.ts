@@ -26,11 +26,11 @@ export class Feeds {
       case Scope.Self:
         return [$pubkey]
       case Scope.Follows:
-        return this.ctx.use(Wot).getFollows($pubkey)
+        return this.ctx.use(Wot).deriveFollows($pubkey).get()
       case Scope.Network:
-        return this.ctx.use(Wot).getNetwork($pubkey)
+        return this.ctx.use(Wot).deriveNetwork($pubkey).get()
       case Scope.Followers:
-        return this.ctx.use(Wot).getFollowers($pubkey)
+        return this.ctx.use(Wot).deriveFollowers($pubkey).get()
       default:
         return []
     }
@@ -38,11 +38,11 @@ export class Feeds {
 
   getPubkeysForWOTRange = (min: number, max: number): string[] => {
     const pubkeys = []
-    const $maxWot = this.ctx.use(Wot).getMaxWot() ?? 0
+    const $maxWot = this.ctx.use(Wot).max.get() ?? 0
     const thresholdMin = $maxWot * min
     const thresholdMax = $maxWot * max
 
-    for (const [tpk, score] of this.ctx.use(Wot).getWotGraph().entries()) {
+    for (const [tpk, score] of this.ctx.use(Wot).graph.get().entries()) {
       if (score >= thresholdMin && score <= thresholdMax) {
         pubkeys.push(tpk)
       }
