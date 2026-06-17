@@ -71,7 +71,7 @@ export class Zappers extends LoadableData<Zapper> {
     this.loadForPubkey(pubkey, relays)
 
     return deriveDeduplicated(
-      [this.index, this.ctx.use(Profiles).derive(pubkey, relays)],
+      [this.index, this.ctx.use(Profiles).derived(pubkey, relays)],
       ([$zappersByLnurl, $profile]) =>
         $profile?.lnurl ? $zappersByLnurl.get($profile.lnurl) : undefined,
     )
@@ -116,7 +116,7 @@ export class Zappers extends LoadableData<Zapper> {
 
     const stores: Readable<any>[] = [
       this.index,
-      ...splits.map(split => profiles.derive(split.pubkey)),
+      ...splits.map(split => profiles.derived(split.pubkey)),
     ]
 
     return deriveDeduplicatedByValue(stores, (values: any[]) => {

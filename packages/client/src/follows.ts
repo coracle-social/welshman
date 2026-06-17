@@ -7,7 +7,7 @@ import {
   removeFromList,
 } from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {RepositoryCollection} from "./repositoryCollection.js"
+import {Collection} from "./collection.js"
 import {Network} from "./network.js"
 import {Thunks} from "./thunk.js"
 import {User} from "./user.js"
@@ -17,7 +17,7 @@ import type {IClient} from "./client.js"
  * Kind-3 follow lists, keyed by pubkey. Loaded via the outbox model (the
  * author's write relays), so it depends on the relay-list collection.
  */
-export class FollowLists extends RepositoryCollection<ReturnType<typeof readList>> {
+export class FollowLists extends Collection<ReturnType<typeof readList>> {
   constructor(ctx: IClient) {
     super(ctx, {
       filters: [{kinds: [FOLLOWS]}],

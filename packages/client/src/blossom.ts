@@ -1,6 +1,6 @@
 import {BLOSSOM_SERVERS, asDecryptedEvent, readList} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {RepositoryCollection} from "./repositoryCollection.js"
+import {Collection} from "./collection.js"
 import {Network} from "./network.js"
 import type {IClient} from "./client.js"
 
@@ -8,7 +8,7 @@ import type {IClient} from "./client.js"
  * Blossom server lists (kind 10063), keyed by pubkey. Loaded via the outbox
  * model (the author's write relays), so it depends on the relay-list collection.
  */
-export class BlossomServerLists extends RepositoryCollection<ReturnType<typeof readList>> {
+export class BlossomServerLists extends Collection<ReturnType<typeof readList>> {
   constructor(ctx: IClient) {
     super(ctx, {
       filters: [{kinds: [BLOSSOM_SERVERS]}],

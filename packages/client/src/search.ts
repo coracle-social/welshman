@@ -82,9 +82,9 @@ export class Searches {
           onSearch: this.searchProfiles,
           getValue: (profile: PublishedProfile) => profile.event.pubkey,
           sortFn: ({score = 1, item}) => {
-            const wotScore = this.ctx.use(Wot).getWotGraph().get(item.event.pubkey) || 0
+            const wotScore = this.ctx.use(Wot).graph.get().get(item.event.pubkey) || 0
 
-            return dec(score) * inc(wotScore / (this.ctx.use(Wot).getMaxWot() || 1))
+            return dec(score) * inc(wotScore / (this.ctx.use(Wot).max.get() || 1))
           },
           fuseOptions: {
             keys: [

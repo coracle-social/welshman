@@ -12,7 +12,7 @@ import {
   makeEvent,
 } from "@welshman/util"
 import type {TrustedEvent, PublishedList} from "@welshman/util"
-import {RepositoryCollection} from "./repositoryCollection.js"
+import {Collection} from "./collection.js"
 import {Router, addMinimalFallbacks} from "./router.js"
 import {Network} from "./network.js"
 import {User} from "./user.js"
@@ -23,7 +23,7 @@ import type {IClient} from "./client.js"
  * NIP-65 relay lists, keyed by pubkey. This is the routing substrate every other
  * outbox-model load depends on (see `Network.loadUsingOutbox`).
  */
-export class RelayLists extends RepositoryCollection<PublishedList> {
+export class RelayLists extends Collection<PublishedList> {
   constructor(ctx: IClient) {
     super(ctx, {
       filters: [{kinds: [RELAYS]}],

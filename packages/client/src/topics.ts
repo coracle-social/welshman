@@ -2,6 +2,7 @@ import {readable} from "svelte/store"
 import type {Readable} from "svelte/store"
 import {on} from "@welshman/lib"
 import {getTopicTagValues} from "@welshman/util"
+import type {RepositoryUpdate} from "@welshman/net"
 import {deriveItems} from "@welshman/store"
 import type {IClient} from "./client.js"
 
@@ -38,7 +39,7 @@ export class Topics {
     }
 
     this.byName = readable(topicsByName, set =>
-      on(ctx.repository, "update", ({added}: {added: {tags: string[][]}[]}) => {
+      on(ctx.repository, "update", ({added}: RepositoryUpdate) => {
         let dirty = false
 
         for (const event of added) {

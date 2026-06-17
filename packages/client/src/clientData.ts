@@ -18,10 +18,10 @@ export class ClientData<T> {
   protected index = writable(new Map<string, T>())
   protected getIndex = getter(this.index)
   protected itemSubscribers: ((key: string, value: Maybe<T>) => void)[] = []
-  public derive: (key?: string, ...args: any[]) => Readable<Maybe<T>>
+  public derived: (key?: string, ...args: any[]) => Readable<Maybe<T>>
 
   constructor(protected readonly ctx: IClient) {
-    this.derive = makeDeriveItem(this.index)
+    this.derived = makeDeriveItem(this.index)
   }
 
   subscribe = this.index.subscribe
@@ -83,7 +83,7 @@ export class ClientData<T> {
 
 /**
  * A `ClientData` collection that knows how to lazily load items by key from the
- * network. Subclasses implement `fetch`; `load`/`forceLoad`/`derive` are derived
+ * network. Subclasses implement `fetch`; `load`/`forceLoad`/`derived` are derived
  * from it (with per-key caching and backoff via `makeLoadItem`).
  */
 export abstract class LoadableData<T> extends ClientData<T> {
@@ -102,6 +102,6 @@ export abstract class LoadableData<T> extends ClientData<T> {
 
     this.load = makeLoadItem(fetch, this.get, options)
     this.forceLoad = makeForceLoadItem(fetch, this.get)
-    this.derive = makeDeriveItem(this.index, this.load)
+    this.derived = makeDeriveItem(this.index, this.load)
   }
 }
