@@ -2,6 +2,7 @@ import {
   SEARCH_RELAYS,
   asDecryptedEvent,
   readList,
+  getRelaysFromList,
   makeList,
   makeEvent,
   addToListPublicly,
@@ -9,6 +10,7 @@ import {
 } from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {DerivedPlugin} from "./base.js"
+import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {User} from "../user.js"
@@ -32,6 +34,9 @@ export class SearchRelayLists extends DerivedPlugin<ReturnType<typeof readList>>
   fetch(pubkey: string, relayHints: string[] = []) {
     return this.ctx.use(Network).loadUsingOutbox(pubkey, {kinds: [SEARCH_RELAYS]}, relayHints)
   }
+
+  urls = (pubkey: string): Projection<string[]> =>
+    this.project(pubkey, list => getRelaysFromList(list))
 
   addRelay = async (url: string) => {
     const user = User.require(this.ctx)

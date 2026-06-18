@@ -13,6 +13,7 @@ import {
 } from "@welshman/util"
 import type {TrustedEvent, PublishedList} from "@welshman/util"
 import {DerivedPlugin} from "./base.js"
+import type {Projection} from "./base.js"
 import {Router, addMinimalFallbacks} from "./router.js"
 import {Network} from "./network.js"
 import {User} from "../user.js"
@@ -44,8 +45,14 @@ export class RelayLists extends DerivedPlugin<PublishedList> {
     ])
   }
 
-  getRelaysForPubkey = (pubkey: string, mode?: RelayMode) =>
-    getRelaysFromList(this.get(pubkey), mode)
+  urls = (pubkey: string): Projection<string[]> =>
+    this.project(pubkey, list => getRelaysFromList(list))
+
+  readUrls = (pubkey: string): Projection<string[]> =>
+    this.project(pubkey, list => getRelaysFromList(list, RelayMode.Read))
+
+  writeUrls = (pubkey: string): Projection<string[]> =>
+    this.project(pubkey, list => getRelaysFromList(list, RelayMode.Write))
 
   // NIP-65 relay-list mutations for the client's user
 

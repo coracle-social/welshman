@@ -10,6 +10,7 @@ import {
 } from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {DerivedPlugin} from "./base.js"
+import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {User} from "../user.js"
@@ -34,7 +35,8 @@ export class BlockedRelayLists extends DerivedPlugin<ReturnType<typeof readList>
     return this.ctx.use(Network).loadUsingOutbox(pubkey, {kinds: [BLOCKED_RELAYS]}, relayHints)
   }
 
-  getBlockedRelays = (pubkey: string) => getRelaysFromList(this.get(pubkey))
+  urls = (pubkey: string): Projection<string[]> =>
+    this.project(pubkey, list => getRelaysFromList(list))
 
   addRelay = async (url: string) => {
     const user = User.require(this.ctx)

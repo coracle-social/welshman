@@ -64,7 +64,7 @@ export class RelayStats extends MapPlugin<RelayStatsItem> {
     // Skip relays the user has blocked
     const pubkey = this.ctx.user?.pubkey
 
-    if (pubkey && this.ctx.use(BlockedRelayLists).getBlockedRelays(pubkey).includes(url)) {
+    if (pubkey && this.ctx.use(BlockedRelayLists).urls(pubkey).get().includes(url)) {
       return 0
     }
 
