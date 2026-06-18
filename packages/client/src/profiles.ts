@@ -9,8 +9,9 @@ import {
   PROFILE,
 } from "@welshman/util"
 import type {Profile} from "@welshman/util"
-import type {Readable} from "svelte/store"
-import {DerivedData} from "./clientData.js"
+import type {Maybe} from "@welshman/lib"
+import {DerivedData, projection} from "./clientData.js"
+import type {Projection} from "./clientData.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {Thunks} from "./thunk.js"
@@ -41,13 +42,13 @@ export class Profiles extends DerivedData<ReturnType<typeof readProfile>> {
     return this.ctx.use(Thunks).publish({event, relays})
   }
 
-  display = (pubkey: string | undefined, ...args: any[]): Readable<string> =>
-    pubkey ? displayProfile(this.get(pubkey), displayPubkey(pubkey)) : ""
+  display = (pubkey: string | undefined, ...args: any[]): Projection<string> => {
+    const read = ($profile: Maybe<ReturnType<typeof readProfile>>) =>
+      pubkey ? displayProfile($profile, displayPubkey(pubkey)) : ""
 
-  deriveDisplay = (pubkey: string | undefined, ...args: any[]): Readable<string> =>
-    pubkey
-      ? derived(this.one(pubkey, ...args), $profile =>
-          displayProfile($profile, displayPubkey(pubkey)),
-        )
-      : readable("")
+    return projection(
+      pubkey ? derived(this.one(pubkey, ...args), read) : readable(""),
+      () => read(pubkey ? this.get(pubkey) : undefined),
+    )
+  }
 }

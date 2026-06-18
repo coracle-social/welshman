@@ -1,8 +1,10 @@
 import {tryCatch, batcher, postJson} from "@welshman/lib"
+import type {Maybe} from "@welshman/lib"
 import {queryProfile, displayNip05} from "@welshman/util"
 import type {Handle} from "@welshman/util"
 import {deriveDeduplicated} from "@welshman/store"
-import {LoadableData} from "./clientData.js"
+import {LoadableData, projection} from "./clientData.js"
+import type {Projection} from "./clientData.js"
 import type {IClient} from "./client.js"
 import {Profiles} from "./profiles.js"
 
@@ -61,20 +63,22 @@ export class Handles extends LoadableData<Handle> {
     return $profile?.nip05 ? this.load($profile.nip05) : undefined
   }
 
-  forPubkey = (pubkey: string, relays: string[] = []) => {
+  forPubkey = (pubkey: string, relays: string[] = []): Projection<Maybe<Handle>> => {
     this.loadForPubkey(pubkey, relays)
 
-    return deriveDeduplicated(
-      [this.index, this.ctx.use(Profiles).one(pubkey, relays)],
-      ([$handlesByNip05, $profile]) => {
-        if (!$profile?.nip05) return undefined
+    const read = ([$handlesByNip05, $profile]: [ReadonlyMap<string, Handle>, Maybe<{nip05?: string}>]) => {
+      if (!$profile?.nip05) return undefined
 
-        const handle = $handlesByNip05.get($profile.nip05)
+      const handle = $handlesByNip05.get($profile.nip05)
 
-        if (handle?.pubkey !== pubkey) return undefined
+      if (handle?.pubkey !== pubkey) return undefined
 
-        return handle
-      },
+      return handle
+    }
+
+    return projection(
+      deriveDeduplicated([this.index.$, this.ctx.use(Profiles).one(pubkey, relays)], read),
+      () => read([this.index.get(), this.ctx.use(Profiles).get(pubkey)]),
     )
   }
 

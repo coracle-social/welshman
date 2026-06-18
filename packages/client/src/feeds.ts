@@ -1,4 +1,3 @@
-import {get} from "svelte/store"
 import {Scope, FeedController} from "@welshman/feeds"
 import type {FeedControllerOptions, Feed} from "@welshman/feeds"
 import type {AdapterContext} from "@welshman/net"
@@ -27,11 +26,11 @@ export class Feeds {
       case Scope.Self:
         return [$pubkey]
       case Scope.Follows:
-        return get(this.ctx.use(Wot).follows($pubkey))
+        return this.ctx.use(Wot).follows($pubkey).get()
       case Scope.Network:
-        return get(this.ctx.use(Wot).network($pubkey))
+        return this.ctx.use(Wot).network($pubkey).get()
       case Scope.Followers:
-        return get(this.ctx.use(Wot).followers($pubkey))
+        return this.ctx.use(Wot).followers($pubkey).get()
       default:
         return []
     }

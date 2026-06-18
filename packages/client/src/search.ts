@@ -69,7 +69,7 @@ export class Searches {
 
   constructor(readonly ctx: IClient) {
     this.profileSearch = derived(
-      [throttled(800, this.ctx.use(Profiles).all), throttled(800, this.ctx.use(Handles).index)],
+      [throttled(800, this.ctx.use(Profiles).all.$), throttled(800, this.ctx.use(Handles).index.$)],
       ([$profiles, $handlesByNip05]) => {
         // Remove invalid nip05's from profiles
         const options = $profiles.map(p => {
@@ -107,7 +107,7 @@ export class Searches {
       }),
     )
 
-    this.relaySearch = derived(this.ctx.use(Relays).all, $relays =>
+    this.relaySearch = derived(this.ctx.use(Relays).all.$, $relays =>
       createSearch($relays, {
         getValue: (relay: RelayProfile) => relay.url,
         fuseOptions: {

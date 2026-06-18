@@ -8,10 +8,12 @@ import {
   batcher,
   postJson,
 } from "@welshman/lib"
+import type {Maybe} from "@welshman/lib"
 import {getTagValue, getZapSplits, zapFromEvent} from "@welshman/util"
 import type {Zapper, Zap, TrustedEvent} from "@welshman/util"
 import {deriveDeduplicated, deriveDeduplicatedByValue} from "@welshman/store"
-import {LoadableData} from "./clientData.js"
+import {LoadableData, projection} from "./clientData.js"
+import type {Projection} from "./clientData.js"
 import type {IClient} from "./client.js"
 import {Profiles} from "./profiles.js"
 
@@ -67,13 +69,15 @@ export class Zappers extends LoadableData<Zapper> {
     return $profile?.lnurl ? this.load($profile.lnurl) : undefined
   }
 
-  forPubkey = (pubkey: string, relays: string[] = []) => {
+  forPubkey = (pubkey: string, relays: string[] = []): Projection<Maybe<Zapper>> => {
     this.loadForPubkey(pubkey, relays)
 
-    return deriveDeduplicated(
-      [this.index, this.ctx.use(Profiles).one(pubkey, relays)],
-      ([$zappersByLnurl, $profile]) =>
-        $profile?.lnurl ? $zappersByLnurl.get($profile.lnurl) : undefined,
+    const read = ([$zappersByLnurl, $profile]: [ReadonlyMap<string, Zapper>, Maybe<{lnurl?: string}>]) =>
+      $profile?.lnurl ? $zappersByLnurl.get($profile.lnurl) : undefined
+
+    return projection(
+      deriveDeduplicated([this.index.$, this.ctx.use(Profiles).one(pubkey, relays)], read),
+      () => read([this.index.get(), this.ctx.use(Profiles).get(pubkey)]),
     )
   }
 
@@ -105,7 +109,7 @@ export class Zappers extends LoadableData<Zapper> {
       await Promise.all(zapReceipts.map(zapReceipt => this.validateZapReceipt(zapReceipt, parent))),
     )
 
-  validZapReceipts = (zapReceipts: TrustedEvent[], parent: TrustedEvent): Readable<Zap[]> => {
+  validZapReceipts = (zapReceipts: TrustedEvent[], parent: TrustedEvent): Projection<Zap[]> => {
     const splits = getZapSplits(parent)
     const profiles = this.ctx.use(Profiles)
 
@@ -114,12 +118,7 @@ export class Zappers extends LoadableData<Zapper> {
       this.loadForPubkey(split.pubkey, removeUndefined([split.relay]))
     }
 
-    const stores: Readable<any>[] = [
-      this.index,
-      ...splits.map(split => profiles.one(split.pubkey)),
-    ]
-
-    return deriveDeduplicatedByValue(stores, (values: any[]) => {
+    const read = (values: any[]) => {
       const $zappersByLnurl = values[0] as Map<string, Zapper>
       const $profiles = values.slice(1) as Array<{lnurl?: string} | undefined>
 
@@ -140,6 +139,13 @@ export class Zappers extends LoadableData<Zapper> {
           return zapper ? zapFromEvent(zapReceipt, zapper) : undefined
         }),
       )
-    })
+    }
+
+    const stores: Readable<any>[] = [this.index.$, ...splits.map(split => profiles.one(split.pubkey))]
+
+    return projection(
+      deriveDeduplicatedByValue(stores, read),
+      () => read([this.index.get(), ...splits.map(split => profiles.get(split.pubkey))]),
+    )
   }
 }

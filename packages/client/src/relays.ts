@@ -1,9 +1,10 @@
 import {derived} from "svelte/store"
-import {fetchone} from "@welshman/lib"
+import {fetchJson} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import {displayRelayUrl, displayRelayProfile} from "@welshman/util"
 import type {RelayProfile} from "@welshman/util"
-import {LoadableData} from "./clientData.js"
+import {LoadableData, projection} from "./clientData.js"
+import type {Projection} from "./clientData.js"
 
 /**
  * NIP-11 relay profiles, keyed by url. A "local" loadable collection: items
@@ -36,8 +37,9 @@ export class Relays extends LoadableData<RelayProfile> {
     }
   }
 
-  display = (url: string) => displayRelayProfile(this.get(url), displayRelayUrl(url))
+  display = (url: string): Projection<string> => {
+    const read = ($relay: Maybe<RelayProfile>) => displayRelayProfile($relay, displayRelayUrl(url))
 
-  deriveDisplay = (url: string) =>
-    derived(this.one(url), $relay => displayRelayProfile($relay, displayRelayUrl(url)))
+    return projection(derived(this.one(url), read), () => read(this.get(url)))
+  }
 }
