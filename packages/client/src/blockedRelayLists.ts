@@ -9,7 +9,7 @@ import {
   removeFromList,
 } from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {Collection} from "./collection.js"
+import {DerivedData} from "./clientData.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {User} from "./user.js"
@@ -21,7 +21,7 @@ import type {IClient} from "./client.js"
  * so it depends on the relay-list collection. Feeds `RelayStats.getQuality` so
  * blocked relays are never selected.
  */
-export class BlockedRelayLists extends Collection<ReturnType<typeof readList>> {
+export class BlockedRelayLists extends DerivedData<ReturnType<typeof readList>> {
   constructor(ctx: IClient) {
     super(ctx, {
       filters: [{kinds: [BLOCKED_RELAYS]}],

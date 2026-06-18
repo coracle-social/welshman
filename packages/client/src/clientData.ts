@@ -1,38 +1,37 @@
 import {writable} from "svelte/store"
 import type {Readable, Unsubscriber} from "svelte/store"
 import type {Maybe} from "@welshman/lib"
-import {getter, makeDeriveItem, makeLoadItem, makeForceLoadItem} from "@welshman/store"
-import type {MakeLoadItemOptions} from "@welshman/store"
+import type {Filter} from "@welshman/util"
+import {deriveItems, withGetter, makeDeriveItem, makeLoadItem, makeForceLoadItem} from "@welshman/store"
+import type {
+  ReadableWithGetter,
+  EventToItem,
+  ItemsByKey,
+  MakeLoadItemOptions,
+} from "@welshman/store"
 import type {IClient} from "./client.js"
+import {Stores} from "./stores.js"
 
 /**
  * Base class for a reactive, keyed collection of "local" (non-event) data —
  * things like relay stats or NIP-11 profiles that aren't backed by the
- * repository. The collection owns its own map and is its own Svelte store: its
- * `subscribe` emits the underlying `Map`.
- *
- * Subclasses reach the client through the `IClient` seam, never the
- * concrete `Client`, so they never create a dependency cycle.
+ * repository. The collection owns its own map.
  */
 export class ClientData<T> {
-  protected index = writable(new Map<string, T>())
-  protected getIndex = getter(this.index)
-  protected itemSubscribers: ((key: string, value: Maybe<T>) => void)[] = []
-  public derived: (key?: string, ...args: any[]) => Readable<Maybe<T>>
+  index = withGetter(writable(new Map<string, T>()))
+  all = withGetter(deriveItems(this.index))
+  one: (key?: string, ...args: any[]) => Readable<Maybe<T>>
+  subs: ((key: string, value: Maybe<T>) => void)[] = []
 
   constructor(protected readonly ctx: IClient) {
-    this.derived = makeDeriveItem(this.index)
+    this.one = makeDeriveItem(this.index)
   }
 
-  subscribe = this.index.subscribe
+  keys = () => this.index.get().keys()
 
-  get = (key: string): Maybe<T> => this.getIndex().get(key)
+  values = () => this.index.get().values()
 
-  getAll = (): T[] => Array.from(this.getIndex().values())
-
-  keys = () => this.getIndex().keys()
-
-  values = () => this.getIndex().values()
+  get = (key: string) => this.index.get().get(key)
 
   set = (key: string, value: T) => {
     this.index.update($items => {
@@ -55,7 +54,7 @@ export class ClientData<T> {
   }
 
   clear = () => {
-    const keys = Array.from(this.getIndex().keys())
+    const keys = Array.from(this.index.get().keys())
 
     this.index.set(new Map())
 
@@ -65,17 +64,17 @@ export class ClientData<T> {
   }
 
   onItem = (subscriber: (key: string, value: Maybe<T>) => void): Unsubscriber => {
-    this.itemSubscribers.push(subscriber)
+    this.subs.push(subscriber)
 
     return () => {
-      const i = this.itemSubscribers.indexOf(subscriber)
+      const i = this.subs.indexOf(subscriber)
 
-      if (i !== -1) this.itemSubscribers.splice(i, 1)
+      if (i !== -1) this.subs.splice(i, 1)
     }
   }
 
   protected emitItem = (key: string, value: Maybe<T>) => {
-    for (const subscriber of this.itemSubscribers) {
+    for (const subscriber of this.subs) {
       subscriber(key, value)
     }
   }
@@ -83,7 +82,7 @@ export class ClientData<T> {
 
 /**
  * A `ClientData` collection that knows how to lazily load items by key from the
- * network. Subclasses implement `fetch`; `load`/`forceLoad`/`derived` are derived
+ * network. Subclasses implement `fetch`; `load`/`forceLoad`/`one` are derived
  * from it (with per-key caching and backoff via `makeLoadItem`).
  */
 export abstract class LoadableData<T> extends ClientData<T> {
@@ -99,9 +98,61 @@ export abstract class LoadableData<T> extends ClientData<T> {
     // *after* super() — so `this.fetch` is undefined here. makeLoadItem captures
     // its loadItem eagerly, so we defer the lookup to call time via this wrapper.
     const fetch = (key: string, ...args: any[]) => this.fetch(key, ...args)
+    const read = (key: string) => this.index.get().get(key)
 
-    this.load = makeLoadItem(fetch, this.get, options)
-    this.forceLoad = makeForceLoadItem(fetch, this.get)
-    this.derived = makeDeriveItem(this.index, this.load)
+    this.load = makeLoadItem(fetch, read, options)
+    this.forceLoad = makeForceLoadItem(fetch, read)
+    this.one = makeDeriveItem(this.index, this.load)
   }
+}
+
+export type DerivedDataOptions<T> = {
+  filters: Filter[]
+  eventToItem: EventToItem<T>
+  getKey: (item: T) => string
+  loadOptions?: MakeLoadItemOptions
+}
+
+/**
+ * Base class for a reactive, keyed collection of data derived from nostr events.
+ * The repository is the single source of truth — the collection is a live view
+ * over `ctx.itemsByKey`, never a duplicated map. Subclasses implement `fetch`
+ * (how to load an item by key from the network) and pass the filters/decoder via
+ * `super`.
+ */
+export abstract class DerivedData<T> {
+  index: ReadableWithGetter<ItemsByKey<T>>
+  all: ReadableWithGetter<T[]>
+  one: (key?: string, ...args: any[]) => Readable<Maybe<T>>
+  load: (key: string, ...args: any[]) => Promise<Maybe<T>>
+  forceLoad: (key: string, ...args: any[]) => Promise<Maybe<T>>
+
+  abstract fetch(key: string, ...args: any[]): Promise<unknown>
+
+  constructor(
+    protected readonly ctx: IClient,
+    options: DerivedDataOptions<T>,
+  ) {
+    this.index = withGetter(
+      ctx.use(Stores).itemsByKey<T>({
+        filters: options.filters,
+        eventToItem: options.eventToItem,
+        getKey: options.getKey,
+      }),
+    )
+    this.all = withGetter(deriveItems(this.index))
+
+    const fetch = (key: string, ...args: any[]) => this.fetch(key, ...args)
+    const read = (key: string) => this.index.get().get(key)
+
+    this.load = makeLoadItem(fetch, read, options.loadOptions)
+    this.forceLoad = makeForceLoadItem(fetch, read)
+    this.one = makeDeriveItem(this.index, this.load)
+  }
+
+  keys = () => this.index.get().keys()
+
+  values = () => this.index.get().values()
+
+  get = (key: string) => this.index.get().get(key)
 }

@@ -6,7 +6,7 @@ import type {Readable} from "svelte/store"
 import {dec, inc, sortBy} from "@welshman/lib"
 import {PROFILE} from "@welshman/util"
 import type {PublishedProfile, RelayProfile} from "@welshman/util"
-import {throttled, deriveItems} from "@welshman/store"
+import {throttled} from "@welshman/store"
 import type {IClient} from "./client.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
@@ -69,7 +69,7 @@ export class Searches {
 
   constructor(readonly ctx: IClient) {
     this.profileSearch = derived(
-      [throttled(800, this.ctx.use(Profiles).all), throttled(800, this.ctx.use(Handles))],
+      [throttled(800, this.ctx.use(Profiles).all), throttled(800, this.ctx.use(Handles).index)],
       ([$profiles, $handlesByNip05]) => {
         // Remove invalid nip05's from profiles
         const options = $profiles.map(p => {
@@ -107,7 +107,7 @@ export class Searches {
       }),
     )
 
-    this.relaySearch = derived(deriveItems(this.ctx.use(Relays)), $relays =>
+    this.relaySearch = derived(this.ctx.use(Relays).all, $relays =>
       createSearch($relays, {
         getValue: (relay: RelayProfile) => relay.url,
         fuseOptions: {

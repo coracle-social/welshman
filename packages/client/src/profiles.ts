@@ -9,7 +9,8 @@ import {
   PROFILE,
 } from "@welshman/util"
 import type {Profile} from "@welshman/util"
-import {Collection} from "./collection.js"
+import type {Readable} from "svelte/store"
+import {DerivedData} from "./clientData.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {Thunks} from "./thunk.js"
@@ -19,7 +20,7 @@ import type {IClient} from "./client.js"
  * Kind-0 profiles, keyed by pubkey. Loaded via the outbox model (the author's
  * write relays), resolved through the relay-list collection at fetch time.
  */
-export class Profiles extends Collection<ReturnType<typeof readProfile>> {
+export class Profiles extends DerivedData<ReturnType<typeof readProfile>> {
   constructor(ctx: IClient) {
     super(ctx, {
       filters: [{kinds: [PROFILE]}],
@@ -40,12 +41,12 @@ export class Profiles extends Collection<ReturnType<typeof readProfile>> {
     return this.ctx.use(Thunks).publish({event, relays})
   }
 
-  display = (pubkey: string | undefined) =>
+  display = (pubkey: string | undefined, ...args: any[]): Readable<string> =>
     pubkey ? displayProfile(this.get(pubkey), displayPubkey(pubkey)) : ""
 
-  deriveDisplay = (pubkey: string | undefined, ...args: any[]) =>
+  deriveDisplay = (pubkey: string | undefined, ...args: any[]): Readable<string> =>
     pubkey
-      ? derived(this.derived(pubkey, ...args), $profile =>
+      ? derived(this.one(pubkey, ...args), $profile =>
           displayProfile($profile, displayPubkey(pubkey)),
         )
       : readable("")
