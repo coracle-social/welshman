@@ -57,27 +57,27 @@ export class Profile extends DomainObject<ProfileValues> {
   }
 
   nip05() {
-    return this.values.
+    return this.values.nip05
   }
 
   lnurl() {
-    return this.values.
+    return this.values.lnurl
   }
 
   about() {
-    return this.values.
+    return this.values.about
   }
 
   banner() {
-    return this.values.
+    return this.values.banner
   }
 
   picture() {
-    return this.values.
+    return this.values.picture
   }
 
   website() {
-    return this.values.
+    return this.values.website
   }
 
   display(fallback = "") {

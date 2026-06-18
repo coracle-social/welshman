@@ -8,11 +8,11 @@ export class MuteList extends EncryptableList {
   readonly kind = MUTES
 
   pubkeys() {
-    return uniq(getPubkeyTagValues(this.tags))
+    return uniq(getPubkeyTagValues(this.tags()))
   }
 
   includes(pubkey: string) {
-    return this.pubkeys.includes(pubkey)
+    return this.pubkeys().includes(pubkey)
   }
 
   mutePublicly(pubkey: string) {
@@ -24,6 +24,6 @@ export class MuteList extends EncryptableList {
   }
 
   unmute(pubkey: string) {
-    return this.removeTagsByValue(pubkey)
+    return this.removeTagsWithValue(pubkey)
   }
 }
