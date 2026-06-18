@@ -10,7 +10,7 @@ import {
 import type {RoomMeta} from "@welshman/util"
 import {Thunks} from "./thunk.js"
 import type {ThunkOptions} from "./thunk.js"
-import type {IClient} from "./client.js"
+import type {IClient} from "../client.js"
 
 /**
  * NIP-29 relay-based group (room) management. Each method publishes the relevant

@@ -1,7 +1,7 @@
 import {Router as BaseRouter} from "@welshman/router"
 import {RelayLists} from "./relayLists.js"
 import {RelayStats} from "./relayStats.js"
-import type {IClient} from "./client.js"
+import type {IClient} from "../client.js"
 
 // Re-export the upstream router surface (scenarios, fallback policies,
 // makeSelection, getFilterSelections, types). The local `Router` below shadows

@@ -4,7 +4,7 @@ import {on} from "@welshman/lib"
 import {getTopicTagValues} from "@welshman/util"
 import type {RepositoryUpdate} from "@welshman/net"
 import {deriveItems} from "@welshman/store"
-import type {IClient} from "./client.js"
+import type {IClient} from "../client.js"
 
 export type Topic = {
   name: string

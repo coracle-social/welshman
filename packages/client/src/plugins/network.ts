@@ -13,7 +13,7 @@ import type {
 } from "@welshman/net"
 import {Router, addMinimalFallbacks} from "./router.js"
 import {RelayLists} from "./relayLists.js"
-import type {IClient} from "./client.js"
+import type {IClient} from "../client.js"
 
 /**
  * Net utilities bound to the client's net context (its pool + repository). Reach

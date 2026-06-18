@@ -5,9 +5,9 @@ import type {TrustedEvent} from "@welshman/util"
 import {SocketEvent, isRelayEvent, makeSocketPolicyAuth} from "@welshman/net"
 import type {RelayMessage, Socket} from "@welshman/net"
 import type {IClient} from "./client.js"
-import {RelayStats} from "./relayStats.js"
-import {GiftWraps} from "./giftWraps.js"
-import {BlockedRelayLists} from "./blockedRelayLists.js"
+import {RelayStats} from "./plugins/relayStats.js"
+import {Wraps} from "./plugins/wraps.js"
+import {BlockedRelayLists} from "./plugins/blockedRelayLists.js"
 import {LoggingSigner} from "./logging.js"
 import type {LogMessage} from "./logging.js"
 
@@ -103,17 +103,17 @@ export const clientPolicyRelayStats: ClientPolicy = client => {
  * Watches the client's repository for gift wraps (existing and incoming) and
  * feeds them to the unwrap queue.
  */
-export const clientPolicyGiftWraps: ClientPolicy = client => {
-  const giftWraps = client.use(GiftWraps)
+export const clientPolicyWraps: ClientPolicy = client => {
+  const wraps = client.use(Wraps)
 
   for (const wrap of client.repository.query([{kinds: [WRAP]}])) {
-    giftWraps.enqueue(wrap)
+    wraps.enqueue(wrap)
   }
 
   return on(client.repository, "update", ({added}: {added: TrustedEvent[]}) => {
     for (const event of added) {
       if (event.kind === WRAP) {
-        giftWraps.enqueue(event)
+        wraps.enqueue(event)
       }
     }
   })
@@ -139,6 +139,6 @@ export const makeClientPolicyLogger =
 export const defaultClientPolicies: ClientPolicy[] = [
   clientPolicyIngest,
   clientPolicyRelayStats,
-  clientPolicyGiftWraps,
+  clientPolicyWraps,
   clientPolicyAuthUnlessBlocked,
 ]

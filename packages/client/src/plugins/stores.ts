@@ -18,7 +18,7 @@ import type {
   ItemsByKeyOptions,
 } from "@welshman/store"
 import type {TrustedEvent} from "@welshman/util"
-import type {IClient} from "./client.js"
+import type {IClient} from "../client.js"
 
 /**
  * Store/derivation utilities bound to the client's repository and tracker. Reach

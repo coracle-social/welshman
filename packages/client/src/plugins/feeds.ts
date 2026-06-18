@@ -1,7 +1,7 @@
 import {Scope, FeedController} from "@welshman/feeds"
 import type {FeedControllerOptions, Feed} from "@welshman/feeds"
 import type {AdapterContext} from "@welshman/net"
-import type {IClient} from "./client.js"
+import type {IClient} from "../client.js"
 import {Router} from "./router.js"
 import {Wot} from "./wot.js"
 

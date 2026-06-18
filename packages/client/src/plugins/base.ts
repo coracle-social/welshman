@@ -4,7 +4,7 @@ import type {Maybe} from "@welshman/lib"
 import type {Filter} from "@welshman/util"
 import {deriveItems, getter, makeDeriveItem, makeLoadItem, makeForceLoadItem} from "@welshman/store"
 import type {EventToItem, ItemsByKey, MakeLoadItemOptions} from "@welshman/store"
-import type {IClient} from "./client.js"
+import type {IClient} from "../client.js"
 import {Stores} from "./stores.js"
 
 /**
@@ -18,6 +18,48 @@ export type Projection<T> = {
 export const projection = <T>($: Readable<T>, get = getter($)) => ({$, get})
 
 /**
+ * Synchronous read access to a keyed collection's current value. Shared by
+ * collections that own a map (`MapPlugin`) and those that are read-only views
+ * over the repository (`DerivedPlugin`).
+ */
+export interface ReadableMap<T> {
+  keys(): IterableIterator<string>
+  values(): IterableIterator<T>
+  get(key: string): Maybe<T>
+}
+
+/**
+ * Direct get/set access to a keyed collection the plugin owns. Extends the read
+ * accessors with mutation plus change notification. Only collections that own
+ * their map implement this — repository-backed collections are read-only.
+ */
+export interface Mappable<T> extends ReadableMap<T> {
+  set(key: string, value: T): void
+  delete(key: string): void
+  clear(): void
+  onItem(subscriber: (key: string, value: Maybe<T>) => void): Unsubscriber
+}
+
+/**
+ * Lazy, async loading of items by key from the network, with per-key caching
+ * and backoff (`load`) or a cache-bypassing refresh (`forceLoad`).
+ */
+export interface Loadable<T> {
+  load(key: string, ...args: any[]): Promise<Maybe<T>>
+  forceLoad(key: string, ...args: any[]): Promise<Maybe<T>>
+}
+
+/**
+ * Reactive derivations over a keyed collection: the whole map (`index`), its
+ * values (`all`), and a per-key on-demand store (`one`).
+ */
+export interface Derivable<T> {
+  index: Projection<ItemsByKey<T>>
+  all: Projection<T[]>
+  one(key?: string, ...args: any[]): Readable<Maybe<T>>
+}
+
+/**
  * Base class for a reactive, keyed collection of "local" (non-event) data —
  * things like relay stats or NIP-11 profiles that aren't backed by the
  * repository. The collection owns its own map.
@@ -26,7 +68,7 @@ export const projection = <T>($: Readable<T>, get = getter($)) => ({$, get})
  * snapshot via `.get()`. Per-key access is `one(key)`, a plain on-demand store
  * (snapshot with svelte's `get(...)`, or read `get(key)` directly).
  */
-export class ClientData<T> {
+export class MapPlugin<T> implements Mappable<T>, Derivable<T> {
   protected store = writable(new Map<string, T>())
   index: Projection<ItemsByKey<T>>
   all: Projection<T[]>
@@ -93,11 +135,11 @@ export class ClientData<T> {
 }
 
 /**
- * A `ClientData` collection that knows how to lazily load items by key from the
+ * A `MapPlugin` collection that knows how to lazily load items by key from the
  * network. Subclasses implement `fetch`; `load`/`forceLoad`/`one` are derived
  * from it (with per-key caching and backoff via `makeLoadItem`).
  */
-export abstract class LoadableData<T> extends ClientData<T> {
+export abstract class LoadableMapPlugin<T> extends MapPlugin<T> implements Loadable<T> {
   load: (key: string, ...args: any[]) => Promise<Maybe<T>>
   forceLoad: (key: string, ...args: any[]) => Promise<Maybe<T>>
 
@@ -118,7 +160,7 @@ export abstract class LoadableData<T> extends ClientData<T> {
   }
 }
 
-export type DerivedDataOptions<T> = {
+export type DerivedPluginOptions<T> = {
   filters: Filter[]
   eventToItem: EventToItem<T>
   getKey: (item: T) => string
@@ -135,7 +177,7 @@ export type DerivedDataOptions<T> = {
  * `index` (map) and `all` (values) are `Projection`s — subscribe via `.$`,
  * snapshot via `.get()`. Per-key access is `one(key)`, a plain on-demand store.
  */
-export abstract class DerivedData<T> {
+export abstract class DerivedPlugin<T> implements ReadableMap<T>, Loadable<T>, Derivable<T> {
   index: Projection<ItemsByKey<T>>
   all: Projection<T[]>
   one: (key?: string, ...args: any[]) => Readable<Maybe<T>>
@@ -146,7 +188,7 @@ export abstract class DerivedData<T> {
 
   constructor(
     protected readonly ctx: IClient,
-    options: DerivedDataOptions<T>,
+    options: DerivedPluginOptions<T>,
   ) {
     const index = ctx.use(Stores).itemsByKey<T>({
       filters: options.filters,
