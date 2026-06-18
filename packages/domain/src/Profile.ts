@@ -45,7 +45,7 @@ export const displayPubkey = (pubkey: string) => {
 
 /**
  * A kind-0 profile. Profile data lives unencrypted in the event content as
- * JSON, so this is the simplest kind of domain object — `getTemplate` ignores
+ * JSON, so this is the simplest kind of domain object — `toTemplate` ignores
  * the signer and only `toEvent`/`toRumor` need one (to sign).
  *
  * @example
@@ -53,19 +53,14 @@ export const displayPubkey = (pubkey: string) => {
  * profile.set({about: "hello"})
  * const signed = await profile.toEvent(signer)
  */
-export class Profile extends DomainObject {
+export class Profile extends DomainObject<ProfileValues> {
   readonly kind = PROFILE
-  readonly event?: TrustedEvent
-
-  values: ProfileValues
 
   constructor(values: Partial<ProfileValues> = {}, event?: TrustedEvent) {
-    super()
-
-    this.values = makeProfileValues(values)
-    this.event = event
+    super(makeProfileValues(values), event)
   }
 
+  /** Create a profile from (optional) values. */
   static make(values: Partial<ProfileValues> = {}) {
     return new Profile(values)
   }
@@ -102,16 +97,12 @@ export class Profile extends DomainObject {
     return fallback.trim()
   }
 
-  async getTemplate(): Promise<EventTemplate> {
+  async toTemplate(): Promise<EventTemplate> {
     return {
-      kind: PROFILE,
+      kind: this.kind,
       content: JSON.stringify(this.values),
       // Preserve any tags from the source event (e.g. nip05/relay hints).
       tags: this.event?.tags || [],
     }
-  }
-
-  toJSON() {
-    return {...this.values}
   }
 }

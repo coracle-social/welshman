@@ -8,12 +8,23 @@ import {DomainObject} from "./base.js"
 const isValidTag = (tag: unknown): tag is string[] =>
   Array.isArray(tag) && tag.length > 0 && tag.every(v => typeof v === "string")
 
-export type DecryptedTags = {
+export type ListValues = {
+  publicTags: string[][]
+  // Private entries as plaintext. Empty when there are none or when we couldn't
+  // decrypt them (see `decrypted`).
   privateTags: string[][]
-  // True when the private content was read (or there was none), false when we
-  // hold ciphertext we couldn't decrypt. See `EncryptableList.isDecrypted`.
+  // True when `privateTags` reflects the real (decrypted) private content. False
+  // means we're holding ciphertext we couldn't read, so private entries are
+  // unknown and must not be mutated.
   decrypted: boolean
 }
+
+export const makeListValues = (values: Partial<ListValues> = {}): ListValues => ({
+  publicTags: [],
+  privateTags: [],
+  decrypted: true,
+  ...values,
+})
 
 /**
  * Read and decrypt the private tags stored in an event's content. Returns
@@ -24,7 +35,7 @@ export type DecryptedTags = {
 export const decryptListContent = async (
   event: TrustedEvent,
   signer?: ISigner,
-): Promise<DecryptedTags> => {
+): Promise<Pick<ListValues, "privateTags" | "decrypted">> => {
   // No private content to read.
   if (!event.content) return {privateTags: [], decrypted: true}
 
@@ -41,46 +52,18 @@ export const decryptListContent = async (
   }
 }
 
-export type EncryptableListParams = {
-  publicTags?: string[][]
-  privateTags?: string[][]
-  decrypted?: boolean
-  event?: TrustedEvent
-}
-
 /**
  * Base class for replaceable lists that carry public entries in tags and
  * private entries as an encrypted JSON array in content (NIP-51 style). The
  * private entries are decrypted to plaintext on `parse` and re-encrypted on
- * `getTemplate`, so all in-between reads and writes are synchronous.
+ * `toTemplate`, so all in-between reads and writes are synchronous.
  *
  * Subclasses fix the `kind` and add domain-specific accessors (see
  * `MuteList`). The generic tag mechanics live here.
  */
-export abstract class EncryptableList extends DomainObject {
-  abstract readonly kind: number
-
-  publicTags: string[][]
-  privateTags: string[][]
-  readonly event?: TrustedEvent
-
-  // Whether `privateTags` reflects the real (decrypted) private content. False
-  // means we're holding ciphertext we couldn't read, so private entries are
-  // unknown and must not be mutated.
-  protected decrypted: boolean
-
-  constructor({
-    publicTags = [],
-    privateTags = [],
-    decrypted = true,
-    event,
-  }: EncryptableListParams = {}) {
-    super()
-
-    this.publicTags = publicTags
-    this.privateTags = privateTags
-    this.decrypted = decrypted
-    this.event = event
+export abstract class EncryptableList extends DomainObject<ListValues> {
+  constructor(values: Partial<ListValues> = {}, event?: TrustedEvent) {
+    super(makeListValues(values), event)
   }
 
   /**
@@ -89,25 +72,25 @@ export abstract class EncryptableList extends DomainObject {
    * throw.
    */
   get isDecrypted() {
-    return this.decrypted
+    return this.values.decrypted
   }
 
   /** All entries, merging public and (when decrypted) private tags. */
   getTags() {
-    return [...this.publicTags, ...this.privateTags]
+    return [...this.values.publicTags, ...this.values.privateTags]
   }
 
   getPublicTags() {
-    return this.publicTags
+    return this.values.publicTags
   }
 
   getPrivateTags() {
-    return this.privateTags
+    return this.values.privateTags
   }
 
   /** Add one or more tags to the public (cleartext) entries. */
   addPublicTags(...tags: string[][]) {
-    this.publicTags = uniqTags([...this.publicTags, ...tags])
+    this.values.publicTags = uniqTags([...this.values.publicTags, ...tags])
 
     return this
   }
@@ -116,17 +99,17 @@ export abstract class EncryptableList extends DomainObject {
   addPrivateTags(...tags: string[][]) {
     this.assertDecrypted()
 
-    this.privateTags = uniqTags([...this.privateTags, ...tags])
+    this.values.privateTags = uniqTags([...this.values.privateTags, ...tags])
 
     return this
   }
 
   /** Remove every tag matching `pred` from both public and private entries. */
   removeTagsBy(pred: (tag: string[]) => boolean) {
-    this.publicTags = this.publicTags.filter(t => !pred(t))
+    this.values.publicTags = this.values.publicTags.filter(t => !pred(t))
 
-    if (this.decrypted) {
-      this.privateTags = this.privateTags.filter(t => !pred(t))
+    if (this.values.decrypted) {
+      this.values.privateTags = this.values.privateTags.filter(t => !pred(t))
     }
 
     return this
@@ -138,20 +121,20 @@ export abstract class EncryptableList extends DomainObject {
   }
 
   protected assertDecrypted() {
-    if (!this.decrypted) {
+    if (!this.values.decrypted) {
       throw new Error("Cannot modify the private entries of a list that has not been decrypted")
     }
   }
 
-  async getTemplate(signer?: ISigner): Promise<EventTemplate> {
-    const tags = this.publicTags
+  async toTemplate(signer?: ISigner): Promise<EventTemplate> {
+    const tags = this.values.publicTags
 
     // Preserve the original ciphertext when we never decrypted it, so a
     // pass-through round trip doesn't destroy private entries we can't read.
     let content = this.event?.content || ""
 
-    if (this.decrypted) {
-      if (this.privateTags.length === 0) {
+    if (this.values.decrypted) {
+      if (this.values.privateTags.length === 0) {
         content = ""
       } else {
         if (!signer) {
@@ -160,20 +143,10 @@ export abstract class EncryptableList extends DomainObject {
 
         const pubkey = await signer.getPubkey()
 
-        content = await signer.nip44.encrypt(pubkey, JSON.stringify(this.privateTags))
+        content = await signer.nip44.encrypt(pubkey, JSON.stringify(this.values.privateTags))
       }
     }
 
     return {kind: this.kind, tags, content}
-  }
-
-  toJSON() {
-    return {
-      kind: this.kind,
-      publicTags: this.publicTags,
-      privateTags: this.privateTags,
-      decrypted: this.decrypted,
-      event: this.event,
-    }
   }
 }

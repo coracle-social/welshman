@@ -54,7 +54,7 @@ describe("MuteList", () => {
     const undecrypted = await MuteList.parse(event)
 
     // We never decrypted, so the original ciphertext must survive untouched.
-    const template = await undecrypted.getTemplate(signer)
+    const template = await undecrypted.toTemplate(signer)
 
     expect(template.content).toBe(event.content)
   })
@@ -72,15 +72,6 @@ describe("MuteList", () => {
     expect(rumor.id).toBeTruthy()
     expect((rumor as TrustedEvent).sig).toBeUndefined()
     expect(rumor.content).not.toBe("")
-  })
-
-  it("serializes to JSON", async () => {
-    const list = MuteList.make().addPublicly(a).addPrivately(b)
-    const json = JSON.parse(JSON.stringify(list))
-
-    expect(json.kind).toBe(MUTES)
-    expect(json.publicTags).toEqual([["p", a]])
-    expect(json.privateTags).toEqual([["p", b]])
   })
 
   it("throws on the wrong kind", async () => {
