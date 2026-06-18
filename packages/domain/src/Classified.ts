@@ -1,6 +1,5 @@
 import {
   CLASSIFIED,
-  getAddress,
   getIdentifier,
   getTag,
   getTagValue,
@@ -19,7 +18,6 @@ export type ClassifiedValues = {
   status?: string
   images: string[]
   topics: string[]
-  h?: string
 }
 
 export const makeClassifiedValues = (
@@ -35,9 +33,9 @@ export const makeClassifiedValues = (
 // NIP-99 kind-30402 addressable classified listing. Addressable via the "d"
 // tag; the listing description lives in `content` as plain text (not JSON). The
 // price is carried in a ["price", amount, currency] tag with the currency
-// defaulting to "SAT", images in repeated "image" tags, topics in "t" tags, and
-// an optional "h" tag scopes the listing to a room. Tags-only metadata, so it
-// extends DomainObject directly. Commented via "#A" (kind 1111 comments).
+// defaulting to "SAT", images in repeated "image" tags, and topics in "t" tags;
+// room scoping is handled by the base `group` behavior tag. Tags-only metadata,
+// so it extends DomainObject directly. Commented via "#A" (kind 1111 comments).
 export class Classified extends DomainObject<ClassifiedValues> {
   readonly kind = CLASSIFIED
   values = makeClassifiedValues()
@@ -60,7 +58,6 @@ export class Classified extends DomainObject<ClassifiedValues> {
       status: getTagValue("status", event.tags),
       images: getTagValues("image", event.tags),
       topics: getTopicTagValues(event.tags),
-      h: getTagValue("h", event.tags),
     }
   }
 
@@ -96,18 +93,6 @@ export class Classified extends DomainObject<ClassifiedValues> {
     return this.values.topics
   }
 
-  h() {
-    return this.values.h
-  }
-
-  room() {
-    return this.values.h
-  }
-
-  address() {
-    return getAddress(this.event!)
-  }
-
   async toTemplate(): Promise<EventTemplate> {
     const tags: string[][] = [["d", this.values.identifier]]
 
@@ -133,10 +118,6 @@ export class Classified extends DomainObject<ClassifiedValues> {
 
     for (const image of this.values.images) {
       tags.push(["image", image])
-    }
-
-    if (this.values.h) {
-      tags.push(["h", this.values.h])
     }
 
     return {kind: this.kind, content: this.values.content, tags}

@@ -1,6 +1,9 @@
-import {stamp, prep} from "@welshman/util"
+import {stamp, prep, getTagValue} from "@welshman/util"
 import type {EventTemplate, SignedEvent, HashedEvent, TrustedEvent} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
+
+// The tag keys the base owns as publish-time behavior tags (group/protect/expires).
+const BEHAVIOR_TAG_KEYS = ["h", "-", "expiration"]
 
 /**
  * The base class for domain objects.
@@ -25,6 +28,19 @@ export abstract class DomainObject<V extends Record<string, unknown>> {
   abstract readonly kind: number
   abstract values: V
   event?: TrustedEvent
+
+  // Publish-time behavior tags, shared by every kind and applied to the template
+  // at serialization time via addBehaviorTags rather than being baked into each
+  // subclass's content schema. They are read back from the event on parse.
+  group?: string // NIP-29 room scope -> ["h", group]
+  protect = false // NIP-70 protected -> ["-"]
+  expires?: number // NIP-40 expiration -> ["expiration", expires]
+
+  // Tags not represented by any other domain attribute, carried over verbatim.
+  // Handled the same way as the behavior tags above: parsed in the base (minus
+  // the behavior keys and the subclass's reserved keys) and re-emitted in
+  // addBehaviorTags. Empty unless the subclass opts in via reservedTagKeys().
+  extraTags: string[][] = []
 
   static init<T extends DomainObject<Record<string, unknown>>>(
     this: new () => T,
@@ -53,12 +69,32 @@ export abstract class DomainObject<V extends Record<string, unknown>> {
     }
 
     this.event = event
+    this.group = getTagValue("h", event.tags)
+    this.protect = event.tags.some(t => t[0] === "-")
+
+    const expiration = parseInt(getTagValue("expiration", event.tags) ?? "")
+    this.expires = isNaN(expiration) ? undefined : expiration
+
+    const reserved = this.reservedTagKeys()
+    this.extraTags =
+      reserved == null
+        ? []
+        : event.tags.filter(t => ![...BEHAVIOR_TAG_KEYS, ...reserved].includes(t[0]))
+
     this.values = this.normalizeValues(await this.parseEvent(event, signer))
 
     return this
   }
 
   protected abstract normalizeValues(values?: Partial<V>): V
+
+  // Tag keys a subclass parses into dedicated attributes (and rebuilds in
+  // toTemplate); the base behavior keys are always reserved too. Return null
+  // (the default) to opt out of extra-tag passthrough — the subclass owns all
+  // of its tags and `extraTags` stays empty.
+  protected reservedTagKeys(): string[] | null {
+    return null
+  }
 
   protected abstract parseEvent(
     event: TrustedEvent,
@@ -67,14 +103,47 @@ export abstract class DomainObject<V extends Record<string, unknown>> {
 
   abstract toTemplate(signer?: ISigner): Promise<EventTemplate>
 
+  // Append the publish-time behavior tags to a freshly built template, just
+  // before hashing/signing. A tag is skipped when the subclass's toTemplate
+  // already emitted that key, so kinds that own "h" as core content (NIP-29
+  // group events) don't get a duplicate.
+  private addBehaviorTags(template: EventTemplate): EventTemplate {
+    const tags = [...template.tags, ...this.extraTags]
+    const has = (key: string) => tags.some(t => t[0] === key)
+
+    if (this.group && !has("h")) tags.push(["h", this.group])
+    if (this.protect && !has("-")) tags.push(["-"])
+    if (this.expires != null && !has("expiration")) tags.push(["expiration", String(this.expires)])
+
+    return {...template, tags}
+  }
+
+  setGroup(group: string) {
+    this.group = group
+
+    return this
+  }
+
+  setProtect(protect = true) {
+    this.protect = protect
+
+    return this
+  }
+
+  setExpires(expires: number) {
+    this.expires = expires
+
+    return this
+  }
+
   async toRumor(signer: ISigner): Promise<HashedEvent> {
     const [template, pubkey] = await Promise.all([this.toTemplate(signer), signer.getPubkey()])
 
-    return prep(template, pubkey)
+    return prep(this.addBehaviorTags(template), pubkey)
   }
 
   async toEvent(signer: ISigner): Promise<SignedEvent> {
-    const template = await this.toTemplate(signer)
+    const template = this.addBehaviorTags(await this.toTemplate(signer))
 
     return signer.sign(stamp(template))
   }

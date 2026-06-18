@@ -39,7 +39,8 @@ export class RelaySet extends EncryptableList {
   }
 
   setRelays(urls: string[]) {
-    this.keepTagsWithKey("relay")
+    // Replace only the relay entries; preserve the set's d/title/description/image metadata.
+    this.removeTagsWithKey("relay")
 
     return this.addPublicTags(...urls.map(url => ["relay", normalizeRelayUrl(url)]))
   }

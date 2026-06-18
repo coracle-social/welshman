@@ -1,5 +1,5 @@
 import {parseJson} from "@welshman/lib"
-import {FEED, getIdentifier, getTagValue, getAddress} from "@welshman/util"
+import {FEED, getIdentifier, getTagValue} from "@welshman/util"
 import type {EventTemplate, TrustedEvent} from "@welshman/util"
 import {DomainObject} from "./base.js"
 
@@ -16,7 +16,9 @@ export const makeFeedValues = (values: Partial<FeedValues> = {}): FeedValues => 
   identifier: "",
   title: "",
   description: "",
-  definition: undefined,
+  // Default to an empty @welshman/feeds feed (a union of nothing). That package
+  // isn't a dependency here, so the AST is written structurally.
+  definition: ["union"],
   ...values,
 })
 
@@ -36,11 +38,17 @@ export class Feed extends DomainObject<FeedValues> {
   }
 
   protected parseEvent(event: TrustedEvent): Partial<FeedValues> {
+    const feed = getTagValue("feed", event.tags)
+
+    if (feed == null) {
+      throw new Error(`Expected a "feed" tag on kind ${this.kind} event`)
+    }
+
     return {
       identifier: getIdentifier(event) || "",
       title: getTagValue("title", event.tags) || "",
       description: getTagValue("description", event.tags) || "",
-      definition: parseJson(getTagValue("feed", event.tags) || ""),
+      definition: parseJson(feed),
     }
   }
 
@@ -58,14 +66,6 @@ export class Feed extends DomainObject<FeedValues> {
 
   definition() {
     return this.values.definition
-  }
-
-  display() {
-    return this.values.title || "[no name]"
-  }
-
-  getAddress() {
-    return getAddress(this.event!)
   }
 
   async toTemplate(): Promise<EventTemplate> {

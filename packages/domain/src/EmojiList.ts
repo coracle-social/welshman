@@ -1,4 +1,4 @@
-import {uniq} from "@welshman/lib"
+import {uniq, spec} from "@welshman/lib"
 import {EMOJIS, getAddressTagValues} from "@welshman/util"
 import {EncryptableList} from "./List.js"
 
@@ -12,18 +12,18 @@ export class EmojiList extends EncryptableList {
   }
 
   emojis() {
-    return this.tags().filter(t => t[0] === "emoji")
+    return this.tags().filter(spec(["emoji"]))
   }
 
   addEmoji(shortcode: string, url: string) {
     return this.addPublicTags(["emoji", shortcode, url])
   }
 
-  addSet(address: string) {
+  addEmojiSet(address: string) {
     return this.addPublicTags(["a", address])
   }
 
-  remove(value: string) {
+  removeEmoji(value: string) {
     return this.removeTagsWithValue(value)
   }
 }

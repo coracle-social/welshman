@@ -1,85 +1,54 @@
 import {uniq} from "@welshman/lib"
-import {ROOM_ADD_MEMBER, ROOM_REMOVE_MEMBER, getTagValue, getPubkeyTagValues} from "@welshman/util"
+import {ROOM_ADD_MEMBER, ROOM_REMOVE_MEMBER, getPubkeyTagValues} from "@welshman/util"
 import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import type {ISigner} from "@welshman/signer"
 import {DomainObject} from "./base.js"
 
-export type RoomMembershipOpValues = {
-  kind: number
-  h: string
+export type RoomMembershipValues = {
   pubkeys: string[]
 }
 
-export const makeRoomMembershipOpValues = (
-  values: Partial<RoomMembershipOpValues> = {},
-): RoomMembershipOpValues => ({
-  kind: ROOM_ADD_MEMBER,
-  h: "",
+export const makeRoomMembershipValues = (
+  values: Partial<RoomMembershipValues> = {},
+): RoomMembershipValues => ({
   pubkeys: [],
   ...values,
 })
 
-export const makeRoomAddMember = (h: string, pubkeys: string[]) =>
-  RoomMembershipOp.init({kind: ROOM_ADD_MEMBER, h, pubkeys})
-
-export const makeRoomRemoveMember = (h: string, pubkeys: string[]) =>
-  RoomMembershipOp.init({kind: ROOM_REMOVE_MEMBER, h, pubkeys})
-
 // NIP-29 moderation op for adding (kind 9000) or removing (kind 9001) room
-// members. These are regular (non-addressable) events carrying the group id in
-// the "h" tag and the affected pubkeys in "p" tags. The two kinds share an
-// identical shape, so they're merged into one kind-discriminated class.
+// members. Regular (non-addressable) events carrying the affected pubkeys in "p"
+// tags; the target group id is the base `group` ("h") behavior tag. Add and
+// remove share this shape; each is its own concrete class fixing the kind.
 //
-// Because the base DomainObject treats `kind` as a fixed value and asserts
-// event.kind === this.kind in parse(), `kind` is a mutable instance field here:
-// it's seeded from values.kind in normalizeValues, and parse() is overridden to
-// adopt the event's kind before normalizing.
-export class RoomMembershipOp extends DomainObject<RoomMembershipOpValues> {
-  kind = ROOM_ADD_MEMBER
-  values = makeRoomMembershipOpValues()
+// Flotilla's membership replay treats RoomAddMember => member, RoomRemoveMember
+// => not a member.
+export abstract class RoomMembershipOp extends DomainObject<RoomMembershipValues> {
+  values = makeRoomMembershipValues()
 
-  protected normalizeValues(values: Partial<RoomMembershipOpValues> = {}) {
-    const normalized = makeRoomMembershipOpValues(values)
-
-    this.kind = normalized.kind
-
-    return normalized
+  protected normalizeValues(values: Partial<RoomMembershipValues> = {}) {
+    return makeRoomMembershipValues(values)
   }
 
-  protected parseEvent(event: TrustedEvent): Partial<RoomMembershipOpValues> {
-    return {
-      kind: event.kind,
-      h: getTagValue("h", event.tags) || "",
-      pubkeys: uniq(getPubkeyTagValues(event.tags)),
-    }
-  }
-
-  async parse(event: TrustedEvent, signer?: ISigner) {
-    this.event = event
-    this.kind = event.kind
-    this.values = this.normalizeValues(await this.parseEvent(event, signer))
-
-    return this
-  }
-
-  h() {
-    return this.values.h
+  protected parseEvent(event: TrustedEvent): Partial<RoomMembershipValues> {
+    return {pubkeys: uniq(getPubkeyTagValues(event.tags))}
   }
 
   pubkeys() {
     return this.values.pubkeys
   }
 
-  isAdd() {
-    return this.kind === ROOM_ADD_MEMBER
-  }
-
   async toTemplate(): Promise<EventTemplate> {
-    const tags: string[][] = [
-      ["h", this.values.h],
-      ...this.values.pubkeys.map(pk => ["p", pk]),
-    ]
-
-    return {kind: this.kind, tags, content: ""}
+    return {
+      kind: this.kind,
+      tags: this.values.pubkeys.map(pk => ["p", pk]),
+      content: "",
+    }
   }
+}
+
+export class RoomAddMember extends RoomMembershipOp {
+  readonly kind = ROOM_ADD_MEMBER
+}
+
+export class RoomRemoveMember extends RoomMembershipOp {
+  readonly kind = ROOM_REMOVE_MEMBER
 }

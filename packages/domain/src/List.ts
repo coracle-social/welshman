@@ -79,10 +79,10 @@ export abstract class EncryptableList extends DomainObject<ListValues> {
   }
 
   keepTags(pred: (tag: string[]) => boolean) {
-    this.values.publicTags = this.values.publicTags.filter(t => !pred(t))
+    this.values.publicTags = this.values.publicTags.filter(t => pred(t))
 
     if (this.values.decrypted) {
-      this.values.privateTags = this.values.privateTags.filter(t => !pred(t))
+      this.values.privateTags = this.values.privateTags.filter(t => pred(t))
     }
 
     return this
@@ -112,6 +112,35 @@ export abstract class EncryptableList extends DomainObject<ListValues> {
 
   removeTagsWithValue(value: string) {
     return this.removeTags(nthEq(1, value))
+  }
+
+  clearPublicTags() {
+    this.values.publicTags = []
+
+    return this
+  }
+
+  clearPrivateTags() {
+    if (!this.values.decrypted) {
+      throw new Error("Cannot modify the private entries of a list that has not been decrypted")
+    }
+
+    this.values.privateTags = []
+
+    return this
+  }
+
+  // Remove every entry. Public tags always; private tags only when decrypted
+  // (an undecrypted list's ciphertext is preserved by toTemplate), mirroring how
+  // removeTags/keepTags leave undecrypted private entries untouched.
+  clearTags() {
+    this.values.publicTags = []
+
+    if (this.values.decrypted) {
+      this.values.privateTags = []
+    }
+
+    return this
   }
 
   async toTemplate(signer?: ISigner): Promise<EventTemplate> {

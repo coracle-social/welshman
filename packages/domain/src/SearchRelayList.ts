@@ -21,7 +21,7 @@ export class SearchRelayList extends EncryptableList {
   }
 
   setRelays(urls: string[]) {
-    this.keepTagsWithKey("relay")
+    this.clearTags()
 
     return this.addPublicTags(...urls.map(url => ["relay", normalizeRelayUrl(url)]))
   }
