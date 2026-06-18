@@ -26,7 +26,7 @@ describe("Profile", () => {
       tags: [["alt", "profile"]],
     })
 
-    const profile = Profile.parse(event)
+    const profile = await Profile.parse(event)
 
     expect(profile.values.name).toBe("alice")
     expect(profile.hasName()).toBe(true)
@@ -41,27 +41,27 @@ describe("Profile", () => {
   })
 
   it("derives lnurl from a lud16 address", () => {
-    const profile = Profile.make({lud16: "alice@example.com"})
+    const profile = Profile.init({lud16: "alice@example.com"})
 
     expect(profile.values.lnurl).toBeTruthy()
   })
 
-  it("set merges and re-derives values", () => {
-    const profile = Profile.make({name: "alice"})
+  it("gets and sets values by key", () => {
+    const profile = Profile.init({name: "alice"})
 
-    profile.set({about: "hello"})
+    profile.set("about", "hello")
 
-    expect(profile.values.name).toBe("alice")
-    expect(profile.values.about).toBe("hello")
+    expect(profile.get("name")).toBe("alice")
+    expect(profile.get("about")).toBe("hello")
   })
 
-  it("display falls back to a shortened npub", () => {
-    const profile = Profile.parse(makeEvent({content: "{}"}))
+  it("display falls back to a shortened npub", async () => {
+    const profile = await Profile.parse(makeEvent({content: "{}"}))
 
     expect(profile.display()).toBe(displayPubkey(pubkey))
   })
 
-  it("throws on the wrong kind", () => {
-    expect(() => Profile.parse(makeEvent({kind: NOTE}))).toThrow()
+  it("throws on the wrong kind", async () => {
+    await expect(Profile.parse(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })
