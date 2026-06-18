@@ -36,7 +36,7 @@ export class MuteList extends EncryptableList {
 
     const {privateTags, decrypted} = await decryptListContent(event, signer)
 
-    return new MuteList({event, publicTags: event.tags, privateTags, decrypted})
+    return new MuteList({publicTags: event.tags, privateTags, decrypted}, event)
   }
 
   /** The muted pubkeys, merging public and (when decrypted) private entries. */

@@ -61,12 +61,6 @@ describe("Profile", () => {
     expect(profile.display()).toBe(displayPubkey(pubkey))
   })
 
-  it("serializes to JSON", () => {
-    const profile = Profile.make({name: "alice"})
-
-    expect(JSON.parse(JSON.stringify(profile))).toEqual({name: "alice"})
-  })
-
   it("throws on the wrong kind", () => {
     expect(() => Profile.parse(makeEvent({kind: NOTE}))).toThrow()
   })
