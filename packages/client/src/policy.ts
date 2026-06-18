@@ -64,7 +64,8 @@ export const clientPolicyAuthUnlessBlocked = makeClientPolicyAuth((socket, clien
 
   return !client
     .use(BlockedRelayLists)
-    .getBlockedRelays(client.user.pubkey)
+    .urls(client.user.pubkey)
+    .get()
     .includes(socket.url)
 })
 

@@ -1,4 +1,4 @@
-import {writable} from "svelte/store"
+import {writable, derived} from "svelte/store"
 import type {Readable, Unsubscriber} from "svelte/store"
 import type {Maybe} from "@welshman/lib"
 import type {Filter} from "@welshman/util"
@@ -212,4 +212,11 @@ export abstract class DerivedPlugin<T> implements ReadableMap<T>, Loadable<T>, D
   values = () => this.index.get().values()
 
   get = (key: string) => this.index.get().get(key)
+
+  /**
+   * Build a per-key `Projection` over this collection: snapshot synchronously
+   * with `.get()`, or subscribe via `.$` (which lazily loads the key).
+   */
+  protected project = <U>(key: string, read: (item: Maybe<T>) => U): Projection<U> =>
+    projection(derived(this.one(key), read), () => read(this.get(key)))
 }
