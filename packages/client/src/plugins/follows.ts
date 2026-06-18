@@ -1,5 +1,5 @@
 import {
-  PINS,
+  FOLLOWS,
   asDecryptedEvent,
   readList,
   makeList,
@@ -7,40 +7,40 @@ import {
   removeFromList,
 } from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {DerivedData} from "./clientData.js"
+import {DerivedPlugin} from "./base.js"
 import {Network} from "./network.js"
 import {Thunks} from "./thunk.js"
-import {User} from "./user.js"
-import type {IClient} from "./client.js"
+import {User} from "../user.js"
+import type {IClient} from "../client.js"
 
 /**
- * NIP-51 pin lists (kind 10001), keyed by pubkey. Loaded via the outbox model
- * (the author's write relays), so it depends on the relay-list collection.
+ * Kind-3 follow lists, keyed by pubkey. Loaded via the outbox model (the
+ * author's write relays), so it depends on the relay-list collection.
  */
-export class PinLists extends DerivedData<ReturnType<typeof readList>> {
+export class FollowLists extends DerivedPlugin<ReturnType<typeof readList>> {
   constructor(ctx: IClient) {
     super(ctx, {
-      filters: [{kinds: [PINS]}],
+      filters: [{kinds: [FOLLOWS]}],
       eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
-      getKey: pins => pins.event.pubkey,
+      getKey: followList => followList.event.pubkey,
     })
   }
 
   fetch(pubkey: string, relayHints: string[] = []) {
-    return this.ctx.use(Network).loadUsingOutbox(pubkey, {kinds: [PINS]}, relayHints)
+    return this.ctx.use(Network).loadUsingOutbox(pubkey, {kinds: [FOLLOWS]}, relayHints)
   }
 
-  pin = async (tag: string[]) => {
+  follow = async (tag: string[]) => {
     const user = User.require(this.ctx)
-    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: PINS})
+    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: FOLLOWS})
     const event = await addToListPublicly(list, tag).reconcile(user.nip44EncryptToSelf)
 
     return this.ctx.use(Thunks).publishToOutbox({event})
   }
 
-  unpin = async (value: string) => {
+  unfollow = async (value: string) => {
     const user = User.require(this.ctx)
-    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: PINS})
+    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: FOLLOWS})
     const event = await removeFromList(list, value).reconcile(user.nip44EncryptToSelf)
 
     return this.ctx.use(Thunks).publishToOutbox({event})

@@ -12,9 +12,9 @@ import type {Maybe} from "@welshman/lib"
 import {getTagValue, getZapSplits, zapFromEvent} from "@welshman/util"
 import type {Zapper, Zap, TrustedEvent} from "@welshman/util"
 import {deriveDeduplicated, deriveDeduplicatedByValue} from "@welshman/store"
-import {LoadableData, projection} from "./clientData.js"
-import type {Projection} from "./clientData.js"
-import type {IClient} from "./client.js"
+import {LoadableMapPlugin, projection} from "./base.js"
+import type {Projection} from "./base.js"
+import type {IClient} from "../client.js"
 import {Profiles} from "./profiles.js"
 
 /**
@@ -23,7 +23,7 @@ import {Profiles} from "./profiles.js"
  * lnurl, or via a dufflepud proxy to protect user privacy). Depends on the
  * profiles collection to resolve a pubkey's lnurl.
  */
-export class Zappers extends LoadableData<Zapper> {
+export class Zappers extends LoadableMapPlugin<Zapper> {
   fetch = batcher(800, async (lnurls: string[]) => {
     const result = new Map<string, Zapper>()
     const valid = lnurls.filter(lnurl => lnurl.startsWith("lnurl1"))

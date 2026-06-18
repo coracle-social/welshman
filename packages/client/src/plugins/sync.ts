@@ -1,6 +1,6 @@
 import {isSignedEvent} from "@welshman/util"
 import type {Filter, SignedEvent} from "@welshman/util"
-import type {IClient} from "./client.js"
+import type {IClient} from "../client.js"
 import {Network} from "./network.js"
 import {Relays} from "./relays.js"
 
@@ -21,25 +21,17 @@ export class Sync {
   query = (filters: Filter[]) =>
     this.ctx.repository.query(filters, {shouldSort: filters.every(f => f.limit === undefined)})
 
-  hasNegentropy = (url: string) => {
-    const relay = this.ctx.use(Relays).get(url)
-
-    if (relay?.negentropy) return true
-    if (relay?.supported_nips?.includes?.("77")) return true
-    if (relay?.software?.includes?.("strfry") && !relay?.version?.match(/^0\./)) return true
-
-    return false
-  }
-
   pull = async ({relays, filters}: AppSyncOpts) => {
     const net = this.ctx.use(Network)
     const events = this.query(filters).filter(isSignedEvent)
 
     await Promise.all(
       relays.map(async relay => {
-        await (this.hasNegentropy(relay)
-          ? net.pull({filters, events, relays: [relay]})
-          : net.request({filters, relays: [relay], autoClose: true}))
+        if (await this.ctx.use(Relays).hasNegentropy(relay)) {
+          await net.pull({filters, events, relays: [relay]})
+        } else {
+          await net.request({filters, relays: [relay], autoClose: true})
+        }
       }),
     )
   }
@@ -50,9 +42,11 @@ export class Sync {
 
     await Promise.all(
       relays.map(async relay => {
-        await (this.hasNegentropy(relay)
-          ? net.push({filters, events, relays: [relay]})
-          : Promise.all(events.map((event: SignedEvent) => net.publish({event, relays: [relay]}))))
+        if (await this.ctx.use(Relays).hasNegentropy(relay)) {
+          await net.push({filters, events, relays: [relay]})
+        } else {
+          await Promise.all(events.map((event: SignedEvent) => net.publish({event, relays: [relay]})))
+        }
       }),
     )
   }

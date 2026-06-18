@@ -1,7 +1,7 @@
 import {makeHttpAuth, sendManagementRequest} from "@welshman/util"
 import type {ManagementRequest} from "@welshman/util"
-import {User} from "./user.js"
-import type {IClient} from "./client.js"
+import {User} from "../user.js"
+import type {IClient} from "../client.js"
 
 /**
  * NIP-86 relay management. Signs an HTTP-auth event as the client's user and

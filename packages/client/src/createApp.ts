@@ -1,6 +1,6 @@
 import {Client} from "./client.js"
 import type {ClientOptions} from "./client.js"
-import {defaultClientPolicies} from "./policies.js"
+import {defaultClientPolicies} from "./policy.js"
 
 /**
  * Creates a batteries-included client: a `Client` wired with the default client

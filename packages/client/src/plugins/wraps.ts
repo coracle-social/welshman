@@ -5,9 +5,9 @@ import type {TrustedEvent, SignedEvent, EventTemplate} from "@welshman/util"
 import {Nip59} from "@welshman/signer"
 import {MergedThunk, Thunks} from "./thunk.js"
 import type {ThunkOptions} from "./thunk.js"
-import {User} from "./user.js"
+import {User} from "../user.js"
 import {MessagingRelayLists} from "./messagingRelayLists.js"
-import type {IClient} from "./client.js"
+import type {IClient} from "../client.js"
 
 export type SendWrappedOptions = Omit<
   ThunkOptions,
@@ -18,13 +18,13 @@ export type SendWrappedOptions = Omit<
 }
 
 /**
- * Per-client gift-wrap (NIP-59) state: the unwrap queue plus failure/dedup
+ * Per-client wrap (NIP-59) state: the unwrap queue plus failure/dedup
  * tracking. Scoped to `ctx.user`, so a client only ever unwraps its own user's
  * messages into its own repository — which is what keeps DM history from being
  * merged across identities. The repository subscription that feeds it lives in
- * `clientPolicyGiftWraps`.
+ * `clientPolicyWraps`.
  */
-export class GiftWraps {
+export class Wraps {
   failedUnwraps = new Set<string>()
   queue: TaskQueue<TrustedEvent>
 

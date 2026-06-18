@@ -2,7 +2,7 @@ import {groupBy, batch, now, uniq, ago, DAY, HOUR, MINUTE} from "@welshman/lib"
 import {isOnionUrl, isLocalUrl, isIPAddress, isRelayUrl} from "@welshman/util"
 import {SocketStatus, SocketEvent} from "@welshman/net"
 import type {ClientMessage, RelayMessage, Socket} from "@welshman/net"
-import {ClientData} from "./clientData.js"
+import {MapPlugin} from "./base.js"
 import {BlockedRelayLists} from "./blockedRelayLists.js"
 
 export type RelayStatsUpdate = [string, (stats: RelayStatsItem) => void]
@@ -56,7 +56,7 @@ export const makeRelayStatsItem = (url: string): RelayStatsItem => ({
  * the router uses to rank relays. A pure store — the socket wiring that fills it
  * lives in `clientPolicyRelayStats`.
  */
-export class RelayStats extends ClientData<RelayStatsItem> {
+export class RelayStats extends MapPlugin<RelayStatsItem> {
   getQuality = (url: string) => {
     // Skip non-relays entirely
     if (!isRelayUrl(url)) return 0

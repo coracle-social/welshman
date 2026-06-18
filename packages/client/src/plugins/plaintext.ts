@@ -1,12 +1,12 @@
 import {decrypt} from "@welshman/signer"
 import type {Maybe} from "@welshman/lib"
 import type {TrustedEvent} from "@welshman/util"
-import {ClientData} from "./clientData.js"
+import {MapPlugin} from "./base.js"
 
 /**
  * A cache of decrypted event content, keyed by event id.
  */
-export class Plaintext extends ClientData<string> {
+export class Plaintext extends MapPlugin<string> {
   ensure = async (event: TrustedEvent): Promise<Maybe<string>> => {
     if (this.ctx.user?.pubkey !== event.pubkey) return
 

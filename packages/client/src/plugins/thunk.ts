@@ -13,10 +13,10 @@ import {
 } from "@welshman/util"
 import {PublishStatus, PublishResult, PublishOptions, PublishResultsByRelay} from "@welshman/net"
 import {Nip01Signer, Nip59} from "@welshman/signer"
-import type {IClient} from "./client.js"
+import type {IClient} from "../client.js"
 import {Network} from "./network.js"
 import {Router, addMinimalFallbacks} from "./router.js"
-import {User} from "./user.js"
+import {User} from "../user.js"
 
 export type ThunkOptions = Override<
   PublishOptions,

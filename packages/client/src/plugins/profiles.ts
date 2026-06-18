@@ -10,18 +10,18 @@ import {
 } from "@welshman/util"
 import type {Profile} from "@welshman/util"
 import type {Maybe} from "@welshman/lib"
-import {DerivedData, projection} from "./clientData.js"
-import type {Projection} from "./clientData.js"
+import {DerivedPlugin, projection} from "./base.js"
+import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {Thunks} from "./thunk.js"
-import type {IClient} from "./client.js"
+import type {IClient} from "../client.js"
 
 /**
  * Kind-0 profiles, keyed by pubkey. Loaded via the outbox model (the author's
  * write relays), resolved through the relay-list collection at fetch time.
  */
-export class Profiles extends DerivedData<ReturnType<typeof readProfile>> {
+export class Profiles extends DerivedPlugin<ReturnType<typeof readProfile>> {
   constructor(ctx: IClient) {
     super(ctx, {
       filters: [{kinds: [PROFILE]}],

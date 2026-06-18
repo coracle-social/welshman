@@ -10,7 +10,7 @@ import {
 import type {TrustedEvent} from "@welshman/util"
 import {Router} from "./router.js"
 import {Profiles} from "./profiles.js"
-import type {IClient} from "./client.js"
+import type {IClient} from "../client.js"
 
 /**
  * Builders for nostr tags (p/e/a/q/zap/reply/comment/reaction). Needs the router

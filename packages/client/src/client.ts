@@ -3,7 +3,7 @@ import {call} from "@welshman/lib"
 import {Pool, Tracker, Repository, WrapManager} from "@welshman/net"
 import type {NetContext, AdapterFactory} from "@welshman/net"
 import type {User} from "./user.js"
-import type {ClientPolicy} from "./policies.js"
+import type {ClientPolicy} from "./policy.js"
 
 export type ClientConfig = {
   dufflepudUrl?: string

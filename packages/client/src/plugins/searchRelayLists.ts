@@ -8,19 +8,19 @@ import {
   removeFromList,
 } from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {DerivedData} from "./clientData.js"
+import {DerivedPlugin} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
-import {User} from "./user.js"
+import {User} from "../user.js"
 import {Thunks} from "./thunk.js"
-import type {IClient} from "./client.js"
+import type {IClient} from "../client.js"
 
 /**
  * NIP-51 search relay lists (kind 10007), keyed by pubkey. Loaded via the
  * outbox model (the author's write relays), so it depends on the relay-list
  * collection.
  */
-export class SearchRelayLists extends DerivedData<ReturnType<typeof readList>> {
+export class SearchRelayLists extends DerivedPlugin<ReturnType<typeof readList>> {
   constructor(ctx: IClient) {
     super(ctx, {
       filters: [{kinds: [SEARCH_RELAYS]}],

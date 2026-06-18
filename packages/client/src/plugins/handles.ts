@@ -3,9 +3,9 @@ import type {Maybe} from "@welshman/lib"
 import {queryProfile, displayNip05} from "@welshman/util"
 import type {Handle} from "@welshman/util"
 import {deriveDeduplicated} from "@welshman/store"
-import {LoadableData, projection} from "./clientData.js"
-import type {Projection} from "./clientData.js"
-import type {IClient} from "./client.js"
+import {LoadableMapPlugin, projection} from "./base.js"
+import type {Projection} from "./base.js"
+import type {IClient} from "../client.js"
 import {Profiles} from "./profiles.js"
 
 /**
@@ -15,7 +15,7 @@ import {Profiles} from "./profiles.js"
  * user privacy). Depends on the profiles collection to resolve a pubkey's
  * handle.
  */
-export class Handles extends LoadableData<Handle> {
+export class Handles extends LoadableMapPlugin<Handle> {
   constructor(ctx: IClient) {
     super(ctx)
   }

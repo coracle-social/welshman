@@ -9,18 +9,18 @@ import {
   updateList,
 } from "@welshman/util"
 import type {TrustedEvent, PublishedList} from "@welshman/util"
-import {DerivedData} from "./clientData.js"
-import type {IClient} from "./client.js"
+import {DerivedPlugin} from "./base.js"
+import type {IClient} from "../client.js"
 import {Network} from "./network.js"
 import {Thunks} from "./thunk.js"
 import {Plaintext} from "./plaintext.js"
-import {User} from "./user.js"
+import {User} from "../user.js"
 
 /**
  * Kind-10000 mute lists, keyed by pubkey. Mute lists carry private entries in
  * encrypted content, so decoding goes through the plaintext cache.
  */
-export class MuteLists extends DerivedData<PublishedList> {
+export class MuteLists extends DerivedPlugin<PublishedList> {
   constructor(ctx: IClient) {
     super(ctx, {
       filters: [{kinds: [MUTES]}],
