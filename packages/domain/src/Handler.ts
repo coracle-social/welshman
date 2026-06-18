@@ -1,5 +1,5 @@
 import {parseJson} from "@welshman/lib"
-import {HANDLER_INFORMATION, getKindTagValues, getIdentifier, getAddress} from "@welshman/util"
+import {HANDLER_INFORMATION, getKindTagValues, getTagValue} from "@welshman/util"
 import type {EventTemplate, TrustedEvent} from "@welshman/util"
 import {DomainObject} from "./base.js"
 
@@ -27,6 +27,10 @@ export class Handler extends DomainObject<HandlerValues> {
 
   protected normalizeValues(values: Partial<HandlerValues> = {}) {
     return makeHandlerValues(values)
+  }
+
+  protected reservedTagKeys() {
+    return ["k"]
   }
 
   protected parseEvent(event: TrustedEvent): Partial<HandlerValues> {
@@ -71,20 +75,8 @@ export class Handler extends DomainObject<HandlerValues> {
     return this.values.kinds
   }
 
-  supportsKind(kind: number) {
-    return this.values.kinds.includes(kind)
-  }
-
   identifier() {
-    return getIdentifier(this.event!)
-  }
-
-  display(fallback = "") {
-    return this.name() || fallback
-  }
-
-  getAddress() {
-    return getAddress(this.event!)
+    return getTagValue("d", this.extraTags)
   }
 
   async toTemplate(): Promise<EventTemplate> {
@@ -92,14 +84,14 @@ export class Handler extends DomainObject<HandlerValues> {
 
     const content = JSON.stringify({name, about, image, website, lud16, nip05})
 
-    // Rebuild `k` tags from values.kinds, preserving existing `d`/`a` tags.
-    const preservedTags = (this.event?.tags || []).filter(t => t[0] === "d" || t[0] === "a")
+    // Rebuild `k` tags from values.kinds; everything else carries over via the
+    // base extraTags, appended in addBehaviorTags.
     const kindTags = this.values.kinds.map(kind => ["k", String(kind)])
 
     return {
       kind: this.kind,
       content,
-      tags: [...preservedTags, ...kindTags],
+      tags: kindTags,
     }
   }
 }

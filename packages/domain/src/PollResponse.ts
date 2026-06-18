@@ -38,11 +38,7 @@ export class PollResponse extends DomainObject<PollResponseValues> {
     return this.values.pollId
   }
 
-  selections(pollType?: "singlechoice" | "multiplechoice") {
-    if (pollType === "singlechoice") {
-      return this.values.selections.slice(0, 1)
-    }
-
+  selections() {
     return uniq(this.values.selections)
   }
 

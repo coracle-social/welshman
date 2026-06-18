@@ -11,11 +11,11 @@ export class FeedList extends EncryptableList {
     return uniq(getAddressTagValues(this.tags()))
   }
 
-  add(address: string, relayHint?: string) {
+  addFeed(address: string, relayHint?: string) {
     return this.addPublicTags(["a", address, relayHint || ""])
   }
 
-  remove(address: string) {
+  removeFeed(address: string) {
     return this.removeTagsWithValue(address)
   }
 }

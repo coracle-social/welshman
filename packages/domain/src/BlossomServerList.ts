@@ -25,7 +25,7 @@ export class BlossomServerList extends EncryptableList {
   }
 
   setServers(urls: string[]) {
-    this.keepTagsWithKey("server")
+    this.clearTags()
 
     return this.addPublicTags(...urls.map(url => ["server", normalizeRelayUrl(url)]))
   }

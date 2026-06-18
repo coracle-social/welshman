@@ -1,45 +1,47 @@
-import {EVENT_TIME, getIdentifier, getTagValue, getTagValues, getAddress} from "@welshman/util"
+import {range, DAY} from "@welshman/lib"
+import {EVENT_TIME, getIdentifier, getTagValue} from "@welshman/util"
 import type {EventTemplate, TrustedEvent} from "@welshman/util"
 import {DomainObject} from "./base.js"
 
-export type CalendarEventValues = {
+export type TimeEventValues = {
   identifier: string
   title?: string
   location?: string
   content: string
   start?: number
   end?: number
-  days: string[]
-  h?: string
 }
 
-export const makeCalendarEventValues = (
-  values: Partial<CalendarEventValues> = {},
-): CalendarEventValues => ({
+export const makeTimeEventValues = (
+  values: Partial<TimeEventValues> = {},
+): TimeEventValues => ({
   identifier: "",
   content: "",
-  days: [],
   ...values,
 })
 
 // NIP-52 kind-31923 time-based calendar event. Addressable via the "d" tag.
 // `start`/`end` are unix-second timestamps carried in "start"/"end" tags
 // (parsed with parseInt), `title` falls back to the legacy "name" tag, and the
-// plain-text body lives in `content`. Flotilla additionally writes per-day
-// ["D", "YYYY-MM-DD"] tags spanning start..end for day-bucket querying, and an
-// optional "h" tag scoping the event to a room (commented via "#A"). This is the
-// only calendar object flotilla uses (CALENDAR 31924 / EVENT_DATE 31922 /
-// EVENT_RSVP 31925 are not used). Tags + plain content, so it extends
-// DomainObject directly.
-export class CalendarEvent extends DomainObject<CalendarEventValues> {
+// plain-text body lives in `content`. Room scoping is handled by the base
+// `group` behavior tag. Named
+// TimeEvent (not CalendarEvent) to leave room for a future date-based event
+// (EVENT_DATE 31922); CALENDAR 31924 / EVENT_RSVP 31925 are not used. Tags +
+// plain content, so it extends DomainObject directly.
+//
+// The "D" day tags are NOT intrinsic state — they're a derived index over
+// start..end used purely so calendar events can be filtered by day, so they're
+// dropped on parse and recomputed in toTemplate (matching flotilla's
+// daysBetween: one tag per epoch-day floor(seconds / DAY) the event spans).
+export class TimeEvent extends DomainObject<TimeEventValues> {
   readonly kind = EVENT_TIME
-  values = makeCalendarEventValues()
+  values = makeTimeEventValues()
 
-  protected normalizeValues(values: Partial<CalendarEventValues> = {}) {
-    return makeCalendarEventValues(values)
+  protected normalizeValues(values: Partial<TimeEventValues> = {}) {
+    return makeTimeEventValues(values)
   }
 
-  protected parseEvent(event: TrustedEvent): Partial<CalendarEventValues> {
+  protected parseEvent(event: TrustedEvent): Partial<TimeEventValues> {
     const start = parseInt(getTagValue("start", event.tags)!)
     const end = parseInt(getTagValue("end", event.tags)!)
 
@@ -50,8 +52,6 @@ export class CalendarEvent extends DomainObject<CalendarEventValues> {
       content: event.content || "",
       start: isNaN(start) ? undefined : start,
       end: isNaN(end) ? undefined : end,
-      days: getTagValues("D", event.tags),
-      h: getTagValue("h", event.tags),
     }
   }
 
@@ -79,24 +79,8 @@ export class CalendarEvent extends DomainObject<CalendarEventValues> {
     return this.values.end
   }
 
-  days() {
-    return this.values.days
-  }
-
-  h() {
-    return this.values.h
-  }
-
-  room() {
-    return this.values.h
-  }
-
-  address() {
-    return getAddress(this.event!)
-  }
-
   async toTemplate(): Promise<EventTemplate> {
-    const {identifier, title, location, content, start, end, days, h} = this.values
+    const {identifier, title, location, content, start, end} = this.values
 
     const tags: string[][] = [["d", identifier]]
 
@@ -105,11 +89,12 @@ export class CalendarEvent extends DomainObject<CalendarEventValues> {
     if (start != null) tags.push(["start", String(start)])
     if (end != null) tags.push(["end", String(end)])
 
-    for (const day of days) {
-      tags.push(["D", day])
+    // Derived day index for filtering: one "D" tag per epoch-day the event spans.
+    if (start != null && end != null) {
+      for (const t of range(start, end, DAY)) {
+        tags.push(["D", String(Math.floor(t / DAY))])
+      }
     }
-
-    if (h) tags.push(["h", h])
 
     return {kind: this.kind, content, tags}
   }

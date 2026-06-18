@@ -7,7 +7,6 @@ export type ZapGoalValues = {
   summary?: string
   amount: number
   relays: string[]
-  h?: string
 }
 
 export const makeZapGoalValues = (values: Partial<ZapGoalValues> = {}): ZapGoalValues => ({
@@ -20,8 +19,8 @@ export const makeZapGoalValues = (values: Partial<ZapGoalValues> = {}): ZapGoalV
 // NIP-75 kind-9041 zap goal. A fundraising target that drives flotilla's goals
 // feature: the goal title lives in `content` as plain text (not JSON), the body
 // in a "summary" tag, the target amount in an "amount" tag (millisats, parsed as
-// an int defaulting to 0), the relays to tally receipts from in repeated
-// "relays" tags, and an optional "h" tag scopes the goal to a room.
+// an int defaulting to 0), and the relays to tally receipts from in repeated
+// "relays" tags; room scoping is handled by the base `group` behavior tag.
 // Non-addressable (referenced by event id via "#E"); the funding tally is
 // computed elsewhere from sibling zap receipts (ZAP_RESPONSE) and is not modeled
 // here. Tags-only metadata, so it extends DomainObject directly.
@@ -39,7 +38,6 @@ export class ZapGoal extends DomainObject<ZapGoalValues> {
       summary: getTagValue("summary", event.tags),
       amount: parseInt(getTagValue("amount", event.tags) || "0") || 0,
       relays: getTagValues("relays", event.tags),
-      h: getTagValue("h", event.tags),
     }
   }
 
@@ -59,14 +57,6 @@ export class ZapGoal extends DomainObject<ZapGoalValues> {
     return this.values.relays
   }
 
-  h() {
-    return this.values.h
-  }
-
-  room() {
-    return this.values.h
-  }
-
   async toTemplate(): Promise<EventTemplate> {
     const tags: string[][] = []
 
@@ -78,10 +68,6 @@ export class ZapGoal extends DomainObject<ZapGoalValues> {
 
     for (const relay of this.values.relays) {
       tags.push(["relays", relay])
-    }
-
-    if (this.values.h) {
-      tags.push(["h", this.values.h])
     }
 
     return {kind: this.kind, content: this.values.title, tags}

@@ -21,7 +21,6 @@ export type PollValues = {
   pollType: PollType
   endsAt?: number
   relays: string[]
-  h?: string
 }
 
 export const makePollValues = (values: Partial<PollValues> = {}): PollValues => ({
@@ -55,7 +54,6 @@ export class Poll extends DomainObject<PollValues> {
       pollType: (getTagValue("polltype", event.tags) as PollType) || "singlechoice",
       endsAt: Number.isNaN(endsAt) ? undefined : endsAt,
       relays: getTagValues("relay", event.tags),
-      h: getTagValue("h", event.tags),
     }
   }
 
@@ -81,10 +79,6 @@ export class Poll extends DomainObject<PollValues> {
 
   relays() {
     return this.values.relays
-  }
-
-  h() {
-    return this.values.h
   }
 
   // Tally the latest response per pubkey across the poll options. Each response
@@ -132,10 +126,6 @@ export class Poll extends DomainObject<PollValues> {
 
     for (const relay of this.values.relays) {
       tags.push(["relay", relay])
-    }
-
-    if (this.values.h) {
-      tags.push(["h", this.values.h])
     }
 
     return {kind: this.kind, content: this.values.title, tags}
