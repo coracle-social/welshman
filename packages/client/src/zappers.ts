@@ -67,11 +67,11 @@ export class Zappers extends LoadableData<Zapper> {
     return $profile?.lnurl ? this.load($profile.lnurl) : undefined
   }
 
-  deriveForPubkey = (pubkey: string, relays: string[] = []) => {
+  forPubkey = (pubkey: string, relays: string[] = []) => {
     this.loadForPubkey(pubkey, relays)
 
     return deriveDeduplicated(
-      [this.index, this.ctx.use(Profiles).derived(pubkey, relays)],
+      [this.index, this.ctx.use(Profiles).one(pubkey, relays)],
       ([$zappersByLnurl, $profile]) =>
         $profile?.lnurl ? $zappersByLnurl.get($profile.lnurl) : undefined,
     )
@@ -105,7 +105,7 @@ export class Zappers extends LoadableData<Zapper> {
       await Promise.all(zapReceipts.map(zapReceipt => this.validateZapReceipt(zapReceipt, parent))),
     )
 
-  deriveValidZapReceipts = (zapReceipts: TrustedEvent[], parent: TrustedEvent): Readable<Zap[]> => {
+  validZapReceipts = (zapReceipts: TrustedEvent[], parent: TrustedEvent): Readable<Zap[]> => {
     const splits = getZapSplits(parent)
     const profiles = this.ctx.use(Profiles)
 
@@ -116,7 +116,7 @@ export class Zappers extends LoadableData<Zapper> {
 
     const stores: Readable<any>[] = [
       this.index,
-      ...splits.map(split => profiles.derived(split.pubkey)),
+      ...splits.map(split => profiles.one(split.pubkey)),
     ]
 
     return deriveDeduplicatedByValue(stores, (values: any[]) => {

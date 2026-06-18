@@ -61,11 +61,11 @@ export class Handles extends LoadableData<Handle> {
     return $profile?.nip05 ? this.load($profile.nip05) : undefined
   }
 
-  deriveForPubkey = (pubkey: string, relays: string[] = []) => {
+  forPubkey = (pubkey: string, relays: string[] = []) => {
     this.loadForPubkey(pubkey, relays)
 
     return deriveDeduplicated(
-      [this.index, this.ctx.use(Profiles).derived(pubkey, relays)],
+      [this.index, this.ctx.use(Profiles).one(pubkey, relays)],
       ([$handlesByNip05, $profile]) => {
         if (!$profile?.nip05) return undefined
 

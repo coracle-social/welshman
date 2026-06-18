@@ -1,3 +1,4 @@
+import {get} from "svelte/store"
 import {uniq, remove} from "@welshman/lib"
 import {
   getAddress,
@@ -31,7 +32,7 @@ export class Tags {
     "p",
     pubkey,
     this.ctx.use(Router).FromPubkey(pubkey).getUrl() || "",
-    this.ctx.use(Profiles).display(pubkey),
+    get(this.ctx.use(Profiles).display(pubkey)),
   ]
 
   tagEvent = (event: TrustedEvent, url = "", mark = "") => {

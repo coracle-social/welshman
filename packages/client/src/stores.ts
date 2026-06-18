@@ -30,29 +30,29 @@ export class Stores {
   getEventsById = (options: Omit<EventsByIdOptions, "repository">) =>
     getEventsById({...options, repository: this.ctx.repository})
 
-  deriveEventsById = (options: Omit<EventsByIdOptions, "repository">) =>
+  eventsById = (options: Omit<EventsByIdOptions, "repository">) =>
     deriveEventsById({...options, repository: this.ctx.repository})
 
-  deriveEvents = (options: Omit<EventsByIdOptions, "repository">) =>
+  events = (options: Omit<EventsByIdOptions, "repository">) =>
     deriveEvents({...options, repository: this.ctx.repository})
 
-  makeDeriveEvent = (options: Omit<EventOptions, "repository">) =>
+  makeEvent = (options: Omit<EventOptions, "repository">) =>
     makeDeriveEvent({...options, repository: this.ctx.repository})
 
   getEventsByIdByUrl = (options: Omit<EventsByIdByUrlOptions, "tracker" | "repository">) =>
     getEventsByIdByUrl({...options, tracker: this.ctx.tracker, repository: this.ctx.repository})
 
-  deriveEventsByIdByUrl = (options: Omit<EventsByIdByUrlOptions, "tracker" | "repository">) =>
+  eventsByIdByUrl = (options: Omit<EventsByIdByUrlOptions, "tracker" | "repository">) =>
     deriveEventsByIdByUrl({...options, tracker: this.ctx.tracker, repository: this.ctx.repository})
 
   getEventsByIdForUrl = (options: Omit<EventsByIdForUrlOptions, "tracker" | "repository">) =>
     getEventsByIdForUrl({...options, tracker: this.ctx.tracker, repository: this.ctx.repository})
 
-  deriveEventsByIdForUrl = (options: Omit<EventsByIdForUrlOptions, "tracker" | "repository">) =>
+  eventsByIdForUrl = (options: Omit<EventsByIdForUrlOptions, "tracker" | "repository">) =>
     deriveEventsByIdForUrl({...options, tracker: this.ctx.tracker, repository: this.ctx.repository})
 
-  deriveItemsByKey = <T>(options: Omit<ItemsByKeyOptions<T>, "repository">) =>
+  itemsByKey = <T>(options: Omit<ItemsByKeyOptions<T>, "repository">) =>
     deriveItemsByKey<T>({...options, repository: this.ctx.repository})
 
-  deriveIsDeleted = (event: TrustedEvent) => deriveIsDeleted(this.ctx.repository, event)
+  isDeleted = (event: TrustedEvent) => deriveIsDeleted(this.ctx.repository, event)
 }

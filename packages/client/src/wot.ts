@@ -15,10 +15,10 @@ const listPubkeys = (list: List | undefined) => getPubkeyTagValues(getListTags(l
  * built from the perspective of the client's user (or, with no user, the union
  * of every known follow list) and updated reactively as lists change.
  *
- * Every query is exposed as a reactive store — the aggregate `*ByPubkey`/`graph`/
- * `max` fields and the parameterized `derive*` methods. All of them are wrapped
- * in `withGetter`, so a synchronous snapshot is just `<store>.get()` /
- * `derive*(...).get()`.
+ * The aggregate `*ByPubkey`/`graph`/`max` fields are long-lived `withGetter`
+ * stores (snapshot with `.get()`). The parameterized methods (`follows`,
+ * `wotScore`, …) return plain on-demand stores — snapshot them with svelte's
+ * `get(...)`.
  */
 export class Wot {
   followersByPubkey: ReadableWithGetter<Map<string, Set<string>>>
@@ -29,7 +29,7 @@ export class Wot {
   constructor(readonly ctx: IClient) {
     this.followersByPubkey = withGetter(
       readable(new Map<string, Set<string>>(), set =>
-        this.ctx.use(FollowLists).subscribe(
+        this.ctx.use(FollowLists).index.subscribe(
           throttle(1000, lists => {
             const $followersByPubkey = new Map<string, Set<string>>()
 
@@ -47,7 +47,7 @@ export class Wot {
 
     this.mutersByPubkey = withGetter(
       readable(new Map<string, Set<string>>(), set =>
-        this.ctx.use(MuteLists).subscribe(
+        this.ctx.use(MuteLists).index.subscribe(
           throttle(1000, lists => {
             const $mutersByPubkey = new Map<string, Set<string>>()
 
@@ -66,20 +66,18 @@ export class Wot {
     this.graph = withGetter(
       readable(new Map<string, number>(), set => {
         const rebuild = throttle(1000, () => {
-          const followLists = this.ctx.use(FollowLists)
-          const muteLists = this.ctx.use(MuteLists)
+          const $followLists = this.ctx.use(FollowLists).index.get()
+          const $muteLists = this.ctx.use(MuteLists).index.get()
           const $pubkey = this.ctx.user?.pubkey
           const $graph = new Map<string, number>()
-          const $follows = $pubkey
-            ? listPubkeys(followLists.get($pubkey))
-            : Array.from(followLists.keys())
+          const roots = $pubkey ? listPubkeys($followLists.get($pubkey)) : Array.from($followLists.keys())
 
-          for (const follow of $follows) {
-            for (const pubkey of listPubkeys(followLists.get(follow))) {
+          for (const follow of roots) {
+            for (const pubkey of listPubkeys($followLists.get(follow))) {
               $graph.set(pubkey, inc($graph.get(pubkey)))
             }
 
-            for (const pubkey of listPubkeys(muteLists.get(follow))) {
+            for (const pubkey of listPubkeys($muteLists.get(follow))) {
               $graph.set(pubkey, dec($graph.get(pubkey)))
             }
           }
@@ -88,8 +86,8 @@ export class Wot {
         })
 
         const unsubscribers = [
-          this.ctx.use(FollowLists).subscribe(rebuild),
-          this.ctx.use(MuteLists).subscribe(rebuild),
+          this.ctx.use(FollowLists).index.subscribe(rebuild),
+          this.ctx.use(MuteLists).index.subscribe(rebuild),
         ]
 
         return () => unsubscribers.forEach(unsubscribe => unsubscribe())
@@ -99,79 +97,73 @@ export class Wot {
     this.max = withGetter(derived(this.graph, $g => max(Array.from($g.values()))))
   }
 
-  deriveFollows = (pubkey: string) =>
-    withGetter(derived(this.ctx.use(FollowLists), $lists => listPubkeys($lists.get(pubkey))))
+  follows = (pubkey: string) =>
+    derived(this.ctx.use(FollowLists).index, $lists => listPubkeys($lists.get(pubkey)))
 
-  deriveMutes = (pubkey: string) =>
-    withGetter(derived(this.ctx.use(MuteLists), $lists => listPubkeys($lists.get(pubkey))))
+  mutes = (pubkey: string) =>
+    derived(this.ctx.use(MuteLists).index, $lists => listPubkeys($lists.get(pubkey)))
 
-  deriveNetwork = (pubkey: string) =>
-    withGetter(
-      derived(this.ctx.use(FollowLists), $lists => {
-        const pubkeys = new Set(listPubkeys($lists.get(pubkey)))
-        const network = new Set<string>()
+  network = (pubkey: string) =>
+    derived(this.ctx.use(FollowLists).index, $lists => {
+      const pubkeys = new Set(listPubkeys($lists.get(pubkey)))
+      const network = new Set<string>()
 
-        for (const follow of pubkeys) {
-          for (const tpk of listPubkeys($lists.get(follow))) {
-            if (!pubkeys.has(tpk)) {
-              network.add(tpk)
-            }
+      for (const follow of pubkeys) {
+        for (const tpk of listPubkeys($lists.get(follow))) {
+          if (!pubkeys.has(tpk)) {
+            network.add(tpk)
           }
         }
+      }
 
-        return Array.from(network)
-      }),
-    )
+      return Array.from(network)
+    })
 
-  deriveFollowers = (pubkey: string) =>
-    withGetter(derived(this.followersByPubkey, $followers => Array.from($followers.get(pubkey) || [])))
+  followers = (pubkey: string) =>
+    derived(this.followersByPubkey, $followers => Array.from($followers.get(pubkey) || []))
 
-  deriveMuters = (pubkey: string) =>
-    withGetter(derived(this.mutersByPubkey, $muters => Array.from($muters.get(pubkey) || [])))
+  muters = (pubkey: string) =>
+    derived(this.mutersByPubkey, $muters => Array.from($muters.get(pubkey) || []))
 
-  deriveFollowsWhoFollow = (pubkey: string, target: string) =>
-    withGetter(
-      derived(this.ctx.use(FollowLists), $lists =>
-        listPubkeys($lists.get(pubkey)).filter(other =>
-          listPubkeys($lists.get(other)).includes(target),
-        ),
+  followsWhoFollow = (pubkey: string, target: string) =>
+    derived(this.ctx.use(FollowLists).index, $lists =>
+      listPubkeys($lists.get(pubkey)).filter(other =>
+        listPubkeys($lists.get(other)).includes(target),
       ),
     )
 
-  deriveFollowsWhoMute = (pubkey: string, target: string) =>
-    withGetter(
-      derived([this.ctx.use(FollowLists), this.ctx.use(MuteLists)], ([$follows, $mutes]) =>
+  followsWhoMute = (pubkey: string, target: string) =>
+    derived(
+      [this.ctx.use(FollowLists).index, this.ctx.use(MuteLists).index],
+      ([$follows, $mutes]) =>
         listPubkeys($follows.get(pubkey)).filter(other =>
           listPubkeys($mutes.get(other)).includes(target),
         ),
-      ),
     )
 
-  deriveWotScore = (pubkey: string, target: string) =>
-    withGetter(
-      derived(
-        [
-          this.ctx.use(FollowLists),
-          this.ctx.use(MuteLists),
-          this.followersByPubkey,
-          this.mutersByPubkey,
-        ],
-        ([$follows, $mutes, $followers, $muters]) => {
-          let follows: string[]
-          let mutes: string[]
+  wotScore = (pubkey: string, target: string) =>
+    derived(
+      [
+        this.ctx.use(FollowLists).index,
+        this.ctx.use(MuteLists).index,
+        this.followersByPubkey,
+        this.mutersByPubkey,
+      ],
+      ([$follows, $mutes, $followers, $muters]) => {
+        let follows: string[]
+        let mutes: string[]
 
-          if (pubkey) {
-            const theirFollows = listPubkeys($follows.get(pubkey))
+        if (pubkey) {
+          const theirFollows = listPubkeys($follows.get(pubkey))
 
-            follows = theirFollows.filter(other => listPubkeys($follows.get(other)).includes(target))
-            mutes = theirFollows.filter(other => listPubkeys($mutes.get(other)).includes(target))
-          } else {
-            follows = Array.from($followers.get(target) || [])
-            mutes = Array.from($muters.get(target) || [])
-          }
+          follows = theirFollows.filter(other => listPubkeys($follows.get(other)).includes(target))
+          mutes = theirFollows.filter(other => listPubkeys($mutes.get(other)).includes(target))
+        } else {
+          follows = Array.from($followers.get(target) || [])
+          mutes = Array.from($muters.get(target) || [])
+        }
 
-          return follows.length - mutes.length
-        },
-      ),
+        return follows.length - mutes.length
+      },
     )
 }
