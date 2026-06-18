@@ -1,9 +1,8 @@
-import {derived} from "svelte/store"
 import {fetchJson} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import {displayRelayUrl, displayRelayProfile} from "@welshman/util"
 import type {RelayProfile} from "@welshman/util"
-import {LoadableMapPlugin, projection} from "./base.js"
+import {LoadableMapPlugin} from "./base.js"
 import type {Projection} from "./base.js"
 
 /**
@@ -37,11 +36,8 @@ export class Relays extends LoadableMapPlugin<RelayProfile> {
     }
   }
 
-  display = (url: string): Projection<string> => {
-    const read = ($relay: Maybe<RelayProfile>) => displayRelayProfile($relay, displayRelayUrl(url))
-
-    return projection(derived(this.one(url), read), () => read(this.get(url)))
-  }
+  display = (url: string): Projection<string> =>
+    this.project(url, $relay => displayRelayProfile($relay, displayRelayUrl(url)))
 
   hasNegentropy = async (url: string) => {
     const relay = await this.load(url)

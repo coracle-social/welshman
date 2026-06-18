@@ -18,13 +18,18 @@ export type Projection<T> = {
 export const projection = <T>($: Readable<T>, get = getter($)) => ({$, get})
 
 /**
+ * Build a `Projection` derived from another `Projection`: re-read `src`
+ * reactively via `.$` or synchronously via `.get()`.
+ */
+export const projectFrom = <S, U>(src: Projection<S>, read: ($: S) => U): Projection<U> =>
+  projection(derived(src.$, read), () => read(src.get()))
+
+/**
  * Synchronous read access to a keyed collection's current value. Shared by
  * collections that own a map (`MapPlugin`) and those that are read-only views
  * over the repository (`DerivedPlugin`).
  */
 export interface ReadableMap<T> {
-  keys(): IterableIterator<string>
-  values(): IterableIterator<T>
   get(key: string): Maybe<T>
 }
 
@@ -81,11 +86,10 @@ export class MapPlugin<T> implements Mappable<T>, Derivable<T> {
     this.one = makeDeriveItem(this.store)
   }
 
-  keys = () => this.index.get().keys()
-
-  values = () => this.index.get().values()
-
   get = (key: string) => this.index.get().get(key)
+
+  project = <U>(key: string, read: (item: Maybe<T>) => U): Projection<U> =>
+    projection(derived(this.one(key), read), () => read(this.get(key)))
 
   set = (key: string, value: T) => {
     this.store.update($items => {
@@ -207,16 +211,8 @@ export abstract class DerivedPlugin<T> implements ReadableMap<T>, Loadable<T>, D
     this.one = makeDeriveItem(index, this.load)
   }
 
-  keys = () => this.index.get().keys()
-
-  values = () => this.index.get().values()
-
   get = (key: string) => this.index.get().get(key)
 
-  /**
-   * Build a per-key `Projection` over this collection: snapshot synchronously
-   * with `.get()`, or subscribe via `.$` (which lazily loads the key).
-   */
-  protected project = <U>(key: string, read: (item: Maybe<T>) => U): Projection<U> =>
+  project = <U>(key: string, read: (item: Maybe<T>) => U): Projection<U> =>
     projection(derived(this.one(key), read), () => read(this.get(key)))
 }
