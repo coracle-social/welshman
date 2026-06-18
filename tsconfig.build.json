@@ -21,6 +21,7 @@
   "references": [
     {"path": "./packages/app/tsconfig.build.json"},
     {"path": "./packages/content/tsconfig.build.json"},
+    {"path": "./packages/domain/tsconfig.build.json"},
     {"path": "./packages/dvm/tsconfig.build.json"},
     {"path": "./packages/editor/tsconfig.build.json"},
     {"path": "./packages/feeds/tsconfig.build.json"},
