@@ -1,94 +1,57 @@
-import {derived, Readable} from "svelte/store"
-import {ItemsByKey, deriveDeduplicated} from "@welshman/store"
-import {pubkey} from "./session.js"
-import {profilesByPubkey, forceLoadProfile, loadProfile} from "./profiles.js"
-import {followListsByPubkey, forceLoadFollowList, loadFollowList} from "./follows.js"
-import {pinListsByPubkey, forceLoadPinList, loadPinList} from "./pins.js"
-import {muteListsByPubkey, forceLoadMuteList, loadMuteList} from "./mutes.js"
-import {
-  blossomServerListsByPubkey,
-  forceLoadBlossomServerList,
-  loadBlossomServerList,
-} from "./blossom.js"
-import {relayListsByPubkey, forceLoadRelayList, loadRelayList} from "./relayLists.js"
-import {
-  messagingRelayListsByPubkey,
-  forceLoadMessagingRelayList,
-  loadMessagingRelayList,
-} from "./messagingRelayLists.js"
-import {
-  blockedRelayListsByPubkey,
-  forceLoadBlockedRelayList,
-  loadBlockedRelayList,
-} from "./blockedRelayLists.js"
-import {
-  searchRelayListsByPubkey,
-  forceLoadSearchRelayList,
-  loadSearchRelayList,
-} from "./searchRelayLists.js"
-import {wotGraph, getWotGraph} from "./wot.js"
+import type {StampedEvent} from "@welshman/util"
+import type {ISigner} from "@welshman/signer"
+import {LoggingSigner} from "./logging.js"
+import {getSignerFromSession} from "./session.js"
+import type {Session} from "./session.js"
+import type {IApp} from "./app.js"
 
-export const makeUserData = <T>(
-  itemsByKey: Readable<ItemsByKey<T>>,
-  onDerive?: (key: string, ...args: any[]) => void,
-) =>
-  deriveDeduplicated([itemsByKey, pubkey], ([$itemsByKey, $pubkey]) => {
-    if (!$pubkey) return undefined
+/**
+ * A single identity: a pubkey plus the signer that proves it. An `App` is
+ * centered on (at most) one `User`, since the data a user can access depends
+ * entirely on who they are.
+ */
+export class User {
+  constructor(
+    readonly pubkey: string,
+    readonly signer: ISigner,
+  ) {}
 
-    onDerive?.($pubkey)
-
-    return $itemsByKey.get($pubkey)
-  })
-
-export const makeUserLoader =
-  (loadItem: (key: string, ...args: any[]) => void) =>
-  async (...args: any[]) => {
-    const $pubkey = pubkey.get()
-
-    if ($pubkey) {
-      await loadItem($pubkey, ...args)
+  static async fromSigner(signer: ISigner) {
+    if (!(signer instanceof LoggingSigner)) {
+      signer = new LoggingSigner(signer)
     }
+
+    const pubkey = await signer.getPubkey()
+
+    return new User(pubkey, signer)
   }
 
-export const userProfile = makeUserData(profilesByPubkey, loadProfile)
-export const forceLoadUserProfile = makeUserLoader(forceLoadProfile)
-export const loadUserProfile = makeUserLoader(loadProfile)
+  /**
+   * Reconstruct a signing user from a persisted session, using the registered
+   * session handlers to find the one for the session's method. The signer is
+   * wrapped in a `LoggingSigner` (observe it with `makeAppPolicyLogger`) and the
+   * pubkey is derived from it. Returns undefined when no handler is registered
+   * for the session's method.
+   */
+  static async fromSession(session: Session): Promise<User | undefined> {
+    const signer = await getSignerFromSession(session)
 
-export const userFollowList = makeUserData(followListsByPubkey, loadFollowList)
-export const forceLoadUserFollowList = makeUserLoader(forceLoadFollowList)
-export const loadUserFollowList = makeUserLoader(loadFollowList)
+    return signer ? User.fromSigner(signer) : undefined
+  }
 
-export const userMuteList = makeUserData(muteListsByPubkey, loadMuteList)
-export const forceLoadUserMuteList = makeUserLoader(forceLoadMuteList)
-export const loadUserMuteList = makeUserLoader(loadMuteList)
+  /**
+   * Return the app's signed-in user, throwing if there isn't one — the entry
+   * point for actions that can only run as a user (publishing, signing).
+   */
+  static require(app: IApp): User {
+    if (!app.user) {
+      throw new Error("This action requires a signed-in user")
+    }
 
-export const userPinList = makeUserData(pinListsByPubkey, loadPinList)
-export const forceLoadUserPinList = makeUserLoader(forceLoadPinList)
-export const loadUserPinList = makeUserLoader(loadPinList)
+    return app.user
+  }
 
-export const userRelayList = makeUserData(relayListsByPubkey, loadRelayList)
-export const forceLoadUserRelayList = makeUserLoader(forceLoadRelayList)
-export const loadUserRelayList = makeUserLoader(loadRelayList)
+  sign = (event: StampedEvent) => this.signer.sign(event)
 
-export const userMessagingRelayList = makeUserData(
-  messagingRelayListsByPubkey,
-  loadMessagingRelayList,
-)
-export const forceLoadUserMessagingRelayList = makeUserLoader(forceLoadMessagingRelayList)
-export const loadUserMessagingRelayList = makeUserLoader(loadMessagingRelayList)
-
-export const userSearchRelayList = makeUserData(searchRelayListsByPubkey, loadSearchRelayList)
-export const forceLoadUserSearchRelayList = makeUserLoader(forceLoadSearchRelayList)
-export const loadUserSearchRelayList = makeUserLoader(loadSearchRelayList)
-
-export const userBlockedRelayList = makeUserData(blockedRelayListsByPubkey, loadBlockedRelayList)
-export const forceLoadUserBlockedRelayList = makeUserLoader(forceLoadBlockedRelayList)
-export const loadUserBlockedRelayList = makeUserLoader(loadBlockedRelayList)
-
-export const userBlossomServerList = makeUserData(blossomServerListsByPubkey, loadBlossomServerList)
-export const forceLoadUserBlossomServerList = makeUserLoader(forceLoadBlossomServerList)
-export const loadUserBlossomServerList = makeUserLoader(loadBlossomServerList)
-
-export const getUserWotScore = (tpk: string) => getWotGraph().get(tpk) || 0
-
-export const deriveUserWotScore = (tpk: string) => derived(wotGraph, $g => $g.get(tpk) || 0)
+  nip44EncryptToSelf = (payload: string) => this.signer.nip44.encrypt(this.pubkey, payload)
+}

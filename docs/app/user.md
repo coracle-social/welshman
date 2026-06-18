@@ -1,100 +1,133 @@
-# User Data Loading
+# User & Sessions
 
-The User Data module provides utilities for loading and managing user-specific data like profiles, follows, mutes, pins, and relay selections. It includes both reactive stores and manual loading functions.
+An `App` is centered on at most one identity, represented by a `User`. Login state that needs to be persisted is represented separately as a serializable `Session`. The two are connected by session handlers, which know how to turn a serialized session back into a live signer.
 
-## User Data Stores
+## `User`
 
-These reactive stores automatically load and cache user data:
+A `User` is a single identity: a `pubkey` plus the `signer` that proves ownership of it.
 
 ```typescript
-// User profile
-export const userProfile: Store<Profile | undefined>
+class User {
+  constructor(readonly pubkey: string, readonly signer: ISigner)
 
-// User follows list
-export const userFollowList: Store<List | undefined>
+  static fromSigner(signer: ISigner): Promise<User>
+  static fromSession(session: Session): Promise<User | undefined>
+  static require(app: IApp): User
 
-// User mutes list  
-export const userMuteList: Store<List | undefined>
-
-// User pins list
-export const userPinList: Store<List | undefined>
-
-// User relay selections
-export const userRelayList: Store<List | undefined>
-
-// User messaging relay selections
-export const userMessagingRelayList: Store<List | undefined>
-
-// User blossom servers
-export const userBlossomServerList: Store<List | undefined>
+  sign(event: StampedEvent): Promise<SignedEvent>
+  nip44EncryptToSelf(payload: string): Promise<string>
+}
 ```
 
-## Manual Loading Functions
+### Constructing a user
 
-These functions load user data for the currently signed-in user with optional relay hints:
+- **`User.fromSigner(signer)`** — wraps `signer` in a [`LoggingSigner`](./applogging) (unless it already is one), derives the pubkey via `signer.getPubkey()`, and returns the `User`.
+- **`User.fromSession(session)`** — resolves a signer from a serialized session (via the [handler registry](#session-handlers)) and returns the `User`, or `undefined` if no handler is registered for the session's method.
 
 ```typescript
-// Load user profile
-function loadUserProfile(relays?: string[]): Promise<void>
+import {User} from "@welshman/app"
+import {getNip07} from "@welshman/signer"
 
-// Load user follows
-function loadUserFollowList(relays?: string[]): Promise<void>
-
-// Load user mutes
-function loadUserMuteList(relays?: string[]): Promise<void>
-
-// Load user pins
-function loadUserPinList(relays?: string[]): Promise<void>
-
-// Load user relay selections
-function loadUserRelayList(relays?: string[]): Promise<void>
-
-// Load user messaging relay selections
-function loadUserMessagingRelayList(relays?: string[]): Promise<void>
-
-// Load user blossom servers
-function loadUserBlossomServerList(relays?: string[]): Promise<void>
+const user = await User.fromSigner(getNip07())
 ```
 
-Force-reload variants bypass the cache and always fetch fresh data:
+### Gating user-only actions
+
+`User.require(app)` returns `app.user`, throwing `"This action requires a signed-in user"` if there is none. Plugins use this internally before signing or encrypting; you can use it the same way.
 
 ```typescript
-function forceLoadUserProfile(relays?: string[]): Promise<void>
-function forceLoadUserFollowList(relays?: string[]): Promise<void>
-function forceLoadUserMuteList(relays?: string[]): Promise<void>
-function forceLoadUserPinList(relays?: string[]): Promise<void>
-function forceLoadUserRelayList(relays?: string[]): Promise<void>
-function forceLoadUserMessagingRelayList(relays?: string[]): Promise<void>
-function forceLoadUserBlossomServerList(relays?: string[]): Promise<void>
+const user = User.require(app)
+const signed = await user.sign(stampedEvent)
 ```
 
-## Usage Examples
+### Signing & self-encryption
 
-### Using Reactive Stores
+- **`sign(event)`** delegates to the signer.
+- **`nip44EncryptToSelf(payload)`** encrypts a payload to your own pubkey via NIP-44 — used for private list entries (mutes, follows) that only you should read.
+
+## `Session`
+
+A `Session` is a serializable login descriptor. It contains only data — never a live signer object — so it can be stored in `localStorage`, IndexedDB, or anywhere else, and rehydrated later.
+
 ```typescript
-import { userProfile, userFollowList } from '@welshman/app'
+type Session<M extends string = string, D = unknown> = {method: M; data: D}
+```
 
-// Subscribe to user profile changes
-userProfile.subscribe(profile => {
-  if (profile) {
-    console.log('User profile:', profile)
-  }
+### Building sessions
+
+Build a typed session from a handler with `toSession`:
+
+```typescript
+toSession<M, D>(handler: SessionHandler<M, D>, data: D): Session<M, D>
+```
+
+```typescript
+import {toSession, nip01, nip07, nip46} from "@welshman/app"
+
+const a = toSession(nip01, {secret: "<hex secret>"})
+const b = toSession(nip07, {})
+const c = toSession(nip46, {clientSecret, signerPubkey, relays})
+```
+
+## Session handlers
+
+A `SessionHandler` maps a session's `data` back to an `ISigner`:
+
+```typescript
+type SessionHandler<M extends string, D> = {
+  method: M
+  getSigner: (data: D) => MaybeAsync<ISigner>
+}
+```
+
+### Built-in handlers
+
+These are registered automatically when the package loads:
+
+| Handler | `method` | `data` shape | Signer |
+|---|---|---|---|
+| `nip01` | `"nip01"` | `{secret: string}` | `Nip01Signer` |
+| `nip07` | `"nip07"` | `{}` | `Nip07Signer` (browser extension) |
+| `nip46` | `"nip46"` | `{clientSecret, signerPubkey, relays}` | `Nip46Signer` (remote signer / bunker) |
+| `nip55` | `"nip55"` | `{pubkey, signer}` | `Nip55Signer` (Android signer app) |
+| `pomade` | `"pomade"` | `{clientOptions, email}` | `PomadeSigner` |
+
+### Registering custom handlers
+
+Define a handler with `defineSessionHandler` (it infers `M`/`D` so `getSigner` is type-checked against the data shape), then register it:
+
+```typescript
+import {defineSessionHandler, registerSessionHandler, unregisterSessionHandler} from "@welshman/app"
+
+const myHandler = defineSessionHandler({
+  method: "my-method",
+  getSigner: (data: {token: string}) => new MyCustomSigner(data.token),
 })
 
-// Get current follows list
-const follows = userFollowList.get()
+registerSessionHandler(myHandler)
+// later: unregisterSessionHandler(myHandler)
 ```
 
-### Manual Loading
+### Resolving signers directly
+
 ```typescript
-import { loadUserMuteList, forceLoadUserRelayList } from '@welshman/app'
+getSignerFromSession(session: Session): MaybeAsync<ISigner> | undefined
+```
 
-// Load user mutes from specific relays
-await loadUserMuteList(['wss://relay1.com', 'wss://relay2.com'])
+Returns the signer for a session, or `undefined` if no handler is registered for its method. `User.fromSession` is a thin wrapper over this.
 
-// Force refresh user relay selections
-await forceLoadUserRelayList([])
+## A complete login flow
 
-// Load from default relays
-await loadUserProfile()
+```typescript
+import {createApp, User, toSession, nip07} from "@welshman/app"
+import {getNip07} from "@welshman/signer"
+
+// On login: build a serializable session and persist it
+const session = toSession(nip07, {})
+localStorage.setItem("session", JSON.stringify(session))
+
+// On startup: rehydrate the user and create the app
+const stored = JSON.parse(localStorage.getItem("session"))
+const user = await User.fromSession(stored)        // User | undefined
+const app = createApp({user})
 ```

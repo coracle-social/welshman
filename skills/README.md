@@ -26,7 +26,7 @@ npx skills add coracle-social/welshman
 | welshman-store | Svelte stores and Repository pattern |
 | welshman-signer | Signing, login methods, encrypted events |
 | welshman-feeds | Dynamic feed construction |
-| welshman-app | High-level app-layer Svelte stores |
+| welshman-app | Instance-based client: plugins, sessions, publishing, requests |
 | welshman-content | Note content parsing and rendering |
 | welshman-editor | Svelte rich-text editor component |
 
