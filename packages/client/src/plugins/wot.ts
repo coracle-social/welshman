@@ -3,7 +3,7 @@ import {max, throttle, addToMapKey, inc, dec} from "@welshman/lib"
 import {getListTags, getPubkeyTagValues} from "@welshman/util"
 import type {List} from "@welshman/util"
 import type {IClient} from "../client.js"
-import {projection} from "./base.js"
+import {projection, projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
 import {FollowLists} from "./follows.js"
 import {MuteLists} from "./mutes.js"
@@ -95,24 +95,14 @@ export class Wot {
     this.max = projection(maxStore)
   }
 
-  follows = (pubkey: string): Projection<string[]> => {
-    const read = ($lists: ReadonlyMap<string, List>) => listPubkeys($lists.get(pubkey))
+  follows = (pubkey: string): Projection<string[]> =>
+    projectFrom(this.ctx.use(FollowLists).index, $lists => listPubkeys($lists.get(pubkey)))
 
-    return projection(derived(this.ctx.use(FollowLists).index.$, read), () =>
-      read(this.ctx.use(FollowLists).index.get()),
-    )
-  }
+  mutes = (pubkey: string): Projection<string[]> =>
+    projectFrom(this.ctx.use(MuteLists).index, $lists => listPubkeys($lists.get(pubkey)))
 
-  mutes = (pubkey: string): Projection<string[]> => {
-    const read = ($lists: ReadonlyMap<string, List>) => listPubkeys($lists.get(pubkey))
-
-    return projection(derived(this.ctx.use(MuteLists).index.$, read), () =>
-      read(this.ctx.use(MuteLists).index.get()),
-    )
-  }
-
-  network = (pubkey: string): Projection<string[]> => {
-    const read = ($lists: ReadonlyMap<string, List>) => {
+  network = (pubkey: string): Projection<string[]> =>
+    projectFrom(this.ctx.use(FollowLists).index, $lists => {
       const pubkeys = new Set(listPubkeys($lists.get(pubkey)))
       const network = new Set<string>()
 
@@ -125,39 +115,20 @@ export class Wot {
       }
 
       return Array.from(network)
-    }
+    })
 
-    return projection(derived(this.ctx.use(FollowLists).index.$, read), () =>
-      read(this.ctx.use(FollowLists).index.get()),
-    )
-  }
+  followers = (pubkey: string): Projection<string[]> =>
+    projectFrom(this.followersByPubkey, $followers => Array.from($followers.get(pubkey) || []))
 
-  followers = (pubkey: string): Projection<string[]> => {
-    const read = ($followers: ReadonlyMap<string, Set<string>>) =>
-      Array.from($followers.get(pubkey) || [])
+  muters = (pubkey: string): Projection<string[]> =>
+    projectFrom(this.mutersByPubkey, $muters => Array.from($muters.get(pubkey) || []))
 
-    return projection(derived(this.followersByPubkey.$, read), () =>
-      read(this.followersByPubkey.get()),
-    )
-  }
-
-  muters = (pubkey: string): Projection<string[]> => {
-    const read = ($muters: ReadonlyMap<string, Set<string>>) =>
-      Array.from($muters.get(pubkey) || [])
-
-    return projection(derived(this.mutersByPubkey.$, read), () => read(this.mutersByPubkey.get()))
-  }
-
-  followsWhoFollow = (pubkey: string, target: string): Projection<string[]> => {
-    const read = ($lists: ReadonlyMap<string, List>) =>
+  followsWhoFollow = (pubkey: string, target: string): Projection<string[]> =>
+    projectFrom(this.ctx.use(FollowLists).index, $lists =>
       listPubkeys($lists.get(pubkey)).filter(other =>
         listPubkeys($lists.get(other)).includes(target),
-      )
-
-    return projection(derived(this.ctx.use(FollowLists).index.$, read), () =>
-      read(this.ctx.use(FollowLists).index.get()),
+      ),
     )
-  }
 
   followsWhoMute = (pubkey: string, target: string): Projection<string[]> => {
     const read = ($follows: ReadonlyMap<string, List>, $mutes: ReadonlyMap<string, List>) =>

@@ -11,7 +11,8 @@ import type {
   PullOptions,
   PushOptions,
 } from "@welshman/net"
-import {Router, addMinimalFallbacks} from "./router.js"
+import {addMinimalFallbacks} from "@welshman/router"
+import {Router} from "./router.js"
 import {RelayLists} from "./relayLists.js"
 import type {IClient} from "../client.js"
 

@@ -15,7 +15,8 @@ import {PublishStatus, PublishResult, PublishOptions, PublishResultsByRelay} fro
 import {Nip01Signer, Nip59} from "@welshman/signer"
 import type {IClient} from "../client.js"
 import {Network} from "./network.js"
-import {Router, addMinimalFallbacks} from "./router.js"
+import {addMinimalFallbacks} from "@welshman/router"
+import {Router} from "./router.js"
 import {User} from "../user.js"
 
 export type ThunkOptions = Override<
