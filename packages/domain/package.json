@@ -1,0 +1,36 @@
+{
+  "name": "@welshman/domain",
+  "version": "0.8.16",
+  "author": "hodlbod",
+  "license": "MIT",
+  "description": "Stateless utilities for translating nostr events to and from domain objects.",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "dist/domain/src/index.js",
+  "types": "dist/domain/src/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "pnpm run clean && pnpm run compile --force",
+    "clean": "rimraf ./dist",
+    "compile": "tsc -b tsconfig.build.json",
+    "prepublishOnly": "pnpm run build"
+  },
+  "peerDependencies": {
+    "@welshman/lib": "workspace:*",
+    "@welshman/signer": "workspace:*",
+    "@welshman/util": "workspace:*",
+    "nostr-tools": "^2.19.4"
+  },
+  "devDependencies": {
+    "@welshman/lib": "workspace:*",
+    "@welshman/signer": "workspace:*",
+    "@welshman/util": "workspace:*",
+    "nostr-tools": "^2.19.4",
+    "rimraf": "~6.0.0",
+    "typescript": "~5.8.0"
+  }
+}
