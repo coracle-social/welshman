@@ -1,63 +1,55 @@
-# Web of Trust (WOT)
+# Web of Trust
 
-Welshman provides utilities for implementing a Web of Trust system within Nostr applications. This system analyzes social connections (follows and mutes) to build a reputation graph that can be used for content filtering, user scoring, and discovery.
+`app.use(Wot)` computes a web-of-trust graph from follow ([`FollowLists`](./data#follows)) and mute ([`MuteLists`](./data#mutes)) lists, rooted at the current user. When there is no signed-in user, the graph is built from the union of all known follow lists. All computations are throttled (1s) to stay cheap under churn.
 
-## Core Concepts
+The score for a pubkey is the number of roots that follow it minus the number that mute it.
 
-- **Follow Trust**: Users gain positive reputation when followed by those in your network
-- **Mute Distrust**: Users lose reputation when muted by those in your network
-- **WOT Graph**: A reactive weighted directed graph representing trust relationships
-- **Contextual Scoring**: Reputation scores that adapt based on user's social graph
+## Aggregate projections
 
-## API Reference
-
-### Social Graph Navigation
+Each returns a [`Projection`](./plugins#projection-t) (`.get()` / `.$`):
 
 ```typescript
-// Get users followed by a specific pubkey
-getFollows(pubkey: string): string[]
+const wot = app.use(Wot)
 
-// Get users who have muted a specific pubkey
-getMutes(pubkey: string): string[]
-
-// Get followers of a specific pubkey
-getFollowers(pubkey: string): string[]
-
-// Get users who have muted a specific pubkey
-getMuters(pubkey: string): string[]
-
-// Get the extended network (follows-of-follows) for a pubkey
-getNetwork(pubkey: string): string[]
+wot.graph                      // Projection<Map<string, number>> — score per pubkey
+wot.max                        // Projection<number | undefined> — highest score in the graph
+wot.followersByPubkey          // Projection<Map<string, Set<string>>>
+wot.mutersByPubkey             // Projection<Map<string, Set<string>>>
 ```
 
-### Trust Analysis
+## Per-pubkey queries
 
 ```typescript
-// Get follows of a user who also follow a target
-getFollowsWhoFollow(pubkey: string, target: string): string[]
+wot.follows(pubkey)                       // Projection<string[]> — who pubkey follows
+wot.mutes(pubkey)                         // Projection<string[]> — who pubkey mutes
+wot.followers(pubkey)                     // Projection<string[]> — who follows pubkey
+wot.muters(pubkey)                        // Projection<string[]> — who mutes pubkey
+wot.network(pubkey)                       // Projection<string[]> — follows-of-follows (minus direct follows)
 
-// Get follows of a user who have muted a target
-getFollowsWhoMute(pubkey: string, target: string): string[]
-
-// Calculate trust score between users
-getWotScore(pubkey: string, target: string): number
+wot.followsWhoFollow(pubkey, target)      // Projection<string[]>
+wot.followsWhoMute(pubkey, target)        // Projection<string[]>
+wot.wotScore(pubkey, target)              // Projection<number>
 ```
 
-### Reactive Stores
+`wotScore(pubkey, target)`:
+
+- With a `pubkey`: `(pubkey's follows who follow target) − (pubkey's follows who mute target)`.
+- Without a `pubkey`: `followers(target).length − muters(target).length`.
+
+## Examples
 
 ```typescript
-// Map of follower lists by pubkey
-followersByPubkey: Readable<Map<string, Set<string>>>
+const wot = app.use(Wot)
 
-// Map of muter lists by pubkey
-mutersByPubkey: Readable<Map<string, Set<string>>>
+// Sort a list of pubkeys by trust, descending
+const graph = wot.graph.get()
+const sorted = [...pubkeys].sort((a, b) => (graph.get(b) ?? 0) - (graph.get(a) ?? 0))
 
-// The full WOT graph with scores (pubkey → score)
-wotGraph: Writable<Map<string, number>>
+// Reactive trust score between me and someone else
+const score$ = wot.wotScore(myPubkey, theirPubkey).$
 
-// The maximum WOT score in the graph
-maxWot: Readable<number>
-
-// Derive the WOT score for a specific user
-deriveUserWotScore(targetPubkey: string): Readable<number>
+// Discover the extended network for a "follows of follows" feed
+const network = wot.network(myPubkey).get()
 ```
+
+The WoT graph also feeds [profile search](./feeds-and-search#search) ranking and the `Scope`/WoT-range pubkey resolution used by [feeds](./feeds-and-search#feeds).

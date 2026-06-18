@@ -1,9 +1,9 @@
 {
   "name": "@welshman/app",
-  "version": "0.8.16",
+  "version": "0.8.13",
   "author": "hodlbod",
   "license": "MIT",
-  "description": "A collection of svelte stores for use in building nostr client applications.",
+  "description": "An instance-based, composable client for building nostr applications",
   "publishConfig": {
     "access": "public"
   },
