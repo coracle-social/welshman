@@ -2,29 +2,41 @@ import {writable} from "svelte/store"
 import type {Readable, Unsubscriber} from "svelte/store"
 import type {Maybe} from "@welshman/lib"
 import type {Filter} from "@welshman/util"
-import {deriveItems, withGetter, makeDeriveItem, makeLoadItem, makeForceLoadItem} from "@welshman/store"
-import type {
-  ReadableWithGetter,
-  EventToItem,
-  ItemsByKey,
-  MakeLoadItemOptions,
-} from "@welshman/store"
+import {deriveItems, getter, makeDeriveItem, makeLoadItem, makeForceLoadItem} from "@welshman/store"
+import type {EventToItem, ItemsByKey, MakeLoadItemOptions} from "@welshman/store"
 import type {IClient} from "./client.js"
 import {Stores} from "./stores.js"
+
+/**
+ * Utility type which allows for using the same value both for hot gets and derived subscriptions
+ */
+export type Projection<T> = {
+  get: () => T
+  $: Readable<T>
+}
+
+export const projection = <T>($: Readable<T>, get = getter($)) => ({$, get})
 
 /**
  * Base class for a reactive, keyed collection of "local" (non-event) data —
  * things like relay stats or NIP-11 profiles that aren't backed by the
  * repository. The collection owns its own map.
+ *
+ * `index` (map) and `all` (values) are `Projection`s — subscribe via `.$`,
+ * snapshot via `.get()`. Per-key access is `one(key)`, a plain on-demand store
+ * (snapshot with svelte's `get(...)`, or read `get(key)` directly).
  */
 export class ClientData<T> {
-  index = withGetter(writable(new Map<string, T>()))
-  all = withGetter(deriveItems(this.index))
+  protected store = writable(new Map<string, T>())
+  index: Projection<ItemsByKey<T>>
+  all: Projection<T[]>
   one: (key?: string, ...args: any[]) => Readable<Maybe<T>>
   subs: ((key: string, value: Maybe<T>) => void)[] = []
 
   constructor(protected readonly ctx: IClient) {
-    this.one = makeDeriveItem(this.index)
+    this.index = projection(this.store)
+    this.all = projection(deriveItems(this.store))
+    this.one = makeDeriveItem(this.store)
   }
 
   keys = () => this.index.get().keys()
@@ -34,7 +46,7 @@ export class ClientData<T> {
   get = (key: string) => this.index.get().get(key)
 
   set = (key: string, value: T) => {
-    this.index.update($items => {
+    this.store.update($items => {
       $items.set(key, value)
 
       return $items
@@ -44,7 +56,7 @@ export class ClientData<T> {
   }
 
   delete = (key: string) => {
-    this.index.update($items => {
+    this.store.update($items => {
       $items.delete(key)
 
       return $items
@@ -56,7 +68,7 @@ export class ClientData<T> {
   clear = () => {
     const keys = Array.from(this.index.get().keys())
 
-    this.index.set(new Map())
+    this.store.set(new Map())
 
     for (const key of keys) {
       this.emitItem(key, undefined)
@@ -102,7 +114,7 @@ export abstract class LoadableData<T> extends ClientData<T> {
 
     this.load = makeLoadItem(fetch, read, options)
     this.forceLoad = makeForceLoadItem(fetch, read)
-    this.one = makeDeriveItem(this.index, this.load)
+    this.one = makeDeriveItem(this.store, this.load)
   }
 }
 
@@ -119,10 +131,13 @@ export type DerivedDataOptions<T> = {
  * over `ctx.itemsByKey`, never a duplicated map. Subclasses implement `fetch`
  * (how to load an item by key from the network) and pass the filters/decoder via
  * `super`.
+ *
+ * `index` (map) and `all` (values) are `Projection`s — subscribe via `.$`,
+ * snapshot via `.get()`. Per-key access is `one(key)`, a plain on-demand store.
  */
 export abstract class DerivedData<T> {
-  index: ReadableWithGetter<ItemsByKey<T>>
-  all: ReadableWithGetter<T[]>
+  index: Projection<ItemsByKey<T>>
+  all: Projection<T[]>
   one: (key?: string, ...args: any[]) => Readable<Maybe<T>>
   load: (key: string, ...args: any[]) => Promise<Maybe<T>>
   forceLoad: (key: string, ...args: any[]) => Promise<Maybe<T>>
@@ -133,21 +148,21 @@ export abstract class DerivedData<T> {
     protected readonly ctx: IClient,
     options: DerivedDataOptions<T>,
   ) {
-    this.index = withGetter(
-      ctx.use(Stores).itemsByKey<T>({
-        filters: options.filters,
-        eventToItem: options.eventToItem,
-        getKey: options.getKey,
-      }),
-    )
-    this.all = withGetter(deriveItems(this.index))
+    const index = ctx.use(Stores).itemsByKey<T>({
+      filters: options.filters,
+      eventToItem: options.eventToItem,
+      getKey: options.getKey,
+    })
+
+    this.index = projection(index)
+    this.all = projection(deriveItems(index))
 
     const fetch = (key: string, ...args: any[]) => this.fetch(key, ...args)
     const read = (key: string) => this.index.get().get(key)
 
     this.load = makeLoadItem(fetch, read, options.loadOptions)
     this.forceLoad = makeForceLoadItem(fetch, read)
-    this.one = makeDeriveItem(this.index, this.load)
+    this.one = makeDeriveItem(index, this.load)
   }
 
   keys = () => this.index.get().keys()
