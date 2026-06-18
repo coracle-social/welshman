@@ -17,10 +17,7 @@ export type ProfileValues = {
   display_name?: string
 }
 
-/**
- * Normalize raw profile values, deriving `lnurl` from a `lud06` or `lud16`
- * address when present.
- */
+// Apply defaults, deriving `lnurl` from a `lud06` or `lud16` address.
 export const makeProfileValues = (values: Partial<ProfileValues> = {}): ProfileValues => {
   const result: ProfileValues = {...values}
 
@@ -43,55 +40,50 @@ export const displayPubkey = (pubkey: string) => {
   return d.slice(0, 8) + "…" + d.slice(-5)
 }
 
-/**
- * A kind-0 profile. Profile data lives unencrypted in the event content as
- * JSON, so this is the simplest kind of domain object — `toTemplate` ignores
- * the signer and only `toEvent`/`toRumor` need one (to sign).
- *
- * @example
- * const profile = Profile.parse(event)
- * profile.set({about: "hello"})
- * const signed = await profile.toEvent(signer)
- */
 export class Profile extends DomainObject<ProfileValues> {
   readonly kind = PROFILE
+  values = makeProfileValues()
 
-  constructor(values: Partial<ProfileValues> = {}, event?: TrustedEvent) {
-    super(makeProfileValues(values), event)
+  protected normalizeValues(values: Partial<ProfileValues> = {}) {
+    return makeProfileValues(values)
   }
 
-  /** Create a profile from (optional) values. */
-  static make(values: Partial<ProfileValues> = {}) {
-    return new Profile(values)
+  protected parseEvent(event: TrustedEvent): Partial<ProfileValues> {
+    return parseJson(event.content) || {}
   }
 
-  /** Parse a kind-0 event into a `Profile`. Throws on the wrong kind. */
-  static parse(event: TrustedEvent) {
-    if (event.kind !== PROFILE) {
-      throw new Error(`Expected a kind ${PROFILE} event, got kind ${event.kind}`)
-    }
-
-    return new Profile(parseJson(event.content) || {}, event)
+  name() {
+    return this.values.name || this.values.display_name
   }
 
-  /** Merge `updates` into the profile values, re-deriving `lnurl` as needed. */
-  set(updates: Partial<ProfileValues>) {
-    this.values = makeProfileValues({...this.values, ...updates})
-
-    return this
+  nip05() {
+    return this.values.
   }
 
-  /** Whether the profile has a display-worthy name. */
-  hasName() {
-    return Boolean(this.values.name || this.values.display_name)
+  lnurl() {
+    return this.values.
   }
 
-  /** A human-readable label, falling back to a shortened npub, then `fallback`. */
+  about() {
+    return this.values.
+  }
+
+  banner() {
+    return this.values.
+  }
+
+  picture() {
+    return this.values.
+  }
+
+  website() {
+    return this.values.
+  }
+
   display(fallback = "") {
-    const {name, display_name} = this.values
+    const name = this.name()
 
     if (name) return ellipsize(name, 60).trim()
-    if (display_name) return ellipsize(display_name, 60).trim()
     if (this.event) return displayPubkey(this.event.pubkey).trim()
 
     return fallback.trim()
@@ -101,7 +93,6 @@ export class Profile extends DomainObject<ProfileValues> {
     return {
       kind: this.kind,
       content: JSON.stringify(this.values),
-      // Preserve any tags from the source event (e.g. nip05/relay hints).
       tags: this.event?.tags || [],
     }
   }

@@ -12,7 +12,7 @@ const c = "cc".repeat(32)
 
 describe("MuteList", () => {
   it("round-trips public and private mutes through encryption", async () => {
-    const list = MuteList.make().addPublicly(a).addPrivately(b)
+    const list = MuteList.init().addPublicly(a).addPrivately(b)
 
     expect(list.pubkeys.sort()).toEqual([a, b].sort())
     expect(list.includes(a)).toBe(true)
@@ -41,7 +41,7 @@ describe("MuteList", () => {
   })
 
   it("removes from both public and private entries", async () => {
-    const list = MuteList.make().addPublicly(a).addPrivately(b)
+    const list = MuteList.init().addPublicly(a).addPrivately(b)
 
     list.remove(a)
     list.remove(b)
@@ -50,7 +50,7 @@ describe("MuteList", () => {
   })
 
   it("preserves undecrypted ciphertext on pass-through serialization", async () => {
-    const event = await MuteList.make().addPrivately(b).toEvent(signer)
+    const event = await MuteList.init().addPrivately(b).toEvent(signer)
     const undecrypted = await MuteList.parse(event)
 
     // We never decrypted, so the original ciphertext must survive untouched.
@@ -60,14 +60,14 @@ describe("MuteList", () => {
   })
 
   it("refuses private mutation when undecrypted", async () => {
-    const event = await MuteList.make().addPrivately(b).toEvent(signer)
+    const event = await MuteList.init().addPrivately(b).toEvent(signer)
     const undecrypted = await MuteList.parse(event)
 
     expect(() => undecrypted.addPrivately(c)).toThrow()
   })
 
   it("toRumor encrypts but does not sign", async () => {
-    const rumor = await MuteList.make().addPrivately(b).toRumor(signer)
+    const rumor = await MuteList.init().addPrivately(b).toRumor(signer)
 
     expect(rumor.id).toBeTruthy()
     expect((rumor as TrustedEvent).sig).toBeUndefined()
