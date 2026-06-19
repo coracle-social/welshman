@@ -1,125 +1,158 @@
-import {
-  CLASSIFIED,
-  getIdentifier,
-  getTag,
-  getTagValue,
-  getTagValues,
-  getTopicTagValues,
-} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import {DomainObject} from "./base.js"
+import {randomId} from "@welshman/lib"
+import {CLASSIFIED, getTag, getTagValue, getTagValues, getTopicTagValues} from "@welshman/util"
+import type {ISigner} from "@welshman/signer"
+import {EventReader, EventBuilder} from "./base.js"
 
-export type ClassifiedValues = {
-  identifier: string
-  title?: string
-  summary?: string
-  content: string
-  price?: {amount: number; currency: string}
-  status?: string
-  images: string[]
-  topics: string[]
+export type ClassifiedPrice = {
+  amount: number
+  currency: string
 }
 
-export const makeClassifiedValues = (
-  values: Partial<ClassifiedValues> = {},
-): ClassifiedValues => ({
-  identifier: "",
-  content: "",
-  images: [],
-  topics: [],
-  ...values,
-})
+// NIP-99 kind-30402 addressable classified listing. Addressable via the "d" tag;
+// the listing description lives in `content` as plain text (not JSON). The price
+// is carried in a ["price", amount, currency] tag with the currency defaulting to
+// "SAT", images in repeated "image" tags, and topics in "t" tags; room scoping is
+// handled by the base `group` behavior tag. Plain-text content, so it extends
+// EventReader/EventBuilder directly.
+export class Classified extends EventReader {
+  static kind = CLASSIFIED
 
-// NIP-99 kind-30402 addressable classified listing. Addressable via the "d"
-// tag; the listing description lives in `content` as plain text (not JSON). The
-// price is carried in a ["price", amount, currency] tag with the currency
-// defaulting to "SAT", images in repeated "image" tags, and topics in "t" tags;
-// room scoping is handled by the base `group` behavior tag. Tags-only metadata,
-// so it extends DomainObject directly. Commented via "#A" (kind 1111 comments).
-export class Classified extends DomainObject<ClassifiedValues> {
-  readonly kind = CLASSIFIED
-  values = makeClassifiedValues()
-
-  protected normalizeValues(values: Partial<ClassifiedValues> = {}) {
-    return makeClassifiedValues(values)
-  }
-
-  protected parseEvent(event: TrustedEvent): Partial<ClassifiedValues> {
-    const priceTag = getTag("price", event.tags)
-
-    return {
-      identifier: getIdentifier(event) || "",
-      title: getTagValue("title", event.tags),
-      summary: getTagValue("summary", event.tags),
-      content: event.content || "",
-      price: priceTag
-        ? {amount: parseFloat(priceTag[1]) || 0, currency: priceTag[2] || "SAT"}
-        : undefined,
-      status: getTagValue("status", event.tags),
-      images: getTagValues("image", event.tags),
-      topics: getTopicTagValues(event.tags),
+  protected validate() {
+    if (!this.identifier()) {
+      throw new Error("Classified requires a d tag")
     }
   }
 
-  identifier() {
-    return this.values.identifier
+  protected reservedTagKeys() {
+    return ["d", "title", "summary", "price", "status", "image", "t"]
   }
 
   title() {
-    return this.values.title
+    return getTagValue("title", this.event.tags)
   }
 
   summary() {
-    return this.values.summary
+    return getTagValue("summary", this.event.tags)
   }
 
   content() {
-    return this.values.content
+    return this.event.content
   }
 
-  price() {
-    return this.values.price
+  price(): ClassifiedPrice | undefined {
+    const tag = getTag("price", this.event.tags)
+
+    return tag ? {amount: parseFloat(tag[1]) || 0, currency: tag[2] || "SAT"} : undefined
   }
 
   status() {
-    return this.values.status
+    return getTagValue("status", this.event.tags)
   }
 
   images() {
-    return this.values.images
+    return getTagValues("image", this.event.tags)
   }
 
   topics() {
-    return this.values.topics
+    return getTopicTagValues(this.event.tags)
   }
 
-  async toTemplate(): Promise<EventTemplate> {
-    const tags: string[][] = [["d", this.values.identifier]]
+  builder() {
+    const builder = new ClassifiedBuilder()
 
-    if (this.values.title) {
-      tags.push(["title", this.values.title])
+    builder.identifier = this.identifier() || ""
+    builder.title = this.title()
+    builder.summary = this.summary()
+    builder.content = this.content()
+    builder.price = this.price()
+    builder.status = this.status()
+    builder.images = this.images()
+    builder.topics = this.topics()
+
+    return this.seedBuilder(builder)
+  }
+}
+
+export class ClassifiedBuilder extends EventBuilder {
+  static kind = CLASSIFIED
+
+  identifier = randomId()
+  title?: string
+  summary?: string
+  content = ""
+  price?: ClassifiedPrice
+  status?: string
+  images: string[] = []
+  topics: string[] = []
+
+  setTitle(title: string) {
+    this.title = title
+
+    return this
+  }
+
+  setSummary(summary: string) {
+    this.summary = summary
+
+    return this
+  }
+
+  setContent(content: string) {
+    this.content = content
+
+    return this
+  }
+
+  setPrice(amount: number, currency = "SAT") {
+    this.price = {amount, currency}
+
+    return this
+  }
+
+  setStatus(status: string) {
+    this.status = status
+
+    return this
+  }
+
+  setImages(images: string[]) {
+    this.images = images
+
+    return this
+  }
+
+  setTopics(topics: string[]) {
+    this.topics = topics
+
+    return this
+  }
+
+  protected validate() {
+    if (!this.identifier) {
+      throw new Error("Classified requires a d identifier")
     }
+  }
 
-    if (this.values.summary) {
-      tags.push(["summary", this.values.summary])
-    }
+  protected buildContent(_signer?: ISigner) {
+    return this.content
+  }
 
-    if (this.values.price) {
-      tags.push(["price", String(this.values.price.amount), this.values.price.currency])
-    }
+  protected buildTags() {
+    const tags: string[][] = [["d", this.identifier]]
 
-    if (this.values.status) {
-      tags.push(["status", this.values.status])
-    }
+    if (this.title) tags.push(["title", this.title])
+    if (this.summary) tags.push(["summary", this.summary])
+    if (this.price) tags.push(["price", String(this.price.amount), this.price.currency])
+    if (this.status) tags.push(["status", this.status])
 
-    for (const topic of this.values.topics) {
+    for (const topic of this.topics) {
       tags.push(["t", topic])
     }
 
-    for (const image of this.values.images) {
+    for (const image of this.images) {
       tags.push(["image", image])
     }
 
-    return {kind: this.kind, content: this.values.content, tags}
+    return tags
   }
 }

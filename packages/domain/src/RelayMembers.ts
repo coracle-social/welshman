@@ -1,61 +1,52 @@
 import {uniq} from "@welshman/lib"
-import {RELAY_MEMBERS, getTagValues} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import {DomainObject} from "./base.js"
-
-export type RelayMembersValues = {
-  members: string[]
-}
-
-export const makeRelayMembersValues = (
-  values: Partial<RelayMembersValues> = {},
-): RelayMembersValues => ({
-  members: [],
-  ...values,
-})
+import {RELAY_MEMBERS, getPubkeyTagValues} from "@welshman/util"
+import {EventReader, EventBuilder} from "./base.js"
 
 // Flotilla relay-wide (space) member-list snapshot, replaceable kind 13534.
-// Members are stored under "member" tags (tag[0] === "member"), NOT "p" tags,
-// so parsing uses getTagValues("member", ...) rather than getPubkeyTagValues.
-// Not addressable (no "d" tag); tags-only content, so it extends DomainObject
-// directly rather than the encryptable list base.
-export class RelayMembers extends DomainObject<RelayMembersValues> {
-  readonly kind = RELAY_MEMBERS
-  values = makeRelayMembersValues()
+// Members are stored as "p" tags. Not addressable (no "d" tag); tags-only
+// content, so it extends EventReader/EventBuilder directly.
+export class RelayMembers extends EventReader {
+  static kind = RELAY_MEMBERS
 
-  protected normalizeValues(values: Partial<RelayMembersValues> = {}) {
-    return makeRelayMembersValues(values)
+  protected reservedTagKeys() {
+    return ["p"]
   }
 
-  protected parseEvent(event: TrustedEvent): Partial<RelayMembersValues> {
-    return {
-      members: uniq(getTagValues("member", event.tags)),
-    }
-  }
-
-  members() {
-    return this.values.members
+  pubkeys() {
+    return uniq(getPubkeyTagValues(this.event.tags))
   }
 
   isMember(pubkey: string) {
-    return this.values.members.includes(pubkey)
+    return this.pubkeys().includes(pubkey)
   }
 
-  addMember(pubkey: string) {
-    this.values.members = uniq([...this.values.members, pubkey])
+  builder() {
+    const builder = new RelayMembersBuilder()
+
+    builder.pubkeys = this.pubkeys()
+
+    return this.seedBuilder(builder)
+  }
+}
+
+export class RelayMembersBuilder extends EventBuilder {
+  static kind = RELAY_MEMBERS
+
+  pubkeys: string[] = []
+
+  addPubkey(pubkey: string) {
+    this.pubkeys = uniq([...this.pubkeys, pubkey])
 
     return this
   }
 
-  removeMember(pubkey: string) {
-    this.values.members = this.values.members.filter(pk => pk !== pubkey)
+  removePubkey(pubkey: string) {
+    this.pubkeys = this.pubkeys.filter(pk => pk !== pubkey)
 
     return this
   }
 
-  async toTemplate(): Promise<EventTemplate> {
-    const tags: string[][] = this.values.members.map(pk => ["member", pk])
-
-    return {kind: this.kind, tags, content: ""}
+  protected buildTags() {
+    return this.pubkeys.map(pk => ["p", pk])
   }
 }

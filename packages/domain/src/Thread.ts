@@ -1,16 +1,5 @@
 import {THREAD, getTagValue} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import {DomainObject} from "./base.js"
-
-export type ThreadValues = {
-  title?: string
-  content: string
-}
-
-export const makeThreadValues = (values: Partial<ThreadValues> = {}): ThreadValues => ({
-  content: "",
-  ...values,
-})
+import {EventReader, EventBuilder} from "./base.js"
 
 // NIP-7D kind-11 forum thread root. The body lives in `content` as plain text
 // (not JSON) and the title is carried in a "title" tag; room scoping is handled
@@ -18,40 +7,58 @@ export const makeThreadValues = (values: Partial<ThreadValues> = {}): ThreadValu
 // replies are COMMENT (kind 1111) via "#E". Flotilla also appends editor/inline
 // tags at call sites; those round-trip via the base `extraTags` (with "title"
 // declared reserved so it isn't double-counted).
-export class Thread extends DomainObject<ThreadValues> {
-  readonly kind = THREAD
-  values = makeThreadValues()
-
-  protected normalizeValues(values: Partial<ThreadValues> = {}) {
-    return makeThreadValues(values)
-  }
+export class Thread extends EventReader {
+  static kind = THREAD
 
   protected reservedTagKeys() {
     return ["title"]
   }
 
-  protected parseEvent(event: TrustedEvent): Partial<ThreadValues> {
-    return {
-      title: getTagValue("title", event.tags),
-      content: event.content || "",
-    }
-  }
-
   title() {
-    return this.values.title
+    return getTagValue("title", this.event.tags)
   }
 
   content() {
-    return this.values.content
+    return this.event.content || ""
   }
 
-  async toTemplate(): Promise<EventTemplate> {
+  builder() {
+    const builder = new ThreadBuilder()
+
+    builder.title = this.title()
+    builder.content = this.content()
+
+    return this.seedBuilder(builder)
+  }
+}
+
+export class ThreadBuilder extends EventBuilder {
+  static kind = THREAD
+
+  title?: string
+  content = ""
+
+  setTitle(title: string) {
+    this.title = title
+
+    return this
+  }
+
+  setContent(content: string) {
+    this.content = content
+
+    return this
+  }
+
+  protected buildTags() {
     const tags: string[][] = []
 
-    if (this.values.title) {
-      tags.push(["title", this.values.title])
-    }
+    if (this.title) tags.push(["title", this.title])
 
-    return {kind: this.kind, content: this.values.content, tags}
+    return tags
+  }
+
+  protected buildContent() {
+    return this.content
   }
 }

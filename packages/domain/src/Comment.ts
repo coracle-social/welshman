@@ -1,6 +1,7 @@
 import {COMMENT, Address, getAddress, getTagValue, isReplaceableKind} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import {DomainObject} from "./base.js"
+import type {TrustedEvent} from "@welshman/util"
+import type {ISigner} from "@welshman/signer"
+import {EventReader, EventBuilder} from "./base.js"
 
 // A NIP-22 reference to another event: its id, address (for addressable roots),
 // kind, and pubkey. All optional since a comment may reference any subset.
@@ -12,7 +13,7 @@ export type CommentRef = {
 }
 
 // The tag keys NIP-22 uses for the root (uppercase) and parent (lowercase)
-// references; stripped on parse and rebuilt from the structs on serialize.
+// references; read into the structs and rebuilt from them on emit.
 const REF_TAG_KEYS = ["E", "A", "K", "P", "e", "a", "k", "p"]
 
 // Build a reference from a full event, deriving the address only when the event
@@ -24,99 +25,120 @@ const refFromEvent = (event: TrustedEvent): CommentRef => ({
   address: isReplaceableKind(event.kind) ? getAddress(event) : undefined,
 })
 
-export type CommentValues = {
-  content: string
-  root: CommentRef
-  parent: CommentRef
+// Build the NIP-22 reference tags for one struct: pass uppercase keys for the
+// root, lowercase for the parent.
+const refTags = (ref: CommentRef, [idKey, addressKey, kindKey, pubkeyKey]: string[]) => {
+  const tags: string[][] = []
+
+  if (ref.id) tags.push([idKey, ref.id])
+  if (ref.address) tags.push([addressKey, ref.address])
+  if (ref.kind) tags.push([kindKey, ref.kind])
+  if (ref.pubkey) tags.push([pubkeyKey, ref.pubkey])
+
+  return tags
 }
 
-export const makeCommentValues = (values: Partial<CommentValues> = {}): CommentValues => ({
-  content: "",
-  root: {},
-  parent: {},
-  ...values,
-})
-
-// NIP-22 kind-1111 generic comment, flotilla's universal reply primitive: threads,
-// goals, and polls reference their root event via uppercase E/A/K/P tags, while
-// classifieds and calendar events reference addressable roots via #A. Uppercase
-// tags (E/A/K/P) name the root of the thread; lowercase tags (e/a/k/p) name the
-// immediate parent. The comment body lives in `content` as plain text (not JSON).
+// Read side of NIP-22 kind-1111 generic comment, flotilla's universal reply
+// primitive: threads, goals, and polls reference their root event via uppercase
+// E/A/K/P tags, while classifieds and calendar events reference addressable
+// roots via #A. Uppercase tags (E/A/K/P) name the root of the thread; lowercase
+// tags (e/a/k/p) name the immediate parent. The comment body is plain text in
+// the event content (not JSON).
 //
-// The reference tags are parsed into the `root`/`parent` structs and rebuilt
-// from them in toTemplate; any other tags round-trip via the base `extraTags`
-// (REF_TAG_KEYS is declared as reserved so they aren't double-counted). Use
-// setRoot/setParent (or the *FromEvent variants) to populate them programmatically.
-export class Comment extends DomainObject<CommentValues> {
-  readonly kind = COMMENT
-  values = makeCommentValues()
-
-  protected normalizeValues(values: Partial<CommentValues> = {}) {
-    return makeCommentValues(values)
-  }
+// The reference tags are read lazily into the root/parent accessors; REF_TAG_KEYS
+// is declared reserved so any other tags round-trip via the base extraTags.
+export class Comment extends EventReader {
+  static kind = COMMENT
 
   protected reservedTagKeys() {
     return REF_TAG_KEYS
   }
 
-  protected parseEvent(event: TrustedEvent): Partial<CommentValues> {
-    return {
-      content: event.content || "",
-      root: {
-        id: getTagValue("E", event.tags),
-        address: getTagValue("A", event.tags),
-        kind: getTagValue("K", event.tags),
-        pubkey: getTagValue("P", event.tags),
-      },
-      parent: {
-        id: getTagValue("e", event.tags),
-        address: getTagValue("a", event.tags),
-        kind: getTagValue("k", event.tags),
-        pubkey: getTagValue("p", event.tags),
-      },
-    }
-  }
-
   content() {
-    return this.values.content
+    return this.event.content || ""
   }
 
   rootId() {
-    return this.values.root.id
+    return getTagValue("E", this.event.tags)
   }
 
   rootAddress() {
-    return this.values.root.address
+    return getTagValue("A", this.event.tags)
   }
 
   rootKind() {
-    return this.values.root.kind
+    return getTagValue("K", this.event.tags)
   }
 
   rootPubkey() {
-    return this.values.root.pubkey
+    return getTagValue("P", this.event.tags)
   }
 
   parentId() {
-    return this.values.parent.id
+    return getTagValue("e", this.event.tags)
   }
 
   parentAddress() {
-    return this.values.parent.address
+    return getTagValue("a", this.event.tags)
   }
 
   parentKind() {
-    return this.values.parent.kind
+    return getTagValue("k", this.event.tags)
   }
 
   parentPubkey() {
-    return this.values.parent.pubkey
+    return getTagValue("p", this.event.tags)
+  }
+
+  root(): CommentRef {
+    return {
+      id: this.rootId(),
+      address: this.rootAddress(),
+      kind: this.rootKind(),
+      pubkey: this.rootPubkey(),
+    }
+  }
+
+  parent(): CommentRef {
+    return {
+      id: this.parentId(),
+      address: this.parentAddress(),
+      kind: this.parentKind(),
+      pubkey: this.parentPubkey(),
+    }
+  }
+
+  builder() {
+    const builder = new CommentBuilder()
+
+    builder.content = this.content()
+    builder.root = this.root()
+    builder.parent = this.parent()
+
+    return this.seedBuilder(builder)
+  }
+}
+
+// Write side of NIP-22 kind-1111 generic comment. Set the body via setContent and
+// the root/parent references via setRoot/setParent (or the *FromEvent variants);
+// buildTags rebuilds the uppercase/lowercase reference tags from those structs.
+export class CommentBuilder extends EventBuilder {
+  static kind = COMMENT
+
+  content = ""
+  root: CommentRef = {}
+  parent: CommentRef = {}
+
+  setContent(content: string) {
+    this.content = content
+
+    return this
   }
 
   // Set the thread root reference, deriving the address from kind/pubkey/identifier
   // when the referenced event is addressable.
   setRoot(kind: number, id: string, pubkey: string, identifier?: string) {
-    this.values.root = {
+    this.root = {
       id,
       pubkey,
       kind: String(kind),
@@ -128,7 +150,7 @@ export class Comment extends DomainObject<CommentValues> {
 
   // Set the immediate parent reference, deriving the address as above.
   setParent(kind: number, id: string, pubkey: string, identifier?: string) {
-    this.values.parent = {
+    this.parent = {
       id,
       pubkey,
       kind: String(kind),
@@ -140,39 +162,26 @@ export class Comment extends DomainObject<CommentValues> {
 
   // Set the thread root reference from a full event.
   setRootFromEvent(event: TrustedEvent) {
-    this.values.root = refFromEvent(event)
+    this.root = refFromEvent(event)
 
     return this
   }
 
   // Set the immediate parent reference from a full event.
   setParentFromEvent(event: TrustedEvent) {
-    this.values.parent = refFromEvent(event)
+    this.parent = refFromEvent(event)
 
     return this
   }
 
-  // Build the NIP-22 reference tags for one struct: uppercase keys for the root,
-  // lowercase for the parent.
-  private refTags(ref: CommentRef, [idKey, addressKey, kindKey, pubkeyKey]: string[]) {
-    const tags: string[][] = []
-
-    if (ref.id) tags.push([idKey, ref.id])
-    if (ref.address) tags.push([addressKey, ref.address])
-    if (ref.kind) tags.push([kindKey, ref.kind])
-    if (ref.pubkey) tags.push([pubkeyKey, ref.pubkey])
-
-    return tags
+  protected buildContent(_signer?: ISigner) {
+    return this.content
   }
 
-  async toTemplate(): Promise<EventTemplate> {
-    return {
-      kind: this.kind,
-      content: this.values.content,
-      tags: [
-        ...this.refTags(this.values.root, ["E", "A", "K", "P"]),
-        ...this.refTags(this.values.parent, ["e", "a", "k", "p"]),
-      ],
-    }
+  protected buildTags() {
+    return [
+      ...refTags(this.root, ["E", "A", "K", "P"]),
+      ...refTags(this.parent, ["e", "a", "k", "p"]),
+    ]
   }
 }

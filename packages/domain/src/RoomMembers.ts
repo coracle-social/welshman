@@ -1,70 +1,71 @@
 import {uniq} from "@welshman/lib"
-import {ROOM_MEMBERS, getIdentifier, getPubkeyTagValues} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import {DomainObject} from "./base.js"
-
-export type RoomMembersValues = {
-  h: string
-  members: string[]
-}
-
-export const makeRoomMembersValues = (
-  values: Partial<RoomMembersValues> = {},
-): RoomMembersValues => ({
-  h: "",
-  members: [],
-  ...values,
-})
+import {ROOM_MEMBERS, getPubkeyTagValues} from "@welshman/util"
+import {EventReader, EventBuilder} from "./base.js"
 
 // NIP-29 kind-39002 relay-authored room member-list snapshot. Addressable, with
 // the group id ("h") stored in the "d" tag and members listed as "p" tags.
-// Tags-only content, so it extends DomainObject directly rather than the
-// encryptable list base.
-export class RoomMembers extends DomainObject<RoomMembersValues> {
-  readonly kind = ROOM_MEMBERS
-  values = makeRoomMembersValues()
+// Tags-only content.
+export class RoomMembers extends EventReader {
+  static kind = ROOM_MEMBERS
 
-  protected normalizeValues(values: Partial<RoomMembersValues> = {}) {
-    return makeRoomMembersValues(values)
-  }
-
-  protected parseEvent(event: TrustedEvent): Partial<RoomMembersValues> {
-    return {
-      h: getIdentifier(event) || "",
-      members: uniq(getPubkeyTagValues(event.tags)),
+  protected validate() {
+    if (!this.identifier()) {
+      throw new Error("RoomMembers requires a d tag")
     }
   }
 
+  protected reservedTagKeys() {
+    return ["d", "p"]
+  }
+
+  // The group id is the addressable identifier (the "d" tag).
   h() {
-    return this.values.h
+    return this.identifier()
   }
 
   members() {
-    return this.values.members
+    return uniq(getPubkeyTagValues(this.event.tags))
   }
 
   isMember(pubkey: string) {
-    return this.values.members.includes(pubkey)
+    return this.members().includes(pubkey)
   }
 
+  builder() {
+    const builder = new RoomMembersBuilder()
+
+    builder.h = this.identifier() || ""
+    builder.members = this.members()
+
+    return this.seedBuilder(builder)
+  }
+}
+
+export class RoomMembersBuilder extends EventBuilder {
+  static kind = ROOM_MEMBERS
+
+  h = ""
+  members: string[] = []
+
   addMember(pubkey: string) {
-    this.values.members = uniq([...this.values.members, pubkey])
+    this.members = uniq([...this.members, pubkey])
 
     return this
   }
 
   removeMember(pubkey: string) {
-    this.values.members = this.values.members.filter(pk => pk !== pubkey)
+    this.members = this.members.filter(pk => pk !== pubkey)
 
     return this
   }
 
-  async toTemplate(): Promise<EventTemplate> {
-    const tags: string[][] = [
-      ["d", this.values.h],
-      ...this.values.members.map(pk => ["p", pk]),
-    ]
+  protected validate() {
+    if (!this.h) {
+      throw new Error("RoomMembers requires an h/d identifier")
+    }
+  }
 
-    return {kind: this.kind, tags, content: ""}
+  protected buildTags() {
+    return [["d", this.h], ...this.members.map(pk => ["p", pk])]
   }
 }

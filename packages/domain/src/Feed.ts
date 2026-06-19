@@ -1,26 +1,7 @@
-import {parseJson} from "@welshman/lib"
-import {FEED, getIdentifier, getTagValue} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import {DomainObject} from "./base.js"
+import {randomId, parseJson} from "@welshman/lib"
+import {FEED, getTagValue} from "@welshman/util"
 
-export type FeedValues = {
-  identifier: string
-  title: string
-  description: string
-  // The feed definition is a @welshman/feeds `IFeed` AST. That package is not a
-  // dependency of @welshman/domain, so it is typed as `unknown` here.
-  definition: unknown
-}
-
-export const makeFeedValues = (values: Partial<FeedValues> = {}): FeedValues => ({
-  identifier: "",
-  title: "",
-  description: "",
-  // Default to an empty @welshman/feeds feed (a union of nothing). That package
-  // isn't a dependency here, so the AST is written structurally.
-  definition: ["union"],
-  ...values,
-})
+import {EventReader, EventBuilder} from "./base.js"
 
 // NIP-51 kind-31890 saved-feed DEFINITION event. Addressable via the "d" tag.
 // The feed definition is a @welshman/feeds `IFeed` AST, JSON-encoded in a "feed"
@@ -28,59 +9,97 @@ export const makeFeedValues = (values: Partial<FeedValues> = {}): FeedValues => 
 // kind-10014 FEEDS favorites list (FeedList.ts) which references these by
 // address. Flotilla's isTopicFeed/isMentionFeed/isAddressFeed/isContextFeed/
 // isPeopleFeed are pure functions over the IFeed AST and stay in flotilla's lib,
-// not on this class. Tags-only, so it extends DomainObject directly.
-export class Feed extends DomainObject<FeedValues> {
-  readonly kind = FEED
-  values = makeFeedValues()
+// not on this class. Tags-only, so it extends EventReader directly.
+export class Feed extends EventReader {
+  static kind = FEED
 
-  protected normalizeValues(values: Partial<FeedValues> = {}) {
-    return makeFeedValues(values)
-  }
-
-  protected parseEvent(event: TrustedEvent): Partial<FeedValues> {
-    const feed = getTagValue("feed", event.tags)
-
-    if (feed == null) {
-      throw new Error(`Expected a "feed" tag on kind ${this.kind} event`)
+  protected validate() {
+    if (!this.identifier()) {
+      throw new Error("Feed requires a d tag")
     }
 
-    return {
-      identifier: getIdentifier(event) || "",
-      title: getTagValue("title", event.tags) || "",
-      description: getTagValue("description", event.tags) || "",
-      definition: parseJson(feed),
+    if (getTagValue("feed", this.event.tags) == null) {
+      throw new Error("Feed requires a feed tag")
     }
   }
 
-  identifier() {
-    return this.values.identifier
+  protected reservedTagKeys() {
+    return ["d", "alt", "title", "description", "feed"]
   }
 
   title() {
-    return this.values.title
+    return getTagValue("title", this.event.tags) || ""
   }
 
   description() {
-    return this.values.description
+    return getTagValue("description", this.event.tags) || ""
   }
 
-  definition() {
-    return this.values.definition
+  // The feed definition is a @welshman/feeds `IFeed` AST. That package is not a
+  // dependency of @welshman/domain, so it is typed as `unknown` here.
+  definition(): unknown {
+    return parseJson(getTagValue("feed", this.event.tags))
   }
 
-  async toTemplate(): Promise<EventTemplate> {
-    const {identifier, title, description, definition} = this.values
+  builder() {
+    const builder = new FeedBuilder()
 
-    return {
-      kind: this.kind,
-      content: "",
-      tags: [
-        ["d", identifier],
-        ["alt", title],
-        ["title", title],
-        ["description", description],
-        ["feed", JSON.stringify(definition)],
-      ],
+    builder.identifier = this.identifier() || ""
+    builder.title = this.title()
+    builder.description = this.description()
+    builder.definition = this.definition()
+
+    return this.seedBuilder(builder)
+  }
+}
+
+export class FeedBuilder extends EventBuilder {
+  static kind = FEED
+
+  identifier = randomId()
+  title = ""
+  description = ""
+  // Default to an empty @welshman/feeds feed (a union of nothing). That package
+  // isn't a dependency here, so the AST is written structurally.
+  definition: unknown = ["union"]
+
+  setIdentifier(identifier: string) {
+    this.identifier = identifier
+
+    return this
+  }
+
+  setTitle(title: string) {
+    this.title = title
+
+    return this
+  }
+
+  setDescription(description: string) {
+    this.description = description
+
+    return this
+  }
+
+  setDefinition(definition: unknown) {
+    this.definition = definition
+
+    return this
+  }
+
+  protected validate() {
+    if (!this.identifier) {
+      throw new Error("Feed requires a d identifier")
     }
+  }
+
+  protected buildTags() {
+    return [
+      ["d", this.identifier],
+      ["alt", this.title],
+      ["title", this.title],
+      ["description", this.description],
+      ["feed", JSON.stringify(this.definition)],
+    ]
   }
 }

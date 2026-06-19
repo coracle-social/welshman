@@ -1,79 +1,99 @@
 import {REPORT, getTag, getTagValue} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import {DomainObject} from "./base.js"
-
-export type ReportValues = {
-  pubkey?: string
-  eventId?: string
-  reason?: string
-  content: string
-}
-
-export const makeReportValues = (values: Partial<ReportValues> = {}): ReportValues => ({
-  content: "",
-  ...values,
-})
+import {EventReader, EventBuilder} from "./base.js"
 
 // NIP-56 kind-1984 report, feeding flotilla's admin action-items / moderation
 // review queue (see app/actionItems.ts `deriveSpaceActionItems`). The reported
 // author is named in the "p" tag and the reported event in the "e" tag, with the
 // report reason carried as the 3rd element of the "e" tag (NOT a separate tag).
 // Flotilla destructures this by hand in ReactionSummary.svelte and
-// ReportMenu.svelte; `reason()` centralizes that access. The report body lives in
-// `content` as plain text (not JSON).
-export class Report extends DomainObject<ReportValues> {
-  readonly kind = REPORT
-  values = makeReportValues()
+// ReportMenu.svelte; the accessors centralize that access. The report body lives
+// in `content` as plain text (not JSON), so there's no `plain` representation.
+export class Report extends EventReader {
+  static kind = REPORT
 
-  protected normalizeValues(values: Partial<ReportValues> = {}) {
-    return makeReportValues(values)
+  protected reservedTagKeys() {
+    return ["p", "e"]
   }
 
-  protected parseEvent(event: TrustedEvent): Partial<ReportValues> {
-    const eTag = getTag("e", event.tags)
-
-    return {
-      pubkey: getTagValue("p", event.tags),
-      eventId: eTag?.[1],
-      reason: eTag?.[2],
-      content: event.content || "",
-    }
+  // The reported author. Distinct from the base `pubkey()` (the reporter).
+  reportedPubkey() {
+    return getTagValue("p", this.event.tags)
   }
 
-  pubkey() {
-    return this.values.pubkey
-  }
-
+  // The reported event, if any.
   eventId() {
-    return this.values.eventId
+    return getTag("e", this.event.tags)?.[1]
   }
 
+  // The report reason, carried as the 3rd element of the "e" tag.
   reason() {
-    return this.values.reason
+    return getTag("e", this.event.tags)?.[2]
   }
 
+  // The report body, plain text.
   content() {
-    return this.values.content
+    return this.event.content || ""
   }
 
-  setContent(content: string) {
-    this.values.content = content
+  builder() {
+    const builder = new ReportBuilder()
+
+    builder.reportedPubkey = this.reportedPubkey()
+    builder.eventId = this.eventId()
+    builder.reason = this.reason()
+    builder.content = this.content()
+
+    return this.seedBuilder(builder)
+  }
+}
+
+export class ReportBuilder extends EventBuilder {
+  static kind = REPORT
+
+  reportedPubkey?: string
+  eventId?: string
+  reason?: string
+  content = ""
+
+  setReportedPubkey(reportedPubkey: string) {
+    this.reportedPubkey = reportedPubkey
 
     return this
   }
 
-  async toTemplate(): Promise<EventTemplate> {
-    const {pubkey, eventId, reason, content} = this.values
+  setEventId(eventId: string) {
+    this.eventId = eventId
+
+    return this
+  }
+
+  setReason(reason: string) {
+    this.reason = reason
+
+    return this
+  }
+
+  setContent(content: string) {
+    this.content = content
+
+    return this
+  }
+
+  protected buildTags() {
     const tags: string[][] = []
 
-    if (pubkey) {
-      tags.push(["p", pubkey])
+    if (this.reportedPubkey) {
+      tags.push(["p", this.reportedPubkey])
     }
 
-    if (eventId) {
-      tags.push(["e", eventId, ...(reason ? [reason] : [])])
+    if (this.eventId) {
+      tags.push(["e", this.eventId, ...(this.reason ? [this.reason] : [])])
     }
 
-    return {kind: this.kind, content, tags}
+    return tags
+  }
+
+  protected buildContent() {
+    return this.content
   }
 }

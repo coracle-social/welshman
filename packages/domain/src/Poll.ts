@@ -1,7 +1,8 @@
-import {now, uniq} from "@welshman/lib"
+import {now, uniq, randomId} from "@welshman/lib"
 import {POLL, getTagValue, getTagValues} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import {DomainObject} from "./base.js"
+import type {TrustedEvent} from "@welshman/util"
+import type {ISigner} from "@welshman/signer"
+import {EventReader, EventBuilder} from "./base.js"
 
 export type PollType = "singlechoice" | "multiplechoice"
 
@@ -15,79 +16,61 @@ export type PollResult = {
   voters: number
 }
 
-export type PollValues = {
-  title: string
-  options: PollOption[]
-  pollType: PollType
-  endsAt?: number
-  relays: string[]
-}
-
-export const makePollValues = (values: Partial<PollValues> = {}): PollValues => ({
-  title: "",
-  options: [],
-  pollType: "singlechoice",
-  relays: [],
-  ...values,
-})
-
 // NIP-88 kind-1068 poll. The poll title/question lives in `content` as plain
 // text (not JSON), options come from "option" tags, and the response tally is
 // computed from sibling kind-1018 response events passed into `results`.
-export class Poll extends DomainObject<PollValues> {
-  readonly kind = POLL
-  values = makePollValues()
+export class Poll extends EventReader {
+  static kind = POLL
 
-  protected normalizeValues(values: Partial<PollValues> = {}) {
-    return makePollValues(values)
-  }
-
-  protected parseEvent(event: TrustedEvent): Partial<PollValues> {
-    const endsAtRaw = getTagValue("endsAt", event.tags)
-    const endsAt = endsAtRaw == null ? NaN : parseInt(endsAtRaw)
-
-    return {
-      title: event.content || "",
-      options: event.tags
-        .filter(t => t[0] === "option")
-        .map(t => ({id: t[1], label: t[2] || t[1]})),
-      pollType: (getTagValue("polltype", event.tags) as PollType) || "singlechoice",
-      endsAt: Number.isNaN(endsAt) ? undefined : endsAt,
-      relays: getTagValues("relay", event.tags),
+  protected validate() {
+    if (this.options().length === 0) {
+      throw new Error("Poll requires at least one option tag")
     }
   }
 
+  protected reservedTagKeys() {
+    return ["option", "polltype", "endsAt", "relay"]
+  }
+
+  // The poll title/question is plain-text content.
   title() {
-    return this.values.title
+    return this.event.content || ""
   }
 
-  options() {
-    return this.values.options
+  options(): PollOption[] {
+    return this.event.tags
+      .filter(t => t[0] === "option")
+      .map(t => ({id: t[1], label: t[2] || t[1]}))
   }
 
-  pollType() {
-    return this.values.pollType
+  pollType(): PollType {
+    return (getTagValue("polltype", this.event.tags) as PollType) || "singlechoice"
   }
 
   endsAt() {
-    return this.values.endsAt
+    const endsAt = parseInt(getTagValue("endsAt", this.event.tags) ?? "")
+
+    return isNaN(endsAt) ? undefined : endsAt
   }
 
   isClosed() {
-    return this.values.endsAt != null && this.values.endsAt <= now()
+    const endsAt = this.endsAt()
+
+    return endsAt != null && endsAt <= now()
   }
 
   relays() {
-    return this.values.relays
+    return getTagValues("relay", this.event.tags)
   }
 
   // Tally the latest response per pubkey across the poll options. Each response
   // is a kind-1018 event whose "response" tags name selected option ids;
   // single-choice polls only honor the first selection.
   results(responses: TrustedEvent[]): PollResult {
-    const options = this.values.options.map(option => ({...option, votes: 0}))
+    const options = this.options().map(option => ({...option, votes: 0}))
     const counts = new Map(options.map(option => [option.id, option]))
     const latestByPubkey = new Map<string, TrustedEvent>()
+    const pollType = this.pollType()
 
     for (const response of responses) {
       const current = latestByPubkey.get(response.pubkey)
@@ -99,8 +82,7 @@ export class Poll extends DomainObject<PollValues> {
 
     for (const response of latestByPubkey.values()) {
       const selections = getTagValues("response", response.tags)
-      const ids =
-        this.values.pollType === "singlechoice" ? selections.slice(0, 1) : uniq(selections)
+      const ids = pollType === "singlechoice" ? selections.slice(0, 1) : uniq(selections)
 
       for (const id of ids) {
         const option = counts.get(id)
@@ -114,20 +96,84 @@ export class Poll extends DomainObject<PollValues> {
     return {options, voters: latestByPubkey.size}
   }
 
-  async toTemplate(): Promise<EventTemplate> {
+  builder() {
+    const builder = new PollBuilder(this.title())
+
+    builder.options = this.options()
+    builder.pollType = this.pollType()
+    builder.endsAt = this.endsAt()
+    builder.relays = this.relays()
+
+    return this.seedBuilder(builder)
+  }
+}
+
+export class PollBuilder extends EventBuilder {
+  static kind = POLL
+
+  options: PollOption[] = []
+  pollType: PollType = "singlechoice"
+  endsAt?: number
+  relays: string[] = []
+
+  constructor(public title = "") {
+    super()
+  }
+
+  setTitle(title: string) {
+    this.title = title
+
+    return this
+  }
+
+  addOption(label: string, id = randomId()) {
+    this.options = [...this.options, {id, label}]
+
+    return this
+  }
+
+  setPollType(pollType: PollType) {
+    this.pollType = pollType
+
+    return this
+  }
+
+  setEndsAt(endsAt: number) {
+    this.endsAt = endsAt
+
+    return this
+  }
+
+  setRelays(relays: string[]) {
+    this.relays = relays
+
+    return this
+  }
+
+  protected validate() {
+    if (this.options.length === 0) {
+      throw new Error("Poll requires at least one option")
+    }
+  }
+
+  protected buildContent(_signer?: ISigner) {
+    return this.title
+  }
+
+  protected buildTags() {
     const tags: string[][] = [
-      ...this.values.options.map(o => ["option", o.id, o.label]),
-      ["polltype", this.values.pollType],
+      ...this.options.map(o => ["option", o.id, o.label]),
+      ["polltype", this.pollType],
     ]
 
-    if (this.values.endsAt != null) {
-      tags.push(["endsAt", String(this.values.endsAt)])
+    if (this.endsAt != null) {
+      tags.push(["endsAt", String(this.endsAt)])
     }
 
-    for (const relay of this.values.relays) {
+    for (const relay of this.relays) {
       tags.push(["relay", relay])
     }
 
-    return {kind: this.kind, content: this.values.title, tags}
+    return tags
   }
 }

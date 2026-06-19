@@ -1,20 +1,5 @@
 import {ZAP_GOAL, getTagValue, getTagValues} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import {DomainObject} from "./base.js"
-
-export type ZapGoalValues = {
-  title: string
-  summary?: string
-  amount: number
-  relays: string[]
-}
-
-export const makeZapGoalValues = (values: Partial<ZapGoalValues> = {}): ZapGoalValues => ({
-  title: "",
-  amount: 0,
-  relays: [],
-  ...values,
-})
+import {EventReader, EventBuilder} from "./base.js"
 
 // NIP-75 kind-9041 zap goal. A fundraising target that drives flotilla's goals
 // feature: the goal title lives in `content` as plain text (not JSON), the body
@@ -23,53 +8,104 @@ export const makeZapGoalValues = (values: Partial<ZapGoalValues> = {}): ZapGoalV
 // "relays" tags; room scoping is handled by the base `group` behavior tag.
 // Non-addressable (referenced by event id via "#E"); the funding tally is
 // computed elsewhere from sibling zap receipts (ZAP_RESPONSE) and is not modeled
-// here. Tags-only metadata, so it extends DomainObject directly.
-export class ZapGoal extends DomainObject<ZapGoalValues> {
-  readonly kind = ZAP_GOAL
-  values = makeZapGoalValues()
+// here. Tags + plain-text content, so it extends EventReader/EventBuilder.
+export class ZapGoal extends EventReader {
+  static kind = ZAP_GOAL
 
-  protected normalizeValues(values: Partial<ZapGoalValues> = {}) {
-    return makeZapGoalValues(values)
-  }
-
-  protected parseEvent(event: TrustedEvent): Partial<ZapGoalValues> {
-    return {
-      title: event.content || "",
-      summary: getTagValue("summary", event.tags),
-      amount: parseInt(getTagValue("amount", event.tags) || "0") || 0,
-      relays: getTagValues("relays", event.tags),
+  protected validate() {
+    if (!this.title()) {
+      throw new Error("ZapGoal requires a title")
     }
   }
 
+  protected reservedTagKeys() {
+    return ["summary", "amount", "relays"]
+  }
+
+  // The goal title is plain-text content, not JSON or encrypted.
   title() {
-    return this.values.title
+    return this.event.content || ""
   }
 
   summary() {
-    return this.values.summary
+    return getTagValue("summary", this.event.tags)
   }
 
   amount() {
-    return this.values.amount
+    return parseInt(getTagValue("amount", this.event.tags) || "0") || 0
   }
 
   relays() {
-    return this.values.relays
+    return getTagValues("relays", this.event.tags)
   }
 
-  async toTemplate(): Promise<EventTemplate> {
+  builder() {
+    const builder = new ZapGoalBuilder(this.title())
+
+    builder.summary = this.summary()
+    builder.amount = this.amount()
+    builder.relays = this.relays()
+
+    return this.seedBuilder(builder)
+  }
+}
+
+export class ZapGoalBuilder extends EventBuilder {
+  static kind = ZAP_GOAL
+
+  summary?: string
+  amount = 0
+  relays: string[] = []
+
+  constructor(public title = "") {
+    super()
+  }
+
+  setTitle(title: string) {
+    this.title = title
+
+    return this
+  }
+
+  setSummary(summary: string) {
+    this.summary = summary
+
+    return this
+  }
+
+  setAmount(amount: number) {
+    this.amount = amount
+
+    return this
+  }
+
+  setRelays(relays: string[]) {
+    this.relays = relays
+
+    return this
+  }
+
+  protected validate() {
+    if (!this.title) {
+      throw new Error("ZapGoal requires a title")
+    }
+  }
+
+  protected buildContent() {
+    return this.title
+  }
+
+  protected buildTags() {
     const tags: string[][] = []
 
-    if (this.values.summary) {
-      tags.push(["summary", this.values.summary])
-    }
+    if (this.summary) tags.push(["summary", this.summary])
 
-    tags.push(["amount", String(this.values.amount)])
+    tags.push(["amount", String(this.amount)])
 
-    for (const relay of this.values.relays) {
+    for (const relay of this.relays) {
       tags.push(["relays", relay])
     }
 
-    return {kind: this.kind, content: this.values.title, tags}
+    return tags
   }
 }

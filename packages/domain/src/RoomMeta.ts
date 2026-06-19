@@ -1,115 +1,134 @@
 import {randomId} from "@welshman/lib"
-import {ROOM_META, getIdentifier, getTag, getTagValue} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import {DomainObject} from "./base.js"
+import {ROOM_META, getTag, getTagValue} from "@welshman/util"
+import {EventReader, EventBuilder} from "./base.js"
 
-export type RoomMetaValues = {
-  h: string
+// NIP-29 kind-39000 relay-generated group metadata. Addressable, with the group
+// id ("h") stored in the "d" tag. Tags-only content.
+export class RoomMeta extends EventReader {
+  static kind = ROOM_META
+
+  protected validate() {
+    if (!this.identifier()) {
+      throw new Error("RoomMeta requires a d tag")
+    }
+  }
+
+  protected reservedTagKeys() {
+    return ["d", "name", "about", "picture", "closed", "hidden", "private", "restricted", "livekit"]
+  }
+
+  // The group id is the addressable identifier (the "d" tag).
+  h() {
+    return this.identifier()
+  }
+
+  name() {
+    return getTagValue("name", this.event.tags)
+  }
+
+  about() {
+    return getTagValue("about", this.event.tags)
+  }
+
+  picture() {
+    return getTag("picture", this.event.tags)?.[1]
+  }
+
+  pictureMeta() {
+    const tag = getTag("picture", this.event.tags)
+
+    return tag ? tag.slice(2) : undefined
+  }
+
+  isClosed() {
+    return this.event.tags.some(t => t[0] === "closed")
+  }
+
+  isHidden() {
+    return this.event.tags.some(t => t[0] === "hidden")
+  }
+
+  isPrivate() {
+    return this.event.tags.some(t => t[0] === "private")
+  }
+
+  isRestricted() {
+    return this.event.tags.some(t => t[0] === "restricted")
+  }
+
+  livekit() {
+    return this.event.tags.some(t => t[0] === "livekit")
+  }
+
+  builder() {
+    const builder = new RoomMetaBuilder()
+
+    builder.h = this.identifier() || ""
+    builder.name = this.name()
+    builder.about = this.about()
+    builder.picture = this.picture()
+    builder.pictureMeta = this.pictureMeta()
+    builder.closed = this.isClosed()
+    builder.hidden = this.isHidden()
+    builder.isPrivate = this.isPrivate()
+    builder.restricted = this.isRestricted()
+    builder.livekit = this.livekit()
+
+    return this.seedBuilder(builder)
+  }
+}
+
+export class RoomMetaBuilder extends EventBuilder {
+  static kind = ROOM_META
+
+  h = randomId()
   name?: string
   about?: string
   picture?: string
   pictureMeta?: string[]
-  isClosed: boolean
-  isHidden: boolean
-  isPrivate: boolean
-  isRestricted: boolean
-  livekit: boolean
-}
+  closed = false
+  hidden = false
+  isPrivate = false
+  restricted = false
+  livekit = false
 
-export const makeRoomMetaValues = (values: Partial<RoomMetaValues> = {}): RoomMetaValues => ({
-  h: values.h || randomId(),
-  isClosed: false,
-  isHidden: false,
-  isPrivate: false,
-  isRestricted: false,
-  livekit: false,
-  ...values,
-})
+  setName(name: string) {
+    this.name = name
 
-// NIP-29 kind-39000 relay-generated group metadata. Addressable, with the group
-// id ("h") stored in the "d" tag. Tags-only content, so it extends DomainObject
-// directly rather than the encryptable list base.
-export class RoomMeta extends DomainObject<RoomMetaValues> {
-  readonly kind = ROOM_META
-  values = makeRoomMetaValues()
-
-  protected normalizeValues(values: Partial<RoomMetaValues> = {}) {
-    return makeRoomMetaValues(values)
+    return this
   }
 
-  protected parseEvent(event: TrustedEvent): Partial<RoomMetaValues> {
-    const pic = getTag("picture", event.tags)
+  setAbout(about: string) {
+    this.about = about
 
-    return {
-      h: getIdentifier(event) || "",
-      name: getTagValue("name", event.tags),
-      about: getTagValue("about", event.tags),
-      picture: pic?.[1],
-      pictureMeta: pic ? pic.slice(2) : undefined,
-      isClosed: Boolean(getTag("closed", event.tags)),
-      isHidden: Boolean(getTag("hidden", event.tags)),
-      isPrivate: Boolean(getTag("private", event.tags)),
-      isRestricted: Boolean(getTag("restricted", event.tags)),
-      livekit: Boolean(getTag("livekit", event.tags)),
+    return this
+  }
+
+  setPicture(picture: string, meta?: string[]) {
+    this.picture = picture
+    this.pictureMeta = meta
+
+    return this
+  }
+
+  protected validate() {
+    if (!this.h) {
+      throw new Error("RoomMeta requires an h/d identifier")
     }
   }
 
-  h() {
-    return this.values.h
-  }
+  protected buildTags() {
+    const tags: string[][] = [["d", this.h]]
 
-  name() {
-    return this.values.name
-  }
+    if (this.name) tags.push(["name", this.name])
+    if (this.about) tags.push(["about", this.about])
+    if (this.picture) tags.push(["picture", this.picture, ...(this.pictureMeta || [])])
+    if (this.closed) tags.push(["closed"])
+    if (this.hidden) tags.push(["hidden"])
+    if (this.isPrivate) tags.push(["private"])
+    if (this.restricted) tags.push(["restricted"])
+    if (this.livekit) tags.push(["livekit"])
 
-  about() {
-    return this.values.about
-  }
-
-  picture() {
-    return this.values.picture
-  }
-
-  pictureMeta() {
-    return this.values.pictureMeta
-  }
-
-  isClosed() {
-    return this.values.isClosed
-  }
-
-  isHidden() {
-    return this.values.isHidden
-  }
-
-  isPrivate() {
-    return this.values.isPrivate
-  }
-
-  isRestricted() {
-    return this.values.isRestricted
-  }
-
-  livekit() {
-    return this.values.livekit
-  }
-
-  async toTemplate(): Promise<EventTemplate> {
-    const tags: string[][] = [["d", this.values.h]]
-
-    if (this.values.name) tags.push(["name", this.values.name])
-    if (this.values.about) tags.push(["about", this.values.about])
-
-    if (this.values.picture) {
-      tags.push(["picture", this.values.picture, ...(this.values.pictureMeta || [])])
-    }
-
-    if (this.values.isClosed) tags.push(["closed"])
-    if (this.values.isHidden) tags.push(["hidden"])
-    if (this.values.isPrivate) tags.push(["private"])
-    if (this.values.isRestricted) tags.push(["restricted"])
-    if (this.values.livekit) tags.push(["livekit"])
-
-    return {kind: this.kind, tags, content: ""}
+    return tags
   }
 }

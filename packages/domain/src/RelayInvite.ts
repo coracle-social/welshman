@@ -1,44 +1,46 @@
 import {RELAY_INVITE, getTagValue} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import {DomainObject} from "./base.js"
-
-export type RelayInviteValues = {
-  claim?: string
-}
-
-export const makeRelayInviteValues = (
-  values: Partial<RelayInviteValues> = {},
-): RelayInviteValues => ({
-  ...values,
-})
+import {EventReader, EventBuilder} from "./base.js"
 
 // NIP-29 kind-28935 ephemeral relay invite event. Its "claim" tag carries the
 // invite code, which flotilla turns into a /join?r=&c= link. Flotilla only reads
 // this event (see app/relays.ts requestRelayClaim), so `claim` is the sole field.
-// Tags-only content, so it extends DomainObject directly.
-export class RelayInvite extends DomainObject<RelayInviteValues> {
-  readonly kind = RELAY_INVITE
-  values = makeRelayInviteValues()
+// Tags-only content, so it extends EventReader/EventBuilder directly.
+export class RelayInvite extends EventReader {
+  static kind = RELAY_INVITE
 
-  protected normalizeValues(values: Partial<RelayInviteValues> = {}) {
-    return makeRelayInviteValues(values)
-  }
-
-  protected parseEvent(event: TrustedEvent): Partial<RelayInviteValues> {
-    return {
-      claim: getTagValue("claim", event.tags),
-    }
+  protected reservedTagKeys() {
+    return ["claim"]
   }
 
   claim() {
-    return this.values.claim
+    return getTagValue("claim", this.event.tags)
   }
 
-  async toTemplate(): Promise<EventTemplate> {
-    return {
-      kind: this.kind,
-      tags: this.values.claim ? [["claim", this.values.claim]] : [],
-      content: "",
-    }
+  builder() {
+    const builder = new RelayInviteBuilder()
+
+    builder.claim = this.claim()
+
+    return this.seedBuilder(builder)
+  }
+}
+
+export class RelayInviteBuilder extends EventBuilder {
+  static kind = RELAY_INVITE
+
+  claim?: string
+
+  setClaim(claim: string) {
+    this.claim = claim
+
+    return this
+  }
+
+  protected buildTags() {
+    const tags: string[][] = []
+
+    if (this.claim) tags.push(["claim", this.claim])
+
+    return tags
   }
 }
