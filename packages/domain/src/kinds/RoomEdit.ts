@@ -1,11 +1,13 @@
-import {first, spec} from "@welshman/lib"
-import {ROOM_META, getTag, getTagValue} from "@welshman/util"
+import {first} from "@welshman/lib"
+import {ROOM_EDIT_META, getTag, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
 
-// NIP-29 kind-39000 room metadata.
-export class RoomMeta extends EventReader {
-  readonly kind = ROOM_META
+// NIP-29 kind-9002 edit-room-metadata action op. Carries the same metadata as the
+// addressable RoomMeta (kind 39000), but as a regular event scoped to the target
+// room via the "h" group tag rather than a "d" identifier.
+export class RoomEdit extends EventReader {
+  readonly kind = ROOM_EDIT_META
 
   name() {
     return getTagValue("name", this.event.tags)
@@ -26,32 +28,32 @@ export class RoomMeta extends EventReader {
   }
 
   isClosed() {
-    return this.event.tags.some(spec(["closed"]))
+    return this.event.tags.some(t => t[0] === "closed")
   }
 
   isHidden() {
-    return this.event.tags.some(spec(["hidden"]))
+    return this.event.tags.some(t => t[0] === "hidden")
   }
 
   isPrivate() {
-    return this.event.tags.some(spec(["private"]))
+    return this.event.tags.some(t => t[0] === "private")
   }
 
   isRestricted() {
-    return this.event.tags.some(spec(["restricted"]))
+    return this.event.tags.some(t => t[0] === "restricted")
   }
 
-  hasLivekit() {
-    return this.event.tags.some(spec(["livekit"]))
+  livekit() {
+    return this.event.tags.some(t => t[0] === "livekit")
   }
 
   builder() {
-    return new RoomMetaBuilder(this)
+    return new RoomEditBuilder(this)
   }
 }
 
-export class RoomMetaBuilder extends EventBuilder<RoomMeta> {
-  readonly kind = ROOM_META
+export class RoomEditBuilder extends EventBuilder<RoomEdit> {
+  readonly kind = ROOM_EDIT_META
 
   nameTag?: string[]
   aboutTag?: string[]
@@ -62,7 +64,7 @@ export class RoomMetaBuilder extends EventBuilder<RoomMeta> {
   restrictedTag?: string[]
   livekitTag?: string[]
 
-  constructor(readonly reader?: RoomMeta) {
+  constructor(readonly reader?: RoomEdit) {
     super(reader)
 
     this.nameTag = first(this.consumeTags("name"))

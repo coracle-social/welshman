@@ -41,7 +41,7 @@ describe("Classified", () => {
     expect(c.identifier()).toBe("abc")
     expect(c.title()).toBe("Bike")
     expect(c.summary()).toBe("A good bike")
-    expect(c.price()).toEqual({amount: 100, currency: "USD"})
+    expect(c.price()).toEqual({amount: 100, currency: "USD", frequency: ""})
     expect(c.status()).toBe("active")
     expect(c.images()).toEqual(["https://example.com/a.jpg", "https://example.com/b.jpg"])
     expect(c.topics()).toEqual(["cycling"])
@@ -51,7 +51,7 @@ describe("Classified", () => {
   it("defaults the price currency to SAT", async () => {
     const c = await Classified.fromEvent(makeEvent({tags: [["d", "x"], ["price", "50"]]}))
 
-    expect(c.price()).toEqual({amount: 50, currency: "SAT"})
+    expect(c.price()).toEqual({amount: 50, currency: "SAT", frequency: ""})
   })
 
   it("round-trips with no duplicate represented tags", async () => {
@@ -84,8 +84,9 @@ describe("Classified", () => {
     expect(tmpl.content).toBe("for sale")
   })
 
-  it("builds from a fresh builder with an auto-generated d", async () => {
+  it("builds from a fresh builder", async () => {
     const tmpl = await new ClassifiedBuilder()
+      .setIdentifier("listing1")
       .setTitle("Fresh")
       .setContent("desc")
       .setPrice(25)
@@ -94,7 +95,7 @@ describe("Classified", () => {
       .toTemplate(signer)
 
     expect(tmpl.kind).toBe(CLASSIFIED)
-    expect(tmpl.tags.find(t => t[0] === "d")?.[1]).toBeTruthy()
+    expect(tmpl.tags).toContainEqual(["d", "listing1"])
     expect(tmpl.tags).toContainEqual(["title", "Fresh"])
     expect(tmpl.tags).toContainEqual(["price", "25", "SAT"])
     expect(tmpl.tags).toContainEqual(["image", "https://example.com/c.jpg"])

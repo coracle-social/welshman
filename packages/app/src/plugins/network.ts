@@ -1,5 +1,5 @@
 import {chunk, first} from "@welshman/lib"
-import {RelayMode, getRelaysFromList, sortEventsDesc} from "@welshman/util"
+import {sortEventsDesc} from "@welshman/util"
 import type {Filter} from "@welshman/util"
 import {request, publish, diff, pull, push, makeLoader} from "@welshman/net"
 import type {
@@ -44,7 +44,7 @@ export class Network {
 
   loadUsingOutbox = async (pubkey: string, filter: Filter = {}, relayHints: string[] = []) => {
     const filters: Filter[] = [{...filter, authors: [pubkey]}]
-    const writeRelays = getRelaysFromList(await this.app.use(RelayLists).load(pubkey), RelayMode.Write)
+    const writeRelays = (await this.app.use(RelayLists).load(pubkey))?.writeUrls() ?? []
     const allRelays = this.app
       .use(Router)
       .FromRelays([...relayHints, ...writeRelays])

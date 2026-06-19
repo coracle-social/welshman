@@ -1,18 +1,8 @@
-import {
-  SEARCH_RELAYS,
-  asDecryptedEvent,
-  readList,
-  getRelaysFromList,
-  makeList,
-  makeEvent,
-  addToListPublicly,
-  removeFromList,
-} from "@welshman/util"
-import type {TrustedEvent} from "@welshman/util"
+import {SEARCH_RELAYS} from "@welshman/util"
+import {SearchRelayList, SearchRelayListBuilder} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
-import {Router} from "./router.js"
 import {User} from "../user.js"
 import {Thunks} from "./thunk.js"
 import type {IApp} from "../app.js"
@@ -22,12 +12,12 @@ import type {IApp} from "../app.js"
  * outbox model (the author's write relays), so it depends on the relay-list
  * collection.
  */
-export class SearchRelayLists extends DerivedPlugin<ReturnType<typeof readList>> {
+export class SearchRelayLists extends DerivedPlugin<SearchRelayList> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [SEARCH_RELAYS]}],
-      eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
-      getKey: searchRelayList => searchRelayList.event.pubkey,
+      eventToItem: SearchRelayList.factory(app.user?.signer),
+      getKey: list => list.author(),
     })
   }
 
@@ -36,27 +26,22 @@ export class SearchRelayLists extends DerivedPlugin<ReturnType<typeof readList>>
   }
 
   urls = (pubkey: string): Projection<string[]> =>
-    this.project(pubkey, list => getRelaysFromList(list))
+    this.project(pubkey, list => list?.urls() ?? [])
 
-  addRelay = async (url: string) => {
+  update = async (fn: (builder: SearchRelayListBuilder) => void) => {
     const user = User.require(this.app)
-    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: SEARCH_RELAYS})
-    const event = await addToListPublicly(list, ["relay", url]).reconcile(user.nip44EncryptToSelf)
+    const builder = new SearchRelayListBuilder(await this.forceLoad(user.pubkey))
+
+    fn(builder)
+
+    const event = await builder.toTemplate(user.signer)
 
     return this.app.use(Thunks).publishToOutbox({event})
   }
 
-  removeRelay = async (url: string) => {
-    const user = User.require(this.app)
-    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: SEARCH_RELAYS})
-    const event = await removeFromList(list, url).reconcile(user.nip44EncryptToSelf)
+  addUrl = (url: string) => this.update(builder => builder.addUrl(url))
 
-    return this.app.use(Thunks).publishToOutbox({event})
-  }
+  removeUrl = (url: string) => this.update(builder => builder.removeUrl(url))
 
-  setRelays = (urls: string[]) =>
-    this.app.use(Thunks).publish({
-      event: makeEvent(SEARCH_RELAYS, {tags: urls.map(url => ["relay", url])}),
-      relays: this.app.use(Router).FromUser().getUrls(),
-    })
+  setUrls = (urls: string[]) => this.update(builder => builder.setUrls(urls))
 }

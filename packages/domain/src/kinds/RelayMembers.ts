@@ -1,11 +1,9 @@
-import {uniq} from "@welshman/lib"
+import {uniq, nth, nthNe, uniqBy} from "@welshman/lib"
 import {RELAY_MEMBERS, getPubkeyTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
 
-// Flotilla relay-wide (space) member-list snapshot, replaceable kind 13534.
-// Members are stored as "p" tags. Not addressable (no "d" tag); tags-only
-// content, so it extends EventReader/EventBuilder directly.
+// Flotilla kind-13534 relay/space member-list snapshot.
 export class RelayMembers extends EventReader {
   readonly kind = RELAY_MEMBERS
 
@@ -25,27 +23,27 @@ export class RelayMembers extends EventReader {
 export class RelayMembersBuilder extends EventBuilder<RelayMembers> {
   readonly kind = RELAY_MEMBERS
 
-  pubkeys: string[] = []
+  pubkeyTags: string[][] = []
 
   constructor(readonly reader?: RelayMembers) {
     super(reader)
 
-    this.pubkeys = uniq(this.consumeTags("p").map(t => t[1]))
+    this.pubkeyTags = uniqBy(nth(1), this.consumeTags("p"))
   }
 
   addPubkey(pubkey: string) {
-    this.pubkeys = uniq([...this.pubkeys, pubkey])
+    this.pubkeyTags = uniqBy(nth(1), [...this.pubkeyTags, ["p", pubkey]])
 
     return this
   }
 
   removePubkey(pubkey: string) {
-    this.pubkeys = this.pubkeys.filter(pk => pk !== pubkey)
+    this.pubkeyTags = this.pubkeyTags.filter(nthNe(1, pubkey))
 
     return this
   }
 
   protected buildTags() {
-    return this.pubkeys.map(pk => ["p", pk])
+    return this.pubkeyTags
   }
 }

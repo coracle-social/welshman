@@ -46,9 +46,9 @@ describe("SearchRelayList", () => {
 
   it("adds and removes relays via a fresh builder", async () => {
     const tmpl = await new SearchRelayListBuilder()
-      .addRelay(relayA)
-      .addRelay(relayB)
-      .removeRelay(relayA)
+      .addUrl(relayA)
+      .addUrl(relayB)
+      .removeUrl(relayA)
       .toTemplate(signer)
 
     expect(tmpl.kind).toBe(SEARCH_RELAYS)
@@ -58,7 +58,7 @@ describe("SearchRelayList", () => {
 
   it("round-trips public and private relays through encryption", async () => {
     const event = await new SearchRelayListBuilder()
-      .addRelay(relayA)
+      .addUrl(relayA)
       .addPrivate(["relay", relayB])
       .toEvent(signer)
 

@@ -1,17 +1,11 @@
-import {first, randomId, uniq} from "@welshman/lib"
+import {nth, nthNe, uniq, uniqBy} from "@welshman/lib"
 import {ROOM_ADMINS, getPubkeyTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
 
-// NIP-29 kind-39001 relay-generated room admin list. Addressable, with the group
-// id ("h") stored in the "d" tag and admins as "p" tags. Tags-only content.
+// NIP-29 kind-39001 room admins list.
 export class RoomAdmins extends EventReader {
   readonly kind = ROOM_ADMINS
-
-  // The group id is the addressable identifier (the "d" tag).
-  h() {
-    return this.identifier()
-  }
 
   pubkeys() {
     return uniq(getPubkeyTagValues(this.event.tags))
@@ -25,42 +19,27 @@ export class RoomAdmins extends EventReader {
 export class RoomAdminsBuilder extends EventBuilder<RoomAdmins> {
   readonly kind = ROOM_ADMINS
 
-  h = randomId()
-  pubkeys: string[] = []
+  adminTags: string[][] = []
 
   constructor(readonly reader?: RoomAdmins) {
     super(reader)
 
-    // Consume the represented tags out of the carried-over extraTags so they
-    // round-trip through the structured fields below rather than being emitted
-    // twice (once from buildTags, once from the base's extraTags pass-through).
-    const d = first(this.consumeTags("d"))
-
-    this.h = d?.[1] || randomId()
-    this.pubkeys = uniq(this.consumeTags("p").map(t => t[1]))
+    this.adminTags = uniqBy(nth(1), this.consumeTags("p"))
   }
 
-  setH(h: string) {
-    this.h = h
+  addAdmin(pubkey: string) {
+    this.adminTags = uniqBy(nth(1), [...this.adminTags, ["p", pubkey]])
 
     return this
   }
 
-  addPubkey(pubkey: string) {
-    if (!this.pubkeys.includes(pubkey)) {
-      this.pubkeys.push(pubkey)
-    }
+  removeAdmin(pubkey: string) {
+    this.adminTags = this.adminTags.filter(nthNe(1, pubkey))
 
     return this
-  }
-
-  protected validate() {
-    if (!this.h) {
-      throw new Error("RoomAdmins requires an h/d identifier")
-    }
   }
 
   protected buildTags() {
-    return [["d", this.h], ...this.pubkeys.map(pk => ["p", pk])]
+    return this.adminTags
   }
 }

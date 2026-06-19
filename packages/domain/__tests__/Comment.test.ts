@@ -41,12 +41,6 @@ describe("Comment", () => {
     const comment = await Comment.fromEvent(event)
 
     expect(comment.content()).toBe("nice thread")
-    expect(comment.rootId()).toBe(rootId)
-    expect(comment.rootKind()).toBe("11")
-    expect(comment.rootPubkey()).toBe(rootPubkey)
-    expect(comment.parentId()).toBe(parentId)
-    expect(comment.parentKind()).toBe("1111")
-    expect(comment.parentPubkey()).toBe(parentPubkey)
     expect(comment.root()).toEqual({id: rootId, address: undefined, kind: "11", pubkey: rootPubkey})
     expect(comment.parent()).toEqual({
       id: parentId,

@@ -1,14 +1,11 @@
 import {readable, derived} from "svelte/store"
 import {max, throttle, addToMapKey, inc, dec} from "@welshman/lib"
-import {getListTags, getPubkeyTagValues} from "@welshman/util"
-import type {List} from "@welshman/util"
+import type {FollowList, MuteList} from "@welshman/domain"
 import type {IApp} from "../app.js"
 import {projection, projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
 import {FollowLists} from "./follows.js"
 import {MuteLists} from "./mutes.js"
-
-const listPubkeys = (list: List | undefined) => getPubkeyTagValues(getListTags(list))
 
 /**
  * Web-of-trust scoring derived from follow and mute lists. The trust graph is
@@ -32,8 +29,8 @@ export class Wot {
           const $followersByPubkey = new Map<string, Set<string>>()
 
           for (const list of lists.values()) {
-            for (const pubkey of getPubkeyTagValues(getListTags(list))) {
-              addToMapKey($followersByPubkey, pubkey, list.event.pubkey)
+            for (const pubkey of list?.pubkeys() ?? []) {
+              addToMapKey($followersByPubkey, pubkey, list.author())
             }
           }
 
@@ -48,8 +45,8 @@ export class Wot {
           const $mutersByPubkey = new Map<string, Set<string>>()
 
           for (const list of lists.values()) {
-            for (const pubkey of getPubkeyTagValues(getListTags(list))) {
-              addToMapKey($mutersByPubkey, pubkey, list.event.pubkey)
+            for (const pubkey of list?.pubkeys() ?? []) {
+              addToMapKey($mutersByPubkey, pubkey, list.author())
             }
           }
 
@@ -64,14 +61,16 @@ export class Wot {
         const $muteLists = this.app.use(MuteLists).index.get()
         const $pubkey = this.app.user?.pubkey
         const $graph = new Map<string, number>()
-        const roots = $pubkey ? listPubkeys($followLists.get($pubkey)) : Array.from($followLists.keys())
+        const roots = $pubkey
+          ? ($followLists.get($pubkey)?.pubkeys() ?? [])
+          : Array.from($followLists.keys())
 
         for (const follow of roots) {
-          for (const pubkey of listPubkeys($followLists.get(follow))) {
+          for (const pubkey of $followLists.get(follow)?.pubkeys() ?? []) {
             $graph.set(pubkey, inc($graph.get(pubkey)))
           }
 
-          for (const pubkey of listPubkeys($muteLists.get(follow))) {
+          for (const pubkey of $muteLists.get(follow)?.pubkeys() ?? []) {
             $graph.set(pubkey, dec($graph.get(pubkey)))
           }
         }
@@ -96,18 +95,18 @@ export class Wot {
   }
 
   follows = (pubkey: string): Projection<string[]> =>
-    projectFrom(this.app.use(FollowLists).index, $lists => listPubkeys($lists.get(pubkey)))
+    projectFrom(this.app.use(FollowLists).index, $lists => $lists.get(pubkey)?.pubkeys() ?? [])
 
   mutes = (pubkey: string): Projection<string[]> =>
-    projectFrom(this.app.use(MuteLists).index, $lists => listPubkeys($lists.get(pubkey)))
+    projectFrom(this.app.use(MuteLists).index, $lists => $lists.get(pubkey)?.pubkeys() ?? [])
 
   network = (pubkey: string): Projection<string[]> =>
     projectFrom(this.app.use(FollowLists).index, $lists => {
-      const pubkeys = new Set(listPubkeys($lists.get(pubkey)))
+      const pubkeys = new Set($lists.get(pubkey)?.pubkeys() ?? [])
       const network = new Set<string>()
 
       for (const follow of pubkeys) {
-        for (const tpk of listPubkeys($lists.get(follow))) {
+        for (const tpk of $lists.get(follow)?.pubkeys() ?? []) {
           if (!pubkeys.has(tpk)) {
             network.add(tpk)
           }
@@ -125,15 +124,18 @@ export class Wot {
 
   followsWhoFollow = (pubkey: string, target: string): Projection<string[]> =>
     projectFrom(this.app.use(FollowLists).index, $lists =>
-      listPubkeys($lists.get(pubkey)).filter(other =>
-        listPubkeys($lists.get(other)).includes(target),
+      ($lists.get(pubkey)?.pubkeys() ?? []).filter(other =>
+        ($lists.get(other)?.pubkeys() ?? []).includes(target),
       ),
     )
 
   followsWhoMute = (pubkey: string, target: string): Projection<string[]> => {
-    const read = ($follows: ReadonlyMap<string, List>, $mutes: ReadonlyMap<string, List>) =>
-      listPubkeys($follows.get(pubkey)).filter(other =>
-        listPubkeys($mutes.get(other)).includes(target),
+    const read = (
+      $follows: ReadonlyMap<string, FollowList>,
+      $mutes: ReadonlyMap<string, MuteList>,
+    ) =>
+      ($follows.get(pubkey)?.pubkeys() ?? []).filter(other =>
+        ($mutes.get(other)?.pubkeys() ?? []).includes(target),
       )
 
     return projection(
@@ -147,8 +149,8 @@ export class Wot {
 
   wotScore = (pubkey: string, target: string): Projection<number> => {
     const read = (
-      $follows: ReadonlyMap<string, List>,
-      $mutes: ReadonlyMap<string, List>,
+      $follows: ReadonlyMap<string, FollowList>,
+      $mutes: ReadonlyMap<string, MuteList>,
       $followers: ReadonlyMap<string, Set<string>>,
       $muters: ReadonlyMap<string, Set<string>>,
     ) => {
@@ -156,10 +158,10 @@ export class Wot {
       let mutes: string[]
 
       if (pubkey) {
-        const theirFollows = listPubkeys($follows.get(pubkey))
+        const theirFollows = $follows.get(pubkey)?.pubkeys() ?? []
 
-        follows = theirFollows.filter(other => listPubkeys($follows.get(other)).includes(target))
-        mutes = theirFollows.filter(other => listPubkeys($mutes.get(other)).includes(target))
+        follows = theirFollows.filter(other => ($follows.get(other)?.pubkeys() ?? []).includes(target))
+        mutes = theirFollows.filter(other => ($mutes.get(other)?.pubkeys() ?? []).includes(target))
       } else {
         follows = Array.from($followers.get(target) || [])
         mutes = Array.from($muters.get(target) || [])

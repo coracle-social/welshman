@@ -72,7 +72,7 @@ describe("Thread", () => {
     const tmpl = await new ThreadBuilder()
       .setTitle("New thread")
       .setContent("body")
-      .group("room")
+      .setGroup("room")
       .toTemplate(signer)
 
     expect(tmpl.kind).toBe(THREAD)

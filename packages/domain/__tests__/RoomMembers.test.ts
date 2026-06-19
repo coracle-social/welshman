@@ -28,7 +28,7 @@ describe("RoomMembers", () => {
       makeEvent({tags: [["d", "room1"], ["p", a], ["p", b], ["alt", "x"]]}),
     )
 
-    expect(room.h()).toBe("room1")
+    expect(room.identifier()).toBe("room1")
     expect(room.members()).toEqual([a, b])
     expect(room.isMember(a)).toBe(true)
     expect(room.isMember(c)).toBe(false)
@@ -51,13 +51,9 @@ describe("RoomMembers", () => {
     expect(tmpl.tags).toContainEqual(["alt", "x"])
   })
 
-  it("requires an h identifier on a fresh builder", async () => {
-    await expect(new RoomMembersBuilder().addMember(a).toTemplate(signer)).rejects.toThrow()
-  })
-
   it("builds from a fresh builder and edits membership", async () => {
     const builder = new RoomMembersBuilder()
-    builder.h = "room2"
+    builder.setIdentifier("room2")
 
     const tmpl = await builder
       .addMember(a)

@@ -73,9 +73,8 @@ describe("HandlerRecommendation", () => {
 
   it("builds from a fresh builder", async () => {
     const builder = new HandlerRecommendationBuilder()
-    // The d identifier holds the recommended kind; it has no setter, so set it
-    // directly on the public field.
-    builder.identifier = "1"
+    // The d identifier holds the recommended kind.
+    builder.setIdentifier("1")
 
     const tmpl = await builder
       .addRecommendation(webAddress, "wss://relay.one", "web")

@@ -48,38 +48,37 @@ describe("Feed", () => {
         ["title", "My Feed"],
         ["description", "all the things"],
         ["feed", JSON.stringify(definition)],
+        // "alt" is consumed but not re-emitted, so it shouldn't survive.
         ["alt", "My Feed"],
-        // "alt" is a represented/derived tag (mirrors title), so use a distinct
-        // unknown key for the passthrough assertion.
         ["zzz", "x"],
       ],
     })
 
     const tmpl = await (await Feed.fromEvent(event)).builder().toTemplate(signer)
 
-    for (const key of ["d", "title", "description", "feed", "alt"]) {
+    for (const key of ["d", "title", "description", "feed"]) {
       expect(tmpl.tags.filter(t => t[0] === key).length).toBe(1)
     }
     expect(tmpl.tags).toContainEqual(["d", "abc"])
     expect(tmpl.tags).toContainEqual(["title", "My Feed"])
     expect(tmpl.tags).toContainEqual(["feed", JSON.stringify(definition)])
-    // The derived "alt" tag mirrors the title.
-    expect(tmpl.tags).toContainEqual(["alt", "My Feed"])
+    // "alt" is consumed but not re-emitted.
+    expect(tmpl.tags.filter(t => t[0] === "alt")).toHaveLength(0)
     // Unknown passthrough tag survives.
     expect(tmpl.tags).toContainEqual(["zzz", "x"])
   })
 
-  it("builds from a fresh builder with an auto-generated d", async () => {
+  it("builds from a fresh builder", async () => {
     const tmpl = await new FeedBuilder()
+      .setIdentifier("feed1")
       .setTitle("Fresh")
       .setDescription("desc")
       .setDefinition(definition)
       .toTemplate(signer)
 
     expect(tmpl.kind).toBe(FEED)
-    expect(tmpl.tags.find(t => t[0] === "d")?.[1]).toBeTruthy()
+    expect(tmpl.tags).toContainEqual(["d", "feed1"])
     expect(tmpl.tags).toContainEqual(["title", "Fresh"])
-    expect(tmpl.tags).toContainEqual(["alt", "Fresh"])
     expect(tmpl.tags).toContainEqual(["description", "desc"])
     expect(tmpl.tags).toContainEqual(["feed", JSON.stringify(definition)])
   })

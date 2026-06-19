@@ -17,13 +17,10 @@ export type PollResult = {
   voters: number
 }
 
-// NIP-88 kind-1068 poll. The poll title/question lives in `content` as plain
-// text (not JSON), options come from "option" tags, and the response tally is
-// computed from sibling kind-1018 response events passed into `results`.
+// NIP-88 kind-1068 poll.
 export class Poll extends EventReader {
   readonly kind = POLL
 
-  // The poll title/question is plain-text content.
   title() {
     return this.event.content || ""
   }
@@ -31,7 +28,7 @@ export class Poll extends EventReader {
   options(): PollOption[] {
     return this.event.tags
       .filter(t => t[0] === "option")
-      .map(t => ({id: t[1], label: t[2] || t[1]}))
+      .map(([, id, label = id]) => ({id, label}))
   }
 
   pollType(): PollType {
@@ -47,16 +44,13 @@ export class Poll extends EventReader {
   isClosed() {
     const endsAt = this.endsAt()
 
-    return endsAt != null && endsAt <= now()
+    return endsAt !== undefined && endsAt <= now()
   }
 
-  relays() {
+  urls() {
     return getTagValues("relay", this.event.tags)
   }
 
-  // Tally the latest response per pubkey across the poll options. Each response
-  // is a kind-1018 event whose "response" tags name selected option ids;
-  // single-choice polls only honor the first selection.
   results(responses: TrustedEvent[]): PollResult {
     const options = this.options().map(option => ({...option, votes: 0}))
     const counts = new Map(options.map(option => [option.id, option]))
@@ -96,24 +90,19 @@ export class PollBuilder extends EventBuilder<Poll> {
   readonly kind = POLL
 
   title = ""
-  options: PollOption[] = []
-  pollType: PollType = "singlechoice"
-  endsAt?: number
-  relays: string[] = []
+  optionTags: string[][] = []
+  pollTypeTag?: string[]
+  endsAtTag?: string[]
+  urlTags: string[][] = []
 
   constructor(readonly reader?: Poll) {
     super(reader)
 
-    // Consume the represented tags out of the carried-over extraTags so they
-    // round-trip through the structured fields below rather than being emitted
-    // twice (once from buildTags, once from the base's extraTags pass-through).
     this.title = reader?.title() ?? ""
-    this.options = this.consumeTags("option").map(t => ({id: t[1], label: t[2] || t[1]}))
-    this.pollType = (first(this.consumeTags("polltype"))?.[1] as PollType) || "singlechoice"
-    this.endsAt = reader?.endsAt()
-    this.relays = this.consumeTags("relay").map(t => t[1])
-
-    this.consumeTags("endsAt")
+    this.optionTags = this.consumeTags("option")
+    this.pollTypeTag = first(this.consumeTags("polltype"))
+    this.endsAtTag = first(this.consumeTags("endsAt"))
+    this.urlTags = this.consumeTags("relay")
   }
 
   setTitle(title: string) {
@@ -123,31 +112,33 @@ export class PollBuilder extends EventBuilder<Poll> {
   }
 
   addOption(label: string, id = randomId()) {
-    this.options = [...this.options, {id, label}]
+    this.optionTags = [...this.optionTags, ["option", id, label]]
 
     return this
   }
 
   setPollType(pollType: PollType) {
-    this.pollType = pollType
+    this.pollTypeTag = ["polltype", pollType]
 
     return this
   }
 
   setEndsAt(endsAt: number) {
-    this.endsAt = endsAt
+    this.endsAtTag = ["endsAt", String(endsAt)]
 
     return this
   }
 
-  setRelays(relays: string[]) {
-    this.relays = relays
+  setUrls(urls: string[]) {
+    this.urlTags = urls.map(url => ["relay", url])
 
     return this
   }
 
   protected validate() {
-    if (this.options.length === 0) {
+    super.validate()
+
+    if (this.optionTags.length === 0) {
       throw new Error("Poll requires at least one option")
     }
   }
@@ -158,17 +149,13 @@ export class PollBuilder extends EventBuilder<Poll> {
 
   protected buildTags() {
     const tags: string[][] = [
-      ...this.options.map(o => ["option", o.id, o.label]),
-      ["polltype", this.pollType],
+      ...this.optionTags,
+      this.pollTypeTag ?? ["polltype", "singlechoice"],
     ]
 
-    if (this.endsAt != null) {
-      tags.push(["endsAt", String(this.endsAt)])
-    }
+    if (this.endsAtTag) tags.push(this.endsAtTag)
 
-    for (const relay of this.relays) {
-      tags.push(["relay", relay])
-    }
+    tags.push(...this.urlTags)
 
     return tags
   }

@@ -57,7 +57,7 @@ describe("RoomJoin", () => {
 
   it("builds from a fresh builder", async () => {
     const tmpl = await new RoomJoinBuilder()
-      .group("room2")
+      .setGroup("room2")
       .setCode("xyz")
       .setReason("hi there")
       .toTemplate(signer)

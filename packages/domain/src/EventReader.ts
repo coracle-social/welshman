@@ -9,8 +9,30 @@ export abstract class EventReader {
 
   constructor(readonly event: TrustedEvent) {}
 
+  // Returns a reusable, class-bound reader factory over a fixed signer. Unlike a
+  // detached `fromEvent` (which would lose its binding, since it does
+  // `new this(event)`), this is invoked on the class up front, so it's safe
+  // point-free — e.g. `eventToItem: Profile.factory(signer)`. Pass the signer
+  // whenever you have one; the reader decides whether it needs it, so callers
+  // stay decoupled from which kinds carry encrypted content.
+  static factory<T extends EventReader>(this: new (event: TrustedEvent) => T, signer?: ISigner) {
+    const Reader = this
+
+    return async (event: TrustedEvent): Promise<T> => {
+      const reader = new Reader(event)
+
+      if (event.kind !== reader.kind) {
+        throw new Error(`Expected a kind ${reader.kind} event, got kind ${event.kind}`)
+      }
+
+      await reader.parse(signer)
+
+      return reader
+    }
+  }
+
   static async fromEvent<T extends EventReader>(
-    this: (new (event: TrustedEvent) => T),
+    this: new (event: TrustedEvent) => T,
     event: TrustedEvent,
     signer?: ISigner,
   ): Promise<T> {
@@ -31,8 +53,16 @@ export abstract class EventReader {
     return this.event.id
   }
 
-  pubkey() {
+  author() {
     return this.event.pubkey
+  }
+
+  content() {
+    return this.event.content
+  }
+
+  tags() {
+    return this.event.tags
   }
 
   createdAt() {

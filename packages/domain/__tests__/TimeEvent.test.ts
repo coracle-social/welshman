@@ -48,13 +48,6 @@ describe("TimeEvent", () => {
     expect(time.content()).toBe("meetup")
   })
 
-  it("falls back to the legacy name tag for title", async () => {
-    const event = makeEvent({tags: [["name", "Legacy"]]})
-    const time = await TimeEvent.fromEvent(event)
-
-    expect(time.title()).toBe("Legacy")
-  })
-
   it("round-trips with no duplicate represented tags", async () => {
     const event = makeEvent({
       content: "meetup",
@@ -101,15 +94,16 @@ describe("TimeEvent", () => {
     expect(tmpl.tags).not.toContainEqual(["D", "999999"])
   })
 
-  it("builds from a fresh builder with an auto-generated d", async () => {
+  it("builds from a fresh builder", async () => {
     const tmpl = await new TimeEventBuilder()
+      .setIdentifier("event1")
       .setTitle("Fresh")
       .setStart(start)
       .setEnd(end)
       .toTemplate(signer)
 
     expect(tmpl.kind).toBe(EVENT_TIME)
-    expect(tmpl.tags.find(t => t[0] === "d")?.[1]).toBeTruthy()
+    expect(tmpl.tags).toContainEqual(["d", "event1"])
     expect(tmpl.tags).toContainEqual(["title", "Fresh"])
     expect(tmpl.tags).toContainEqual(["start", String(start)])
   })

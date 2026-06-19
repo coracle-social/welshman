@@ -11,6 +11,7 @@ import {
 import type {Maybe} from "@welshman/lib"
 import {getTagValue, getZapSplits, zapFromEvent} from "@welshman/util"
 import type {Zapper, Zap, TrustedEvent} from "@welshman/util"
+import type {Profile} from "@welshman/domain"
 import {deriveDeduplicated, deriveDeduplicatedByValue} from "@welshman/store"
 import {LoadableMapPlugin, projection} from "./base.js"
 import type {Projection} from "./base.js"
@@ -66,14 +67,19 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
   loadForPubkey = async (pubkey: string, relays: string[] = []) => {
     const $profile = await this.app.use(Profiles).load(pubkey, relays)
 
-    return $profile?.lnurl ? this.load($profile.lnurl) : undefined
+    const lnurl = $profile?.lnurl()
+
+    return lnurl ? this.load(lnurl) : undefined
   }
 
   forPubkey = (pubkey: string, relays: string[] = []): Projection<Maybe<Zapper>> => {
     this.loadForPubkey(pubkey, relays)
 
-    const read = ([$zappersByLnurl, $profile]: [ReadonlyMap<string, Zapper>, Maybe<{lnurl?: string}>]) =>
-      $profile?.lnurl ? $zappersByLnurl.get($profile.lnurl) : undefined
+    const read = ([$zappersByLnurl, $profile]: [ReadonlyMap<string, Zapper>, Maybe<Profile>]) => {
+      const lnurl = $profile?.lnurl()
+
+      return lnurl ? $zappersByLnurl.get(lnurl) : undefined
+    }
 
     return projection(
       deriveDeduplicated([this.index.$, this.app.use(Profiles).one(pubkey, relays)], read),
@@ -120,12 +126,12 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
 
     const read = (values: any[]) => {
       const $zappersByLnurl = values[0] as Map<string, Zapper>
-      const $profiles = values.slice(1) as Array<{lnurl?: string} | undefined>
+      const $profiles = values.slice(1) as Array<Profile | undefined>
 
       const zapperByPubkey = new Map<string, Zapper>()
 
       splits.forEach((split, i) => {
-        const lnurl = $profiles[i]?.lnurl
+        const lnurl = $profiles[i]?.lnurl()
         const zapper = lnurl ? $zappersByLnurl.get(lnurl) : undefined
 
         if (zapper) zapperByPubkey.set(split.pubkey, zapper)

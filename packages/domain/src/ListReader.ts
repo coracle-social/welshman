@@ -15,7 +15,7 @@ export abstract class ListReader extends EventReader {
 
     if (!this.event.content) {
       this.decrypted = true
-    } else if (signer) {
+    } else if (signer && (await signer.getPubkey()) === this.event.pubkey) {
       try {
         const plaintext = await decrypt(signer, this.event.pubkey, this.event.content)
 

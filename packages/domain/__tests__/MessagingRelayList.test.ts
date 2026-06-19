@@ -57,7 +57,7 @@ describe("MessagingRelayList", () => {
 
   it("builds from a fresh builder and normalizes urls", async () => {
     const tmpl = await new MessagingRelayListBuilder()
-      .addRelay("wss://inbox.one.example")
+      .addUrl("wss://inbox.one.example")
       .toTemplate(signer)
 
     expect(getTagValues("relay", tmpl.tags)).toEqual([normalizeRelayUrl("wss://inbox.one.example")])
@@ -67,14 +67,14 @@ describe("MessagingRelayList", () => {
     const event = makeEvent({tags: [["relay", r1]]})
     const list = await MessagingRelayList.fromEvent(event)
 
-    const tmpl = await list.builder().setRelays([r2, r3]).toTemplate(signer)
+    const tmpl = await list.builder().setUrls([r2, r3]).toTemplate(signer)
 
     expect(getTagValues("relay", tmpl.tags).sort()).toEqual([r2, r3].sort())
   })
 
   it("round-trips public and private entries through encryption", async () => {
     const event = await new MessagingRelayListBuilder()
-      .addRelay(r1)
+      .addUrl(r1)
       .addPrivate(["relay", r2])
       .toEvent(signer)
 

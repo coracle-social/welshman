@@ -5,14 +5,10 @@ import type {ISigner} from "@welshman/signer"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
 
-// NIP-57 kind-9735 zap receipt. Relay/LN-generated, so it's effectively read-only:
-// we parse the bolt11 invoice and the embedded kind-9734 zap request (carried in
-// the JSON "description" tag, which we expose as `plain`). The builder exists for
-// completeness but is rarely used in practice.
+// NIP-57 kind-9735 zap receipt (relay/LN-generated, read-only).
 export class ZapReceipt extends EventReader {
   readonly kind = ZAP_RECEIPT
 
-  // The embedded kind-9734 zap request, parsed once from the JSON "description" tag.
   plain?: TrustedEvent
 
   protected async parse(signer?: ISigner) {
@@ -25,8 +21,6 @@ export class ZapReceipt extends EventReader {
     return getTagValue("bolt11", this.event.tags)
   }
 
-  // Invoice amount in millisats. getInvoiceAmount throws on a malformed bolt11,
-  // so swallow that and report undefined (matches zapFromEvent's try/catch).
   invoiceAmount() {
     const bolt11 = this.bolt11()
 
@@ -39,12 +33,10 @@ export class ZapReceipt extends EventReader {
     }
   }
 
-  // The embedded kind-9734 zap request.
   request() {
     return this.plain
   }
 
-  // The pubkey that requested the zap.
   sender() {
     return this.plain?.pubkey
   }
@@ -53,12 +45,10 @@ export class ZapReceipt extends EventReader {
     return getTagValue("p", this.event.tags)
   }
 
-  // The zapped event, if any.
   eventId() {
     return getTagValue("e", this.event.tags)
   }
 
-  // The comment the sender attached to the zap request.
   comment() {
     return this.plain?.content
   }
@@ -67,19 +57,15 @@ export class ZapReceipt extends EventReader {
     return getTagValue("preimage", this.event.tags)
   }
 
-  // Port of zapFromEvent's NIP-57 verification (util/src/Zaps.ts). Returns false
-  // unless the receipt is a legitimate, unforged zap from the given zapper.
   verify(zapper: Zapper): boolean {
     const request = this.request()
     const invoiceAmount = this.invoiceAmount()
     const recipient = this.recipient()
 
-    // We need a parsed request and a parsed invoice amount to verify anything.
     if (!request || invoiceAmount === undefined) {
       return false
     }
 
-    // Don't count zaps that the user requested for himself.
     if (request.pubkey === zapper.pubkey) {
       return false
     }
@@ -87,22 +73,18 @@ export class ZapReceipt extends EventReader {
     const amount = getTagValue("amount", request.tags)
     const lnurl = getTagValue("lnurl", request.tags)
 
-    // Verify that the zapper actually sent the requested amount (if supplied).
     if (amount && parseInt(amount) !== invoiceAmount) {
       return false
     }
 
-    // If the recipient and the zapper are the same person, it's legit.
     if (recipient === this.event.pubkey) {
       return true
     }
 
-    // If the sending client provided an lnurl tag, verify that too.
     if (lnurl && lnurl !== zapper.lnurl) {
       return false
     }
 
-    // Verify that the receipt actually came from the recipient's zapper.
     if (this.event.pubkey !== zapper.nostrPubkey) {
       return false
     }
@@ -115,56 +97,51 @@ export class ZapReceipt extends EventReader {
   }
 }
 
-// Write side for a zap receipt. Receipts are normally relay/LN-generated, so this
-// is rarely used; it builds the represented tags from raw draft fields.
 export class ZapReceiptBuilder extends EventBuilder<ZapReceipt> {
   readonly kind = ZAP_RECEIPT
 
-  bolt11?: string
-  description?: string
-  recipient?: string
-  eventId?: string
-  preimage?: string
+  bolt11Tag?: string[]
+  descriptionTag?: string[]
+  recipientTag?: string[]
+  eventIdTag?: string[]
+  preimageTag?: string[]
 
   constructor(readonly reader?: ZapReceipt) {
     super(reader)
 
-    // Consume the represented tags out of the carried-over extraTags so they
-    // round-trip through the structured fields below rather than being emitted
-    // twice (once from buildTags, once from the base's extraTags pass-through).
-    this.bolt11 = first(this.consumeTags("bolt11"))?.[1]
-    this.description = first(this.consumeTags("description"))?.[1]
-    this.recipient = first(this.consumeTags("p"))?.[1]
-    this.eventId = first(this.consumeTags("e"))?.[1]
-    this.preimage = first(this.consumeTags("preimage"))?.[1]
+    this.bolt11Tag = first(this.consumeTags("bolt11"))
+    this.descriptionTag = first(this.consumeTags("description"))
+    this.recipientTag = first(this.consumeTags("p"))
+    this.eventIdTag = first(this.consumeTags("e"))
+    this.preimageTag = first(this.consumeTags("preimage"))
   }
 
   setBolt11(bolt11: string) {
-    this.bolt11 = bolt11
+    this.bolt11Tag = ["bolt11", bolt11]
 
     return this
   }
 
   setDescription(description: string) {
-    this.description = description
+    this.descriptionTag = ["description", description]
 
     return this
   }
 
   setRecipient(recipient: string) {
-    this.recipient = recipient
+    this.recipientTag = ["p", recipient]
 
     return this
   }
 
   setEventId(eventId: string) {
-    this.eventId = eventId
+    this.eventIdTag = ["e", eventId]
 
     return this
   }
 
   setPreimage(preimage: string) {
-    this.preimage = preimage
+    this.preimageTag = ["preimage", preimage]
 
     return this
   }
@@ -172,11 +149,11 @@ export class ZapReceiptBuilder extends EventBuilder<ZapReceipt> {
   protected buildTags() {
     const tags: string[][] = []
 
-    if (this.bolt11) tags.push(["bolt11", this.bolt11])
-    if (this.description) tags.push(["description", this.description])
-    if (this.recipient) tags.push(["p", this.recipient])
-    if (this.eventId) tags.push(["e", this.eventId])
-    if (this.preimage) tags.push(["preimage", this.preimage])
+    if (this.bolt11Tag) tags.push(this.bolt11Tag)
+    if (this.descriptionTag) tags.push(this.descriptionTag)
+    if (this.recipientTag) tags.push(this.recipientTag)
+    if (this.eventIdTag) tags.push(this.eventIdTag)
+    if (this.preimageTag) tags.push(this.preimageTag)
 
     return tags
   }

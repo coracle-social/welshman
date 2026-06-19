@@ -74,15 +74,15 @@ describe("RelaySet", () => {
     expect(tmpl.tags).toContainEqual(["alt", "x"])
   })
 
-  it("auto-generates a d identifier on a fresh builder", async () => {
-    const builder = new RelaySetBuilder()
-
-    expect(builder.identifier).toBeTruthy()
-
-    const tmpl = await builder.setTitle("Fresh").addRelay(relayA).toTemplate(signer)
+  it("builds from a fresh builder", async () => {
+    const tmpl = await new RelaySetBuilder()
+      .setIdentifier("my-set")
+      .setTitle("Fresh")
+      .addUrl(relayA)
+      .toTemplate(signer)
 
     expect(tmpl.kind).toBe(NAMED_RELAYS)
-    expect(tmpl.tags.filter(t => t[0] === "d").length).toBe(1)
+    expect(tmpl.tags).toContainEqual(["d", "my-set"])
     expect(tmpl.tags).toContainEqual(["title", "Fresh"])
     expect(tmpl.tags).toContainEqual(["relay", normalizeRelayUrl(relayA)])
   })
@@ -92,7 +92,7 @@ describe("RelaySet", () => {
       makeEvent({tags: [["d", "my-set"], ["title", "My Set"], ["relay", relayA]]}),
     )
 
-    const tmpl = await reader.builder().setRelays([relayB]).toTemplate(signer)
+    const tmpl = await reader.builder().setUrls([relayB]).toTemplate(signer)
 
     expect(tmpl.tags).toContainEqual(["relay", normalizeRelayUrl(relayB)])
     expect(tmpl.tags.some(t => t[0] === "relay" && t[1] === normalizeRelayUrl(relayA))).toBe(false)

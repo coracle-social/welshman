@@ -35,7 +35,7 @@ describe("RelayLeave", () => {
   })
 
   it("sets the group via a fresh builder", async () => {
-    const tmpl = await new RelayLeaveBuilder().group(group).toTemplate(signer)
+    const tmpl = await new RelayLeaveBuilder().setGroup(group).toTemplate(signer)
 
     expect(tmpl.tags).toContainEqual(["h", group])
   })
