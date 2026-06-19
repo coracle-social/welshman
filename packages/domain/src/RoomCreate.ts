@@ -1,44 +1,22 @@
-import {ROOM_CREATE, getTagValue} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import {DomainObject} from "./base.js"
-
-export type RoomCreateValues = {
-  h: string
-}
-
-export const makeRoomCreateValues = (
-  values: Partial<RoomCreateValues> = {},
-): RoomCreateValues => ({
-  h: "",
-  ...values,
-})
+import {ROOM_CREATE} from "@welshman/util"
+import {EventReader, EventBuilder} from "./base.js"
 
 // NIP-29 kind-9007 create-room action op. A regular (write-primarily) event
-// carrying only the target group id ("h") tag. Tags-only content, so it extends
-// DomainObject directly rather than the encryptable list base.
-export class RoomCreate extends DomainObject<RoomCreateValues> {
-  readonly kind = ROOM_CREATE
-  values = makeRoomCreateValues()
+// carrying only the target group id ("h") tag. The "h" tag is a base behavior
+// tag, so the reader exposes it via the inherited group() accessor and the
+// builder sets it via setGroup — there are no kind-specific represented tags.
+export class RoomCreate extends EventReader {
+  static kind = ROOM_CREATE
 
-  protected normalizeValues(values: Partial<RoomCreateValues> = {}) {
-    return makeRoomCreateValues(values)
+  builder() {
+    return this.seedBuilder(new RoomCreateBuilder())
   }
+}
 
-  protected parseEvent(event: TrustedEvent): Partial<RoomCreateValues> {
-    return {
-      h: getTagValue("h", event.tags) || "",
-    }
-  }
+export class RoomCreateBuilder extends EventBuilder {
+  static kind = ROOM_CREATE
 
-  h() {
-    return this.values.h
-  }
-
-  async toTemplate(): Promise<EventTemplate> {
-    return {
-      kind: this.kind,
-      tags: [["h", this.values.h]],
-      content: "",
-    }
+  protected buildTags() {
+    return []
   }
 }

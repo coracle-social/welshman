@@ -1,87 +1,78 @@
 import {parseJson} from "@welshman/lib"
 import {ZAP_RECEIPT, getTagValue, getInvoiceAmount} from "@welshman/util"
-import type {EventTemplate, TrustedEvent, Zapper} from "@welshman/util"
-import {DomainObject} from "./base.js"
+import type {TrustedEvent, Zapper} from "@welshman/util"
+import {EventReader, EventBuilder} from "./base.js"
 
-export type ZapReceiptValues = {
-  bolt11?: string
-  invoiceAmount?: number
-  request?: TrustedEvent
-  recipient?: string
-  eventId?: string
-  preimage?: string
-}
+// NIP-57 kind-9735 zap receipt. Relay/LN-generated, so it's effectively read-only:
+// we parse the bolt11 invoice and the embedded kind-9734 zap request (carried in
+// the JSON "description" tag, which we expose as `plain`). The builder exists for
+// completeness but is rarely used in practice.
+export class ZapReceipt extends EventReader<TrustedEvent | undefined> {
+  static kind = ZAP_RECEIPT
 
-export const makeZapReceiptValues = (
-  values: Partial<ZapReceiptValues> = {},
-): ZapReceiptValues => ({...values})
+  // The embedded kind-9734 zap request lives in the "description" tag as JSON.
+  protected parsePlain() {
+    const description = getTagValue("description", this.event.tags)
 
-// NIP-57 kind-9735 zap receipt. Relay/LN-generated, so it's read-only in spirit:
-// we parse the bolt11 invoice and the embedded kind-9734 request, and round-trip
-// the source event when serializing.
-export class ZapReceipt extends DomainObject<ZapReceiptValues> {
-  readonly kind = ZAP_RECEIPT
-  values = makeZapReceiptValues()
-
-  protected normalizeValues(values: Partial<ZapReceiptValues> = {}) {
-    return makeZapReceiptValues(values)
+    return description ? parseJson(description) || undefined : undefined
   }
 
-  protected parseEvent(event: TrustedEvent): Partial<ZapReceiptValues> {
-    const bolt11 = getTagValue("bolt11", event.tags)
-    const description = getTagValue("description", event.tags)
-
-    return {
-      bolt11,
-      invoiceAmount: bolt11 ? getInvoiceAmount(bolt11) : undefined,
-      request: description ? parseJson(description) || undefined : undefined,
-      recipient: getTagValue("p", event.tags),
-      eventId: getTagValue("e", event.tags),
-      preimage: getTagValue("preimage", event.tags),
-    }
+  protected reservedTagKeys() {
+    return ["bolt11", "description", "preimage", "p", "e"]
   }
 
   bolt11() {
-    return this.values.bolt11
+    return getTagValue("bolt11", this.event.tags)
   }
 
-  // Invoice amount in millisats.
+  // Invoice amount in millisats. getInvoiceAmount throws on a malformed bolt11,
+  // so swallow that and report undefined (matches zapFromEvent's try/catch).
   invoiceAmount() {
-    return this.values.invoiceAmount
+    const bolt11 = this.bolt11()
+
+    if (!bolt11) return undefined
+
+    try {
+      return getInvoiceAmount(bolt11)
+    } catch {
+      return undefined
+    }
   }
 
   // The embedded kind-9734 zap request.
   request() {
-    return this.values.request
+    return this.plain
   }
 
   // The pubkey that requested the zap.
   sender() {
-    return this.values.request?.pubkey
+    return this.plain?.pubkey
   }
 
   recipient() {
-    return this.values.recipient
+    return getTagValue("p", this.event.tags)
   }
 
   // The zapped event, if any.
   eventId() {
-    return this.values.eventId
+    return getTagValue("e", this.event.tags)
   }
 
   // The comment the sender attached to the zap request.
   comment() {
-    return this.values.request?.content
+    return this.plain?.content
   }
 
   preimage() {
-    return this.values.preimage
+    return getTagValue("preimage", this.event.tags)
   }
 
   // Port of zapFromEvent's NIP-57 verification (util/src/Zaps.ts). Returns false
   // unless the receipt is a legitimate, unforged zap from the given zapper.
-  validate(zapper: Zapper): boolean {
-    const {request, invoiceAmount, recipient} = this.values
+  verify(zapper: Zapper): boolean {
+    const request = this.request()
+    const invoiceAmount = this.invoiceAmount()
+    const recipient = this.recipient()
 
     // We need a parsed request and a parsed invoice amount to verify anything.
     if (!request || invoiceAmount === undefined) {
@@ -102,7 +93,7 @@ export class ZapReceipt extends DomainObject<ZapReceiptValues> {
     }
 
     // If the recipient and the zapper are the same person, it's legit.
-    if (recipient === this.event?.pubkey) {
+    if (recipient === this.event.pubkey) {
       return true
     }
 
@@ -112,19 +103,76 @@ export class ZapReceipt extends DomainObject<ZapReceiptValues> {
     }
 
     // Verify that the receipt actually came from the recipient's zapper.
-    if (this.event?.pubkey !== zapper.nostrPubkey) {
+    if (this.event.pubkey !== zapper.nostrPubkey) {
       return false
     }
 
     return true
   }
 
-  // Receipts are relay/LN-generated; round-trip the source event verbatim.
-  async toTemplate(): Promise<EventTemplate> {
-    return {
-      kind: this.kind,
-      content: this.event?.content || "",
-      tags: this.event?.tags || [],
-    }
+  builder() {
+    const builder = new ZapReceiptBuilder()
+
+    builder.bolt11 = this.bolt11()
+    builder.description = getTagValue("description", this.event.tags)
+    builder.recipient = this.recipient()
+    builder.eventId = this.eventId()
+    builder.preimage = this.preimage()
+
+    return this.seedBuilder(builder)
+  }
+}
+
+// Write side for a zap receipt. Receipts are normally relay/LN-generated, so this
+// is rarely used; it builds the represented tags from raw draft fields.
+export class ZapReceiptBuilder extends EventBuilder<TrustedEvent | undefined> {
+  static kind = ZAP_RECEIPT
+
+  bolt11?: string
+  description?: string
+  recipient?: string
+  eventId?: string
+  preimage?: string
+
+  setBolt11(bolt11: string) {
+    this.bolt11 = bolt11
+
+    return this
+  }
+
+  setDescription(description: string) {
+    this.description = description
+
+    return this
+  }
+
+  setRecipient(recipient: string) {
+    this.recipient = recipient
+
+    return this
+  }
+
+  setEventId(eventId: string) {
+    this.eventId = eventId
+
+    return this
+  }
+
+  setPreimage(preimage: string) {
+    this.preimage = preimage
+
+    return this
+  }
+
+  protected buildTags() {
+    const tags: string[][] = []
+
+    if (this.bolt11) tags.push(["bolt11", this.bolt11])
+    if (this.description) tags.push(["description", this.description])
+    if (this.recipient) tags.push(["p", this.recipient])
+    if (this.eventId) tags.push(["e", this.eventId])
+    if (this.preimage) tags.push(["preimage", this.preimage])
+
+    return tags
   }
 }

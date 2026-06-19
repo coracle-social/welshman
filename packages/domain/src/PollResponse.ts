@@ -1,55 +1,66 @@
 import {uniq} from "@welshman/lib"
 import {POLL_RESPONSE, getTagValue, getTagValues} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import {DomainObject} from "./base.js"
-
-export type PollResponseValues = {
-  pollId: string
-  selections: string[]
-}
-
-export const makePollResponseValues = (
-  values: Partial<PollResponseValues> = {},
-): PollResponseValues => ({
-  pollId: "",
-  selections: [],
-  ...values,
-})
+import {EventReader, EventBuilder} from "./base.js"
 
 // NIP-88 kind-1018 poll vote. Empty content; the target poll is referenced via
 // an "e" tag and each chosen option id lives in its own "response" tag. Tags-only
-// content, so it extends DomainObject directly rather than the encryptable list base.
-export class PollResponse extends DomainObject<PollResponseValues> {
-  readonly kind = POLL_RESPONSE
-  values = makePollResponseValues()
+// content, so it extends EventReader/EventBuilder directly.
+export class PollResponse extends EventReader {
+  static kind = POLL_RESPONSE
 
-  protected normalizeValues(values: Partial<PollResponseValues> = {}) {
-    return makePollResponseValues(values)
+  protected validate() {
+    if (!this.pollId()) {
+      throw new Error("PollResponse requires an e tag")
+    }
   }
 
-  protected parseEvent(event: TrustedEvent): Partial<PollResponseValues> {
-    return {
-      pollId: getTagValue("e", event.tags) || "",
-      selections: getTagValues("response", event.tags),
-    }
+  protected reservedTagKeys() {
+    return ["e", "response"]
   }
 
   pollId() {
-    return this.values.pollId
+    return getTagValue("e", this.event.tags) || ""
   }
 
   selections() {
-    return uniq(this.values.selections)
+    return uniq(getTagValues("response", this.event.tags))
   }
 
-  async toTemplate(): Promise<EventTemplate> {
-    return {
-      kind: this.kind,
-      content: "",
-      tags: [
-        ["e", this.values.pollId],
-        ...this.values.selections.map(id => ["response", id]),
-      ],
+  builder() {
+    const builder = new PollResponseBuilder()
+
+    builder.pollId = this.pollId()
+    builder.selections = this.selections()
+
+    return this.seedBuilder(builder)
+  }
+}
+
+export class PollResponseBuilder extends EventBuilder {
+  static kind = POLL_RESPONSE
+
+  pollId = ""
+  selections: string[] = []
+
+  setPollId(pollId: string) {
+    this.pollId = pollId
+
+    return this
+  }
+
+  addSelection(id: string) {
+    this.selections = uniq([...this.selections, id])
+
+    return this
+  }
+
+  protected validate() {
+    if (!this.pollId) {
+      throw new Error("PollResponse requires a pollId")
     }
+  }
+
+  protected buildTags() {
+    return [["e", this.pollId], ...this.selections.map(id => ["response", id])]
   }
 }

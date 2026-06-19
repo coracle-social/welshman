@@ -1,146 +1,129 @@
 import {ZAP_REQUEST, getTag, getTagValue} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import {DomainObject} from "./base.js"
-
-export type ZapRequestValues = {
-  amount?: number
-  lnurl?: string
-  recipient?: string
-  relays: string[]
-  eventId?: string
-  anonymous: boolean
-  content: string
-}
-
-export const makeZapRequestValues = (
-  values: Partial<ZapRequestValues> = {},
-): ZapRequestValues => ({
-  relays: [],
-  anonymous: false,
-  content: "",
-  ...values,
-})
+import {EventReader, EventBuilder} from "./base.js"
 
 // NIP-57 kind-9734 zap request: zap metadata in tags plus an optional comment in
-// content. `amount` is in millisats.
-export class ZapRequest extends DomainObject<ZapRequestValues> {
-  readonly kind = ZAP_REQUEST
-  values = makeZapRequestValues()
+// content. `amount` is in millisats. Tags-only structured data; the comment lives
+// in the event content.
+export class ZapRequest extends EventReader {
+  static kind = ZAP_REQUEST
 
-  protected normalizeValues(values: Partial<ZapRequestValues> = {}) {
-    return makeZapRequestValues(values)
-  }
-
-  protected parseEvent(event: TrustedEvent): Partial<ZapRequestValues> {
-    const amount = getTagValue("amount", event.tags)
-    const relaysTag = getTag("relays", event.tags)
-
-    return {
-      amount: amount ? parseInt(amount) : undefined,
-      lnurl: getTagValue("lnurl", event.tags),
-      recipient: getTagValue("p", event.tags),
-      relays: relaysTag ? relaysTag.slice(1) : [],
-      eventId: getTagValue("e", event.tags),
-      anonymous: Boolean(event.tags.find(t => t[0] === "anon")),
-      content: event.content,
-    }
+  protected reservedTagKeys() {
+    return ["amount", "lnurl", "p", "e", "relays", "anon"]
   }
 
   amount() {
-    return this.values.amount
-  }
+    const amount = getTagValue("amount", this.event.tags)
 
-  setAmount(amount: number) {
-    this.values.amount = amount
-
-    return this
+    return amount ? parseInt(amount) : undefined
   }
 
   lnurl() {
-    return this.values.lnurl
-  }
-
-  setLnurl(lnurl: string) {
-    this.values.lnurl = lnurl
-
-    return this
+    return getTagValue("lnurl", this.event.tags)
   }
 
   recipient() {
-    return this.values.recipient
-  }
-
-  setRecipient(recipient: string) {
-    this.values.recipient = recipient
-
-    return this
-  }
-
-  relays() {
-    return this.values.relays
-  }
-
-  setRelays(relays: string[]) {
-    this.values.relays = relays
-
-    return this
+    return getTagValue("p", this.event.tags)
   }
 
   eventId() {
-    return this.values.eventId
+    return getTagValue("e", this.event.tags)
   }
 
-  setEventId(eventId: string) {
-    this.values.eventId = eventId
+  relays() {
+    const tag = getTag("relays", this.event.tags)
 
-    return this
+    return tag ? tag.slice(1) : []
   }
 
   isAnonymous() {
-    return this.values.anonymous
-  }
-
-  setAnonymous(anonymous: boolean) {
-    this.values.anonymous = anonymous
-
-    return this
+    return this.event.tags.some(t => t[0] === "anon")
   }
 
   comment() {
-    return this.values.content
+    return this.event.content
   }
 
-  setComment(content: string) {
-    this.values.content = content
+  builder() {
+    const builder = new ZapRequestBuilder()
+
+    builder.amount = this.amount()
+    builder.lnurl = this.lnurl()
+    builder.recipient = this.recipient()
+    builder.eventId = this.eventId()
+    builder.relays = this.relays()
+    builder.anonymous = this.isAnonymous()
+    builder.comment = this.comment()
+
+    return this.seedBuilder(builder)
+  }
+}
+
+export class ZapRequestBuilder extends EventBuilder {
+  static kind = ZAP_REQUEST
+
+  amount?: number
+  lnurl?: string
+  recipient?: string
+  eventId?: string
+  relays: string[] = []
+  anonymous = false
+  comment = ""
+
+  setAmount(amount: number) {
+    this.amount = amount
 
     return this
   }
 
-  async toTemplate(): Promise<EventTemplate> {
-    const {amount, lnurl, recipient, relays, eventId, anonymous, content} = this.values
+  setLnurl(lnurl: string) {
+    this.lnurl = lnurl
 
-    const tags: string[][] = [["relays", ...relays]]
+    return this
+  }
 
-    if (amount !== undefined) {
-      tags.push(["amount", String(amount)])
-    }
+  setRecipient(recipient: string) {
+    this.recipient = recipient
 
-    if (lnurl !== undefined) {
-      tags.push(["lnurl", lnurl])
-    }
+    return this
+  }
 
-    if (recipient !== undefined) {
-      tags.push(["p", recipient])
-    }
+  setEventId(eventId: string) {
+    this.eventId = eventId
 
-    if (eventId) {
-      tags.push(["e", eventId])
-    }
+    return this
+  }
 
-    if (anonymous) {
-      tags.push(["anon"])
-    }
+  setRelays(relays: string[]) {
+    this.relays = relays
 
-    return {kind: this.kind, tags, content}
+    return this
+  }
+
+  setAnonymous(anonymous = true) {
+    this.anonymous = anonymous
+
+    return this
+  }
+
+  setComment(comment: string) {
+    this.comment = comment
+
+    return this
+  }
+
+  protected buildTags() {
+    const tags: string[][] = [["relays", ...this.relays]]
+
+    if (this.amount !== undefined) tags.push(["amount", String(this.amount)])
+    if (this.lnurl !== undefined) tags.push(["lnurl", this.lnurl])
+    if (this.recipient !== undefined) tags.push(["p", this.recipient])
+    if (this.eventId) tags.push(["e", this.eventId])
+    if (this.anonymous) tags.push(["anon"])
+
+    return tags
+  }
+
+  protected buildContent() {
+    return this.comment
   }
 }

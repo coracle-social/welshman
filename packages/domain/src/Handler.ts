@@ -1,97 +1,136 @@
 import {parseJson} from "@welshman/lib"
-import {HANDLER_INFORMATION, getKindTagValues, getTagValue} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
-import {DomainObject} from "./base.js"
+import {HANDLER_INFORMATION, getKindTagValues} from "@welshman/util"
+import {EventReader, EventBuilder} from "./base.js"
 
-export type HandlerValues = {
+// The parsed JSON metadata blob stored in a handler's content. Shaped like a
+// profile; readers map the various aliases (display_name/picture) down to a
+// single canonical accessor.
+export type HandlerMeta = {
   name?: string
   about?: string
   image?: string
   website?: string
   lud16?: string
   nip05?: string
-  kinds: number[]
 }
 
-export const makeHandlerValues = (values: Partial<HandlerValues> = {}): HandlerValues => ({
-  kinds: [],
-  ...values,
-})
-
 // NIP-89 kind-31990 handler information. Addressable (has a `d` tag); content is a
-// JSON metadata blob like a profile. Holds one object with the full set of handled
-// `kinds`, rather than the legacy per-kind fan-out.
-export class Handler extends DomainObject<HandlerValues> {
-  readonly kind = HANDLER_INFORMATION
-  values = makeHandlerValues()
+// JSON metadata blob like a profile, and the handled `kinds` are stored as `k`
+// tags. `plain` is the parsed metadata object.
+export class Handler extends EventReader<HandlerMeta> {
+  static kind = HANDLER_INFORMATION
 
-  protected normalizeValues(values: Partial<HandlerValues> = {}) {
-    return makeHandlerValues(values)
+  protected async parsePlain(): Promise<HandlerMeta> {
+    return parseJson(this.event.content) || {}
   }
 
   protected reservedTagKeys() {
     return ["k"]
   }
 
-  protected parseEvent(event: TrustedEvent): Partial<HandlerValues> {
-    const meta = parseJson(event.content) || {}
-
-    return {
-      name: meta.name || meta.display_name,
-      about: meta.about,
-      image: meta.image || meta.picture,
-      website: meta.website,
-      lud16: meta.lud16,
-      nip05: meta.nip05,
-      kinds: getKindTagValues(event.tags),
-    }
-  }
-
   name() {
-    return this.values.name
+    return this.plain.name || (this.plain as {display_name?: string}).display_name
   }
 
   about() {
-    return this.values.about
+    return this.plain.about
   }
 
   image() {
-    return this.values.image
+    return this.plain.image || (this.plain as {picture?: string}).picture
   }
 
   website() {
-    return this.values.website
+    return this.plain.website
   }
 
   lud16() {
-    return this.values.lud16
+    return this.plain.lud16
   }
 
   nip05() {
-    return this.values.nip05
+    return this.plain.nip05
   }
 
   kinds() {
-    return this.values.kinds
+    return getKindTagValues(this.event.tags)
   }
 
-  identifier() {
-    return getTagValue("d", this.extraTags)
+  builder() {
+    const builder = new HandlerBuilder()
+
+    builder.name = this.name()
+    builder.about = this.about()
+    builder.image = this.image()
+    builder.website = this.website()
+    builder.lud16 = this.lud16()
+    builder.nip05 = this.nip05()
+    builder.kinds = this.kinds()
+
+    return this.seedBuilder(builder)
+  }
+}
+
+export class HandlerBuilder extends EventBuilder<HandlerMeta> {
+  static kind = HANDLER_INFORMATION
+
+  name?: string
+  about?: string
+  image?: string
+  website?: string
+  lud16?: string
+  nip05?: string
+  kinds: number[] = []
+
+  setName(name: string) {
+    this.name = name
+
+    return this
   }
 
-  async toTemplate(): Promise<EventTemplate> {
-    const {name, about, image, website, lud16, nip05} = this.values
+  setAbout(about: string) {
+    this.about = about
 
-    const content = JSON.stringify({name, about, image, website, lud16, nip05})
+    return this
+  }
 
-    // Rebuild `k` tags from values.kinds; everything else carries over via the
-    // base extraTags, appended in addBehaviorTags.
-    const kindTags = this.values.kinds.map(kind => ["k", String(kind)])
+  setImage(image: string) {
+    this.image = image
 
-    return {
-      kind: this.kind,
-      content,
-      tags: kindTags,
-    }
+    return this
+  }
+
+  setWebsite(website: string) {
+    this.website = website
+
+    return this
+  }
+
+  setLud16(lud16: string) {
+    this.lud16 = lud16
+
+    return this
+  }
+
+  setNip05(nip05: string) {
+    this.nip05 = nip05
+
+    return this
+  }
+
+  setKinds(kinds: number[]) {
+    this.kinds = kinds
+
+    return this
+  }
+
+  protected buildContent() {
+    const {name, about, image, website, lud16, nip05} = this
+
+    return JSON.stringify({name, about, image, website, lud16, nip05})
+  }
+
+  protected buildTags() {
+    return this.kinds.map(kind => ["k", String(kind)])
   }
 }

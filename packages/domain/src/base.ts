@@ -1,122 +1,151 @@
-import {stamp, prep, getTagValue} from "@welshman/util"
+import {stamp, prep, getTagValue, getAddress} from "@welshman/util"
 import type {EventTemplate, SignedEvent, HashedEvent, TrustedEvent} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
 
-// The tag keys the base owns as publish-time behavior tags (group/protect/expires).
-const BEHAVIOR_TAG_KEYS = ["h", "-", "expiration"]
+// Tag keys the base owns as publish-time behavior tags (group/protect/expires).
+export const BEHAVIOR_TAG_KEYS = ["h", "-", "expiration"]
 
 /**
- * The base class for domain objects.
+ * Read side of a domain object: a lazy, read-only view over a single nostr event.
  *
- * A domain object is an in-memory, mutable view of a single nostr event whose
- * state lives in a plain `values` property. The pattern is "decrypt on parse,
- * mutate in memory, encrypt on serialize": concrete subclasses decrypt private
- * content up front (in `parse`), expose synchronous accessors and mutators over
- * `values`, and only touch the signer again when building an event.
+ * Construct via the static `fromEvent(event, signer?)`, which validates the kind,
+ * eagerly computes the `plain` representation (decrypting and/or parsing the
+ * event content — the one thing that must happen up front, since it can be
+ * async), runs `validate()` (throws on missing *required* tags, lenient
+ * otherwise) and returns the reader. The event is always present, so identity
+ * accessors (`id`/`identifier`/`address`/…) are total — no optional handling.
  *
- * There are two construction entry points, both of which populate `values` and
- * return `this`:
+ * Everything else is read lazily through methods rather than parsed into fields.
+ * Subclasses:
+ *  - declare `static kind`
+ *  - add domain accessors over `this.event.tags` (and `this.plain`)
+ *  - override `parsePlain` when the event has encrypted/JSON content
+ *  - override `validate` to enforce required tags
+ *  - implement `builder()` to return the matching mutable builder
  *
- *  - `init(values?)` builds a fresh object from raw input
- *  - `parse(event, signer?)` reads (and, when possible, decrypts) an event
- *
- * Subclasses also implement `toTemplate(signer?)` to build (and, when needed,
- * encrypt) the event template; the base provides the signing/wrapping
- * orchestration on top of it.
+ * `plain` is generic: its shape varies per kind (decrypted private tags for
+ * lists, a parsed metadata object for JSON kinds, undefined for tag-only kinds),
+ * so each reader/builder knows what to do with it.
  */
-export abstract class DomainObject<V extends Record<string, unknown>> {
-  abstract readonly kind: number
-  abstract values: V
-  event?: TrustedEvent
+export abstract class EventReader<P = undefined> {
+  // Concrete subclasses declare `static kind = SOME_KIND`.
+  plain!: P
 
-  // Publish-time behavior tags, shared by every kind and applied to the template
-  // at serialization time via addBehaviorTags rather than being baked into each
-  // subclass's content schema. They are read back from the event on parse.
-  group?: string // NIP-29 room scope -> ["h", group]
-  protect = false // NIP-70 protected -> ["-"]
-  expires?: number // NIP-40 expiration -> ["expiration", expires]
+  constructor(readonly event: TrustedEvent) {}
 
-  // Tags not represented by any other domain attribute, carried over verbatim.
-  // Handled the same way as the behavior tags above: parsed in the base (minus
-  // the behavior keys and the subclass's reserved keys) and re-emitted in
-  // addBehaviorTags. Empty unless the subclass opts in via reservedTagKeys().
-  extraTags: string[][] = []
-
-  static init<T extends DomainObject<Record<string, unknown>>>(
-    this: new () => T,
-    values?: Partial<T["values"]>,
-  ): T {
-    return new this().init(values)
-  }
-
-  static parse<T extends DomainObject<Record<string, unknown>>>(
-    this: new () => T,
+  static async fromEvent<T extends EventReader<unknown>>(
+    this: (new (event: TrustedEvent) => T) & {kind: number},
     event: TrustedEvent,
     signer?: ISigner,
   ): Promise<T> {
-    return new this().parse(event, signer)
-  }
-
-  init(values: Partial<V> = {}) {
-    this.values = this.normalizeValues(values)
-
-    return this
-  }
-
-  async parse(event: TrustedEvent, signer?: ISigner) {
     if (event.kind !== this.kind) {
       throw new Error(`Expected a kind ${this.kind} event, got kind ${event.kind}`)
     }
 
-    this.event = event
-    this.group = getTagValue("h", event.tags)
-    this.protect = event.tags.some(t => t[0] === "-")
+    const reader = new this(event)
 
-    const expiration = parseInt(getTagValue("expiration", event.tags) ?? "")
-    this.expires = isNaN(expiration) ? undefined : expiration
+    reader.plain = (await reader.parsePlain(signer)) as T["plain"]
+    reader.validate()
 
-    const reserved = this.reservedTagKeys()
-    this.extraTags =
-      reserved == null
-        ? []
-        : event.tags.filter(t => ![...BEHAVIOR_TAG_KEYS, ...reserved].includes(t[0]))
-
-    this.values = this.normalizeValues(await this.parseEvent(event, signer))
-
-    return this
+    return reader
   }
 
-  protected abstract normalizeValues(values?: Partial<V>): V
-
-  // Tag keys a subclass parses into dedicated attributes (and rebuilds in
-  // toTemplate); the base behavior keys are always reserved too. Return null
-  // (the default) to opt out of extra-tag passthrough — the subclass owns all
-  // of its tags and `extraTags` stays empty.
-  protected reservedTagKeys(): string[] | null {
-    return null
+  // Eagerly compute the `plain` representation (decrypt and/or parse content).
+  // Default: nothing to compute. Runs once in fromEvent.
+  protected async parsePlain(_signer?: ISigner): Promise<P> {
+    return undefined as P
   }
 
-  protected abstract parseEvent(
-    event: TrustedEvent,
-    signer?: ISigner,
-  ): Partial<V> | Promise<Partial<V>>
+  // Throw on missing required tags. Lenient by default — keep "required" narrow.
+  protected validate(): void {}
 
-  abstract toTemplate(signer?: ISigner): Promise<EventTemplate>
-
-  // Append the publish-time behavior tags to a freshly built template, just
-  // before hashing/signing. A tag is skipped when the subclass's toTemplate
-  // already emitted that key, so kinds that own "h" as core content (NIP-29
-  // group events) don't get a duplicate.
-  private addBehaviorTags(template: EventTemplate): EventTemplate {
-    const tags = [...template.tags, ...this.extraTags]
-    const has = (key: string) => tags.some(t => t[0] === key)
-
-    if (this.group && !has("h")) tags.push(["h", this.group])
-    if (this.protect && !has("-")) tags.push(["-"])
-    if (this.expires != null && !has("expiration")) tags.push(["expiration", String(this.expires)])
-
-    return {...template, tags}
+  // Tag keys this kind represents via dedicated accessors; combined with the
+  // behavior keys, these are excluded from extraTags() so a reader -> builder ->
+  // event round-trip doesn't lose or duplicate unknown tags. Default: none.
+  protected reservedTagKeys(): string[] {
+    return []
   }
+
+  // Tags not represented by any accessor, for lossless carry-over into a builder.
+  extraTags(): string[][] {
+    const reserved = [...BEHAVIOR_TAG_KEYS, ...this.reservedTagKeys()]
+
+    return this.event.tags.filter(t => !reserved.includes(t[0]))
+  }
+
+  // Identity accessors — total, since the event is always present.
+  id() {
+    return this.event.id
+  }
+
+  pubkey() {
+    return this.event.pubkey
+  }
+
+  createdAt() {
+    return this.event.created_at
+  }
+
+  identifier() {
+    return getTagValue("d", this.event.tags)
+  }
+
+  address() {
+    return getAddress(this.event)
+  }
+
+  // Behavior-tag accessors.
+  group() {
+    return getTagValue("h", this.event.tags)
+  }
+
+  protect() {
+    return this.event.tags.some(t => t[0] === "-")
+  }
+
+  expires() {
+    const expiration = parseInt(getTagValue("expiration", this.event.tags) ?? "")
+
+    return isNaN(expiration) ? undefined : expiration
+  }
+
+  // Copy the behavior tags + carry-over tags onto a freshly created builder.
+  // Concrete readers call this from builder() after setting kind-specific fields.
+  protected seedBuilder<B extends EventBuilder<P>>(builder: B): B {
+    builder.group = this.group()
+    builder.protect = this.protect()
+    builder.expires = this.expires()
+    builder.extraTags = this.extraTags()
+
+    return builder
+  }
+
+  abstract builder(): EventBuilder<P>
+}
+
+/**
+ * Write side of a domain object: a mutable draft assembled via setters and
+ * emitted via `toTemplate`/`toRumor`/`toEvent`.
+ *
+ * A builder may sit in an invalid/incomplete state for as long as you like;
+ * validation only runs at emit time (`validate()` throws then). Construct a
+ * fresh builder with `new XBuilder()` and required params, or seed one from a
+ * reader via `reader.builder()` to edit a replaceable event.
+ *
+ * Subclasses:
+ *  - declare `static kind`
+ *  - hold draft fields + chainable setters
+ *  - implement `buildTags()` (the represented tags; do NOT emit behavior tags)
+ *  - override `buildContent` for JSON/encrypted content
+ *  - override `validate` to throw on an invalid draft
+ */
+export abstract class EventBuilder<P = undefined> {
+  // Concrete subclasses declare `static kind = SOME_KIND`.
+  group?: string
+  protect = false
+  expires?: number
+  extraTags: string[][] = []
+  plain!: P
 
   setGroup(group: string) {
     this.group = group
@@ -136,25 +165,46 @@ export abstract class DomainObject<V extends Record<string, unknown>> {
     return this
   }
 
+  // The tags built from this kind's own fields. Must NOT include behavior tags
+  // (h/-/expiration) or the carried-over extraTags — the base appends those.
+  // Receives the signer (like buildContent) for kinds that need to encrypt tags.
+  protected abstract buildTags(signer?: ISigner): string[][] | Promise<string[][]>
+
+  // The event content. Override for JSON metadata or encrypted content.
+  protected buildContent(_signer?: ISigner): string | Promise<string> {
+    return ""
+  }
+
+  // Throw on an invalid draft. Runs only at emit time.
+  protected validate(): void {}
+
+  private behaviorTags(): string[][] {
+    const tags: string[][] = []
+
+    if (this.group) tags.push(["h", this.group])
+    if (this.protect) tags.push(["-"])
+    if (this.expires != null) tags.push(["expiration", String(this.expires)])
+
+    return tags
+  }
+
+  async toTemplate(signer?: ISigner): Promise<EventTemplate> {
+    this.validate()
+
+    const kind = (this.constructor as unknown as {kind: number}).kind
+    const content = await this.buildContent(signer)
+    const tags = [...(await this.buildTags(signer)), ...this.extraTags, ...this.behaviorTags()]
+
+    return {kind, content, tags}
+  }
+
   async toRumor(signer: ISigner): Promise<HashedEvent> {
     const [template, pubkey] = await Promise.all([this.toTemplate(signer), signer.getPubkey()])
 
-    return prep(this.addBehaviorTags(template), pubkey)
+    return prep(template, pubkey)
   }
 
   async toEvent(signer: ISigner): Promise<SignedEvent> {
-    const template = this.addBehaviorTags(await this.toTemplate(signer))
-
-    return signer.sign(stamp(template))
-  }
-
-  get<K extends keyof V>(key: K): V[K] {
-    return this.values[key]
-  }
-
-  set<K extends keyof V>(key: K, value: V[K]) {
-    this.values[key] = value
-
-    return this
+    return signer.sign(stamp(await this.toTemplate(signer)))
   }
 }

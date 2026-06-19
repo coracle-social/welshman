@@ -1,13 +1,13 @@
 import {uniq, uniqBy} from "@welshman/lib"
 import {RELAYS, RelayMode, getRelayTags, getRelayTagValues, normalizeRelayUrl} from "@welshman/util"
-import {EncryptableList} from "./List.js"
+import {ListReader, ListBuilder} from "./List.js"
 
 // NIP-65 kind-10002 relay list (the outbox-model routing substrate). Entries are
 // `["r", url, mode?]` tags where `mode` is RelayMode.Read or RelayMode.Write; a
 // missing marker means the relay is used for both read and write. NIP-65 entries
 // are public in practice, so mutations target the public tag set.
-export class RelayList extends EncryptableList {
-  readonly kind = RELAYS
+export class RelayList extends ListReader {
+  static kind = RELAYS
 
   // All relay urls, deduped by normalized url.
   urls() {
@@ -34,26 +34,56 @@ export class RelayList extends EncryptableList {
     )
   }
 
+  builder() {
+    return this.seedList(new RelayListBuilder())
+  }
+}
+
+export class RelayListBuilder extends ListBuilder {
+  static kind = RELAYS
+
+  // Relays usable for reading: includes modeless (both) entries.
+  readUrls() {
+    return uniqBy(
+      normalizeRelayUrl,
+      getRelayTags(this.publicTags)
+        .filter(t => !t[2] || t[2] === RelayMode.Read)
+        .map(t => t[1]),
+    )
+  }
+
+  // Relays usable for writing: includes modeless (both) entries.
+  writeUrls() {
+    return uniqBy(
+      normalizeRelayUrl,
+      getRelayTags(this.publicTags)
+        .filter(t => !t[2] || t[2] === RelayMode.Write)
+        .map(t => t[1]),
+    )
+  }
+
   // Upsert a relay for a given mode. If an existing entry already covered the
   // complementary mode (or was modeless), collapse to a modeless ["r", url] tag;
   // otherwise store ["r", url, mode].
   addRelay(url: string, mode: RelayMode) {
     const normalized = normalizeRelayUrl(url)
-    const existing = getRelayTags(this.values.publicTags).filter(
+    const existing = getRelayTags(this.publicTags).filter(
       t => normalizeRelayUrl(t[1]) === normalized,
     )
 
     // Modes already covered by existing entries (undefined marker = both).
-    const priorModes = new Set<RelayMode | undefined>(existing.map(t => t[2] as RelayMode | undefined))
+    const priorModes = new Set<RelayMode | undefined>(
+      existing.map(t => t[2] as RelayMode | undefined),
+    )
 
     const alt = mode === RelayMode.Read ? RelayMode.Write : RelayMode.Read
     const coversAlt = priorModes.has(undefined) || priorModes.has(alt)
 
-    this.values.publicTags = this.values.publicTags.filter(
+    this.publicTags = this.publicTags.filter(
       t => !(t[0] === "r" && normalizeRelayUrl(t[1]) === normalized),
     )
 
-    this.values.publicTags.push(coversAlt ? ["r", url] : ["r", url, mode])
+    this.publicTags.push(coversAlt ? ["r", url] : ["r", url, mode])
 
     return this
   }
@@ -63,7 +93,7 @@ export class RelayList extends EncryptableList {
   // covered `mode` is fully removed.
   removeRelay(url: string, mode: RelayMode) {
     const normalized = normalizeRelayUrl(url)
-    const existing = getRelayTags(this.values.publicTags).filter(
+    const existing = getRelayTags(this.publicTags).filter(
       t => normalizeRelayUrl(t[1]) === normalized,
     )
 
@@ -72,12 +102,12 @@ export class RelayList extends EncryptableList {
     // Keep the alternate if any existing entry was modeless/both or the alt mode.
     const keepAlt = existing.some(t => !t[2] || t[2] === alt)
 
-    this.values.publicTags = this.values.publicTags.filter(
+    this.publicTags = this.publicTags.filter(
       t => !(t[0] === "r" && normalizeRelayUrl(t[1]) === normalized),
     )
 
     if (keepAlt) {
-      this.values.publicTags.push(["r", url, alt])
+      this.publicTags.push(["r", url, alt])
     }
 
     return this
@@ -101,7 +131,7 @@ export class RelayList extends EncryptableList {
   private setRelaysForModes(readUrls: string[], writeUrls: string[]) {
     const read = new Set(readUrls.map(normalizeRelayUrl))
     const write = new Set(writeUrls.map(normalizeRelayUrl))
-    const otherTags = this.values.publicTags.filter(t => t[0] !== "r")
+    const otherTags = this.publicTags.filter(t => t[0] !== "r")
     const relayTags = uniq([...read, ...write]).map(url =>
       read.has(url) && write.has(url)
         ? ["r", url]
@@ -110,14 +140,14 @@ export class RelayList extends EncryptableList {
           : ["r", url, RelayMode.Write],
     )
 
-    this.values.publicTags = [...otherTags, ...relayTags]
+    this.publicTags = [...otherTags, ...relayTags]
 
     return this
   }
 
   // Replace the entire public tag set.
   setRelays(tags: string[][]) {
-    this.values.publicTags = tags
+    this.publicTags = tags
 
     return this
   }

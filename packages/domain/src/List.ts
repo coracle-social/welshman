@@ -1,34 +1,27 @@
 import {nthEq, parseJson} from "@welshman/lib"
 import {uniqTags} from "@welshman/util"
-import type {EventTemplate, TrustedEvent} from "@welshman/util"
+import type {TrustedEvent} from "@welshman/util"
 import {decrypt} from "@welshman/signer"
 import type {ISigner} from "@welshman/signer"
-import {DomainObject} from "./base.js"
+import {EventReader, EventBuilder} from "./base.js"
 
 const isValidTag = (tag: unknown): tag is string[] =>
   Array.isArray(tag) && tag.length > 0 && tag.every(v => typeof v === "string")
 
-export type ListValues = {
-  publicTags: string[][]
+// The decrypted `plain` payload shared by every NIP-51 list. `decrypted` is false
+// when there was ciphertext we couldn't read (no signer / decryption failed), so
+// the private entries are unknown and must be left untouched.
+export type ListPlain = {
   privateTags: string[][]
-  // True when `privateTags` reflects decrypted content; false when we hold
-  // ciphertext we couldn't read (so private entries are unknown).
   decrypted: boolean
 }
-
-export const makeListValues = (values: Partial<ListValues> = {}): ListValues => ({
-  publicTags: [],
-  privateTags: [],
-  decrypted: true,
-  ...values,
-})
 
 // Decrypt the private tags in an event's content. Returns decrypted: false when
 // there's content but no signer, or decryption fails.
 export const decryptListContent = async (
   event: TrustedEvent,
   signer?: ISigner,
-): Promise<Pick<ListValues, "privateTags" | "decrypted">> => {
+): Promise<ListPlain> => {
   if (!event.content) return {privateTags: [], decrypted: true}
 
   if (!signer) return {privateTags: [], decrypted: false}
@@ -43,46 +36,79 @@ export const decryptListContent = async (
   }
 }
 
-// Base for NIP-51 lists: public entries in tags, private entries as an encrypted
-// JSON array in content. Subclasses fix the kind and add domain accessors.
-export abstract class EncryptableList extends DomainObject<ListValues> {
-  values = makeListValues()
-
-  protected normalizeValues(values: Partial<ListValues> = {}) {
-    return makeListValues(values)
+// Read side for NIP-51 lists: public entries in tags, private entries decrypted
+// from content into `plain`. Subclasses declare the kind and add domain accessors
+// over `tags()`.
+export abstract class ListReader extends EventReader<ListPlain> {
+  protected parsePlain(signer?: ISigner) {
+    return decryptListContent(this.event, signer)
   }
 
-  protected async parseEvent(event: TrustedEvent, signer?: ISigner): Promise<Partial<ListValues>> {
-    const {privateTags, decrypted} = await decryptListContent(event, signer)
+  publicTags() {
+    return this.event.tags
+  }
 
-    return {publicTags: event.tags, privateTags, decrypted}
+  privateTags() {
+    return this.plain.privateTags
+  }
+
+  decrypted() {
+    return this.plain.decrypted
   }
 
   tags() {
-    return [...this.values.publicTags, ...this.values.privateTags]
+    return [...this.event.tags, ...this.plain.privateTags]
+  }
+
+  // Seed a list builder from this reader: public tags, decrypted private tags,
+  // the original ciphertext (for the undecrypted case) and the behavior tags.
+  protected seedList<B extends ListBuilder>(builder: B): B {
+    builder.publicTags = [...this.event.tags]
+    builder.plain = {privateTags: [...this.plain.privateTags], decrypted: this.plain.decrypted}
+    builder.originalContent = this.event.content
+    builder.group = this.group()
+    builder.protect = this.protect()
+    builder.expires = this.expires()
+
+    return builder
+  }
+
+  abstract builder(): ListBuilder
+}
+
+// Write side for NIP-51 lists: mutate public/private tag sets, re-encrypt the
+// private set into content on emit.
+export abstract class ListBuilder extends EventBuilder<ListPlain> {
+  publicTags: string[][] = []
+  plain: ListPlain = {privateTags: [], decrypted: true}
+  // Preserved ciphertext when the source list was never decrypted.
+  originalContent?: string
+
+  tags() {
+    return [...this.publicTags, ...this.plain.privateTags]
   }
 
   addPublicTags(...tags: string[][]) {
-    this.values.publicTags = uniqTags([...this.values.publicTags, ...tags])
+    this.publicTags = uniqTags([...this.publicTags, ...tags])
 
     return this
   }
 
   addPrivateTags(...tags: string[][]) {
-    if (!this.values.decrypted) {
+    if (!this.plain.decrypted) {
       throw new Error("Cannot modify the private entries of a list that has not been decrypted")
     }
 
-    this.values.privateTags = uniqTags([...this.values.privateTags, ...tags])
+    this.plain.privateTags = uniqTags([...this.plain.privateTags, ...tags])
 
     return this
   }
 
   keepTags(pred: (tag: string[]) => boolean) {
-    this.values.publicTags = this.values.publicTags.filter(t => pred(t))
+    this.publicTags = this.publicTags.filter(t => pred(t))
 
-    if (this.values.decrypted) {
-      this.values.privateTags = this.values.privateTags.filter(t => pred(t))
+    if (this.plain.decrypted) {
+      this.plain.privateTags = this.plain.privateTags.filter(t => pred(t))
     }
 
     return this
@@ -97,10 +123,10 @@ export abstract class EncryptableList extends DomainObject<ListValues> {
   }
 
   removeTags(pred: (tag: string[]) => boolean) {
-    this.values.publicTags = this.values.publicTags.filter(t => !pred(t))
+    this.publicTags = this.publicTags.filter(t => !pred(t))
 
-    if (this.values.decrypted) {
-      this.values.privateTags = this.values.privateTags.filter(t => !pred(t))
+    if (this.plain.decrypted) {
+      this.plain.privateTags = this.plain.privateTags.filter(t => !pred(t))
     }
 
     return this
@@ -115,54 +141,47 @@ export abstract class EncryptableList extends DomainObject<ListValues> {
   }
 
   clearPublicTags() {
-    this.values.publicTags = []
+    this.publicTags = []
 
     return this
   }
 
   clearPrivateTags() {
-    if (!this.values.decrypted) {
+    if (!this.plain.decrypted) {
       throw new Error("Cannot modify the private entries of a list that has not been decrypted")
     }
 
-    this.values.privateTags = []
+    this.plain.privateTags = []
 
     return this
   }
 
-  // Remove every entry. Public tags always; private tags only when decrypted
-  // (an undecrypted list's ciphertext is preserved by toTemplate), mirroring how
-  // removeTags/keepTags leave undecrypted private entries untouched.
   clearTags() {
-    this.values.publicTags = []
+    this.publicTags = []
 
-    if (this.values.decrypted) {
-      this.values.privateTags = []
+    if (this.plain.decrypted) {
+      this.plain.privateTags = []
     }
 
     return this
   }
 
-  async toTemplate(signer?: ISigner): Promise<EventTemplate> {
-    const tags = this.values.publicTags
+  protected buildTags() {
+    return this.publicTags
+  }
 
+  protected async buildContent(signer?: ISigner): Promise<string> {
     // Preserve the original ciphertext when we never decrypted it.
-    let content = this.event?.content || ""
+    if (!this.plain.decrypted) return this.originalContent || ""
 
-    if (this.values.decrypted) {
-      if (this.values.privateTags.length === 0) {
-        content = ""
-      } else {
-        if (!signer) {
-          throw new Error("A signer is required to encrypt the private entries of a list")
-        }
+    if (this.plain.privateTags.length === 0) return ""
 
-        const pubkey = await signer.getPubkey()
-
-        content = await signer.nip44.encrypt(pubkey, JSON.stringify(this.values.privateTags))
-      }
+    if (!signer) {
+      throw new Error("A signer is required to encrypt the private entries of a list")
     }
 
-    return {kind: this.kind, tags, content}
+    const pubkey = await signer.getPubkey()
+
+    return signer.nip44.encrypt(pubkey, JSON.stringify(this.plain.privateTags))
   }
 }
