@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, PROFILE, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {Profile, displayPubkey} from "../src/Profile"
+import {Profile, displayPubkey} from "../src/kinds/Profile"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -26,13 +26,13 @@ describe("Profile", () => {
       tags: [["alt", "profile"]],
     })
 
-    const profile = await Profile.parse(event)
+    const profile = await Profile.fromEvent(event)
 
     expect(profile.values.name).toBe("alice")
-    expect(profile.hasName()).toBe(true)
+    expect(profile.name()).toBe("alice")
     expect(profile.display()).toBe("alice")
 
-    const signed = await profile.toEvent(signer)
+    const signed = await profile.builder().toEvent(signer)
 
     expect(signed.kind).toBe(PROFILE)
     expect(JSON.parse(signed.content).name).toBe("alice")
@@ -40,28 +40,31 @@ describe("Profile", () => {
     expect(signed.tags).toEqual([["alt", "profile"]])
   })
 
-  it("derives lnurl from a lud16 address", () => {
-    const profile = Profile.init({lud16: "alice@example.com"})
+  it("derives lnurl from a lud16 address", async () => {
+    const profile = await Profile.fromEvent(
+      makeEvent({content: JSON.stringify({lud16: "alice@example.com"})}),
+    )
 
-    expect(profile.values.lnurl).toBeTruthy()
+    expect(profile.lnurl()).toBeTruthy()
   })
 
-  it("gets and sets values by key", () => {
-    const profile = Profile.init({name: "alice"})
+  it("seeds the builder from the reader and edits values", async () => {
+    const profile = await Profile.fromEvent(makeEvent({content: JSON.stringify({name: "alice"})}))
 
-    profile.set("about", "hello")
+    const event = await profile.builder().about("hello").toEvent(signer)
+    const updated = await Profile.fromEvent(event)
 
-    expect(profile.get("name")).toBe("alice")
-    expect(profile.get("about")).toBe("hello")
+    expect(updated.name()).toBe("alice")
+    expect(updated.about()).toBe("hello")
   })
 
   it("display falls back to a shortened npub", async () => {
-    const profile = await Profile.parse(makeEvent({content: "{}"}))
+    const profile = await Profile.fromEvent(makeEvent({content: "{}"}))
 
     expect(profile.display()).toBe(displayPubkey(pubkey))
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Profile.parse(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(Profile.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })
