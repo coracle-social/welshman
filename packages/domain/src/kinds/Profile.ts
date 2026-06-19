@@ -24,9 +24,7 @@ export const displayPubkey = (pubkey: string) => {
   return d.slice(0, 8) + "…" + d.slice(-5)
 }
 
-// Read side for a NIP-01 kind-0 profile. The metadata lives in the JSON content,
-// parsed once into `values` (with `lnurl` derived from lud06/lud16). Accessors
-// read `this.values`; there are no represented tags.
+// NIP-01 kind-0 profile metadata.
 export class Profile extends EventReader {
   readonly kind = PROFILE
   readonly values: Record<string, any> = {}
@@ -40,7 +38,11 @@ export class Profile extends EventReader {
   }
 
   name(): Maybe<string> {
-    return this.values.name || this.values.display_name
+    return this.values.name
+  }
+
+  displayName(): Maybe<string> {
+    return this.values.display_name
   }
 
   nip05(): Maybe<string> {
@@ -72,6 +74,10 @@ export class Profile extends EventReader {
 
     if (name) return ellipsize(name, 60).trim()
 
+    const displayName= this.displayName()
+
+    if (displayName) return ellipsize(displayName, 60).trim()
+
     return displayPubkey(this.event.pubkey).trim() || fallback.trim()
   }
 
@@ -89,37 +95,49 @@ export class ProfileBuilder extends EventBuilder<Profile> {
     this.values = {...(reader?.values ?? {})}
   }
 
-  name(name: string) {
+  update(values: Record<string, any>) {
+    Object.assign(this.values, values)
+
+    return this
+  }
+
+  setName(name: string) {
     this.values.name = name
 
     return this
   }
 
-  nip05(nip05: string) {
+  setDisplayName(displayName: string) {
+    this.values.displayName = displayName
+
+    return this
+  }
+
+  setNip05(nip05: string) {
     this.values.nip05 = nip05
 
     return this
   }
 
-  about(about: string) {
+  setAbout(about: string) {
     this.values.about = about
 
     return this
   }
 
-  banner(banner: string) {
+  setBanner(banner: string) {
     this.values.banner = banner
 
     return this
   }
 
-  picture(picture: string) {
+  setPicture(picture: string) {
     this.values.picture = picture
 
     return this
   }
 
-  website(website: string) {
+  setWebsite(website: string) {
     this.values.website = website
 
     return this

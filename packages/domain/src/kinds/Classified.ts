@@ -1,4 +1,4 @@
-import {first, randomId} from "@welshman/lib"
+import {first} from "@welshman/lib"
 import {CLASSIFIED, getTag, getTagValue, getTagValues, getTopicTagValues} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
 import {EventReader} from "../EventReader.js"
@@ -7,14 +7,18 @@ import {EventBuilder} from "../EventBuilder.js"
 export type ClassifiedPrice = {
   amount: number
   currency: string
+  frequency: string
 }
 
-// NIP-99 kind-30402 addressable classified listing. Addressable via the "d" tag;
-// the listing description lives in `content` as plain text (not JSON). The price
-// is carried in a ["price", amount, currency] tag with the currency defaulting to
-// "SAT", images in repeated "image" tags, and topics in "t" tags; room scoping is
-// handled by the base `group` behavior tag. Plain-text content, so it extends
-// EventReader/EventBuilder directly.
+const parsePrice = ([, amount = "0", currency = "SAT", frequency = ""]: string[]): ClassifiedPrice | undefined => {
+  const value = parseFloat(amount)
+
+  if (!isNaN(value)) {
+    return {amount: value, currency, frequency}
+  }
+}
+
+// NIP-99 kind-30402 classified listing.
 export class Classified extends EventReader {
   readonly kind = CLASSIFIED
 
@@ -26,14 +30,12 @@ export class Classified extends EventReader {
     return getTagValue("summary", this.event.tags)
   }
 
-  content() {
-    return this.event.content
-  }
-
   price(): ClassifiedPrice | undefined {
     const tag = getTag("price", this.event.tags)
 
-    return tag ? {amount: parseFloat(tag[1]) || 0, currency: tag[2] || "SAT"} : undefined
+    if (tag) {
+      return parsePrice(tag)
+    }
   }
 
   status() {
@@ -56,101 +58,70 @@ export class Classified extends EventReader {
 export class ClassifiedBuilder extends EventBuilder<Classified> {
   readonly kind = CLASSIFIED
 
-  identifier = randomId()
-  title?: string
-  summary?: string
-  content = ""
-  price?: ClassifiedPrice
-  status?: string
-  images: string[] = []
-  topics: string[] = []
+  titleTag?: string[]
+  summaryTag?: string[]
+  priceTag?: string[]
+  statusTag?: string[]
+  imageTags: string[][] = []
+  topicTags: string[][] = []
 
   constructor(readonly reader?: Classified) {
     super(reader)
 
-    // Consume the represented tags out of the carried-over extraTags so they
-    // round-trip through the structured fields below rather than being emitted
-    // twice (once from buildTags, once from the base's extraTags pass-through).
-    const d = first(this.consumeTags("d"))
-    const price = first(this.consumeTags("price"))
-
-    this.identifier = d?.[1] || randomId()
-    this.title = first(this.consumeTags("title"))?.[1]
-    this.summary = first(this.consumeTags("summary"))?.[1]
-    this.content = reader?.event.content ?? ""
-    this.price = price ? {amount: parseFloat(price[1]) || 0, currency: price[2] || "SAT"} : undefined
-    this.status = first(this.consumeTags("status"))?.[1]
-    this.images = this.consumeTags("image").map(t => t[1])
-    this.topics = this.consumeTags("t").map(t => t[1])
+    this.titleTag = first(this.consumeTags("title"))
+    this.summaryTag = first(this.consumeTags("summary"))
+    this.priceTag = first(this.consumeTags("price"))
+    this.statusTag = first(this.consumeTags("status"))
+    this.imageTags = this.consumeTags("image")
+    this.topicTags = this.consumeTags("t")
   }
 
   setTitle(title: string) {
-    this.title = title
+    this.titleTag = ["title", title]
 
     return this
   }
 
   setSummary(summary: string) {
-    this.summary = summary
+    this.summaryTag = ["summary", summary]
 
     return this
   }
 
-  setContent(content: string) {
-    this.content = content
-
-    return this
-  }
-
-  setPrice(amount: number, currency = "SAT") {
-    this.price = {amount, currency}
+  setPrice(amount: number, currency = "SAT", frequency = "") {
+    this.priceTag = ["price", String(amount), currency, ...(frequency ? [frequency] : [])]
 
     return this
   }
 
   setStatus(status: string) {
-    this.status = status
+    this.statusTag = ["status", status]
 
     return this
   }
 
   setImages(images: string[]) {
-    this.images = images
+    this.imageTags = images.map(image => ["image", image])
 
     return this
   }
 
   setTopics(topics: string[]) {
-    this.topics = topics
+    this.topicTags = topics.map(topic => ["t", topic])
 
     return this
   }
 
-  protected validate() {
-    if (!this.identifier) {
-      throw new Error("Classified requires a d identifier")
-    }
-  }
-
-  protected buildContent(_signer?: ISigner) {
-    return this.content
-  }
-
   protected buildTags() {
-    const tags: string[][] = [["d", this.identifier]]
+    const tags: string[][] = []
 
-    if (this.title) tags.push(["title", this.title])
-    if (this.summary) tags.push(["summary", this.summary])
-    if (this.price) tags.push(["price", String(this.price.amount), this.price.currency])
-    if (this.status) tags.push(["status", this.status])
+    if (this.titleTag) tags.push(this.titleTag)
+    if (this.summaryTag) tags.push(this.summaryTag)
+    if (this.priceTag) tags.push(this.priceTag)
+    if (this.statusTag) tags.push(this.statusTag)
 
-    for (const topic of this.topics) {
-      tags.push(["t", topic])
-    }
-
-    for (const image of this.images) {
-      tags.push(["image", image])
-    }
+    tags.push(...this.topicTags)
+    tags.push(...this.imageTags)
 
     return tags
   }

@@ -51,7 +51,7 @@ describe("Profile", () => {
   it("seeds the builder from the reader and edits values", async () => {
     const profile = await Profile.fromEvent(makeEvent({content: JSON.stringify({name: "alice"})}))
 
-    const event = await profile.builder().about("hello").toEvent(signer)
+    const event = await profile.builder().setAbout("hello").toEvent(signer)
     const updated = await Profile.fromEvent(event)
 
     expect(updated.name()).toBe("alice")

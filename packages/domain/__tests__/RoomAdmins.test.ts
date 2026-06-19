@@ -27,7 +27,6 @@ describe("RoomAdmins", () => {
       makeEvent({tags: [["d", "room1"], ["p", a], ["p", b], ["alt", "x"]]}),
     )
 
-    expect(room.h()).toBe("room1")
     expect(room.identifier()).toBe("room1")
     expect(room.pubkeys()).toEqual([a, b])
   })
@@ -51,10 +50,10 @@ describe("RoomAdmins", () => {
 
   it("builds from a fresh builder", async () => {
     const tmpl = await new RoomAdminsBuilder()
-      .setH("room2")
-      .addPubkey(a)
-      .addPubkey(a) // dedup
-      .addPubkey(b)
+      .setIdentifier("room2")
+      .addAdmin(a)
+      .addAdmin(a) // dedup
+      .addAdmin(b)
       .toTemplate(signer)
 
     expect(tmpl.tags).toContainEqual(["d", "room2"])

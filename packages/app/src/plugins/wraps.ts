@@ -1,6 +1,6 @@
 import {get, writable} from "svelte/store"
 import {TaskQueue, uniq, now} from "@welshman/lib"
-import {getPubkeyTagValues, getRelaysFromList, prep} from "@welshman/util"
+import {getPubkeyTagValues, prep} from "@welshman/util"
 import type {TrustedEvent, SignedEvent, EventTemplate} from "@welshman/util"
 import {Nip59} from "@welshman/signer"
 import {MergedThunk, Thunks} from "./thunk.js"
@@ -70,7 +70,7 @@ export class Wraps {
     return new MergedThunk(
       await Promise.all(
         uniq(recipients).map(async recipient => {
-          const relays = getRelaysFromList(await this.app.use(MessagingRelayLists).load(recipient))
+          const relays = (await this.app.use(MessagingRelayLists).load(recipient))?.urls() ?? []
 
           return this.app.use(Thunks).publish({event: stableEvent, relays, recipient, ...options})
         }),

@@ -1,16 +1,29 @@
 import {
-  makeRoomCreateEvent,
-  makeRoomDeleteEvent,
-  makeRoomEditEvent,
-  makeRoomJoinEvent,
-  makeRoomLeaveEvent,
-  makeRoomAddMemberEvent,
-  makeRoomRemoveMemberEvent,
-} from "@welshman/util"
-import type {RoomMeta} from "@welshman/util"
+  RoomCreateBuilder,
+  RoomDeleteBuilder,
+  RoomEditBuilder,
+  RoomJoinBuilder,
+  RoomLeaveBuilder,
+  RoomAddMemberBuilder,
+  RoomRemoveMemberBuilder,
+} from "@welshman/domain"
 import {Thunks} from "./thunk.js"
 import type {ThunkOptions} from "./thunk.js"
 import type {IApp} from "../app.js"
+
+// Room metadata used when publishing NIP-29 room events. `h` is the group id.
+export type RoomMeta = {
+  h: string
+  name?: string
+  about?: string
+  picture?: string
+  pictureMeta?: string[]
+  isClosed?: boolean
+  isHidden?: boolean
+  isPrivate?: boolean
+  isRestricted?: boolean
+  livekit?: boolean
+}
 
 /**
  * NIP-29 relay-based group (room) management. Each method publishes the relevant
@@ -22,19 +35,41 @@ export class Rooms {
   private publish = (url: string, event: ThunkOptions["event"]) =>
     this.app.use(Thunks).publish({event, relays: [url]})
 
-  create = (url: string, room: RoomMeta) => this.publish(url, makeRoomCreateEvent(room))
+  create = async (url: string, room: RoomMeta) =>
+    this.publish(url, await new RoomCreateBuilder().setGroup(room.h).toTemplate())
 
-  delete = (url: string, room: RoomMeta) => this.publish(url, makeRoomDeleteEvent(room))
+  delete = async (url: string, room: RoomMeta) =>
+    this.publish(url, await new RoomDeleteBuilder().setGroup(room.h).toTemplate())
 
-  edit = (url: string, room: RoomMeta) => this.publish(url, makeRoomEditEvent(room))
+  edit = async (url: string, room: RoomMeta) => {
+    const builder = new RoomEditBuilder().setGroup(room.h)
 
-  join = (url: string, room: RoomMeta) => this.publish(url, makeRoomJoinEvent(room))
+    if (room.name) builder.setName(room.name)
+    if (room.about) builder.setAbout(room.about)
+    if (room.picture) builder.setPicture(room.picture, room.pictureMeta)
 
-  leave = (url: string, room: RoomMeta) => this.publish(url, makeRoomLeaveEvent(room))
+    builder
+      .setClosed(Boolean(room.isClosed))
+      .setHidden(Boolean(room.isHidden))
+      .setPrivate(Boolean(room.isPrivate))
+      .setRestricted(Boolean(room.isRestricted))
+      .setLivekit(Boolean(room.livekit))
 
-  addMember = (url: string, room: RoomMeta, pubkey: string) =>
-    this.publish(url, makeRoomAddMemberEvent(room, pubkey))
+    return this.publish(url, await builder.toTemplate())
+  }
 
-  removeMember = (url: string, room: RoomMeta, pubkey: string) =>
-    this.publish(url, makeRoomRemoveMemberEvent(room, pubkey))
+  join = async (url: string, room: RoomMeta) =>
+    this.publish(url, await new RoomJoinBuilder().setGroup(room.h).toTemplate())
+
+  leave = async (url: string, room: RoomMeta) =>
+    this.publish(url, await new RoomLeaveBuilder().setGroup(room.h).toTemplate())
+
+  addMember = async (url: string, room: RoomMeta, pubkey: string) =>
+    this.publish(url, await new RoomAddMemberBuilder().setGroup(room.h).addPubkey(pubkey).toTemplate())
+
+  removeMember = async (url: string, room: RoomMeta, pubkey: string) =>
+    this.publish(
+      url,
+      await new RoomRemoveMemberBuilder().setGroup(room.h).addPubkey(pubkey).toTemplate(),
+    )
 }

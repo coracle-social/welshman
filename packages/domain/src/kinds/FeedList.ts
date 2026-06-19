@@ -3,9 +3,7 @@ import {FEEDS, getAddressTagValues} from "@welshman/util"
 import {ListReader} from "../ListReader.js"
 import {ListBuilder} from "../ListBuilder.js"
 
-// NIP-51 kind-10014 saved feeds list. Entries are `a` tags pointing at kind 31890
-// FEED definitions, stored publicly (tags) or privately (encrypted content); the
-// reader treats both as one merged set.
+// NIP-51 kind-10014 saved feeds list.
 export class FeedList extends ListReader {
   readonly kind = FEEDS
 

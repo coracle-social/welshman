@@ -1,12 +1,5 @@
-import {
-  FOLLOWS,
-  asDecryptedEvent,
-  readList,
-  makeList,
-  addToListPublicly,
-  removeFromList,
-} from "@welshman/util"
-import type {TrustedEvent} from "@welshman/util"
+import {FOLLOWS} from "@welshman/util"
+import {FollowList, FollowListBuilder} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import {Network} from "./network.js"
 import {Thunks} from "./thunk.js"
@@ -17,12 +10,12 @@ import type {IApp} from "../app.js"
  * Kind-3 follow lists, keyed by pubkey. Loaded via the outbox model (the
  * author's write relays), so it depends on the relay-list collection.
  */
-export class FollowLists extends DerivedPlugin<ReturnType<typeof readList>> {
+export class FollowLists extends DerivedPlugin<FollowList> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [FOLLOWS]}],
-      eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
-      getKey: followList => followList.event.pubkey,
+      eventToItem: FollowList.factory(app.user?.signer),
+      getKey: followList => followList.author(),
     })
   }
 
@@ -30,19 +23,18 @@ export class FollowLists extends DerivedPlugin<ReturnType<typeof readList>> {
     return this.app.use(Network).loadUsingOutbox(pubkey, {kinds: [FOLLOWS]}, relayHints)
   }
 
-  follow = async (tag: string[]) => {
+  update = async (fn: (builder: FollowListBuilder) => void) => {
     const user = User.require(this.app)
-    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: FOLLOWS})
-    const event = await addToListPublicly(list, tag).reconcile(user.nip44EncryptToSelf)
+    const builder = new FollowListBuilder(await this.forceLoad(user.pubkey))
+
+    fn(builder)
+
+    const event = await builder.toTemplate(user.signer)
 
     return this.app.use(Thunks).publishToOutbox({event})
   }
 
-  unfollow = async (value: string) => {
-    const user = User.require(this.app)
-    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: FOLLOWS})
-    const event = await removeFromList(list, value).reconcile(user.nip44EncryptToSelf)
+  follow = (tag: string[]) => this.update(builder => builder.addPublic(tag))
 
-    return this.app.use(Thunks).publishToOutbox({event})
-  }
+  unfollow = (value: string) => this.update(builder => builder.removeFollow(value))
 }

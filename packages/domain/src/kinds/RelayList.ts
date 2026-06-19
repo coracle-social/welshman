@@ -3,19 +3,14 @@ import {RELAYS, RelayMode, getRelayTags, getRelayTagValues, normalizeRelayUrl} f
 import {ListReader} from "../ListReader.js"
 import {ListBuilder} from "../ListBuilder.js"
 
-// NIP-65 kind-10002 relay list (the outbox-model routing substrate). Entries are
-// `["r", url, mode?]` tags where `mode` is RelayMode.Read or RelayMode.Write; a
-// missing marker means the relay is used for both read and write. NIP-65 entries
-// are public in practice, so mutations target the public tag set.
+// NIP-65 kind-10002 relay list.
 export class RelayList extends ListReader {
   readonly kind = RELAYS
 
-  // All relay urls, deduped by normalized url.
   urls() {
     return uniqBy(normalizeRelayUrl, getRelayTagValues(this.tags()))
   }
 
-  // Relays usable for reading: includes modeless (both) entries.
   readUrls() {
     return uniqBy(
       normalizeRelayUrl,
@@ -25,7 +20,6 @@ export class RelayList extends ListReader {
     )
   }
 
-  // Relays usable for writing: includes modeless (both) entries.
   writeUrls() {
     return uniqBy(
       normalizeRelayUrl,
@@ -43,7 +37,6 @@ export class RelayList extends ListReader {
 export class RelayListBuilder extends ListBuilder<RelayList> {
   readonly kind = RELAYS
 
-  // Relays usable for reading: includes modeless (both) entries.
   readUrls() {
     return uniqBy(
       normalizeRelayUrl,
@@ -53,7 +46,6 @@ export class RelayListBuilder extends ListBuilder<RelayList> {
     )
   }
 
-  // Relays usable for writing: includes modeless (both) entries.
   writeUrls() {
     return uniqBy(
       normalizeRelayUrl,
@@ -63,16 +55,12 @@ export class RelayListBuilder extends ListBuilder<RelayList> {
     )
   }
 
-  // Upsert a relay for a given mode. If an existing entry already covered the
-  // complementary mode (or was modeless), collapse to a modeless ["r", url] tag;
-  // otherwise store ["r", url, mode].
-  addRelay(url: string, mode: RelayMode) {
+  addUrl(url: string, mode: RelayMode) {
     const normalized = normalizeRelayUrl(url)
     const existing = getRelayTags(this.publicTags).filter(
       t => normalizeRelayUrl(t[1]) === normalized,
     )
 
-    // Modes already covered by existing entries (undefined marker = both).
     const priorModes = new Set<RelayMode | undefined>(
       existing.map(t => t[2] as RelayMode | undefined),
     )
@@ -89,10 +77,7 @@ export class RelayListBuilder extends ListBuilder<RelayList> {
     return this
   }
 
-  // Remove a relay for a given mode while preserving the alternate. A
-  // modeless/both entry is downgraded to the alternate mode; an entry that only
-  // covered `mode` is fully removed.
-  removeRelay(url: string, mode: RelayMode) {
+  removeUrl(url: string, mode: RelayMode) {
     const normalized = normalizeRelayUrl(url)
     const existing = getRelayTags(this.publicTags).filter(
       t => normalizeRelayUrl(t[1]) === normalized,
@@ -100,7 +85,6 @@ export class RelayListBuilder extends ListBuilder<RelayList> {
 
     const alt = mode === RelayMode.Read ? RelayMode.Write : RelayMode.Read
 
-    // Keep the alternate if any existing entry was modeless/both or the alt mode.
     const keepAlt = existing.some(t => !t[2] || t[2] === alt)
 
     this.publicTags = this.publicTags.filter(
@@ -114,22 +98,15 @@ export class RelayListBuilder extends ListBuilder<RelayList> {
     return this
   }
 
-  // Replace the read set while PRESERVING every relay's write capability: a
-  // relay that was write-capable (write-marked or modeless) stays writable, and
-  // collapses back to a modeless ["r", url] tag if it's also in the new read set.
-  setReadRelays(urls: string[]) {
-    return this.setRelaysForModes(urls, this.writeUrls())
+  setReadUrls(urls: string[]) {
+    return this.setUrlsForModes(urls, this.writeUrls())
   }
 
-  // Replace the write set while PRESERVING every relay's read capability.
-  setWriteRelays(urls: string[]) {
-    return this.setRelaysForModes(this.readUrls(), urls)
+  setWriteUrls(urls: string[]) {
+    return this.setUrlsForModes(this.readUrls(), urls)
   }
 
-  // Rebuild the public 'r' tag set from explicit read/write membership. A relay
-  // in both sets is emitted modeless (both); otherwise it carries its single
-  // mode marker. Non-'r' public tags are preserved.
-  private setRelaysForModes(readUrls: string[], writeUrls: string[]) {
+  private setUrlsForModes(readUrls: string[], writeUrls: string[]) {
     const read = new Set(readUrls.map(normalizeRelayUrl))
     const write = new Set(writeUrls.map(normalizeRelayUrl))
     const otherTags = this.publicTags.filter(t => t[0] !== "r")
@@ -146,8 +123,7 @@ export class RelayListBuilder extends ListBuilder<RelayList> {
     return this
   }
 
-  // Replace the entire public tag set.
-  setRelays(tags: string[][]) {
+  setTags(tags: string[][]) {
     this.publicTags = tags
 
     return this

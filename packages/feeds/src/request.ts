@@ -4,9 +4,7 @@ import {
   Filter,
   getPubkeyTagValues,
   TrustedEvent,
-  asDecryptedEvent,
-  readList,
-  getRelaysFromList,
+  getRelayTagValues,
   RELAYS,
 } from "@welshman/util"
 import {Nip01Signer, ISigner} from "@welshman/signer"
@@ -118,7 +116,7 @@ export const requestDVM = async ({
     })
 
     relays = router
-      .FromRelays(events.flatMap(e => getRelaysFromList(readList(asDecryptedEvent(e)))))
+      .FromRelays(events.flatMap(e => getRelayTagValues(e.tags)))
       .policy(addMinimalFallbacks)
       .getUrls()
   }

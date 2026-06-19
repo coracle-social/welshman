@@ -37,7 +37,7 @@ describe("ZapGoal", () => {
     expect(goal.title()).toBe("New server fund")
     expect(goal.summary()).toBe("help us buy a server")
     expect(goal.amount()).toBe(500000)
-    expect(goal.relays()).toEqual(["wss://relay.one", "wss://relay.two"])
+    expect(goal.urls()).toEqual(["wss://relay.one", "wss://relay.two"])
   })
 
   it("defaults amount to 0 when missing or unparseable", async () => {
@@ -71,7 +71,7 @@ describe("ZapGoal", () => {
       .setTitle("Goal")
       .setSummary("a summary")
       .setAmount(1000)
-      .setRelays(["wss://relay.one"])
+      .setUrls(["wss://relay.one"])
       .toTemplate(signer)
 
     expect(tmpl.kind).toBe(ZAP_GOAL)

@@ -1,22 +1,26 @@
-import {first, partition, spec} from "@welshman/lib"
+import {first, partition, randomId, spec} from "@welshman/lib"
 import type {Maybe, MaybeAsync} from "@welshman/lib"
-import {stamp, prep} from "@welshman/util"
+import {stamp, prep, isParameterizedReplaceableKind} from "@welshman/util"
 import type {EventTemplate, SignedEvent, HashedEvent} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
 import type {EventReader} from "./EventReader.js"
 
 export abstract class EventBuilder<Reader extends EventReader> {
   abstract readonly kind: number
+  content: string
   groupTag?: string[]
   protectTag?: string[]
-  expiresTag?: string[]
+  expirationTag?: string[]
+  identifierTag?: string[]
   extraTags: string[][] = []
 
   constructor(readonly reader?: Reader) {
+    this.content = reader?.event.content ?? ""
     this.extraTags = reader?.event.tags ?? []
     this.groupTag = first(this.consumeTags("h"))
     this.protectTag = first(this.consumeTags("-"))
-    this.expiresTag = first(this.consumeTags("expiration"))
+    this.expirationTag = first(this.consumeTags("expiration"))
+    this.identifierTag = first(this.consumeTags("d"))
   }
 
   protected consumeTags(key: string): string[][] {
@@ -27,20 +31,50 @@ export abstract class EventBuilder<Reader extends EventReader> {
     return consumed
   }
 
-  group(group: Maybe<string>) {
-    this.groupTag = group ? ["h", group] : undefined
+  setContent(content: string) {
+    this.content = content
 
     return this
   }
 
-  protect(protect: boolean) {
+  setGroup(group: string) {
+    this.groupTag = ["h", group]
+
+    return this
+  }
+
+  clearGroup() {
+    this.groupTag = undefined
+
+    return this
+  }
+
+  setProtected(protect: boolean) {
     this.protectTag = protect ? ["-"] : undefined
 
     return this
   }
 
-  expires(expires: Maybe<number>) {
-    this.expiresTag = expires ? ["expiration", String(expires)] : undefined
+  setExpiration(expiration: number) {
+    this.expirationTag = ["expiration", String(expiration)]
+
+    return this
+  }
+
+  clearExpiration() {
+    this.expirationTag = undefined
+
+    return this
+  }
+
+  setIdentifier(identifier = randomId()) {
+    this.identifierTag = ["d", identifier]
+
+    return this
+  }
+
+  clearIdentifier() {
+    this.identifierTag = undefined
 
     return this
   }
@@ -50,17 +84,22 @@ export abstract class EventBuilder<Reader extends EventReader> {
   }
 
   protected buildContent(signer?: ISigner): MaybeAsync<string> {
-    return ""
+    return this.content
   }
 
-  protected validate(): void {}
+  protected validate(): void {
+    if (isParameterizedReplaceableKind(this.kind) && !this.identifierTag) {
+      throw new Error(`A d tag is required for kind ${this.kind}`)
+    }
+  }
 
   private behaviorTags(): string[][] {
     const tags: string[][] = []
 
     if (this.groupTag) tags.push(this.groupTag)
     if (this.protectTag) tags.push(this.protectTag)
-    if (this.expiresTag) tags.push(this.expiresTag)
+    if (this.expirationTag) tags.push(this.expirationTag)
+    if (this.identifierTag) tags.push(this.identifierTag)
 
     return tags
   }

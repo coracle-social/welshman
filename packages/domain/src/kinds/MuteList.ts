@@ -3,8 +3,7 @@ import {MUTES, getPubkeyTagValues} from "@welshman/util"
 import {ListReader} from "../ListReader.js"
 import {ListBuilder} from "../ListBuilder.js"
 
-// NIP-51 kind-10000 mute list. Pubkeys can be muted publicly (tags) or privately
-// (encrypted content); the reader treats both as one merged set.
+// NIP-51 kind-10000 mute list.
 export class MuteList extends ListReader {
   readonly kind = MUTES
 

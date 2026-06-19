@@ -1,13 +1,8 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, RELAY_ADD_MEMBER, RELAY_REMOVE_MEMBER, NOTE} from "@welshman/util"
+import {makeSecret, RELAY_ADD_MEMBER, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {
-  RelayAddMember,
-  RelayAddMemberBuilder,
-  RelayRemoveMember,
-  RelayRemoveMemberBuilder,
-} from "../src/kinds/RelayMembershipOp"
+import {RelayAddMember, RelayAddMemberBuilder} from "../src/kinds/RelayAddMember"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -34,9 +29,7 @@ describe("RelayAddMember", () => {
   })
 
   it("round-trips with no duplicate p tags and passthrough", async () => {
-    const op = await RelayAddMember.fromEvent(
-      makeEvent({tags: [["p", a], ["p", b], ["alt", "x"]]}),
-    )
+    const op = await RelayAddMember.fromEvent(makeEvent({tags: [["p", a], ["p", b], ["alt", "x"]]}))
 
     const tmpl = await op.builder().toTemplate(signer)
 
@@ -56,29 +49,5 @@ describe("RelayAddMember", () => {
 
   it("throws on the wrong kind", async () => {
     await expect(RelayAddMember.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
-  })
-})
-
-describe("RelayRemoveMember", () => {
-  it("reads affected pubkeys with the remove kind", async () => {
-    const op = await RelayRemoveMember.fromEvent(
-      makeEvent({kind: RELAY_REMOVE_MEMBER, tags: [["p", a]]}),
-    )
-
-    expect(op.kind).toBe(RELAY_REMOVE_MEMBER)
-    expect(op.pubkeys()).toEqual([a])
-  })
-
-  it("builds fresh with the remove kind", async () => {
-    const tmpl = await new RelayRemoveMemberBuilder().addPubkey(a).toTemplate(signer)
-
-    expect(tmpl.kind).toBe(RELAY_REMOVE_MEMBER)
-    expect(tmpl.tags).toContainEqual(["p", a])
-  })
-
-  it("throws when the add kind is read as a remove", async () => {
-    await expect(
-      RelayRemoveMember.fromEvent(makeEvent({kind: RELAY_ADD_MEMBER})),
-    ).rejects.toThrow()
   })
 })

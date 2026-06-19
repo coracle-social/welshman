@@ -3,18 +3,10 @@ import {ZAP_GOAL, getTagValue, getTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
 
-// NIP-75 kind-9041 zap goal. A fundraising target that drives flotilla's goals
-// feature: the goal title lives in `content` as plain text (not JSON), the body
-// in a "summary" tag, the target amount in an "amount" tag (millisats, parsed as
-// an int defaulting to 0), and the relays to tally receipts from in repeated
-// "relays" tags; room scoping is handled by the base `group` behavior tag.
-// Non-addressable (referenced by event id via "#E"); the funding tally is
-// computed elsewhere from sibling zap receipts (ZAP_RESPONSE) and is not modeled
-// here. Tags + plain-text content, so it extends EventReader/EventBuilder.
+// NIP-75 kind-9041 zap goal.
 export class ZapGoal extends EventReader {
   readonly kind = ZAP_GOAL
 
-  // The goal title is plain-text content, not JSON or encrypted.
   title() {
     return this.event.content || ""
   }
@@ -27,7 +19,7 @@ export class ZapGoal extends EventReader {
     return parseInt(getTagValue("amount", this.event.tags) || "0") || 0
   }
 
-  relays() {
+  urls() {
     return getTagValues("relays", this.event.tags)
   }
 
@@ -40,20 +32,17 @@ export class ZapGoalBuilder extends EventBuilder<ZapGoal> {
   readonly kind = ZAP_GOAL
 
   title = ""
-  summary?: string
-  amount = 0
-  relays: string[] = []
+  summaryTag?: string[]
+  amountTag?: string[]
+  urlTags: string[][] = []
 
   constructor(readonly reader?: ZapGoal) {
     super(reader)
 
-    // Consume the represented tags out of the carried-over extraTags so they
-    // round-trip through the structured fields below rather than being emitted
-    // twice (once from buildTags, once from the base's extraTags pass-through).
     this.title = reader?.title() ?? ""
-    this.summary = first(this.consumeTags("summary"))?.[1]
-    this.amount = parseInt(first(this.consumeTags("amount"))?.[1] || "0") || 0
-    this.relays = this.consumeTags("relays").map(t => t[1])
+    this.summaryTag = first(this.consumeTags("summary"))
+    this.amountTag = first(this.consumeTags("amount"))
+    this.urlTags = this.consumeTags("relays")
   }
 
   setTitle(title: string) {
@@ -63,24 +52,26 @@ export class ZapGoalBuilder extends EventBuilder<ZapGoal> {
   }
 
   setSummary(summary: string) {
-    this.summary = summary
+    this.summaryTag = ["summary", summary]
 
     return this
   }
 
   setAmount(amount: number) {
-    this.amount = amount
+    this.amountTag = ["amount", String(amount)]
 
     return this
   }
 
-  setRelays(relays: string[]) {
-    this.relays = relays
+  setUrls(urls: string[]) {
+    this.urlTags = urls.map(url => ["relays", url])
 
     return this
   }
 
   protected validate() {
+    super.validate()
+
     if (!this.title) {
       throw new Error("ZapGoal requires a title")
     }
@@ -93,13 +84,10 @@ export class ZapGoalBuilder extends EventBuilder<ZapGoal> {
   protected buildTags() {
     const tags: string[][] = []
 
-    if (this.summary) tags.push(["summary", this.summary])
+    if (this.summaryTag) tags.push(this.summaryTag)
 
-    tags.push(["amount", String(this.amount)])
-
-    for (const relay of this.relays) {
-      tags.push(["relays", relay])
-    }
+    tags.push(this.amountTag ?? ["amount", "0"])
+    tags.push(...this.urlTags)
 
     return tags
   }

@@ -21,11 +21,10 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
   }) as TrustedEvent
 
 describe("RoomLeave", () => {
-  it("reads the group via group() and h()", async () => {
+  it("reads the group via group()", async () => {
     const leave = await RoomLeave.fromEvent(makeEvent({tags: [["h", group]]}))
 
     expect(leave.group()).toBe(group)
-    expect(leave.h()).toBe(group)
   })
 
   it("round-trips the group behavior tag without duplication", async () => {
@@ -40,7 +39,7 @@ describe("RoomLeave", () => {
   })
 
   it("sets the group via a fresh builder", async () => {
-    const tmpl = await new RoomLeaveBuilder().group(group).toTemplate(signer)
+    const tmpl = await new RoomLeaveBuilder().setGroup(group).toTemplate(signer)
 
     expect(tmpl.tags).toContainEqual(["h", group])
   })

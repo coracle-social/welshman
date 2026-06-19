@@ -4,11 +4,7 @@ import type {ISigner} from "@welshman/signer"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
 
-// Ephemeral kind-28934 relay/space join request. Both written (the join flow)
-// and read (membership status): it carries an optional invite "claim" tag and a
-// free-text reason in the event content, driving the space membership state
-// machine (RELAY_JOIN -> Pending/Granted). The content is the plain free-text
-// reason.
+// Ephemeral kind-28934 relay/space join request.
 export class RelayJoin extends EventReader {
   readonly kind = RELAY_JOIN
 
@@ -28,20 +24,18 @@ export class RelayJoin extends EventReader {
 export class RelayJoinBuilder extends EventBuilder<RelayJoin> {
   readonly kind = RELAY_JOIN
 
-  claim?: string
+  claimTag?: string[]
   reason?: string
 
   constructor(readonly reader?: RelayJoin) {
     super(reader)
 
-    const claim = first(this.consumeTags("claim"))
-
-    this.claim = claim?.[1]
+    this.claimTag = first(this.consumeTags("claim"))
     this.reason = reader?.event.content || undefined
   }
 
   setClaim(claim: string) {
-    this.claim = claim
+    this.claimTag = ["claim", claim]
 
     return this
   }
@@ -55,7 +49,7 @@ export class RelayJoinBuilder extends EventBuilder<RelayJoin> {
   protected buildTags() {
     const tags: string[][] = []
 
-    if (this.claim) tags.push(["claim", this.claim])
+    if (this.claimTag) tags.push(this.claimTag)
 
     return tags
   }

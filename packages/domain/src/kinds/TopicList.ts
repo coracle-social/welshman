@@ -3,10 +3,7 @@ import {TOPICS, getTopicTagValues, getAddressTagValues} from "@welshman/util"
 import {ListReader} from "../ListReader.js"
 import {ListBuilder} from "../ListBuilder.js"
 
-// NIP-51 kind-10015 interests/followed-topics list. Followed hashtags are stored
-// as `t` tags; the list may also reference interest sets (kind 30015) via `a`
-// tags. Extends ListReader/ListBuilder so entries may be public (tags) or private
-// (encrypted content), treated as one merged set by the accessors.
+// NIP-51 kind-10015 interests/topics list.
 export class TopicList extends ListReader {
   readonly kind = TOPICS
 

@@ -5,7 +5,8 @@ import {derived} from "svelte/store"
 import type {Readable} from "svelte/store"
 import {dec, inc, sortBy} from "@welshman/lib"
 import {PROFILE} from "@welshman/util"
-import type {PublishedProfile, RelayProfile} from "@welshman/util"
+import type {RelayProfile} from "@welshman/util"
+import type {Profile} from "@welshman/domain"
 import {throttled} from "@welshman/store"
 import type {IApp} from "../app.js"
 import {Network} from "./network.js"
@@ -63,26 +64,19 @@ export const createSearch = <V, T>(options: T[], opts: SearchOptions<V, T>): Sea
  * fires a debounced NIP-50 network search through the app's loader.
  */
 export class Searches {
-  profileSearch: Readable<Search<string, PublishedProfile>>
+  profileSearch: Readable<Search<string, Profile>>
   topicSearch: Readable<Search<string, Topic>>
   relaySearch: Readable<Search<string, RelayProfile>>
 
   constructor(readonly app: IApp) {
     this.profileSearch = derived(
       [throttled(800, this.app.use(Profiles).all.$), throttled(800, this.app.use(Handles).index.$)],
-      ([$profiles, $handlesByNip05]) => {
-        // Remove invalid nip05's from profiles
-        const options = $profiles.map(p => {
-          const isNip05Valid = !p.nip05 || $handlesByNip05.get(p.nip05)?.pubkey === p.event.pubkey
-
-          return isNip05Valid ? p : {...p, nip05: ""}
-        })
-
-        return createSearch(options, {
+      ([$profiles, $handlesByNip05]) =>
+        createSearch($profiles, {
           onSearch: this.searchProfiles,
-          getValue: (profile: PublishedProfile) => profile.event.pubkey,
+          getValue: (profile: Profile) => profile.author(),
           sortFn: ({score = 1, item}) => {
-            const wotScore = this.app.use(Wot).graph.get().get(item.event.pubkey) || 0
+            const wotScore = this.app.use(Wot).graph.get().get(item.author()) || 0
 
             return dec(score) * inc(wotScore / (this.app.use(Wot).max.get() || 1))
           },
@@ -95,9 +89,23 @@ export class Searches {
             ],
             threshold: 0.3,
             shouldSort: false,
+            // Read fields off the domain reader's parsed `values`; only expose a
+            // nip05 that's verified against the loaded handle (anti-spoofing).
+            getFn: (profile: Profile, path) => {
+              const key = Array.isArray(path) ? path[0] : path
+
+              if (key === "nip05") {
+                const nip05 = profile.nip05()
+
+                return nip05 && $handlesByNip05.get(nip05)?.pubkey === profile.author()
+                  ? nip05
+                  : ""
+              }
+
+              return profile.values[key] ?? ""
+            },
           },
-        })
-      },
+        }),
     )
 
     this.topicSearch = derived(this.app.use(Topics).all, $topics =>

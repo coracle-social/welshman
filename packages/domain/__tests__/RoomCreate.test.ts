@@ -35,7 +35,7 @@ describe("RoomCreate", () => {
   })
 
   it("sets the group via a fresh builder", async () => {
-    const tmpl = await new RoomCreateBuilder().group(group).toTemplate(signer)
+    const tmpl = await new RoomCreateBuilder().setGroup(group).toTemplate(signer)
 
     expect(tmpl.tags).toContainEqual(["h", group])
   })

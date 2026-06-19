@@ -9,9 +9,7 @@ import {
 import {ListReader} from "../ListReader.js"
 import {ListBuilder} from "../ListBuilder.js"
 
-// NIP-51 kind-10003 bookmark list. Mixed entries (notes via 'e', articles via
-// 'a', hashtags via 't', urls via 'r') can be bookmarked publicly (tags) or
-// privately (encrypted content); accessors treat both as one merged set.
+// NIP-51 kind-10003 bookmark list.
 export class BookmarkList extends ListReader {
   readonly kind = BOOKMARKS
 

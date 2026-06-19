@@ -31,7 +31,6 @@ describe("ZapRequest", () => {
         ["p", recipient],
         ["e", eventId],
         ["relays", "wss://relay.one", "wss://relay.two"],
-        ["anon"],
         ["alt", "x"],
       ],
     })
@@ -42,8 +41,7 @@ describe("ZapRequest", () => {
     expect(req.lnurl()).toBe("lnurl1xyz")
     expect(req.recipient()).toBe(recipient)
     expect(req.eventId()).toBe(eventId)
-    expect(req.relays()).toEqual(["wss://relay.one", "wss://relay.two"])
-    expect(req.isAnonymous()).toBe(true)
+    expect(req.urls()).toEqual(["wss://relay.one", "wss://relay.two"])
     expect(req.comment()).toBe("thanks!")
   })
 
@@ -56,7 +54,6 @@ describe("ZapRequest", () => {
         ["p", recipient],
         ["e", eventId],
         ["relays", "wss://relay.one"],
-        ["anon"],
         ["alt", "x"],
       ],
     })
@@ -69,7 +66,6 @@ describe("ZapRequest", () => {
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "e").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "relays").length).toBe(1)
-    expect(tmpl.tags.filter(t => t[0] === "anon").length).toBe(1)
     expect(tmpl.tags).toContainEqual(["alt", "x"])
   })
 
@@ -79,8 +75,7 @@ describe("ZapRequest", () => {
       .setLnurl("lnurl1abc")
       .setRecipient(recipient)
       .setEventId(eventId)
-      .setRelays(["wss://relay.one"])
-      .setAnonymous()
+      .setUrls(["wss://relay.one"])
       .setComment("hi")
       .toTemplate(signer)
 
@@ -91,7 +86,6 @@ describe("ZapRequest", () => {
     expect(tmpl.tags).toContainEqual(["p", recipient])
     expect(tmpl.tags).toContainEqual(["e", eventId])
     expect(tmpl.tags).toContainEqual(["relays", "wss://relay.one"])
-    expect(tmpl.tags).toContainEqual(["anon"])
   })
 
   it("throws on the wrong kind", async () => {

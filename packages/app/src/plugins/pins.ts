@@ -1,12 +1,5 @@
-import {
-  PINS,
-  asDecryptedEvent,
-  readList,
-  makeList,
-  addToListPublicly,
-  removeFromList,
-} from "@welshman/util"
-import type {TrustedEvent} from "@welshman/util"
+import {PINS} from "@welshman/util"
+import {PinList, PinListBuilder} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import {Network} from "./network.js"
 import {Thunks} from "./thunk.js"
@@ -17,12 +10,12 @@ import type {IApp} from "../app.js"
  * NIP-51 pin lists (kind 10001), keyed by pubkey. Loaded via the outbox model
  * (the author's write relays), so it depends on the relay-list collection.
  */
-export class PinLists extends DerivedPlugin<ReturnType<typeof readList>> {
+export class PinLists extends DerivedPlugin<PinList> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [PINS]}],
-      eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
-      getKey: pins => pins.event.pubkey,
+      eventToItem: PinList.factory(app.user?.signer),
+      getKey: pins => pins.author(),
     })
   }
 
@@ -30,19 +23,18 @@ export class PinLists extends DerivedPlugin<ReturnType<typeof readList>> {
     return this.app.use(Network).loadUsingOutbox(pubkey, {kinds: [PINS]}, relayHints)
   }
 
-  pin = async (tag: string[]) => {
+  update = async (fn: (builder: PinListBuilder) => void) => {
     const user = User.require(this.app)
-    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: PINS})
-    const event = await addToListPublicly(list, tag).reconcile(user.nip44EncryptToSelf)
+    const builder = new PinListBuilder(await this.forceLoad(user.pubkey))
+
+    fn(builder)
+
+    const event = await builder.toTemplate(user.signer)
 
     return this.app.use(Thunks).publishToOutbox({event})
   }
 
-  unpin = async (value: string) => {
-    const user = User.require(this.app)
-    const list = (await this.forceLoad(user.pubkey)) || makeList({kind: PINS})
-    const event = await removeFromList(list, value).reconcile(user.nip44EncryptToSelf)
+  pin = (tag: string[]) => this.update(builder => builder.pinPublicly(tag))
 
-    return this.app.use(Thunks).publishToOutbox({event})
-  }
+  unpin = (value: string) => this.update(builder => builder.unpin(value))
 }

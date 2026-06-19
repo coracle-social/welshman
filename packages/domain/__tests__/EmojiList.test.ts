@@ -32,7 +32,7 @@ describe("EmojiList", () => {
 
     const list = await EmojiList.fromEvent(event)
 
-    expect(list.addresses()).toEqual([setAddress])
+    expect(list.emojiSets()).toEqual([setAddress])
     expect(list.emojis()).toEqual([emojiTag])
   })
 
@@ -81,12 +81,12 @@ describe("EmojiList", () => {
     const decrypted = await EmojiList.fromEvent(event, signer)
 
     expect(decrypted.decrypted).toBe(true)
-    expect(decrypted.addresses().sort()).toEqual([setAddress, setAddress2].sort())
+    expect(decrypted.emojiSets().sort()).toEqual([setAddress, setAddress2].sort())
 
     const publicOnly = await EmojiList.fromEvent(event)
 
     expect(publicOnly.decrypted).toBe(false)
-    expect(publicOnly.addresses()).toEqual([setAddress])
+    expect(publicOnly.emojiSets()).toEqual([setAddress])
   })
 
   it("preserves undecrypted ciphertext on pass-through", async () => {

@@ -6,6 +6,7 @@ import {RoomDelete, RoomDeleteBuilder} from "../src/kinds/RoomDelete"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
+const group = "room1"
 
 const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
   ({
@@ -20,46 +21,30 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
   }) as TrustedEvent
 
 describe("RoomDelete", () => {
-  it("reads multiple repeatable h tags", async () => {
-    const del = await RoomDelete.fromEvent(
-      makeEvent({tags: [["h", "room1"], ["h", "room2"], ["h", "room3"], ["alt", "x"]]}),
-    )
+  it("reads the target room via group()", async () => {
+    const del = await RoomDelete.fromEvent(makeEvent({tags: [["h", group]]}))
 
-    expect(del.hs()).toEqual(["room1", "room2", "room3"])
-    expect(del.h()).toBe("room1")
+    expect(del.group()).toBe(group)
   })
 
-  it("round-trips multiple rooms, emitting one h each with no duplication", async () => {
-    const del = await RoomDelete.fromEvent(
-      makeEvent({tags: [["h", "room1"], ["h", "room2"], ["h", "room3"], ["alt", "x"]]}),
-    )
+  it("round-trips the group behavior tag without duplication", async () => {
+    const del = await RoomDelete.fromEvent(makeEvent({tags: [["h", group], ["alt", "x"]]}))
 
     const tmpl = await del.builder().toTemplate(signer)
 
     expect(tmpl.kind).toBe(ROOM_DELETE)
-    // Three rooms in, three h tags out — exactly one per room, no duplicates.
-    expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(3)
-    expect(tmpl.tags).toContainEqual(["h", "room1"])
-    expect(tmpl.tags).toContainEqual(["h", "room2"])
-    expect(tmpl.tags).toContainEqual(["h", "room3"])
-    // Unknown passthrough tag survives.
+    expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
+    expect(tmpl.tags).toContainEqual(["h", group])
     expect(tmpl.tags).toContainEqual(["alt", "x"])
   })
 
-  it("builds from a fresh builder and edits the room set", async () => {
-    const tmpl = await new RoomDeleteBuilder()
-      .addRoom("room1")
-      .addRoom("room1") // dedup
-      .addRoom("room2")
-      .removeRoom("room1")
-      .toTemplate(signer)
+  it("sets the target room via a fresh builder", async () => {
+    const tmpl = await new RoomDeleteBuilder().setGroup(group).toTemplate(signer)
 
-    expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
-    expect(tmpl.tags).toContainEqual(["h", "room2"])
-    expect(tmpl.tags).not.toContainEqual(["h", "room1"])
+    expect(tmpl.tags).toContainEqual(["h", group])
   })
 
-  it("requires at least one h tag", async () => {
+  it("requires an h group", async () => {
     await expect(new RoomDeleteBuilder().toTemplate(signer)).rejects.toThrow()
   })
 

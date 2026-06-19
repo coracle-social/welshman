@@ -25,7 +25,7 @@ describe("Handler", () => {
       content: JSON.stringify({
         name: "Coracle",
         about: "a client",
-        image: "https://example.com/i.png",
+        picture: "https://example.com/i.png",
         website: "https://example.com",
         lud16: "a@example.com",
         nip05: "a@example.com",
@@ -43,22 +43,36 @@ describe("Handler", () => {
     expect(handler.values.name).toBe("Coracle")
     expect(handler.name()).toBe("Coracle")
     expect(handler.about()).toBe("a client")
-    expect(handler.image()).toBe("https://example.com/i.png")
+    expect(handler.picture()).toBe("https://example.com/i.png")
     expect(handler.website()).toBe("https://example.com")
     expect(handler.lud16()).toBe("a@example.com")
     expect(handler.nip05()).toBe("a@example.com")
     expect(handler.kinds()).toEqual([1, 30023])
   })
 
-  it("maps display_name and picture aliases to canonical accessors", async () => {
+  it("preserves unknown content metadata on round-trip", async () => {
+    const event = makeEvent({
+      content: JSON.stringify({name: "Coracle", custom_field: "keep me"}),
+      tags: [["d", "myhandler"]],
+    })
+
+    const tmpl = await (await Handler.fromEvent(event)).builder().toTemplate(signer)
+    const parsed = JSON.parse(tmpl.content)
+
+    expect(parsed.name).toBe("Coracle")
+    expect(parsed.custom_field).toBe("keep me")
+  })
+
+  it("ignores non-spec aliases like display_name", async () => {
     const handler = await Handler.fromEvent(
       makeEvent({
         content: JSON.stringify({display_name: "Alias", picture: "https://example.com/p.png"}),
       }),
     )
 
-    expect(handler.name()).toBe("Alias")
-    expect(handler.image()).toBe("https://example.com/p.png")
+    // NIP-89 metadata follows NIP-01: only the canonical `name`/`picture` fields are read.
+    expect(handler.name()).toBeUndefined()
+    expect(handler.picture()).toBe("https://example.com/p.png")
   })
 
   it("round-trips with no duplication", async () => {
@@ -87,6 +101,7 @@ describe("Handler", () => {
 
   it("builds from a fresh builder", async () => {
     const tmpl = await new HandlerBuilder()
+      .setIdentifier("myhandler")
       .setName("MyApp")
       .setAbout("does things")
       .setWebsite("https://my.app")
@@ -94,6 +109,7 @@ describe("Handler", () => {
       .toTemplate(signer)
 
     expect(tmpl.kind).toBe(HANDLER_INFORMATION)
+    expect(tmpl.tags).toContainEqual(["d", "myhandler"])
     const parsed = JSON.parse(tmpl.content)
     expect(parsed.name).toBe("MyApp")
     expect(parsed.about).toBe("does things")

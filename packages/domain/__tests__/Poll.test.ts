@@ -43,7 +43,7 @@ describe("Poll", () => {
     ])
     expect(poll.pollType()).toBe("multiplechoice")
     expect(poll.endsAt()).toBe(1234)
-    expect(poll.relays()).toEqual(["wss://relay.one", "wss://relay.two"])
+    expect(poll.urls()).toEqual(["wss://relay.one", "wss://relay.two"])
   })
 
   it("tallies results from response events", async () => {
@@ -102,7 +102,7 @@ describe("Poll", () => {
       .addOption("Blue", "2")
       .setPollType("multiplechoice")
       .setEndsAt(9999)
-      .setRelays(["wss://relay.one"])
+      .setUrls(["wss://relay.one"])
       .toTemplate(signer)
 
     expect(tmpl.kind).toBe(POLL)

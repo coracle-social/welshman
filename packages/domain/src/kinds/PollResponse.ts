@@ -1,11 +1,9 @@
-import {uniq, first} from "@welshman/lib"
+import {uniq, uniqBy, first} from "@welshman/lib"
 import {POLL_RESPONSE, getTagValue, getTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
 
-// NIP-88 kind-1018 poll vote. Empty content; the target poll is referenced via
-// an "e" tag and each chosen option id lives in its own "response" tag. Tags-only
-// content, so it extends EventReader/EventBuilder directly.
+// NIP-88 kind-1018 poll response.
 export class PollResponse extends EventReader {
   readonly kind = POLL_RESPONSE
 
@@ -25,38 +23,41 @@ export class PollResponse extends EventReader {
 export class PollResponseBuilder extends EventBuilder<PollResponse> {
   readonly kind = POLL_RESPONSE
 
-  pollId = ""
-  selections: string[] = []
+  pollIdTag?: string[]
+  selectionTags: string[][] = []
 
   constructor(readonly reader?: PollResponse) {
     super(reader)
 
-    // Consume the represented tags out of the carried-over extraTags so they
-    // round-trip through the structured fields below rather than being emitted
-    // twice (once from buildTags, once from the base's extraTags pass-through).
-    this.pollId = first(this.consumeTags("e"))?.[1] ?? ""
-    this.selections = uniq(this.consumeTags("response").map(t => t[1]))
+    this.pollIdTag = first(this.consumeTags("e"))
+    this.selectionTags = uniqBy(t => t[1], this.consumeTags("response"))
   }
 
   setPollId(pollId: string) {
-    this.pollId = pollId
+    this.pollIdTag = ["e", pollId]
 
     return this
   }
 
   addSelection(id: string) {
-    this.selections = uniq([...this.selections, id])
+    this.selectionTags = uniqBy(t => t[1], [...this.selectionTags, ["response", id]])
 
     return this
   }
 
   protected validate() {
-    if (!this.pollId) {
+    super.validate()
+
+    if (!this.pollIdTag) {
       throw new Error("PollResponse requires a pollId")
     }
   }
 
   protected buildTags() {
-    return [["e", this.pollId], ...this.selections.map(id => ["response", id])]
+    const tags: string[][] = []
+
+    if (this.pollIdTag) tags.push(this.pollIdTag)
+
+    return [...tags, ...this.selectionTags]
   }
 }

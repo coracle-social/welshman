@@ -37,7 +37,7 @@ describe("BlossomServerList", () => {
 
     const list = await BlossomServerList.fromEvent(event)
 
-    expect(list.servers().sort()).toEqual([norm(s1), norm(s2)].sort())
+    expect(list.urls().sort()).toEqual([norm(s1), norm(s2)].sort())
     expect(list.includes(s1)).toBe(true)
     expect(list.includes(s3)).toBe(false)
   })
@@ -60,7 +60,7 @@ describe("BlossomServerList", () => {
   })
 
   it("builds from a fresh builder and normalizes urls", async () => {
-    const tmpl = await new BlossomServerListBuilder().addServer(s1).toTemplate(signer)
+    const tmpl = await new BlossomServerListBuilder().addUrl(s1).toTemplate(signer)
 
     expect(getTagValues("server", tmpl.tags)).toEqual([norm(s1)])
   })
@@ -69,14 +69,14 @@ describe("BlossomServerList", () => {
     const event = makeEvent({tags: [["server", s1]]})
     const list = await BlossomServerList.fromEvent(event)
 
-    const tmpl = await list.builder().setServers([s2, s3]).toTemplate(signer)
+    const tmpl = await list.builder().setUrls([s2, s3]).toTemplate(signer)
 
     expect(getTagValues("server", tmpl.tags).sort()).toEqual([norm(s2), norm(s3)].sort())
   })
 
   it("round-trips public and private entries through encryption", async () => {
     const event = await new BlossomServerListBuilder()
-      .addServer(s1)
+      .addUrl(s1)
       .addPrivate(["server", norm(s2)])
       .toEvent(signer)
 
@@ -86,12 +86,12 @@ describe("BlossomServerList", () => {
     const decrypted = await BlossomServerList.fromEvent(event, signer)
 
     expect(decrypted.decrypted).toBe(true)
-    expect(decrypted.servers().sort()).toEqual([norm(s1), norm(s2)].sort())
+    expect(decrypted.urls().sort()).toEqual([norm(s1), norm(s2)].sort())
 
     const publicOnly = await BlossomServerList.fromEvent(event)
 
     expect(publicOnly.decrypted).toBe(false)
-    expect(publicOnly.servers()).toEqual([norm(s1)])
+    expect(publicOnly.urls()).toEqual([norm(s1)])
   })
 
   it("throws on the wrong kind", async () => {

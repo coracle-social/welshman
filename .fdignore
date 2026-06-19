@@ -4,3 +4,4 @@ docs/reference
 docs/.vitepress/cache
 dist
 build
+.git

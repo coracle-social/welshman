@@ -36,7 +36,6 @@ describe("RoomMeta", () => {
       }),
     )
 
-    expect(room.h()).toBe("room1")
     expect(room.identifier()).toBe("room1")
     expect(room.name()).toBe("My Room")
     expect(room.about()).toBe("a place")
@@ -46,7 +45,7 @@ describe("RoomMeta", () => {
     expect(room.isHidden()).toBe(false)
     expect(room.isPrivate()).toBe(true)
     expect(room.isRestricted()).toBe(false)
-    expect(room.livekit()).toBe(true)
+    expect(room.hasLivekit()).toBe(true)
   })
 
   it("round-trips with no duplicated tags", async () => {
@@ -82,6 +81,7 @@ describe("RoomMeta", () => {
 
   it("builds from a fresh builder", async () => {
     const tmpl = await new RoomMetaBuilder()
+      .setIdentifier("room2")
       .setName("Fresh")
       .setAbout("desc")
       .setPicture("https://pic", ["100x100"])
@@ -90,8 +90,7 @@ describe("RoomMeta", () => {
     expect(tmpl.tags).toContainEqual(["name", "Fresh"])
     expect(tmpl.tags).toContainEqual(["about", "desc"])
     expect(tmpl.tags).toContainEqual(["picture", "https://pic", "100x100"])
-    // A d-identifier is auto-generated.
-    expect(tmpl.tags.find(t => t[0] === "d")?.[1]).toBeTruthy()
+    expect(tmpl.tags).toContainEqual(["d", "room2"])
   })
 
   it("throws on the wrong kind", async () => {
