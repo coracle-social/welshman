@@ -1,11 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {
-  makeSecret,
-  BOOKMARKS,
-  NOTE,
-  getEventTagValues,
-  getTopicTagValues,
-} from "@welshman/util"
+import {makeSecret, BOOKMARKS, NOTE, getEventTagValues, getTopicTagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {BookmarkList, BookmarkListBuilder} from "../src/kinds/BookmarkList"
@@ -83,7 +77,12 @@ describe("BookmarkList", () => {
   })
 
   it("removeBookmark removes by value", async () => {
-    const event = makeEvent({tags: [["e", noteId], ["e", noteId2]]})
+    const event = makeEvent({
+      tags: [
+        ["e", noteId],
+        ["e", noteId2],
+      ],
+    })
     const list = await BookmarkList.fromEvent(event)
 
     const tmpl = await list.builder().removeBookmark(noteId).toTemplate(signer)

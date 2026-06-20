@@ -89,7 +89,13 @@ describe("RelaySet", () => {
 
   it("setRelays replaces relays but preserves metadata", async () => {
     const reader = await RelaySet.fromEvent(
-      makeEvent({tags: [["d", "my-set"], ["title", "My Set"], ["relay", relayA]]}),
+      makeEvent({
+        tags: [
+          ["d", "my-set"],
+          ["title", "My Set"],
+          ["relay", relayA],
+        ],
+      }),
     )
 
     const tmpl = await reader.builder().setUrls([relayB]).toTemplate(signer)

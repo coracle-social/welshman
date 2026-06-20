@@ -1638,13 +1638,14 @@ export const member =
 /** Returns a function that checks whether all predicates pass */
 export const allPass =
   <T>(...predicates: ((x: T) => unknown)[]) =>
-  (x: T) => predicates.every(predicate => predicate(x))
+  (x: T) =>
+    predicates.every(predicate => predicate(x))
 
 /** Returns a function that checks whether some predicate passes */
 export const somePass =
   <T>(...predicates: ((x: T) => unknown)[]) =>
-  (x: T) => predicates.some(predicate => predicate(x))
-
+  (x: T) =>
+    predicates.some(predicate => predicate(x))
 
 // ----------------------------------------------------------------------------
 // Sets

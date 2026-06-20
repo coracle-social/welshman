@@ -25,7 +25,13 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 describe("PinList", () => {
   it("reads pinned event ids and addresses", async () => {
     const reader = await PinList.fromEvent(
-      makeEvent({tags: [["e", eventId], ["a", address], ["alt", "x"]]}),
+      makeEvent({
+        tags: [
+          ["e", eventId],
+          ["a", address],
+          ["alt", "x"],
+        ],
+      }),
     )
 
     expect(reader.ids()).toEqual([eventId])
@@ -34,7 +40,13 @@ describe("PinList", () => {
 
   it("round-trips without duplicating represented tags", async () => {
     const reader = await PinList.fromEvent(
-      makeEvent({tags: [["e", eventId], ["a", address], ["alt", "x"]]}),
+      makeEvent({
+        tags: [
+          ["e", eventId],
+          ["a", address],
+          ["alt", "x"],
+        ],
+      }),
     )
 
     const tmpl = await reader.builder().toTemplate(signer)

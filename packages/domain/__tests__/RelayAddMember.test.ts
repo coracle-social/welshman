@@ -23,13 +23,29 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelayAddMember", () => {
   it("reads affected pubkeys, deduped", async () => {
-    const op = await RelayAddMember.fromEvent(makeEvent({tags: [["p", a], ["p", b], ["p", a]]}))
+    const op = await RelayAddMember.fromEvent(
+      makeEvent({
+        tags: [
+          ["p", a],
+          ["p", b],
+          ["p", a],
+        ],
+      }),
+    )
 
     expect(op.pubkeys().sort()).toEqual([a, b].sort())
   })
 
   it("round-trips with no duplicate p tags and passthrough", async () => {
-    const op = await RelayAddMember.fromEvent(makeEvent({tags: [["p", a], ["p", b], ["alt", "x"]]}))
+    const op = await RelayAddMember.fromEvent(
+      makeEvent({
+        tags: [
+          ["p", a],
+          ["p", b],
+          ["alt", "x"],
+        ],
+      }),
+    )
 
     const tmpl = await op.builder().toTemplate(signer)
 

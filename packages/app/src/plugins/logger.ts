@@ -22,7 +22,11 @@ export class Logger {
 
   log(
     source: string,
-    {id = randomId(), at = Date.now(), ...message}: {id?: string; at?: number; [key: string]: unknown},
+    {
+      id = randomId(),
+      at = Date.now(),
+      ...message
+    }: {id?: string; at?: number; [key: string]: unknown},
   ) {
     this.store.update($messages => $messages.concat({source, id, at, ...message}).slice(-1000))
   }

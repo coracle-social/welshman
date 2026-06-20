@@ -36,21 +36,19 @@ describe("RelayList", () => {
       }),
     )
 
-    expect(reader.urls().sort()).toEqual(
-      [both, read, write].map(normalizeRelayUrl).sort(),
-    )
-    expect(reader.readUrls().sort()).toEqual(
-      [both, read].map(normalizeRelayUrl).sort(),
-    )
-    expect(reader.writeUrls().sort()).toEqual(
-      [both, write].map(normalizeRelayUrl).sort(),
-    )
+    expect(reader.urls().sort()).toEqual([both, read, write].map(normalizeRelayUrl).sort())
+    expect(reader.readUrls().sort()).toEqual([both, read].map(normalizeRelayUrl).sort())
+    expect(reader.writeUrls().sort()).toEqual([both, write].map(normalizeRelayUrl).sort())
   })
 
   it("round-trips without duplicating represented tags", async () => {
     const reader = await RelayList.fromEvent(
       makeEvent({
-        tags: [["r", both], ["r", read, RelayMode.Read], ["alt", "x"]],
+        tags: [
+          ["r", both],
+          ["r", read, RelayMode.Read],
+          ["alt", "x"],
+        ],
       }),
     )
 

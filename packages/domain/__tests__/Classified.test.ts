@@ -49,7 +49,14 @@ describe("Classified", () => {
   })
 
   it("defaults the price currency to SAT", async () => {
-    const c = await Classified.fromEvent(makeEvent({tags: [["d", "x"], ["price", "50"]]}))
+    const c = await Classified.fromEvent(
+      makeEvent({
+        tags: [
+          ["d", "x"],
+          ["price", "50"],
+        ],
+      }),
+    )
 
     expect(c.price()).toEqual({amount: 50, currency: "SAT", frequency: ""})
   })

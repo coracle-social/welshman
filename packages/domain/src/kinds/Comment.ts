@@ -1,7 +1,6 @@
 import {first} from "@welshman/lib"
 import {COMMENT, Address, getTagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import type {ISigner} from "@welshman/signer"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
 
@@ -65,7 +64,11 @@ export class CommentBuilder extends EventBuilder<Comment> {
   }
 
   setRoot(kind: number, id: string, pubkey: string, identifier?: string) {
-    this.rootTags = [["K", String(kind)], ["E", id], ["P", pubkey]]
+    this.rootTags = [
+      ["K", String(kind)],
+      ["E", id],
+      ["P", pubkey],
+    ]
 
     if (identifier) {
       this.rootTags.push(["A", new Address(kind, pubkey, identifier).toString()])
@@ -75,7 +78,11 @@ export class CommentBuilder extends EventBuilder<Comment> {
   }
 
   setParent(kind: number, id: string, pubkey: string, identifier?: string) {
-    this.parentTags = [["k", String(kind)], ["e", id], ["p", pubkey]]
+    this.parentTags = [
+      ["k", String(kind)],
+      ["e", id],
+      ["p", pubkey],
+    ]
 
     if (identifier) {
       this.parentTags.push(["a", new Address(kind, pubkey, identifier).toString()])

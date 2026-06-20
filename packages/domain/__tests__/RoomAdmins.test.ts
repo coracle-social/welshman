@@ -24,7 +24,14 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 describe("RoomAdmins", () => {
   it("reads represented tags", async () => {
     const room = await RoomAdmins.fromEvent(
-      makeEvent({tags: [["d", "room1"], ["p", a], ["p", b], ["alt", "x"]]}),
+      makeEvent({
+        tags: [
+          ["d", "room1"],
+          ["p", a],
+          ["p", b],
+          ["alt", "x"],
+        ],
+      }),
     )
 
     expect(room.identifier()).toBe("room1")
@@ -33,7 +40,14 @@ describe("RoomAdmins", () => {
 
   it("round-trips with no duplicated tags", async () => {
     const room = await RoomAdmins.fromEvent(
-      makeEvent({tags: [["d", "room1"], ["p", a], ["p", b], ["alt", "x"]]}),
+      makeEvent({
+        tags: [
+          ["d", "room1"],
+          ["p", a],
+          ["p", b],
+          ["alt", "x"],
+        ],
+      }),
     )
 
     const tmpl = await room.builder().toTemplate(signer)

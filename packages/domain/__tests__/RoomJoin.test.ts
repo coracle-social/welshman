@@ -23,7 +23,11 @@ describe("RoomJoin", () => {
   it("reads represented fields", async () => {
     const join = await RoomJoin.fromEvent(
       makeEvent({
-        tags: [["h", "room1"], ["claim", "invite-code"], ["alt", "x"]],
+        tags: [
+          ["h", "room1"],
+          ["claim", "invite-code"],
+          ["alt", "x"],
+        ],
         content: "please let me in",
       }),
     )
@@ -36,7 +40,11 @@ describe("RoomJoin", () => {
   it("round-trips with no duplicated tags", async () => {
     const join = await RoomJoin.fromEvent(
       makeEvent({
-        tags: [["h", "room1"], ["claim", "invite-code"], ["alt", "x"]],
+        tags: [
+          ["h", "room1"],
+          ["claim", "invite-code"],
+          ["alt", "x"],
+        ],
         content: "please let me in",
       }),
     )

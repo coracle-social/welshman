@@ -26,9 +26,7 @@ export class Poll extends EventReader {
   }
 
   options(): PollOption[] {
-    return this.event.tags
-      .filter(t => t[0] === "option")
-      .map(([, id, label = id]) => ({id, label}))
+    return this.event.tags.filter(t => t[0] === "option").map(([, id, label = id]) => ({id, label}))
   }
 
   pollType(): PollType {
@@ -148,10 +146,7 @@ export class PollBuilder extends EventBuilder<Poll> {
   }
 
   protected buildTags() {
-    const tags: string[][] = [
-      ...this.optionTags,
-      this.pollTypeTag ?? ["polltype", "singlechoice"],
-    ]
+    const tags: string[][] = [...this.optionTags, this.pollTypeTag ?? ["polltype", "singlechoice"]]
 
     if (this.endsAtTag) tags.push(this.endsAtTag)
 

@@ -43,9 +43,8 @@ export class Profiles extends DerivedPlugin<Profile> {
     const read = ($profile: Maybe<Profile>) =>
       pubkey ? ($profile?.display() ?? displayPubkey(pubkey)) : ""
 
-    return projection(
-      pubkey ? derived(this.one(pubkey, ...args), read) : readable(""),
-      () => read(pubkey ? this.get(pubkey) : undefined),
+    return projection(pubkey ? derived(this.one(pubkey, ...args), read) : readable(""), () =>
+      read(pubkey ? this.get(pubkey) : undefined),
     )
   }
 }

@@ -9,7 +9,6 @@ const pubkey = "ee".repeat(32)
 
 const g1 = `34550:${"aa".repeat(32)}:dev`
 const g2 = `34550:${"bb".repeat(32)}:art`
-const g3 = `34550:${"cc".repeat(32)}:music`
 
 const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
   ({
@@ -67,7 +66,12 @@ describe("GroupList", () => {
   })
 
   it("removeGroup removes by address", async () => {
-    const event = makeEvent({tags: [["a", g1], ["a", g2]]})
+    const event = makeEvent({
+      tags: [
+        ["a", g1],
+        ["a", g2],
+      ],
+    })
     const list = await GroupList.fromEvent(event)
 
     const tmpl = await list.builder().removeGroup(g1).toTemplate(signer)

@@ -28,7 +28,14 @@ describe("RoomLeave", () => {
   })
 
   it("round-trips the group behavior tag without duplication", async () => {
-    const leave = await RoomLeave.fromEvent(makeEvent({tags: [["h", group], ["alt", "x"]]}))
+    const leave = await RoomLeave.fromEvent(
+      makeEvent({
+        tags: [
+          ["h", group],
+          ["alt", "x"],
+        ],
+      }),
+    )
 
     const tmpl = await leave.builder().toTemplate(signer)
 

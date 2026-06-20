@@ -25,8 +25,7 @@ export class MessagingRelayLists extends DerivedPlugin<MessagingRelayList> {
     return this.app.use(Network).loadUsingOutbox(pubkey, {kinds: [MESSAGING_RELAYS]}, relayHints)
   }
 
-  urls = (pubkey: string): Projection<string[]> =>
-    this.project(pubkey, list => list?.urls() ?? [])
+  urls = (pubkey: string): Projection<string[]> => this.project(pubkey, list => list?.urls() ?? [])
 
   update = async (fn: (builder: MessagingRelayListBuilder) => void) => {
     const user = User.require(this.app)

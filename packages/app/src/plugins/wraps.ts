@@ -1,4 +1,3 @@
-import {get, writable} from "svelte/store"
 import {TaskQueue, uniq, now} from "@welshman/lib"
 import {getPubkeyTagValues, prep} from "@welshman/util"
 import type {TrustedEvent, SignedEvent, EventTemplate} from "@welshman/util"

@@ -22,7 +22,14 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelayLeave", () => {
   it("round-trips the group behavior tag without duplication", async () => {
-    const leave = await RelayLeave.fromEvent(makeEvent({tags: [["h", group], ["alt", "x"]]}))
+    const leave = await RelayLeave.fromEvent(
+      makeEvent({
+        tags: [
+          ["h", group],
+          ["alt", "x"],
+        ],
+      }),
+    )
 
     expect(leave.group()).toBe(group)
 

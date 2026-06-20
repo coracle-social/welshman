@@ -25,7 +25,13 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 describe("RelayMembers", () => {
   it("reads members from member tags", async () => {
     const members = await RelayMembers.fromEvent(
-      makeEvent({tags: [["member", a], ["member", b], ["member", a]]}),
+      makeEvent({
+        tags: [
+          ["member", a],
+          ["member", b],
+          ["member", a],
+        ],
+      }),
     )
 
     expect(members.pubkeys().sort()).toEqual([a, b].sort())
@@ -35,7 +41,13 @@ describe("RelayMembers", () => {
 
   it("round-trips with deduped member tags and passthrough", async () => {
     const members = await RelayMembers.fromEvent(
-      makeEvent({tags: [["member", a], ["member", b], ["alt", "x"]]}),
+      makeEvent({
+        tags: [
+          ["member", a],
+          ["member", b],
+          ["alt", "x"],
+        ],
+      }),
     )
 
     const tmpl = await members.builder().toTemplate(signer)

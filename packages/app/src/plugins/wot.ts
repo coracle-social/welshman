@@ -160,7 +160,9 @@ export class Wot {
       if (pubkey) {
         const theirFollows = $follows.get(pubkey)?.pubkeys() ?? []
 
-        follows = theirFollows.filter(other => ($follows.get(other)?.pubkeys() ?? []).includes(target))
+        follows = theirFollows.filter(other =>
+          ($follows.get(other)?.pubkeys() ?? []).includes(target),
+        )
         mutes = theirFollows.filter(other => ($mutes.get(other)?.pubkeys() ?? []).includes(target))
       } else {
         follows = Array.from($followers.get(target) || [])

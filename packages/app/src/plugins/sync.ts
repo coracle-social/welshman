@@ -45,7 +45,9 @@ export class Sync {
         if (await this.app.use(Relays).hasNegentropy(relay)) {
           await net.push({filters, events, relays: [relay]})
         } else {
-          await Promise.all(events.map((event: SignedEvent) => net.publish({event, relays: [relay]})))
+          await Promise.all(
+            events.map((event: SignedEvent) => net.publish({event, relays: [relay]})),
+          )
         }
       }),
     )

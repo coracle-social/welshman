@@ -1,5 +1,4 @@
 import {parseJson} from "@welshman/lib"
-import type {TrustedEvent} from "@welshman/util"
 import {decrypt} from "@welshman/signer"
 import type {ISigner} from "@welshman/signer"
 import {EventReader} from "./EventReader.js"
@@ -24,7 +23,9 @@ export abstract class ListReader extends EventReader {
         const json = parseJson(plaintext)
 
         if (Array.isArray(json)) {
-          this.privateTags = json.filter(tag => Array.isArray(tag) && tag.length > 0 && tag.every(v => typeof v === "string"))
+          this.privateTags = json.filter(
+            tag => Array.isArray(tag) && tag.length > 0 && tag.every(v => typeof v === "string"),
+          )
         }
       } catch {
         // pass

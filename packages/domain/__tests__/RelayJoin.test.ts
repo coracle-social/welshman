@@ -38,7 +38,13 @@ describe("RelayJoin", () => {
 
   it("round-trips with no duplicate tags and preserves passthrough/content", async () => {
     const join = await RelayJoin.fromEvent(
-      makeEvent({tags: [["claim", "abc123"], ["alt", "x"]], content: "let me in"}),
+      makeEvent({
+        tags: [
+          ["claim", "abc123"],
+          ["alt", "x"],
+        ],
+        content: "let me in",
+      }),
     )
 
     const tmpl = await join.builder().toTemplate(signer)

@@ -26,7 +26,13 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 describe("TopicList", () => {
   it("reads followed topics and interest-set addresses", async () => {
     const reader = await TopicList.fromEvent(
-      makeEvent({tags: [["t", topicA], ["a", address], ["alt", "x"]]}),
+      makeEvent({
+        tags: [
+          ["t", topicA],
+          ["a", address],
+          ["alt", "x"],
+        ],
+      }),
     )
 
     expect(reader.topics()).toEqual([topicA])
@@ -37,7 +43,13 @@ describe("TopicList", () => {
 
   it("round-trips without duplicating represented tags", async () => {
     const reader = await TopicList.fromEvent(
-      makeEvent({tags: [["t", topicA], ["a", address], ["alt", "x"]]}),
+      makeEvent({
+        tags: [
+          ["t", topicA],
+          ["a", address],
+          ["alt", "x"],
+        ],
+      }),
     )
 
     const tmpl = await reader.builder().toTemplate(signer)

@@ -26,7 +26,12 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 describe("RoomList", () => {
   it("reads joined groups", async () => {
     const reader = await RoomList.fromEvent(
-      makeEvent({tags: [["group", groupA, relay], ["alt", "x"]]}),
+      makeEvent({
+        tags: [
+          ["group", groupA, relay],
+          ["alt", "x"],
+        ],
+      }),
     )
 
     expect(reader.groups()).toEqual([groupA])
@@ -35,7 +40,12 @@ describe("RoomList", () => {
 
   it("round-trips without duplicating represented tags", async () => {
     const reader = await RoomList.fromEvent(
-      makeEvent({tags: [["group", groupA, relay], ["alt", "x"]]}),
+      makeEvent({
+        tags: [
+          ["group", groupA, relay],
+          ["alt", "x"],
+        ],
+      }),
     )
 
     const tmpl = await reader.builder().toTemplate(signer)

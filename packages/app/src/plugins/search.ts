@@ -81,11 +81,7 @@ export class Searches {
             return dec(score) * inc(wotScore / (this.app.use(Wot).max.get() || 1))
           },
           fuseOptions: {
-            keys: [
-              "nip05",
-              {name: "name", weight: 0.8},
-              {name: "about", weight: 0.3},
-            ],
+            keys: ["nip05", {name: "name", weight: 0.8}, {name: "about", weight: 0.3}],
             threshold: 0.3,
             shouldSort: false,
             // Read fields off the domain reader's parsed `values`; only expose a
@@ -96,9 +92,7 @@ export class Searches {
               if (key === "nip05") {
                 const nip05 = profile.nip05()
 
-                return nip05 && $handlesByNip05.get(nip05)?.pubkey === profile.author()
-                  ? nip05
-                  : ""
+                return nip05 && $handlesByNip05.get(nip05)?.pubkey === profile.author() ? nip05 : ""
               }
 
               return profile.values[key] ?? ""
