@@ -51,8 +51,8 @@ const relaySearch = get(searches.relaySearch)
 
 // A Search exposes both option objects and their values
 profileSearch.searchValues("alice")    // string[] — pubkeys; also fires a NIP-50 network search
-profileSearch.searchOptions("alice")   // PublishedProfile[]
-profileSearch.getOption(pubkey)        // PublishedProfile | undefined
+profileSearch.searchOptions("alice")   // Profile[]
+profileSearch.getOption(pubkey)        // Profile | undefined
 ```
 
 Profile results are ranked by blending the Fuse score with the WoT score, so well-trusted matches surface first. An empty search term returns all options.

@@ -1,11 +1,13 @@
 ---
 name: welshman-util
-description: "Use this skill when working with @welshman/util: nostr event types, kinds, tags, filters, addresses, NIPs (42/86/98), profiles, relays, zaps, wallets, or any core nostr data structures."
+description: "Use this skill when working with @welshman/util: nostr event types, kinds, tags, filters, addresses, NIPs (42/86/98), relays, zaps, wallets, or any core nostr data structures. (Profiles, lists, handlers, rooms, and Encryptable now live in @welshman/domain.)"
 ---
 
 # welshman/util — Core Nostr Utilities
 
-`@welshman/util` is the foundational layer of the welshman nostr stack, providing types, constants, and helpers for every nostr primitive: events, kinds, tags, filters, addresses, profiles, lists, zaps, relays, and Lightning wallet integration. Higher level welshman packages (`@welshman/net`, `@welshman/app`, `@welshman/store`, etc.) depend on the types and utilities defined here.
+`@welshman/util` is the foundational layer of the welshman nostr stack, providing types, constants, and helpers for every nostr primitive: events, kinds, tags, filters, addresses, zaps, relays, and Lightning wallet integration. Higher level welshman packages (`@welshman/net`, `@welshman/app`, `@welshman/store`, etc.) depend on the types and utilities defined here.
+
+> **Moved to `@welshman/domain`:** Profiles, lists, handlers, rooms, and Encryptable (`makeProfile`/`readProfile`/`displayProfile`, `makeList`/`addToList*`, `readHandlers`/`displayHandler`, room helpers, `Encryptable`/`asDecryptedEvent`/`DecryptedEvent`, etc.) now live in `@welshman/domain` as Reader/Builder classes — see the welshman-domain skill.
 
 ## Installation
 
@@ -32,7 +34,6 @@ yarn add @welshman/util
 | `HashedEvent` | `OwnedEvent + id` |
 | `SignedEvent` | `HashedEvent + sig` |
 | `TrustedEvent` | `HashedEvent + optional sig` — most common in-app type |
-| `DecryptedEvent` | `TrustedEvent + plaintext` (for encrypted lists/events) |
 
 ### Event Utilities
 
@@ -323,40 +324,6 @@ isDVMKind(kind)                    // 5000–7000
 | `address.toNaddr()` | Serialize to NIP-19 naddr |
 | `getAddress(event)` | Convenience: get address string from event |
 
-### Profile
-
-| Export | Description |
-|--------|-------------|
-| `makeProfile(partial)` | Create a profile object |
-| `readProfile(event)` | Parse `PublishedProfile` from kind 0 event |
-| `createProfile(profile)` | Create kind 0 `EventTemplate` |
-| `editProfile(published)` | Update existing profile event |
-| `displayProfile(profile?, fallback?)` | Get best display name string |
-| `displayPubkey(pubkey)` | Shorten pubkey to `npub1abc...xyz` |
-| `profileHasName(profile?)` | Check if profile has a name field |
-
-Profile fields: `name`, `display_name`, `about`, `picture`, `banner`, `website`, `nip05`, `lud06`, `lud16`, `lnurl`
-
-### Lists (kind 10000+)
-
-| Export | Description |
-|--------|-------------|
-| `makeList(params)` | Create a new list |
-| `readList(event)` | Parse `PublishedList` from `DecryptedEvent` |
-| `getListTags(list)` | Combined public + private tags |
-| `addToListPublicly(list, ...tags)` | Returns `Encryptable` with tag added publicly |
-| `addToListPrivately(list, ...tags)` | Returns `Encryptable` with tag added privately |
-| `removeFromList(list, value)` | Returns `Encryptable` with tag removed |
-| `removeFromListByPredicate(list, pred)` | Returns `Encryptable` with matching tags removed |
-| `updateList(list, { publicTags?, privateTags? })` | Bulk update tags |
-
-### Encryptable
-
-| Export | Description |
-|--------|-------------|
-| `Encryptable<T>` | Wraps a partial event with plaintext updates; call `.reconcile(encrypt)` to produce encrypted event |
-| `asDecryptedEvent(event, plaintext?)` | Attach plaintext data to a `TrustedEvent` |
-
 ### Relay
 
 | Export | Description |
@@ -412,15 +379,6 @@ makeHttpAuthHeader(event: SignedEvent): string  // Returns "Nostr <base64>"
 sendManagementRequest(url: string, request: ManagementRequest, authEvent: SignedEvent): Promise<ManagementResponse>
 // ManagementResponse = { result?: any; error?: string }
 // ManagementMethod enum covers: BanPubkey, AllowPubkey, BanEvent, AllowEvent, etc.
-```
-
-### Handlers (NIP-89)
-
-```typescript
-readHandlers(event: TrustedEvent): Handler[]
-getHandlerKey(handler: Handler): string        // "kind:address" format
-getHandlerAddress(event: TrustedEvent): string | undefined
-displayHandler(handler?: Handler, fallback?: string): string
 ```
 
 ### Links
@@ -566,20 +524,6 @@ const parsed = Address.fromNaddr('naddr1...')
 const addressStr = getAddress(event)  // '30023:deadbeef:my-slug'
 ```
 
-### Profiles
-
-```typescript
-import { readProfile, displayProfile, displayPubkey, editProfile } from '@welshman/util'
-
-const profile = readProfile(kind0Event)
-console.log(displayProfile(profile, 'Anonymous'))  // name or fallback
-console.log(displayPubkey(pubkey))                 // 'npub1abc...xyz'
-
-// Update profile
-const updatedEvent = editProfile({ ...profile, name: 'New Name', about: 'Updated bio' })
-// sign and publish updatedEvent
-```
-
 ### Zap flow
 
 ```typescript
@@ -646,9 +590,9 @@ await fetch('https://api.example.com/upload', {
 
 - **`@welshman/net`** — uses `TrustedEvent`, `Filter`, `SignedEvent` from this package as the wire types for relay connections and subscriptions.
 - **`@welshman/store`** — provides Svelte stores over repositories built on `TrustedEvent`; relies on `isReplaceable`, `getAddress`, etc. for deduplication.
-- **`@welshman/app`** — high-level application layer; wraps net/store/router and uses profile, list, zap, and handler helpers from this package.
+- **`@welshman/app`** — high-level application layer; wraps net/store/router and uses zap helpers from this package (profile/list/handler/room helpers now live in `@welshman/domain`).
 - **`@welshman/router`** — uses `RelayMode` and relay URL helpers when computing relay selections.
-- **`@welshman/signer`** — produces `SignedEvent` objects that satisfy types defined here; the `Encrypt` function type used by `Encryptable` is typically provided by a signer.
+- **`@welshman/signer`** — produces `SignedEvent` objects that satisfy types defined here; signers also provide the `Encrypt` function used by `@welshman/domain` list/Encryptable builders.
 
 ---
 
@@ -659,8 +603,6 @@ await fetch('https://api.example.com/upload', {
 - **Replaceable event identity**: Use `getIdOrAddress` rather than `event.id` when referencing events that may be addressable — the address string is stable across updates, the id is not.
 
 - **`getAncestors` handles two protocols**: Kind 1111 (comment/NIP-22) uses uppercase `E`/`A` for roots and lowercase for replies, returning `{ roots, replies }`. All other kinds use NIP-10 positional rules, returning `{ roots, replies, mentions }` where `mentions` is always present but may be an empty array. You do not need to branch on this; `getAncestors`, `getParentIdOrAddr`, and `isChildOf` handle it automatically.
-
-- **List mutations return `Encryptable`**: `addToListPrivately`, `removeFromList`, etc. do not return an event directly. Call `.reconcile(encryptFn)` on the result to get the final `EventTemplate` ready to sign.
 
 - **`zapFromEvent` returns `undefined` on any validation failure** including amount mismatch, wrong zapper pubkey, malformed invoice, or self-zap. Always check the result.
 
@@ -673,3 +615,9 @@ await fetch('https://api.example.com/upload', {
 - **`getTagValue` / `getTagValues` argument order**: the type(s) come **first**, the tags array comes **second** — `getTagValue('title', event.tags)`. This is the opposite of the specialized helpers like `getEventTags(tags)` which take only the tags array. Mixing up the order produces no TypeScript error but silently returns `undefined` or `[]`.
 
 - **`verifiedSymbol` is a Symbol key**: you must import `verifiedSymbol` from `@welshman/util` and use it as a computed property key — `event[verifiedSymbol] = true`. You cannot use a string key. The symbol is re-exported from `nostr-tools/pure`, so it is the same identity as the one used internally by `verifyEvent`.
+
+---
+
+## Related
+
+- **`@welshman/domain`** (welshman-domain skill) — Profiles, lists, handlers, rooms, and Encryptable (`makeProfile`/`readProfile`/`displayProfile`/`PublishedProfile`, `makeList`/`readList`/`addToList*`/`removeFromList*`/`getListTags`/`getRelaysFromList`, `readHandlers`/`displayHandler`/`getHandlerKey`/`getHandlerAddress`, room helpers, `Encryptable`/`asDecryptedEvent`/`DecryptedEvent`) moved out of `@welshman/util` and now live here as Reader/Builder classes.

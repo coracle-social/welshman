@@ -7,7 +7,7 @@ import {EventBuilder} from "../EventBuilder.js"
 export class Report extends EventReader {
   readonly kind = REPORT
 
-  reportedPubkey() {
+  pubkey() {
     return getTagValue("p", this.event.tags)
   }
 
@@ -16,7 +16,7 @@ export class Report extends EventReader {
   }
 
   reason() {
-    return getTag("e", this.event.tags)?.[2]
+    return getTag("e", this.event.tags)?.[2] ?? getTag("p", this.event.tags)?.[2]
   }
 
   builder() {
@@ -27,29 +27,26 @@ export class Report extends EventReader {
 export class ReportBuilder extends EventBuilder<Report> {
   readonly kind = REPORT
 
-  reportedPubkey?: string
-  eventId?: string
+  pTag?: string[]
+  eTag?: string[]
   reason?: string
 
   constructor(readonly reader?: Report) {
     super(reader)
 
-    const p = first(this.consumeTags("p"))
-    const e = first(this.consumeTags("e"))
-
-    this.reportedPubkey = p?.[1]
-    this.eventId = e?.[1]
-    this.reason = e?.[2]
+    this.pTag = first(this.consumeTags("p"))
+    this.eTag = first(this.consumeTags("e"))
+    this.reason = this.eTag?.[2] ?? this.pTag?.[2]
   }
 
-  setReportedPubkey(reportedPubkey: string) {
-    this.reportedPubkey = reportedPubkey
+  setPubkey(pubkey: string) {
+    this.pTag = ["p", pubkey]
 
     return this
   }
 
   setEventId(eventId: string) {
-    this.eventId = eventId
+    this.eTag = ["e", eventId]
 
     return this
   }
@@ -63,12 +60,20 @@ export class ReportBuilder extends EventBuilder<Report> {
   protected buildTags() {
     const tags: string[][] = []
 
-    if (this.reportedPubkey) {
-      tags.push(["p", this.reportedPubkey])
+    if (this.pTag) {
+      if (this.pTag.length === 2) {
+        this.pTag.push(this.reason)
+      }
+
+      tags.push(this.pTag)
     }
 
-    if (this.eventId) {
-      tags.push(["e", this.eventId, ...(this.reason ? [this.reason] : [])])
+    if (this.eTag) {
+      if (this.eTag.length === 2) {
+        this.eTag.push(this.reason)
+      }
+
+      tags.push(this.eTag)
     }
 
     return tags

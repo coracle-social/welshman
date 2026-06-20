@@ -9,34 +9,12 @@ export abstract class EventReader {
 
   constructor(readonly event: TrustedEvent) {}
 
-  // Returns a reusable, class-bound reader factory over a fixed signer. Unlike a
-  // detached `fromEvent` (which would lose its binding, since it does
-  // `new this(event)`), this is invoked on the class up front, so it's safe
-  // point-free — e.g. `eventToItem: Profile.factory(signer)`. Pass the signer
-  // whenever you have one; the reader decides whether it needs it, so callers
-  // stay decoupled from which kinds carry encrypted content.
-  static factory<T extends EventReader>(this: new (event: TrustedEvent) => T, signer?: ISigner) {
-    const Reader = this
-
-    return async (event: TrustedEvent): Promise<T> => {
-      const reader = new Reader(event)
-
-      if (event.kind !== reader.kind) {
-        throw new Error(`Expected a kind ${reader.kind} event, got kind ${event.kind}`)
-      }
-
-      await reader.parse(signer)
-
-      return reader
-    }
-  }
-
-  static async fromEvent<T extends EventReader>(
-    this: new (event: TrustedEvent) => T,
+  private static async fromEventUsingSubclass<T extends EventReader>(
+    Reader: new (event: TrustedEvent) => T,
     event: TrustedEvent,
     signer?: ISigner,
   ): Promise<T> {
-    const reader = new this(event)
+    const reader = new Reader(event)
 
     if (event.kind !== reader.kind) {
       throw new Error(`Expected a kind ${reader.kind} event, got kind ${event.kind}`)
@@ -45,6 +23,20 @@ export abstract class EventReader {
     await reader.parse(signer)
 
     return reader
+  }
+
+  static fromEvent<T extends EventReader>(
+    this: new (event: TrustedEvent) => T,
+    event: TrustedEvent,
+    signer?: ISigner,
+  ): Promise<T> {
+    return EventReader.fromEventUsingSubclass(this, event, signer)
+  }
+
+  static factory<T extends EventReader>(this: new (event: TrustedEvent) => T, signer?: ISigner) {
+    const Reader = this
+
+    return (event: TrustedEvent) => EventReader.fromEventUsingSubclass(Reader, event, signer)
   }
 
   protected async parse(signer?: ISigner): Promise<void> {}
@@ -85,7 +77,7 @@ export abstract class EventReader {
     return this.event.tags.some(spec(["-"]))
   }
 
-  expires() {
+  expiration() {
     const expiration = parseInt(getTagValue("expiration", this.event.tags) ?? "")
 
     return isNaN(expiration) ? undefined : expiration

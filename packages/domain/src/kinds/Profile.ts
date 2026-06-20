@@ -41,10 +41,6 @@ export class Profile extends EventReader {
     return this.values.name
   }
 
-  displayName(): Maybe<string> {
-    return this.values.display_name
-  }
-
   nip05(): Maybe<string> {
     return this.values.nip05
   }
@@ -74,10 +70,6 @@ export class Profile extends EventReader {
 
     if (name) return ellipsize(name, 60).trim()
 
-    const displayName= this.displayName()
-
-    if (displayName) return ellipsize(displayName, 60).trim()
-
     return displayPubkey(this.event.pubkey).trim() || fallback.trim()
   }
 
@@ -103,12 +95,6 @@ export class ProfileBuilder extends EventBuilder<Profile> {
 
   setName(name: string) {
     this.values.name = name
-
-    return this
-  }
-
-  setDisplayName(displayName: string) {
-    this.values.displayName = displayName
 
     return this
   }

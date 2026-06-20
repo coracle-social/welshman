@@ -1,6 +1,7 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, BLOSSOM_SERVERS, NOTE, getTagValues, normalizeRelayUrl} from "@welshman/util"
+import {makeSecret, BLOSSOM_SERVERS, NOTE, getTagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
+import {normalizeUrl} from "@welshman/lib"
 import {Nip01Signer} from "@welshman/signer"
 import {BlossomServerList, BlossomServerListBuilder} from "../src/kinds/BlossomServerList"
 
@@ -11,7 +12,7 @@ const s1 = "https://blossom.one.example/"
 const s2 = "https://blossom.two.example/"
 const s3 = "https://blossom.three.example/"
 
-const norm = (url: string) => normalizeRelayUrl(url)
+const norm = (url: string) => normalizeUrl(url)
 
 const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
   ({

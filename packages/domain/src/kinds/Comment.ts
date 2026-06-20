@@ -1,5 +1,5 @@
 import {first} from "@welshman/lib"
-import {COMMENT, Address, getAddress, getTagValue, isReplaceableKind} from "@welshman/util"
+import {COMMENT, Address, getTagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
 import {EventReader} from "../EventReader.js"
@@ -68,7 +68,7 @@ export class CommentBuilder extends EventBuilder<Comment> {
     this.rootTags = [["K", String(kind)], ["E", id], ["P", pubkey]]
 
     if (identifier) {
-      this.rootTags.push(["A", id])
+      this.rootTags.push(["A", new Address(kind, pubkey, identifier).toString()])
     }
 
     return this
@@ -78,7 +78,7 @@ export class CommentBuilder extends EventBuilder<Comment> {
     this.parentTags = [["k", String(kind)], ["e", id], ["p", pubkey]]
 
     if (identifier) {
-      this.parentTags.push(["a", id])
+      this.parentTags.push(["a", new Address(kind, pubkey, identifier).toString()])
     }
 
     return this
