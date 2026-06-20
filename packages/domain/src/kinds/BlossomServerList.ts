@@ -1,5 +1,5 @@
-import {uniq, nthEq} from "@welshman/lib"
-import {BLOSSOM_SERVERS, getTagValues, normalizeRelayUrl} from "@welshman/util"
+import {uniq, nthEq, normalizeUrl} from "@welshman/lib"
+import {BLOSSOM_SERVERS, getTagValues} from "@welshman/util"
 import {ListReader} from "../ListReader.js"
 import {ListBuilder} from "../ListBuilder.js"
 
@@ -8,11 +8,11 @@ export class BlossomServerList extends ListReader {
   readonly kind = BLOSSOM_SERVERS
 
   urls() {
-    return uniq(getTagValues("server", this.tags()).map(normalizeRelayUrl))
+    return uniq(getTagValues("server", this.tags()).map(url => normalizeUrl(url)))
   }
 
   includes(url: string) {
-    return this.urls().includes(normalizeRelayUrl(url))
+    return this.urls().includes(normalizeUrl(url))
   }
 
   builder() {
@@ -24,16 +24,16 @@ export class BlossomServerListBuilder extends ListBuilder<BlossomServerList> {
   readonly kind = BLOSSOM_SERVERS
 
   addUrl(url: string) {
-    return this.addPublic(["server", normalizeRelayUrl(url)])
+    return this.addPublic(["server", normalizeUrl(url)])
   }
 
   removeUrl(url: string) {
-    return this.drop(nthEq(1, normalizeRelayUrl(url)))
+    return this.drop(nthEq(1, normalizeUrl(url)))
   }
 
   setUrls(urls: string[]) {
     this.clear()
 
-    return this.addPublic(...urls.map(url => ["server", normalizeRelayUrl(url)]))
+    return this.addPublic(...urls.map(url => ["server", normalizeUrl(url)]))
   }
 }

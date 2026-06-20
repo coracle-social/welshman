@@ -23,25 +23,27 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
   }) as TrustedEvent
 
 describe("RelayMembers", () => {
-  it("reads members from p tags", async () => {
-    const members = await RelayMembers.fromEvent(makeEvent({tags: [["p", a], ["p", b], ["p", a]]}))
+  it("reads members from member tags", async () => {
+    const members = await RelayMembers.fromEvent(
+      makeEvent({tags: [["member", a], ["member", b], ["member", a]]}),
+    )
 
     expect(members.pubkeys().sort()).toEqual([a, b].sort())
     expect(members.isMember(a)).toBe(true)
     expect(members.isMember(c)).toBe(false)
   })
 
-  it("round-trips with deduped p tags and passthrough", async () => {
+  it("round-trips with deduped member tags and passthrough", async () => {
     const members = await RelayMembers.fromEvent(
-      makeEvent({tags: [["p", a], ["p", b], ["alt", "x"]]}),
+      makeEvent({tags: [["member", a], ["member", b], ["alt", "x"]]}),
     )
 
     const tmpl = await members.builder().toTemplate(signer)
 
     expect(tmpl.kind).toBe(RELAY_MEMBERS)
-    expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(2)
-    expect(tmpl.tags).toContainEqual(["p", a])
-    expect(tmpl.tags).toContainEqual(["p", b])
+    expect(tmpl.tags.filter(t => t[0] === "member").length).toBe(2)
+    expect(tmpl.tags).toContainEqual(["member", a])
+    expect(tmpl.tags).toContainEqual(["member", b])
     expect(tmpl.tags).toContainEqual(["alt", "x"])
   })
 
@@ -53,8 +55,8 @@ describe("RelayMembers", () => {
       .removePubkey(b)
       .toTemplate(signer)
 
-    expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(1)
-    expect(tmpl.tags).toContainEqual(["p", a])
+    expect(tmpl.tags.filter(t => t[0] === "member").length).toBe(1)
+    expect(tmpl.tags).toContainEqual(["member", a])
   })
 
   it("throws on the wrong kind", async () => {

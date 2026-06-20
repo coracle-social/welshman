@@ -15,7 +15,7 @@ profiles.one(pubkey)              // Readable<Maybe<Profile>> — lazily loads
 profiles.get(pubkey)             // Maybe<Profile> — sync snapshot, no load
 await profiles.load(pubkey)      // explicit load (cached)
 profiles.display(pubkey)         // Projection<string> — display name (falls back to npub)
-await profiles.publish(profile)  // build & publish a profile event (kind 0)
+await profiles.publish(values)   // merge a partial values record over the current profile and publish (kind 0)
 ```
 
 `profiles.display(pubkey).$` is the right thing to bind in a component for a user's name.
@@ -27,7 +27,7 @@ Kind-3 follow lists keyed by pubkey.
 ```typescript
 const follows = app.use(FollowLists)
 
-follows.one(pubkey)                          // Readable<Maybe<List>>
+follows.one(pubkey)                          // Readable<Maybe<FollowList>>
 await follows.follow(["p", otherPubkey])     // add a tag and publish to outbox
 await follows.unfollow(otherPubkey)          // remove and publish
 ```
@@ -39,7 +39,7 @@ Kind-10000 mute lists keyed by pubkey. Private entries are NIP-44 encrypted, so 
 ```typescript
 const mutes = app.use(MuteLists)
 
-mutes.one(pubkey)                            // Readable<Maybe<PublishedList>>
+mutes.one(pubkey)                            // Readable<Maybe<MuteList>>
 await mutes.mutePublicly(["p", pubkey])      // public mute
 await mutes.mutePrivately(["p", pubkey])     // encrypted mute
 await mutes.unmute(pubkey)
@@ -79,7 +79,7 @@ await relayLists.setRelays(tags)
 
 ### Specialized relay lists
 
-Each of these is a separate kind with the same shape (`urls(pubkey)`, `addRelay`, `removeRelay`, `setRelays`):
+Each of these is a separate kind with the same shape (`urls(pubkey)`, `addUrl`, `removeUrl`, `setUrls`):
 
 | Plugin | Kind | Purpose |
 |---|---|---|
@@ -122,7 +122,7 @@ NIP-05 identifiers verified over HTTP, keyed by `name@domain`. Lookups are batch
 const handles = app.use(Handles)
 
 handles.forPubkey(pubkey)                    // Projection<Maybe<Handle>> — resolves via the profile's nip05
-handles.display(nip05)                       // Projection<string>
+handles.display(nip05)                       // string — displayable nip05
 await handles.loadForPubkey(pubkey)
 ```
 

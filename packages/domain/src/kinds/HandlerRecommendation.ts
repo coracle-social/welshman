@@ -1,4 +1,4 @@
-import {nthEq, last} from "@welshman/lib"
+import {nthNe, last} from "@welshman/lib"
 import {HANDLER_RECOMMENDATION, getAddressTags, getAddressTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -47,7 +47,7 @@ export class HandlerRecommendationBuilder extends EventBuilder<HandlerRecommenda
   }
 
   removeRecommendation(address: string) {
-    this.addressTags = this.addressTags.filter(nthEq(1, address))
+    this.addressTags = this.addressTags.filter(nthNe(1, address))
 
     return this
   }

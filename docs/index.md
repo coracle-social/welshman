@@ -24,6 +24,9 @@ features:
   - title: "@welshman/util"
     details: Core Nostr utilities for events, filters, and data structures.
     link: "/util"
+  - title: "@welshman/domain"
+    details: Nostr event kinds modeled as Reader/Builder classes for profiles, lists, rooms, handlers, and zaps.
+    link: "/domain"
   - title: "@welshman/net"
     details: Networking layer for Nostr with relay connection management and message status handling.
     link: "/net"

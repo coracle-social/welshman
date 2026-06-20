@@ -190,7 +190,7 @@ export const makeEditor = ({
   const profileSearch = createSearch(get(profiles), {
     onSearch: searchProfiles,
     getValue: (p: any) => p.event.pubkey,
-    fuseOptions: {keys: ["nip05", "name", "display_name"], threshold: 0.3},
+    fuseOptions: {keys: ["nip05", "name"], threshold: 0.3},
   })
 
   const editor = new Editor({

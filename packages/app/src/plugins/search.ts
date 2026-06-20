@@ -84,7 +84,6 @@ export class Searches {
             keys: [
               "nip05",
               {name: "name", weight: 0.8},
-              {name: "display_name", weight: 0.5},
               {name: "about", weight: 0.3},
             ],
             threshold: 0.3,

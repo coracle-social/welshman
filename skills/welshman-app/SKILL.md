@@ -89,14 +89,14 @@ All follow the same shape — `get(key)` (sync), `one(key)` (reactive, lazy-load
 
 | Plugin | Data | Notable accessors |
 |---|---|---|
-| `Profiles` | kind-0 profiles | `one(pk)`, `display(pk)`, `publish(profile)` |
+| `Profiles` | kind-0 profiles | `one(pk)`, `display(pk)`, `publish(values)` |
 | `FollowLists` | kind-3 follows | `one(pk)`, `follow(tag)`, `unfollow(value)` |
 | `MuteLists` | kind-10000 mutes (private = encrypted) | `mutePublicly(tag)`, `mutePrivately(tag)`, `unmute(v)`, `setMutes(...)` |
 | `PinLists` | kind-10001 pins | `pin(tag)`, `unpin(value)` |
 | `RelayLists` | NIP-65 (kind 10002) | `urls(pk)`, `readUrls(pk)`, `writeUrls(pk)`, `addRelay(url, mode)`, `setWriteRelays(urls)` |
-| `BlockedRelayLists` | kind-10006 | `urls(pk)`, `addRelay`, `removeRelay`, `setRelays` |
-| `MessagingRelayLists` | kind-10050 (NIP-17 DM relays) | `urls(pk)`, `addRelay`, ... |
-| `SearchRelayLists` | kind-10007 | `urls(pk)`, `addRelay`, ... |
+| `BlockedRelayLists` | kind-10006 | `urls(pk)`, `addUrl`, `removeUrl`, `setUrls` |
+| `MessagingRelayLists` | kind-10050 (NIP-17 DM relays) | `urls(pk)`, `addUrl`, ... |
+| `SearchRelayLists` | kind-10007 | `urls(pk)`, `addUrl`, ... |
 | `Relays` | NIP-11 relay info (HTTP) | `one(url)`, `display(url)`, `hasNip(url, n)`, `hasNegentropy(url)` |
 | `RelayManagement` | NIP-86 | `post(url, request)` |
 | `Handles` | NIP-05 (HTTP, batched) | `forPubkey(pk)`, `display(nip05)`, `loadForPubkey(pk)` |

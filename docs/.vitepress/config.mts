@@ -36,6 +36,20 @@ export default defineConfig({
           ],
         },
         {
+          text: "@welshman/domain",
+          link: "/domain/",
+          items: [
+            {text: "The App Reader/Builder model", link: "/domain/readers-and-builders"},
+            {text: "Profile", link: "/domain/profile"},
+            {text: "Lists", link: "/domain/lists"},
+            {text: "Rooms", link: "/domain/rooms"},
+            {text: "Relay Membership", link: "/domain/relay-membership"},
+            {text: "Handlers", link: "/domain/handlers"},
+            {text: "Zaps", link: "/domain/zaps"},
+            {text: "Content", link: "/domain/content"},
+          ],
+        },
+        {
           text: "@welshman/util",
           link: "/util/",
           items: [
@@ -45,11 +59,7 @@ export default defineConfig({
             {text: "Events", link: "/util/events"},
             {text: "Filters", link: "/util/filters"},
             {text: "Tags", link: "/util/tags"},
-            {text: "Encryptable", link: "/util/encryptable"},
             {text: "Relays", link: "/util/relay"},
-            {text: "Profiles", link: "/util/profile"},
-            {text: "Handlers", link: "/util/handlers"},
-            {text: "Lists", link: "/util/list"},
             {text: "Zaps", link: "/util/zaps"},
             {text: "Relay Auth", link: "/util/nip42"},
             {text: "HTTP Auth", link: "/util/nip98"},
