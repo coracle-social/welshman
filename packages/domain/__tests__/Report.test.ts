@@ -34,7 +34,7 @@ describe("Report", () => {
 
     const report = await Report.fromEvent(event)
 
-    expect(report.reportedPubkey()).toBe(reported)
+    expect(report.pubkey()).toBe(reported)
     expect(report.eventId()).toBe(eventId)
     expect(report.reason()).toBe("spam")
     expect(report.content()).toBe("this is spam")
@@ -54,7 +54,7 @@ describe("Report", () => {
 
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "e").length).toBe(1)
-    expect(tmpl.tags).toContainEqual(["p", reported])
+    expect(tmpl.tags).toContainEqual(["p", reported, "spam"])
     expect(tmpl.tags).toContainEqual(["e", eventId, "spam"])
     // Unknown passthrough tag survives.
     expect(tmpl.tags).toContainEqual(["alt", "x"])
@@ -63,14 +63,14 @@ describe("Report", () => {
 
   it("builds from a fresh builder", async () => {
     const tmpl = await new ReportBuilder()
-      .setReportedPubkey(reported)
+      .setPubkey(reported)
       .setEventId(eventId)
       .setReason("impersonation")
       .setContent("bad actor")
       .toTemplate(signer)
 
     expect(tmpl.kind).toBe(REPORT)
-    expect(tmpl.tags).toContainEqual(["p", reported])
+    expect(tmpl.tags).toContainEqual(["p", reported, "impersonation"])
     expect(tmpl.tags).toContainEqual(["e", eventId, "impersonation"])
     expect(tmpl.content).toBe("bad actor")
   })

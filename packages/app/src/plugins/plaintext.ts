@@ -1,25 +1,19 @@
-import {decrypt} from "@welshman/signer"
-import type {Maybe} from "@welshman/lib"
-import type {TrustedEvent} from "@welshman/util"
 import {MapPlugin} from "./base.js"
 
 /**
- * A cache of decrypted event content, keyed by event id.
+ * A cache of decrypted content, keyed by the ciphertext. Decryption itself is
+ * supplied by the caller (the signer's underlying decrypt), so the cache stays
+ * independent of which signer produced the plaintext — and `appPolicyCacheDecrypt`
+ * can layer it onto `user.signer` without recursing back into the wrapped signer.
  */
 export class Plaintext extends MapPlugin<string> {
-  ensure = async (event: TrustedEvent): Promise<Maybe<string>> => {
-    if (this.app.user?.pubkey !== event.pubkey) return
+  ensure = async (ciphertext: string, decrypt: () => Promise<string>): Promise<string> => {
+    let result = this.get(ciphertext)
 
-    let result = this.get(event.id)
-    if (event.content && result === undefined) {
-      try {
-       result = await decrypt(this.app.user.signer, event.pubkey, event.content)
-       this.set(event.id, result)
-      } catch (e: any) {
-        if (!String(e).match(/invalid base64/)) {
-          throw e
-        }
-      }
+    if (result === undefined) {
+      result = await decrypt()
+
+      this.set(ciphertext, result)
     }
 
     return result

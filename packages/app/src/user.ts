@@ -1,6 +1,6 @@
 import type {StampedEvent} from "@welshman/util"
-import type {ISigner} from "@welshman/signer"
-import {LoggingSigner} from "./logging.js"
+import {WrappedSigner} from "@welshman/signer"
+import type {ISigner, SignerMethodWrapper} from "@welshman/signer"
 import {getSignerFromSession} from "./session.js"
 import type {Session} from "./session.js"
 import type {IApp} from "./app.js"
@@ -9,18 +9,18 @@ import type {IApp} from "./app.js"
  * A single identity: a pubkey plus the signer that proves it. An `App` is
  * centered on (at most) one `User`, since the data a user can access depends
  * entirely on who they are.
+ *
+ * `signer` is mutable so app policies can layer behavior onto it after
+ * construction via `wrapSigner` — e.g. `appPolicyCacheDecrypt` and
+ * `appPolicyLogSignerMethods`.
  */
 export class User {
   constructor(
     readonly pubkey: string,
-    readonly signer: ISigner,
+    public signer: ISigner,
   ) {}
 
   static async fromSigner(signer: ISigner) {
-    if (!(signer instanceof LoggingSigner)) {
-      signer = new LoggingSigner(signer)
-    }
-
     const pubkey = await signer.getPubkey()
 
     return new User(pubkey, signer)
@@ -28,9 +28,8 @@ export class User {
 
   /**
    * Reconstruct a signing user from a persisted session, using the registered
-   * session handlers to find the one for the session's method. The signer is
-   * wrapped in a `LoggingSigner` (observe it with `makeAppPolicyLogger`) and the
-   * pubkey is derived from it. Returns undefined when no handler is registered
+   * session handlers to find the one for the session's method. The pubkey is
+   * derived from the signer. Returns undefined when no handler is registered
    * for the session's method.
    */
   static async fromSession(session: Session): Promise<User | undefined> {
@@ -54,4 +53,14 @@ export class User {
   sign = (event: StampedEvent) => this.signer.sign(event)
 
   nip44EncryptToSelf = (payload: string) => this.signer.nip44.encrypt(this.pubkey, payload)
+
+  wrapSigner = (wrap: SignerMethodWrapper) => {
+    const original = this.signer
+
+    this.signer = new WrappedSigner(original, wrap)
+
+    return () => {
+      this.signer = original
+    }
+  }
 }

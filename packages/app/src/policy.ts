@@ -8,8 +8,8 @@ import type {IApp} from "./app.js"
 import {RelayStats} from "./plugins/relayStats.js"
 import {Wraps} from "./plugins/wraps.js"
 import {BlockedRelayLists} from "./plugins/blockedRelayLists.js"
-import {LoggingSigner} from "./logging.js"
-import type {LogMessage} from "./logging.js"
+import {Plaintext} from "./plugins/plaintext.js"
+import {Logger} from "./plugins/logger.js"
 
 /**
  * An app policy is a side effect applied once per app at construction,
@@ -121,25 +121,55 @@ export const appPolicyWraps: AppPolicy = app => {
 }
 
 /**
- * Forwards "message" events from the user's signer to `onMessage`. Opt-in —
- * add `makeAppPolicyLogger(handler)` to an app's `policies`.
+ * Wraps user.signer in a WrappedSigner which checks the plaintext cache before
+ * attempting to decrypt something.
  */
-export const makeAppPolicyLogger =
-  (onMessage: (message: LogMessage) => void): AppPolicy =>
-  app => {
-    const unsubscribers: Unsubscriber[] = []
-    const signer = app.user?.signer
+export const appPolicyCacheDecrypt: AppPolicy = app => {
+  if (!app.user) return noop
 
-    if (signer instanceof LoggingSigner) {
-      unsubscribers.push(on(signer, "message", onMessage))
+  return app.user.wrapSigner((method, thunk, args) => {
+    if (method === "nip04.decrypt" || method === "nip44.decrypt") {
+      const ciphertext = args[1] as string
+
+      return app.use(Plaintext).ensure(ciphertext, thunk as () => Promise<string>) as ReturnType<
+        typeof thunk
+      >
     }
 
-    return () => unsubscribers.forEach(call)
-  }
+    return thunk()
+  })
+}
+
+/**
+ * Wraps user.signer in a WrappedSigner which logs sign requests to the app logger.
+ */
+export const appPolicyLogSignerMethods: AppPolicy = app => {
+   if (!app.user) return noop
+
+   const logger = app.use(Logger)
+
+   return app.user.wrapSigner(async (method, thunk) => {
+      logger.log("signer", {method, status: "pending"})
+
+      try {
+        const result = await thunk()
+
+        logger.log("signer", {method, status: "success"})
+
+        return result
+      } catch (error) {
+        logger.log("signer", {method, status: "failure", error})
+
+        throw error
+      }
+    })
+}
 
 export const defaultAppPolicies: AppPolicy[] = [
   appPolicyIngest,
   appPolicyRelayStats,
   appPolicyWraps,
+  appPolicyCacheDecrypt,
+  appPolicyLogSignerMethods,
   appPolicyAuthUnlessBlocked,
 ]
