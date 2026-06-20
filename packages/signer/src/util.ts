@@ -53,7 +53,14 @@ export const decrypt = async (signer: ISigner, pubkey: string, message: string) 
     ? signer.nip04.decrypt(pubkey, message)
     : signer.nip44.decrypt(pubkey, message)
 
-export type SignerMethodWrapper = <T>(method: string, thunk: () => Promise<T>) => Promise<T>
+// `args` carries the wrapped method's arguments (e.g. [pubkey, message] for
+// encrypt/decrypt), so wrappers can key off them — a decrypt cache, say. A
+// wrapper that ignores them can take just (method, thunk).
+export type SignerMethodWrapper = <T>(
+  method: string,
+  thunk: () => Promise<T>,
+  args: unknown[],
+) => Promise<T>
 
 export class WrappedSigner extends Emitter implements ISigner {
   constructor(
@@ -64,25 +71,25 @@ export class WrappedSigner extends Emitter implements ISigner {
   }
 
   sign(event: StampedEvent, options: SignOptions = {}) {
-    return this.wrapMethod("sign", () => this.signer.sign(event, options))
+    return this.wrapMethod("sign", () => this.signer.sign(event, options), [event, options])
   }
 
   getPubkey() {
-    return this.wrapMethod("getPubkey", () => this.signer.getPubkey())
+    return this.wrapMethod("getPubkey", () => this.signer.getPubkey(), [])
   }
 
   nip04 = {
     encrypt: async (pubkey: string, message: string) =>
-      this.wrapMethod("nip04.encrypt", () => this.signer.nip04.encrypt(pubkey, message)),
+      this.wrapMethod("nip04.encrypt", () => this.signer.nip04.encrypt(pubkey, message), [pubkey, message]),
     decrypt: async (pubkey: string, message: string) =>
-      this.wrapMethod("nip04.decrypt", () => this.signer.nip04.decrypt(pubkey, message)),
+      this.wrapMethod("nip04.decrypt", () => this.signer.nip04.decrypt(pubkey, message), [pubkey, message]),
   }
 
   nip44 = {
     encrypt: async (pubkey: string, message: string) =>
-      this.wrapMethod("nip44.encrypt", () => this.signer.nip44.encrypt(pubkey, message)),
+      this.wrapMethod("nip44.encrypt", () => this.signer.nip44.encrypt(pubkey, message), [pubkey, message]),
     decrypt: async (pubkey: string, message: string) =>
-      this.wrapMethod("nip44.decrypt", () => this.signer.nip44.decrypt(pubkey, message)),
+      this.wrapMethod("nip44.decrypt", () => this.signer.nip44.decrypt(pubkey, message), [pubkey, message]),
   }
 
   async cleanup() {

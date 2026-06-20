@@ -61,7 +61,7 @@ export class ReportBuilder extends EventBuilder<Report> {
     const tags: string[][] = []
 
     if (this.pTag) {
-      if (this.pTag.length === 2) {
+      if (this.pTag.length === 2 && this.reason) {
         this.pTag.push(this.reason)
       }
 
@@ -69,7 +69,7 @@ export class ReportBuilder extends EventBuilder<Report> {
     }
 
     if (this.eTag) {
-      if (this.eTag.length === 2) {
+      if (this.eTag.length === 2 && this.reason) {
         this.eTag.push(this.reason)
       }
 
