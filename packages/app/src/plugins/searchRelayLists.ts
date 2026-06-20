@@ -25,8 +25,7 @@ export class SearchRelayLists extends DerivedPlugin<SearchRelayList> {
     return this.app.use(Network).loadUsingOutbox(pubkey, {kinds: [SEARCH_RELAYS]}, relayHints)
   }
 
-  urls = (pubkey: string): Projection<string[]> =>
-    this.project(pubkey, list => list?.urls() ?? [])
+  urls = (pubkey: string): Projection<string[]> => this.project(pubkey, list => list?.urls() ?? [])
 
   update = async (fn: (builder: SearchRelayListBuilder) => void) => {
     const user = User.require(this.app)

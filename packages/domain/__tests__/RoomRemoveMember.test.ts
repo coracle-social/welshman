@@ -23,7 +23,14 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomRemoveMember", () => {
   it("uses the remove kind and reads pubkeys", async () => {
-    const op = await RoomRemoveMember.fromEvent(makeEvent({tags: [["h", "room1"], ["p", a]]}))
+    const op = await RoomRemoveMember.fromEvent(
+      makeEvent({
+        tags: [
+          ["h", "room1"],
+          ["p", a],
+        ],
+      }),
+    )
 
     expect(op.kind).toBe(ROOM_REMOVE_MEMBER)
     expect(op.pubkeys()).toEqual([a])
@@ -31,7 +38,13 @@ describe("RoomRemoveMember", () => {
 
   it("round-trips through the remove builder", async () => {
     const op = await RoomRemoveMember.fromEvent(
-      makeEvent({tags: [["h", "room1"], ["p", a], ["p", b]]}),
+      makeEvent({
+        tags: [
+          ["h", "room1"],
+          ["p", a],
+          ["p", b],
+        ],
+      }),
     )
 
     const tmpl = await op.builder().toTemplate(signer)
@@ -43,7 +56,10 @@ describe("RoomRemoveMember", () => {
   })
 
   it("builds from a fresh remove builder", async () => {
-    const tmpl = await new RoomRemoveMemberBuilder().setGroup("room2").addPubkey(a).toTemplate(signer)
+    const tmpl = await new RoomRemoveMemberBuilder()
+      .setGroup("room2")
+      .addPubkey(a)
+      .toTemplate(signer)
 
     expect(tmpl.kind).toBe(ROOM_REMOVE_MEMBER)
     expect(getTagValue("h", tmpl.tags)).toBe("room2")

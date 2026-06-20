@@ -1,7 +1,7 @@
 import type {Subscriber} from "svelte/store"
 import {writable} from "svelte/store"
 import type {Override} from "@welshman/lib"
-import {append, TaskQueue, ensurePlural, remove, defer, sleep, nth, uniq, without} from "@welshman/lib"
+import {append, TaskQueue, ensurePlural, remove, defer, sleep, nth, without} from "@welshman/lib"
 import {
   HashedEvent,
   EventTemplate,

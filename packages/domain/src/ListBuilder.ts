@@ -3,7 +3,9 @@ import type {ISigner} from "@welshman/signer"
 import {EventBuilder} from "./EventBuilder.js"
 import type {ListReader} from "./ListReader.js"
 
-export abstract class ListBuilder<Reader extends ListReader = ListReader> extends EventBuilder<Reader> {
+export abstract class ListBuilder<
+  Reader extends ListReader = ListReader,
+> extends EventBuilder<Reader> {
   publicTags: string[][] = []
   privateTags: string[][] = []
 

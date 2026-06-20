@@ -69,7 +69,12 @@ describe("FollowList", () => {
   })
 
   it("removeFollow removes by value", async () => {
-    const event = makeEvent({tags: [["p", a], ["p", b]]})
+    const event = makeEvent({
+      tags: [
+        ["p", a],
+        ["p", b],
+      ],
+    })
     const list = await FollowList.fromEvent(event)
 
     const tmpl = await list.builder().removeFollow(a).toTemplate(signer)

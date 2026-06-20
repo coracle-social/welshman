@@ -1,5 +1,5 @@
 import {first, partition, randomId, spec} from "@welshman/lib"
-import type {Maybe, MaybeAsync} from "@welshman/lib"
+import type {MaybeAsync} from "@welshman/lib"
 import {stamp, prep, isParameterizedReplaceableKind} from "@welshman/util"
 import type {EventTemplate, SignedEvent, HashedEvent} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"

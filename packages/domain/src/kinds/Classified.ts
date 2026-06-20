@@ -1,6 +1,5 @@
 import {first} from "@welshman/lib"
 import {CLASSIFIED, getTag, getTagValue, getTagValues, getTopicTagValues} from "@welshman/util"
-import type {ISigner} from "@welshman/signer"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
 
@@ -10,7 +9,9 @@ export type ClassifiedPrice = {
   frequency: string
 }
 
-const parsePrice = ([, amount = "0", currency = "SAT", frequency = ""]: string[]): ClassifiedPrice | undefined => {
+const parsePrice = ([, amount = "0", currency = "SAT", frequency = ""]: string[]):
+  | ClassifiedPrice
+  | undefined => {
   const value = parseFloat(amount)
 
   if (!isNaN(value)) {

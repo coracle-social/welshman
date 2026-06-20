@@ -25,7 +25,12 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 describe("FeedList", () => {
   it("reads saved feed addresses", async () => {
     const reader = await FeedList.fromEvent(
-      makeEvent({tags: [["a", addressA], ["alt", "x"]]}),
+      makeEvent({
+        tags: [
+          ["a", addressA],
+          ["alt", "x"],
+        ],
+      }),
     )
 
     expect(reader.addresses()).toEqual([addressA])
@@ -35,7 +40,12 @@ describe("FeedList", () => {
 
   it("round-trips without duplicating represented tags", async () => {
     const reader = await FeedList.fromEvent(
-      makeEvent({tags: [["a", addressA], ["alt", "x"]]}),
+      makeEvent({
+        tags: [
+          ["a", addressA],
+          ["alt", "x"],
+        ],
+      }),
     )
 
     const tmpl = await reader.builder().toTemplate(signer)

@@ -45,7 +45,7 @@ export class App implements IApp {
   repository: Repository
   wrapManager: WrapManager
 
-  private singletons = new Map<Function, unknown>()
+  private singletons = new Map<new (app: IApp) => unknown, unknown>()
   private unsubscribers: Unsubscriber[] = []
 
   constructor(options: AppOptions = {}) {

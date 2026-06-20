@@ -367,8 +367,8 @@ describe("policy", () => {
       // Socket closes
       socket.emit(SocketEvent.Status, SocketStatus.Closed)
 
-      // Advance past the reopen delay
-      await vi.advanceTimersByTimeAsync(31000)
+      // Advance past the reopen delay (the ~5s flap guard)
+      await vi.advanceTimersByTimeAsync(10000)
 
       // Should resend the pending event
       expect(sendSpy).toHaveBeenCalledWith(event)
@@ -387,8 +387,8 @@ describe("policy", () => {
       // Socket closes
       socket.emit(SocketEvent.Status, SocketStatus.Closed)
 
-      // Advance past the reopen delay
-      await vi.advanceTimersByTimeAsync(30000)
+      // Advance past the reopen delay (the ~5s flap guard)
+      await vi.advanceTimersByTimeAsync(10000)
 
       // Should resend the pending request
       expect(sendSpy).toHaveBeenCalledWith(req)
@@ -414,8 +414,8 @@ describe("policy", () => {
       // Should not resend yet to prevent flapping
       expect(sendSpy).not.toHaveBeenCalled()
 
-      // Advance remaining time
-      await vi.advanceTimersByTimeAsync(25000)
+      // Advance remaining time past the reopen delay
+      await vi.advanceTimersByTimeAsync(2000)
 
       // Now should resend
       expect(sendSpy).toHaveBeenCalledWith(event)

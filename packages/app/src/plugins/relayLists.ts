@@ -34,8 +34,7 @@ export class RelayLists extends DerivedPlugin<RelayList> {
     ])
   }
 
-  urls = (pubkey: string): Projection<string[]> =>
-    this.project(pubkey, list => list?.urls() ?? [])
+  urls = (pubkey: string): Projection<string[]> => this.project(pubkey, list => list?.urls() ?? [])
 
   readUrls = (pubkey: string): Projection<string[]> =>
     this.project(pubkey, list => list?.readUrls() ?? [])

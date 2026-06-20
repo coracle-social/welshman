@@ -22,7 +22,14 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomCreate", () => {
   it("round-trips the group behavior tag without duplication", async () => {
-    const create = await RoomCreate.fromEvent(makeEvent({tags: [["h", group], ["alt", "x"]]}))
+    const create = await RoomCreate.fromEvent(
+      makeEvent({
+        tags: [
+          ["h", group],
+          ["alt", "x"],
+        ],
+      }),
+    )
 
     expect(create.group()).toBe(group)
 

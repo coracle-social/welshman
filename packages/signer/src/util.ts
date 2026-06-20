@@ -80,16 +80,28 @@ export class WrappedSigner extends Emitter implements ISigner {
 
   nip04 = {
     encrypt: async (pubkey: string, message: string) =>
-      this.wrapMethod("nip04.encrypt", () => this.signer.nip04.encrypt(pubkey, message), [pubkey, message]),
+      this.wrapMethod("nip04.encrypt", () => this.signer.nip04.encrypt(pubkey, message), [
+        pubkey,
+        message,
+      ]),
     decrypt: async (pubkey: string, message: string) =>
-      this.wrapMethod("nip04.decrypt", () => this.signer.nip04.decrypt(pubkey, message), [pubkey, message]),
+      this.wrapMethod("nip04.decrypt", () => this.signer.nip04.decrypt(pubkey, message), [
+        pubkey,
+        message,
+      ]),
   }
 
   nip44 = {
     encrypt: async (pubkey: string, message: string) =>
-      this.wrapMethod("nip44.encrypt", () => this.signer.nip44.encrypt(pubkey, message), [pubkey, message]),
+      this.wrapMethod("nip44.encrypt", () => this.signer.nip44.encrypt(pubkey, message), [
+        pubkey,
+        message,
+      ]),
     decrypt: async (pubkey: string, message: string) =>
-      this.wrapMethod("nip44.decrypt", () => this.signer.nip44.decrypt(pubkey, message), [pubkey, message]),
+      this.wrapMethod("nip44.decrypt", () => this.signer.nip44.decrypt(pubkey, message), [
+        pubkey,
+        message,
+      ]),
   }
 
   async cleanup() {

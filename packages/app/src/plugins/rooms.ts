@@ -65,7 +65,10 @@ export class Rooms {
     this.publish(url, await new RoomLeaveBuilder().setGroup(room.h).toTemplate())
 
   addMember = async (url: string, room: RoomMeta, pubkey: string) =>
-    this.publish(url, await new RoomAddMemberBuilder().setGroup(room.h).addPubkey(pubkey).toTemplate())
+    this.publish(
+      url,
+      await new RoomAddMemberBuilder().setGroup(room.h).addPubkey(pubkey).toTemplate(),
+    )
 
   removeMember = async (url: string, room: RoomMeta, pubkey: string) =>
     this.publish(

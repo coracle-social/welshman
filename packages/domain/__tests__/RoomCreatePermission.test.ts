@@ -2,10 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, ROOM_CREATE_PERMISSION, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {
-  RoomCreatePermission,
-  RoomCreatePermissionBuilder,
-} from "../src/kinds/RoomCreatePermission"
+import {RoomCreatePermission, RoomCreatePermissionBuilder} from "../src/kinds/RoomCreatePermission"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -28,7 +25,13 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 describe("RoomCreatePermission", () => {
   it("reads permitted pubkeys from p tags", async () => {
     const perm = await RoomCreatePermission.fromEvent(
-      makeEvent({tags: [["p", a], ["p", b], ["p", a]]}),
+      makeEvent({
+        tags: [
+          ["p", a],
+          ["p", b],
+          ["p", a],
+        ],
+      }),
     )
 
     expect(perm.pubkeys().sort()).toEqual([a, b].sort())
@@ -38,7 +41,13 @@ describe("RoomCreatePermission", () => {
 
   it("round-trips with no duplicate p tags and passthrough", async () => {
     const perm = await RoomCreatePermission.fromEvent(
-      makeEvent({tags: [["p", a], ["p", b], ["alt", "x"]]}),
+      makeEvent({
+        tags: [
+          ["p", a],
+          ["p", b],
+          ["alt", "x"],
+        ],
+      }),
     )
 
     const tmpl = await perm.builder().toTemplate(signer)

@@ -25,8 +25,7 @@ export class BlockedRelayLists extends DerivedPlugin<BlockedRelayList> {
     return this.app.use(Network).loadUsingOutbox(pubkey, {kinds: [BLOCKED_RELAYS]}, relayHints)
   }
 
-  urls = (pubkey: string): Projection<string[]> =>
-    this.project(pubkey, list => list?.urls() ?? [])
+  urls = (pubkey: string): Projection<string[]> => this.project(pubkey, list => list?.urls() ?? [])
 
   update = async (fn: (builder: BlockedRelayListBuilder) => void) => {
     const user = User.require(this.app)

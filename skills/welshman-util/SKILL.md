@@ -7,8 +7,6 @@ description: "Use this skill when working with @welshman/util: nostr event types
 
 `@welshman/util` is the foundational layer of the welshman nostr stack, providing types, constants, and helpers for every nostr primitive: events, kinds, tags, filters, addresses, zaps, relays, and Lightning wallet integration. Higher level welshman packages (`@welshman/net`, `@welshman/app`, `@welshman/store`, etc.) depend on the types and utilities defined here.
 
-> **Moved to `@welshman/domain`:** Profiles, lists, handlers, rooms, and Encryptable (`makeProfile`/`readProfile`/`displayProfile`, `makeList`/`addToList*`, `readHandlers`/`displayHandler`, room helpers, `Encryptable`/`asDecryptedEvent`/`DecryptedEvent`, etc.) now live in `@welshman/domain` as Reader/Builder classes — see the welshman-domain skill.
-
 ## Installation
 
 ```bash

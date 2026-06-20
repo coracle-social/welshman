@@ -34,9 +34,9 @@ export abstract class EventReader {
   }
 
   static factory<T extends EventReader>(this: new (event: TrustedEvent) => T, signer?: ISigner) {
-    const Reader = this
-
-    return (event: TrustedEvent) => EventReader.fromEventUsingSubclass(Reader, event, signer)
+    // `this` (the subclass constructor) is captured lexically by the arrow, so
+    // the returned factory stays bound to the right kind.
+    return (event: TrustedEvent) => EventReader.fromEventUsingSubclass(this, event, signer)
   }
 
   protected async parse(signer?: ISigner): Promise<void> {}

@@ -28,7 +28,14 @@ describe("RoomDelete", () => {
   })
 
   it("round-trips the group behavior tag without duplication", async () => {
-    const del = await RoomDelete.fromEvent(makeEvent({tags: [["h", group], ["alt", "x"]]}))
+    const del = await RoomDelete.fromEvent(
+      makeEvent({
+        tags: [
+          ["h", group],
+          ["alt", "x"],
+        ],
+      }),
+    )
 
     const tmpl = await del.builder().toTemplate(signer)
 

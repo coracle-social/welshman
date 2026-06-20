@@ -46,7 +46,12 @@ describe("HandlerRecommendation", () => {
 
   it("falls back to the first recommendation without a web marker", async () => {
     const rec = await HandlerRecommendation.fromEvent(
-      makeEvent({tags: [["d", "1"], ["a", otherAddress, "", "android"]]}),
+      makeEvent({
+        tags: [
+          ["d", "1"],
+          ["a", otherAddress, "", "android"],
+        ],
+      }),
     )
 
     expect(rec.handlerAddress()).toBe(otherAddress)

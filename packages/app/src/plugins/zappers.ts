@@ -15,7 +15,6 @@ import type {Profile} from "@welshman/domain"
 import {deriveDeduplicated, deriveDeduplicatedByValue} from "@welshman/store"
 import {LoadableMapPlugin, projection} from "./base.js"
 import type {Projection} from "./base.js"
-import type {IApp} from "../app.js"
 import {Profiles} from "./profiles.js"
 
 /**
@@ -147,11 +146,13 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
       )
     }
 
-    const stores: Readable<any>[] = [this.index.$, ...splits.map(split => profiles.one(split.pubkey))]
+    const stores: Readable<any>[] = [
+      this.index.$,
+      ...splits.map(split => profiles.one(split.pubkey)),
+    ]
 
-    return projection(
-      deriveDeduplicatedByValue(stores, read),
-      () => read([this.index.get(), ...splits.map(split => profiles.get(split.pubkey))]),
+    return projection(deriveDeduplicatedByValue(stores, read), () =>
+      read([this.index.get(), ...splits.map(split => profiles.get(split.pubkey))]),
     )
   }
 }

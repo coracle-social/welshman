@@ -1,5 +1,5 @@
 import type {Unsubscriber} from "svelte/store"
-import {on, noop, always, call} from "@welshman/lib"
+import {on, noop, always} from "@welshman/lib"
 import {WRAP, isDVMKind, isEphemeralKind, verifyEvent} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {SocketEvent, isRelayEvent, makeSocketPolicyAuth} from "@welshman/net"
@@ -62,11 +62,7 @@ export const appPolicyAuthUnlessBlocked = makeAppPolicyAuth((socket, app) => {
     return false
   }
 
-  return !app
-    .use(BlockedRelayLists)
-    .urls(app.user.pubkey)
-    .get()
-    .includes(socket.url)
+  return !app.use(BlockedRelayLists).urls(app.user.pubkey).get().includes(socket.url)
 })
 
 /**
@@ -144,25 +140,25 @@ export const appPolicyCacheDecrypt: AppPolicy = app => {
  * Wraps user.signer in a WrappedSigner which logs sign requests to the app logger.
  */
 export const appPolicyLogSignerMethods: AppPolicy = app => {
-   if (!app.user) return noop
+  if (!app.user) return noop
 
-   const logger = app.use(Logger)
+  const logger = app.use(Logger)
 
-   return app.user.wrapSigner(async (method, thunk) => {
-      logger.log("signer", {method, status: "pending"})
+  return app.user.wrapSigner(async (method, thunk) => {
+    logger.log("signer", {method, status: "pending"})
 
-      try {
-        const result = await thunk()
+    try {
+      const result = await thunk()
 
-        logger.log("signer", {method, status: "success"})
+      logger.log("signer", {method, status: "success"})
 
-        return result
-      } catch (error) {
-        logger.log("signer", {method, status: "failure", error})
+      return result
+    } catch (error) {
+      logger.log("signer", {method, status: "failure", error})
 
-        throw error
-      }
-    })
+      throw error
+    }
+  })
 }
 
 export const defaultAppPolicies: AppPolicy[] = [
