@@ -60,10 +60,10 @@ describe("RelayList", () => {
 
   it("adds modeless and single-mode relays via a fresh builder", async () => {
     const tmpl = await new RelayListBuilder()
-      .addUrl(read, RelayMode.Read)
-      .addUrl(write, RelayMode.Write)
-      .addUrl(both, RelayMode.Read)
-      .addUrl(both, RelayMode.Write)
+      .addReadUrl(read)
+      .addWriteUrl(write)
+      .addReadUrl(both)
+      .addWriteUrl(both)
       .toTemplate(signer)
 
     expect(tmpl.kind).toBe(RELAYS)
@@ -75,9 +75,9 @@ describe("RelayList", () => {
 
   it("downgrades a modeless relay when one mode is removed", async () => {
     const tmpl = await new RelayListBuilder()
-      .addUrl(both, RelayMode.Read)
-      .addUrl(both, RelayMode.Write)
-      .removeUrl(both, RelayMode.Read)
+      .addReadUrl(both)
+      .addWriteUrl(both)
+      .removeReadUrl(both)
       .toTemplate(signer)
 
     expect(tmpl.tags).toContainEqual(["r", both, RelayMode.Write])

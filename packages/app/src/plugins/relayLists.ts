@@ -55,7 +55,10 @@ export class RelayLists extends DerivedPlugin<RelayList> {
     return this.app.use(Thunks).publishToOutbox({event})
   }
 
-  addRelay = (url: string, mode: RelayMode) => this.update(builder => builder.addUrl(url, mode))
+  addRelay = (url: string, mode: RelayMode) =>
+    this.update(builder =>
+      mode === RelayMode.Read ? builder.addReadUrl(url) : builder.addWriteUrl(url),
+    )
 
   setReadRelays = (urls: string[]) => this.update(builder => builder.setReadUrls(urls))
 
@@ -64,7 +67,9 @@ export class RelayLists extends DerivedPlugin<RelayList> {
   removeRelay = async (url: string, mode: RelayMode) => {
     const user = User.require(this.app)
     const builder = new RelayListBuilder(await this.forceLoad(user.pubkey))
-    const event = await builder.removeUrl(url, mode).toTemplate(user.signer)
+    const event = await (
+      mode === RelayMode.Read ? builder.removeReadUrl(url) : builder.removeWriteUrl(url)
+    ).toTemplate(user.signer)
 
     // publishToOutbox is outbox-only, so build relays here to also notify the
     // removed relay of its removal
