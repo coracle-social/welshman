@@ -27,11 +27,12 @@ export enum ManagementMethod {
   BlockIp = "blockip",
   UnblockIp = "unblockip",
   ListBlockedIps = "listblockedips",
+  SignEvent = "signevent",
 }
 
 export type ManagementRequest = {
   method: ManagementMethod
-  params: string[]
+  params: any[]
 }
 
 export type ManagementResponse = {

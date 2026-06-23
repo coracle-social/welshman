@@ -5,7 +5,7 @@ import eslintPluginPrettierRecommended from "eslint-plugin-prettier/recommended"
 
 export default tsEslint.config(
   {
-    ignores: ["node_modules", "!.*", "**/dist", "**/build", "docs"],
+    ignores: ["node_modules", "**/.pnpm-store/**", "**/dist", "**/build", "docs"],
   },
   {
     extends: [js.configs.recommended, ...tsEslint.configs.recommended],
