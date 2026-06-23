@@ -1,4 +1,4 @@
-import {uniq, nth, uniqBy} from "@welshman/lib"
+import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {RELAY_REMOVE_MEMBER, getPubkeyTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -19,21 +19,7 @@ export class RelayRemoveMember extends EventReader {
 export class RelayRemoveMemberBuilder extends EventBuilder<RelayRemoveMember> {
   readonly kind = RELAY_REMOVE_MEMBER
 
-  pubkeyTags: string[][] = []
-
-  constructor(readonly reader?: RelayRemoveMember) {
-    super(reader)
-
-    this.pubkeyTags = uniqBy(nth(1), this.consumeTags("p"))
-  }
-
   addPubkey(pubkey: string) {
-    this.pubkeyTags = uniqBy(nth(1), [...this.pubkeyTags, ["p", pubkey]])
-
-    return this
-  }
-
-  protected buildTags() {
-    return this.pubkeyTags
+    return this.dropTags(spec(["p", pubkey])).addTags(removeUndefined(["p", pubkey]))
   }
 }

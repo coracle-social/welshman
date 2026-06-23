@@ -84,7 +84,7 @@ const signed = await reader.builder()      // === new FollowListBuilder(reader)
 - **Reading private list tags:** a `ListReader` only surfaces `privateTags` when you pass the **author's own** signer to `fromEvent`/`factory` (it decrypts NIP-44 content only when `signer.getPubkey() === event.pubkey`). Decryption failures are swallowed — `decrypted` stays `false` and private tags stay empty.
 - **Writing private list tags:** `ListBuilder.buildContent` is where encryption happens. If there are private tags it requires a signer and NIP-44-encrypts them to the author's own pubkey (`A signer is required to encrypt private tags`). If the source was never decrypted, the original ciphertext is preserved untouched (so you don't clobber tags you couldn't see).
 - **`toTemplate(signer?)`** needs a signer only for list kinds with non-empty private tags. `toRumor`/`toEvent` always need one. All other kinds ignore the signer entirely.
-- **`d`-tag required** (base `validate` throws otherwise) for parameterized-replaceable kinds: `RelaySet` (30002), `Classified` (30402), `Feed` (31890), `TimeEvent` (31923), `HandlerRecommendation` (31989), `Handler` (31990), `RoomMeta` (39000), `RoomAdmins` (39001), `RoomMembers` (39002). Call `setIdentifier()`.
+- **`d`-tag required** (base `validate` throws otherwise) for parameterized-replaceable kinds: `RelaySet` (30002), `Pinboard` (30067), `Classified` (30402), `Feed` (31890), `TimeEvent` (31923), `HandlerRecommendation` (31989), `Handler` (31990), `RoomMeta` (39000), `RoomAdmins` (39001), `RoomMembers` (39002). Call `setIdentifier()`. (`Pin` (39067) sits in the addressable range but is a regular event — its builder skips the d-tag check and instead requires a content reference.)
 - **`h`-group required** (subclass `validate` throws): `RoomDelete` (9008), `RoomJoin` (9021), `RoomLeave` (9022). Call `setGroup(groupId)`.
 
 ## Kind classes
@@ -139,7 +139,7 @@ Room ops are scoped by the `h` group tag (base `setGroup`); metadata kinds 39000
 | 39001 | NIP-29 | `RoomAdmins` / `RoomAdminsBuilder` |
 | 39002 | NIP-29 | `RoomMembers` / `RoomMembersBuilder` |
 
-`RoomMeta`: `name`, `about`, `picture`, `pictureMeta`, `isClosed`/`isHidden`/`isPrivate`/`isRestricted`/`hasLivekit`. `RoomEdit` mirrors it but its livekit getter is named `livekit()`. `RoomJoin`: `code()` (reads the `claim` tag), `reason()`; builder `setCode`/`setReason`.
+`RoomMeta`: `name`, `about`, `picture`, `pictureMeta`, `isClosed`/`isHidden`/`isPrivate`/`isRestricted`/`hasLivekit`. `RoomEdit` mirrors it but its livekit getter is named `livekit()`. `RoomJoin`: `claim()`, `reason()` (free-text `content`); builder `setClaim`/`setReason`.
 
 ### Relay membership (Flotilla "spaces" — relay-level, NIP-29-adjacent)
 
@@ -169,7 +169,7 @@ Room ops are scoped by the `h` group tag (base `setGroup`); metadata kinds 39000
 | 9734 | NIP-57 | `ZapRequest` / `ZapRequestBuilder` |
 | 9735 | NIP-57 | `ZapReceipt` / `ZapReceiptBuilder` |
 
-`ZapRequest`: `amount`, `lnurl`, `recipient`, `eventId`, `urls`, `comment`. `ZapReceipt`: `bolt11`, `invoiceAmount`, `request`, `sender`, `recipient`, `eventId`, `comment`, `preimage`, plus `verify(zapper)`.
+`ZapRequest`: `amount`, `lnurl`, `recipient`, `eventId`, `urls` (the comment is the base `content()`). `ZapReceipt`: `bolt11`, `invoiceAmount`, `request`, `sender`, `recipient`, `eventId`, `comment`, `preimage`, plus `verify(zapper)`.
 
 ### Content
 
@@ -180,11 +180,15 @@ Room ops are scoped by the `h` group tag (base `setGroup`); metadata kinds 39000
 | 1068 | NIP-88 | `Poll` / `PollBuilder` |
 | 1111 | NIP-22 | `Comment` / `CommentBuilder` |
 | 1984 | NIP-56 | `Report` / `ReportBuilder` |
+| 30067 | Pinboards | `Pinboard` / `PinboardBuilder` |
 | 30402 | NIP-99 | `Classified` / `ClassifiedBuilder` |
 | 31890 | NIP-51 | `Feed` / `FeedBuilder` |
 | 31923 | NIP-52 | `TimeEvent` / `TimeEventBuilder` |
+| 39067 | Pinboards | `Pin` / `PinBuilder` |
 
-`Comment`: `root()`/`parent()`; builder `setRoot`/`setParent`/`setRootFromEvent`/`setParentFromEvent`. `Poll`: `title`, `options`, `pollType`, `endsAt`, `isClosed`, `urls`, plus `results(responses)`; builder `addOption`, `setPollType`, `setEndsAt`. Exported types: `CommentRef`, `ClassifiedPrice`, `PollType`, `PollOption`, `PollResult`.
+`Comment`: `root()`/`parent()`; builder `setRoot`/`setParent`/`setRootFromEvent`/`setParentFromEvent`. `Poll`: `title`, `options`, `pollType`, `endsAt`, `isClosed`, `urls`, plus `results(responses)`; builder `addOption`, `setPollType`, `setEndsAt`. Exported types: `CommentRef`, `ClassifiedPrice`, `PollType`, `PollOption`, `PollResult`, `PinReference`.
+
+`Pinboard` (30067): board metadata — `title`, `description`, `image`, `topics()`, `collaborative()`; builder `setTitle`/`setDescription`/`setImage`/`setTopics`/`setCollaborative`. `Pin` (39067): a single pinned item — `boards()`, `isProfilePin()`, `reference()` (a `PinReference` discriminated union), `title`, `topics()`; builder `addBoard`/`removeBoard`, `setEvent`/`setAddress`/`setExternal` (each replaces the prior reference), `setTitle`/`setTopics`. Pins separate board metadata from items, allowing mixed content, multi-board membership, and profile pins (no board).
 
 ## Gotchas
 
@@ -192,7 +196,7 @@ Room ops are scoped by the `h` group tag (base `setGroup`); metadata kinds 39000
 - **Don't clobber undecryptable lists.** If you edit a list you couldn't decrypt and try to write private tags, `validate()` throws `Unable to modify list when decryption was not performed`. Editing only public tags is fine — the original ciphertext is preserved.
 - **`toRumor`/`toEvent` always need a signer**, even for kinds whose `toTemplate` doesn't (they call `getPubkey()`/`sign`).
 - **Parameterized-replaceable kinds throw without a `d` tag** — call `setIdentifier()` (or let it default to a random id). Room ops scoped by `h` throw without `setGroup`.
-- **`RoomJoin.code()` reads the `claim` tag** (accessor name ≠ tag key); `RelayJoin`/`RelayInvite` use `claim()`.
+- **`RoomJoin`/`RelayJoin`/`RelayInvite` read the invite code via `claim()`.**
 - **No top-level free functions beyond `parseLnUrl` and `displayPubkey`.** The h/group tag is handled by `setGroup`/`group()`, not a helper. Don't invent `makeX`/`readX` helpers — those were removed (see below).
 
 ## Moved from @welshman/util

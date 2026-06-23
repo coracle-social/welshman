@@ -1,10 +1,10 @@
-import {uniqBy, nthEq} from "@welshman/lib"
+import {uniqBy, spec} from "@welshman/lib"
 import {BLOCKED_RELAYS, getTagValues, normalizeRelayUrl} from "@welshman/util"
-import {ListReader} from "../ListReader.js"
-import {ListBuilder} from "../ListBuilder.js"
+import {EventReader} from "../EventReader.js"
+import {EventBuilder} from "../EventBuilder.js"
 
 // NIP-51 kind-10006 blocked relays list.
-export class BlockedRelayList extends ListReader {
+export class BlockedRelayList extends EventReader {
   readonly kind = BLOCKED_RELAYS
 
   urls() {
@@ -20,20 +20,20 @@ export class BlockedRelayList extends ListReader {
   }
 }
 
-export class BlockedRelayListBuilder extends ListBuilder<BlockedRelayList> {
+export class BlockedRelayListBuilder extends EventBuilder<BlockedRelayList> {
   readonly kind = BLOCKED_RELAYS
 
   addUrl(url: string) {
-    return this.addPublic(["relay", normalizeRelayUrl(url)])
+    return this.addTags(["relay", normalizeRelayUrl(url)])
   }
 
   removeUrl(url: string) {
-    return this.drop(nthEq(1, normalizeRelayUrl(url)))
+    return this.dropTags(spec(["relay", normalizeRelayUrl(url)]))
   }
 
   setUrls(urls: string[]) {
-    this.clear()
-
-    return this.addPublic(...urls.map(url => ["relay", normalizeRelayUrl(url)]))
+    return this.dropTags(spec(["relay"])).addTags(
+      ...urls.map(url => ["relay", normalizeRelayUrl(url)]),
+    )
   }
 }

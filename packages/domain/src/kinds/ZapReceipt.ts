@@ -1,4 +1,4 @@
-import {first, parseJson} from "@welshman/lib"
+import {parseJson, spec} from "@welshman/lib"
 import {ZAP_RECEIPT, getTagValue, getInvoiceAmount} from "@welshman/util"
 import type {TrustedEvent, Zapper} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
@@ -100,61 +100,23 @@ export class ZapReceipt extends EventReader {
 export class ZapReceiptBuilder extends EventBuilder<ZapReceipt> {
   readonly kind = ZAP_RECEIPT
 
-  bolt11Tag?: string[]
-  descriptionTag?: string[]
-  recipientTag?: string[]
-  eventIdTag?: string[]
-  preimageTag?: string[]
-
-  constructor(readonly reader?: ZapReceipt) {
-    super(reader)
-
-    this.bolt11Tag = first(this.consumeTags("bolt11"))
-    this.descriptionTag = first(this.consumeTags("description"))
-    this.recipientTag = first(this.consumeTags("p"))
-    this.eventIdTag = first(this.consumeTags("e"))
-    this.preimageTag = first(this.consumeTags("preimage"))
-  }
-
   setBolt11(bolt11: string) {
-    this.bolt11Tag = ["bolt11", bolt11]
-
-    return this
+    return this.dropTags(spec(["bolt11"])).addTags(["bolt11", bolt11])
   }
 
   setDescription(description: string) {
-    this.descriptionTag = ["description", description]
-
-    return this
+    return this.dropTags(spec(["description"])).addTags(["description", description])
   }
 
   setRecipient(recipient: string) {
-    this.recipientTag = ["p", recipient]
-
-    return this
+    return this.dropTags(spec(["p"])).addTags(["p", recipient])
   }
 
   setEventId(eventId: string) {
-    this.eventIdTag = ["e", eventId]
-
-    return this
+    return this.dropTags(spec(["e"])).addTags(["e", eventId])
   }
 
   setPreimage(preimage: string) {
-    this.preimageTag = ["preimage", preimage]
-
-    return this
-  }
-
-  protected buildTags() {
-    const tags: string[][] = []
-
-    if (this.bolt11Tag) tags.push(this.bolt11Tag)
-    if (this.descriptionTag) tags.push(this.descriptionTag)
-    if (this.recipientTag) tags.push(this.recipientTag)
-    if (this.eventIdTag) tags.push(this.eventIdTag)
-    if (this.preimageTag) tags.push(this.preimageTag)
-
-    return tags
+    return this.dropTags(spec(["preimage"])).addTags(["preimage", preimage])
   }
 }

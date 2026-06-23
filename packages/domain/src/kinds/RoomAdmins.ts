@@ -1,4 +1,4 @@
-import {nth, nthNe, uniq, uniqBy} from "@welshman/lib"
+import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {ROOM_ADMINS, getPubkeyTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -19,27 +19,15 @@ export class RoomAdmins extends EventReader {
 export class RoomAdminsBuilder extends EventBuilder<RoomAdmins> {
   readonly kind = ROOM_ADMINS
 
-  adminTags: string[][] = []
-
-  constructor(readonly reader?: RoomAdmins) {
-    super(reader)
-
-    this.adminTags = uniqBy(nth(1), this.consumeTags("p"))
+  addPubkey(pubkey: string) {
+    return this.dropTags(spec(["p", pubkey])).addTags(removeUndefined(["p", pubkey]))
   }
 
-  addAdmin(pubkey: string) {
-    this.adminTags = uniqBy(nth(1), [...this.adminTags, ["p", pubkey]])
-
-    return this
+  removePubkey(pubkey: string) {
+    return this.dropTags(spec(["p", pubkey]))
   }
 
-  removeAdmin(pubkey: string) {
-    this.adminTags = this.adminTags.filter(nthNe(1, pubkey))
-
-    return this
-  }
-
-  protected buildTags() {
-    return this.adminTags
+  setPubkeys(pubkeys: string[]) {
+    return this.dropTags(spec(["p"])).addTags(...uniq(pubkeys).map(pk => ["p", pk]))
   }
 }

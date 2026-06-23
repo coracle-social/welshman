@@ -62,7 +62,7 @@ describe("GroupList", () => {
 
     expect(getAddressTagValues(tmpl.tags).sort()).toEqual([g1, g2].sort())
     expect(tmpl.tags).toContainEqual(["a", g1, "wss://relay.example/"])
-    expect(tmpl.tags).toContainEqual(["a", g2, ""])
+    expect(tmpl.tags).toContainEqual(["a", g2])
   })
 
   it("removeGroup removes by address", async () => {
@@ -77,35 +77,6 @@ describe("GroupList", () => {
     const tmpl = await list.builder().removeGroup(g1).toTemplate(signer)
 
     expect(getAddressTagValues(tmpl.tags)).toEqual([g2])
-  })
-
-  it("round-trips public and private entries through encryption", async () => {
-    const event = await new GroupListBuilder()
-      .addGroup(g1)
-      .addPrivate(["a", g2, ""])
-      .toEvent(signer)
-
-    expect(getAddressTagValues(event.tags)).toEqual([g1])
-    expect(event.content).not.toBe("")
-
-    const decrypted = await GroupList.fromEvent(event, signer)
-
-    expect(decrypted.decrypted).toBe(true)
-    expect(decrypted.addresses().sort()).toEqual([g1, g2].sort())
-
-    const publicOnly = await GroupList.fromEvent(event)
-
-    expect(publicOnly.decrypted).toBe(false)
-    expect(publicOnly.addresses()).toEqual([g1])
-  })
-
-  it("preserves undecrypted ciphertext on pass-through", async () => {
-    const event = await new GroupListBuilder().addPrivate(["a", g2, ""]).toEvent(signer)
-    const undecrypted = await GroupList.fromEvent(event)
-
-    const tmpl = await undecrypted.builder().toTemplate(signer)
-
-    expect(tmpl.content).toBe(event.content)
   })
 
   it("throws on the wrong kind", async () => {

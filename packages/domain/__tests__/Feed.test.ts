@@ -48,7 +48,6 @@ describe("Feed", () => {
         ["title", "My Feed"],
         ["description", "all the things"],
         ["feed", JSON.stringify(definition)],
-        // "alt" is consumed but not re-emitted, so it shouldn't survive.
         ["alt", "My Feed"],
         ["zzz", "x"],
       ],
@@ -62,9 +61,8 @@ describe("Feed", () => {
     expect(tmpl.tags).toContainEqual(["d", "abc"])
     expect(tmpl.tags).toContainEqual(["title", "My Feed"])
     expect(tmpl.tags).toContainEqual(["feed", JSON.stringify(definition)])
-    // "alt" is consumed but not re-emitted.
-    expect(tmpl.tags.filter(t => t[0] === "alt")).toHaveLength(0)
-    // Unknown passthrough tag survives.
+    // Unmodeled tags pass through untouched.
+    expect(tmpl.tags).toContainEqual(["alt", "My Feed"])
     expect(tmpl.tags).toContainEqual(["zzz", "x"])
   })
 

@@ -1,4 +1,4 @@
-import {first} from "@welshman/lib"
+import {spec} from "@welshman/lib"
 import {ROOM_EDIT_META, getTag, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -55,88 +55,53 @@ export class RoomEdit extends EventReader {
 export class RoomEditBuilder extends EventBuilder<RoomEdit> {
   readonly kind = ROOM_EDIT_META
 
-  nameTag?: string[]
-  aboutTag?: string[]
-  pictureTag?: string[]
-  closedTag?: string[]
-  hiddenTag?: string[]
-  privateTag?: string[]
-  restrictedTag?: string[]
-  livekitTag?: string[]
-
-  constructor(readonly reader?: RoomEdit) {
-    super(reader)
-
-    this.nameTag = first(this.consumeTags("name"))
-    this.aboutTag = first(this.consumeTags("about"))
-    this.pictureTag = first(this.consumeTags("picture"))
-    this.closedTag = first(this.consumeTags("closed"))
-    this.hiddenTag = first(this.consumeTags("hidden"))
-    this.privateTag = first(this.consumeTags("private"))
-    this.restrictedTag = first(this.consumeTags("restricted"))
-    this.livekitTag = first(this.consumeTags("livekit"))
-  }
-
   setName(name: string) {
-    this.nameTag = ["name", name]
-
-    return this
+    return this.dropTags(spec(["name"])).addTags(["name", name])
   }
 
   setAbout(about: string) {
-    this.aboutTag = ["about", about]
-
-    return this
+    return this.dropTags(spec(["about"])).addTags(["about", about])
   }
 
   setPicture(picture: string, meta: string[] = []) {
-    this.pictureTag = ["picture", picture, ...meta]
-
-    return this
+    return this.dropTags(spec(["picture"])).addTags(["picture", picture, ...meta])
   }
 
   setClosed(closed = true) {
-    this.closedTag = closed ? ["closed"] : undefined
+    this.dropTags(spec(["closed"]))
 
-    return this
+    return closed ? this.addTags(["closed"]) : this
   }
 
   setHidden(hidden = true) {
-    this.hiddenTag = hidden ? ["hidden"] : undefined
+    this.dropTags(spec(["hidden"]))
 
-    return this
+    return hidden ? this.addTags(["hidden"]) : this
   }
 
   setPrivate(isPrivate = true) {
-    this.privateTag = isPrivate ? ["private"] : undefined
+    this.dropTags(spec(["private"]))
 
-    return this
+    return isPrivate ? this.addTags(["private"]) : this
   }
 
   setRestricted(restricted = true) {
-    this.restrictedTag = restricted ? ["restricted"] : undefined
+    this.dropTags(spec(["restricted"]))
 
-    return this
+    return restricted ? this.addTags(["restricted"]) : this
   }
 
   setLivekit(livekit = true) {
-    this.livekitTag = livekit ? ["livekit"] : undefined
+    this.dropTags(spec(["livekit"]))
 
-    return this
+    return livekit ? this.addTags(["livekit"]) : this
   }
 
-  protected buildTags() {
-    const tags: string[][] = []
+  protected validate() {
+    super.validate()
 
-    if (this.nameTag) tags.push(this.nameTag)
-    if (this.aboutTag) tags.push(this.aboutTag)
-    if (this.pictureTag) tags.push(this.pictureTag)
-    if (this.closedTag) tags.push(this.closedTag)
-    if (this.hiddenTag) tags.push(this.hiddenTag)
-    if (this.privateTag) tags.push(this.privateTag)
-    if (this.restrictedTag) tags.push(this.restrictedTag)
-    if (this.livekitTag) tags.push(this.livekitTag)
-
-    return tags
+    if (!this.groupTag) {
+      throw new Error("RoomEdit requires a group")
+    }
   }
 }

@@ -1,6 +1,5 @@
-import {first} from "@welshman/lib"
+import {spec} from "@welshman/lib"
 import {ROOM_JOIN, getTagValue} from "@welshman/util"
-import type {ISigner} from "@welshman/signer"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
 
@@ -8,7 +7,7 @@ import {EventBuilder} from "../EventBuilder.js"
 export class RoomJoin extends EventReader {
   readonly kind = ROOM_JOIN
 
-  code() {
+  claim() {
     return getTagValue("claim", this.event.tags)
   }
 
@@ -24,45 +23,19 @@ export class RoomJoin extends EventReader {
 export class RoomJoinBuilder extends EventBuilder<RoomJoin> {
   readonly kind = ROOM_JOIN
 
-  codeTag?: string[]
-  reason?: string
-
-  constructor(readonly reader?: RoomJoin) {
-    super(reader)
-
-    this.codeTag = first(this.consumeTags("claim"))
-    this.reason = reader?.event.content || undefined
-  }
-
-  setCode(code: string) {
-    this.codeTag = ["claim", code]
-
-    return this
+  setClaim(claim: string) {
+    return this.dropTags(spec(["claim"])).addTags(["claim", claim])
   }
 
   setReason(reason: string) {
-    this.reason = reason
-
-    return this
+    return this.setContent(reason)
   }
 
   protected validate() {
     super.validate()
 
     if (!this.groupTag) {
-      throw new Error("RoomJoin requires an h/group")
+      throw new Error("RoomJoin requires a group")
     }
-  }
-
-  protected buildContent(_signer?: ISigner) {
-    return this.reason || ""
-  }
-
-  protected buildTags() {
-    const tags: string[][] = []
-
-    if (this.codeTag) tags.push(this.codeTag)
-
-    return tags
   }
 }

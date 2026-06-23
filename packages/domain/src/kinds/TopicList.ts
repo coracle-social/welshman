@@ -1,4 +1,4 @@
-import {uniq, nthEq} from "@welshman/lib"
+import {uniq, spec} from "@welshman/lib"
 import {TOPICS, getTopicTagValues, getAddressTagValues} from "@welshman/util"
 import {ListReader} from "../ListReader.js"
 import {ListBuilder} from "../ListBuilder.js"
@@ -40,6 +40,6 @@ export class TopicListBuilder extends ListBuilder<TopicList> {
   }
 
   unfollow(topic: string) {
-    return this.drop(nthEq(1, topic))
+    return this.dropTags(spec(["t", topic]))
   }
 }

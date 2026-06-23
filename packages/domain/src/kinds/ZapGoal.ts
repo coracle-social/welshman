@@ -1,4 +1,4 @@
-import {first} from "@welshman/lib"
+import {spec} from "@welshman/lib"
 import {ZAP_GOAL, getTagValue, getTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -31,64 +31,36 @@ export class ZapGoal extends EventReader {
 export class ZapGoalBuilder extends EventBuilder<ZapGoal> {
   readonly kind = ZAP_GOAL
 
-  title = ""
-  summaryTag?: string[]
-  amountTag?: string[]
-  urlTags: string[][] = []
-
-  constructor(readonly reader?: ZapGoal) {
+  constructor(reader?: ZapGoal) {
     super(reader)
 
-    this.title = reader?.title() ?? ""
-    this.summaryTag = first(this.consumeTags("summary"))
-    this.amountTag = first(this.consumeTags("amount"))
-    this.urlTags = this.consumeTags("relays")
+    // A zap goal always carries an amount tag, defaulting to zero.
+    if (!this.extraTags.some(spec(["amount"]))) {
+      this.addTags(["amount", "0"])
+    }
   }
 
   setTitle(title: string) {
-    this.title = title
-
-    return this
+    return this.setContent(title)
   }
 
   setSummary(summary: string) {
-    this.summaryTag = ["summary", summary]
-
-    return this
+    return this.dropTags(spec(["summary"])).addTags(["summary", summary])
   }
 
   setAmount(amount: number) {
-    this.amountTag = ["amount", String(amount)]
-
-    return this
+    return this.dropTags(spec(["amount"])).addTags(["amount", String(amount)])
   }
 
   setUrls(urls: string[]) {
-    this.urlTags = urls.map(url => ["relays", url])
-
-    return this
+    return this.dropTags(spec(["relays"])).addTags(...urls.map(url => ["relays", url]))
   }
 
   protected validate() {
     super.validate()
 
-    if (!this.title) {
+    if (!this.content) {
       throw new Error("ZapGoal requires a title")
     }
-  }
-
-  protected buildContent() {
-    return this.title
-  }
-
-  protected buildTags() {
-    const tags: string[][] = []
-
-    if (this.summaryTag) tags.push(this.summaryTag)
-
-    tags.push(this.amountTag ?? ["amount", "0"])
-    tags.push(...this.urlTags)
-
-    return tags
   }
 }

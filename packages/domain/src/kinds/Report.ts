@@ -1,4 +1,4 @@
-import {first} from "@welshman/lib"
+import {spec, first} from "@welshman/lib"
 import {REPORT, getTag, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -27,55 +27,51 @@ export class Report extends EventReader {
 export class ReportBuilder extends EventBuilder<Report> {
   readonly kind = REPORT
 
-  pTag?: string[]
-  eTag?: string[]
-  reason?: string
-
-  constructor(readonly reader?: Report) {
+  constructor(reader?: Report) {
     super(reader)
 
-    this.pTag = first(this.consumeTags("p"))
-    this.eTag = first(this.consumeTags("e"))
-    this.reason = this.eTag?.[2] ?? this.pTag?.[2]
+    // A report's reason lives on both the p and e tags; normalize so a reason
+    // present on either is reflected on both.
+    const reason = this.reason()
+
+    if (reason) {
+      this.setReason(reason)
+    }
+  }
+
+  private reason() {
+    const eTag = first(this.extraTags.filter(spec(["e"])))
+    const pTag = first(this.extraTags.filter(spec(["p"])))
+
+    return eTag?.[2] ?? pTag?.[2]
   }
 
   setPubkey(pubkey: string) {
-    this.pTag = ["p", pubkey]
+    const reason = this.reason()
+    const tag = reason ? ["p", pubkey, reason] : ["p", pubkey]
 
-    return this
+    return this.dropTags(spec(["p"])).addTags(tag)
   }
 
   setEventId(eventId: string) {
-    this.eTag = ["e", eventId]
+    const reason = this.reason()
+    const tag = reason ? ["e", eventId, reason] : ["e", eventId]
 
-    return this
+    return this.dropTags(spec(["e"])).addTags(tag)
   }
 
   setReason(reason: string) {
-    this.reason = reason
+    const pTag = first(this.extraTags.filter(spec(["p"])))
+    const eTag = first(this.extraTags.filter(spec(["e"])))
+
+    if (pTag) {
+      this.dropTags(spec(["p"])).addTags(["p", pTag[1], reason])
+    }
+
+    if (eTag) {
+      this.dropTags(spec(["e"])).addTags(["e", eTag[1], reason])
+    }
 
     return this
-  }
-
-  protected buildTags() {
-    const tags: string[][] = []
-
-    if (this.pTag) {
-      if (this.pTag.length === 2 && this.reason) {
-        this.pTag.push(this.reason)
-      }
-
-      tags.push(this.pTag)
-    }
-
-    if (this.eTag) {
-      if (this.eTag.length === 2 && this.reason) {
-        this.eTag.push(this.reason)
-      }
-
-      tags.push(this.eTag)
-    }
-
-    return tags
   }
 }

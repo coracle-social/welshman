@@ -13,4 +13,12 @@ export class RoomCreate extends EventReader {
 
 export class RoomCreateBuilder extends EventBuilder<RoomCreate> {
   readonly kind = ROOM_CREATE
+
+  protected validate() {
+    super.validate()
+
+    if (!this.groupTag) {
+      throw new Error("RoomCreate requires a group")
+    }
+  }
 }

@@ -1,10 +1,10 @@
-import {uniq, spec, nthEq} from "@welshman/lib"
+import {uniq, spec} from "@welshman/lib"
 import {EMOJIS, getAddressTagValues} from "@welshman/util"
-import {ListReader} from "../ListReader.js"
-import {ListBuilder} from "../ListBuilder.js"
+import {EventReader} from "../EventReader.js"
+import {EventBuilder} from "../EventBuilder.js"
 
 // NIP-51 kind-10030 user emoji list.
-export class EmojiList extends ListReader {
+export class EmojiList extends EventReader {
   readonly kind = EMOJIS
 
   emojis() {
@@ -20,22 +20,22 @@ export class EmojiList extends ListReader {
   }
 }
 
-export class EmojiListBuilder extends ListBuilder<EmojiList> {
+export class EmojiListBuilder extends EventBuilder<EmojiList> {
   readonly kind = EMOJIS
 
   addEmoji(shortcode: string, url: string) {
-    return this.addPublic(["emoji", shortcode, url])
+    return this.addTags(["emoji", shortcode, url])
   }
 
   removeEmoji(value: string) {
-    return this.drop(nthEq(1, value))
+    return this.dropTags(spec(["emoji", value]))
   }
 
   addEmojiSet(address: string) {
-    return this.addPublic(["a", address])
+    return this.addTags(["a", address])
   }
 
   removeEmojiSet(value: string) {
-    return this.drop(nthEq(1, value))
+    return this.dropTags(spec(["a", value]))
   }
 }

@@ -56,31 +56,14 @@ describe("RoomList", () => {
 
   it("joins and leaves groups via a fresh builder", async () => {
     const tmpl = await new RoomListBuilder()
-      .join(groupA, relay)
-      .join(groupB, relay)
-      .leave(groupA)
+      .addGroup(groupA, relay)
+      .addGroup(groupB, relay)
+      .removeGroup(groupA)
       .toTemplate(signer)
 
     expect(tmpl.kind).toBe(ROOMS)
     expect(tmpl.tags).toContainEqual(["group", groupB, relay])
     expect(tmpl.tags.some(t => t[1] === groupA)).toBe(false)
-  })
-
-  it("round-trips public and private groups through encryption", async () => {
-    const event = await new RoomListBuilder()
-      .join(groupA, relay)
-      .addPrivate(["group", groupB, relay])
-      .toEvent(signer)
-
-    const decrypted = await RoomList.fromEvent(event, signer)
-
-    expect(decrypted.decrypted).toBe(true)
-    expect(decrypted.groups().sort()).toEqual([groupA, groupB].sort())
-
-    const publicOnly = await RoomList.fromEvent(event)
-
-    expect(publicOnly.decrypted).toBe(false)
-    expect(publicOnly.groups()).toEqual([groupA])
   })
 
   it("throws on the wrong kind", async () => {

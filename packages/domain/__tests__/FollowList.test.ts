@@ -58,17 +58,17 @@ describe("FollowList", () => {
     expect(tmpl.tags).toContainEqual(["alt", "x"])
   })
 
-  it("builds from a fresh builder via addFollow", async () => {
+  it("builds from a fresh builder via follow", async () => {
     const tmpl = await new FollowListBuilder()
-      .addFollow(["p", a])
-      .addFollow(["t", "nostr"])
+      .follow(a)
+      .follow(b, "wss://relay.example/", "alice")
       .toTemplate(signer)
 
-    expect(getPubkeyTagValues(tmpl.tags)).toEqual([a])
-    expect(tmpl.tags).toContainEqual(["t", "nostr"])
+    expect(getPubkeyTagValues(tmpl.tags).sort()).toEqual([a, b].sort())
+    expect(tmpl.tags).toContainEqual(["p", b, "wss://relay.example/", "alice"])
   })
 
-  it("removeFollow removes by value", async () => {
+  it("unfollow removes by value", async () => {
     const event = makeEvent({
       tags: [
         ["p", a],
@@ -77,29 +77,9 @@ describe("FollowList", () => {
     })
     const list = await FollowList.fromEvent(event)
 
-    const tmpl = await list.builder().removeFollow(a).toTemplate(signer)
+    const tmpl = await list.builder().unfollow(a).toTemplate(signer)
 
     expect(getPubkeyTagValues(tmpl.tags)).toEqual([b])
-  })
-
-  it("round-trips public and private follows through encryption", async () => {
-    const event = await new FollowListBuilder()
-      .addFollow(["p", a])
-      .addPrivate(["p", b])
-      .toEvent(signer)
-
-    expect(getPubkeyTagValues(event.tags)).toEqual([a])
-    expect(event.content).not.toBe("")
-
-    const decrypted = await FollowList.fromEvent(event, signer)
-
-    expect(decrypted.decrypted).toBe(true)
-    expect(decrypted.pubkeys().sort()).toEqual([a, b].sort())
-
-    const publicOnly = await FollowList.fromEvent(event)
-
-    expect(publicOnly.decrypted).toBe(false)
-    expect(publicOnly.pubkeys()).toEqual([a])
   })
 
   it("throws on the wrong kind", async () => {

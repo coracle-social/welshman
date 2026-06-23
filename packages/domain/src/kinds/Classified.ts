@@ -1,4 +1,4 @@
-import {first} from "@welshman/lib"
+import {spec} from "@welshman/lib"
 import {CLASSIFIED, getTag, getTagValue, getTagValues, getTopicTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -59,71 +59,32 @@ export class Classified extends EventReader {
 export class ClassifiedBuilder extends EventBuilder<Classified> {
   readonly kind = CLASSIFIED
 
-  titleTag?: string[]
-  summaryTag?: string[]
-  priceTag?: string[]
-  statusTag?: string[]
-  imageTags: string[][] = []
-  topicTags: string[][] = []
-
-  constructor(readonly reader?: Classified) {
-    super(reader)
-
-    this.titleTag = first(this.consumeTags("title"))
-    this.summaryTag = first(this.consumeTags("summary"))
-    this.priceTag = first(this.consumeTags("price"))
-    this.statusTag = first(this.consumeTags("status"))
-    this.imageTags = this.consumeTags("image")
-    this.topicTags = this.consumeTags("t")
-  }
-
   setTitle(title: string) {
-    this.titleTag = ["title", title]
-
-    return this
+    return this.dropTags(spec(["title"])).addTags(["title", title])
   }
 
   setSummary(summary: string) {
-    this.summaryTag = ["summary", summary]
-
-    return this
+    return this.dropTags(spec(["summary"])).addTags(["summary", summary])
   }
 
   setPrice(amount: number, currency = "SAT", frequency = "") {
-    this.priceTag = ["price", String(amount), currency, ...(frequency ? [frequency] : [])]
-
-    return this
+    return this.dropTags(spec(["price"])).addTags([
+      "price",
+      String(amount),
+      currency,
+      ...(frequency ? [frequency] : []),
+    ])
   }
 
   setStatus(status: string) {
-    this.statusTag = ["status", status]
-
-    return this
+    return this.dropTags(spec(["status"])).addTags(["status", status])
   }
 
   setImages(images: string[]) {
-    this.imageTags = images.map(image => ["image", image])
-
-    return this
+    return this.dropTags(spec(["image"])).addTags(...images.map(image => ["image", image]))
   }
 
   setTopics(topics: string[]) {
-    this.topicTags = topics.map(topic => ["t", topic])
-
-    return this
-  }
-
-  protected buildTags() {
-    const tags: string[][] = []
-
-    if (this.titleTag) tags.push(this.titleTag)
-    if (this.summaryTag) tags.push(this.summaryTag)
-    if (this.priceTag) tags.push(this.priceTag)
-    if (this.statusTag) tags.push(this.statusTag)
-
-    tags.push(...this.topicTags)
-    tags.push(...this.imageTags)
-
-    return tags
+    return this.dropTags(spec(["t"])).addTags(...topics.map(topic => ["t", topic]))
   }
 }

@@ -1,4 +1,4 @@
-import {uniq, nthEq} from "@welshman/lib"
+import {uniq} from "@welshman/lib"
 import {
   BOOKMARKS,
   getEventTagValues,
@@ -46,6 +46,6 @@ export class BookmarkListBuilder extends ListBuilder<BookmarkList> {
   }
 
   removeBookmark(value: string) {
-    return this.drop(nthEq(1, value))
+    return this.dropTags(t => ["e", "a", "t", "r"].includes(t[0]) && t[1] === value)
   }
 }

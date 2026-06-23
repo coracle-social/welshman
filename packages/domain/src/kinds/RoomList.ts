@@ -1,10 +1,10 @@
-import {nthEq} from "@welshman/lib"
+import {spec} from "@welshman/lib"
 import {ROOMS, getGroupTags, getGroupTagValues} from "@welshman/util"
-import {ListReader} from "../ListReader.js"
-import {ListBuilder} from "../ListBuilder.js"
+import {EventReader} from "../EventReader.js"
+import {EventBuilder} from "../EventBuilder.js"
 
 // NIP-51 kind-10009 simple-groups membership list.
-export class RoomList extends ListReader {
+export class RoomList extends EventReader {
   readonly kind = ROOMS
 
   groups() {
@@ -20,14 +20,14 @@ export class RoomList extends ListReader {
   }
 }
 
-export class RoomListBuilder extends ListBuilder<RoomList> {
+export class RoomListBuilder extends EventBuilder<RoomList> {
   readonly kind = ROOMS
 
-  join(groupId: string, url: string) {
-    return this.addPublic(["group", groupId, url])
+  addGroup(groupId: string, url: string) {
+    return this.addTags(["group", groupId, url])
   }
 
-  leave(groupId: string) {
-    return this.drop(nthEq(1, groupId))
+  removeGroup(groupId: string) {
+    return this.dropTags(spec(["group", groupId]))
   }
 }

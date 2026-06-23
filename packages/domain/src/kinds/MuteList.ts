@@ -1,4 +1,4 @@
-import {uniq, nthEq} from "@welshman/lib"
+import {uniq, spec} from "@welshman/lib"
 import {MUTES, getPubkeyTagValues} from "@welshman/util"
 import {ListReader} from "../ListReader.js"
 import {ListBuilder} from "../ListBuilder.js"
@@ -32,6 +32,6 @@ export class MuteListBuilder extends ListBuilder<MuteList> {
   }
 
   unmute(pubkey: string) {
-    return this.drop(nthEq(1, pubkey))
+    return this.dropTags(spec(["p", pubkey]))
   }
 }

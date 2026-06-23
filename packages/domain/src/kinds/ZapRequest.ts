@@ -1,4 +1,4 @@
-import {first} from "@welshman/lib"
+import {spec} from "@welshman/lib"
 import {ZAP_REQUEST, getTag, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -31,10 +31,6 @@ export class ZapRequest extends EventReader {
     return tag ? tag.slice(1) : []
   }
 
-  comment() {
-    return this.event.content
-  }
-
   builder() {
     return new ZapRequestBuilder(this)
   }
@@ -43,72 +39,23 @@ export class ZapRequest extends EventReader {
 export class ZapRequestBuilder extends EventBuilder<ZapRequest> {
   readonly kind = ZAP_REQUEST
 
-  amountTag?: string[]
-  lnurlTag?: string[]
-  recipientTag?: string[]
-  eventIdTag?: string[]
-  relaysTag?: string[]
-  comment = ""
-
-  constructor(readonly reader?: ZapRequest) {
-    super(reader)
-
-    this.amountTag = first(this.consumeTags("amount"))
-    this.lnurlTag = first(this.consumeTags("lnurl"))
-    this.recipientTag = first(this.consumeTags("p"))
-    this.eventIdTag = first(this.consumeTags("e"))
-    this.relaysTag = first(this.consumeTags("relays"))
-    this.comment = reader?.event.content ?? ""
-  }
-
   setAmount(amount: number) {
-    this.amountTag = ["amount", String(amount)]
-
-    return this
+    return this.dropTags(spec(["amount"])).addTags(["amount", String(amount)])
   }
 
   setLnurl(lnurl: string) {
-    this.lnurlTag = ["lnurl", lnurl]
-
-    return this
+    return this.dropTags(spec(["lnurl"])).addTags(["lnurl", lnurl])
   }
 
   setRecipient(recipient: string) {
-    this.recipientTag = ["p", recipient]
-
-    return this
+    return this.dropTags(spec(["p"])).addTags(["p", recipient])
   }
 
   setEventId(eventId: string) {
-    this.eventIdTag = ["e", eventId]
-
-    return this
+    return this.dropTags(spec(["e"])).addTags(["e", eventId])
   }
 
   setUrls(urls: string[]) {
-    this.relaysTag = ["relays", ...urls]
-
-    return this
-  }
-
-  setComment(comment: string) {
-    this.comment = comment
-
-    return this
-  }
-
-  protected buildTags() {
-    const tags: string[][] = [this.relaysTag ?? ["relays"]]
-
-    if (this.amountTag) tags.push(this.amountTag)
-    if (this.lnurlTag) tags.push(this.lnurlTag)
-    if (this.recipientTag) tags.push(this.recipientTag)
-    if (this.eventIdTag) tags.push(this.eventIdTag)
-
-    return tags
-  }
-
-  protected buildContent() {
-    return this.comment
+    return this.dropTags(spec(["relays"])).addTags(["relays", ...urls])
   }
 }

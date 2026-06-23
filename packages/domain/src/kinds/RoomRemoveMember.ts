@@ -1,4 +1,4 @@
-import {uniq, nth, uniqBy} from "@welshman/lib"
+import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {ROOM_REMOVE_MEMBER, getPubkeyTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -19,21 +19,15 @@ export class RoomRemoveMember extends EventReader {
 export class RoomRemoveMemberBuilder extends EventBuilder<RoomRemoveMember> {
   readonly kind = ROOM_REMOVE_MEMBER
 
-  pubkeyTags: string[][] = []
-
-  constructor(readonly reader?: RoomRemoveMember) {
-    super(reader)
-
-    this.pubkeyTags = uniqBy(nth(1), this.consumeTags("p"))
-  }
-
   addPubkey(pubkey: string) {
-    this.pubkeyTags = uniqBy(nth(1), [...this.pubkeyTags, ["p", pubkey]])
-
-    return this
+    return this.dropTags(spec(["p", pubkey])).addTags(removeUndefined(["p", pubkey]))
   }
 
-  protected buildTags() {
-    return this.pubkeyTags
+  removePubkey(pubkey: string) {
+    return this.dropTags(spec(["p", pubkey]))
+  }
+
+  setPubkeys(pubkeys: string[]) {
+    return this.dropTags(spec(["p"])).addTags(...pubkeys.map(pk => ["p", pk]))
   }
 }

@@ -1,10 +1,10 @@
-import {uniq, nthEq} from "@welshman/lib"
+import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {FOLLOWS, getPubkeyTagValues} from "@welshman/util"
-import {ListReader} from "../ListReader.js"
-import {ListBuilder} from "../ListBuilder.js"
+import {EventReader} from "../EventReader.js"
+import {EventBuilder} from "../EventBuilder.js"
 
 // NIP-02 kind-3 follow list.
-export class FollowList extends ListReader {
+export class FollowList extends EventReader {
   readonly kind = FOLLOWS
 
   pubkeys() {
@@ -20,14 +20,14 @@ export class FollowList extends ListReader {
   }
 }
 
-export class FollowListBuilder extends ListBuilder<FollowList> {
+export class FollowListBuilder extends EventBuilder<FollowList> {
   readonly kind = FOLLOWS
 
-  addFollow(tag: string[]) {
-    return this.addPublic(tag)
+  follow(pubkey: string, relayHint?: string, petname?: string) {
+    return this.addTags(removeUndefined(["p", pubkey, relayHint, petname]))
   }
 
-  removeFollow(value: string) {
-    return this.drop(nthEq(1, value))
+  unfollow(pubkey: string) {
+    return this.dropTags(spec(["p", pubkey]))
   }
 }

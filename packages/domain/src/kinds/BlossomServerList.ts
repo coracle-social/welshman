@@ -1,10 +1,10 @@
-import {uniq, nthEq, normalizeUrl} from "@welshman/lib"
+import {uniq, spec, normalizeUrl} from "@welshman/lib"
 import {BLOSSOM_SERVERS, getTagValues} from "@welshman/util"
-import {ListReader} from "../ListReader.js"
-import {ListBuilder} from "../ListBuilder.js"
+import {EventReader} from "../EventReader.js"
+import {EventBuilder} from "../EventBuilder.js"
 
 // Blossom BUD-03 kind-10063 user server list.
-export class BlossomServerList extends ListReader {
+export class BlossomServerList extends EventReader {
   readonly kind = BLOSSOM_SERVERS
 
   urls() {
@@ -20,20 +20,20 @@ export class BlossomServerList extends ListReader {
   }
 }
 
-export class BlossomServerListBuilder extends ListBuilder<BlossomServerList> {
+export class BlossomServerListBuilder extends EventBuilder<BlossomServerList> {
   readonly kind = BLOSSOM_SERVERS
 
   addUrl(url: string) {
-    return this.addPublic(["server", normalizeUrl(url)])
+    return this.addTags(["server", normalizeUrl(url)])
   }
 
   removeUrl(url: string) {
-    return this.drop(nthEq(1, normalizeUrl(url)))
+    return this.dropTags(spec(["server", normalizeUrl(url)]))
   }
 
   setUrls(urls: string[]) {
-    this.clear()
-
-    return this.addPublic(...urls.map(url => ["server", normalizeUrl(url)]))
+    return this.dropTags(spec(["server"])).addTags(
+      ...urls.map(url => ["server", normalizeUrl(url)]),
+    )
   }
 }

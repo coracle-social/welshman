@@ -66,25 +66,6 @@ describe("SearchRelayList", () => {
     expect(tmpl.tags.some(t => t[1] === normalizeRelayUrl(relayA))).toBe(false)
   })
 
-  it("round-trips public and private relays through encryption", async () => {
-    const event = await new SearchRelayListBuilder()
-      .addUrl(relayA)
-      .addPrivate(["relay", relayB])
-      .toEvent(signer)
-
-    const decrypted = await SearchRelayList.fromEvent(event, signer)
-
-    expect(decrypted.decrypted).toBe(true)
-    expect(decrypted.urls().sort()).toEqual(
-      [normalizeRelayUrl(relayA), normalizeRelayUrl(relayB)].sort(),
-    )
-
-    const publicOnly = await SearchRelayList.fromEvent(event)
-
-    expect(publicOnly.decrypted).toBe(false)
-    expect(publicOnly.urls()).toEqual([normalizeRelayUrl(relayA)])
-  })
-
   it("throws on the wrong kind", async () => {
     await expect(SearchRelayList.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
   })

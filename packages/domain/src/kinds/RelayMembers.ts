@@ -1,4 +1,4 @@
-import {uniq, nth, nthNe, uniqBy} from "@welshman/lib"
+import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {RELAY_MEMBERS, getTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -24,30 +24,24 @@ export class RelayMembers extends EventReader {
 export class RelayMembersBuilder extends EventBuilder<RelayMembers> {
   readonly kind = RELAY_MEMBERS
 
-  pubkeyTags: string[][] = []
-
   constructor(readonly reader?: RelayMembers) {
     super(reader)
-
-    this.pubkeyTags = uniqBy(nth(1), this.consumeTags("member"))
 
     // NIP-43 requires kind-13534 member lists to be NIP-70 protected.
     this.setProtected(true)
   }
 
-  addPubkey(pubkey: string) {
-    this.pubkeyTags = uniqBy(nth(1), [...this.pubkeyTags, ["member", pubkey]])
-
-    return this
+  addPubkey(pubkey: string, role?: string) {
+    return this.dropTags(spec(["member", pubkey])).addTags(
+      removeUndefined(["member", pubkey, role]),
+    )
   }
 
   removePubkey(pubkey: string) {
-    this.pubkeyTags = this.pubkeyTags.filter(nthNe(1, pubkey))
-
-    return this
+    return this.dropTags(spec(["member", pubkey]))
   }
 
-  protected buildTags() {
-    return this.pubkeyTags
+  setPubkeys(pubkeys: string[]) {
+    return this.dropTags(spec(["member"])).addTags(...uniq(pubkeys).map(pk => ["member", pk]))
   }
 }

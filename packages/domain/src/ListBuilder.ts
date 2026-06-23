@@ -43,7 +43,7 @@ export abstract class ListBuilder<
     return this
   }
 
-  keep(pred: (tag: string[]) => boolean) {
+  keepTags(pred: (tag: string[]) => boolean) {
     this.publicTags = this.publicTags.filter(pred)
     this.privateTags = this.privateTags.filter(pred)
 
@@ -62,28 +62,9 @@ export abstract class ListBuilder<
     return this
   }
 
-  drop(pred: (tag: string[]) => boolean) {
+  dropTags(pred: (tag: string[]) => boolean) {
     this.publicTags = this.publicTags.filter(complement(pred))
     this.privateTags = this.privateTags.filter(complement(pred))
-
-    return this
-  }
-
-  clearPublic() {
-    this.publicTags = []
-
-    return this
-  }
-
-  clearPrivate() {
-    this.privateTags = []
-
-    return this
-  }
-
-  clear() {
-    this.publicTags = []
-    this.privateTags = []
 
     return this
   }
