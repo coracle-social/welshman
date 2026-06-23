@@ -1,7 +1,7 @@
 import {nth, uniq, uniqBy, remove} from "@welshman/lib"
 import {RELAYS, getRelayTags, normalizeRelayUrl} from "@welshman/util"
-import {ListReader} from "../ListReader.js"
-import {ListBuilder} from "../ListBuilder.js"
+import {EventReader} from "../EventReader.js"
+import {EventBuilder} from "../EventBuilder.js"
 
 const getUrls = (tags: string[][], mode?: string) =>
   uniqBy(
@@ -12,7 +12,7 @@ const getUrls = (tags: string[][], mode?: string) =>
   )
 
 // NIP-65 kind-10002 relay list.
-export class RelayList extends ListReader {
+export class RelayList extends EventReader {
   readonly kind = RELAYS
 
   urls() {
@@ -32,7 +32,7 @@ export class RelayList extends ListReader {
   }
 }
 
-export class RelayListBuilder extends ListBuilder<RelayList> {
+export class RelayListBuilder extends EventBuilder<RelayList> {
   readonly kind = RELAYS
 
   addReadUrl(url: string) {
@@ -54,7 +54,7 @@ export class RelayListBuilder extends ListBuilder<RelayList> {
   private findUrlTag(url: string) {
     const normalized = normalizeRelayUrl(url)
 
-    return this.publicTags.find(t => t[0] === "r" && normalizeRelayUrl(t[1]) === normalized)
+    return this.extraTags.find(t => t[0] === "r" && normalizeRelayUrl(t[1]) === normalized)
   }
 
   private addUrlForMode(url: string, mode: "read" | "write") {
@@ -62,7 +62,7 @@ export class RelayListBuilder extends ListBuilder<RelayList> {
     const alt = mode === "read" ? "write" : "read"
 
     if (!existing) {
-      this.publicTags.push(["r", normalizeRelayUrl(url), mode])
+      this.extraTags.push(["r", normalizeRelayUrl(url), mode])
     } else if (existing[2] === alt) {
       existing.splice(2)
     }
@@ -78,7 +78,7 @@ export class RelayListBuilder extends ListBuilder<RelayList> {
       if (!existing[2]) {
         existing[2] = alt
       } else if (existing[2] === mode) {
-        this.publicTags = remove(existing, this.publicTags)
+        this.extraTags = remove(existing, this.extraTags)
       }
     }
 
@@ -86,17 +86,17 @@ export class RelayListBuilder extends ListBuilder<RelayList> {
   }
 
   setReadUrls(urls: string[]) {
-    return this.setUrlsForModes(urls, getUrls(this.publicTags, "write"))
+    return this.setUrlsForModes(urls, getUrls(this.extraTags, "write"))
   }
 
   setWriteUrls(urls: string[]) {
-    return this.setUrlsForModes(getUrls(this.publicTags, "read"), urls)
+    return this.setUrlsForModes(getUrls(this.extraTags, "read"), urls)
   }
 
   private setUrlsForModes(readUrls: string[], writeUrls: string[]) {
     const read = new Set(readUrls.map(normalizeRelayUrl))
     const write = new Set(writeUrls.map(normalizeRelayUrl))
-    const otherTags = this.publicTags.filter(t => t[0] !== "r")
+    const otherTags = this.extraTags.filter(t => t[0] !== "r")
     const relayTags = uniq([...read, ...write]).map(url =>
       read.has(url) && write.has(url)
         ? ["r", url]
@@ -105,13 +105,13 @@ export class RelayListBuilder extends ListBuilder<RelayList> {
           : ["r", url, "write"],
     )
 
-    this.publicTags = [...otherTags, ...relayTags]
+    this.extraTags = [...otherTags, ...relayTags]
 
     return this
   }
 
   setTags(tags: string[][]) {
-    this.publicTags = tags
+    this.extraTags = tags
 
     return this
   }

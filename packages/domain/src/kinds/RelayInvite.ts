@@ -1,4 +1,4 @@
-import {first} from "@welshman/lib"
+import {spec} from "@welshman/lib"
 import {RELAY_INVITE, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -19,25 +19,7 @@ export class RelayInvite extends EventReader {
 export class RelayInviteBuilder extends EventBuilder<RelayInvite> {
   readonly kind = RELAY_INVITE
 
-  claimTag?: string[]
-
-  constructor(readonly reader?: RelayInvite) {
-    super(reader)
-
-    this.claimTag = first(this.consumeTags("claim"))
-  }
-
   setClaim(claim: string) {
-    this.claimTag = ["claim", claim]
-
-    return this
-  }
-
-  protected buildTags() {
-    const tags: string[][] = []
-
-    if (this.claimTag) tags.push(this.claimTag)
-
-    return tags
+    return this.dropTags(spec(["claim"])).addTags(["claim", claim])
   }
 }

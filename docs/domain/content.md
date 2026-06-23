@@ -1,6 +1,6 @@
 # Content
 
-A grab-bag of content kinds: NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-52 calendar events, NIP-88 polls, and NIP-56 reports. Each is a plain `EventReader` / `EventBuilder` pair — see [Readers & Builders](./readers-and-builders) for the base pattern. The parameterized-replaceable kinds (`Classified`, `TimeEvent`) need a `d` tag (`setIdentifier()`).
+A grab-bag of content kinds: NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventBuilder` pair — see [Readers & Builders](./readers-and-builders) for the base pattern. The parameterized-replaceable kinds (`Classified`, `TimeEvent`, `Pinboard`) need a `d` tag (`setIdentifier()`).
 
 ## Comment (kind 1111)
 
@@ -75,6 +75,51 @@ await new ClassifiedBuilder()
   .setTopics(["bikes", "forsale"])
   .toEvent(signer)
 ```
+
+## Pinboard (kind 30067) and Pin (kind 39067)
+
+A pinboard system (Pinboards NIP) that separates board metadata from the individual pins. A `Pinboard` is an addressable board (`d` + `title`, with optional `description`/`image`/`t` hashtags and a presence-only `collaborative` flag). Pins are separate `Pin` events, each referencing **one** item plus zero or more boards.
+
+```typescript
+import {Pinboard, PinboardBuilder} from "@welshman/domain"
+
+const board = await Pinboard.fromEvent(event)
+board.title()           // "title" tag value
+board.description()     // "description" tag value
+board.image()           // "image" tag value
+board.topics()          // t-tag values
+board.collaborative()   // boolean — presence of the "collaborative" tag
+
+await new PinboardBuilder()
+  .setIdentifier("japan-trip-2024")      // required d tag for kind 30067
+  .setTitle("Japan Trip 2024")           // required
+  .setDescription("Photos and memories")
+  .setImage("https://example.com/mt-fuji.jpg")
+  .setTopics(["japan", "travel"])
+  .setCollaborative(true)
+  .toEvent(signer)
+```
+
+A `Pin` references exactly one item — a nostr event (`e`), an addressable event (`a`), or an external id (`i` + optional `k` per NIP-73) — exposed as a discriminated `PinReference`. It can belong to multiple boards via `A` tags; a pin with none is a profile pin. Its `content` is an optional comment. Because a pin is a regular event (no `d` tag, despite the addressable-range kind), the builder skips the base d-tag check and instead requires a content reference.
+
+```typescript
+import {Pin, PinBuilder} from "@welshman/domain"
+
+const pin = await Pin.fromEvent(event)
+pin.boards()         // "A" tag values (board coordinates)
+pin.isProfilePin()   // true when there are no boards
+pin.reference()      // {type: "event"|"address"|"external", ...} | undefined
+pin.title()          // custom pin "title" tag value
+pin.topics()         // t-tag values
+
+await new PinBuilder()
+  .addBoard("30067:" + pubkey + ":japan-trip-2024")
+  .setEvent(pictureEventId, "wss://relay.example.com")   // or setAddress / setExternal
+  .setContent("Sunrise at Mt. Fuji")
+  .toEvent(signer)
+```
+
+`setEvent`/`setAddress`/`setExternal` each replace any prior reference, keeping the "exactly one" invariant.
 
 ## TimeEvent (kind 31923)
 

@@ -70,10 +70,10 @@ describe("RoomMembers", () => {
     builder.setIdentifier("room2")
 
     const tmpl = await builder
-      .addMember(a)
-      .addMember(a) // dedup
-      .addMember(b)
-      .removeMember(b)
+      .addPubkey(a)
+      .addPubkey(a) // dedup
+      .addPubkey(b)
+      .removePubkey(b)
       .toTemplate(signer)
 
     expect(tmpl.tags).toContainEqual(["d", "room2"])

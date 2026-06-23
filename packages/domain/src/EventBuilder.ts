@@ -1,4 +1,4 @@
-import {first, partition, randomId, spec} from "@welshman/lib"
+import {complement, first, partition, randomId, spec} from "@welshman/lib"
 import type {MaybeAsync} from "@welshman/lib"
 import {stamp, prep, isParameterizedReplaceableKind} from "@welshman/util"
 import type {EventTemplate, SignedEvent, HashedEvent} from "@welshman/util"
@@ -75,6 +75,24 @@ export abstract class EventBuilder<Reader extends EventReader> {
 
   clearIdentifier() {
     this.identifierTag = undefined
+
+    return this
+  }
+
+  addTags(...tags: string[][]) {
+    this.extraTags.push(...tags)
+
+    return this
+  }
+
+  keepTags(pred: (tag: string[]) => boolean) {
+    this.extraTags = this.extraTags.filter(pred)
+
+    return this
+  }
+
+  dropTags(pred: (tag: string[]) => boolean) {
+    this.extraTags = this.extraTags.filter(complement(pred))
 
     return this
   }

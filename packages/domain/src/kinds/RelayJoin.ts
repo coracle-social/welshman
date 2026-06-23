@@ -1,6 +1,5 @@
-import {first} from "@welshman/lib"
+import {spec} from "@welshman/lib"
 import {RELAY_JOIN, getTagValue} from "@welshman/util"
-import type {ISigner} from "@welshman/signer"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
 
@@ -24,37 +23,11 @@ export class RelayJoin extends EventReader {
 export class RelayJoinBuilder extends EventBuilder<RelayJoin> {
   readonly kind = RELAY_JOIN
 
-  claimTag?: string[]
-  reason?: string
-
-  constructor(readonly reader?: RelayJoin) {
-    super(reader)
-
-    this.claimTag = first(this.consumeTags("claim"))
-    this.reason = reader?.event.content || undefined
-  }
-
   setClaim(claim: string) {
-    this.claimTag = ["claim", claim]
-
-    return this
+    return this.dropTags(spec(["claim"])).addTags(["claim", claim])
   }
 
   setReason(reason: string) {
-    this.reason = reason
-
-    return this
-  }
-
-  protected buildTags() {
-    const tags: string[][] = []
-
-    if (this.claimTag) tags.push(this.claimTag)
-
-    return tags
-  }
-
-  protected buildContent(_signer?: ISigner) {
-    return this.reason || ""
+    return this.setContent(reason)
   }
 }

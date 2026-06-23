@@ -1,4 +1,4 @@
-import {uniq, nth, uniqBy} from "@welshman/lib"
+import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {ROOM_CREATE_PERMISSION, getPubkeyTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -23,21 +23,15 @@ export class RoomCreatePermission extends EventReader {
 export class RoomCreatePermissionBuilder extends EventBuilder<RoomCreatePermission> {
   readonly kind = ROOM_CREATE_PERMISSION
 
-  pubkeyTags: string[][] = []
+  addPubkey(pubkey: string, role?: string) {
+    return this.dropTags(spec(["p", pubkey])).addTags(removeUndefined(["p", pubkey, role]))
+  }
 
-  constructor(readonly reader?: RoomCreatePermission) {
-    super(reader)
-
-    this.pubkeyTags = uniqBy(nth(1), this.consumeTags("p"))
+  removePubkey(pubkey: string) {
+    return this.dropTags(spec(["p", pubkey]))
   }
 
   setPubkeys(pubkeys: string[]) {
-    this.pubkeyTags = pubkeys.map(pk => ["p", pk])
-
-    return this
-  }
-
-  protected buildTags() {
-    return uniqBy(nth(1), this.pubkeyTags)
+    return this.dropTags(spec(["p"])).addTags(...uniq(pubkeys).map(pk => ["p", pk]))
   }
 }

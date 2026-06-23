@@ -1,6 +1,5 @@
-import {first, parseJson} from "@welshman/lib"
+import {parseJson, spec} from "@welshman/lib"
 import {FEED, getTagValue} from "@welshman/util"
-import {makeUnionFeed} from "@welshman/feeds"
 import type {Feed as FeedDefinition} from "@welshman/feeds"
 
 import {EventReader} from "../EventReader.js"
@@ -30,44 +29,15 @@ export class Feed extends EventReader {
 export class FeedBuilder extends EventBuilder<Feed> {
   readonly kind = FEED
 
-  titleTag?: string[]
-  descriptionTag?: string[]
-  definition: FeedDefinition = makeUnionFeed()
-
-  constructor(readonly reader?: Feed) {
-    super(reader)
-
-    this.titleTag = first(this.consumeTags("title"))
-    this.descriptionTag = first(this.consumeTags("description"))
-    this.definition = parseJson(first(this.consumeTags("feed"))?.[1]) ?? makeUnionFeed()
-
-    this.consumeTags("alt")
-  }
-
   setTitle(title: string) {
-    this.titleTag = ["title", title]
-
-    return this
+    return this.dropTags(spec(["title"])).addTags(["title", title])
   }
 
   setDescription(description: string) {
-    this.descriptionTag = ["description", description]
-
-    return this
+    return this.dropTags(spec(["description"])).addTags(["description", description])
   }
 
-  setDefinition(definition: FeedDefinition) {
-    this.definition = definition
-
-    return this
-  }
-
-  protected buildTags() {
-    const tags = [["feed", JSON.stringify(this.definition)]]
-
-    if (this.titleTag) tags.push(this.titleTag)
-    if (this.descriptionTag) tags.push(this.descriptionTag)
-
-    return tags
+  setDefinition(feed: FeedDefinition) {
+    return this.dropTags(spec(["feed"])).addTags(["feed", JSON.stringify(feed)])
   }
 }

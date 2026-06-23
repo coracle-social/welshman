@@ -1,10 +1,10 @@
-import {uniqBy, nthEq} from "@welshman/lib"
+import {uniqBy, spec} from "@welshman/lib"
 import {MESSAGING_RELAYS, getTagValues, normalizeRelayUrl} from "@welshman/util"
-import {ListReader} from "../ListReader.js"
-import {ListBuilder} from "../ListBuilder.js"
+import {EventReader} from "../EventReader.js"
+import {EventBuilder} from "../EventBuilder.js"
 
 // NIP-17 kind-10050 messaging/inbox relays list.
-export class MessagingRelayList extends ListReader {
+export class MessagingRelayList extends EventReader {
   readonly kind = MESSAGING_RELAYS
 
   urls() {
@@ -16,20 +16,20 @@ export class MessagingRelayList extends ListReader {
   }
 }
 
-export class MessagingRelayListBuilder extends ListBuilder<MessagingRelayList> {
+export class MessagingRelayListBuilder extends EventBuilder<MessagingRelayList> {
   readonly kind = MESSAGING_RELAYS
 
   addUrl(url: string) {
-    return this.addPublic(["relay", normalizeRelayUrl(url)])
+    return this.addTags(["relay", normalizeRelayUrl(url)])
   }
 
   removeUrl(url: string) {
-    return this.drop(nthEq(1, normalizeRelayUrl(url)))
+    return this.dropTags(spec(["relay", normalizeRelayUrl(url)]))
   }
 
   setUrls(urls: string[]) {
-    this.clear()
-
-    return this.addPublic(...urls.map(url => ["relay", normalizeRelayUrl(url)]))
+    return this.dropTags(spec(["relay"])).addTags(
+      ...urls.map(url => ["relay", normalizeRelayUrl(url)]),
+    )
   }
 }

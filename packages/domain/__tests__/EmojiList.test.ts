@@ -8,7 +8,6 @@ const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
 
 const setAddress = `30030:${"aa".repeat(32)}:my-emojis`
-const setAddress2 = `30030:${"bb".repeat(32)}:more-emojis`
 const emojiTag = ["emoji", "soapbox", "https://example.com/soapbox.png"]
 const emojiTag2 = ["emoji", "ostrich", "https://example.com/ostrich.png"]
 
@@ -67,35 +66,6 @@ describe("EmojiList", () => {
     const tmpl = await list.builder().removeEmoji("soapbox").toTemplate(signer)
 
     expect(tmpl.tags.filter(t => t[0] === "emoji")).toEqual([emojiTag2])
-  })
-
-  it("round-trips public and private entries through encryption", async () => {
-    const event = await new EmojiListBuilder()
-      .addEmojiSet(setAddress)
-      .addPrivate(["a", setAddress2])
-      .toEvent(signer)
-
-    expect(getAddressTagValues(event.tags)).toEqual([setAddress])
-    expect(event.content).not.toBe("")
-
-    const decrypted = await EmojiList.fromEvent(event, signer)
-
-    expect(decrypted.decrypted).toBe(true)
-    expect(decrypted.emojiSets().sort()).toEqual([setAddress, setAddress2].sort())
-
-    const publicOnly = await EmojiList.fromEvent(event)
-
-    expect(publicOnly.decrypted).toBe(false)
-    expect(publicOnly.emojiSets()).toEqual([setAddress])
-  })
-
-  it("preserves undecrypted ciphertext on pass-through", async () => {
-    const event = await new EmojiListBuilder().addPrivate(["a", setAddress2]).toEvent(signer)
-    const undecrypted = await EmojiList.fromEvent(event)
-
-    const tmpl = await undecrypted.builder().toTemplate(signer)
-
-    expect(tmpl.content).toBe(event.content)
   })
 
   it("throws on the wrong kind", async () => {

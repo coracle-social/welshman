@@ -1,12 +1,10 @@
-import {uniqBy} from "@welshman/lib"
+import {uniqBy, spec} from "@welshman/lib"
 import {NAMED_RELAYS, getTagValue, getTagValues, normalizeRelayUrl} from "@welshman/util"
-import {ListReader} from "../ListReader.js"
-import {ListBuilder} from "../ListBuilder.js"
-
-const META_TAG_KEYS = ["title", "description", "image"]
+import {EventReader} from "../EventReader.js"
+import {EventBuilder} from "../EventBuilder.js"
 
 // NIP-51 kind-30002 relay set.
-export class RelaySet extends ListReader {
+export class RelaySet extends EventReader {
   readonly kind = NAMED_RELAYS
 
   title() {
@@ -30,61 +28,32 @@ export class RelaySet extends ListReader {
   }
 }
 
-export class RelaySetBuilder extends ListBuilder<RelaySet> {
+export class RelaySetBuilder extends EventBuilder<RelaySet> {
   readonly kind = NAMED_RELAYS
 
-  title?: string
-  description?: string
-  image?: string
-
-  constructor(readonly reader?: RelaySet) {
-    super(reader)
-
-    this.title = getTagValue("title", this.publicTags)
-    this.description = getTagValue("description", this.publicTags)
-    this.image = getTagValue("image", this.publicTags)
-    this.publicTags = this.publicTags.filter(t => !META_TAG_KEYS.includes(t[0]))
-  }
-
   setTitle(title: string) {
-    this.title = title
-
-    return this
+    return this.dropTags(spec(["title"])).addTags(["title", title])
   }
 
   setDescription(description: string) {
-    this.description = description
-
-    return this
+    return this.dropTags(spec(["description"])).addTags(["description", description])
   }
 
   setImage(image: string) {
-    this.image = image
-
-    return this
+    return this.dropTags(spec(["image"])).addTags(["image", image])
   }
 
   addUrl(url: string) {
-    return this.addPublic(["relay", normalizeRelayUrl(url)])
+    return this.addTags(["relay", normalizeRelayUrl(url)])
   }
 
   removeUrl(url: string) {
-    return this.drop(t => t[1] === url)
+    return this.dropTags(spec(["relay", normalizeRelayUrl(url)]))
   }
 
   setUrls(urls: string[]) {
-    this.dropPublic(t => t[0] === "relay")
-
-    return this.addPublic(...urls.map(url => ["relay", normalizeRelayUrl(url)]))
-  }
-
-  protected buildTags() {
-    const tags: string[][] = []
-
-    if (this.title) tags.push(["title", this.title])
-    if (this.description) tags.push(["description", this.description])
-    if (this.image) tags.push(["image", this.image])
-
-    return [...tags, ...this.publicTags]
+    return this.dropTags(spec(["relay"])).addTags(
+      ...urls.map(url => ["relay", normalizeRelayUrl(url)]),
+    )
   }
 }

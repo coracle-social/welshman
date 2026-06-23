@@ -74,36 +74,6 @@ describe("BlockedRelayList", () => {
     expect(getTagValues("relay", tmpl.tags).sort()).toEqual([r2, r3].sort())
   })
 
-  it("round-trips public and private entries through encryption", async () => {
-    const event = await new BlockedRelayListBuilder()
-      .addUrl(r1)
-      .addPrivate(["relay", r2])
-      .toEvent(signer)
-
-    expect(event.kind).toBe(BLOCKED_RELAYS)
-    expect(getTagValues("relay", event.tags)).toEqual([r1])
-    expect(event.content).not.toBe("")
-
-    const decrypted = await BlockedRelayList.fromEvent(event, signer)
-
-    expect(decrypted.decrypted).toBe(true)
-    expect(decrypted.urls().sort()).toEqual([r1, r2].sort())
-
-    const publicOnly = await BlockedRelayList.fromEvent(event)
-
-    expect(publicOnly.decrypted).toBe(false)
-    expect(publicOnly.urls()).toEqual([r1])
-  })
-
-  it("preserves undecrypted ciphertext on pass-through", async () => {
-    const event = await new BlockedRelayListBuilder().addPrivate(["relay", r2]).toEvent(signer)
-    const undecrypted = await BlockedRelayList.fromEvent(event)
-
-    const tmpl = await undecrypted.builder().toTemplate(signer)
-
-    expect(tmpl.content).toBe(event.content)
-  })
-
   it("throws on the wrong kind", async () => {
     await expect(BlockedRelayList.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
   })

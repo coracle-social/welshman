@@ -65,9 +65,9 @@ describe("RoomAdmins", () => {
   it("builds from a fresh builder", async () => {
     const tmpl = await new RoomAdminsBuilder()
       .setIdentifier("room2")
-      .addAdmin(a)
-      .addAdmin(a) // dedup
-      .addAdmin(b)
+      .addPubkey(a)
+      .addPubkey(a) // dedup
+      .addPubkey(b)
       .toTemplate(signer)
 
     expect(tmpl.tags).toContainEqual(["d", "room2"])

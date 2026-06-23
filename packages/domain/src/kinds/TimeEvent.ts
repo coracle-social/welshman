@@ -1,4 +1,4 @@
-import {first, range, DAY} from "@welshman/lib"
+import {range, DAY, spec} from "@welshman/lib"
 import {EVENT_TIME, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -35,59 +35,36 @@ export class TimeEvent extends EventReader {
 export class TimeEventBuilder extends EventBuilder<TimeEvent> {
   readonly kind = EVENT_TIME
 
-  titleTag?: string[]
-  locationTag?: string[]
-  start?: number
-  end?: number
-
   constructor(readonly reader?: TimeEvent) {
     super(reader)
 
-    const start = first(this.consumeTags("start"))
-    const end = first(this.consumeTags("end"))
-
     this.consumeTags("D")
-
-    this.titleTag = first(this.consumeTags("title"))
-    this.locationTag = first(this.consumeTags("location"))
-    this.start = start ? (isNaN(parseInt(start[1])) ? undefined : parseInt(start[1])) : undefined
-    this.end = end ? (isNaN(parseInt(end[1])) ? undefined : parseInt(end[1])) : undefined
   }
 
   setTitle(title: string) {
-    this.titleTag = ["title", title]
-
-    return this
+    return this.dropTags(spec(["title"])).addTags(["title", title])
   }
 
   setLocation(location: string) {
-    this.locationTag = ["location", location]
-
-    return this
+    return this.dropTags(spec(["location"])).addTags(["location", location])
   }
 
   setStart(start: number) {
-    this.start = start
-
-    return this
+    return this.dropTags(spec(["start"])).addTags(["start", String(start)])
   }
 
   setEnd(end: number) {
-    this.end = end
-
-    return this
+    return this.dropTags(spec(["end"])).addTags(["end", String(end)])
   }
 
   protected buildTags() {
     const tags: string[][] = []
 
-    if (this.titleTag) tags.push(this.titleTag)
-    if (this.locationTag) tags.push(this.locationTag)
-    if (this.start !== undefined) tags.push(["start", String(this.start)])
-    if (this.end !== undefined) tags.push(["end", String(this.end)])
+    const start = parseInt(this.extraTags.find(spec(["start"]))?.[1] ?? "")
+    const end = parseInt(this.extraTags.find(spec(["end"]))?.[1] ?? "")
 
-    if (this.start !== undefined && this.end !== undefined) {
-      for (const t of range(this.start, this.end, DAY)) {
+    if (!isNaN(start) && !isNaN(end)) {
+      for (const t of range(start, end, DAY)) {
         tags.push(["D", String(Math.floor(t / DAY))])
       }
     }

@@ -1,4 +1,4 @@
-import {uniq, nth, uniqBy} from "@welshman/lib"
+import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {RELAY_ADD_MEMBER, getPubkeyTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -19,21 +19,7 @@ export class RelayAddMember extends EventReader {
 export class RelayAddMemberBuilder extends EventBuilder<RelayAddMember> {
   readonly kind = RELAY_ADD_MEMBER
 
-  pubkeyTags: string[][] = []
-
-  constructor(readonly reader?: RelayAddMember) {
-    super(reader)
-
-    this.pubkeyTags = uniqBy(nth(1), this.consumeTags("p"))
-  }
-
   addPubkey(pubkey: string) {
-    this.pubkeyTags = uniqBy(nth(1), [...this.pubkeyTags, ["p", pubkey]])
-
-    return this
-  }
-
-  protected buildTags() {
-    return this.pubkeyTags
+    return this.dropTags(spec(["p", pubkey])).addTags(removeUndefined(["p", pubkey]))
   }
 }

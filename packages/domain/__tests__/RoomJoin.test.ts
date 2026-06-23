@@ -33,7 +33,7 @@ describe("RoomJoin", () => {
     )
 
     expect(join.group()).toBe("room1")
-    expect(join.code()).toBe("invite-code")
+    expect(join.claim()).toBe("invite-code")
     expect(join.reason()).toBe("please let me in")
   })
 
@@ -66,7 +66,7 @@ describe("RoomJoin", () => {
   it("builds from a fresh builder", async () => {
     const tmpl = await new RoomJoinBuilder()
       .setGroup("room2")
-      .setCode("xyz")
+      .setClaim("xyz")
       .setReason("hi there")
       .toTemplate(signer)
 
@@ -76,7 +76,7 @@ describe("RoomJoin", () => {
   })
 
   it("requires an h/group", async () => {
-    await expect(new RoomJoinBuilder().setCode("xyz").toTemplate(signer)).rejects.toThrow()
+    await expect(new RoomJoinBuilder().setClaim("xyz").toTemplate(signer)).rejects.toThrow()
   })
 
   it("throws on the wrong kind", async () => {

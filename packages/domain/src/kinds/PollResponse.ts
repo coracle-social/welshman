@@ -1,4 +1,4 @@
-import {uniq, uniqBy, first} from "@welshman/lib"
+import {uniq, spec} from "@welshman/lib"
 import {POLL_RESPONSE, getTagValue, getTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -23,41 +23,19 @@ export class PollResponse extends EventReader {
 export class PollResponseBuilder extends EventBuilder<PollResponse> {
   readonly kind = POLL_RESPONSE
 
-  pollIdTag?: string[]
-  selectionTags: string[][] = []
-
-  constructor(readonly reader?: PollResponse) {
-    super(reader)
-
-    this.pollIdTag = first(this.consumeTags("e"))
-    this.selectionTags = uniqBy(t => t[1], this.consumeTags("response"))
-  }
-
   setPollId(pollId: string) {
-    this.pollIdTag = ["e", pollId]
-
-    return this
+    return this.dropTags(spec(["e"])).addTags(["e", pollId])
   }
 
   addSelection(id: string) {
-    this.selectionTags = uniqBy(t => t[1], [...this.selectionTags, ["response", id]])
-
-    return this
+    return this.dropTags(spec(["response", id])).addTags(["response", id])
   }
 
   protected validate() {
     super.validate()
 
-    if (!this.pollIdTag) {
+    if (!this.extraTags.some(spec(["e"]))) {
       throw new Error("PollResponse requires a pollId")
     }
-  }
-
-  protected buildTags() {
-    const tags: string[][] = []
-
-    if (this.pollIdTag) tags.push(this.pollIdTag)
-
-    return [...tags, ...this.selectionTags]
   }
 }

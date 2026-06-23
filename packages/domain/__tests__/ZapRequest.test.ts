@@ -42,7 +42,7 @@ describe("ZapRequest", () => {
     expect(req.recipient()).toBe(recipient)
     expect(req.eventId()).toBe(eventId)
     expect(req.urls()).toEqual(["wss://relay.one", "wss://relay.two"])
-    expect(req.comment()).toBe("thanks!")
+    expect(req.content()).toBe("thanks!")
   })
 
   it("round-trips with no duplication", async () => {
@@ -76,7 +76,7 @@ describe("ZapRequest", () => {
       .setRecipient(recipient)
       .setEventId(eventId)
       .setUrls(["wss://relay.one"])
-      .setComment("hi")
+      .setContent("hi")
       .toTemplate(signer)
 
     expect(tmpl.kind).toBe(ZAP_REQUEST)

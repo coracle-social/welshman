@@ -1,10 +1,10 @@
-import {uniq, nthEq} from "@welshman/lib"
+import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {COMMUNITIES, getAddressTagValues} from "@welshman/util"
-import {ListReader} from "../ListReader.js"
-import {ListBuilder} from "../ListBuilder.js"
+import {EventReader} from "../EventReader.js"
+import {EventBuilder} from "../EventBuilder.js"
 
 // NIP-51 kind-10004 group/community list.
-export class GroupList extends ListReader {
+export class GroupList extends EventReader {
   readonly kind = COMMUNITIES
 
   addresses() {
@@ -16,14 +16,14 @@ export class GroupList extends ListReader {
   }
 }
 
-export class GroupListBuilder extends ListBuilder<GroupList> {
+export class GroupListBuilder extends EventBuilder<GroupList> {
   readonly kind = COMMUNITIES
 
   addGroup(address: string, relayHint?: string) {
-    return this.addPublic(["a", address, relayHint || ""])
+    return this.addTags(removeUndefined(["a", address, relayHint]))
   }
 
   removeGroup(address: string) {
-    return this.drop(nthEq(1, address))
+    return this.dropTags(spec(["a", address]))
   }
 }

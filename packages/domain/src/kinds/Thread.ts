@@ -1,4 +1,4 @@
-import {first} from "@welshman/lib"
+import {spec} from "@welshman/lib"
 import {THREAD, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
@@ -19,25 +19,7 @@ export class Thread extends EventReader {
 export class ThreadBuilder extends EventBuilder<Thread> {
   readonly kind = THREAD
 
-  titleTag?: string[]
-
-  constructor(readonly reader?: Thread) {
-    super(reader)
-
-    this.titleTag = first(this.consumeTags("title"))
-  }
-
   setTitle(title: string) {
-    this.titleTag = ["title", title]
-
-    return this
-  }
-
-  protected buildTags() {
-    const tags: string[][] = []
-
-    if (this.titleTag) tags.push(this.titleTag)
-
-    return tags
+    return this.dropTags(spec(["title"])).addTags(["title", title])
   }
 }

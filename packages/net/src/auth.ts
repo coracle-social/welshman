@@ -22,7 +22,7 @@ export type AuthResult = {
 }
 
 export enum AuthStateEvent {
-  Status = "auth:event:status",
+  Status = "status",
 }
 
 export type AuthStateEvents = {
@@ -126,7 +126,7 @@ export class AuthState extends EventEmitter {
 
     if (![AuthStatus.Forbidden, AuthStatus.Ok].includes(this.status)) {
       await poll({
-        signal: AbortSignal.timeout(800),
+        signal: AbortSignal.timeout(1000),
         condition: () => this.status === AuthStatus.Requested,
       })
 
@@ -135,7 +135,7 @@ export class AuthState extends EventEmitter {
       }
 
       await poll({
-        signal: AbortSignal.timeout(800),
+        signal: AbortSignal.timeout(3000),
         condition: () => this.status !== AuthStatus.PendingResponse,
       })
     }

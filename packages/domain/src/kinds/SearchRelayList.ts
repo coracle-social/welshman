@@ -1,10 +1,10 @@
-import {uniqBy, nthEq} from "@welshman/lib"
+import {uniqBy, spec} from "@welshman/lib"
 import {SEARCH_RELAYS, getTagValues, normalizeRelayUrl} from "@welshman/util"
-import {ListReader} from "../ListReader.js"
-import {ListBuilder} from "../ListBuilder.js"
+import {EventReader} from "../EventReader.js"
+import {EventBuilder} from "../EventBuilder.js"
 
 // NIP-51 kind-10007 search relays list.
-export class SearchRelayList extends ListReader {
+export class SearchRelayList extends EventReader {
   readonly kind = SEARCH_RELAYS
 
   urls() {
@@ -20,20 +20,20 @@ export class SearchRelayList extends ListReader {
   }
 }
 
-export class SearchRelayListBuilder extends ListBuilder<SearchRelayList> {
+export class SearchRelayListBuilder extends EventBuilder<SearchRelayList> {
   readonly kind = SEARCH_RELAYS
 
   addUrl(url: string) {
-    return this.addPublic(["relay", normalizeRelayUrl(url)])
+    return this.addTags(["relay", normalizeRelayUrl(url)])
   }
 
   removeUrl(url: string) {
-    return this.drop(nthEq(1, normalizeRelayUrl(url)))
+    return this.dropTags(spec(["relay", normalizeRelayUrl(url)]))
   }
 
   setUrls(urls: string[]) {
-    this.clear()
-
-    return this.addPublic(...urls.map(url => ["relay", normalizeRelayUrl(url)]))
+    return this.dropTags(spec(["relay"])).addTags(
+      ...urls.map(url => ["relay", normalizeRelayUrl(url)]),
+    )
   }
 }

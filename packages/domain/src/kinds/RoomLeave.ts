@@ -18,7 +18,7 @@ export class RoomLeaveBuilder extends EventBuilder<RoomLeave> {
     super.validate()
 
     if (!this.groupTag) {
-      throw new Error("RoomLeave requires an h group")
+      throw new Error("RoomLeave requires a group")
     }
   }
 }

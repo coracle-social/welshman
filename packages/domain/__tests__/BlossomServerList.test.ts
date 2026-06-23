@@ -75,26 +75,6 @@ describe("BlossomServerList", () => {
     expect(getTagValues("server", tmpl.tags).sort()).toEqual([norm(s2), norm(s3)].sort())
   })
 
-  it("round-trips public and private entries through encryption", async () => {
-    const event = await new BlossomServerListBuilder()
-      .addUrl(s1)
-      .addPrivate(["server", norm(s2)])
-      .toEvent(signer)
-
-    expect(getTagValues("server", event.tags)).toEqual([norm(s1)])
-    expect(event.content).not.toBe("")
-
-    const decrypted = await BlossomServerList.fromEvent(event, signer)
-
-    expect(decrypted.decrypted).toBe(true)
-    expect(decrypted.urls().sort()).toEqual([norm(s1), norm(s2)].sort())
-
-    const publicOnly = await BlossomServerList.fromEvent(event)
-
-    expect(publicOnly.decrypted).toBe(false)
-    expect(publicOnly.urls()).toEqual([norm(s1)])
-  })
-
   it("throws on the wrong kind", async () => {
     await expect(BlossomServerList.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
   })

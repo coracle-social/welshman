@@ -1,4 +1,4 @@
-import {uniq, nthEq} from "@welshman/lib"
+import {uniq} from "@welshman/lib"
 import {PINS, getEventTagValues, getAddressTagValues} from "@welshman/util"
 import {ListReader} from "../ListReader.js"
 import {ListBuilder} from "../ListBuilder.js"
@@ -32,6 +32,6 @@ export class PinListBuilder extends ListBuilder<PinList> {
   }
 
   unpin(value: string) {
-    return this.drop(nthEq(1, value))
+    return this.dropTags(t => ["e", "a"].includes(t[0]) && t[1] === value)
   }
 }
