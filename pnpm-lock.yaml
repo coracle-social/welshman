@@ -4,10 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  '@tiptap/core': ^2.11.7
-  '@tiptap/pm': ^2.11.7
-
 importers:
 
   .:
@@ -1066,73 +1062,73 @@ packages:
   '@tiptap/core@2.11.7':
     resolution: {integrity: sha512-zN+NFFxLsxNEL8Qioc+DL6b8+Tt2bmRbXH22Gk6F6nD30x83eaUSFlSv3wqvgyCq3I1i1NO394So+Agmayx6rQ==}
     peerDependencies:
-      '@tiptap/pm': ^2.11.7
+      '@tiptap/pm': ^2.7.0
 
   '@tiptap/extension-code-block@2.11.7':
     resolution: {integrity: sha512-To/y/2H04VWqiANy53aXjV7S6fA86c2759RsH1hTIe57jA1KyE7I5tlAofljOLZK/covkGmPeBddSPHGJbz++Q==}
     peerDependencies:
-      '@tiptap/core': ^2.11.7
-      '@tiptap/pm': ^2.11.7
+      '@tiptap/core': ^2.7.0
+      '@tiptap/pm': ^2.7.0
 
   '@tiptap/extension-code@2.11.7':
     resolution: {integrity: sha512-VpPO1Uy/eF4hYOpohS/yMOcE1C07xmMj0/D989D9aS1x95jWwUVrSkwC+PlWMUBx9PbY2NRsg1ZDwVvlNKZ6yQ==}
     peerDependencies:
-      '@tiptap/core': ^2.11.7
+      '@tiptap/core': ^2.7.0
 
   '@tiptap/extension-document@2.11.7':
     resolution: {integrity: sha512-95ouJXPjdAm9+VBRgFo4lhDoMcHovyl/awORDI8gyEn0Rdglt+ZRZYoySFzbVzer9h0cre+QdIwr9AIzFFbfdA==}
     peerDependencies:
-      '@tiptap/core': ^2.11.7
+      '@tiptap/core': ^2.7.0
 
   '@tiptap/extension-dropcursor@2.11.7':
     resolution: {integrity: sha512-63mL+nxQILizsr5NbmgDeOjFEWi34BLt7evwL6UUZEVM15K8V1G8pD9Y0kCXrZYpHWz0tqFRXdrhDz0Ppu8oVw==}
     peerDependencies:
-      '@tiptap/core': ^2.11.7
-      '@tiptap/pm': ^2.11.7
+      '@tiptap/core': ^2.7.0
+      '@tiptap/pm': ^2.7.0
 
   '@tiptap/extension-gapcursor@2.11.7':
     resolution: {integrity: sha512-EceesmPG7FyjXZ8EgeJPUov9G1mAf2AwdypxBNH275g6xd5dmU/KvjoFZjmQ0X1ve7mS+wNupVlGxAEUYoveew==}
     peerDependencies:
-      '@tiptap/core': ^2.11.7
-      '@tiptap/pm': ^2.11.7
+      '@tiptap/core': ^2.7.0
+      '@tiptap/pm': ^2.7.0
 
   '@tiptap/extension-hard-break@2.11.7':
     resolution: {integrity: sha512-zTkZSA6q+F5sLOdCkiC2+RqJQN0zdsJqvFIOVFL/IDVOnq6PZO5THzwRRLvOSnJJl3edRQCl/hUgS0L5sTInGQ==}
     peerDependencies:
-      '@tiptap/core': ^2.11.7
+      '@tiptap/core': ^2.7.0
 
   '@tiptap/extension-history@2.11.7':
     resolution: {integrity: sha512-Cu5x3aS13I040QSRoLdd+w09G4OCVfU+azpUqxufZxeNs9BIJC+0jowPLeOxKDh6D5GGT2A8sQtxc6a/ssbs8g==}
     peerDependencies:
-      '@tiptap/core': ^2.11.7
-      '@tiptap/pm': ^2.11.7
+      '@tiptap/core': ^2.7.0
+      '@tiptap/pm': ^2.7.0
 
   '@tiptap/extension-image@2.11.7':
     resolution: {integrity: sha512-YvCmTDB7Oo+A56tR4S/gcNaYpqU4DDlSQcRp5IQvmQV5EekSe0lnEazGDoqOCwsit9qQhj4MPQJhKrnaWrJUrg==}
     peerDependencies:
-      '@tiptap/core': ^2.11.7
+      '@tiptap/core': ^2.7.0
 
   '@tiptap/extension-link@2.11.7':
     resolution: {integrity: sha512-qKIowE73aAUrnQCIifYP34xXOHOsZw46cT/LBDlb0T60knVfQoKVE4ku08fJzAV+s6zqgsaaZ4HVOXkQYLoW7g==}
     peerDependencies:
-      '@tiptap/core': ^2.11.7
-      '@tiptap/pm': ^2.11.7
+      '@tiptap/core': ^2.7.0
+      '@tiptap/pm': ^2.7.0
 
   '@tiptap/extension-paragraph@2.11.7':
     resolution: {integrity: sha512-Pl3B4q6DJqTvvAdraqZaNP9Hh0UWEHL5nNdxhaRNuhKaUo7lq8wbDSIxIW3lvV0lyCs0NfyunkUvSm1CXb6d4Q==}
     peerDependencies:
-      '@tiptap/core': ^2.11.7
+      '@tiptap/core': ^2.7.0
 
   '@tiptap/extension-placeholder@2.11.7':
     resolution: {integrity: sha512-/06zXV4HIjYoiaUq1fVJo/RcU8pHbzx21evOpeG/foCfNpMI4xLU/vnxdUi6/SQqpZMY0eFutDqod1InkSOqsg==}
     peerDependencies:
-      '@tiptap/core': ^2.11.7
-      '@tiptap/pm': ^2.11.7
+      '@tiptap/core': ^2.7.0
+      '@tiptap/pm': ^2.7.0
 
   '@tiptap/extension-text@2.11.7':
     resolution: {integrity: sha512-wObCn8qZkIFnXTLvBP+X8KgaEvTap/FJ/i4hBMfHBCKPGDx99KiJU6VIbDXG8d5ZcFZE0tOetK1pP5oI7qgMlQ==}
     peerDependencies:
-      '@tiptap/core': ^2.11.7
+      '@tiptap/core': ^2.7.0
 
   '@tiptap/pm@2.11.7':
     resolution: {integrity: sha512-7gEEfz2Q6bYKXM07vzLUD0vqXFhC5geWRA6LCozTiLdVFDdHWiBrvb2rtkL5T7mfLq03zc1QhH7rI3F6VntOEA==}
@@ -1140,8 +1136,8 @@ packages:
   '@tiptap/suggestion@2.11.7':
     resolution: {integrity: sha512-I1ckVAEErpErPn/H9ZdDmTb5zuPNPiKj3krxCtJDUU4+3we0cgJY9NQFXl9//mrug3UIngH0ZQO+arbZfIk75A==}
     peerDependencies:
-      '@tiptap/core': ^2.11.7
-      '@tiptap/pm': ^2.11.7
+      '@tiptap/core': ^2.7.0
+      '@tiptap/pm': ^2.7.0
 
   '@tsconfig/node10@1.0.11':
     resolution: {integrity: sha512-DcRjDCujK/kCk/cUe8Xz8ZSpm8mS3mNNpta+jGCA6USEDfktlNvm1+IuZ9eTcDbNk41BHwpHHeW+N1lKCz4zOw==}
@@ -1255,6 +1251,7 @@ packages:
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+    deprecated: Potential CWE-502 - Update to 1.3.1 or higher
 
   '@vitejs/plugin-vue@5.2.3':
     resolution: {integrity: sha512-IYSLEQj4LgZZuoVpdSUCw3dIynTWQgPlaRP6iAvMle4My0HdYwr5g5wQAfwOeHQBmYwEkqF70nRpSilr6PoUDg==}
@@ -1751,6 +1748,7 @@ packages:
   glob@11.0.1:
     resolution: {integrity: sha512-zrQDm8XPnYEKawJScsnM0QzobJxlT/kHOOlRTio8IH/GrmxRE5fjllkzdaHclIuNjUQTJYH2xHNIGfdpJkDJUw==}
     engines: {node: 20 || >=22}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   globals@14.0.0:
@@ -1984,10 +1982,10 @@ packages:
     resolution: {integrity: sha512-hcf25iOzhtwRIcfTNAnNuJbpbOzM4V3xcVkg0ACIw4eLnGMERuIHm1ly6ALLx9S3fe63L7gPHLps54L0H94UyQ==}
     engines: {node: '>=18.16.1'}
     peerDependencies:
-      '@tiptap/core': ^2.11.7
+      '@tiptap/core': ^2.6.6
       '@tiptap/extension-image': ^2.6.6
       '@tiptap/extension-link': ^2.6.6
-      '@tiptap/pm': ^2.11.7
+      '@tiptap/pm': ^2.6.6
       linkifyjs: ^4.1.3
       nostr-tools: ~2.14.2
       prosemirror-markdown: ^1.13.0
@@ -1997,7 +1995,7 @@ packages:
       tiptap-markdown: ^0.8.10
 
   nostr-signer-capacitor-plugin@https://codeload.github.com/coracle-social/nostr-signer-capacitor-plugin/tar.gz/be4bb90a1a15c8eec0934f2f66ce9e82ecc72d51:
-    resolution: {tarball: https://codeload.github.com/coracle-social/nostr-signer-capacitor-plugin/tar.gz/be4bb90a1a15c8eec0934f2f66ce9e82ecc72d51}
+    resolution: {gitHosted: true, integrity: sha512-dYfItewCKGEeLbgvRyW2K+1nbwiG9c6TIxjM8he1t3TebQMsZPmZcg2xSDVSBcyC+EfLNcUuQf+M0ZyqZzOY0Q==, tarball: https://codeload.github.com/coracle-social/nostr-signer-capacitor-plugin/tar.gz/be4bb90a1a15c8eec0934f2f66ce9e82ecc72d51}
     version: 0.0.5
     peerDependencies:
       '@capacitor/core': ^8.0.0
@@ -2330,7 +2328,7 @@ packages:
   tiptap-markdown@0.8.10:
     resolution: {integrity: sha512-iDVkR2BjAqkTDtFX0h94yVvE2AihCXlF0Q7RIXSJPRSR5I0PA1TMuAg6FHFpmqTn4tPxJ0by0CK7PUMlnFLGEQ==}
     peerDependencies:
-      '@tiptap/core': ^2.11.7
+      '@tiptap/core': ^2.0.3
 
   to-regex-range@5.0.1:
     resolution: {integrity: sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ==}

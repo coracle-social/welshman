@@ -1,3 +1,7 @@
 packages:
   - 'packages/**'
   - '../nostr-editor'
+allowBuilds:
+  cbor-extract: false
+  esbuild: false
+  nostr-signer-capacitor-plugin@https://codeload.github.com/coracle-social/nostr-signer-capacitor-plugin/tar.gz/be4bb90a1a15c8eec0934f2f66ce9e82ecc72d51: true
