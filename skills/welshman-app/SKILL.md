@@ -104,6 +104,7 @@ All follow the same shape — `get(key)` (sync), `one(key)` (reactive, lazy-load
 | `BlossomServerLists` | kind-10063 media servers | `one(pk)`, `load(pk)` |
 | `Topics` | hashtags w/ counts | `all`, `byName` (plain `Readable`s) |
 | `Rooms` | NIP-29 groups | `create/edit/delete/join/leave/addMember/removeMember(url, room, ...)` |
+| `SlashCommands` | kind-33318 command manifests (by address) | `one(addr)`, `forPubkey(pk)`, `forContext(kind, group?)`, `loadForPubkey(pk)`, `update(name, fn)`, `invoke(cmd, args, {kind?, group?})` |
 | `Plaintext` | decrypted-content cache (own events) | `ensure(event)`, `get(id)` |
 
 ```typescript

@@ -218,6 +218,47 @@ await new ReportBuilder()
 
 `buildTags` emits `["p", pubkey]` and `["e", id, reason?]`.
 
+## SlashCommand (kind 33318)
+
+An addressable manifest that defines a slash command (its `d` tag is the command name). `k` tags declare which event kinds the command monitors; `h` tags declare which NIP-29 groups (none means it can be invoked anywhere). Each `param` tag declares a parameter (`label`, a type hint — `string`/`number`/`pubkey`/`topic`/`relay` — and an optional `optional` flag); `options` tags supply custom auto-complete values for a param.
+
+```typescript
+import {SlashCommand, SlashCommandBuilder} from "@welshman/domain"
+
+const command = await SlashCommand.fromEvent(event)
+command.name()                 // d tag — the command name
+command.description()          // content
+command.kinds()                // monitored event kinds (k tags), as numbers
+command.groups()               // monitored NIP-29 groups (h tags)
+command.params()               // SlashCommandParam[] — {label, type, optional}
+command.options("model")       // custom options for the "model" param
+command.appliesTo(kind, group) // should it be surfaced in this context?
+
+await new SlashCommandBuilder()
+  .setName("generate") // required d tag for kind 33318
+  .setDescription("A command that generates images using an LLM.")
+  .setKinds([1, 9])
+  .addGroup("98d9s")
+  .addParam("model")
+  .addParam("style", "string", true) // optional
+  .addOption("model", "Nano Banana Pro")
+  .toEvent(signer)
+```
+
+A command is invoked by putting a `/name <arg> <arg>` string (arguments wrapped in angle brackets) into an event of one of the monitored kinds, p-tagging the manifest's author. Two free functions handle the invocation string:
+
+```typescript
+import {parseSlashCommand, formatSlashCommand} from "@welshman/domain"
+
+parseSlashCommand("/generate <Nano Banana Pro> <a turtle>")
+// => {name: "generate", args: ["Nano Banana Pro", "a turtle"]}
+
+formatSlashCommand("generate", ["Nano Banana Pro", "a turtle"])
+// => "/generate <Nano Banana Pro> <a turtle>"
+```
+
+In `@welshman/app`, the `SlashCommands` plugin loads manifests reactively (`forContext(kind, group)` surfaces only the commands valid in a context) and `invoke(command, args, {kind, group})` publishes an invocation.
+
 ## See also
 
 - [Readers & Builders](./readers-and-builders) — the base `EventReader`/`EventBuilder` pattern, including `d`-tag validation for `Classified` and `TimeEvent`.

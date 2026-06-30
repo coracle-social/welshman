@@ -38,11 +38,11 @@ export class MuteLists extends DerivedPlugin<MuteList> {
 
   mutePrivately = (tag: string[]) => this.update(builder => builder.addPrivate(tag))
 
-  unmute = (value: string) => this.update(builder => builder.drop(nthEq(1, value)))
+  unmute = (value: string) => this.update(builder => builder.dropTags(nthEq(1, value)))
 
   setMutes = (updates: {publicTags?: string[][]; privateTags?: string[][]}) =>
     this.update(builder => {
-      if (updates.publicTags) builder.clearPublic().addPublic(...updates.publicTags)
-      if (updates.privateTags) builder.clearPrivate().addPrivate(...updates.privateTags)
+      if (updates.publicTags) builder.dropPublic(() => true).addPublic(...updates.publicTags)
+      if (updates.privateTags) builder.dropPrivate(() => true).addPrivate(...updates.privateTags)
     })
 }

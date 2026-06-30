@@ -34,7 +34,7 @@ export class FollowLists extends DerivedPlugin<FollowList> {
     return this.app.use(Thunks).publishToOutbox({event})
   }
 
-  follow = (tag: string[]) => this.update(builder => builder.addPublic(tag))
+  follow = (tag: string[]) => this.update(builder => builder.addTags(tag))
 
-  unfollow = (value: string) => this.update(builder => builder.removeFollow(value))
+  unfollow = (value: string) => this.update(builder => builder.unfollow(value))
 }
