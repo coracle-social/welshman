@@ -84,7 +84,7 @@ const signed = await reader.builder()      // === new FollowListBuilder(reader)
 - **Reading private list tags:** a `ListReader` only surfaces `privateTags` when you pass the **author's own** signer to `fromEvent`/`factory` (it decrypts NIP-44 content only when `signer.getPubkey() === event.pubkey`). Decryption failures are swallowed — `decrypted` stays `false` and private tags stay empty.
 - **Writing private list tags:** `ListBuilder.buildContent` is where encryption happens. If there are private tags it requires a signer and NIP-44-encrypts them to the author's own pubkey (`A signer is required to encrypt private tags`). If the source was never decrypted, the original ciphertext is preserved untouched (so you don't clobber tags you couldn't see).
 - **`toTemplate(signer?)`** needs a signer only for list kinds with non-empty private tags. `toRumor`/`toEvent` always need one. All other kinds ignore the signer entirely.
-- **`d`-tag required** (base `validate` throws otherwise) for parameterized-replaceable kinds: `RelaySet` (30002), `Pinboard` (30067), `Classified` (30402), `Feed` (31890), `TimeEvent` (31923), `HandlerRecommendation` (31989), `Handler` (31990), `RoomMeta` (39000), `RoomAdmins` (39001), `RoomMembers` (39002). Call `setIdentifier()`. (`Pin` (39067) sits in the addressable range but is a regular event — its builder skips the d-tag check and instead requires a content reference.)
+- **`d`-tag required** (base `validate` throws otherwise) for parameterized-replaceable kinds: `RelaySet` (30002), `Pinboard` (30067), `Classified` (30402), `SlashCommand` (33318, via `setName`), `Feed` (31890), `TimeEvent` (31923), `HandlerRecommendation` (31989), `Handler` (31990), `RoomMeta` (39000), `RoomAdmins` (39001), `RoomMembers` (39002). Call `setIdentifier()`. (`Pin` (39067) sits in the addressable range but is a regular event — its builder skips the d-tag check and instead requires a content reference.)
 - **`h`-group required** (subclass `validate` throws): `RoomDelete` (9008), `RoomJoin` (9021), `RoomLeave` (9022). Call `setGroup(groupId)`.
 
 ## Kind classes
@@ -184,9 +184,12 @@ Room ops are scoped by the `h` group tag (base `setGroup`); metadata kinds 39000
 | 30402 | NIP-99 | `Classified` / `ClassifiedBuilder` |
 | 31890 | NIP-51 | `Feed` / `FeedBuilder` |
 | 31923 | NIP-52 | `TimeEvent` / `TimeEventBuilder` |
+| 33318 | slash-commands | `SlashCommand` / `SlashCommandBuilder` |
 | 39067 | Pinboards | `Pin` / `PinBuilder` |
 
-`Comment`: `root()`/`parent()`; builder `setRoot`/`setParent`/`setRootFromEvent`/`setParentFromEvent`. `Poll`: `title`, `options`, `pollType`, `endsAt`, `isClosed`, `urls`, plus `results(responses)`; builder `addOption`, `setPollType`, `setEndsAt`. Exported types: `CommentRef`, `ClassifiedPrice`, `PollType`, `PollOption`, `PollResult`, `PinReference`.
+`Comment`: `root()`/`parent()`; builder `setRoot`/`setParent`/`setRootFromEvent`/`setParentFromEvent`. `Poll`: `title`, `options`, `pollType`, `endsAt`, `isClosed`, `urls`, plus `results(responses)`; builder `addOption`, `setPollType`, `setEndsAt`. Exported types: `CommentRef`, `ClassifiedPrice`, `PollType`, `PollOption`, `PollResult`, `PinReference`, `SlashCommandParam`, `SlashCommandInvocation`.
+
+`SlashCommand` (33318, addressable; `d` = command name): `name()`, `description()`, `kinds()` (monitored `k`), `groups()` (monitored `h`), `params()` (`SlashCommandParam[]`), `options(label)`, `appliesTo(kind, group?)`. Builder: `setName`/`setDescription`/`setKinds`/`addKind`/`addGroup`/`setGroups`/`addParam(label, type?, optional?)`/`removeParam`/`addOption`/`setOptions`. Plus free functions `parseSlashCommand(content)` / `formatSlashCommand(name, args)` for the `/name <arg> <arg>` invocation string.
 
 `Pinboard` (30067): board metadata — `title`, `description`, `image`, `topics()`, `collaborative()`; builder `setTitle`/`setDescription`/`setImage`/`setTopics`/`setCollaborative`. `Pin` (39067): a single pinned item — `boards()`, `isProfilePin()`, `reference()` (a `PinReference` discriminated union), `title`, `topics()`; builder `addBoard`/`removeBoard`, `setEvent`/`setAddress`/`setExternal` (each replaces the prior reference), `setTitle`/`setTopics`. Pins separate board metadata from items, allowing mixed content, multi-board membership, and profile pins (no board).
 
