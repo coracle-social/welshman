@@ -268,6 +268,8 @@ export class Thunk extends BaseThunk {
     // Allow for lazily signing/powing events in order to decrease apparent latency in the UI
     // that results from waiting for remote signers
     try {
+      const unsignedId = this.event.id
+
       if (this.options.pow) {
         this.event = await makePow(this.event, this.options.pow).result
       }
@@ -279,12 +281,12 @@ export class Thunk extends BaseThunk {
       // Update tracker and repository with the signed event since the id will have changed
       if (this.options.pow) {
         for (const url of this.options.relays) {
-          this.options.app.tracker.removeRelay(this.event.id, url)
+          this.options.app.tracker.removeRelay(unsignedId, url)
           this.options.app.tracker.track(signedEvent.id, url)
         }
       }
 
-      this.options.app.repository.removeEvent(this.event.id)
+      this.options.app.repository.removeEvent(unsignedId)
       this.options.app.repository.publish(signedEvent)
 
       return this._publish(signedEvent)
@@ -365,11 +367,12 @@ export class Thunks {
     this.history.update($history => append(thunk, $history))
 
     thunk.controller.signal.addEventListener("abort", () => {
+      // wrapManager.remove may not have registered the wrap yet if abort races it.
       if (thunk.wrap) {
         this.app.wrapManager.remove(thunk.wrap.id)
-      } else {
-        this.app.repository.removeEvent(thunk.event.id)
       }
+
+      this.app.repository.removeEvent(thunk.event.id)
 
       this.history.update($history => remove(thunk, $history))
     })
