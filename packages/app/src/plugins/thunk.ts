@@ -15,7 +15,6 @@ import {PublishStatus, PublishResult, PublishOptions, PublishResultsByRelay} fro
 import {Nip01Signer, Nip59} from "@welshman/signer"
 import type {IApp} from "../app.js"
 import {Network} from "./network.js"
-import {addMinimalFallbacks} from "@welshman/router"
 import {Router} from "./router.js"
 import {User} from "../user.js"
 
@@ -390,7 +389,7 @@ export class Thunks {
   publishToOutbox = (options: Omit<ThunkOptions, "app" | "relays">) =>
     this.publish({
       ...options,
-      relays: this.app.use(Router).FromUser().policy(addMinimalFallbacks).getUrls(),
+      relays: this.app.use(Router).FromUser().getUrls(),
     })
 
   retry = (thunk: BaseThunk) =>
