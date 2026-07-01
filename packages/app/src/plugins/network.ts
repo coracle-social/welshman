@@ -11,7 +11,6 @@ import type {
   PullOptions,
   PushOptions,
 } from "@welshman/net"
-import {addMinimalFallbacks} from "@welshman/router"
 import {Router} from "./router.js"
 import {RelayLists} from "./relayLists.js"
 import type {IApp} from "../app.js"
@@ -48,8 +47,6 @@ export class Network {
     const allRelays = this.app
       .use(Router)
       .FromRelays([...relayHints, ...writeRelays])
-      .policy(addMinimalFallbacks)
-      .limit(8)
       .getUrls()
 
     for (const relays of chunk(2, allRelays)) {
@@ -59,5 +56,19 @@ export class Network {
         return first(sortEventsDesc(events))
       }
     }
+  }
+
+  // Like `loadUsingOutbox`, but for collections rather than a single
+  // replaceable/singleton value — returns every matching event instead of
+  // just the newest one.
+  loadAllUsingOutbox = async (pubkey: string, filter: Filter = {}, relayHints: string[] = []) => {
+    const filters: Filter[] = [{...filter, authors: [pubkey]}]
+    const writeRelays = (await this.app.use(RelayLists).load(pubkey))?.writeUrls() ?? []
+    const relays = this.app
+      .use(Router)
+      .FromRelays([...relayHints, ...writeRelays])
+      .getUrls()
+
+    return this.load({filters, relays})
   }
 }

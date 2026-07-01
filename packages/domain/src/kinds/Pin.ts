@@ -13,8 +13,10 @@ export type PinReference =
 const REFERENCE_KEYS = ["e", "a", "i", "k"]
 
 // Pinboards-NIP kind-39067 pin — a single pinned item. Pins reference one or
-// more boards via `A` tags (none means it's a profile pin). Despite sitting in
-// the addressable range, a pin is a regular event with no `d` tag.
+// more boards via `A` tags (none means it's a profile pin). Kind 39067 sits in
+// the parameterized-replaceable range, so each pin needs its own unique `d`
+// tag (see `PinBuilder`) — otherwise every pin from the same author would
+// collide at the same address and replace one another.
 export class Pin extends EventReader {
   readonly kind = PIN
 
@@ -92,8 +94,8 @@ export class PinBuilder extends EventBuilder<Pin> {
   }
 
   protected validate() {
-    // A pin is a regular event (no `d` tag), so skip the base d-tag check and
-    // instead require the single content reference the spec mandates.
+    super.validate()
+
     if (!this.extraTags.some(t => ["e", "a", "i"].includes(t[0]))) {
       throw new Error("A pin must reference content via an e, a, or i tag")
     }

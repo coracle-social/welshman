@@ -2,7 +2,6 @@ import {RELAYS, RelayMode, getRelayTagValues} from "@welshman/util"
 import {RelayList, RelayListBuilder} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import type {Projection} from "./base.js"
-import {addMinimalFallbacks} from "@welshman/router"
 import {Router} from "./router.js"
 import {Network} from "./network.js"
 import {User} from "../user.js"
@@ -73,7 +72,7 @@ export class RelayLists extends DerivedPlugin<RelayList> {
 
     // publishToOutbox is outbox-only, so build relays here to also notify the
     // removed relay of its removal
-    const relays = [url, ...this.app.use(Router).FromUser().policy(addMinimalFallbacks).getUrls()]
+    const relays = [url, ...this.app.use(Router).FromUser().getUrls()]
 
     return this.app.use(Thunks).publish({event, relays})
   }

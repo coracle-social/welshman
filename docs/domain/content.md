@@ -1,6 +1,6 @@
 # Content
 
-A grab-bag of content kinds: NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventBuilder` pair — see [Readers & Builders](./readers-and-builders) for the base pattern. The parameterized-replaceable kinds (`Classified`, `TimeEvent`, `Pinboard`) need a `d` tag (`setIdentifier()`).
+A grab-bag of content kinds: NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventBuilder` pair — see [Readers & Builders](./readers-and-builders) for the base pattern. The parameterized-replaceable kinds (`Classified`, `TimeEvent`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
 
 ## Comment (kind 1111)
 
@@ -100,7 +100,7 @@ await new PinboardBuilder()
   .toEvent(signer)
 ```
 
-A `Pin` references exactly one item — a nostr event (`e`), an addressable event (`a`), or an external id (`i` + optional `k` per NIP-73) — exposed as a discriminated `PinReference`. It can belong to multiple boards via `A` tags; a pin with none is a profile pin. Its `content` is an optional comment. Because a pin is a regular event (no `d` tag, despite the addressable-range kind), the builder skips the base d-tag check and instead requires a content reference.
+A `Pin` references exactly one item — a nostr event (`e`), an addressable event (`a`), or an external id (`i` + optional `k` per NIP-73) — exposed as a discriminated `PinReference`. It can belong to multiple boards via `A` tags; a pin with none is a profile pin. Its `content` is an optional comment. Kind 39067 sits in the parameterized-replaceable range, so each pin needs its own unique `d` tag (`setIdentifier()`) — otherwise every pin from the same author would collide at the same address and replace one another; `validate()` enforces this the same way it does for `Classified`/`TimeEvent`/`Pinboard`.
 
 ```typescript
 import {Pin, PinBuilder} from "@welshman/domain"
@@ -113,6 +113,7 @@ pin.title()          // custom pin "title" tag value
 pin.topics()         // t-tag values
 
 await new PinBuilder()
+  .setIdentifier()                                       // required d tag for kind 39067
   .addBoard("30067:" + pubkey + ":japan-trip-2024")
   .setEvent(pictureEventId, "wss://relay.example.com")   // or setAddress / setExternal
   .setContent("Sunrise at Mt. Fuji")

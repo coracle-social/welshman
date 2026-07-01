@@ -87,6 +87,7 @@ describe("Pin", () => {
 
   it("builds a pin to multiple boards", async () => {
     const tmpl = await new PinBuilder()
+      .setIdentifier("id1")
       .addBoard(board)
       .addBoard(board2)
       .setEvent(eventId)
@@ -101,13 +102,14 @@ describe("Pin", () => {
   })
 
   it("includes a relay hint when given", async () => {
-    const tmpl = await new PinBuilder().setEvent(eventId, relay).toTemplate()
+    const tmpl = await new PinBuilder().setIdentifier("id1").setEvent(eventId, relay).toTemplate()
 
     expect(tmpl.tags).toContainEqual(["e", eventId, relay])
   })
 
   it("references exactly one item — a new reference replaces the old", async () => {
     const tmpl = await new PinBuilder()
+      .setIdentifier("id1")
       .setEvent(eventId)
       .setExternal("isbn:9784805311981", "isbn")
       .toTemplate()
@@ -119,6 +121,7 @@ describe("Pin", () => {
 
   it("removeBoard drops only the matching board", async () => {
     const tmpl = await new PinBuilder()
+      .setIdentifier("id1")
       .addBoard(board)
       .addBoard(board2)
       .setEvent(eventId)
@@ -133,6 +136,7 @@ describe("Pin", () => {
       makeEvent({
         content: "comment",
         tags: [
+          ["d", "id1"],
           ["A", board],
           ["e", eventId, relay],
           ["title", "My Pin"],
@@ -143,6 +147,7 @@ describe("Pin", () => {
 
     const tmpl = await reader.builder().toTemplate()
 
+    expect(tmpl.tags.filter(t => t[0] === "d")).toEqual([["d", "id1"]])
     expect(tmpl.tags.filter(t => t[0] === "A")).toEqual([["A", board]])
     expect(tmpl.tags.filter(t => t[0] === "e")).toEqual([["e", eventId, relay]])
     expect(tmpl.tags).toContainEqual(["title", "My Pin"])
@@ -151,7 +156,13 @@ describe("Pin", () => {
   })
 
   it("requires a content reference", async () => {
-    await expect(new PinBuilder().addBoard(board).toTemplate()).rejects.toThrow(/reference/)
+    await expect(
+      new PinBuilder().setIdentifier("id1").addBoard(board).toTemplate(),
+    ).rejects.toThrow(/reference/)
+  })
+
+  it("requires a d tag", async () => {
+    await expect(new PinBuilder().setEvent(eventId).toTemplate()).rejects.toThrow(/d tag/)
   })
 
   it("throws on the wrong kind", async () => {
