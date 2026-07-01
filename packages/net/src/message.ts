@@ -9,7 +9,7 @@ export enum RelayMessageType {
   Eose = "EOSE",
   Event = "EVENT",
   NegMsg = "NEG-MSG",
-  NegErr = "NEG-ERROR",
+  NegErr = "NEG-ERR",
   Ok = "OK",
 }
 

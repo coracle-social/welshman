@@ -11,6 +11,8 @@ import {
   omit,
   now,
   range,
+  mapPop,
+  spec,
 } from "@welshman/lib"
 import {
   DELETE,
@@ -58,6 +60,7 @@ export class Repository extends Emitter {
   eventsByKind = new Map<number, TrustedEvent[]>()
   deletes = new Map<string, {created_at: number; pubkey: string}[]>()
   expired = new Map<string, number>()
+  replaced = new Map<string, TrustedEvent>()
 
   constructor() {
     super()
@@ -80,6 +83,7 @@ export class Repository extends Emitter {
     this.eventsByKind.clear()
     this.deletes.clear()
     this.expired.clear()
+    this.replaced.clear()
     this.emit("clear")
   }
 
@@ -144,7 +148,15 @@ export class Repository extends Emitter {
 
     if (event) {
       this.eventsById.delete(event.id)
-      this.eventsByAddress.delete(getAddress(event))
+
+      // Only touch the address index (and restore what this event superseded) if this
+      // event is still the current occupant — it may have already been replaced itself.
+      const address = getAddress(event)
+      const isCurrent = this.eventsByAddress.get(address) === event
+
+      if (isCurrent) {
+        this.eventsByAddress.delete(address)
+      }
 
       for (const [k, v] of event.tags) {
         if (k.length === 1) {
@@ -156,7 +168,15 @@ export class Repository extends Emitter {
       this._updateIndex(this.eventsByAuthor, event.pubkey, undefined, event)
       this._updateIndex(this.eventsByKind, event.kind, undefined, event)
 
-      this.emit("update", {added: [], removed: new Set([event.id])})
+      const replaced = mapPop(event.id, this.replaced)
+      const added: TrustedEvent[] = []
+
+      if (isCurrent && replaced) {
+        this._restore(event, replaced)
+        added.push(replaced)
+      }
+
+      this.emit("update", {added, removed: new Set([event.id])})
     }
   }
 
@@ -227,6 +247,9 @@ export class Repository extends Emitter {
 
       // Notify listeners that it's been removed
       removed.add(duplicate.id)
+
+      // Remember what this event replaced so it can be restored if this event is later removed
+      this.replaced.set(event.id, duplicate)
     }
 
     // Add our new event by id
@@ -237,16 +260,12 @@ export class Repository extends Emitter {
       this.eventsByAddress.set(address, event)
     }
 
-    // Update our timestamp and author indexes
-    this._updateIndex(this.eventsByDay, getDay(event.created_at), event, duplicate)
-    this._updateIndex(this.eventsByAuthor, event.pubkey, event, duplicate)
-    this._updateIndex(this.eventsByKind, event.kind, event, duplicate)
+    // Update our timestamp, author, kind, and tag indexes
+    this._reindex(event, duplicate)
 
-    // Update our tag indexes
+    // Handle delete/expiration bookkeeping, which only applies when newly publishing
     for (const tag of event.tags) {
       if (tag[0]?.length === 1) {
-        this._updateIndex(this.eventsByTag, tag.slice(0, 2).join(":"), event, duplicate)
-
         // If this is a delete event, the tag value is an id or address. Track when it was
         // deleted so that replaceables can be restored.
         if (event.kind === DELETE && ["a", "e"].includes(tag[0]) && tag[1]) {
@@ -424,5 +443,32 @@ export class Repository extends Emitter {
     }
 
     return undefined
+  }
+
+  // Insert `event` into the day/author/kind/tag indexes, optionally evicting `remove` from them
+  _reindex = (event: TrustedEvent, remove?: TrustedEvent) => {
+    this._updateIndex(this.eventsByDay, getDay(event.created_at), event, remove)
+    this._updateIndex(this.eventsByAuthor, event.pubkey, event, remove)
+    this._updateIndex(this.eventsByKind, event.kind, event, remove)
+
+    for (const tag of event.tags) {
+      if (tag[0]?.length === 1) {
+        this._updateIndex(this.eventsByTag, tag.slice(0, 2).join(":"), event, remove)
+      }
+    }
+  }
+
+  _restore = ({pubkey, created_at}: TrustedEvent, replaced: TrustedEvent) => {
+    const records = this.deletes.get(replaced.id)
+
+    if (records) {
+      const i = records.findIndex(spec({pubkey, created_at}))
+
+      if (i >= 0) records.splice(i, 1)
+      if (records.length === 0) this.deletes.delete(replaced.id)
+    }
+
+    this.eventsByAddress.set(getAddress(replaced), replaced)
+    this._reindex(replaced)
   }
 }

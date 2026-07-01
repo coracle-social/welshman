@@ -92,6 +92,39 @@ describe("Repository", () => {
 
       expect(repo.getEvent(event1.id)).toEqual(event1)
     })
+
+    it("should restore a superseded event when the event that replaced it is removed", () => {
+      const pubkey = randomHex()
+      const event1 = createEvent(MUTES, {created_at: now() - 100, pubkey})
+      const event2 = createEvent(MUTES, {created_at: now(), pubkey})
+      const address = getAddress(event1)
+
+      repo.publish(event1)
+      repo.publish(event2)
+      repo.removeEvent(event2.id)
+
+      expect(repo.getEvent(address)).toEqual(event1)
+      expect(repo.isDeleted(event1)).toBe(false)
+      expect(repo.query([{kinds: [MUTES], authors: [pubkey]}])).toEqual([event1])
+    })
+
+    it("should not restore a stale event when it is removed after being superseded again", () => {
+      const pubkey = randomHex()
+      const event1 = createEvent(MUTES, {created_at: now() - 200, pubkey})
+      const event2 = createEvent(MUTES, {created_at: now() - 100, pubkey})
+      const event3 = createEvent(MUTES, {created_at: now(), pubkey})
+      const address = getAddress(event1)
+
+      repo.publish(event1)
+      repo.publish(event2)
+      repo.publish(event3)
+
+      // event2 is stale (superseded by event3); removing it must not disturb event3
+      repo.removeEvent(event2.id)
+
+      expect(repo.getEvent(address)).toEqual(event3)
+      expect(repo.getEvent(event2.id)).toBeUndefined()
+    })
   })
 
   describe("delete events", () => {
@@ -327,6 +360,38 @@ describe("Repository", () => {
         added: [],
         removed: new Set([event.id]),
       })
+    })
+
+    it("should emit the restored event as added when removal uncovers a supersession", () => {
+      const pubkey = randomHex()
+      const event1 = createEvent(MUTES, {created_at: now() - 100, pubkey})
+      const event2 = createEvent(MUTES, {created_at: now(), pubkey})
+      const updateHandler = vi.fn()
+
+      repo.publish(event1)
+      repo.publish(event2)
+      repo.on("update", updateHandler)
+      repo.removeEvent(event2.id)
+
+      expect(updateHandler).toHaveBeenLastCalledWith({
+        added: [event1],
+        removed: new Set([event2.id]),
+      })
+    })
+
+    it("should not clobber a newer event's address index when removing a stale id", () => {
+      const pubkey = randomHex()
+      const event1 = createEvent(MUTES, {created_at: now() - 200, pubkey})
+      const event2 = createEvent(MUTES, {created_at: now() - 100, pubkey})
+      const event3 = createEvent(MUTES, {created_at: now(), pubkey})
+      const address = getAddress(event1)
+
+      repo.publish(event1)
+      repo.publish(event2)
+      repo.publish(event3)
+      repo.removeEvent(event1.id)
+
+      expect(repo.getEvent(address)).toEqual(event3)
     })
   })
 })
