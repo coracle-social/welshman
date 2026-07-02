@@ -1,6 +1,7 @@
-import {makeHttpAuth, sendManagementRequest} from "@welshman/util"
-import type {ManagementRequest} from "@welshman/util"
+import {stamp, makeHttpAuth, sendManagementRequest} from "@welshman/util"
+import type {EventTemplate, ManagementRequest} from "@welshman/util"
 import {User} from "../user.js"
+import {Thunks} from "./thunk.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -17,5 +18,13 @@ export class RelayManagement {
     const authEvent = await User.require(this.app).sign(authTemplate)
 
     return sendManagementRequest(url, request, authEvent)
+  }
+
+  // Sign `event` as the app's user and publish it directly to `url`, bypassing
+  // outbox routing — for delivering a command straight to a specific relay.
+  publishToRelay = async (url: string, event: EventTemplate) => {
+    const signedEvent = await User.require(this.app).sign(stamp(event))
+
+    return this.app.use(Thunks).publish({event: signedEvent, relays: [url]})
   }
 }

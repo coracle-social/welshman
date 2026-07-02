@@ -69,8 +69,9 @@ profile.subscribe($profile => console.log($profile?.name))
 
 // 4. Publish optimistically. The event is written to the local repository
 //    immediately, signed lazily, and progress is reported per-relay.
-const thunk = app.use(Thunks).publishToOutbox({
+const thunk = app.use(Thunks).publish({
   event: makeEvent(NOTE, {content: "hi"}),
+  relays: app.use(Router).FromUser().getUrls(),
   delay: 3000,                                   // soft-undo window
 })
 

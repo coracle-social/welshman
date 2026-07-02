@@ -6,8 +6,8 @@ import {DerivedPlugin, projection} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
-import {Thunks} from "./thunk.js"
 import {User} from "../user.js"
+import {Command} from "../command.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -36,7 +36,7 @@ export class Profiles extends DerivedPlugin<Profile> {
     const builder = new ProfileBuilder(this.get(user.pubkey)).update(values)
     const event = await builder.toTemplate()
 
-    return this.app.use(Thunks).publish({event, relays})
+    return new Command(this.app, event, relays)
   }
 
   display = (pubkey: string | undefined, ...args: any[]): Projection<string> => {

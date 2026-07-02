@@ -2,8 +2,9 @@ import {FOLLOWS} from "@welshman/util"
 import {FollowList, FollowListBuilder} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import {Network} from "./network.js"
-import {Thunks} from "./thunk.js"
+import {Router} from "./router.js"
 import {User} from "../user.js"
+import {Command} from "../command.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -30,8 +31,9 @@ export class FollowLists extends DerivedPlugin<FollowList> {
     fn(builder)
 
     const event = await builder.toTemplate(user.signer)
+    const relays = this.app.use(Router).FromUser().getUrls()
 
-    return this.app.use(Thunks).publishToOutbox({event})
+    return new Command(this.app, event, relays)
   }
 
   follow = (tag: string[]) => this.update(builder => builder.addTags(tag))

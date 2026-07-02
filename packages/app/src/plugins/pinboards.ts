@@ -5,8 +5,8 @@ import {DerivedPlugin, projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
-import {Thunks} from "./thunk.js"
 import {User} from "../user.js"
+import {Command} from "../command.js"
 import type {IApp} from "../app.js"
 
 export type PinboardFields = {
@@ -53,8 +53,9 @@ export class Pinboards extends DerivedPlugin<Pinboard> {
     if (fields.collaborative) builder.setCollaborative(fields.collaborative)
 
     const event = await builder.toTemplate(user.signer)
+    const relays = this.app.use(Router).FromUser().getUrls()
 
-    return this.app.use(Thunks).publishToOutbox({event})
+    return new Command(this.app, event, relays)
   }
 
   update = async (address: string, fn: (builder: PinboardBuilder) => void) => {
@@ -68,8 +69,9 @@ export class Pinboards extends DerivedPlugin<Pinboard> {
 
     const user = User.require(this.app)
     const event = await builder.toTemplate(user.signer)
+    const relays = this.app.use(Router).FromUser().getUrls()
 
-    return this.app.use(Thunks).publishToOutbox({event})
+    return new Command(this.app, event, relays)
   }
 }
 
@@ -118,8 +120,9 @@ export class Pins extends DerivedPlugin<Pin> {
   create = async (builder: PinBuilder) => {
     const user = User.require(this.app)
     const event = await builder.toTemplate(user.signer)
+    const relays = this.app.use(Router).FromUser().getUrls()
 
-    return this.app.use(Thunks).publishToOutbox({event})
+    return new Command(this.app, event, relays)
   }
 
   update = async (address: string, fn: (builder: PinBuilder) => void) => {
@@ -133,8 +136,9 @@ export class Pins extends DerivedPlugin<Pin> {
 
     const user = User.require(this.app)
     const event = await builder.toTemplate(user.signer)
+    const relays = this.app.use(Router).FromUser().getUrls()
 
-    return this.app.use(Thunks).publishToOutbox({event})
+    return new Command(this.app, event, relays)
   }
 
   addToBoard = (address: string, board: string) =>

@@ -15,7 +15,6 @@ import {PublishStatus, PublishResult, PublishOptions, PublishResultsByRelay} fro
 import {Nip01Signer, Nip59} from "@welshman/signer"
 import type {IApp} from "../app.js"
 import {Network} from "./network.js"
-import {Router} from "./router.js"
 import {User} from "../user.js"
 
 export type ThunkOptions = Override<
@@ -384,13 +383,6 @@ export class Thunks {
 
     return thunk
   }
-
-  // Publish as the user to their outbox (write) relays
-  publishToOutbox = (options: Omit<ThunkOptions, "app" | "relays">) =>
-    this.publish({
-      ...options,
-      relays: this.app.use(Router).FromUser().getUrls(),
-    })
 
   retry = (thunk: BaseThunk) =>
     thunk instanceof MergedThunk

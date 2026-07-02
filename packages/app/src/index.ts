@@ -1,4 +1,5 @@
 export * from "./app.js"
+export * from "./command.js"
 export * from "./policy.js"
 export * from "./user.js"
 export * from "./session.js"

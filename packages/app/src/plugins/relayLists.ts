@@ -5,7 +5,7 @@ import type {Projection} from "./base.js"
 import {Router} from "./router.js"
 import {Network} from "./network.js"
 import {User} from "../user.js"
-import {Thunks} from "./thunk.js"
+import {Command} from "../command.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -50,8 +50,9 @@ export class RelayLists extends DerivedPlugin<RelayList> {
     fn(builder)
 
     const event = await builder.toTemplate(user.signer)
+    const relays = this.app.use(Router).FromUser().getUrls()
 
-    return this.app.use(Thunks).publishToOutbox({event})
+    return new Command(this.app, event, relays)
   }
 
   addRelay = (url: string, mode: RelayMode) =>
@@ -70,11 +71,11 @@ export class RelayLists extends DerivedPlugin<RelayList> {
       mode === RelayMode.Read ? builder.removeReadUrl(url) : builder.removeWriteUrl(url)
     ).toTemplate(user.signer)
 
-    // publishToOutbox is outbox-only, so build relays here to also notify the
-    // removed relay of its removal
+    // Include the removed relay itself, in addition to the outbox set, so it
+    // also gets notified of its own removal
     const relays = [url, ...this.app.use(Router).FromUser().getUrls()]
 
-    return this.app.use(Thunks).publish({event, relays})
+    return new Command(this.app, event, relays)
   }
 
   setRelays = async (tags: string[][]) => {
@@ -86,6 +87,6 @@ export class RelayLists extends DerivedPlugin<RelayList> {
       .merge([router.Index(), router.FromRelays(getRelayTagValues(tags))])
       .getUrls()
 
-    return this.app.use(Thunks).publish({event, relays})
+    return new Command(this.app, event, relays)
   }
 }
