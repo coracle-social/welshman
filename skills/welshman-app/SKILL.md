@@ -87,24 +87,28 @@ Built-in session handlers (auto-registered): `nip01` `{secret}`, `nip07` `{}`, `
 
 All follow the same shape — `get(key)` (sync), `one(key)` (reactive, lazy-loads), `load(key)`/`forceLoad(key)` (promises), plus convenience accessors returning `Projection`. Resolve with `app.use(...)`.
 
+Every mutation method (`create`/`update`/`follow`/`addRelay`/`setRelays`/etc.) is `async` and returns a **`Command`**, not a `Thunk` — it builds the event but does not publish it. Call `.publish()` (or `.publishAsRelay(url)`) on the result to actually send it. See [Commands](#commands-deferred-publishing) below.
+
 | Plugin | Data | Notable accessors |
 |---|---|---|
-| `Profiles` | kind-0 profiles | `one(pk)`, `display(pk)`, `publish(values)` |
-| `FollowLists` | kind-3 follows | `one(pk)`, `follow(tag)`, `unfollow(value)` |
-| `MuteLists` | kind-10000 mutes (private = encrypted) | `mutePublicly(tag)`, `mutePrivately(tag)`, `unmute(v)`, `setMutes(...)` |
-| `PinLists` | kind-10001 pins | `pin(tag)`, `unpin(value)` |
-| `RelayLists` | NIP-65 (kind 10002) | `urls(pk)`, `readUrls(pk)`, `writeUrls(pk)`, `addRelay(url, mode)`, `setWriteRelays(urls)` |
-| `BlockedRelayLists` | kind-10006 | `urls(pk)`, `addUrl`, `removeUrl`, `setUrls` |
-| `MessagingRelayLists` | kind-10050 (NIP-17 DM relays) | `urls(pk)`, `addUrl`, ... |
-| `SearchRelayLists` | kind-10007 | `urls(pk)`, `addUrl`, ... |
+| `Profiles` | kind-0 profiles | `one(pk)`, `display(pk)`, `publish(values)` → `Command` |
+| `FollowLists` | kind-3 follows | `one(pk)`, `follow(tag)`, `unfollow(value)` → `Command` |
+| `MuteLists` | kind-10000 mutes (private = encrypted) | `mutePublicly(tag)`, `mutePrivately(tag)`, `unmute(v)`, `setMutes(...)` → `Command` |
+| `PinLists` | kind-10001 pins | `pin(tag)`, `unpin(value)` → `Command` |
+| `RelayLists` | NIP-65 (kind 10002) | `urls(pk)`, `readUrls(pk)`, `writeUrls(pk)`, `addRelay(url, mode)`, `setWriteRelays(urls)`, `removeRelay(url, mode)`, `setRelays(tags)` → `Command` |
+| `BlockedRelayLists` | kind-10006 | `urls(pk)`, `addUrl`, `removeUrl`, `setUrls` → `Command` |
+| `MessagingRelayLists` | kind-10050 (NIP-17 DM relays) | `urls(pk)`, `addUrl`, ... → `Command` |
+| `SearchRelayLists` | kind-10007 | `urls(pk)`, `addUrl`, ... → `Command` |
+| `Pinboards` | kind-30067 pinboards (many per author, keyed by address) | `one(addr)`, `forAuthor(pk)`, `loadForAuthor(pk)`, `create(fields)`, `update(addr, fn)` → `Command` |
+| `Pins` | kind-39067 pins (keyed by address; each pin has its own `d` tag) | `one(addr)`, `forBoard(addr)`, `forProfile(pk)`, `loadForBoard(addr)`, `loadForProfile(pk)`, `create(builder)`, `update(addr, fn)`, `addToBoard`, `removeFromBoard` → `Command` |
 | `Relays` | NIP-11 relay info (HTTP) | `one(url)`, `display(url)`, `hasNip(url, n)`, `hasNegentropy(url)` |
-| `RelayManagement` | NIP-86 | `post(url, request)` |
+| `RelayManagement` | NIP-86 | `post(url, request)`, `publishToRelay(url, event)` — signs `event` and publishes it directly to `url`, bypassing outbox routing |
 | `Handles` | NIP-05 (HTTP, batched) | `forPubkey(pk)`, `display(nip05)`, `loadForPubkey(pk)` |
 | `Zappers` | LNURL zapper info (HTTP) | `forPubkey(pk)`, `validateZapReceipt(...)`, `validZapReceipts(...)` |
 | `BlossomServerLists` | kind-10063 media servers | `one(pk)`, `load(pk)` |
 | `Topics` | hashtags w/ counts | `all`, `byName` (plain `Readable`s) |
-| `Rooms` | NIP-29 groups | `create/edit/delete/join/leave/addMember/removeMember(url, room, ...)` |
-| `SlashCommands` | kind-33318 command manifests (by address) | `one(addr)`, `forPubkey(pk)`, `forContext(kind, group?)`, `loadForPubkey(pk)`, `update(name, fn)`, `invoke(cmd, args, {kind?, group?})` |
+| `Rooms` | NIP-29 groups | `create/edit/delete/join/leave/addMember/removeMember(url, room, ...)` → `Command` |
+| `SlashCommands` | kind-33318 command manifests (by address) | `one(addr)`, `forPubkey(pk)`, `forContext(kind, group?)`, `loadForPubkey(pk)`, `update(name, fn)`, `invoke(cmd, args, {kind?, group?})` → `Command` |
 | `Plaintext` | decrypted-content cache (own events) | `ensure(event)`, `get(id)` |
 
 ```typescript
@@ -123,18 +127,28 @@ await app.use(Profiles).load(pubkey)
 
 // Relay selections (outbox model)
 const writeRelays = app.use(RelayLists).writeUrls(pubkey).get()  // string[]
-await app.use(RelayLists).addRelay("wss://relay.example", RelayMode.Write)
+
+// Mutations return a Command — build it, then decide how to publish it
+const command = await app.use(RelayLists).addRelay("wss://relay.example", RelayMode.Write)
+command.publish()                              // normal outbox/relays flow via Thunks
+// or: command.publishAsRelay("wss://relay.example")   // sign + send straight to one relay (NIP-86 style)
+
+// Since these methods are async, `publish`/`publishAsRelay` free functions avoid a double-await:
+import {publish} from "@welshman/app"
+await app.use(RelayLists).addRelay("wss://relay.example", RelayMode.Write).then(publish)
 ```
 
 ## Publishing (optimistic thunks)
 
 ```typescript
-import {Thunks} from "@welshman/app"
+import {Thunks, Router} from "@welshman/app"
 import {makeEvent, NOTE} from "@welshman/util"
 
-// To the user's write relays (resolved via the Router):
-const thunk = app.use(Thunks).publishToOutbox({
+// There's no dedicated outbox helper on Thunks — resolve write relays yourself via Router
+// (this is what Command.publish() does under the hood for every data-plugin mutation):
+const thunk = app.use(Thunks).publish({
   event: makeEvent(NOTE, {content: "hi"}),
+  relays: app.use(Router).FromUser().getUrls(),
   delay: 3000,                  // abortable soft-undo window (ms)
 })
 
@@ -158,6 +172,36 @@ app.use(Thunks).publish({event, relays, pow: 20})
 ```
 
 `ThunkOptions`: `{event, relays?, recipient?, delay?, pow?, ...PublishOptions}` (`app` is injected). Incoming wraps addressed to the user are auto-unwrapped by the default `appPolicyWraps`.
+
+## Commands (deferred publishing)
+
+Data-plugin mutation methods (`create`, `update`, `follow`, `addRelay`, `setRelays`, `Rooms.*`, …) don't publish — they build the `EventTemplate` and the relays it would go to, and hand back a **`Command`** for you to decide what to do with:
+
+```typescript
+import type {Command} from "@welshman/app"
+
+const command: Command = await app.use(FollowLists).follow(["p", otherPubkey])
+
+command.app      // the IApp it was built for
+command.event    // EventTemplate — unsigned, inspectable before publishing
+command.relays   // string[] — where publish() will send it
+
+command.publish()              // normal path: app.use(Thunks).publish({event, relays})
+command.publishAsRelay(url)     // sign as the app's user and send straight to `url`,
+                                // bypassing outbox routing — via app.use(RelayManagement).publishToRelay
+```
+
+This lets a caller preview/log a command, choose a different transport, or drop it entirely, instead of every plugin method publishing unconditionally. `Wraps.publish` is the one exception — it fans a single rumor out to a `MergedThunk` of per-recipient wraps (each with its own relays), which doesn't fit the one-event/one-relay-set `Command` shape, so it still publishes directly.
+
+`publish`/`publishAsRelay` are also exported as free functions (`(command) => command.publish()` / `(url) => (command) => command.publishAsRelay(url)`) so you can chain straight off the mutation method's promise instead of double-awaiting:
+
+```typescript
+import {publish, publishAsRelay} from "@welshman/app"
+
+await app.use(FollowLists).follow(["p", otherPubkey]).then(publish)
+await app.use(Rooms).leave(relayUrl, roomMeta).then(publish)
+await app.use(Rooms).join(relayUrl, roomMeta).then(publishAsRelay(relayUrl))
+```
 
 ## Requests & sync
 
@@ -190,7 +234,7 @@ const hint   = router.Event(event).getUrl()
 const tags = app.use(Tags)
 const replyTags = tags.tagEventForReply(parentEvent)   // also: tagPubkey, tagEvent,
                                                         // tagEventForComment/Quote/Reaction, tagZapSplit
-app.use(Thunks).publishToOutbox({event: makeEvent(NOTE, {content: "ok", tags: replyTags})})
+app.use(Thunks).publish({event: makeEvent(NOTE, {content: "ok", tags: replyTags}), relays})
 ```
 
 Relay quality used by the router comes from `app.use(RelayStats).getQuality(url)` (0–1; 0 for blocked/error-prone relays).
@@ -280,8 +324,8 @@ const app = new App({user, policies: [...defaultAppPolicies, makeAppPolicyLogger
 | `addSession(...)` / `pubkey.get()` | `User.fromSession(...)` + `createApp({user})`; `app.user?.pubkey` |
 | `deriveProfile(pk)` | `app.use(Profiles).one(pk)` |
 | `deriveProfileDisplay(pk)` | `app.use(Profiles).display(pk).$` |
-| `publishThunk({...})` | `app.use(Thunks).publish({...})` / `publishToOutbox({...})` |
-| `follow(tag)` / `mute(tag)` | `app.use(FollowLists).follow(tag)` / `app.use(MuteLists).mutePublicly(tag)` |
+| `publishThunk({...})` | `app.use(Thunks).publish({...})` (resolve outbox relays yourself via `app.use(Router).FromUser().getUrls()`) |
+| `follow(tag)` / `mute(tag)` | `app.use(FollowLists).follow(tag).then(publish)` / `app.use(MuteLists).mutePublicly(tag).then(publish)` — these return a `Command` now, see [Commands](#commands-deferred-publishing) |
 | `load({...})` / `request({...})` | `app.use(Network).load({...})` / `request({...})` |
 | `Router.get().FromUser()` | `app.use(Router).FromUser()` |
 | `relays` / `handles` / `zappers` stores | `app.use(Relays)` / `Handles` / `Zappers` |

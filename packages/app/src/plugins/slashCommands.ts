@@ -5,7 +5,7 @@ import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {User} from "../user.js"
-import {Thunks} from "./thunk.js"
+import {Command} from "../command.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -64,8 +64,9 @@ export class SlashCommands extends DerivedPlugin<SlashCommand> {
     fn(builder)
 
     const event = await builder.toTemplate(user.signer)
+    const relays = this.app.use(Router).FromUser().getUrls()
 
-    return this.app.use(Thunks).publishToOutbox({event})
+    return new Command(this.app, event, relays)
   }
 
   // Invoke a command: publish a `/name <args>` message in one of the command's
@@ -86,6 +87,8 @@ export class SlashCommands extends DerivedPlugin<SlashCommand> {
       tags,
     }
 
-    return this.app.use(Thunks).publishToOutbox({event})
+    const relays = this.app.use(Router).FromUser().getUrls()
+
+    return new Command(this.app, event, relays)
   }
 }

@@ -73,7 +73,8 @@ import {makeEvent, NOTE} from "@welshman/util"
 
 const replyTags = app.use(Tags).tagEventForReply(parentEvent)
 
-app.use(Thunks).publishToOutbox({
+app.use(Thunks).publish({
   event: makeEvent(NOTE, {content: "well said", tags: replyTags}),
+  relays: app.use(Router).FromUser().getUrls(),
 })
 ```
