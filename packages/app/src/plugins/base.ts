@@ -176,3 +176,59 @@ export abstract class DerivedPlugin<T> {
   project = <U>(key: string, read: (item: Maybe<T>) => U): Projection<U> =>
     projection(derived(this.one(key), read), () => read(this.get(key)))
 }
+
+export type RelayScopedDerivedPluginOptions<T> = {
+  filters: Filter[]
+  eventToItem: EventToItem<T>
+  // Return `undefined` to exclude an item on a relay (e.g. it fails validation).
+  getKey: (item: T, url: string) => string | undefined
+  loadOptions?: MakeLoadItemOptions
+  // Re-evaluate keys when this store changes — for keys that depend on state
+  // that can settle after the events (see `RelaySignedDerivedPlugin`).
+  revalidateOn?: Readable<unknown>
+}
+
+/**
+ * A `DerivedPlugin` for relay-dependent data: each item is keyed by
+ * `getKey(item, url)` once per relay it was seen on (via the tracker), so the
+ * same addressable coordinate on two relays stays two distinct entries. Use it
+ * for collections that only make sense relative to a relay — NIP-29 rooms
+ * (`${url}'${group}`), relay roles (`${url}|${d}`), per-relay replaceables
+ * (`${url}`). Subclasses implement `fetch` (loading from the relevant relay).
+ */
+export abstract class RelayScopedDerivedPlugin<T> {
+  index: Projection<ItemsByKey<T>>
+  all: Projection<T[]>
+  one: (key?: string, ...args: any[]) => Readable<Maybe<T>>
+  load: (key: string, ...args: any[]) => Promise<Maybe<T>>
+  forceLoad: (key: string, ...args: any[]) => Promise<Maybe<T>>
+
+  abstract fetch(key: string, ...args: any[]): Promise<unknown>
+
+  constructor(
+    protected readonly app: IApp,
+    options: RelayScopedDerivedPluginOptions<T>,
+  ) {
+    const index = app.use(Stores).itemsByKeyByUrl<T>({
+      filters: options.filters,
+      eventToItem: options.eventToItem,
+      getKey: options.getKey,
+      revalidateOn: options.revalidateOn,
+    })
+
+    this.index = projection(index)
+    this.all = projection(deriveItems(index))
+
+    const fetch = (key: string, ...args: any[]) => this.fetch(key, ...args)
+    const read = (key: string) => this.index.get().get(key)
+
+    this.load = makeLoadItem(fetch, read, options.loadOptions)
+    this.forceLoad = makeForceLoadItem(fetch, read)
+    this.one = makeDeriveItem(index, this.load)
+  }
+
+  get = (key: string) => this.index.get().get(key)
+
+  project = <U>(key: string, read: (item: Maybe<T>) => U): Projection<U> =>
+    projection(derived(this.one(key), read), () => read(this.get(key)))
+}
