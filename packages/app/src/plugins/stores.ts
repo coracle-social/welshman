@@ -8,6 +8,7 @@ import {
   getEventsByIdForUrl,
   deriveEventsByIdForUrl,
   deriveItemsByKey,
+  deriveItemsByKeyByUrl,
   deriveIsDeleted,
 } from "@welshman/store"
 import type {
@@ -16,6 +17,7 @@ import type {
   EventsByIdByUrlOptions,
   EventsByIdForUrlOptions,
   ItemsByKeyOptions,
+  ItemsByKeyByUrlOptions,
 } from "@welshman/store"
 import type {TrustedEvent} from "@welshman/util"
 import type {IApp} from "../app.js"
@@ -38,6 +40,13 @@ export class Stores {
 
   makeEvent = (options: Omit<EventOptions, "repository">) =>
     makeDeriveEvent({...options, repository: this.app.repository})
+
+  itemsByKeyByUrl = <T>(options: Omit<ItemsByKeyByUrlOptions<T>, "tracker" | "repository">) =>
+    deriveItemsByKeyByUrl<T>({
+      ...options,
+      tracker: this.app.tracker,
+      repository: this.app.repository,
+    })
 
   getEventsByIdByUrl = (options: Omit<EventsByIdByUrlOptions, "tracker" | "repository">) =>
     getEventsByIdByUrl({...options, tracker: this.app.tracker, repository: this.app.repository})

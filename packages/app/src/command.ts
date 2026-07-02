@@ -1,3 +1,4 @@
+import {ManagementMethod} from "@welshman/util"
 import type {EventTemplate} from "@welshman/util"
 import type {IApp} from "./app.js"
 import {Thunks} from "./plugins/thunk.js"
@@ -20,8 +21,16 @@ export class Command {
   publish = () => this.app.use(Thunks).publish({event: this.event, relays: this.relays})
 
   publishAsRelay = (url: string) => this.app.use(RelayManagement).publishToRelay(url, this.event)
+
+  signAsRelay = (url: string) =>
+    this.app.use(RelayManagement).post(url, {
+      method: ManagementMethod.SignEvent,
+      params: [this.event],
+    })
 }
 
 export const publish = (command: Command) => command.publish()
 
 export const publishAsRelay = (url: string) => (command: Command) => command.publishAsRelay(url)
+
+export const signAsRelay = (url: string) => (command: Command) => command.signAsRelay(url)

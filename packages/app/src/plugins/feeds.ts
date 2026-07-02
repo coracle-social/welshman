@@ -1,19 +1,85 @@
 import {Scope, FeedController} from "@welshman/feeds"
-import type {FeedControllerOptions, Feed} from "@welshman/feeds"
+import type {FeedControllerOptions, Feed as FeedDefinition} from "@welshman/feeds"
 import type {AdapterContext} from "@welshman/net"
-import type {IApp} from "../app.js"
+import {Address, FEED} from "@welshman/util"
+import {Feed, FeedBuilder} from "@welshman/domain"
+import {DerivedPlugin, projectFrom} from "./base.js"
+import type {Projection} from "./base.js"
+import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {Wot} from "./wot.js"
+import {User} from "../user.js"
+import {Command} from "../command.js"
+import type {IApp} from "../app.js"
 
-export type MakeFeedControllerOptions = Partial<Omit<FeedControllerOptions, "feed">> & {feed: Feed}
+export type MakeFeedControllerOptions = Partial<Omit<FeedControllerOptions, "feed">> & {
+  feed: FeedDefinition
+}
+
+export type FeedFields = {
+  title: string
+  description?: string
+  definition: FeedDefinition
+}
 
 /**
- * Builds `FeedController`s wired to this app. Scope/WOT pubkey resolution is
- * delegated to `Wot`, and feeds fetch through THIS app's net context (pool +
+ * NIP-51 kind-31890 saved feeds, keyed by address (many feeds per author).
+ * Also builds `FeedController`s wired to this app. Scope/WOT pubkey resolution
+ * is delegated to `Wot`, and feeds fetch through THIS app's net context (pool +
  * repository) rather than the global one.
  */
-export class Feeds {
-  constructor(readonly app: IApp) {}
+export class Feeds extends DerivedPlugin<Feed> {
+  constructor(app: IApp) {
+    super(app, {
+      filters: [{kinds: [FEED]}],
+      eventToItem: Feed.factory(app.user?.signer),
+      getKey: feed => feed.address(),
+    })
+  }
+
+  fetch(address: string, relayHints: string[] = []) {
+    const {pubkey, identifier} = Address.from(address)
+
+    return this.app
+      .use(Network)
+      .loadUsingOutbox(pubkey, {kinds: [FEED], "#d": [identifier]}, relayHints)
+  }
+
+  forAuthor = (pubkey: string): Projection<Feed[]> =>
+    projectFrom(this.all, feeds => feeds.filter(feed => feed.author() === pubkey))
+
+  loadForAuthor = (pubkey: string, relayHints: string[] = []) =>
+    this.app.use(Network).loadAllUsingOutbox(pubkey, {kinds: [FEED]}, relayHints)
+
+  create = async (fields: FeedFields) => {
+    const user = User.require(this.app)
+    const builder = new FeedBuilder().setIdentifier().setTitle(fields.title)
+
+    if (fields.description) builder.setDescription(fields.description)
+
+    builder.setDefinition(fields.definition)
+
+    const event = await builder.toTemplate(user.signer)
+    const relays = this.app.use(Router).FromUser().getUrls()
+
+    return new Command(this.app, event, relays)
+  }
+
+  update = async (address: string, fn: (builder: FeedBuilder) => void) => {
+    const feed = await this.forceLoad(address)
+
+    if (!feed) throw new Error(`Unknown feed ${address}`)
+
+    const builder = new FeedBuilder(feed)
+
+    fn(builder)
+
+    const user = User.require(this.app)
+    const event = await builder.toTemplate(user.signer)
+    const relays = this.app.use(Router).FromUser().getUrls()
+
+    return new Command(this.app, event, relays)
+  }
 
   getPubkeysForScope = (scope: Scope): string[] => {
     const $pubkey = this.app.user?.pubkey

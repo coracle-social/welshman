@@ -185,7 +185,7 @@ export const isTopic = (parsed: Parsed): parsed is ParsedTopic => parsed.type ==
 // Parsers for known formats
 
 export const parseAddress = (text: string, context: ParseContext): ParsedAddress | void => {
-  const [naddr] = text.match(/^(web\+)?(nostr:)naddr1[\d\w]+/i) || []
+  const [naddr] = text.match(/^(web\+)?(nostr:)?naddr1[\d\w]+/i) || []
 
   if (naddr) {
     try {
@@ -233,7 +233,7 @@ export const parseEmoji = (text: string, context: ParseContext): ParsedEmoji | v
 }
 
 export const parseEvent = (text: string, context: ParseContext): ParsedEvent | void => {
-  const [entity] = text.match(/^(web\+)?(nostr:)n(event|ote)1[\d\w]+/i) || []
+  const [entity] = text.match(/^(web\+)?(nostr:)?n(event|ote)1[\d\w]+/i) || []
 
   if (entity) {
     try {
@@ -327,7 +327,7 @@ export const parseNewline = (text: string, context: ParseContext): ParsedNewline
 }
 
 export const parseProfile = (text: string, context: ParseContext): ParsedProfile | void => {
-  const [entity] = text.match(/^@?(web\+)?(nostr:)n(profile|pub)1[\d\w]+/i) || []
+  const [entity] = text.match(/^@?(web\+)?(nostr:)?n(profile|pub)1[\d\w]+/i) || []
 
   if (entity) {
     try {

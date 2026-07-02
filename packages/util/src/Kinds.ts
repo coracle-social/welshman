@@ -206,6 +206,7 @@ export const FOLLOW_PACK = 39089
 export const PINBOARD = 30067
 export const PIN = 39067
 export const SLASH_COMMAND = 33318
+export const RELAY_ROLE = 33534
 
 export const DEPRECATED_RELAY_RECOMMENDATION = 2
 export const DEPRECATED_DIRECT_MESSAGE = 4

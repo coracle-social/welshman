@@ -412,6 +412,212 @@ export const deriveItemsByKey = <T>({
   })
 }
 
+// Items by key, scoped by relay url
+
+export type ItemsByKeyByUrlOptions<T> = {
+  // Compute the composite key for an item as seen on a specific relay, e.g.
+  // `${url}'${groupId}` for NIP-29 group metadata or `${url}` for a per-relay
+  // replaceable. The url makes otherwise-colliding events (the same d-tag on
+  // different relays) distinct entries. Return `undefined` to exclude the item
+  // on that relay (e.g. it fails a relay-signed check).
+  getKey: (item: T, url: string) => string | undefined
+  filters: Filter[]
+  repository: Repository
+  tracker: Tracker
+  eventToItem: EventToItem<T>
+  includeDeleted?: boolean
+  // A store whose changes (after the first) trigger a full re-evaluation. Use it
+  // when `getKey` depends on external state that can settle after the events —
+  // e.g. a relay's self pubkey loaded from NIP-11.
+  revalidateOn?: Readable<unknown>
+}
+
+/**
+ * Like `deriveItemsByKey`, but relay-scoped: an event is keyed once per relay
+ * it has been seen on (via the tracker), using `getKey(item, url)`. This is the
+ * substrate for relay-dependent collections — NIP-29 rooms, relay membership,
+ * relay roles — where the same addressable coordinate can exist independently
+ * on multiple relays.
+ */
+export const deriveItemsByKeyByUrl = <T>({
+  getKey,
+  filters,
+  repository,
+  tracker,
+  eventToItem,
+  includeDeleted,
+  revalidateOn,
+}: ItemsByKeyByUrlOptions<T>) => {
+  const deferred = new Set<string>()
+  const itemsByKey = new Map<string, T>()
+  // Which event currently owns each composite key, so a stale event's removal
+  // doesn't clobber the entry a newer replaceable event has taken over.
+  const ownerByKey = new Map<string, string>()
+  // The composite keys contributed by each event, per relay url, for teardown.
+  const keysById = new Map<string, Map<string, string>>()
+
+  return readable(itemsByKey, set => {
+    const setKey = (key: string, id: string, url: string, item: T) => {
+      itemsByKey.set(key, item)
+      ownerByKey.set(key, id)
+
+      let byUrl = keysById.get(id)
+
+      if (!byUrl) {
+        byUrl = new Map()
+        keysById.set(id, byUrl)
+      }
+
+      byUrl.set(url, key)
+    }
+
+    const dropKey = (key: string, id: string) => {
+      // Only remove if this id still owns the key (guards against a replaceable
+      // event having already taken it over).
+      if (ownerByKey.get(key) === id) {
+        itemsByKey.delete(key)
+        ownerByKey.delete(key)
+
+        return true
+      }
+
+      return false
+    }
+
+    const addEvent = async (event: TrustedEvent, urls: Iterable<string>) => {
+      const pending = Array.from(urls).filter(url => keysById.get(event.id)?.get(url) === undefined)
+
+      if (pending.length === 0) return
+      if (deferred.has(event.id)) return
+
+      const itemOrPromise = eventToItem(event)
+
+      if (itemOrPromise instanceof Promise) {
+        deferred.add(event.id)
+      }
+
+      try {
+        const item = await itemOrPromise
+
+        if (item) {
+          for (const url of pending) {
+            const key = getKey(item, url)
+
+            if (key !== undefined) {
+              setKey(key, event.id, url, item)
+            }
+          }
+
+          set(itemsByKey)
+        }
+      } finally {
+        deferred.delete(event.id)
+      }
+    }
+
+    const removeEvent = (id: string) => {
+      const byUrl = mapPop(id, keysById)
+
+      if (!byUrl) return false
+
+      let dirty = false
+
+      for (const key of byUrl.values()) {
+        dirty = dropKey(key, id) || dirty
+      }
+
+      return dirty
+    }
+
+    const removeEventUrl = (id: string, url: string) => {
+      const byUrl = keysById.get(id)
+      const key = byUrl?.get(url)
+
+      if (!byUrl || key === undefined) return false
+
+      byUrl.delete(url)
+
+      if (byUrl.size === 0) {
+        keysById.delete(id)
+      }
+
+      return dropKey(key, id)
+    }
+
+    const rebuild = () => {
+      itemsByKey.clear()
+      ownerByKey.clear()
+      keysById.clear()
+
+      for (const event of repository.query(filters, {includeDeleted})) {
+        addEvent(event, tracker.getRelays(event.id))
+      }
+
+      set(itemsByKey)
+    }
+
+    rebuild()
+
+    const unsubscribers = [
+      on(repository, "update", ({added, removed}: RepositoryUpdate) => {
+        for (const event of added) {
+          if (matchFilters(filters, event)) {
+            addEvent(event, tracker.getRelays(event.id))
+          }
+        }
+
+        if (!includeDeleted) {
+          let dirty = false
+
+          for (const id of removed) {
+            dirty = removeEvent(id) || dirty
+          }
+
+          if (dirty) set(itemsByKey)
+        }
+      }),
+      on(tracker, "add", (id: string, url: string) => {
+        const event = repository.getEvent(id)
+
+        if (event && matchFilters(filters, event)) {
+          addEvent(event, [url])
+        }
+      }),
+      on(tracker, "remove", (id: string, url: string) => {
+        if (removeEventUrl(id, url)) {
+          set(itemsByKey)
+        }
+      }),
+      on(tracker, "clear", () => {
+        itemsByKey.clear()
+        ownerByKey.clear()
+        keysById.clear()
+
+        set(itemsByKey)
+      }),
+    ]
+
+    // Re-evaluate everything when external key state (e.g. relay self pubkeys)
+    // changes. The first emission fires synchronously on subscribe and is the
+    // initial state we already built, so skip it.
+    if (revalidateOn) {
+      let initialized = false
+
+      unsubscribers.push(
+        revalidateOn.subscribe(() => {
+          if (initialized) {
+            rebuild()
+          } else {
+            initialized = true
+          }
+        }),
+      )
+    }
+
+    return () => unsubscribers.forEach(call)
+  })
+}
+
 export const deriveItems = <T>(itemsByKeyStore: Readable<ItemsByKey<T>>) =>
   deriveDeduplicated(itemsByKeyStore, itemsByKey => Array.from(itemsByKey.values()))
 
