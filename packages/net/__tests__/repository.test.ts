@@ -1,7 +1,7 @@
 import {describe, it, vi, expect, beforeEach} from "vitest"
 import {now, choice, range} from "@welshman/lib"
 import {getAddress, makeEvent, TrustedEvent, DELETE, MUTES} from "@welshman/util"
-import {Repository} from "../src/repository"
+import {Repository, mergeRepositoryUpdates} from "../src/repository"
 
 const randomHex = () =>
   Array.from(range(0, 64))
@@ -392,6 +392,57 @@ describe("Repository", () => {
       repo.removeEvent(event1.id)
 
       expect(repo.getEvent(address)).toEqual(event3)
+    })
+  })
+
+  describe("mergeRepositoryUpdates", () => {
+    it("should net out a remove followed by a re-add", () => {
+      const event = createEvent(1)
+
+      const {added, removed} = mergeRepositoryUpdates([
+        {added: [], removed: new Set([event.id])},
+        {added: [event], removed: new Set()},
+      ])
+
+      expect(added).toEqual([event])
+      expect(removed).toEqual(new Set())
+    })
+
+    it("should net out an add followed by a remove", () => {
+      const event = createEvent(1)
+
+      const {added, removed} = mergeRepositoryUpdates([
+        {added: [event], removed: new Set()},
+        {added: [], removed: new Set([event.id])},
+      ])
+
+      expect(added).toEqual([])
+      expect(removed).toEqual(new Set([event.id]))
+    })
+
+    it("should dedupe repeated adds of the same event", () => {
+      const event = createEvent(1)
+
+      const {added, removed} = mergeRepositoryUpdates([
+        {added: [event], removed: new Set()},
+        {added: [event], removed: new Set()},
+      ])
+
+      expect(added).toEqual([event])
+      expect(removed).toEqual(new Set())
+    })
+
+    it("should keep unrelated adds and removes", () => {
+      const event1 = createEvent(1)
+      const event2 = createEvent(1)
+
+      const {added, removed} = mergeRepositoryUpdates([
+        {added: [event1], removed: new Set()},
+        {added: [], removed: new Set([event2.id])},
+      ])
+
+      expect(added).toEqual([event1])
+      expect(removed).toEqual(new Set([event2.id]))
     })
   })
 })
