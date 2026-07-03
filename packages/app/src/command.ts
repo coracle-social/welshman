@@ -1,4 +1,3 @@
-import {ManagementMethod} from "@welshman/util"
 import type {EventTemplate} from "@welshman/util"
 import type {IApp} from "./app.js"
 import {Thunks} from "./plugins/thunk.js"
@@ -9,7 +8,9 @@ import {RelayManagement} from "./plugins/relayManagement.js"
  * it gets published. Plugin mutation methods (`create`/`update`/etc.) build
  * the event and return a `Command` instead of publishing it directly, so the
  * caller decides: `publish()` sends it through the normal `Thunks` pipeline,
- * `publishAsRelay(url)` signs it and delivers it straight to one relay.
+ * `publishToRelays(urls)` targets a specific set of relays, and
+ * `publishAsRelay(url)` has the relay sign the event with its own key (NIP-86
+ * `signevent`) before publishing it back to that relay.
  */
 export class Command {
   constructor(
@@ -18,18 +19,30 @@ export class Command {
     readonly relays: string[],
   ) {}
 
-  publish = () => this.app.use(Thunks).publish({event: this.event, relays: this.relays})
+  publish = () => this.publishToRelays(this.relays)
 
-  publishAsRelay = (url: string) => this.app.use(RelayManagement).publishToRelay(url, this.event)
+  publishToRelays = (urls: string[]) =>
+    this.app.use(Thunks).publish({event: this.event, relays: urls})
 
-  signAsRelay = (url: string) =>
-    this.app.use(RelayManagement).post(url, {
-      method: ManagementMethod.SignEvent,
-      params: [this.event],
-    })
+  // Ask the relay to sign the event with its own key via NIP-86 `signevent`,
+  // then publish the relay-signed event back to that relay.
+  publishAsRelay = async (url: string) => {
+    const {result, error} = await this.signAsRelay(url)
+
+    if (!result) {
+      throw new Error(error || "Relay did not return a signed event")
+    }
+
+    return this.app.use(Thunks).publish({event: result, relays: [url]})
+  }
+
+  signAsRelay = (url: string) => this.app.use(RelayManagement).forUrl(url).signEvent(this.event)
 }
 
 export const publish = (command: Command) => command.publish()
+
+export const publishToRelays = (urls: string[]) => (command: Command) =>
+  command.publishToRelays(urls)
 
 export const publishAsRelay = (url: string) => (command: Command) => command.publishAsRelay(url)
 
