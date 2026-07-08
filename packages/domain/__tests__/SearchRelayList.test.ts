@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, SEARCH_RELAYS, NOTE, normalizeRelayUrl} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {SearchRelayList, SearchRelayListBuilder} from "../src/kinds/SearchRelayList"
+import {SearchRelayList} from "../src/kinds/SearchRelayList"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -24,7 +24,7 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("SearchRelayList", () => {
   it("reads search relay urls", async () => {
-    const reader = await SearchRelayList.fromEvent(
+    const reader = await SearchRelayList.read(
       makeEvent({
         tags: [
           ["relay", relayA],
@@ -39,7 +39,7 @@ describe("SearchRelayList", () => {
   })
 
   it("round-trips without duplicating represented tags", async () => {
-    const reader = await SearchRelayList.fromEvent(
+    const reader = await SearchRelayList.read(
       makeEvent({
         tags: [
           ["relay", relayA],
@@ -48,14 +48,14 @@ describe("SearchRelayList", () => {
       }),
     )
 
-    const tmpl = await reader.builder().toTemplate(signer)
+    const tmpl = await SearchRelayList.builder(reader).toTemplate(signer)
 
     expect(tmpl.tags.filter(t => t[0] === "relay").length).toBe(1)
     expect(tmpl.tags).toContainEqual(["alt", "x"])
   })
 
   it("adds and removes relays via a fresh builder", async () => {
-    const tmpl = await new SearchRelayListBuilder()
+    const tmpl = await SearchRelayList.builder()
       .addUrl(relayA)
       .addUrl(relayB)
       .removeUrl(relayA)
@@ -67,6 +67,6 @@ describe("SearchRelayList", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(SearchRelayList.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(SearchRelayList.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

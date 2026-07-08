@@ -2,6 +2,8 @@ import {spec} from "@welshman/lib"
 import {CLASSIFIED, getTag, getTagValue, getTagValues, getTopicTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 export type ClassifiedPrice = {
   amount: number
@@ -20,7 +22,7 @@ const parsePrice = ([, amount = "0", currency = "SAT", frequency = ""]: string[]
 }
 
 // NIP-99 kind-30402 classified listing.
-export class Classified extends EventReader {
+export class ClassifiedReader extends EventReader {
   readonly kind = CLASSIFIED
 
   title() {
@@ -50,13 +52,9 @@ export class Classified extends EventReader {
   topics() {
     return getTopicTagValues(this.event.tags)
   }
-
-  builder() {
-    return new ClassifiedBuilder(this)
-  }
 }
 
-export class ClassifiedBuilder extends EventBuilder<Classified> {
+export class ClassifiedBuilder extends EventBuilder<ClassifiedReader> {
   readonly kind = CLASSIFIED
 
   setTitle(title: string) {
@@ -88,3 +86,9 @@ export class ClassifiedBuilder extends EventBuilder<Classified> {
     return this.dropTags(spec(["t"])).addTags(...topics.map(topic => ["t", topic]))
   }
 }
+
+export const Classified = new Kind({
+  reader: ClassifiedReader,
+  builder: ClassifiedBuilder,
+  router: OutboxRouter,
+})

@@ -1,18 +1,17 @@
 import {FEEDS} from "@welshman/util"
-import {FeedList, FeedListBuilder} from "@welshman/domain"
+import {FeedList, FeedListReader, FeedListBuilder} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {User} from "../user.js"
-import {Command} from "../command.js"
 import type {IApp} from "../app.js"
 
 /**
  * NIP-51 saved feeds lists (kind 10014), keyed by pubkey. Loaded via the outbox
  * model (the author's write relays), so it depends on the relay-list collection.
  */
-export class FeedLists extends DerivedPlugin<FeedList> {
+export class FeedLists extends DerivedPlugin<FeedListReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [FEEDS]}],
@@ -30,14 +29,11 @@ export class FeedLists extends DerivedPlugin<FeedList> {
 
   update = async (fn: (builder: FeedListBuilder) => void) => {
     const user = User.require(this.app)
-    const builder = new FeedListBuilder(await this.forceLoad(user.pubkey))
+    const builder = FeedList.builder(await this.forceLoad(user.pubkey))
 
     fn(builder)
 
-    const event = await builder.toTemplate(user.signer)
-    const relays = this.app.use(Router).FromUser().getUrls()
-
-    return new Command(this.app, event, relays)
+    return this.app.use(Router).commandFromBuilder(builder)
   }
 
   addFeed = (address: string, relayHint?: string) =>

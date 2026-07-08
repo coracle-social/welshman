@@ -1,17 +1,15 @@
 import {ROOM_CREATE} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {ContentRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // NIP-29 kind-9007 create-room op.
-export class RoomCreate extends EventReader {
+export class RoomCreateReader extends EventReader {
   readonly kind = ROOM_CREATE
-
-  builder() {
-    return new RoomCreateBuilder(this)
-  }
 }
 
-export class RoomCreateBuilder extends EventBuilder<RoomCreate> {
+export class RoomCreateBuilder extends EventBuilder<RoomCreateReader> {
   readonly kind = ROOM_CREATE
 
   protected validate() {
@@ -22,3 +20,9 @@ export class RoomCreateBuilder extends EventBuilder<RoomCreate> {
     }
   }
 }
+
+export const RoomCreate = new Kind({
+  reader: RoomCreateReader,
+  builder: RoomCreateBuilder,
+  router: ContentRouter,
+})

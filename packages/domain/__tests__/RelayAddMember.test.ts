@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, RELAY_ADD_MEMBER, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {RelayAddMember, RelayAddMemberBuilder} from "../src/kinds/RelayAddMember"
+import {RelayAddMember} from "../src/kinds/RelayAddMember"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -23,7 +23,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelayAddMember", () => {
   it("reads affected pubkeys, deduped", async () => {
-    const op = await RelayAddMember.fromEvent(
+    const op = await RelayAddMember.read(
       makeEvent({
         tags: [
           ["p", a],
@@ -37,7 +37,7 @@ describe("RelayAddMember", () => {
   })
 
   it("round-trips with no duplicate p tags and passthrough", async () => {
-    const op = await RelayAddMember.fromEvent(
+    const op = await RelayAddMember.read(
       makeEvent({
         tags: [
           ["p", a],
@@ -47,7 +47,7 @@ describe("RelayAddMember", () => {
       }),
     )
 
-    const tmpl = await op.builder().toTemplate(signer)
+    const tmpl = await RelayAddMember.builder(op).toTemplate(signer)
 
     expect(tmpl.kind).toBe(RELAY_ADD_MEMBER)
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(2)
@@ -56,7 +56,7 @@ describe("RelayAddMember", () => {
   })
 
   it("builds fresh with the right kind", async () => {
-    const tmpl = await new RelayAddMemberBuilder().addPubkey(a).addPubkey(a).toTemplate(signer)
+    const tmpl = await RelayAddMember.builder().addPubkey(a).addPubkey(a).toTemplate(signer)
 
     expect(tmpl.kind).toBe(RELAY_ADD_MEMBER)
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(1)
@@ -64,6 +64,6 @@ describe("RelayAddMember", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RelayAddMember.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(RelayAddMember.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

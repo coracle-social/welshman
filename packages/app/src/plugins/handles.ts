@@ -2,7 +2,7 @@ import {tryCatch, batcher, postJson} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import {queryProfile, displayNip05} from "@welshman/util"
 import type {Handle} from "@welshman/util"
-import type {Profile} from "@welshman/domain"
+import type {ProfileReader} from "@welshman/domain"
 import {deriveDeduplicated} from "@welshman/store"
 import {LoadableMapPlugin, projection} from "./base.js"
 import type {Projection} from "./base.js"
@@ -69,7 +69,7 @@ export class Handles extends LoadableMapPlugin<Handle> {
   forPubkey = (pubkey: string, relays: string[] = []): Projection<Maybe<Handle>> => {
     this.loadForPubkey(pubkey, relays)
 
-    const read = ([$handlesByNip05, $profile]: [ReadonlyMap<string, Handle>, Maybe<Profile>]) => {
+    const read = ([$handlesByNip05, $profile]: [ReadonlyMap<string, Handle>, Maybe<ProfileReader>]) => {
       const nip05 = $profile?.nip05()
 
       if (!nip05) return undefined

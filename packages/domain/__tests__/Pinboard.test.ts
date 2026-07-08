@@ -1,7 +1,7 @@
 import {describe, it, expect} from "vitest"
 import {PINBOARD, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {Pinboard, PinboardBuilder} from "../src/kinds/Pinboard"
+import {Pinboard} from "../src/kinds/Pinboard"
 
 const pubkey = "ee".repeat(32)
 
@@ -19,7 +19,7 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("Pinboard", () => {
   it("reads metadata, topics and the collaborative flag", async () => {
-    const reader = await Pinboard.fromEvent(
+    const reader = await Pinboard.read(
       makeEvent({
         tags: [
           ["d", "japan-trip-2024"],
@@ -42,7 +42,7 @@ describe("Pinboard", () => {
   })
 
   it("treats a board without the flag as non-collaborative", async () => {
-    const reader = await Pinboard.fromEvent(
+    const reader = await Pinboard.read(
       makeEvent({
         tags: [
           ["d", "x"],
@@ -55,7 +55,7 @@ describe("Pinboard", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new PinboardBuilder()
+    const tmpl = await Pinboard.builder()
       .setIdentifier("japan-trip-2024")
       .setTitle("Japan Trip 2024")
       .setDescription("Photos and memories")
@@ -75,7 +75,7 @@ describe("Pinboard", () => {
   })
 
   it("replaces single-value metadata instead of duplicating it", async () => {
-    const reader = await Pinboard.fromEvent(
+    const reader = await Pinboard.read(
       makeEvent({
         tags: [
           ["d", "x"],
@@ -84,30 +84,30 @@ describe("Pinboard", () => {
       }),
     )
 
-    const tmpl = await reader.builder().setTitle("New").toTemplate()
+    const tmpl = await Pinboard.builder(reader).setTitle("New").toTemplate()
 
     expect(tmpl.tags.filter(t => t[0] === "title")).toEqual([["title", "New"]])
   })
 
   it("setCollaborative(false) clears the flag", async () => {
-    const reader = await Pinboard.fromEvent(
+    const reader = await Pinboard.read(
       makeEvent({tags: [["d", "x"], ["title", "x"], ["collaborative"]]}),
     )
 
-    const tmpl = await reader.builder().setCollaborative(false).toTemplate()
+    const tmpl = await Pinboard.builder(reader).setCollaborative(false).toTemplate()
 
     expect(tmpl.tags.some(t => t[0] === "collaborative")).toBe(false)
   })
 
   it("requires a d tag", async () => {
-    await expect(new PinboardBuilder().setTitle("x").toTemplate()).rejects.toThrow()
+    await expect(Pinboard.builder().setTitle("x").toTemplate()).rejects.toThrow()
   })
 
   it("requires a title", async () => {
-    await expect(new PinboardBuilder().setIdentifier("x").toTemplate()).rejects.toThrow(/title/)
+    await expect(Pinboard.builder().setIdentifier("x").toTemplate()).rejects.toThrow(/title/)
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Pinboard.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(Pinboard.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

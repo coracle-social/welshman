@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, ROOM_ADD_MEMBER, NOTE, getTagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {RoomAddMember, RoomAddMemberBuilder} from "../src/kinds/RoomAddMember"
+import {RoomAddMember} from "../src/kinds/RoomAddMember"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -23,7 +23,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomAddMember", () => {
   it("reads pubkeys and group", async () => {
-    const op = await RoomAddMember.fromEvent(
+    const op = await RoomAddMember.read(
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -40,7 +40,7 @@ describe("RoomAddMember", () => {
   })
 
   it("round-trips with no duplicated tags", async () => {
-    const op = await RoomAddMember.fromEvent(
+    const op = await RoomAddMember.read(
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -51,7 +51,9 @@ describe("RoomAddMember", () => {
       }),
     )
 
-    const tmpl = await op.builder().toTemplate(signer)
+    const tmpl = await RoomAddMember.builder(op)
+      .setGroup("wss://relay.example.com/", "room1")
+      .toTemplate(signer)
 
     expect(tmpl.kind).toBe(ROOM_ADD_MEMBER)
     // h round-trips via the base behavior tag.
@@ -65,8 +67,8 @@ describe("RoomAddMember", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new RoomAddMemberBuilder()
-      .setGroup("room2")
+    const tmpl = await RoomAddMember.builder()
+      .setGroup("wss://relay.example.com/", "room2")
       .addPubkey(a)
       .addPubkey(a) // dedup
       .addPubkey(b)
@@ -80,6 +82,6 @@ describe("RoomAddMember", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RoomAddMember.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(RoomAddMember.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

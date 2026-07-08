@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, CLASSIFIED, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {Classified, ClassifiedBuilder} from "../src/kinds/Classified"
+import {Classified} from "../src/kinds/Classified"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -36,7 +36,7 @@ describe("Classified", () => {
       ],
     })
 
-    const c = await Classified.fromEvent(event)
+    const c = await Classified.read(event)
 
     expect(c.identifier()).toBe("abc")
     expect(c.title()).toBe("Bike")
@@ -49,7 +49,7 @@ describe("Classified", () => {
   })
 
   it("defaults the price currency to SAT", async () => {
-    const c = await Classified.fromEvent(
+    const c = await Classified.read(
       makeEvent({
         tags: [
           ["d", "x"],
@@ -77,7 +77,7 @@ describe("Classified", () => {
       ],
     })
 
-    const tmpl = await (await Classified.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await Classified.builder(await Classified.read(event)).toTemplate(signer)
 
     for (const key of ["d", "title", "summary", "price", "status"]) {
       expect(tmpl.tags.filter(t => t[0] === key).length).toBe(1)
@@ -92,7 +92,7 @@ describe("Classified", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new ClassifiedBuilder()
+    const tmpl = await Classified.builder()
       .setIdentifier("listing1")
       .setTitle("Fresh")
       .setContent("desc")
@@ -111,6 +111,6 @@ describe("Classified", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Classified.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(Classified.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

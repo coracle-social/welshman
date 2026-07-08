@@ -10,7 +10,7 @@ import {
 } from "@welshman/util"
 import {ISigner} from "@welshman/signer"
 import {AdapterContext} from "@welshman/net"
-import type {Router} from "@welshman/router"
+import type {FeedRouter} from "./router.js"
 import {
   CreatedAtItem,
   RequestItem,
@@ -26,7 +26,7 @@ import {getFeedArgs, feedsFromTags} from "./utils.js"
 import {requestPage, requestDVM} from "./request.js"
 
 export type FeedCompilerOptions = {
-  router: Router
+  router: FeedRouter
   signer?: ISigner
   signal?: AbortSignal
   context?: AdapterContext

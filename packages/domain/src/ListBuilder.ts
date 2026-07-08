@@ -2,6 +2,7 @@ import {complement} from "@welshman/lib"
 import type {ISigner} from "@welshman/signer"
 import {EventBuilder} from "./EventBuilder.js"
 import type {ListReader} from "./ListReader.js"
+import type {AnyKind} from "./Kind.js"
 
 export abstract class ListBuilder<
   Reader extends ListReader = ListReader,
@@ -9,8 +10,8 @@ export abstract class ListBuilder<
   publicTags: string[][] = []
   privateTags: string[][] = []
 
-  constructor(readonly reader?: Reader) {
-    super(reader)
+  constructor(def: AnyKind, reader?: Reader) {
+    super(def, reader)
 
     this.publicTags = this.extraTags.splice(0)
 

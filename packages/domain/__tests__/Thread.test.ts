@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, THREAD, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {Thread, ThreadBuilder} from "../src/kinds/Thread"
+import {Thread} from "../src/kinds/Thread"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -29,7 +29,7 @@ describe("Thread", () => {
       ],
     })
 
-    const thread = await Thread.fromEvent(event)
+    const thread = await Thread.read(event)
 
     expect(thread.title()).toBe("Hello")
     expect(thread.content()).toBe("thread body")
@@ -44,7 +44,7 @@ describe("Thread", () => {
       ],
     })
 
-    const tmpl = await (await Thread.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await Thread.builder(await Thread.read(event)).toTemplate(signer)
 
     expect(tmpl.tags.filter(t => t[0] === "title").length).toBe(1)
     expect(tmpl.tags).toContainEqual(["title", "Hello"])
@@ -62,17 +62,19 @@ describe("Thread", () => {
       ],
     })
 
-    const tmpl = await (await Thread.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await Thread.builder(await Thread.read(event))
+      .setGroup("wss://relay.example.com/", "room")
+      .toTemplate(signer)
 
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
     expect(tmpl.tags).toContainEqual(["h", "room"])
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new ThreadBuilder()
+    const tmpl = await Thread.builder()
       .setTitle("New thread")
       .setContent("body")
-      .setGroup("room")
+      .setGroup("wss://relay.example.com/", "room")
       .toTemplate(signer)
 
     expect(tmpl.kind).toBe(THREAD)
@@ -82,6 +84,6 @@ describe("Thread", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Thread.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(Thread.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

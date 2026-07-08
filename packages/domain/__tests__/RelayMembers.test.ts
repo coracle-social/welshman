@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, RELAY_MEMBERS, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {RelayMembers, RelayMembersBuilder} from "../src/kinds/RelayMembers"
+import {RelayMembers} from "../src/kinds/RelayMembers"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -24,7 +24,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelayMembers", () => {
   it("reads members from member tags", async () => {
-    const members = await RelayMembers.fromEvent(
+    const members = await RelayMembers.read(
       makeEvent({
         tags: [
           ["member", a],
@@ -40,7 +40,7 @@ describe("RelayMembers", () => {
   })
 
   it("round-trips with deduped member tags and passthrough", async () => {
-    const members = await RelayMembers.fromEvent(
+    const members = await RelayMembers.read(
       makeEvent({
         tags: [
           ["member", a],
@@ -50,7 +50,7 @@ describe("RelayMembers", () => {
       }),
     )
 
-    const tmpl = await members.builder().toTemplate(signer)
+    const tmpl = await RelayMembers.builder(members).toTemplate(signer)
 
     expect(tmpl.kind).toBe(RELAY_MEMBERS)
     expect(tmpl.tags.filter(t => t[0] === "member").length).toBe(2)
@@ -60,7 +60,7 @@ describe("RelayMembers", () => {
   })
 
   it("adds and removes members via the builder", async () => {
-    const tmpl = await new RelayMembersBuilder()
+    const tmpl = await RelayMembers.builder()
       .addPubkey(a)
       .addPubkey(b)
       .addPubkey(a)
@@ -72,6 +72,6 @@ describe("RelayMembers", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RelayMembers.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(RelayMembers.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

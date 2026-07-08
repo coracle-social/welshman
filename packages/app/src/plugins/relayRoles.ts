@@ -1,5 +1,5 @@
 import {RELAY_ROLE} from "@welshman/util"
-import {RelayRole} from "@welshman/domain"
+import {RelayRole, RelayRoleReader} from "@welshman/domain"
 import {projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
 import {RelaySignedDerivedPlugin} from "./relaySigned.js"
@@ -18,7 +18,7 @@ export const splitRelayRoleKey = (key: string): [string, string] => {
 }
 
 /** Flotilla kind-33534 relay roles (relay-signed), keyed by `${url}|${roleId}`. */
-export class RelayRoles extends RelaySignedDerivedPlugin<RelayRole> {
+export class RelayRoles extends RelaySignedDerivedPlugin<RelayRoleReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [RELAY_ROLE]}],
@@ -33,7 +33,7 @@ export class RelayRoles extends RelaySignedDerivedPlugin<RelayRole> {
     return this.app.use(Network).load({relays: [url], filters: [{kinds: [RELAY_ROLE], "#d": [d]}]})
   }
 
-  forUrl = (url: string): Projection<RelayRole[]> =>
+  forUrl = (url: string): Projection<RelayRoleReader[]> =>
     projectFrom(this.index, byKey =>
       Array.from(byKey.entries())
         .filter(([key]) => key.startsWith(`${url}|`))

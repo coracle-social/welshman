@@ -2,14 +2,13 @@ import {parseJson} from "@welshman/lib"
 import {decrypt} from "@welshman/signer"
 import type {ISigner} from "@welshman/signer"
 import {EventReader} from "./EventReader.js"
-import type {ListBuilder} from "./ListBuilder.js"
 
 export abstract class ListReader extends EventReader {
   decrypted = false
   publicTags: string[][] = []
   privateTags: string[][] = []
 
-  protected async parse(signer?: ISigner) {
+  async parse(signer?: ISigner) {
     this.publicTags = this.event.tags
 
     if (!this.event.content) {
@@ -36,6 +35,4 @@ export abstract class ListReader extends EventReader {
   tags() {
     return [...this.publicTags, ...this.privateTags]
   }
-
-  abstract builder(): ListBuilder
 }

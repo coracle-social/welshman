@@ -2,6 +2,8 @@ import {spec} from "@welshman/lib"
 import {PIN, getTag, getTagValue, getTagValues, getTopicTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // A pin references exactly one piece of content: a nostr event (`e`), an
 // addressable event (`a`), or an external id (`i`, with an optional `k` kind).
@@ -17,7 +19,7 @@ const REFERENCE_KEYS = ["e", "a", "i", "k"]
 // the parameterized-replaceable range, so each pin needs its own unique `d`
 // tag (see `PinBuilder`) — otherwise every pin from the same author would
 // collide at the same address and replace one another.
-export class Pin extends EventReader {
+export class PinReader extends EventReader {
   readonly kind = PIN
 
   boards() {
@@ -49,13 +51,9 @@ export class Pin extends EventReader {
   topics() {
     return getTopicTagValues(this.event.tags)
   }
-
-  builder() {
-    return new PinBuilder(this)
-  }
 }
 
-export class PinBuilder extends EventBuilder<Pin> {
+export class PinBuilder extends EventBuilder<PinReader> {
   readonly kind = PIN
 
   setTitle(title: string) {
@@ -101,3 +99,9 @@ export class PinBuilder extends EventBuilder<Pin> {
     }
   }
 }
+
+export const Pin = new Kind({
+  reader: PinReader,
+  builder: PinBuilder,
+  router: OutboxRouter,
+})

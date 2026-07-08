@@ -3,6 +3,9 @@ import {COMMENT, Address, getTagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {ContentRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
+import type {AnyKind} from "../Kind.js"
 
 export type CommentRef = {
   id?: string
@@ -12,7 +15,7 @@ export type CommentRef = {
 }
 
 // NIP-22 kind-1111 comment (uppercase E/A/K/P tags = thread root, lowercase = immediate parent).
-export class Comment extends EventReader {
+export class CommentReader extends EventReader {
   readonly kind = COMMENT
 
   root(): CommentRef {
@@ -32,20 +35,16 @@ export class Comment extends EventReader {
       pubkey: getTagValue("p", this.event.tags),
     }
   }
-
-  builder() {
-    return new CommentBuilder(this)
-  }
 }
 
-export class CommentBuilder extends EventBuilder<Comment> {
+export class CommentBuilder extends EventBuilder<CommentReader> {
   readonly kind = COMMENT
 
   rootTags: string[][] = []
   parentTags: string[][] = []
 
-  constructor(readonly reader?: Comment) {
-    super(reader)
+  constructor(def: AnyKind, reader?: CommentReader) {
+    super(def, reader)
 
     this.rootTags = this.consumeRefTags("E", "A", "K", "P")
     this.parentTags = this.consumeRefTags("e", "a", "k", "p")
@@ -107,3 +106,9 @@ export class CommentBuilder extends EventBuilder<Comment> {
     return [...this.rootTags, ...this.parentTags]
   }
 }
+
+export const Comment = new Kind({
+  reader: CommentReader,
+  builder: CommentBuilder,
+  router: ContentRouter,
+})

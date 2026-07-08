@@ -2,44 +2,17 @@ import {spec} from "@welshman/lib"
 import {getTagValue, getAddress} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
-import type {EventBuilder} from "./EventBuilder.js"
+import type {AnyKind} from "./Kind.js"
 
 export abstract class EventReader {
   abstract readonly kind: number
 
-  constructor(readonly event: TrustedEvent) {}
+  constructor(
+    readonly def: AnyKind,
+    readonly event: TrustedEvent,
+  ) {}
 
-  private static async fromEventUsingSubclass<T extends EventReader>(
-    Reader: new (event: TrustedEvent) => T,
-    event: TrustedEvent,
-    signer?: ISigner,
-  ): Promise<T> {
-    const reader = new Reader(event)
-
-    if (event.kind !== reader.kind) {
-      throw new Error(`Expected a kind ${reader.kind} event, got kind ${event.kind}`)
-    }
-
-    await reader.parse(signer)
-
-    return reader
-  }
-
-  static fromEvent<T extends EventReader>(
-    this: new (event: TrustedEvent) => T,
-    event: TrustedEvent,
-    signer?: ISigner,
-  ): Promise<T> {
-    return EventReader.fromEventUsingSubclass(this, event, signer)
-  }
-
-  static factory<T extends EventReader>(this: new (event: TrustedEvent) => T, signer?: ISigner) {
-    // `this` (the subclass constructor) is captured lexically by the arrow, so
-    // the returned factory stays bound to the right kind.
-    return (event: TrustedEvent) => EventReader.fromEventUsingSubclass(this, event, signer)
-  }
-
-  protected async parse(signer?: ISigner): Promise<void> {}
+  async parse(signer?: ISigner): Promise<void> {}
 
   id() {
     return this.event.id
@@ -83,5 +56,7 @@ export abstract class EventReader {
     return isNaN(expiration) ? undefined : expiration
   }
 
-  abstract builder(): EventBuilder<EventReader>
+  routes() {
+    return this.def.router(this.event).routes()
+  }
 }

@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, EMOJIS, NOTE, getAddressTagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {EmojiList, EmojiListBuilder} from "../src/kinds/EmojiList"
+import {EmojiList} from "../src/kinds/EmojiList"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -29,7 +29,7 @@ describe("EmojiList", () => {
       tags: [["a", setAddress], emojiTag, ["alt", "x"]],
     })
 
-    const list = await EmojiList.fromEvent(event)
+    const list = await EmojiList.read(event)
 
     expect(list.emojiSets()).toEqual([setAddress])
     expect(list.emojis()).toEqual([emojiTag])
@@ -40,8 +40,8 @@ describe("EmojiList", () => {
       tags: [["a", setAddress], emojiTag, ["alt", "x"]],
     })
 
-    const list = await EmojiList.fromEvent(event)
-    const tmpl = await list.builder().toTemplate(signer)
+    const list = await EmojiList.read(event)
+    const tmpl = await EmojiList.builder(list).toTemplate(signer)
 
     expect(tmpl.kind).toBe(EMOJIS)
     expect(tmpl.tags.filter(t => t[0] === "a").length).toBe(1)
@@ -50,7 +50,7 @@ describe("EmojiList", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new EmojiListBuilder()
+    const tmpl = await EmojiList.builder()
       .addEmojiSet(setAddress)
       .addEmoji("soapbox", "https://example.com/soapbox.png")
       .toTemplate(signer)
@@ -61,14 +61,14 @@ describe("EmojiList", () => {
 
   it("removeEmoji removes by value", async () => {
     const event = makeEvent({tags: [emojiTag, emojiTag2]})
-    const list = await EmojiList.fromEvent(event)
+    const list = await EmojiList.read(event)
 
-    const tmpl = await list.builder().removeEmoji("soapbox").toTemplate(signer)
+    const tmpl = await EmojiList.builder(list).removeEmoji("soapbox").toTemplate(signer)
 
     expect(tmpl.tags.filter(t => t[0] === "emoji")).toEqual([emojiTag2])
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(EmojiList.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(EmojiList.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

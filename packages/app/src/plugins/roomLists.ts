@@ -1,12 +1,10 @@
-import {uniq} from "@welshman/lib"
-import {ROOMS, getRelayTagValues, normalizeRelayUrl} from "@welshman/util"
-import {RoomList, RoomListBuilder} from "@welshman/domain"
+import {ROOMS, normalizeRelayUrl} from "@welshman/util"
+import {RoomList, RoomListReader, RoomListBuilder} from "@welshman/domain"
 import {DerivedPlugin, projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {User} from "../user.js"
-import {Command} from "../command.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -14,7 +12,7 @@ import type {IApp} from "../app.js"
  * them), keyed by pubkey. Loaded via the outbox model (the author's write
  * relays), so it depends on the relay-list collection.
  */
-export class RoomLists extends DerivedPlugin<RoomList> {
+export class RoomLists extends DerivedPlugin<RoomListReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [ROOMS]}],
@@ -37,35 +35,12 @@ export class RoomLists extends DerivedPlugin<RoomList> {
       lists.filter(list => list.urls().includes(normalizeRelayUrl(url))).map(list => list.author()),
     )
 
-  update = async (fn: (builder: RoomListBuilder) => void, extraRelays: string[] = []) => {
+  update = async (fn: (builder: RoomListBuilder) => void) => {
     const user = User.require(this.app)
-    const builder = new RoomListBuilder(await this.forceLoad(user.pubkey))
+    const builder = RoomList.builder(await this.forceLoad(user.pubkey))
 
     fn(builder)
 
-    const event = await builder.toTemplate(user.signer)
-
-    // Include every listed relay, in addition to the outbox set, so each one
-    // gets notified of the user's membership changes
-    const relays = uniq([
-      ...extraRelays,
-      ...this.app.use(Router).FromUser().getUrls(),
-      ...getRelayTagValues(event.tags),
-    ])
-
-    return new Command(this.app, event, relays)
+    return this.app.use(Router).commandFromBuilder(builder)
   }
-
-  addRelay = (url: string) => this.update(builder => builder.addRelay(url))
-
-  // Include the removed relay itself so it also gets notified of its own removal
-  removeRelay = (url: string) => this.update(builder => builder.removeRelay(url), [url])
-
-  setRelays = (urls: string[]) => this.update(builder => builder.setRelays(urls))
-
-  addGroup = (groupId: string, url: string) =>
-    this.update(builder => builder.addRelay(url).addGroup(groupId, url))
-
-  removeGroup = (groupId: string, url: string) =>
-    this.update(builder => builder.removeGroup(groupId, url), [url])
 }

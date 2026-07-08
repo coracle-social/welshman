@@ -6,14 +6,18 @@ import {
   TrustedEvent,
   getRelayTagValues,
   RELAYS,
+  indexers,
+  relayHints,
+  searchRelays,
+  addMinimalFallbacks,
 } from "@welshman/util"
 import {Nip01Signer, ISigner} from "@welshman/signer"
-import {Router, getFilterSelections, addMinimalFallbacks} from "@welshman/router"
+import {FeedRouter, getFilterSelections} from "./router.js"
 import {LOCAL_RELAY_URL, Tracker, AdapterContext, request, publish} from "@welshman/net"
 
 export type RequestPageOptions = {
   filters: Filter[]
-  router: Router
+  router: FeedRouter
   onEvent: (event: TrustedEvent) => void
   relays?: string[]
   tracker?: Tracker
@@ -40,6 +44,8 @@ export const requestPage = async ({
   const [withSearch, withoutSearch] = partition(f => Boolean(f.search), filters)
 
   if (withSearch.length > 0) {
+    const scenario = await router.resolve([searchRelays()])
+
     promises.push(
       request({
         tracker,
@@ -49,14 +55,14 @@ export const requestPage = async ({
         threshold: 0.1,
         autoClose,
         filters: withSearch,
-        relays: router.Search().getUrls(),
+        relays: scenario.getUrls(),
       }),
     )
   }
 
   if (withoutSearch.length > 0) {
     promises.push(
-      ...getFilterSelections(filters, router).flatMap(({relays, filters}) =>
+      ...(await getFilterSelections(filters, router)).flatMap(({relays, filters}) =>
         request({
           tracker,
           signal,
@@ -91,7 +97,7 @@ export const requestPage = async ({
 
 export type RequestDVMOptions = {
   kind: number
-  router: Router
+  router: FeedRouter
   tags?: string[][]
   relays?: string[]
   signer?: ISigner
@@ -109,16 +115,16 @@ export const requestDVM = async ({
   context,
 }: RequestDVMOptions) => {
   if (relays.length === 0) {
+    const indexScenario = await router.resolve([indexers()])
     const events = await request({
       autoClose: true,
       filters: [{kinds: [RELAYS], authors: getPubkeyTagValues(tags)}],
-      relays: router.Index().policy(addMinimalFallbacks).getUrls(),
+      relays: indexScenario.policy(addMinimalFallbacks).getUrls(),
     })
 
-    relays = router
-      .FromRelays(events.flatMap(e => getRelayTagValues(e.tags)))
-      .policy(addMinimalFallbacks)
-      .getUrls()
+    const scenario = await router.resolve(relayHints(events.flatMap(e => getRelayTagValues(e.tags))))
+
+    relays = scenario.policy(addMinimalFallbacks).getUrls()
   }
 
   if (!tags.some(nthEq(0, "expiration"))) {

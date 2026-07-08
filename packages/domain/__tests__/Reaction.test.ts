@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, REACTION, NOTE, FOLLOWS} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {Reaction, ReactionBuilder} from "../src/kinds/Reaction"
+import {Reaction} from "../src/kinds/Reaction"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -35,7 +35,7 @@ describe("Reaction", () => {
       ],
     })
 
-    const reaction = await Reaction.fromEvent(event)
+    const reaction = await Reaction.read(event)
 
     expect(reaction.content()).toBe(":soapbox:")
     expect(reaction.eventId()).toBe(targetId)
@@ -57,8 +57,7 @@ describe("Reaction", () => {
 
     const target = makeEvent({id: "11".repeat(32), pubkey: targetPubkey, kind: NOTE, content: ""})
 
-    const tmpl = await (await Reaction.fromEvent(event))
-      .builder()
+    const tmpl = await Reaction.builder(await Reaction.read(event))
       .setEvent(target, "wss://relay.example.com")
       .toTemplate(signer)
 
@@ -77,7 +76,7 @@ describe("Reaction", () => {
   it("adds an a tag for replaceable targets", async () => {
     const target = makeEvent({id: targetId, pubkey: targetPubkey, kind: FOLLOWS, content: ""})
 
-    const tmpl = await new ReactionBuilder().setContent("+").setEvent(target).toTemplate(signer)
+    const tmpl = await Reaction.builder().setContent("+").setEvent(target).toTemplate(signer)
 
     expect(tmpl.kind).toBe(REACTION)
     expect(tmpl.tags).toContainEqual(["e", targetId])
@@ -89,7 +88,7 @@ describe("Reaction", () => {
   it("adds and removes emojis", async () => {
     const target = makeEvent({id: targetId, pubkey: targetPubkey, kind: NOTE, content: ""})
 
-    const builder = new ReactionBuilder()
+    const builder = Reaction.builder()
       .setContent(":soapbox:")
       .setEvent(target)
       .addEmoji("soapbox", "https://example.com/soapbox.png")
@@ -103,12 +102,12 @@ describe("Reaction", () => {
   })
 
   it("throws without an e tag", async () => {
-    await expect(new ReactionBuilder().setContent("+").toTemplate(signer)).rejects.toThrow(
+    await expect(Reaction.builder().setContent("+").toTemplate(signer)).rejects.toThrow(
       "A reaction must reference an event via an e tag",
     )
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Reaction.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(Reaction.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

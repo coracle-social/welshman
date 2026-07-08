@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, POLL, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {Poll, PollBuilder} from "../src/kinds/Poll"
+import {Poll} from "../src/kinds/Poll"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -34,7 +34,7 @@ describe("Poll", () => {
       ],
     })
 
-    const poll = await Poll.fromEvent(event)
+    const poll = await Poll.read(event)
 
     expect(poll.title()).toBe("Favorite color?")
     expect(poll.options()).toEqual([
@@ -47,7 +47,7 @@ describe("Poll", () => {
   })
 
   it("tallies results from response events", async () => {
-    const poll = await Poll.fromEvent(
+    const poll = await Poll.read(
       makeEvent({
         content: "Pick one",
         tags: [
@@ -84,7 +84,7 @@ describe("Poll", () => {
       ],
     })
 
-    const tmpl = await (await Poll.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await Poll.builder(await Poll.read(event)).toTemplate(signer)
 
     expect(tmpl.content).toBe("Favorite color?")
     expect(tmpl.tags.filter(t => t[0] === "option").length).toBe(2)
@@ -96,7 +96,7 @@ describe("Poll", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new PollBuilder()
+    const tmpl = await Poll.builder()
       .setTitle("Q?")
       .addOption("Red", "1")
       .addOption("Blue", "2")
@@ -114,10 +114,10 @@ describe("Poll", () => {
   })
 
   it("requires at least one option", async () => {
-    await expect(new PollBuilder().setTitle("Q?").toTemplate(signer)).rejects.toThrow()
+    await expect(Poll.builder().setTitle("Q?").toTemplate(signer)).rejects.toThrow()
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Poll.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(Poll.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

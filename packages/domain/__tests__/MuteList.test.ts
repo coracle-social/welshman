@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, MUTES, FOLLOWS, getPubkeyTagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {MuteList, MuteListBuilder} from "../src/kinds/MuteList"
+import {MuteList} from "../src/kinds/MuteList"
 
 const signer = new Nip01Signer(makeSecret())
 
@@ -12,7 +12,7 @@ const c = "cc".repeat(32)
 
 describe("MuteList", () => {
   it("round-trips public and private mutes through encryption", async () => {
-    const event = await new MuteListBuilder().mutePublicly(a).mutePrivately(b).toEvent(signer)
+    const event = await MuteList.builder().mutePublicly(a).mutePrivately(b).toEvent(signer)
 
     expect(event.kind).toBe(MUTES)
     expect(event.sig).toBeTruthy()
@@ -21,7 +21,7 @@ describe("MuteList", () => {
     expect(event.content).not.toBe("")
 
     // Re-parsing with a capable signer recovers the private entries.
-    const decrypted = await MuteList.fromEvent(event, signer)
+    const decrypted = await MuteList.read(event, signer)
 
     expect(decrypted.decrypted).toBe(true)
     expect(decrypted.pubkeys().sort()).toEqual([a, b].sort())
@@ -30,46 +30,46 @@ describe("MuteList", () => {
     expect(decrypted.includes(c)).toBe(false)
 
     // Parsing without a signer exposes only the public entries.
-    const publicOnly = await MuteList.fromEvent(event)
+    const publicOnly = await MuteList.read(event)
 
     expect(publicOnly.decrypted).toBe(false)
     expect(publicOnly.pubkeys()).toEqual([a])
   })
 
   it("removes from both public and private entries", async () => {
-    const event = await new MuteListBuilder()
+    const event = await MuteList.builder()
       .mutePublicly(a)
       .mutePrivately(b)
       .unmute(a)
       .unmute(b)
       .toEvent(signer)
 
-    const parsed = await MuteList.fromEvent(event, signer)
+    const parsed = await MuteList.read(event, signer)
 
     expect(parsed.pubkeys()).toEqual([])
   })
 
   it("preserves undecrypted ciphertext on pass-through serialization", async () => {
-    const event = await new MuteListBuilder().mutePrivately(b).toEvent(signer)
-    const undecrypted = await MuteList.fromEvent(event)
+    const event = await MuteList.builder().mutePrivately(b).toEvent(signer)
+    const undecrypted = await MuteList.read(event)
 
     // We never decrypted, so the original ciphertext must survive untouched.
-    const template = await undecrypted.builder().toTemplate(signer)
+    const template = await MuteList.builder(undecrypted).toTemplate(signer)
 
     expect(template.content).toBe(event.content)
   })
 
   it("refuses private mutation when undecrypted", async () => {
-    const event = await new MuteListBuilder().mutePrivately(b).toEvent(signer)
-    const undecrypted = await MuteList.fromEvent(event)
+    const event = await MuteList.builder().mutePrivately(b).toEvent(signer)
+    const undecrypted = await MuteList.read(event)
 
     // Mutation is now deferred-validated: adding a private entry to a list we
     // couldn't decrypt throws at emit time, not on the mutating call.
-    await expect(undecrypted.builder().mutePrivately(c).toEvent(signer)).rejects.toThrow()
+    await expect(MuteList.builder(undecrypted).mutePrivately(c).toEvent(signer)).rejects.toThrow()
   })
 
   it("toRumor encrypts but does not sign", async () => {
-    const rumor = await new MuteListBuilder().mutePrivately(b).toRumor(signer)
+    const rumor = await MuteList.builder().mutePrivately(b).toRumor(signer)
 
     expect(rumor.id).toBeTruthy()
     expect((rumor as TrustedEvent).sig).toBeUndefined()
@@ -79,6 +79,6 @@ describe("MuteList", () => {
   it("throws on the wrong kind", async () => {
     const event = {kind: FOLLOWS, tags: [], content: "", pubkey: a} as TrustedEvent
 
-    await expect(MuteList.fromEvent(event)).rejects.toThrow()
+    await expect(MuteList.read(event)).rejects.toThrow()
   })
 })

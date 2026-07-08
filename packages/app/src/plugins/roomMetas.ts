@@ -1,6 +1,13 @@
 import {ROOM_META, ROOM_MEMBERS, ROOM_ADMINS} from "@welshman/util"
 import type {Filter} from "@welshman/util"
-import {RoomMeta, RoomMembers, RoomAdmins} from "@welshman/domain"
+import {
+  RoomMeta,
+  RoomMetaReader,
+  RoomMembers,
+  RoomMembersReader,
+  RoomAdmins,
+  RoomAdminsReader,
+} from "@welshman/domain"
 import {projectFrom} from "./base.js"
 import type {Projection, RelayScopedDerivedPluginOptions} from "./base.js"
 import {RelaySignedDerivedPlugin} from "./relaySigned.js"
@@ -62,21 +69,21 @@ abstract class RoomCollection<
 }
 
 /** NIP-29 kind-39000 room metadata, keyed by `${url}'${group}`. */
-export class RoomMetas extends RoomCollection<RoomMeta> {
+export class RoomMetas extends RoomCollection<RoomMetaReader> {
   constructor(app: IApp) {
     super(app, ROOM_META, {eventToItem: RoomMeta.factory(app.user?.signer)})
   }
 }
 
 /** NIP-29 kind-39002 room member lists, keyed by `${url}'${group}`. */
-export class RoomMemberLists extends RoomCollection<RoomMembers> {
+export class RoomMemberLists extends RoomCollection<RoomMembersReader> {
   constructor(app: IApp) {
     super(app, ROOM_MEMBERS, {eventToItem: RoomMembers.factory(app.user?.signer)})
   }
 }
 
 /** NIP-29 kind-39001 room admin lists, keyed by `${url}'${group}`. */
-export class RoomAdminLists extends RoomCollection<RoomAdmins> {
+export class RoomAdminLists extends RoomCollection<RoomAdminsReader> {
   constructor(app: IApp) {
     super(app, ROOM_ADMINS, {eventToItem: RoomAdmins.factory(app.user?.signer)})
   }

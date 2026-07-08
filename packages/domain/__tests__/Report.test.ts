@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, REPORT, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {Report, ReportBuilder} from "../src/kinds/Report"
+import {Report} from "../src/kinds/Report"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -32,7 +32,7 @@ describe("Report", () => {
       ],
     })
 
-    const report = await Report.fromEvent(event)
+    const report = await Report.read(event)
 
     expect(report.pubkey()).toBe(reported)
     expect(report.eventId()).toBe(eventId)
@@ -50,7 +50,7 @@ describe("Report", () => {
       ],
     })
 
-    const tmpl = await (await Report.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await Report.builder(await Report.read(event)).toTemplate(signer)
 
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "e").length).toBe(1)
@@ -62,7 +62,7 @@ describe("Report", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new ReportBuilder()
+    const tmpl = await Report.builder()
       .setPubkey(reported)
       .setEventId(eventId)
       .setReason("impersonation")
@@ -76,6 +76,6 @@ describe("Report", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Report.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(Report.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

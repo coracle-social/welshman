@@ -26,13 +26,13 @@ describe("Profile", () => {
       tags: [["alt", "profile"]],
     })
 
-    const profile = await Profile.fromEvent(event)
+    const profile = await Profile.read(event)
 
     expect(profile.values.name).toBe("alice")
     expect(profile.name()).toBe("alice")
     expect(profile.display()).toBe("alice")
 
-    const signed = await profile.builder().toEvent(signer)
+    const signed = await Profile.builder(profile).toEvent(signer)
 
     expect(signed.kind).toBe(PROFILE)
     expect(JSON.parse(signed.content).name).toBe("alice")
@@ -41,7 +41,7 @@ describe("Profile", () => {
   })
 
   it("derives lnurl from a lud16 address", async () => {
-    const profile = await Profile.fromEvent(
+    const profile = await Profile.read(
       makeEvent({content: JSON.stringify({lud16: "alice@example.com"})}),
     )
 
@@ -49,22 +49,22 @@ describe("Profile", () => {
   })
 
   it("seeds the builder from the reader and edits values", async () => {
-    const profile = await Profile.fromEvent(makeEvent({content: JSON.stringify({name: "alice"})}))
+    const profile = await Profile.read(makeEvent({content: JSON.stringify({name: "alice"})}))
 
-    const event = await profile.builder().setAbout("hello").toEvent(signer)
-    const updated = await Profile.fromEvent(event)
+    const event = await Profile.builder(profile).setAbout("hello").toEvent(signer)
+    const updated = await Profile.read(event)
 
     expect(updated.name()).toBe("alice")
     expect(updated.about()).toBe("hello")
   })
 
   it("display falls back to a shortened npub", async () => {
-    const profile = await Profile.fromEvent(makeEvent({content: "{}"}))
+    const profile = await Profile.read(makeEvent({content: "{}"}))
 
     expect(profile.display()).toBe(displayPubkey(pubkey))
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Profile.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(Profile.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

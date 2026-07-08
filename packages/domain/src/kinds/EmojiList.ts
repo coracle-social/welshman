@@ -2,9 +2,11 @@ import {uniq, spec} from "@welshman/lib"
 import {EMOJIS, getAddressTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // NIP-51 kind-10030 user emoji list.
-export class EmojiList extends EventReader {
+export class EmojiListReader extends EventReader {
   readonly kind = EMOJIS
 
   emojis() {
@@ -14,13 +16,9 @@ export class EmojiList extends EventReader {
   emojiSets() {
     return uniq(getAddressTagValues(this.tags()))
   }
-
-  builder() {
-    return new EmojiListBuilder(this)
-  }
 }
 
-export class EmojiListBuilder extends EventBuilder<EmojiList> {
+export class EmojiListBuilder extends EventBuilder<EmojiListReader> {
   readonly kind = EMOJIS
 
   addEmoji(shortcode: string, url: string) {
@@ -39,3 +37,9 @@ export class EmojiListBuilder extends EventBuilder<EmojiList> {
     return this.dropTags(spec(["a", value]))
   }
 }
+
+export const EmojiList = new Kind({
+  reader: EmojiListReader,
+  builder: EmojiListBuilder,
+  router: OutboxRouter,
+})

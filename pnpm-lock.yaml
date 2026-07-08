@@ -87,9 +87,6 @@ importers:
       '@welshman/net':
         specifier: workspace:*
         version: link:../net
-      '@welshman/router':
-        specifier: workspace:*
-        version: link:../router
       '@welshman/signer':
         specifier: workspace:*
         version: link:../signer
@@ -225,9 +222,6 @@ importers:
       '@welshman/net':
         specifier: workspace:*
         version: link:../net
-      '@welshman/router':
-        specifier: workspace:*
-        version: link:../router
       '@welshman/signer':
         specifier: workspace:*
         version: link:../signer
@@ -272,24 +266,6 @@ importers:
       '@welshman/lib':
         specifier: workspace:*
         version: link:../lib
-      '@welshman/util':
-        specifier: workspace:*
-        version: link:../util
-      rimraf:
-        specifier: ~6.0.0
-        version: 6.0.1
-      typescript:
-        specifier: ~5.8.0
-        version: 5.8.2
-
-  packages/router:
-    devDependencies:
-      '@welshman/lib':
-        specifier: workspace:*
-        version: link:../lib
-      '@welshman/net':
-        specifier: workspace:*
-        version: link:../net
       '@welshman/util':
         specifier: workspace:*
         version: link:../util

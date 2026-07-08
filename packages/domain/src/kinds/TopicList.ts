@@ -2,9 +2,11 @@ import {uniq, spec} from "@welshman/lib"
 import {TOPICS, getTopicTagValues, getAddressTagValues} from "@welshman/util"
 import {ListReader} from "../ListReader.js"
 import {ListBuilder} from "../ListBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // NIP-51 kind-10015 interests/topics list.
-export class TopicList extends ListReader {
+export class TopicListReader extends ListReader {
   readonly kind = TOPICS
 
   topics() {
@@ -18,13 +20,9 @@ export class TopicList extends ListReader {
   includes(topic: string) {
     return this.topics().includes(topic)
   }
-
-  builder() {
-    return new TopicListBuilder(this)
-  }
 }
 
-export class TopicListBuilder extends ListBuilder<TopicList> {
+export class TopicListBuilder extends ListBuilder<TopicListReader> {
   readonly kind = TOPICS
 
   followPublicly(topic: string) {
@@ -43,3 +41,9 @@ export class TopicListBuilder extends ListBuilder<TopicList> {
     return this.dropTags(spec(["t", topic]))
   }
 }
+
+export const TopicList = new Kind({
+  reader: TopicListReader,
+  builder: TopicListBuilder,
+  router: OutboxRouter,
+})

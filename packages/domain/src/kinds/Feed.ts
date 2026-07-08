@@ -4,9 +4,11 @@ import type {Feed as FeedDefinition} from "@welshman/feeds"
 
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // NIP-51 kind-31890 saved-feed definition.
-export class Feed extends EventReader {
+export class FeedReader extends EventReader {
   readonly kind = FEED
 
   title() {
@@ -20,13 +22,9 @@ export class Feed extends EventReader {
   definition(): FeedDefinition | undefined {
     return parseJson(getTagValue("feed", this.event.tags))
   }
-
-  builder() {
-    return new FeedBuilder(this)
-  }
 }
 
-export class FeedBuilder extends EventBuilder<Feed> {
+export class FeedBuilder extends EventBuilder<FeedReader> {
   readonly kind = FEED
 
   setTitle(title: string) {
@@ -41,3 +39,9 @@ export class FeedBuilder extends EventBuilder<Feed> {
     return this.dropTags(spec(["feed"])).addTags(["feed", JSON.stringify(feed)])
   }
 }
+
+export const Feed = new Kind({
+  reader: FeedReader,
+  builder: FeedBuilder,
+  router: OutboxRouter,
+})

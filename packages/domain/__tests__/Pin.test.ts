@@ -1,7 +1,7 @@
 import {describe, it, expect} from "vitest"
 import {PIN, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {Pin, PinBuilder} from "../src/kinds/Pin"
+import {Pin} from "../src/kinds/Pin"
 
 const pubkey = "ee".repeat(32)
 
@@ -25,7 +25,7 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("Pin", () => {
   it("reads boards and an event reference", async () => {
-    const reader = await Pin.fromEvent(
+    const reader = await Pin.read(
       makeEvent({
         content: "Sunrise at Mt. Fuji",
         tags: [
@@ -42,7 +42,7 @@ describe("Pin", () => {
   })
 
   it("reads an address reference", async () => {
-    const reader = await Pin.fromEvent(
+    const reader = await Pin.read(
       makeEvent({
         tags: [
           ["A", board],
@@ -55,7 +55,7 @@ describe("Pin", () => {
   })
 
   it("reads an external reference with its kind", async () => {
-    const reader = await Pin.fromEvent(
+    const reader = await Pin.read(
       makeEvent({
         tags: [
           ["A", board],
@@ -71,7 +71,7 @@ describe("Pin", () => {
   })
 
   it("treats a pin with no board as a profile pin", async () => {
-    const reader = await Pin.fromEvent(
+    const reader = await Pin.read(
       makeEvent({
         tags: [
           ["e", eventId],
@@ -86,7 +86,7 @@ describe("Pin", () => {
   })
 
   it("builds a pin to multiple boards", async () => {
-    const tmpl = await new PinBuilder()
+    const tmpl = await Pin.builder()
       .setIdentifier("id1")
       .addBoard(board)
       .addBoard(board2)
@@ -102,13 +102,13 @@ describe("Pin", () => {
   })
 
   it("includes a relay hint when given", async () => {
-    const tmpl = await new PinBuilder().setIdentifier("id1").setEvent(eventId, relay).toTemplate()
+    const tmpl = await Pin.builder().setIdentifier("id1").setEvent(eventId, relay).toTemplate()
 
     expect(tmpl.tags).toContainEqual(["e", eventId, relay])
   })
 
   it("references exactly one item — a new reference replaces the old", async () => {
-    const tmpl = await new PinBuilder()
+    const tmpl = await Pin.builder()
       .setIdentifier("id1")
       .setEvent(eventId)
       .setExternal("isbn:9784805311981", "isbn")
@@ -120,7 +120,7 @@ describe("Pin", () => {
   })
 
   it("removeBoard drops only the matching board", async () => {
-    const tmpl = await new PinBuilder()
+    const tmpl = await Pin.builder()
       .setIdentifier("id1")
       .addBoard(board)
       .addBoard(board2)
@@ -132,7 +132,7 @@ describe("Pin", () => {
   })
 
   it("round-trips an existing pin without duplicating tags", async () => {
-    const reader = await Pin.fromEvent(
+    const reader = await Pin.read(
       makeEvent({
         content: "comment",
         tags: [
@@ -145,7 +145,7 @@ describe("Pin", () => {
       }),
     )
 
-    const tmpl = await reader.builder().toTemplate()
+    const tmpl = await Pin.builder(reader).toTemplate()
 
     expect(tmpl.tags.filter(t => t[0] === "d")).toEqual([["d", "id1"]])
     expect(tmpl.tags.filter(t => t[0] === "A")).toEqual([["A", board]])
@@ -157,15 +157,15 @@ describe("Pin", () => {
 
   it("requires a content reference", async () => {
     await expect(
-      new PinBuilder().setIdentifier("id1").addBoard(board).toTemplate(),
+      Pin.builder().setIdentifier("id1").addBoard(board).toTemplate(),
     ).rejects.toThrow(/reference/)
   })
 
   it("requires a d tag", async () => {
-    await expect(new PinBuilder().setEvent(eventId).toTemplate()).rejects.toThrow(/d tag/)
+    await expect(Pin.builder().setEvent(eventId).toTemplate()).rejects.toThrow(/d tag/)
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Pin.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(Pin.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, ZAP_RECEIPT, ZAP_REQUEST, NOTE} from "@welshman/util"
 import type {TrustedEvent, Zapper} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {ZapReceipt, ZapReceiptBuilder} from "../src/kinds/ZapReceipt"
+import {ZapReceipt} from "../src/kinds/ZapReceipt"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -52,7 +52,7 @@ describe("ZapReceipt", () => {
       ],
     })
 
-    const receipt = await ZapReceipt.fromEvent(event)
+    const receipt = await ZapReceipt.read(event)
 
     expect(receipt.bolt11()).toBe(bolt11)
     expect(receipt.invoiceAmount()).toBe(10000)
@@ -67,7 +67,7 @@ describe("ZapReceipt", () => {
   })
 
   it("returns undefined invoice amount for a malformed bolt11", async () => {
-    const receipt = await ZapReceipt.fromEvent(makeEvent({tags: [["bolt11", "not-an-invoice"]]}))
+    const receipt = await ZapReceipt.read(makeEvent({tags: [["bolt11", "not-an-invoice"]]}))
 
     expect(receipt.invoiceAmount()).toBeUndefined()
   })
@@ -82,7 +82,7 @@ describe("ZapReceipt", () => {
       ],
     })
 
-    const receipt = await ZapReceipt.fromEvent(event)
+    const receipt = await ZapReceipt.read(event)
 
     const zapper = {
       pubkey: recipient,
@@ -107,7 +107,7 @@ describe("ZapReceipt", () => {
       ],
     })
 
-    const tmpl = await (await ZapReceipt.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await ZapReceipt.builder(await ZapReceipt.read(event)).toTemplate(signer)
 
     expect(tmpl.tags.filter(t => t[0] === "bolt11").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "description").length).toBe(1)
@@ -118,7 +118,7 @@ describe("ZapReceipt", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new ZapReceiptBuilder()
+    const tmpl = await ZapReceipt.builder()
       .setBolt11(bolt11)
       .setDescription(JSON.stringify(request))
       .setRecipient(recipient)
@@ -134,6 +134,6 @@ describe("ZapReceipt", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(ZapReceipt.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(ZapReceipt.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

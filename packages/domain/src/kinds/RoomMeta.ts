@@ -2,9 +2,11 @@ import {spec} from "@welshman/lib"
 import {ROOM_META, getTag, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // NIP-29 kind-39000 room metadata.
-export class RoomMeta extends EventReader {
+export class RoomMetaReader extends EventReader {
   readonly kind = ROOM_META
 
   name() {
@@ -44,13 +46,9 @@ export class RoomMeta extends EventReader {
   hasLivekit() {
     return this.event.tags.some(spec(["livekit"]))
   }
-
-  builder() {
-    return new RoomMetaBuilder(this)
-  }
 }
 
-export class RoomMetaBuilder extends EventBuilder<RoomMeta> {
+export class RoomMetaBuilder extends EventBuilder<RoomMetaReader> {
   readonly kind = ROOM_META
 
   setName(name: string) {
@@ -95,3 +93,9 @@ export class RoomMetaBuilder extends EventBuilder<RoomMeta> {
     return livekit ? this.addTags(["livekit"]) : this
   }
 }
+
+export const RoomMeta = new Kind({
+  reader: RoomMetaReader,
+  builder: RoomMetaBuilder,
+  router: OutboxRouter,
+})

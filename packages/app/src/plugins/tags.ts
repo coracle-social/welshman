@@ -1,42 +1,77 @@
-import {uniq, remove} from "@welshman/lib"
+import {uniq, remove, nth} from "@welshman/lib"
 import {
   getAddress,
   isReplaceable,
   getReplyTags,
+  getAncestorTags,
+  getPubkeyTags,
   getPubkeyTagValues,
   isReplaceableKind,
+  isRelayUrl,
   isShareableRelayUrl,
+  outbox,
+  relayHints,
 } from "@welshman/util"
-import type {TrustedEvent} from "@welshman/util"
+import type {TrustedEvent, RelaySelection} from "@welshman/util"
 import {Router} from "./router.js"
 import {Profiles} from "./profiles.js"
 import type {IApp} from "../app.js"
 
 /**
- * Builders for nostr tags (p/e/a/q/zap/reply/comment/reaction). Needs the router
- * for relay hints, the profiles collection for display names, and the app's
- * user to avoid self-tagging.
+ * Builders for nostr tags (p/e/a/q/zap/reply/comment/reaction). Relay hints are
+ * resolved through the router's declarative selection API, so these methods are
+ * async. The profiles collection supplies display names, and the app's user is
+ * used to avoid self-tagging.
  */
 export class Tags {
   constructor(readonly app: IApp) {}
 
-  tagZapSplit = (pubkey: string, split = 1) => [
+  // A single best relay url for the given selections (the empty string when none).
+  private hint = async (selections: RelaySelection[]) => {
+    const scenario = await this.app.use(Router).resolve(selections)
+
+    return scenario.getUrl() || ""
+  }
+
+  // Where to find a pubkey's events — their outbox.
+  private pubkeyHint = (pubkey: string) => this.hint([outbox(pubkey)])
+
+  // Where to find an event — its author's outbox.
+  private eventHint = (event: TrustedEvent) => this.hint([outbox(event.pubkey)])
+
+  // A hint for an event's thread roots: the root authors' outboxes (weighted up),
+  // any mentioned pubkeys' outboxes, and relay hints carried on those tags.
+  private eventRootsHint = (event: TrustedEvent) => {
+    const {roots} = getAncestorTags(event)
+    const mentions = getPubkeyTags(event.tags)
+    const authors = roots.map(nth(3)).filter(p => p?.length === 64)
+    const others = mentions.map(nth(1)).filter(p => p?.length === 64)
+    const relays = uniq([...roots, ...mentions].map(nth(2)).filter(r => r && isRelayUrl(r)))
+
+    return this.hint([
+      ...authors.map(pubkey => outbox(pubkey, 10)),
+      ...others.map(pubkey => outbox(pubkey)),
+      ...relayHints(relays),
+    ])
+  }
+
+  tagZapSplit = async (pubkey: string, split = 1) => [
     "zap",
     pubkey,
-    this.app.use(Router).FromPubkey(pubkey).getUrl() || "",
+    await this.pubkeyHint(pubkey),
     String(split),
   ]
 
-  tagPubkey = (pubkey: string) => [
+  tagPubkey = async (pubkey: string) => [
     "p",
     pubkey,
-    this.app.use(Router).FromPubkey(pubkey).getUrl() || "",
+    await this.pubkeyHint(pubkey),
     this.app.use(Profiles).display(pubkey).get(),
   ]
 
-  tagEvent = (event: TrustedEvent, url = "", mark = "") => {
+  tagEvent = async (event: TrustedEvent, url = "", mark = "") => {
     if (!url) {
-      url = this.app.use(Router).Event(event).getUrl() || ""
+      url = await this.eventHint(event)
     }
 
     const tags = [["e", event.id, url, mark, event.pubkey]]
@@ -49,30 +84,32 @@ export class Tags {
   }
 
   tagEventPubkeys = (event: TrustedEvent) =>
-    uniq(
-      remove(this.app.user?.pubkey ?? "", [event.pubkey, ...getPubkeyTagValues(event.tags)]),
-    ).map(pubkey => this.tagPubkey(pubkey))
+    Promise.all(
+      uniq(
+        remove(this.app.user?.pubkey ?? "", [event.pubkey, ...getPubkeyTagValues(event.tags)]),
+      ).map(pubkey => this.tagPubkey(pubkey)),
+    )
 
-  tagEventForQuote = (event: TrustedEvent, relay?: string) => {
-    const hint = relay || this.app.use(Router).Event(event).getUrl() || ""
+  tagEventForQuote = async (event: TrustedEvent, relay?: string) => {
+    const hint = relay || (await this.eventHint(event))
 
     return ["q", event.id, hint, event.pubkey]
   }
 
-  tagEventForReply = (event: TrustedEvent, relay?: string) => {
-    const tags = this.tagEventPubkeys(event)
+  tagEventForReply = async (event: TrustedEvent, relay?: string) => {
+    const tags = await this.tagEventPubkeys(event)
     const {roots, replies} = getReplyTags(event.tags)
     const parents = roots.length > 0 ? roots : replies
     const mark = parents.length > 0 ? "reply" : "root"
-    const hint = relay || this.app.use(Router).Event(event).getUrl() || ""
+    const hint = relay || (await this.eventHint(event))
 
     // If the parent included roots use them, otherwise use replies as a fallback
     for (const [k, id, originalHint = "", _, pubkey = ""] of parents) {
-      const hint = isShareableRelayUrl(originalHint)
+      const rootHint = isShareableRelayUrl(originalHint)
         ? originalHint
-        : this.app.use(Router).EventRoots(event).getUrl()
+        : await this.eventRootsHint(event)
 
-      tags.push([k, id, hint || "", "root", pubkey])
+      tags.push([k, id, rootHint || "", "root", pubkey])
     }
 
     // e-tag the event
@@ -86,9 +123,9 @@ export class Tags {
     return tags
   }
 
-  tagEventForComment = (event: TrustedEvent, relay?: string) => {
-    const pubkeyHint = this.app.use(Router).FromPubkey(event.pubkey).getUrl() || ""
-    const eventHint = relay || this.app.use(Router).Event(event).getUrl() || ""
+  tagEventForComment = async (event: TrustedEvent, relay?: string) => {
+    const pubkeyHint = await this.pubkeyHint(event.pubkey)
+    const eventHint = relay || (await this.eventHint(event))
     const address = getAddress(event)
     const seenRoots = new Set<string>()
     const tags: string[][] = []
@@ -121,13 +158,13 @@ export class Tags {
     return tags
   }
 
-  tagEventForReaction = (event: TrustedEvent, relay?: string) => {
-    const hint = relay || this.app.use(Router).Event(event).getUrl() || ""
+  tagEventForReaction = async (event: TrustedEvent, relay?: string) => {
+    const hint = relay || (await this.eventHint(event))
     const tags: string[][] = []
 
     // Mention the event's author
     if (event.pubkey !== this.app.user?.pubkey) {
-      tags.push(this.tagPubkey(event.pubkey))
+      tags.push(await this.tagPubkey(event.pubkey))
     }
 
     tags.push(["k", String(event.kind)])

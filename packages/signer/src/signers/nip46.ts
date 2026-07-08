@@ -16,7 +16,6 @@ import {
   normalizeRelayUrl,
   NOSTR_CONNECT,
   prep,
-  RelayMode,
   StampedEvent,
   TrustedEvent,
 } from "@welshman/util"
@@ -83,7 +82,7 @@ export type PromenadeOptions = {
   signerPubkeys: string[]
   onProgress?: (progress: number) => void
   generatePow: (event: HashedEvent, difficulty: number) => MaybeAsync<HashedEvent>
-  getPubkeyRelays: (pubkey: string, mode: RelayMode) => MaybeAsync<string[]>
+  getPubkeyRelays: (pubkey: string, mode: string) => MaybeAsync<string[]>
 }
 
 export class PromenadeShardError extends Error {

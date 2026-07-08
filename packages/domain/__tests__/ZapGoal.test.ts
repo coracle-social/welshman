@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, ZAP_GOAL, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {ZapGoal, ZapGoalBuilder} from "../src/kinds/ZapGoal"
+import {ZapGoal} from "../src/kinds/ZapGoal"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -32,7 +32,7 @@ describe("ZapGoal", () => {
       ],
     })
 
-    const goal = await ZapGoal.fromEvent(event)
+    const goal = await ZapGoal.read(event)
 
     expect(goal.title()).toBe("New server fund")
     expect(goal.summary()).toBe("help us buy a server")
@@ -41,7 +41,7 @@ describe("ZapGoal", () => {
   })
 
   it("defaults amount to 0 when missing or unparseable", async () => {
-    const goal = await ZapGoal.fromEvent(makeEvent({content: "Goal"}))
+    const goal = await ZapGoal.read(makeEvent({content: "Goal"}))
 
     expect(goal.amount()).toBe(0)
   })
@@ -57,7 +57,7 @@ describe("ZapGoal", () => {
       ],
     })
 
-    const tmpl = await (await ZapGoal.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await ZapGoal.builder(await ZapGoal.read(event)).toTemplate(signer)
 
     expect(tmpl.content).toBe("New server fund")
     expect(tmpl.tags.filter(t => t[0] === "summary").length).toBe(1)
@@ -67,7 +67,7 @@ describe("ZapGoal", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new ZapGoalBuilder()
+    const tmpl = await ZapGoal.builder()
       .setTitle("Goal")
       .setSummary("a summary")
       .setAmount(1000)
@@ -82,10 +82,10 @@ describe("ZapGoal", () => {
   })
 
   it("requires a title", async () => {
-    await expect(new ZapGoalBuilder().setAmount(1000).toTemplate(signer)).rejects.toThrow()
+    await expect(ZapGoal.builder().setAmount(1000).toTemplate(signer)).rejects.toThrow()
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(ZapGoal.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(ZapGoal.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

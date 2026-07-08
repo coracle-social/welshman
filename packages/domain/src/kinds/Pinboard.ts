@@ -2,10 +2,12 @@ import {spec} from "@welshman/lib"
 import {PINBOARD, getTagValue, getTopicTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // Pinboards-NIP kind-30067 pinboard — addressable board metadata. Pins
 // themselves are separate kind-39067 events (see Pin).
-export class Pinboard extends EventReader {
+export class PinboardReader extends EventReader {
   readonly kind = PINBOARD
 
   title() {
@@ -27,13 +29,9 @@ export class Pinboard extends EventReader {
   collaborative() {
     return this.event.tags.some(spec(["collaborative"]))
   }
-
-  builder() {
-    return new PinboardBuilder(this)
-  }
 }
 
-export class PinboardBuilder extends EventBuilder<Pinboard> {
+export class PinboardBuilder extends EventBuilder<PinboardReader> {
   readonly kind = PINBOARD
 
   setTitle(title: string) {
@@ -66,3 +64,9 @@ export class PinboardBuilder extends EventBuilder<Pinboard> {
     }
   }
 }
+
+export const Pinboard = new Kind({
+  reader: PinboardReader,
+  builder: PinboardBuilder,
+  router: OutboxRouter,
+})

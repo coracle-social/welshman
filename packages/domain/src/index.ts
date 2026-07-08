@@ -1,5 +1,7 @@
 export * from "./EventReader.js"
 export * from "./EventBuilder.js"
+export * from "./EventRouter.js"
+export * from "./Kind.js"
 export * from "./kinds/AppData.js"
 export * from "./kinds/BlockedRelayList.js"
 export * from "./kinds/BlossomServerList.js"

@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, RELAY_LEAVE, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {RelayLeave, RelayLeaveBuilder} from "../src/kinds/RelayLeave"
+import {RelayLeave} from "../src/kinds/RelayLeave"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -22,7 +22,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelayLeave", () => {
   it("round-trips the group behavior tag without duplication", async () => {
-    const leave = await RelayLeave.fromEvent(
+    const leave = await RelayLeave.read(
       makeEvent({
         tags: [
           ["h", group],
@@ -33,7 +33,9 @@ describe("RelayLeave", () => {
 
     expect(leave.group()).toBe(group)
 
-    const tmpl = await leave.builder().toTemplate(signer)
+    const tmpl = await RelayLeave.builder(leave)
+      .setGroup("wss://relay.example.com/", group)
+      .toTemplate(signer)
 
     expect(tmpl.kind).toBe(RELAY_LEAVE)
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
@@ -42,12 +44,12 @@ describe("RelayLeave", () => {
   })
 
   it("sets the group via a fresh builder", async () => {
-    const tmpl = await new RelayLeaveBuilder().setGroup(group).toTemplate(signer)
+    const tmpl = await RelayLeave.builder().setGroup("wss://relay.example.com/", group).toTemplate(signer)
 
     expect(tmpl.tags).toContainEqual(["h", group])
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RelayLeave.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(RelayLeave.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, ZAP_REQUEST, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {ZapRequest, ZapRequestBuilder} from "../src/kinds/ZapRequest"
+import {ZapRequest} from "../src/kinds/ZapRequest"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -35,7 +35,7 @@ describe("ZapRequest", () => {
       ],
     })
 
-    const req = await ZapRequest.fromEvent(event)
+    const req = await ZapRequest.read(event)
 
     expect(req.amount()).toBe(21000)
     expect(req.lnurl()).toBe("lnurl1xyz")
@@ -58,7 +58,7 @@ describe("ZapRequest", () => {
       ],
     })
 
-    const tmpl = await (await ZapRequest.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await ZapRequest.builder(await ZapRequest.read(event)).toTemplate(signer)
 
     expect(tmpl.content).toBe("thanks!")
     expect(tmpl.tags.filter(t => t[0] === "amount").length).toBe(1)
@@ -70,7 +70,7 @@ describe("ZapRequest", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new ZapRequestBuilder()
+    const tmpl = await ZapRequest.builder()
       .setAmount(1000)
       .setLnurl("lnurl1abc")
       .setRecipient(recipient)
@@ -89,6 +89,6 @@ describe("ZapRequest", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(ZapRequest.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(ZapRequest.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

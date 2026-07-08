@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, NAMED_RELAYS, NOTE, normalizeRelayUrl} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {RelaySet, RelaySetBuilder} from "../src/kinds/RelaySet"
+import {RelaySet} from "../src/kinds/RelaySet"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -24,7 +24,7 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelaySet", () => {
   it("reads metadata and relay urls", async () => {
-    const reader = await RelaySet.fromEvent(
+    const reader = await RelaySet.read(
       makeEvent({
         tags: [
           ["d", "my-set"],
@@ -45,7 +45,7 @@ describe("RelaySet", () => {
   })
 
   it("round-trips metadata, d and relay tags exactly once each", async () => {
-    const reader = await RelaySet.fromEvent(
+    const reader = await RelaySet.read(
       makeEvent({
         tags: [
           ["d", "my-set"],
@@ -58,7 +58,7 @@ describe("RelaySet", () => {
       }),
     )
 
-    const tmpl = await reader.builder().toTemplate(signer)
+    const tmpl = await RelaySet.builder(reader).toTemplate(signer)
 
     expect(tmpl.tags.filter(t => t[0] === "d").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "title").length).toBe(1)
@@ -75,7 +75,7 @@ describe("RelaySet", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new RelaySetBuilder()
+    const tmpl = await RelaySet.builder()
       .setIdentifier("my-set")
       .setTitle("Fresh")
       .addUrl(relayA)
@@ -88,7 +88,7 @@ describe("RelaySet", () => {
   })
 
   it("setRelays replaces relays but preserves metadata", async () => {
-    const reader = await RelaySet.fromEvent(
+    const reader = await RelaySet.read(
       makeEvent({
         tags: [
           ["d", "my-set"],
@@ -98,7 +98,7 @@ describe("RelaySet", () => {
       }),
     )
 
-    const tmpl = await reader.builder().setUrls([relayB]).toTemplate(signer)
+    const tmpl = await RelaySet.builder(reader).setUrls([relayB]).toTemplate(signer)
 
     expect(tmpl.tags).toContainEqual(["relay", normalizeRelayUrl(relayB)])
     expect(tmpl.tags.some(t => t[0] === "relay" && t[1] === normalizeRelayUrl(relayA))).toBe(false)
@@ -107,6 +107,6 @@ describe("RelaySet", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RelaySet.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(RelaySet.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

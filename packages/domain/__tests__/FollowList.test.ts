@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, FOLLOWS, NOTE, getPubkeyTagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {FollowList, FollowListBuilder} from "../src/kinds/FollowList"
+import {FollowList} from "../src/kinds/FollowList"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -34,7 +34,7 @@ describe("FollowList", () => {
       ],
     })
 
-    const list = await FollowList.fromEvent(event)
+    const list = await FollowList.read(event)
 
     expect(list.pubkeys().sort()).toEqual([a, b].sort())
     expect(list.includes(a)).toBe(true)
@@ -50,8 +50,8 @@ describe("FollowList", () => {
       ],
     })
 
-    const list = await FollowList.fromEvent(event)
-    const tmpl = await list.builder().toTemplate(signer)
+    const list = await FollowList.read(event)
+    const tmpl = await FollowList.builder(list).toTemplate(signer)
 
     expect(tmpl.kind).toBe(FOLLOWS)
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(2)
@@ -59,7 +59,7 @@ describe("FollowList", () => {
   })
 
   it("builds from a fresh builder via follow", async () => {
-    const tmpl = await new FollowListBuilder()
+    const tmpl = await FollowList.builder()
       .follow(a)
       .follow(b, "wss://relay.example/", "alice")
       .toTemplate(signer)
@@ -75,14 +75,14 @@ describe("FollowList", () => {
         ["p", b],
       ],
     })
-    const list = await FollowList.fromEvent(event)
+    const list = await FollowList.read(event)
 
-    const tmpl = await list.builder().unfollow(a).toTemplate(signer)
+    const tmpl = await FollowList.builder(list).unfollow(a).toTemplate(signer)
 
     expect(getPubkeyTagValues(tmpl.tags)).toEqual([b])
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(FollowList.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(FollowList.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

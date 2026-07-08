@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, ROOM_META, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {RoomMeta, RoomMetaBuilder} from "../src/kinds/RoomMeta"
+import {RoomMeta} from "../src/kinds/RoomMeta"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -21,7 +21,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomMeta", () => {
   it("reads represented tags", async () => {
-    const room = await RoomMeta.fromEvent(
+    const room = await RoomMeta.read(
       makeEvent({
         tags: [
           ["d", "room1"],
@@ -49,7 +49,7 @@ describe("RoomMeta", () => {
   })
 
   it("round-trips with no duplicated tags", async () => {
-    const room = await RoomMeta.fromEvent(
+    const room = await RoomMeta.read(
       makeEvent({
         tags: [
           ["d", "room1"],
@@ -63,7 +63,7 @@ describe("RoomMeta", () => {
       }),
     )
 
-    const tmpl = await room.builder().toTemplate(signer)
+    const tmpl = await RoomMeta.builder(room).toTemplate(signer)
 
     expect(tmpl.kind).toBe(ROOM_META)
     expect(tmpl.tags.filter(t => t[0] === "d").length).toBe(1)
@@ -80,7 +80,7 @@ describe("RoomMeta", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new RoomMetaBuilder()
+    const tmpl = await RoomMeta.builder()
       .setIdentifier("room2")
       .setName("Fresh")
       .setAbout("desc")
@@ -94,6 +94,6 @@ describe("RoomMeta", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RoomMeta.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(RoomMeta.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

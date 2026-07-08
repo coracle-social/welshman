@@ -1,7 +1,9 @@
 import {nth, uniq, uniqBy, remove} from "@welshman/lib"
-import {RELAYS, getRelayTags, normalizeRelayUrl} from "@welshman/util"
+import {RELAYS, getRelayTags, normalizeRelayUrl, relayHints, indexers} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {EventRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 const getUrls = (tags: string[][], mode?: string) =>
   uniqBy(
@@ -12,7 +14,7 @@ const getUrls = (tags: string[][], mode?: string) =>
   )
 
 // NIP-65 kind-10002 relay list.
-export class RelayList extends EventReader {
+export class RelayListReader extends EventReader {
   readonly kind = RELAYS
 
   urls() {
@@ -26,13 +28,21 @@ export class RelayList extends EventReader {
   writeUrls() {
     return getUrls(this.tags(), "write")
   }
+}
 
-  builder() {
-    return new RelayListBuilder(this)
+// Kind 10002 is indexed, and publishes to every relay the list references — both
+// its current urls and the ones it used to have (via the builder's `before`
+// reader), so each relay learns when it's added to or removed from the list.
+export class RelayListRouter extends EventRouter<RelayListReader> {
+  async routes() {
+    const original = this.getReader()?.urls() ?? []
+    const current = getUrls(await this.getTags())
+
+    return [this.authorRoute(), indexers(), ...relayHints(uniq([...original, ...current]))]
   }
 }
 
-export class RelayListBuilder extends EventBuilder<RelayList> {
+export class RelayListBuilder extends EventBuilder<RelayListReader> {
   readonly kind = RELAYS
 
   addReadUrl(url: string) {
@@ -116,3 +126,9 @@ export class RelayListBuilder extends EventBuilder<RelayList> {
     return this
   }
 }
+
+export const RelayList = new Kind({
+  reader: RelayListReader,
+  builder: RelayListBuilder,
+  router: RelayListRouter,
+})

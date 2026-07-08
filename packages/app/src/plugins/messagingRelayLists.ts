@@ -1,11 +1,10 @@
 import {MESSAGING_RELAYS} from "@welshman/util"
-import {MessagingRelayList, MessagingRelayListBuilder} from "@welshman/domain"
+import {MessagingRelayList, MessagingRelayListReader, MessagingRelayListBuilder} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {User} from "../user.js"
-import {Command} from "../command.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -13,7 +12,7 @@ import type {IApp} from "../app.js"
  * outbox model (the author's write relays), so it depends on the relay-list
  * collection.
  */
-export class MessagingRelayLists extends DerivedPlugin<MessagingRelayList> {
+export class MessagingRelayLists extends DerivedPlugin<MessagingRelayListReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [MESSAGING_RELAYS]}],
@@ -30,14 +29,11 @@ export class MessagingRelayLists extends DerivedPlugin<MessagingRelayList> {
 
   update = async (fn: (builder: MessagingRelayListBuilder) => void) => {
     const user = User.require(this.app)
-    const builder = new MessagingRelayListBuilder(await this.forceLoad(user.pubkey))
+    const builder = MessagingRelayList.builder(await this.forceLoad(user.pubkey))
 
     fn(builder)
 
-    const event = await builder.toTemplate(user.signer)
-    const relays = this.app.use(Router).FromUser().getUrls()
-
-    return new Command(this.app, event, relays)
+    return this.app.use(Router).commandFromBuilder(builder)
   }
 
   addUrl = (url: string) => this.update(builder => builder.addUrl(url))

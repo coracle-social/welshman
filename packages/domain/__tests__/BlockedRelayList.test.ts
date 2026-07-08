@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, BLOCKED_RELAYS, NOTE, getTagValues, normalizeRelayUrl} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {BlockedRelayList, BlockedRelayListBuilder} from "../src/kinds/BlockedRelayList"
+import {BlockedRelayList} from "../src/kinds/BlockedRelayList"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -33,7 +33,7 @@ describe("BlockedRelayList", () => {
       ],
     })
 
-    const list = await BlockedRelayList.fromEvent(event)
+    const list = await BlockedRelayList.read(event)
 
     expect(list.urls().sort()).toEqual([r1, r2].sort())
     expect(list.includes(r1)).toBe(true)
@@ -49,8 +49,8 @@ describe("BlockedRelayList", () => {
       ],
     })
 
-    const list = await BlockedRelayList.fromEvent(event)
-    const tmpl = await list.builder().toTemplate(signer)
+    const list = await BlockedRelayList.read(event)
+    const tmpl = await BlockedRelayList.builder(list).toTemplate(signer)
 
     expect(tmpl.kind).toBe(BLOCKED_RELAYS)
     expect(tmpl.tags.filter(t => t[0] === "relay").length).toBe(2)
@@ -58,7 +58,7 @@ describe("BlockedRelayList", () => {
   })
 
   it("builds from a fresh builder and normalizes urls", async () => {
-    const tmpl = await new BlockedRelayListBuilder()
+    const tmpl = await BlockedRelayList.builder()
       .addUrl("wss://relay.one.example")
       .toTemplate(signer)
 
@@ -67,14 +67,14 @@ describe("BlockedRelayList", () => {
 
   it("setRelays replaces existing relays", async () => {
     const event = makeEvent({tags: [["relay", r1]]})
-    const list = await BlockedRelayList.fromEvent(event)
+    const list = await BlockedRelayList.read(event)
 
-    const tmpl = await list.builder().setUrls([r2, r3]).toTemplate(signer)
+    const tmpl = await BlockedRelayList.builder(list).setUrls([r2, r3]).toTemplate(signer)
 
     expect(getTagValues("relay", tmpl.tags).sort()).toEqual([r2, r3].sort())
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(BlockedRelayList.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(BlockedRelayList.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

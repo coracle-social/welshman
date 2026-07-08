@@ -1,5 +1,5 @@
-import {chunk, first} from "@welshman/lib"
-import {sortEventsDesc} from "@welshman/util"
+import {first} from "@welshman/lib"
+import {sortEventsDesc, outbox, relayHints} from "@welshman/util"
 import type {Filter} from "@welshman/util"
 import {request, publish, diff, pull, push, makeLoader} from "@welshman/net"
 import type {
@@ -12,7 +12,6 @@ import type {
   PushOptions,
 } from "@welshman/net"
 import {Router} from "./router.js"
-import {RelayLists} from "./relayLists.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -41,33 +40,22 @@ export class Network {
 
   push = (options: Omit<PushOptions, "context">) => push({...options, context: this.app.netContext})
 
-  loadUsingOutbox = async (pubkey: string, filter: Filter = {}, relayHints: string[] = []) => {
+  loadUsingOutbox = async (pubkey: string, filter: Filter = {}, hints: string[] = []) => {
     const filters: Filter[] = [{...filter, authors: [pubkey]}]
-    const writeRelays = (await this.app.use(RelayLists).load(pubkey))?.writeUrls() ?? []
-    const allRelays = this.app
-      .use(Router)
-      .FromRelays([...relayHints, ...writeRelays])
-      .getUrls()
+    const scenario = await this.app.use(Router).resolve([...relayHints(hints), outbox(pubkey)])
+    const relays = scenario.getUrls()
+    const events = await this.load({filters, relays})
 
-    for (const relays of chunk(2, allRelays)) {
-      const events = await this.load({filters, relays})
-
-      if (events.length > 0) {
-        return first(sortEventsDesc(events))
-      }
-    }
+    return first(sortEventsDesc(events))
   }
 
   // Like `loadUsingOutbox`, but for collections rather than a single
   // replaceable/singleton value — returns every matching event instead of
   // just the newest one.
-  loadAllUsingOutbox = async (pubkey: string, filter: Filter = {}, relayHints: string[] = []) => {
+  loadAllUsingOutbox = async (pubkey: string, filter: Filter = {}, hints: string[] = []) => {
     const filters: Filter[] = [{...filter, authors: [pubkey]}]
-    const writeRelays = (await this.app.use(RelayLists).load(pubkey))?.writeUrls() ?? []
-    const relays = this.app
-      .use(Router)
-      .FromRelays([...relayHints, ...writeRelays])
-      .getUrls()
+    const scenario = await this.app.use(Router).resolve([...relayHints(hints), outbox(pubkey)])
+    const relays = scenario.getUrls()
 
     return this.load({filters, relays})
   }

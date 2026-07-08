@@ -1,47 +1,38 @@
 import {getTagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {ReactionBuilder} from "@welshman/domain"
+import {Reaction, ReactionBuilder} from "@welshman/domain"
 import {Router} from "./router.js"
 import {Tags} from "./tags.js"
 import {Command} from "../command.js"
 import type {IApp} from "../app.js"
 
-export type ReactOptions = {
-  // Extra tags to include, e.g. NIP-30 custom emoji tags from an emoji picker
-  tags?: string[][]
-  // Explicit target relays; relays[0] doubles as the relay hint on the reaction tags
-  relays?: string[]
-  // Add a NIP-70 protected tag
-  protect?: boolean
-}
-
 /**
  * NIP-25 reactions (kind 7). Reactions are unbounded and keyed by their target
  * event rather than by pubkey or address, so there's no derived collection —
- * read them from the repository directly. `react` builds the reaction event
- * and returns a `Command` for the caller to publish.
+ * read them from the repository directly.
  */
 export class Reactions {
   constructor(readonly app: IApp) {}
 
+  // `fn` lets the caller tweak the builder — e.g. `addTags` for NIP-30 custom
+  // emoji, or `setProtected(true)` for NIP-70.
   react = async (
     event: TrustedEvent,
     content: string,
-    options: ReactOptions = {},
+    fn?: (builder: ReactionBuilder) => void,
   ): Promise<Command> => {
-    const {tags = [], relays, protect = false} = options
-    const builder = new ReactionBuilder()
-      .setContent(content)
-      .addTags(...tags, ...this.app.use(Tags).tagEventForReaction(event, relays?.[0]))
+    const reactionTags = await this.app.use(Tags).tagEventForReaction(event)
+    const builder = Reaction.builder().setContent(content).addTags(...reactionTags)
 
+    // A reaction to a NIP-29 group message goes to the group's relay — where the
+    // target event lives (per the tracker).
     const group = getTagValue("h", event.tags)
+    const [url] = this.app.tracker.getRelays(event.id)
 
-    if (group) builder.setGroup(group)
-    if (protect) builder.setProtected(true)
+    if (group && url) builder.setGroup(url, group)
 
-    const router = this.app.use(Router)
-    const urls = relays ?? router.merge([router.FromUser(), router.Replies(event)]).getUrls()
+    fn?.(builder)
 
-    return new Command(this.app, await builder.toTemplate(), urls)
+    return this.app.use(Router).commandFromBuilder(builder)
   }
 }

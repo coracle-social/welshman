@@ -2,6 +2,8 @@ import {first, spec} from "@welshman/lib"
 import {RELAY_ROLE, getTags, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // An hsl color tuple. Components are raw strings; any may be empty, in which
 // case the client supplies its own default. Usually only `hue` is set.
@@ -14,7 +16,7 @@ export type RelayRoleColor = {
 // Flotilla kind-33534 relay role definition, published by the relay's self
 // key. The `d` tag is the role id; kind-13534 member lists reference roles via
 // extra values on `member` tags (["member", pubkey, ...roleIds]).
-export class RelayRole extends EventReader {
+export class RelayRoleReader extends EventReader {
   readonly kind = RELAY_ROLE
 
   label() {
@@ -36,13 +38,9 @@ export class RelayRole extends EventReader {
 
     return isNaN(order) ? 0 : order
   }
-
-  builder() {
-    return new RelayRoleBuilder(this)
-  }
 }
 
-export class RelayRoleBuilder extends EventBuilder<RelayRole> {
+export class RelayRoleBuilder extends EventBuilder<RelayRoleReader> {
   readonly kind = RELAY_ROLE
 
   setLabel(label: string) {
@@ -61,3 +59,9 @@ export class RelayRoleBuilder extends EventBuilder<RelayRole> {
     return this.dropTags(spec(["order"])).addTags(["order", String(order)])
   }
 }
+
+export const RelayRole = new Kind({
+  reader: RelayRoleReader,
+  builder: RelayRoleBuilder,
+  router: OutboxRouter,
+})

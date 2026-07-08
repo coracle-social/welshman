@@ -4,14 +4,16 @@ import type {TrustedEvent, Zapper} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {ContentRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // NIP-57 kind-9735 zap receipt (relay/LN-generated, read-only).
-export class ZapReceipt extends EventReader {
+export class ZapReceiptReader extends EventReader {
   readonly kind = ZAP_RECEIPT
 
   plain?: TrustedEvent
 
-  protected async parse(signer?: ISigner) {
+  async parse(signer?: ISigner) {
     const description = getTagValue("description", this.event.tags)
 
     this.plain = description ? parseJson(description) || undefined : undefined
@@ -91,13 +93,9 @@ export class ZapReceipt extends EventReader {
 
     return true
   }
-
-  builder() {
-    return new ZapReceiptBuilder(this)
-  }
 }
 
-export class ZapReceiptBuilder extends EventBuilder<ZapReceipt> {
+export class ZapReceiptBuilder extends EventBuilder<ZapReceiptReader> {
   readonly kind = ZAP_RECEIPT
 
   setBolt11(bolt11: string) {
@@ -120,3 +118,9 @@ export class ZapReceiptBuilder extends EventBuilder<ZapReceipt> {
     return this.dropTags(spec(["preimage"])).addTags(["preimage", preimage])
   }
 }
+
+export const ZapReceipt = new Kind({
+  reader: ZapReceiptReader,
+  builder: ZapReceiptBuilder,
+  router: ContentRouter,
+})

@@ -2,9 +2,12 @@ import {spec} from "@welshman/lib"
 import {ZAP_GOAL, getTagValue, getTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {ContentRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
+import type {AnyKind} from "../Kind.js"
 
 // NIP-75 kind-9041 zap goal.
-export class ZapGoal extends EventReader {
+export class ZapGoalReader extends EventReader {
   readonly kind = ZAP_GOAL
 
   title() {
@@ -22,17 +25,13 @@ export class ZapGoal extends EventReader {
   urls() {
     return getTagValues("relays", this.event.tags)
   }
-
-  builder() {
-    return new ZapGoalBuilder(this)
-  }
 }
 
-export class ZapGoalBuilder extends EventBuilder<ZapGoal> {
+export class ZapGoalBuilder extends EventBuilder<ZapGoalReader> {
   readonly kind = ZAP_GOAL
 
-  constructor(reader?: ZapGoal) {
-    super(reader)
+  constructor(def: AnyKind, reader?: ZapGoalReader) {
+    super(def, reader)
 
     // A zap goal always carries an amount tag, defaulting to zero.
     if (!this.extraTags.some(spec(["amount"]))) {
@@ -64,3 +63,9 @@ export class ZapGoalBuilder extends EventBuilder<ZapGoal> {
     }
   }
 }
+
+export const ZapGoal = new Kind({
+  reader: ZapGoalReader,
+  builder: ZapGoalBuilder,
+  router: ContentRouter,
+})
