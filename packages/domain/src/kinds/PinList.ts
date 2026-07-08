@@ -2,9 +2,11 @@ import {uniq} from "@welshman/lib"
 import {PINS, getEventTagValues, getAddressTagValues} from "@welshman/util"
 import {ListReader} from "../ListReader.js"
 import {ListBuilder} from "../ListBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // NIP-51 kind-10001 pin list.
-export class PinList extends ListReader {
+export class PinListReader extends ListReader {
   readonly kind = PINS
 
   ids() {
@@ -14,13 +16,9 @@ export class PinList extends ListReader {
   addresses() {
     return uniq(getAddressTagValues(this.tags()))
   }
-
-  builder() {
-    return new PinListBuilder(this)
-  }
 }
 
-export class PinListBuilder extends ListBuilder<PinList> {
+export class PinListBuilder extends ListBuilder<PinListReader> {
   readonly kind = PINS
 
   pinPublicly(tag: string[]) {
@@ -35,3 +33,9 @@ export class PinListBuilder extends ListBuilder<PinList> {
     return this.dropTags(t => ["e", "a"].includes(t[0]) && t[1] === value)
   }
 }
+
+export const PinList = new Kind({
+  reader: PinListReader,
+  builder: PinListBuilder,
+  router: OutboxRouter,
+})

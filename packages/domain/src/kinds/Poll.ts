@@ -3,6 +3,8 @@ import {POLL, getTagValue, getTagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {ContentRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 export type PollType = "singlechoice" | "multiplechoice"
 
@@ -17,7 +19,7 @@ export type PollResult = {
 }
 
 // NIP-88 kind-1068 poll.
-export class Poll extends EventReader {
+export class PollReader extends EventReader {
   readonly kind = POLL
 
   title() {
@@ -77,13 +79,9 @@ export class Poll extends EventReader {
 
     return {options, voters: latestByPubkey.size}
   }
-
-  builder() {
-    return new PollBuilder(this)
-  }
 }
 
-export class PollBuilder extends EventBuilder<Poll> {
+export class PollBuilder extends EventBuilder<PollReader> {
   readonly kind = POLL
 
   setTitle(title: string) {
@@ -116,3 +114,9 @@ export class PollBuilder extends EventBuilder<Poll> {
     }
   }
 }
+
+export const Poll = new Kind({
+  reader: PollReader,
+  builder: PollBuilder,
+  router: ContentRouter,
+})

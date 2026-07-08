@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, ROOM_ADD_MEMBER, ROOM_REMOVE_MEMBER, getTagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {RoomRemoveMember, RoomRemoveMemberBuilder} from "../src/kinds/RoomRemoveMember"
+import {RoomRemoveMember} from "../src/kinds/RoomRemoveMember"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -23,7 +23,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomRemoveMember", () => {
   it("uses the remove kind and reads pubkeys", async () => {
-    const op = await RoomRemoveMember.fromEvent(
+    const op = await RoomRemoveMember.read(
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -37,7 +37,7 @@ describe("RoomRemoveMember", () => {
   })
 
   it("round-trips through the remove builder", async () => {
-    const op = await RoomRemoveMember.fromEvent(
+    const op = await RoomRemoveMember.read(
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -47,7 +47,9 @@ describe("RoomRemoveMember", () => {
       }),
     )
 
-    const tmpl = await op.builder().toTemplate(signer)
+    const tmpl = await RoomRemoveMember.builder(op)
+      .setGroup("wss://relay.example.com/", "room1")
+      .toTemplate(signer)
 
     expect(tmpl.kind).toBe(ROOM_REMOVE_MEMBER)
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
@@ -56,8 +58,8 @@ describe("RoomRemoveMember", () => {
   })
 
   it("builds from a fresh remove builder", async () => {
-    const tmpl = await new RoomRemoveMemberBuilder()
-      .setGroup("room2")
+    const tmpl = await RoomRemoveMember.builder()
+      .setGroup("wss://relay.example.com/", "room2")
       .addPubkey(a)
       .toTemplate(signer)
 
@@ -68,7 +70,7 @@ describe("RoomRemoveMember", () => {
 
   it("throws on the wrong kind", async () => {
     await expect(
-      RoomRemoveMember.fromEvent(makeEvent({kind: ROOM_ADD_MEMBER, tags: [["p", a]]})),
+      RoomRemoveMember.read(makeEvent({kind: ROOM_ADD_MEMBER, tags: [["p", a]]})),
     ).rejects.toThrow()
   })
 })

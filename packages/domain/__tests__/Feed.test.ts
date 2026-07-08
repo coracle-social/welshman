@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, FEED, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {Feed, FeedBuilder} from "../src/kinds/Feed"
+import {Feed} from "../src/kinds/Feed"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -33,7 +33,7 @@ describe("Feed", () => {
       ],
     })
 
-    const feed = await Feed.fromEvent(event)
+    const feed = await Feed.read(event)
 
     expect(feed.identifier()).toBe("abc")
     expect(feed.title()).toBe("My Feed")
@@ -53,7 +53,7 @@ describe("Feed", () => {
       ],
     })
 
-    const tmpl = await (await Feed.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await Feed.builder(await Feed.read(event)).toTemplate(signer)
 
     for (const key of ["d", "title", "description", "feed"]) {
       expect(tmpl.tags.filter(t => t[0] === key).length).toBe(1)
@@ -67,7 +67,7 @@ describe("Feed", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new FeedBuilder()
+    const tmpl = await Feed.builder()
       .setIdentifier("feed1")
       .setTitle("Fresh")
       .setDescription("desc")
@@ -82,6 +82,6 @@ describe("Feed", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Feed.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(Feed.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

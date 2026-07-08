@@ -2,9 +2,11 @@ import {uniq, spec} from "@welshman/lib"
 import {POLL_RESPONSE, getTagValue, getTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {ContentRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // NIP-88 kind-1018 poll response.
-export class PollResponse extends EventReader {
+export class PollResponseReader extends EventReader {
   readonly kind = POLL_RESPONSE
 
   pollId() {
@@ -14,13 +16,9 @@ export class PollResponse extends EventReader {
   selections() {
     return uniq(getTagValues("response", this.event.tags))
   }
-
-  builder() {
-    return new PollResponseBuilder(this)
-  }
 }
 
-export class PollResponseBuilder extends EventBuilder<PollResponse> {
+export class PollResponseBuilder extends EventBuilder<PollResponseReader> {
   readonly kind = POLL_RESPONSE
 
   setPollId(pollId: string) {
@@ -39,3 +37,9 @@ export class PollResponseBuilder extends EventBuilder<PollResponse> {
     }
   }
 }
+
+export const PollResponse = new Kind({
+  reader: PollResponseReader,
+  builder: PollResponseBuilder,
+  router: ContentRouter,
+})

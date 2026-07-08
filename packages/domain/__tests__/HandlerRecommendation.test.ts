@@ -4,7 +4,6 @@ import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {
   HandlerRecommendation,
-  HandlerRecommendationBuilder,
 } from "../src/kinds/HandlerRecommendation"
 
 const signer = new Nip01Signer(makeSecret())
@@ -36,7 +35,7 @@ describe("HandlerRecommendation", () => {
       ],
     })
 
-    const rec = await HandlerRecommendation.fromEvent(event)
+    const rec = await HandlerRecommendation.read(event)
 
     expect(rec.addresses()).toEqual([otherAddress, webAddress])
     expect(rec.addressTags().length).toBe(2)
@@ -45,7 +44,7 @@ describe("HandlerRecommendation", () => {
   })
 
   it("falls back to the first recommendation without a web marker", async () => {
-    const rec = await HandlerRecommendation.fromEvent(
+    const rec = await HandlerRecommendation.read(
       makeEvent({
         tags: [
           ["d", "1"],
@@ -67,7 +66,7 @@ describe("HandlerRecommendation", () => {
       ],
     })
 
-    const tmpl = await (await HandlerRecommendation.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await HandlerRecommendation.builder(await HandlerRecommendation.read(event)).toTemplate(signer)
 
     expect(tmpl.tags.filter(t => t[0] === "d").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "a").length).toBe(2)
@@ -77,7 +76,7 @@ describe("HandlerRecommendation", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const builder = new HandlerRecommendationBuilder()
+    const builder = HandlerRecommendation.builder()
     // The d identifier holds the recommended kind.
     builder.setIdentifier("1")
 
@@ -96,11 +95,11 @@ describe("HandlerRecommendation", () => {
 
   it("requires a d identifier", async () => {
     await expect(
-      new HandlerRecommendationBuilder().addRecommendation(webAddress).toTemplate(signer),
+      HandlerRecommendation.builder().addRecommendation(webAddress).toTemplate(signer),
     ).rejects.toThrow()
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(HandlerRecommendation.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(HandlerRecommendation.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

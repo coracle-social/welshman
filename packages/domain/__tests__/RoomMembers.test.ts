@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, ROOM_MEMBERS, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {RoomMembers, RoomMembersBuilder} from "../src/kinds/RoomMembers"
+import {RoomMembers} from "../src/kinds/RoomMembers"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -24,7 +24,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomMembers", () => {
   it("reads represented tags", async () => {
-    const room = await RoomMembers.fromEvent(
+    const room = await RoomMembers.read(
       makeEvent({
         tags: [
           ["d", "room1"],
@@ -42,7 +42,7 @@ describe("RoomMembers", () => {
   })
 
   it("round-trips with no duplicated tags", async () => {
-    const room = await RoomMembers.fromEvent(
+    const room = await RoomMembers.read(
       makeEvent({
         tags: [
           ["d", "room1"],
@@ -53,7 +53,7 @@ describe("RoomMembers", () => {
       }),
     )
 
-    const tmpl = await room.builder().toTemplate(signer)
+    const tmpl = await RoomMembers.builder(room).toTemplate(signer)
 
     expect(tmpl.kind).toBe(ROOM_MEMBERS)
     expect(tmpl.tags.filter(t => t[0] === "d").length).toBe(1)
@@ -66,7 +66,7 @@ describe("RoomMembers", () => {
   })
 
   it("builds from a fresh builder and edits membership", async () => {
-    const builder = new RoomMembersBuilder()
+    const builder = RoomMembers.builder()
     builder.setIdentifier("room2")
 
     const tmpl = await builder
@@ -83,6 +83,6 @@ describe("RoomMembers", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RoomMembers.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(RoomMembers.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

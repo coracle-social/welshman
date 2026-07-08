@@ -2,9 +2,12 @@ import {spec, first} from "@welshman/lib"
 import {REPORT, getTag, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {ContentRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
+import type {AnyKind} from "../Kind.js"
 
 // NIP-56 kind-1984 report.
-export class Report extends EventReader {
+export class ReportReader extends EventReader {
   readonly kind = REPORT
 
   pubkey() {
@@ -18,17 +21,13 @@ export class Report extends EventReader {
   reason() {
     return getTag("e", this.event.tags)?.[2] ?? getTag("p", this.event.tags)?.[2]
   }
-
-  builder() {
-    return new ReportBuilder(this)
-  }
 }
 
-export class ReportBuilder extends EventBuilder<Report> {
+export class ReportBuilder extends EventBuilder<ReportReader> {
   readonly kind = REPORT
 
-  constructor(reader?: Report) {
-    super(reader)
+  constructor(def: AnyKind, reader?: ReportReader) {
+    super(def, reader)
 
     // A report's reason lives on both the p and e tags; normalize so a reason
     // present on either is reflected on both.
@@ -75,3 +74,9 @@ export class ReportBuilder extends EventBuilder<Report> {
     return this
   }
 }
+
+export const Report = new Kind({
+  reader: ReportReader,
+  builder: ReportBuilder,
+  router: ContentRouter,
+})

@@ -6,15 +6,27 @@ import {
   getTagValues,
   isRelayUrl,
   normalizeRelayUrl,
+  relayHints,
 } from "@welshman/util"
 import {ListReader} from "../ListReader.js"
 import {ListBuilder} from "../ListBuilder.js"
+import {EventRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 const matchesUrl = (normalized: string, value = "") =>
   isRelayUrl(value) && normalizeRelayUrl(value) === normalized
 
+// Every relay a room list references: its `r` relays plus the relay hints on its
+// group tags, normalized and deduped.
+const getUrls = (tags: string[][]) =>
+  uniq(
+    [...getTagValues("r", tags), ...getGroupTags(tags).map(nth(2))]
+      .filter(isRelayUrl)
+      .map(normalizeRelayUrl),
+  )
+
 // NIP-51 kind-10009 simple-groups membership list.
-export class RoomList extends ListReader {
+export class RoomListReader extends ListReader {
   readonly kind = ROOMS
 
   groups() {
@@ -30,9 +42,7 @@ export class RoomList extends ListReader {
   }
 
   urls() {
-    const hints = getGroupTags(this.tags()).map(nth(2))
-
-    return uniq([...this.relays(), ...hints].filter(isRelayUrl).map(normalizeRelayUrl))
+    return getUrls(this.tags())
   }
 
   groupsForUrl(url: string) {
@@ -42,17 +52,25 @@ export class RoomList extends ListReader {
       .filter(t => matchesUrl(normalized, t[2]))
       .map(nth(1))
   }
+}
 
-  builder() {
-    return new RoomListBuilder(this)
+// Publishes to every relay this list references — both its current urls and the
+// ones it used to have (via the builder's `before` reader) — so each relay learns
+// of the user's membership changes.
+export class RoomListRouter extends EventRouter<RoomListReader> {
+  async routes() {
+    const original = this.getReader()?.urls() ?? []
+    const current = getUrls(await this.getTags())
+
+    return [this.authorRoute(), ...relayHints(uniq([...original, ...current]))]
   }
 }
 
-export class RoomListBuilder extends ListBuilder<RoomList> {
+export class RoomListBuilder extends ListBuilder<RoomListReader> {
   readonly kind = ROOMS
 
   addGroup(groupId: string, url: string) {
-    return this.addPublic(["group", groupId, url])
+    return this.addRelay(url).addPublic(["group", groupId, url])
   }
 
   removeGroup(groupId: string, url?: string) {
@@ -95,3 +113,9 @@ export class RoomListBuilder extends ListBuilder<RoomList> {
     return this
   }
 }
+
+export const RoomList = new Kind({
+  reader: RoomListReader,
+  builder: RoomListBuilder,
+  router: RoomListRouter,
+})

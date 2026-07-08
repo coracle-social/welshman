@@ -1,11 +1,10 @@
 import {BLOCKED_RELAYS} from "@welshman/util"
-import {BlockedRelayList, BlockedRelayListBuilder} from "@welshman/domain"
+import {BlockedRelayList, BlockedRelayListReader, BlockedRelayListBuilder} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {User} from "../user.js"
-import {Command} from "../command.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -13,7 +12,7 @@ import type {IApp} from "../app.js"
  * so it depends on the relay-list collection. Feeds `RelayStats.getQuality` so
  * blocked relays are never selected.
  */
-export class BlockedRelayLists extends DerivedPlugin<BlockedRelayList> {
+export class BlockedRelayLists extends DerivedPlugin<BlockedRelayListReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [BLOCKED_RELAYS]}],
@@ -30,14 +29,11 @@ export class BlockedRelayLists extends DerivedPlugin<BlockedRelayList> {
 
   update = async (fn: (builder: BlockedRelayListBuilder) => void) => {
     const user = User.require(this.app)
-    const builder = new BlockedRelayListBuilder(await this.forceLoad(user.pubkey))
+    const builder = BlockedRelayList.builder(await this.forceLoad(user.pubkey))
 
     fn(builder)
 
-    const event = await builder.toTemplate(user.signer)
-    const relays = this.app.use(Router).FromUser().getUrls()
-
-    return new Command(this.app, event, relays)
+    return this.app.use(Router).commandFromBuilder(builder)
   }
 
   addUrl = (url: string) => this.update(builder => builder.addUrl(url))

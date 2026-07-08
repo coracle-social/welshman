@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, COMMENT, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {Comment, CommentBuilder} from "../src/kinds/Comment"
+import {Comment} from "../src/kinds/Comment"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -38,7 +38,7 @@ describe("Comment", () => {
       ],
     })
 
-    const comment = await Comment.fromEvent(event)
+    const comment = await Comment.read(event)
 
     expect(comment.content()).toBe("nice thread")
     expect(comment.root()).toEqual({id: rootId, address: undefined, kind: "11", pubkey: rootPubkey})
@@ -64,7 +64,7 @@ describe("Comment", () => {
       ],
     })
 
-    const tmpl = await (await Comment.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await Comment.builder(await Comment.read(event)).toTemplate(signer)
 
     // Each represented reference key emits exactly once.
     for (const key of ["E", "K", "P", "e", "k", "p"]) {
@@ -81,7 +81,7 @@ describe("Comment", () => {
     const root = makeEvent({id: rootId, pubkey: rootPubkey, kind: 11})
     const parent = makeEvent({id: parentId, pubkey: parentPubkey, kind: 1111})
 
-    const tmpl = await new CommentBuilder()
+    const tmpl = await Comment.builder()
       .setContent("reply")
       .setRootFromEvent(root)
       .setParentFromEvent(parent)
@@ -98,6 +98,6 @@ describe("Comment", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Comment.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(Comment.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

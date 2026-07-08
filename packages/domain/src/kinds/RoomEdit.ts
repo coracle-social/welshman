@@ -2,11 +2,13 @@ import {spec} from "@welshman/lib"
 import {ROOM_EDIT_META, getTag, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {ContentRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // NIP-29 kind-9002 edit-room-metadata action op. Carries the same metadata as the
 // addressable RoomMeta (kind 39000), but as a regular event scoped to the target
 // room via the "h" group tag rather than a "d" identifier.
-export class RoomEdit extends EventReader {
+export class RoomEditReader extends EventReader {
   readonly kind = ROOM_EDIT_META
 
   name() {
@@ -46,13 +48,9 @@ export class RoomEdit extends EventReader {
   livekit() {
     return this.event.tags.some(t => t[0] === "livekit")
   }
-
-  builder() {
-    return new RoomEditBuilder(this)
-  }
 }
 
-export class RoomEditBuilder extends EventBuilder<RoomEdit> {
+export class RoomEditBuilder extends EventBuilder<RoomEditReader> {
   readonly kind = ROOM_EDIT_META
 
   setName(name: string) {
@@ -105,3 +103,9 @@ export class RoomEditBuilder extends EventBuilder<RoomEdit> {
     }
   }
 }
+
+export const RoomEdit = new Kind({
+  reader: RoomEditReader,
+  builder: RoomEditBuilder,
+  router: ContentRouter,
+})

@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, ROOM_LEAVE, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {RoomLeave, RoomLeaveBuilder} from "../src/kinds/RoomLeave"
+import {RoomLeave} from "../src/kinds/RoomLeave"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -22,13 +22,13 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomLeave", () => {
   it("reads the group via group()", async () => {
-    const leave = await RoomLeave.fromEvent(makeEvent({tags: [["h", group]]}))
+    const leave = await RoomLeave.read(makeEvent({tags: [["h", group]]}))
 
     expect(leave.group()).toBe(group)
   })
 
   it("round-trips the group behavior tag without duplication", async () => {
-    const leave = await RoomLeave.fromEvent(
+    const leave = await RoomLeave.read(
       makeEvent({
         tags: [
           ["h", group],
@@ -37,7 +37,9 @@ describe("RoomLeave", () => {
       }),
     )
 
-    const tmpl = await leave.builder().toTemplate(signer)
+    const tmpl = await RoomLeave.builder(leave)
+      .setGroup("wss://relay.example.com/", group)
+      .toTemplate(signer)
 
     expect(tmpl.kind).toBe(ROOM_LEAVE)
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
@@ -46,16 +48,16 @@ describe("RoomLeave", () => {
   })
 
   it("sets the group via a fresh builder", async () => {
-    const tmpl = await new RoomLeaveBuilder().setGroup(group).toTemplate(signer)
+    const tmpl = await RoomLeave.builder().setGroup("wss://relay.example.com/", group).toTemplate(signer)
 
     expect(tmpl.tags).toContainEqual(["h", group])
   })
 
   it("requires an h identifier", async () => {
-    await expect(new RoomLeaveBuilder().toTemplate(signer)).rejects.toThrow()
+    await expect(RoomLeave.builder().toTemplate(signer)).rejects.toThrow()
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RoomLeave.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(RoomLeave.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

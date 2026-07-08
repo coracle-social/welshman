@@ -4,10 +4,13 @@ import type {ISigner} from "@welshman/signer"
 import {APP_DATA} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
+import type {AnyKind} from "../Kind.js"
 
 // NIP-78 kind-30078 arbitrary app data, keyed by `d` tag. Content is JSON,
 // optionally NIP-44 encrypted to the author.
-export class AppData extends EventReader {
+export class AppDataReader extends EventReader {
   readonly kind = APP_DATA
 
   decrypted = false
@@ -15,7 +18,7 @@ export class AppData extends EventReader {
 
   protected json: unknown = undefined
 
-  protected async parse(signer?: ISigner) {
+  async parse(signer?: ISigner) {
     if (!this.event.content) {
       this.decrypted = true
 
@@ -46,20 +49,16 @@ export class AppData extends EventReader {
   values<T>() {
     return this.json as T | undefined
   }
-
-  builder() {
-    return new AppDataBuilder(this)
-  }
 }
 
-export class AppDataBuilder extends EventBuilder<AppData> {
+export class AppDataBuilder extends EventBuilder<AppDataReader> {
   readonly kind = APP_DATA
 
   values: unknown = undefined
   encrypted = false
 
-  constructor(readonly reader?: AppData) {
-    super(reader)
+  constructor(def: AnyKind, reader?: AppDataReader) {
+    super(def, reader)
 
     this.values = reader?.values()
     this.encrypted = reader?.encrypted ?? false
@@ -104,3 +103,9 @@ export class AppDataBuilder extends EventBuilder<AppData> {
     return signer.nip44.encrypt(pubkey, json)
   }
 }
+
+export const AppData = new Kind({
+  reader: AppDataReader,
+  builder: AppDataBuilder,
+  router: OutboxRouter,
+})

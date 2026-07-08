@@ -4,9 +4,9 @@ import {debounce} from "throttle-debounce"
 import {derived} from "svelte/store"
 import type {Readable} from "svelte/store"
 import {dec, inc, sortBy} from "@welshman/lib"
-import {PROFILE} from "@welshman/util"
+import {PROFILE, searchRelays} from "@welshman/util"
 import type {RelayProfile} from "@welshman/util"
-import type {Profile} from "@welshman/domain"
+import type {ProfileReader} from "@welshman/domain"
 import {throttled} from "@welshman/store"
 import type {IApp} from "../app.js"
 import {Network} from "./network.js"
@@ -64,7 +64,7 @@ export const createSearch = <V, T>(options: T[], opts: SearchOptions<V, T>): Sea
  * fires a debounced NIP-50 network search through the app's loader.
  */
 export class Searches {
-  profileSearch: Readable<Search<string, Profile>>
+  profileSearch: Readable<Search<string, ProfileReader>>
   topicSearch: Readable<Search<string, Topic>>
   relaySearch: Readable<Search<string, RelayProfile>>
 
@@ -74,7 +74,7 @@ export class Searches {
       ([$profiles, $handlesByNip05]) =>
         createSearch($profiles, {
           onSearch: this.searchProfiles,
-          getValue: (profile: Profile) => profile.author(),
+          getValue: (profile: ProfileReader) => profile.author(),
           sortFn: ({score = 1, item}) => {
             const wotScore = this.app.use(Wot).graph.get().get(item.author()) || 0
 
@@ -86,7 +86,7 @@ export class Searches {
             shouldSort: false,
             // Read fields off the domain reader's parsed `values`; only expose a
             // nip05 that's verified against the loaded handle (anti-spoofing).
-            getFn: (profile: Profile, path) => {
+            getFn: (profile: ProfileReader, path) => {
               const key = Array.isArray(path) ? path[0] : path
 
               if (key === "nip05") {
@@ -118,11 +118,13 @@ export class Searches {
     )
   }
 
-  searchProfiles = debounce(500, (search: string) => {
+  searchProfiles = debounce(500, async (search: string) => {
     if (search.length > 2) {
+      const scenario = await this.app.use(Router).resolve([searchRelays()])
+
       this.app.use(Network).load({
         filters: [{kinds: [PROFILE], search}],
-        relays: this.app.use(Router).Search().getUrls(),
+        relays: scenario.getUrls(),
       })
     }
   })

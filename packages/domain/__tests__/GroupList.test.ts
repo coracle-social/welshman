@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, COMMUNITIES, NOTE, getAddressTagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {GroupList, GroupListBuilder} from "../src/kinds/GroupList"
+import {GroupList} from "../src/kinds/GroupList"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -32,7 +32,7 @@ describe("GroupList", () => {
       ],
     })
 
-    const list = await GroupList.fromEvent(event)
+    const list = await GroupList.read(event)
 
     expect(list.addresses().sort()).toEqual([g1, g2].sort())
   })
@@ -46,8 +46,8 @@ describe("GroupList", () => {
       ],
     })
 
-    const list = await GroupList.fromEvent(event)
-    const tmpl = await list.builder().toTemplate(signer)
+    const list = await GroupList.read(event)
+    const tmpl = await GroupList.builder(list).toTemplate(signer)
 
     expect(tmpl.kind).toBe(COMMUNITIES)
     expect(tmpl.tags.filter(t => t[0] === "a").length).toBe(2)
@@ -55,7 +55,7 @@ describe("GroupList", () => {
   })
 
   it("builds from a fresh builder with relay hint", async () => {
-    const tmpl = await new GroupListBuilder()
+    const tmpl = await GroupList.builder()
       .addGroup(g1, "wss://relay.example/")
       .addGroup(g2)
       .toTemplate(signer)
@@ -72,14 +72,14 @@ describe("GroupList", () => {
         ["a", g2],
       ],
     })
-    const list = await GroupList.fromEvent(event)
+    const list = await GroupList.read(event)
 
-    const tmpl = await list.builder().removeGroup(g1).toTemplate(signer)
+    const tmpl = await GroupList.builder(list).removeGroup(g1).toTemplate(signer)
 
     expect(getAddressTagValues(tmpl.tags)).toEqual([g2])
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(GroupList.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(GroupList.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

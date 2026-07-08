@@ -22,13 +22,11 @@ Peer dependencies: `@welshman/lib`, `@welshman/net`, `@welshman/util`.
 
 ### Router (class)
 
-The main entry point. Use as a singleton via `Router.configure()` + `Router.get()`, or instantiate directly with options.
+The main entry point. Instantiate directly with options: `new Router(options)`. There is no singleton, no global context, and no `Router.configure()` / `Router.get()` — construct a `Router` once and pass it around (or let `@welshman/app` provide a preconfigured instance via `app.use(Router)`; see Integration Notes).
 
-| Method | Description |
-|--------|-------------|
-| `Router.configure(options)` | Merge options into the global `routerContext` |
-| `Router.get()` | Return a `Router` instance using the global context |
-| `new Router(options)` | Create a router that overrides specific options from the global context |
+| Constructor | Description |
+|-------------|-------------|
+| `new Router(options)` | Create a router from a `RouterOptions` object (all fields optional) |
 
 **RouterOptions** (all optional):
 
@@ -42,7 +40,7 @@ The main entry point. Use as a singleton via `Router.configure()` + `Router.get(
 | `getRelayQuality` | `(url) => number` | Quality score 0–1 for a relay (affects selection ranking) |
 | `getLimit` | `() => number` | Max relays returned by `getUrls()` (default: 3) |
 
-**Default behavior:** if `getPubkeyRelays` is not configured, the router falls back to querying the local `Repository` (from `@welshman/net`) for kind-10002 events.
+**Default behavior:** none of these options have built-in defaults. If `getPubkeyRelays` is not configured, `getRelaysForPubkey` simply returns `[]`, so pubkey-based scenarios produce no relays unless a fallback policy pulls in `getDefaultRelays`. The Router never reads relay lists from a `Repository` itself — supplying relay-list data is the caller's job (see Integration Notes).
 
 ### Router Scenario Methods
 
@@ -63,7 +61,7 @@ All return a `RouterScenario`. Naming convention: `For*` = relays to write to (s
 | `Event(event)` | Event author's write relays (where the event lives) |
 | `Replies(event)` | Event author's read relays (where replies should be sent) |
 | `PublishEvent(event)` | Author's outbox + mentioned pubkeys' read relays; hard-limits to 30 |
-| `Quote(event, id, hints)` | Best relays to find a quoted event; checks tag relay hints and author pubkey from tag |
+| `Quote(event, value, relays?)` | Best relays to find a quoted event: the passed `relays`, plus the author's read *and* write relays, plus any relay hint (`t[2]`) and author pubkey (`t[3]`) found on the tag whose value (`t[1]`) equals `value` |
 | `EventParents(event)` | Relays for fetching parent events (from ancestor tags + mentioned pubkeys) |
 | `EventRoots(event)` | Relays for fetching root events |
 | `Search()` | Search relays |
@@ -102,7 +100,7 @@ Applied after relay scoring when not enough relays are found. Draw from `getDefa
 
 | Export | Description |
 |--------|-------------|
-| `getFilterSelections(filters, rules?)` | Returns `RelaysAndFilters[]` — optimized relay+filter combos for a subscription |
+| `getFilterSelections(filters, router, rules?)` | Returns `RelaysAndFilters[]` — optimized relay+filter combos for a subscription. Each rule is `(filter, router) => FilterScenario[]` |
 | `RelaysAndFilters` | `{ relays: string[], filters: Filter[] }` |
 | `defaultFilterSelectionRules` | The default ordered rule array |
 | `getFilterSelectionsForSearch` | Rule: search filters → search relays (weight 10) |
@@ -119,18 +117,17 @@ Applied after relay scoring when not enough relays are found. Draw from `getDefa
 | `makeSelection(relays, weight?)` | Create a `Selection` object; validates and normalizes URLs |
 | `Selection` | `{ weight: number, relays: string[] }` |
 | `FallbackPolicy` | `(count: number, limit: number) => number` |
-| `routerContext` | The global mutable options object updated by `Router.configure()` |
 
 ## Common Patterns
 
-### 1. Configure once at app startup
+### 1. Create a router
 
-`Router.get()` is the primary entry point — it returns a `Router` instance using the global `routerContext`. Call `Router.configure()` once at startup to set options, or assign directly to `routerContext` for individual overrides.
+Construct a `Router` with a `RouterOptions` object and hold onto the instance. All options are optional; supply the ones your app can answer.
 
 ```typescript
 import {Router} from '@welshman/router'
 
-Router.configure({
+const router = new Router({
   getUserPubkey: () => myStore.userPubkey,
   getPubkeyRelays: (pubkey, mode) => myStore.getRelaysForPubkey(pubkey, mode),
   getDefaultRelays: () => ['wss://relay.example.com/', 'wss://relay2.example.com/'],
@@ -141,39 +138,30 @@ Router.configure({
 })
 ```
 
-When using `@welshman/app`, it pre-configures `Router` automatically. The two most common customization points when using `@welshman/app` are `getDefaultRelays` and `getIndexerRelays`, which you can assign directly on `routerContext`:
+When using `@welshman/app`, you don't construct one yourself — the app exposes a preconfigured `Router` (wired to its relay-list and relay-stats stores) that you reach with `app.use(Router)`:
 
 ```typescript
-import {routerContext} from '@welshman/router'
+import {Router} from '@welshman/app'
 
-routerContext.getDefaultRelays = () => [
-  'wss://relay.example.com/',
-  'wss://relay2.example.com/',
-]
-
-routerContext.getIndexerRelays = () => [
-  'wss://indexer.example.com/',
-  'wss://indexer2.example.com/',
-]
+const router = app.use(Router)
 ```
+
+The examples below assume a `router` instance obtained either way.
 
 ### 2. Fetch events from specific pubkeys
 
 ```typescript
-import {Router} from '@welshman/router'
-
-const relays = Router.get().FromPubkeys(['pubkey1', 'pubkey2']).getUrls()
+const relays = router.FromPubkeys(['pubkey1', 'pubkey2']).getUrls()
 // relays is string[] — pass to your subscription
 ```
 
 ### 3. Publish an event
 
 ```typescript
-import {Router} from '@welshman/router'
 import type {TrustedEvent} from '@welshman/util'
 
 function getPublishRelays(event: TrustedEvent): string[] {
-  return Router.get().PublishEvent(event).getUrls()
+  return router.PublishEvent(event).getUrls()
   // Automatically includes author's outbox + mentioned pubkeys' read relays
   // Hard-limited to 30 relays for deliverability
 }
@@ -182,11 +170,12 @@ function getPublishRelays(event: TrustedEvent): string[] {
 ### 4. Find a quoted/referenced event with fallbacks
 
 ```typescript
-import {Router, addMaximalFallbacks} from '@welshman/router'
+import {addMaximalFallbacks} from '@welshman/router'
 import type {TrustedEvent} from '@welshman/util'
 
+// `quotedId` is matched against each tag's value (t[1]); `hints` are extra relays
 function getQuoteRelays(event: TrustedEvent, quotedId: string, hints: string[]) {
-  return Router.get()
+  return router
     .Quote(event, quotedId, hints)
     .policy(addMaximalFallbacks)
     .limit(8)
@@ -197,9 +186,7 @@ function getQuoteRelays(event: TrustedEvent, quotedId: string, hints: string[]) 
 ### 5. Common scenario cheat-sheet
 
 ```typescript
-import {Router} from '@welshman/router'
-
-const router = Router.get()
+// `router` is a Router instance (see pattern 1)
 
 // Read relays for the current user (where others deliver events to you)
 router.ForUser().getUrls()
@@ -237,9 +224,9 @@ const filters: Filter[] = [
   {kinds: [0], search: 'bitcoin'},
 ]
 
-for (const {relays, filters} of getFilterSelections(filters)) {
+for (const selection of getFilterSelections(filters, router)) {
   // Open one subscription per relay group
-  myPool.subscribe(relays, filters)
+  myPool.subscribe(selection.relays, selection.filters)
 }
 ```
 
@@ -250,33 +237,33 @@ import {
   Router,
   getFilterSelections,
   defaultFilterSelectionRules,
-  type RelaysAndFilters,
 } from '@welshman/router'
 import type {Filter} from '@welshman/util'
 
-// Add a rule that sends kind-1 to a dedicated relay
-const myRule = (filter: Filter) => {
+// Add a rule that sends kind-1 to a dedicated relay.
+// Rules receive the router as their second argument.
+const myRule = (filter: Filter, router: Router) => {
   if (!filter.kinds?.includes(1)) return []
-  return [{filter, scenario: Router.get().FromRelays(['wss://notes.example.com/'])}]
+  return [{filter, scenario: router.FromRelays(['wss://notes.example.com/'])}]
 }
 
-const selections = getFilterSelections(filters, [myRule, ...defaultFilterSelectionRules])
+const selections = getFilterSelections(filters, router, [myRule, ...defaultFilterSelectionRules])
 ```
 
 ## Integration Notes
 
 - **`@welshman/util`** — Router imports `TrustedEvent`, `Filter`, `RelayMode`, `PROFILE`, `RELAYS`, `MESSAGING_RELAYS`, `FOLLOWS`, `WRAP`, `normalizeRelayUrl`, and tag-parsing helpers. All relay URLs are normalized with `normalizeRelayUrl` and validated with `isRelayUrl` before use.
-- **`@welshman/net`** — The default `getPubkeyRelays` implementation queries `Repository.get()` (the in-memory event store from `@welshman/net`) for kind-10002 events. Override it if you maintain relay lists elsewhere.
-- **`@welshman/app`** — The app layer pre-configures `Router` using its own stores (relay lists, connection quality). If you use `@welshman/app`, call `Router.configure` only to override specific options; the app layer handles the rest.
+- **`@welshman/net`** — The Router itself never reads relay lists from a `Repository`; `getRelaysForPubkey` only calls the `getPubkeyRelays` you provide (returning `[]` when it isn't set). `@welshman/net` is a peer dependency because the router's output (relay URL lists) is what you feed into net's request/publish primitives — sourcing relay-list data is the caller's job.
+- **`@welshman/app`** — The app layer provides a `Router` subclass (`packages/app/src/plugins/router.ts`) wired to its own stores: `getPubkeyRelays` reads from the `RelayLists` collection, `getRelayQuality` from `RelayStats`, and the user pubkey / default / indexer / search relay getters come from `app.config`. Reach it with `app.use(Router)`. There is no global context or `Router.configure()` — customize by configuring the app (e.g. `app.config.getDefaultRelays` / `getIndexerRelays`).
 - **`@welshman/lib`** — Used internally for utilities (`sortBy`, `shuffle`, `uniq`, etc.); no direct integration needed.
 
 ## Gotchas & Tips
 
-- **Relay list events must be in the Repository for pubkey routing to work.** The default `getPubkeyRelays` implementation reads kind-10002 (NIP-65) relay list events from the global in-memory `Repository`. If those events haven't been loaded — either from a local cache at startup or fetched from the network — the Router has no relay list data for that pubkey and silently falls back to default/indexer relays. When using `@welshman/app`, relay lists are fetched automatically as part of profile loading (`loadRelayList`, `makeOutboxLoader`). Without `@welshman/app`, you must fetch and load them yourself before calling pubkey-based scenarios.
+- **Pubkey routing only works if `getPubkeyRelays` can answer.** The Router does not read relay lists from any `Repository`; `getRelaysForPubkey` returns exactly `getPubkeyRelays?.(pubkey, mode) || []`. If your `getPubkeyRelays` has no data for a pubkey (e.g. its NIP-65 relay list hasn't been loaded yet), pubkey-based scenarios return `[]` unless a fallback policy pulls in `getDefaultRelays`. When using `@welshman/app`, `getPubkeyRelays` is backed by the `RelayLists` collection — but you still need those relay lists loaded (from cache at startup or fetched from the network) before pubkey-based scenarios have anything to route to.
 
 - **`For*` vs `From*`**: `ForPubkey` returns a pubkey's **read** relays (where you send things for that pubkey to receive); `FromPubkey` returns their **write** relays (their outbox, where their events live). Use `From*` to fetch events, `For*` to deliver events.
 
-- **Default limit is 3.** Set `getLimit` in `Router.configure` or call `.limit(n)` on a scenario if you need more. `PublishEvent` unconditionally overrides to 30.
+- **Default limit is 3.** Set `getLimit` in the `RouterOptions` you pass to `new Router`, or call `.limit(n)` on a scenario if you need more. `PublishEvent` unconditionally overrides to 30.
 
 - **Scoring includes randomness.** `getUrls()` introduces `Math.random()` in the scoring formula so that lower-quality or less-popular relays get occasional selection. Results are not deterministic across calls.
 
@@ -286,6 +273,6 @@ const selections = getFilterSelections(filters, [myRule, ...defaultFilterSelecti
 
 - **`getFilterSelections` uses `addMinimalFallbacks`.** Each resulting relay group will have at least one relay *if* `getDefaultRelays` is configured and returns relays. If `getDefaultRelays` is not configured or returns an empty array, the group may still be empty.
 
-- **`routerContext` is a shared mutable object.** `Router.configure()` mutates it in place with `Object.assign`. `new Router(options)` merges the supplied options *over* the global `routerContext` (via `mergeLeft`), so any options not provided in `options` still fall back to whatever is in `routerContext`. For true isolation (e.g. in tests), pass a complete options object or reset `routerContext` first.
+- **Each `Router` is self-contained.** A router uses exactly the `RouterOptions` passed to its constructor — there is no global context and no option merging. For isolation (e.g. in tests), just construct a fresh `new Router({...})` with the options you want.
 
-- **`Quote` reads relay hints from event tags.** It looks for a tag whose second element (`t[1]`) matches the quoted event ID, then extracts a relay hint from `t[2]` and an author pubkey from `t[3]`. Standard NIP-21/NIP-10 tag format.
+- **`Quote` reads relay hints from event tags.** Called as `Quote(event, value, relays?)`, it looks for a tag whose value (`t[1]`) equals the `value` argument (typically the quoted event ID), then extracts a relay hint from `t[2]` and an author pubkey from `t[3]`. It always also includes the author's read and write relays plus any `relays` you pass. Standard NIP-21/NIP-10 tag format.

@@ -1,5 +1,5 @@
 import {RELAY_MEMBERS} from "@welshman/util"
-import {RelayMembers} from "@welshman/domain"
+import {RelayMembers, RelayMembersReader} from "@welshman/domain"
 import {RelaySignedDerivedPlugin} from "./relaySigned.js"
 import {Network} from "./network.js"
 import type {IApp} from "../app.js"
@@ -9,7 +9,7 @@ import type {IApp} from "../app.js"
  * addressable) published by a relay's self key — exactly one per relay — so the
  * relay url alone is the key, and it's validated as relay-signed.
  */
-export class RelayMemberLists extends RelaySignedDerivedPlugin<RelayMembers> {
+export class RelayMemberLists extends RelaySignedDerivedPlugin<RelayMembersReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [RELAY_MEMBERS]}],

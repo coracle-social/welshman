@@ -1,14 +1,13 @@
 import {
-  RoomCreateBuilder,
-  RoomDeleteBuilder,
-  RoomEditBuilder,
-  RoomJoinBuilder,
-  RoomLeaveBuilder,
-  RoomAddMemberBuilder,
-  RoomRemoveMemberBuilder,
+  RoomCreate,
+  RoomDelete,
+  RoomEdit,
+  RoomJoin,
+  RoomLeave,
+  RoomAddMember,
+  RoomRemoveMember,
 } from "@welshman/domain"
-import type {EventTemplate} from "@welshman/util"
-import {Command} from "../command.js"
+import {Router} from "./router.js"
 import type {IApp} from "../app.js"
 
 // Room metadata used when publishing NIP-29 room events. `h` is the group id.
@@ -27,22 +26,20 @@ export type RoomMeta = {
 
 /**
  * NIP-29 relay-based group (room) management. Each method builds the relevant
- * room event and returns a `Command` targeting the given relay, for the
- * caller to publish.
+ * room event and returns a `Command`. Routing is the domain's job: `setGroup(url,
+ * id)` records the group's relay and the router sends the event there (only).
  */
 export class Rooms {
   constructor(readonly app: IApp) {}
 
-  private command = (url: string, event: EventTemplate) => new Command(this.app, event, [url])
+  create = (url: string, room: RoomMeta) =>
+    this.app.use(Router).commandFromBuilder(RoomCreate.builder().setGroup(url, room.h))
 
-  create = async (url: string, room: RoomMeta) =>
-    this.command(url, await new RoomCreateBuilder().setGroup(room.h).toTemplate())
+  delete = (url: string, room: RoomMeta) =>
+    this.app.use(Router).commandFromBuilder(RoomDelete.builder().setGroup(url, room.h))
 
-  delete = async (url: string, room: RoomMeta) =>
-    this.command(url, await new RoomDeleteBuilder().setGroup(room.h).toTemplate())
-
-  edit = async (url: string, room: RoomMeta) => {
-    const builder = new RoomEditBuilder().setGroup(room.h)
+  edit = (url: string, room: RoomMeta) => {
+    const builder = RoomEdit.builder().setGroup(url, room.h)
 
     if (room.name) builder.setName(room.name)
     if (room.about) builder.setAbout(room.about)
@@ -55,24 +52,22 @@ export class Rooms {
       .setRestricted(Boolean(room.isRestricted))
       .setLivekit(Boolean(room.livekit))
 
-    return this.command(url, await builder.toTemplate())
+    return this.app.use(Router).commandFromBuilder(builder)
   }
 
-  join = async (url: string, room: RoomMeta) =>
-    this.command(url, await new RoomJoinBuilder().setGroup(room.h).toTemplate())
+  join = (url: string, room: RoomMeta) =>
+    this.app.use(Router).commandFromBuilder(RoomJoin.builder().setGroup(url, room.h))
 
-  leave = async (url: string, room: RoomMeta) =>
-    this.command(url, await new RoomLeaveBuilder().setGroup(room.h).toTemplate())
+  leave = (url: string, room: RoomMeta) =>
+    this.app.use(Router).commandFromBuilder(RoomLeave.builder().setGroup(url, room.h))
 
-  addMember = async (url: string, room: RoomMeta, pubkey: string) =>
-    this.command(
-      url,
-      await new RoomAddMemberBuilder().setGroup(room.h).addPubkey(pubkey).toTemplate(),
-    )
+  addMember = (url: string, room: RoomMeta, pubkey: string) =>
+    this.app
+      .use(Router)
+      .commandFromBuilder(RoomAddMember.builder().setGroup(url, room.h).addPubkey(pubkey))
 
-  removeMember = async (url: string, room: RoomMeta, pubkey: string) =>
-    this.command(
-      url,
-      await new RoomRemoveMemberBuilder().setGroup(room.h).addPubkey(pubkey).toTemplate(),
-    )
+  removeMember = (url: string, room: RoomMeta, pubkey: string) =>
+    this.app
+      .use(Router)
+      .commandFromBuilder(RoomRemoveMember.builder().setGroup(url, room.h).addPubkey(pubkey))
 }

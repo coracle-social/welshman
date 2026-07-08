@@ -2,10 +2,13 @@ import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {RELAY_MEMBERS, getTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
+import type {AnyKind} from "../Kind.js"
 
 // Flotilla kind-13534 relay/space member-list snapshot. Members are carried in
 // NIP-43 `member` tags, and the event is NIP-70 protected (`-`).
-export class RelayMembers extends EventReader {
+export class RelayMembersReader extends EventReader {
   readonly kind = RELAY_MEMBERS
 
   pubkeys() {
@@ -15,17 +18,13 @@ export class RelayMembers extends EventReader {
   isMember(pubkey: string) {
     return this.pubkeys().includes(pubkey)
   }
-
-  builder() {
-    return new RelayMembersBuilder(this)
-  }
 }
 
-export class RelayMembersBuilder extends EventBuilder<RelayMembers> {
+export class RelayMembersBuilder extends EventBuilder<RelayMembersReader> {
   readonly kind = RELAY_MEMBERS
 
-  constructor(readonly reader?: RelayMembers) {
-    super(reader)
+  constructor(def: AnyKind, reader?: RelayMembersReader) {
+    super(def, reader)
 
     // NIP-43 requires kind-13534 member lists to be NIP-70 protected.
     this.setProtected(true)
@@ -45,3 +44,9 @@ export class RelayMembersBuilder extends EventBuilder<RelayMembers> {
     return this.dropTags(spec(["member"])).addTags(...uniq(pubkeys).map(pk => ["member", pk]))
   }
 }
+
+export const RelayMembers = new Kind({
+  reader: RelayMembersReader,
+  builder: RelayMembersBuilder,
+  router: OutboxRouter,
+})

@@ -3,12 +3,14 @@ import {REACTION, getTagValue, getKindTagValues, getAddress, isReplaceable} from
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {ContentRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 const TARGET_KEYS = ["e", "a", "p", "k"]
 
 // NIP-25 kind-7 reaction. The content is "+", "-", a unicode emoji, or a
 // `:shortcode:` referencing a NIP-30 `emoji` tag — set it via `setContent`.
-export class Reaction extends EventReader {
+export class ReactionReader extends EventReader {
   readonly kind = REACTION
 
   eventId() {
@@ -30,13 +32,9 @@ export class Reaction extends EventReader {
   emojis() {
     return this.tags().filter(spec(["emoji"]))
   }
-
-  builder() {
-    return new ReactionBuilder(this)
-  }
 }
 
-export class ReactionBuilder extends EventBuilder<Reaction> {
+export class ReactionBuilder extends EventBuilder<ReactionReader> {
   readonly kind = REACTION
 
   // A reaction targets exactly one event, so replace any existing target.
@@ -70,3 +68,9 @@ export class ReactionBuilder extends EventBuilder<Reaction> {
     }
   }
 }
+
+export const Reaction = new Kind({
+  reader: ReactionReader,
+  builder: ReactionBuilder,
+  router: ContentRouter,
+})

@@ -2,14 +2,12 @@ import {Scope, FeedController} from "@welshman/feeds"
 import type {FeedControllerOptions, Feed as FeedDefinition} from "@welshman/feeds"
 import type {AdapterContext} from "@welshman/net"
 import {Address, FEED} from "@welshman/util"
-import {Feed, FeedBuilder} from "@welshman/domain"
+import {Feed, FeedReader, FeedBuilder} from "@welshman/domain"
 import {DerivedPlugin, projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {Wot} from "./wot.js"
-import {User} from "../user.js"
-import {Command} from "../command.js"
 import type {IApp} from "../app.js"
 
 export type MakeFeedControllerOptions = Partial<Omit<FeedControllerOptions, "feed">> & {
@@ -28,7 +26,7 @@ export type FeedFields = {
  * is delegated to `Wot`, and feeds fetch through THIS app's net context (pool +
  * repository) rather than the global one.
  */
-export class Feeds extends DerivedPlugin<Feed> {
+export class Feeds extends DerivedPlugin<FeedReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [FEED]}],
@@ -45,24 +43,20 @@ export class Feeds extends DerivedPlugin<Feed> {
       .loadUsingOutbox(pubkey, {kinds: [FEED], "#d": [identifier]}, relayHints)
   }
 
-  forAuthor = (pubkey: string): Projection<Feed[]> =>
+  forAuthor = (pubkey: string): Projection<FeedReader[]> =>
     projectFrom(this.all, feeds => feeds.filter(feed => feed.author() === pubkey))
 
   loadForAuthor = (pubkey: string, relayHints: string[] = []) =>
     this.app.use(Network).loadAllUsingOutbox(pubkey, {kinds: [FEED]}, relayHints)
 
   create = async (fields: FeedFields) => {
-    const user = User.require(this.app)
-    const builder = new FeedBuilder().setIdentifier().setTitle(fields.title)
+    const builder = Feed.builder().setIdentifier().setTitle(fields.title)
 
     if (fields.description) builder.setDescription(fields.description)
 
     builder.setDefinition(fields.definition)
 
-    const event = await builder.toTemplate(user.signer)
-    const relays = this.app.use(Router).FromUser().getUrls()
-
-    return new Command(this.app, event, relays)
+    return this.app.use(Router).commandFromBuilder(builder)
   }
 
   update = async (address: string, fn: (builder: FeedBuilder) => void) => {
@@ -70,15 +64,11 @@ export class Feeds extends DerivedPlugin<Feed> {
 
     if (!feed) throw new Error(`Unknown feed ${address}`)
 
-    const builder = new FeedBuilder(feed)
+    const builder = Feed.builder(feed)
 
     fn(builder)
 
-    const user = User.require(this.app)
-    const event = await builder.toTemplate(user.signer)
-    const relays = this.app.use(Router).FromUser().getUrls()
-
-    return new Command(this.app, event, relays)
+    return this.app.use(Router).commandFromBuilder(builder)
   }
 
   getPubkeysForScope = (scope: Scope): string[] => {

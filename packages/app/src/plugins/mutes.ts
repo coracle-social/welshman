@@ -1,17 +1,16 @@
 import {nthEq} from "@welshman/lib"
 import {MUTES} from "@welshman/util"
-import {MuteList, MuteListBuilder} from "@welshman/domain"
+import {MuteList, MuteListReader, MuteListBuilder} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import type {IApp} from "../app.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {User} from "../user.js"
-import {Command} from "../command.js"
 
 /**
  * Kind-10000 mute lists, keyed by pubkey.
  */
-export class MuteLists extends DerivedPlugin<MuteList> {
+export class MuteLists extends DerivedPlugin<MuteListReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [MUTES]}],
@@ -26,14 +25,11 @@ export class MuteLists extends DerivedPlugin<MuteList> {
 
   update = async (fn: (builder: MuteListBuilder) => void) => {
     const user = User.require(this.app)
-    const builder = new MuteListBuilder(await this.forceLoad(user.pubkey))
+    const builder = MuteList.builder(await this.forceLoad(user.pubkey))
 
     fn(builder)
 
-    const event = await builder.toTemplate(user.signer)
-    const relays = this.app.use(Router).FromUser().getUrls()
-
-    return new Command(this.app, event, relays)
+    return this.app.use(Router).commandFromBuilder(builder)
   }
 
   mutePublicly = (tag: string[]) => this.update(builder => builder.addPublic(tag))

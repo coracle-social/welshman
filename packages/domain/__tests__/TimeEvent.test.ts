@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, EVENT_TIME, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {TimeEvent, TimeEventBuilder} from "../src/kinds/TimeEvent"
+import {TimeEvent} from "../src/kinds/TimeEvent"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -38,7 +38,7 @@ describe("TimeEvent", () => {
       ],
     })
 
-    const time = await TimeEvent.fromEvent(event)
+    const time = await TimeEvent.read(event)
 
     expect(time.identifier()).toBe("abc")
     expect(time.title()).toBe("Party")
@@ -61,7 +61,7 @@ describe("TimeEvent", () => {
       ],
     })
 
-    const tmpl = await (await TimeEvent.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await TimeEvent.builder(await TimeEvent.read(event)).toTemplate(signer)
 
     for (const key of ["d", "title", "location", "start", "end"]) {
       expect(tmpl.tags.filter(t => t[0] === key).length).toBe(1)
@@ -88,14 +88,14 @@ describe("TimeEvent", () => {
       ],
     })
 
-    const tmpl = await (await TimeEvent.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await TimeEvent.builder(await TimeEvent.read(event)).toTemplate(signer)
 
     expect(tmpl.tags.filter(t => t[0] === "D").length).toBe(1)
     expect(tmpl.tags).not.toContainEqual(["D", "999999"])
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new TimeEventBuilder()
+    const tmpl = await TimeEvent.builder()
       .setIdentifier("event1")
       .setTitle("Fresh")
       .setStart(start)
@@ -109,6 +109,6 @@ describe("TimeEvent", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(TimeEvent.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(TimeEvent.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

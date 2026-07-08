@@ -2,9 +2,11 @@ import {spec} from "@welshman/lib"
 import {ZAP_REQUEST, getTag, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {ContentRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // NIP-57 kind-9734 zap request.
-export class ZapRequest extends EventReader {
+export class ZapRequestReader extends EventReader {
   readonly kind = ZAP_REQUEST
 
   amount() {
@@ -30,13 +32,9 @@ export class ZapRequest extends EventReader {
 
     return tag ? tag.slice(1) : []
   }
-
-  builder() {
-    return new ZapRequestBuilder(this)
-  }
 }
 
-export class ZapRequestBuilder extends EventBuilder<ZapRequest> {
+export class ZapRequestBuilder extends EventBuilder<ZapRequestReader> {
   readonly kind = ZAP_REQUEST
 
   setAmount(amount: number) {
@@ -59,3 +57,9 @@ export class ZapRequestBuilder extends EventBuilder<ZapRequest> {
     return this.dropTags(spec(["relays"])).addTags(["relays", ...urls])
   }
 }
+
+export const ZapRequest = new Kind({
+  reader: ZapRequestReader,
+  builder: ZapRequestBuilder,
+  router: ContentRouter,
+})

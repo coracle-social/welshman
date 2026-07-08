@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, POLL_RESPONSE, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {PollResponse, PollResponseBuilder} from "../src/kinds/PollResponse"
+import {PollResponse} from "../src/kinds/PollResponse"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -32,7 +32,7 @@ describe("PollResponse", () => {
       ],
     })
 
-    const response = await PollResponse.fromEvent(event)
+    const response = await PollResponse.read(event)
 
     expect(response.pollId()).toBe(poll)
     expect(response.selections()).toEqual(["1", "2"])
@@ -48,7 +48,7 @@ describe("PollResponse", () => {
       ],
     })
 
-    const tmpl = await (await PollResponse.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await PollResponse.builder(await PollResponse.read(event)).toTemplate(signer)
 
     expect(tmpl.tags.filter(t => t[0] === "e").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "response").length).toBe(2)
@@ -56,7 +56,7 @@ describe("PollResponse", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new PollResponseBuilder()
+    const tmpl = await PollResponse.builder()
       .setPollId(poll)
       .addSelection("1")
       .addSelection("1")
@@ -72,10 +72,10 @@ describe("PollResponse", () => {
   })
 
   it("requires a poll id", async () => {
-    await expect(new PollResponseBuilder().addSelection("1").toTemplate(signer)).rejects.toThrow()
+    await expect(PollResponse.builder().addSelection("1").toTemplate(signer)).rejects.toThrow()
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(PollResponse.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(PollResponse.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

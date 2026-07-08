@@ -2,9 +2,11 @@ import {last, removeUndefined, spec} from "@welshman/lib"
 import {HANDLER_RECOMMENDATION, getAddressTags, getAddressTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // NIP-89 kind-31989 handler recommendation.
-export class HandlerRecommendation extends EventReader {
+export class HandlerRecommendationReader extends EventReader {
   readonly kind = HANDLER_RECOMMENDATION
 
   addressTags() {
@@ -21,13 +23,9 @@ export class HandlerRecommendation extends EventReader {
 
     return tag?.[1]
   }
-
-  builder() {
-    return new HandlerRecommendationBuilder(this)
-  }
 }
 
-export class HandlerRecommendationBuilder extends EventBuilder<HandlerRecommendation> {
+export class HandlerRecommendationBuilder extends EventBuilder<HandlerRecommendationReader> {
   readonly kind = HANDLER_RECOMMENDATION
 
   addRecommendation(address: string, relay?: string, platform?: string) {
@@ -40,3 +38,9 @@ export class HandlerRecommendationBuilder extends EventBuilder<HandlerRecommenda
     return this.dropTags(spec(["a", address]))
   }
 }
+
+export const HandlerRecommendation = new Kind({
+  reader: HandlerRecommendationReader,
+  builder: HandlerRecommendationBuilder,
+  router: OutboxRouter,
+})

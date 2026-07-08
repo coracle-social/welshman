@@ -1,12 +1,10 @@
 import {uniq} from "@welshman/lib"
-import {Address, PINBOARD, PIN} from "@welshman/util"
-import {Pinboard, PinboardBuilder, Pin, PinBuilder} from "@welshman/domain"
+import {Address, PINBOARD, PIN, inbox} from "@welshman/util"
+import {Pinboard, PinboardReader, PinboardBuilder, Pin, PinReader, PinBuilder} from "@welshman/domain"
 import {DerivedPlugin, projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
-import {User} from "../user.js"
-import {Command} from "../command.js"
 import type {IApp} from "../app.js"
 
 export type PinboardFields = {
@@ -20,7 +18,7 @@ export type PinboardFields = {
 /**
  * Pinboards-NIP kind-30067 boards, keyed by address (many boards per author).
  */
-export class Pinboards extends DerivedPlugin<Pinboard> {
+export class Pinboards extends DerivedPlugin<PinboardReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [PINBOARD]}],
@@ -37,25 +35,21 @@ export class Pinboards extends DerivedPlugin<Pinboard> {
       .loadUsingOutbox(pubkey, {kinds: [PINBOARD], "#d": [identifier]}, relayHints)
   }
 
-  forAuthor = (pubkey: string): Projection<Pinboard[]> =>
+  forAuthor = (pubkey: string): Projection<PinboardReader[]> =>
     projectFrom(this.all, boards => boards.filter(board => board.author() === pubkey))
 
   loadForAuthor = (pubkey: string, relayHints: string[] = []) =>
     this.app.use(Network).loadAllUsingOutbox(pubkey, {kinds: [PINBOARD]}, relayHints)
 
   create = async (fields: PinboardFields) => {
-    const user = User.require(this.app)
-    const builder = new PinboardBuilder().setIdentifier().setTitle(fields.title)
+    const builder = Pinboard.builder().setIdentifier().setTitle(fields.title)
 
     if (fields.description) builder.setDescription(fields.description)
     if (fields.image) builder.setImage(fields.image)
     if (fields.topics) builder.setTopics(fields.topics)
     if (fields.collaborative) builder.setCollaborative(fields.collaborative)
 
-    const event = await builder.toTemplate(user.signer)
-    const relays = this.app.use(Router).FromUser().getUrls()
-
-    return new Command(this.app, event, relays)
+    return this.app.use(Router).commandFromBuilder(builder)
   }
 
   update = async (address: string, fn: (builder: PinboardBuilder) => void) => {
@@ -63,15 +57,11 @@ export class Pinboards extends DerivedPlugin<Pinboard> {
 
     if (!board) throw new Error(`Unknown pinboard ${address}`)
 
-    const builder = new PinboardBuilder(board)
+    const builder = Pinboard.builder(board)
 
     fn(builder)
 
-    const user = User.require(this.app)
-    const event = await builder.toTemplate(user.signer)
-    const relays = this.app.use(Router).FromUser().getUrls()
-
-    return new Command(this.app, event, relays)
+    return this.app.use(Router).commandFromBuilder(builder)
   }
 }
 
@@ -79,7 +69,7 @@ export class Pinboards extends DerivedPlugin<Pinboard> {
  * Pinboards-NIP kind-39067 pins, keyed by address. A pin belongs to zero
  * or more boards via `A` tags; one with none is a profile pin.
  */
-export class Pins extends DerivedPlugin<Pin> {
+export class Pins extends DerivedPlugin<PinReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [PIN]}],
@@ -96,17 +86,18 @@ export class Pins extends DerivedPlugin<Pin> {
       .loadUsingOutbox(pubkey, {kinds: [PIN], "#d": [identifier]}, relayHints)
   }
 
-  forBoard = (address: string): Projection<Pin[]> =>
+  forBoard = (address: string): Projection<PinReader[]> =>
     projectFrom(this.all, pins => pins.filter(pin => pin.boards().includes(address)))
 
-  forProfile = (pubkey: string): Projection<Pin[]> =>
+  forProfile = (pubkey: string): Projection<PinReader[]> =>
     projectFrom(this.all, pins => pins.filter(pin => pin.isProfilePin() && pin.author() === pubkey))
 
   // Pins on a board can come from any author (boards may be collaborative), so
   // look for them where the board owner would see mentions: their read relays.
   loadForBoard = async (address: string, relayHints: string[] = []) => {
     const {pubkey} = Address.from(address)
-    const relays = this.app.use(Router).ForPubkey(pubkey).getUrls()
+    const scenario = await this.app.use(Router).resolve([inbox(pubkey)])
+    const relays = scenario.getUrls()
 
     return this.app.use(Network).load({
       filters: [{kinds: [PIN], "#A": [address]}],
@@ -118,11 +109,7 @@ export class Pins extends DerivedPlugin<Pin> {
     this.app.use(Network).loadAllUsingOutbox(pubkey, {kinds: [PIN]}, relayHints)
 
   create = async (builder: PinBuilder) => {
-    const user = User.require(this.app)
-    const event = await builder.toTemplate(user.signer)
-    const relays = this.app.use(Router).FromUser().getUrls()
-
-    return new Command(this.app, event, relays)
+    return this.app.use(Router).commandFromBuilder(builder)
   }
 
   update = async (address: string, fn: (builder: PinBuilder) => void) => {
@@ -130,15 +117,11 @@ export class Pins extends DerivedPlugin<Pin> {
 
     if (!pin) throw new Error(`Unknown pin ${address}`)
 
-    const builder = new PinBuilder(pin)
+    const builder = Pin.builder(pin)
 
     fn(builder)
 
-    const user = User.require(this.app)
-    const event = await builder.toTemplate(user.signer)
-    const relays = this.app.use(Router).FromUser().getUrls()
-
-    return new Command(this.app, event, relays)
+    return this.app.use(Router).commandFromBuilder(builder)
   }
 
   addToBoard = (address: string, board: string) =>

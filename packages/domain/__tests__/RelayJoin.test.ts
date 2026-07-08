@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, RELAY_JOIN, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {RelayJoin, RelayJoinBuilder} from "../src/kinds/RelayJoin"
+import {RelayJoin} from "../src/kinds/RelayJoin"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -21,7 +21,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelayJoin", () => {
   it("reads claim tag and reason content", async () => {
-    const join = await RelayJoin.fromEvent(
+    const join = await RelayJoin.read(
       makeEvent({tags: [["claim", "abc123"]], content: "please let me in"}),
     )
 
@@ -30,14 +30,14 @@ describe("RelayJoin", () => {
   })
 
   it("returns undefined for missing claim/reason", async () => {
-    const join = await RelayJoin.fromEvent(makeEvent())
+    const join = await RelayJoin.read(makeEvent())
 
     expect(join.claim()).toBeUndefined()
     expect(join.reason()).toBeUndefined()
   })
 
   it("round-trips with no duplicate tags and preserves passthrough/content", async () => {
-    const join = await RelayJoin.fromEvent(
+    const join = await RelayJoin.read(
       makeEvent({
         tags: [
           ["claim", "abc123"],
@@ -47,7 +47,7 @@ describe("RelayJoin", () => {
       }),
     )
 
-    const tmpl = await join.builder().toTemplate(signer)
+    const tmpl = await RelayJoin.builder(join).toTemplate(signer)
 
     expect(tmpl.kind).toBe(RELAY_JOIN)
     expect(tmpl.tags.filter(t => t[0] === "claim").length).toBe(1)
@@ -56,7 +56,7 @@ describe("RelayJoin", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new RelayJoinBuilder()
+    const tmpl = await RelayJoin.builder()
       .setClaim("invite42")
       .setReason("hello")
       .toTemplate(signer)
@@ -66,6 +66,6 @@ describe("RelayJoin", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RelayJoin.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(RelayJoin.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, ROOM_JOIN, NOTE, getTagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {RoomJoin, RoomJoinBuilder} from "../src/kinds/RoomJoin"
+import {RoomJoin} from "../src/kinds/RoomJoin"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -21,7 +21,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomJoin", () => {
   it("reads represented fields", async () => {
-    const join = await RoomJoin.fromEvent(
+    const join = await RoomJoin.read(
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -38,7 +38,7 @@ describe("RoomJoin", () => {
   })
 
   it("round-trips with no duplicated tags", async () => {
-    const join = await RoomJoin.fromEvent(
+    const join = await RoomJoin.read(
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -49,7 +49,9 @@ describe("RoomJoin", () => {
       }),
     )
 
-    const tmpl = await join.builder().toTemplate(signer)
+    const tmpl = await RoomJoin.builder(join)
+      .setGroup("wss://relay.example.com/", "room1")
+      .toTemplate(signer)
 
     expect(tmpl.kind).toBe(ROOM_JOIN)
     // h round-trips via the base behavior tag.
@@ -64,8 +66,8 @@ describe("RoomJoin", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new RoomJoinBuilder()
-      .setGroup("room2")
+    const tmpl = await RoomJoin.builder()
+      .setGroup("wss://relay.example.com/", "room2")
       .setClaim("xyz")
       .setReason("hi there")
       .toTemplate(signer)
@@ -76,10 +78,10 @@ describe("RoomJoin", () => {
   })
 
   it("requires an h/group", async () => {
-    await expect(new RoomJoinBuilder().setClaim("xyz").toTemplate(signer)).rejects.toThrow()
+    await expect(RoomJoin.builder().setClaim("xyz").toTemplate(signer)).rejects.toThrow()
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RoomJoin.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(RoomJoin.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

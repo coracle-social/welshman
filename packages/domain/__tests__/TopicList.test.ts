@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, TOPICS, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {TopicList, TopicListBuilder} from "../src/kinds/TopicList"
+import {TopicList} from "../src/kinds/TopicList"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -25,7 +25,7 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("TopicList", () => {
   it("reads followed topics and interest-set addresses", async () => {
-    const reader = await TopicList.fromEvent(
+    const reader = await TopicList.read(
       makeEvent({
         tags: [
           ["t", topicA],
@@ -42,7 +42,7 @@ describe("TopicList", () => {
   })
 
   it("round-trips without duplicating represented tags", async () => {
-    const reader = await TopicList.fromEvent(
+    const reader = await TopicList.read(
       makeEvent({
         tags: [
           ["t", topicA],
@@ -52,7 +52,7 @@ describe("TopicList", () => {
       }),
     )
 
-    const tmpl = await reader.builder().toTemplate(signer)
+    const tmpl = await TopicList.builder(reader).toTemplate(signer)
 
     expect(tmpl.tags.filter(t => t[0] === "t").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "a").length).toBe(1)
@@ -60,7 +60,7 @@ describe("TopicList", () => {
   })
 
   it("follows and unfollows via a fresh builder", async () => {
-    const tmpl = await new TopicListBuilder()
+    const tmpl = await TopicList.builder()
       .follow(topicA)
       .follow(topicB)
       .unfollow(topicA)
@@ -72,23 +72,23 @@ describe("TopicList", () => {
   })
 
   it("round-trips public and private topics through encryption", async () => {
-    const event = await new TopicListBuilder()
+    const event = await TopicList.builder()
       .followPublicly(topicA)
       .followPrivately(topicB)
       .toEvent(signer)
 
-    const decrypted = await TopicList.fromEvent(event, signer)
+    const decrypted = await TopicList.read(event, signer)
 
     expect(decrypted.decrypted).toBe(true)
     expect(decrypted.topics().sort()).toEqual([topicA, topicB].sort())
 
-    const publicOnly = await TopicList.fromEvent(event)
+    const publicOnly = await TopicList.read(event)
 
     expect(publicOnly.decrypted).toBe(false)
     expect(publicOnly.topics()).toEqual([topicA])
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(TopicList.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(TopicList.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

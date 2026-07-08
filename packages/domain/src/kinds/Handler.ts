@@ -3,6 +3,9 @@ import {HANDLER_INFORMATION, getKindTagValues} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
+import type {AnyKind} from "../Kind.js"
 
 export type HandlerMeta = {
   name?: string
@@ -14,11 +17,11 @@ export type HandlerMeta = {
 }
 
 // NIP-89 kind-31990 handler information.
-export class Handler extends EventReader {
+export class HandlerReader extends EventReader {
   readonly kind = HANDLER_INFORMATION
   readonly values: HandlerMeta = {}
 
-  protected async parse(signer?: ISigner) {
+  async parse(signer?: ISigner) {
     const json = parseJson(this.event.content)
 
     if (isPojo(json)) {
@@ -53,20 +56,16 @@ export class Handler extends EventReader {
   kinds() {
     return getKindTagValues(this.event.tags)
   }
-
-  builder() {
-    return new HandlerBuilder(this)
-  }
 }
 
-export class HandlerBuilder extends EventBuilder<Handler> {
+export class HandlerBuilder extends EventBuilder<HandlerReader> {
   readonly kind = HANDLER_INFORMATION
 
   values: HandlerMeta = {}
   kindTags: string[][] = []
 
-  constructor(readonly reader?: Handler) {
-    super(reader)
+  constructor(def: AnyKind, reader?: HandlerReader) {
+    super(def, reader)
 
     this.values = {...(reader?.values ?? {})}
     this.kindTags = this.consumeTags("k")
@@ -122,3 +121,9 @@ export class HandlerBuilder extends EventBuilder<Handler> {
     return this.kindTags
   }
 }
+
+export const Handler = new Kind({
+  reader: HandlerReader,
+  builder: HandlerBuilder,
+  router: OutboxRouter,
+})

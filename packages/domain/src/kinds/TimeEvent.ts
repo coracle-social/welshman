@@ -2,9 +2,12 @@ import {range, DAY, spec} from "@welshman/lib"
 import {EVENT_TIME, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
+import type {AnyKind} from "../Kind.js"
 
 // NIP-52 kind-31923 time-based calendar event.
-export class TimeEvent extends EventReader {
+export class TimeEventReader extends EventReader {
   readonly kind = EVENT_TIME
 
   title() {
@@ -26,17 +29,13 @@ export class TimeEvent extends EventReader {
 
     return isNaN(end) ? undefined : end
   }
-
-  builder() {
-    return new TimeEventBuilder(this)
-  }
 }
 
-export class TimeEventBuilder extends EventBuilder<TimeEvent> {
+export class TimeEventBuilder extends EventBuilder<TimeEventReader> {
   readonly kind = EVENT_TIME
 
-  constructor(readonly reader?: TimeEvent) {
-    super(reader)
+  constructor(def: AnyKind, reader?: TimeEventReader) {
+    super(def, reader)
 
     this.consumeTags("D")
   }
@@ -72,3 +71,9 @@ export class TimeEventBuilder extends EventBuilder<TimeEvent> {
     return tags
   }
 }
+
+export const TimeEvent = new Kind({
+  reader: TimeEventReader,
+  builder: TimeEventBuilder,
+  router: OutboxRouter,
+})

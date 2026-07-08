@@ -1,5 +1,5 @@
-import {Address, SLASH_COMMAND} from "@welshman/util"
-import {SlashCommand, SlashCommandBuilder, formatSlashCommand} from "@welshman/domain"
+import {Address, SLASH_COMMAND, userOutbox, inbox, outbox, indexers} from "@welshman/util"
+import {SlashCommand, SlashCommandReader, SlashCommandBuilder, formatSlashCommand} from "@welshman/domain"
 import {DerivedPlugin, projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
@@ -13,67 +13,58 @@ import type {IApp} from "../app.js"
  * A command declares the event kinds (`k`) and NIP-29 groups (`h`) it monitors;
  * use `forContext` to surface only the commands valid in a given kind/group.
  */
-export class SlashCommands extends DerivedPlugin<SlashCommand> {
+export class SlashCommands extends DerivedPlugin<SlashCommandReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [SLASH_COMMAND]}],
       eventToItem: SlashCommand.factory(),
-      getKey: (command: SlashCommand) => command.address(),
+      getKey: (command: SlashCommandReader) => command.address(),
     })
   }
 
-  fetch(address: string) {
+  async fetch(address: string) {
     const {kind, pubkey, identifier} = Address.from(address)
     const filters = [{kinds: [kind], authors: [pubkey], "#d": [identifier], limit: 1}]
-    const networking = this.app.use(Network)
-    const router = this.app.use(Router)
+    const scenario = await this.app.use(Router).resolve([outbox(pubkey), indexers()])
+    const relays = scenario.getUrls()
 
-    return Promise.all([
-      networking.load({filters, relays: router.FromPubkey(pubkey).getUrls()}),
-      networking.load({filters, relays: router.Index().getUrls()}),
-    ])
+    return this.app.use(Network).load({filters, relays})
   }
 
   // Load every command published by an author.
-  loadForPubkey = (pubkey: string) => {
+  loadForPubkey = async (pubkey: string) => {
     const filters = [{kinds: [SLASH_COMMAND], authors: [pubkey]}]
-    const networking = this.app.use(Network)
-    const router = this.app.use(Router)
+    const scenario = await this.app.use(Router).resolve([outbox(pubkey), indexers()])
+    const relays = scenario.getUrls()
 
-    return Promise.all([
-      networking.load({filters, relays: router.FromPubkey(pubkey).getUrls()}),
-      networking.load({filters, relays: router.Index().getUrls()}),
-    ])
+    return this.app.use(Network).load({filters, relays})
   }
 
-  forPubkey = (pubkey: string): Projection<SlashCommand[]> =>
+  forPubkey = (pubkey: string): Projection<SlashCommandReader[]> =>
     projectFrom(this.all, commands => commands.filter(command => command.author() === pubkey))
 
   // Commands that should be surfaced in the given kind/group context. A command
   // with no `h` tags can be invoked anywhere.
-  forContext = (kind: number, group?: string): Projection<SlashCommand[]> =>
+  forContext = (kind: number, group?: string): Projection<SlashCommandReader[]> =>
     projectFrom(this.all, commands => commands.filter(command => command.appliesTo(kind, group)))
 
   // Publish/update one of the app user's own command manifests.
   update = async (name: string, fn: (builder: SlashCommandBuilder) => void) => {
     const user = User.require(this.app)
     const address = new Address(SLASH_COMMAND, user.pubkey, name).toString()
-    const builder = new SlashCommandBuilder(await this.forceLoad(address))
+    const builder = SlashCommand.builder(await this.forceLoad(address))
 
     builder.setName(name)
     fn(builder)
 
-    const event = await builder.toTemplate(user.signer)
-    const relays = this.app.use(Router).FromUser().getUrls()
-
-    return new Command(this.app, event, relays)
+    return this.app.use(Router).commandFromBuilder(builder)
   }
 
   // Invoke a command: publish a `/name <args>` message in one of the command's
   // monitored kinds, p-tagging the command's author (and h-tagging the group when
   // invoked inside one).
-  invoke = (
-    command: SlashCommand,
+  invoke = async (
+    command: SlashCommandReader,
     args: string[],
     {kind, group}: {kind?: number; group?: string} = {},
   ) => {
@@ -87,8 +78,11 @@ export class SlashCommands extends DerivedPlugin<SlashCommand> {
       tags,
     }
 
-    const relays = this.app.use(Router).FromUser().getUrls()
+    // Publish to the user's outbox and deliver to the command author's inbox.
+    const scenario = await this.app
+      .use(Router)
+      .resolve([userOutbox(), inbox(command.author(), 0.5)])
 
-    return new Command(this.app, event, relays)
+    return new Command(this.app, event, scenario.getUrls())
   }
 }

@@ -1,20 +1,28 @@
 import {complement, first, partition, randomId, spec} from "@welshman/lib"
 import type {MaybeAsync} from "@welshman/lib"
-import {stamp, prep, isParameterizedReplaceableKind} from "@welshman/util"
+import {stamp, prep, isParameterizedReplaceableKind, normalizeRelayUrl} from "@welshman/util"
 import type {EventTemplate, SignedEvent, HashedEvent} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
 import type {EventReader} from "./EventReader.js"
+import type {AnyKind} from "./Kind.js"
 
 export abstract class EventBuilder<Reader extends EventReader> {
   abstract readonly kind: number
+
   content: string
   groupTag?: string[]
+  // The relay hosting this NIP-29 group (a group is (relay, id)). Publish-only
+  // context — set via `setGroup` — that the router turns into a `relay` route.
+  groupUrl?: string
   protectTag?: string[]
   expirationTag?: string[]
   identifierTag?: string[]
   extraTags: string[][] = []
 
-  constructor(readonly reader?: Reader) {
+  constructor(
+    readonly def: AnyKind,
+    readonly reader?: Reader,
+  ) {
     this.content = reader?.event.content ?? ""
     this.extraTags = reader?.event.tags ?? []
     this.groupTag = first(this.consumeTags("h"))
@@ -37,13 +45,17 @@ export abstract class EventBuilder<Reader extends EventReader> {
     return this
   }
 
-  setGroup(group: string) {
+  // A NIP-29 group is identified by (relay, id): `url` is where the event should
+  // be published (the router routes to it), `group` is the `h` tag.
+  setGroup(url: string, group: string) {
+    this.groupUrl = normalizeRelayUrl(url)
     this.groupTag = ["h", group]
 
     return this
   }
 
   clearGroup() {
+    this.groupUrl = undefined
     this.groupTag = undefined
 
     return this
@@ -109,6 +121,12 @@ export abstract class EventBuilder<Reader extends EventReader> {
     if (isParameterizedReplaceableKind(this.kind) && !this.identifierTag) {
       throw new Error(`A d tag is required for kind ${this.kind}`)
     }
+
+    // A NIP-29 group is (relay, id): if the group tag is set (e.g. seeded from a
+    // fetched event), the relay must be too, so the router can reach it.
+    if (this.groupTag && !this.groupUrl) {
+      throw new Error("A group event requires a relay url (set the group via setGroup)")
+    }
   }
 
   private behaviorTags(): string[][] {
@@ -122,18 +140,20 @@ export abstract class EventBuilder<Reader extends EventReader> {
     return tags
   }
 
+  // The tags this builder currently holds, as `toTemplate` would emit them but
+  // without building content — so no signer is needed. Used for routing.
+  async getTags(): Promise<string[][]> {
+    const implTags = await this.buildTags()
+
+    return [...implTags, ...this.behaviorTags(), ...this.extraTags]
+  }
+
   async toTemplate(signer?: ISigner): Promise<EventTemplate> {
     this.validate()
 
-    const kind = this.kind
-    const [content, implTags, behaviorTags] = await Promise.all([
-      this.buildContent(signer),
-      this.buildTags(signer),
-      this.behaviorTags(),
-    ])
-    const tags = [...implTags, ...behaviorTags, ...this.extraTags]
+    const [content, tags] = await Promise.all([this.buildContent(signer), this.getTags()])
 
-    return {kind, content, tags}
+    return {kind: this.kind, content, tags}
   }
 
   async toRumor(signer: ISigner): Promise<HashedEvent> {
@@ -144,5 +164,9 @@ export abstract class EventBuilder<Reader extends EventReader> {
 
   async toEvent(signer: ISigner): Promise<SignedEvent> {
     return signer.sign(stamp(await this.toTemplate(signer)))
+  }
+
+  routes() {
+    return this.def.router(undefined, this).routes()
   }
 }

@@ -1,6 +1,6 @@
 import {readable, derived} from "svelte/store"
 import {max, throttle, addToMapKey, inc, dec} from "@welshman/lib"
-import type {FollowList, MuteList} from "@welshman/domain"
+import type {FollowListReader, MuteListReader} from "@welshman/domain"
 import type {IApp} from "../app.js"
 import {projection, projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
@@ -131,8 +131,8 @@ export class Wot {
 
   followsWhoMute = (pubkey: string, target: string): Projection<string[]> => {
     const read = (
-      $follows: ReadonlyMap<string, FollowList>,
-      $mutes: ReadonlyMap<string, MuteList>,
+      $follows: ReadonlyMap<string, FollowListReader>,
+      $mutes: ReadonlyMap<string, MuteListReader>,
     ) =>
       ($follows.get(pubkey)?.pubkeys() ?? []).filter(other =>
         ($mutes.get(other)?.pubkeys() ?? []).includes(target),
@@ -149,8 +149,8 @@ export class Wot {
 
   wotScore = (pubkey: string, target: string): Projection<number> => {
     const read = (
-      $follows: ReadonlyMap<string, FollowList>,
-      $mutes: ReadonlyMap<string, MuteList>,
+      $follows: ReadonlyMap<string, FollowListReader>,
+      $mutes: ReadonlyMap<string, MuteListReader>,
       $followers: ReadonlyMap<string, Set<string>>,
       $muters: ReadonlyMap<string, Set<string>>,
     ) => {

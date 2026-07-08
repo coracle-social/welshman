@@ -11,7 +11,7 @@ import {
 import type {Maybe} from "@welshman/lib"
 import {getTagValue, getZapSplits, zapFromEvent} from "@welshman/util"
 import type {Zapper, Zap, TrustedEvent} from "@welshman/util"
-import type {Profile} from "@welshman/domain"
+import type {ProfileReader} from "@welshman/domain"
 import {deriveDeduplicated, deriveDeduplicatedByValue} from "@welshman/store"
 import {LoadableMapPlugin, projection} from "./base.js"
 import type {Projection} from "./base.js"
@@ -74,7 +74,7 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
   forPubkey = (pubkey: string, relays: string[] = []): Projection<Maybe<Zapper>> => {
     this.loadForPubkey(pubkey, relays)
 
-    const read = ([$zappersByLnurl, $profile]: [ReadonlyMap<string, Zapper>, Maybe<Profile>]) => {
+    const read = ([$zappersByLnurl, $profile]: [ReadonlyMap<string, Zapper>, Maybe<ProfileReader>]) => {
       const lnurl = $profile?.lnurl()
 
       return lnurl ? $zappersByLnurl.get(lnurl) : undefined
@@ -125,7 +125,7 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
 
     const read = (values: any[]) => {
       const $zappersByLnurl = values[0] as Map<string, Zapper>
-      const $profiles = values.slice(1) as Array<Profile | undefined>
+      const $profiles = values.slice(1) as Array<ProfileReader | undefined>
 
       const zapperByPubkey = new Map<string, Zapper>()
 

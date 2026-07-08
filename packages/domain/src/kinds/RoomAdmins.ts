@@ -2,21 +2,19 @@ import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {ROOM_ADMINS, getPubkeyTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // NIP-29 kind-39001 room admins list.
-export class RoomAdmins extends EventReader {
+export class RoomAdminsReader extends EventReader {
   readonly kind = ROOM_ADMINS
 
   pubkeys() {
     return uniq(getPubkeyTagValues(this.event.tags))
   }
-
-  builder() {
-    return new RoomAdminsBuilder(this)
-  }
 }
 
-export class RoomAdminsBuilder extends EventBuilder<RoomAdmins> {
+export class RoomAdminsBuilder extends EventBuilder<RoomAdminsReader> {
   readonly kind = ROOM_ADMINS
 
   addPubkey(pubkey: string) {
@@ -31,3 +29,9 @@ export class RoomAdminsBuilder extends EventBuilder<RoomAdmins> {
     return this.dropTags(spec(["p"])).addTags(...uniq(pubkeys).map(pk => ["p", pk]))
   }
 }
+
+export const RoomAdmins = new Kind({
+  reader: RoomAdminsReader,
+  builder: RoomAdminsBuilder,
+  router: OutboxRouter,
+})

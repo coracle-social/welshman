@@ -2,9 +2,11 @@ import {uniq, spec} from "@welshman/lib"
 import {FEEDS, getAddressTagValues} from "@welshman/util"
 import {ListReader} from "../ListReader.js"
 import {ListBuilder} from "../ListBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // NIP-51 kind-10014 saved feeds list.
-export class FeedList extends ListReader {
+export class FeedListReader extends ListReader {
   readonly kind = FEEDS
 
   addresses() {
@@ -14,13 +16,9 @@ export class FeedList extends ListReader {
   includes(address: string) {
     return this.addresses().includes(address)
   }
-
-  builder() {
-    return new FeedListBuilder(this)
-  }
 }
 
-export class FeedListBuilder extends ListBuilder<FeedList> {
+export class FeedListBuilder extends ListBuilder<FeedListReader> {
   readonly kind = FEEDS
 
   addFeed(address: string, relayHint?: string) {
@@ -35,3 +33,9 @@ export class FeedListBuilder extends ListBuilder<FeedList> {
     return this.dropTags(spec(["a", address]))
   }
 }
+
+export const FeedList = new Kind({
+  reader: FeedListReader,
+  builder: FeedListBuilder,
+  router: OutboxRouter,
+})

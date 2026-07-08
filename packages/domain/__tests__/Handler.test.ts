@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, HANDLER_INFORMATION, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {Handler, HandlerBuilder} from "../src/kinds/Handler"
+import {Handler} from "../src/kinds/Handler"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -38,7 +38,7 @@ describe("Handler", () => {
       ],
     })
 
-    const handler = await Handler.fromEvent(event)
+    const handler = await Handler.read(event)
 
     expect(handler.values.name).toBe("Coracle")
     expect(handler.name()).toBe("Coracle")
@@ -56,7 +56,7 @@ describe("Handler", () => {
       tags: [["d", "myhandler"]],
     })
 
-    const tmpl = await (await Handler.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await Handler.builder(await Handler.read(event)).toTemplate(signer)
     const parsed = JSON.parse(tmpl.content)
 
     expect(parsed.name).toBe("Coracle")
@@ -64,7 +64,7 @@ describe("Handler", () => {
   })
 
   it("ignores non-spec aliases like display_name", async () => {
-    const handler = await Handler.fromEvent(
+    const handler = await Handler.read(
       makeEvent({
         content: JSON.stringify({display_name: "Alias", picture: "https://example.com/p.png"}),
       }),
@@ -86,7 +86,7 @@ describe("Handler", () => {
       ],
     })
 
-    const tmpl = await (await Handler.fromEvent(event)).builder().toTemplate(signer)
+    const tmpl = await Handler.builder(await Handler.read(event)).toTemplate(signer)
 
     expect(tmpl.tags.filter(t => t[0] === "k").length).toBe(2)
     // The d identifier is passed through untouched.
@@ -100,7 +100,7 @@ describe("Handler", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await new HandlerBuilder()
+    const tmpl = await Handler.builder()
       .setIdentifier("myhandler")
       .setName("MyApp")
       .setAbout("does things")
@@ -119,6 +119,6 @@ describe("Handler", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Handler.fromEvent(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(Handler.read(makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

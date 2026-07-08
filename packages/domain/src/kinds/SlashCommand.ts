@@ -2,6 +2,8 @@ import {removeUndefined, spec} from "@welshman/lib"
 import {SLASH_COMMAND, getTags, getTagValues, getKindTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
 import {EventBuilder} from "../EventBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // A declared parameter: its label, a type hint (`string`/`number`/`pubkey`/
 // `topic`/`relay`) used for client-side input/auto-complete, and whether it's
@@ -38,7 +40,7 @@ export const formatSlashCommand = (name: string, args: string[] = []) =>
 // kind-33318 slash command manifest. Its `d` tag is the command name; `k` tags
 // are the monitored event kinds, `h` tags are the monitored NIP-29 groups (none
 // means it can be invoked anywhere).
-export class SlashCommand extends EventReader {
+export class SlashCommandReader extends EventReader {
   readonly kind = SLASH_COMMAND
 
   name() {
@@ -81,13 +83,9 @@ export class SlashCommand extends EventReader {
       (groups.length === 0 || (group !== undefined && groups.includes(group)))
     )
   }
-
-  builder() {
-    return new SlashCommandBuilder(this)
-  }
 }
 
-export class SlashCommandBuilder extends EventBuilder<SlashCommand> {
+export class SlashCommandBuilder extends EventBuilder<SlashCommandReader> {
   readonly kind = SLASH_COMMAND
 
   setName(name: string) {
@@ -134,3 +132,9 @@ export class SlashCommandBuilder extends EventBuilder<SlashCommand> {
     )
   }
 }
+
+export const SlashCommand = new Kind({
+  reader: SlashCommandReader,
+  builder: SlashCommandBuilder,
+  router: OutboxRouter,
+})

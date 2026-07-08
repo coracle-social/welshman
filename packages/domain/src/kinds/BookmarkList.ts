@@ -8,9 +8,11 @@ import {
 } from "@welshman/util"
 import {ListReader} from "../ListReader.js"
 import {ListBuilder} from "../ListBuilder.js"
+import {OutboxRouter} from "../EventRouter.js"
+import {Kind} from "../Kind.js"
 
 // NIP-51 kind-10003 bookmark list.
-export class BookmarkList extends ListReader {
+export class BookmarkListReader extends ListReader {
   readonly kind = BOOKMARKS
 
   ids() {
@@ -28,13 +30,9 @@ export class BookmarkList extends ListReader {
   urls() {
     return uniq(getTagValues("r", this.tags()))
   }
-
-  builder() {
-    return new BookmarkListBuilder(this)
-  }
 }
 
-export class BookmarkListBuilder extends ListBuilder<BookmarkList> {
+export class BookmarkListBuilder extends ListBuilder<BookmarkListReader> {
   readonly kind = BOOKMARKS
 
   bookmarkPublicly(tag: string[]) {
@@ -49,3 +47,9 @@ export class BookmarkListBuilder extends ListBuilder<BookmarkList> {
     return this.dropTags(t => ["e", "a", "t", "r"].includes(t[0]) && t[1] === value)
   }
 }
+
+export const BookmarkList = new Kind({
+  reader: BookmarkListReader,
+  builder: BookmarkListBuilder,
+  router: OutboxRouter,
+})
