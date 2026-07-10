@@ -4,6 +4,7 @@ import {Delete, DeleteBuilder} from "@welshman/domain"
 import {Router} from "./router.js"
 import {Tags} from "./tags.js"
 import {Command} from "../command.js"
+import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -33,6 +34,12 @@ export class Deletes {
 
     fn?.(builder)
 
-    return this.app.use(Router).commandFromBuilder(builder, scenario => scenario.limit(30))
+    // A delete should reach every relay its target lives on, so resolve manually
+    // with a raised limit rather than using commandFromBuilder's default.
+    const user = User.require(this.app)
+    const template = await builder.toTemplate(user.signer)
+    const scenario = await this.app.use(Router).resolve(await builder.routes())
+
+    return new Command(this.app, template, scenario.limit(30).getUrls())
   }
 }
