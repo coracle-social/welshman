@@ -107,15 +107,13 @@ export class Router implements FeedRouter {
   // app user), derive its routes via the builder, resolve them, and return a
   // `Command`. Scenarios default to no fallback relays — a publish goes exactly
   // where the event's routes resolve (e.g. a NIP-29 group event to its one relay).
-  // `configure` tunes the publish scenario, e.g. `scenario => scenario.limit(30)`.
-  commandFromBuilder = async <R extends EventReader>(
-    builder: EventBuilder<R>,
-    configure: (scenario: RelayScenario) => RelayScenario = scenario => scenario,
-  ): Promise<Command> => {
+  // A caller that needs to tune the scenario (limit, policy) builds the `Command`
+  // itself off `resolve`.
+  commandFromBuilder = async <R extends EventReader>(builder: EventBuilder<R>): Promise<Command> => {
     const user = User.require(this.app)
     const template = await builder.toTemplate(user.signer)
     const routes = await builder.routes()
-    const scenario = configure(await this.resolve(routes))
+    const scenario = await this.resolve(routes)
 
     return new Command(this.app, template, scenario.getUrls())
   }
