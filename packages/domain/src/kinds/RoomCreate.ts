@@ -1,7 +1,7 @@
 import {ROOM_CREATE} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-9007 create-room op.
 export class RoomCreateReader extends EventReader {

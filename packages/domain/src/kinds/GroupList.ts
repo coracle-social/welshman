@@ -1,8 +1,8 @@
 import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {COMMUNITIES, getAddressTagValues} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10004 group/community list.
 export class GroupListReader extends EventReader {

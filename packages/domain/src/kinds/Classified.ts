@@ -1,8 +1,8 @@
 import {spec} from "@welshman/lib"
 import {CLASSIFIED, getTag, getTagValue, getTagValues, getTopicTagValues} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 export type ClassifiedPrice = {
   amount: number

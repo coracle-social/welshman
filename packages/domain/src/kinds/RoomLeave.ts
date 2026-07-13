@@ -1,7 +1,7 @@
 import {ROOM_LEAVE} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-9022 room leave op. The target room is the "h" group tag.
 export class RoomLeaveReader extends EventReader {

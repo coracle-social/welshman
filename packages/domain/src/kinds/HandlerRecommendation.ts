@@ -1,8 +1,8 @@
 import {last, removeUndefined, spec} from "@welshman/lib"
 import {HANDLER_RECOMMENDATION, getAddressTags, getAddressTagValues} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // NIP-89 kind-31989 handler recommendation.
 export class HandlerRecommendationReader extends EventReader {

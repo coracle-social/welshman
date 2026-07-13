@@ -3,9 +3,9 @@ import {
 import {RELAY_INVITE,
   getTagValue,
 } from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-28935 relay invite.
 export class RelayInviteReader extends EventReader {

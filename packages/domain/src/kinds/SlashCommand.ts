@@ -1,8 +1,8 @@
 import {removeUndefined, spec} from "@welshman/lib"
 import {SLASH_COMMAND, getTags, getTagValues, getKindTagValues} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // A declared parameter: its label, a type hint (`string`/`number`/`pubkey`/
 // `topic`/`relay`) used for client-side input/auto-complete, and whether it's

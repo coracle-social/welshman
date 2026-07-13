@@ -5,9 +5,9 @@ import {
 import {RELAY_REMOVE_MEMBER,
   getPubkeyTagValues,
 } from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // Flotilla relay/space remove-member op (kind 8001).
 export class RelayRemoveMemberReader extends EventReader {

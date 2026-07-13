@@ -1,8 +1,8 @@
 import {uniqBy, spec} from "@welshman/lib"
 import {MESSAGING_RELAYS, getTagValues, normalizeRelayUrl} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // NIP-17 kind-10050 messaging/inbox relays list.
 export class MessagingRelayListReader extends EventReader {

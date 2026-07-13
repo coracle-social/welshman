@@ -3,9 +3,9 @@ import {
 import {THREAD,
   getTagValue,
 } from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // NIP-7D kind-11 forum thread root.
 export class ThreadReader extends EventReader {

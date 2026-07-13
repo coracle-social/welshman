@@ -4,10 +4,10 @@ import {ZAP_GOAL,
   getTagValue,
   getTagValues,
 } from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
-import type {AnyConfiguredKind} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
+import type {AnyConfiguredKind} from "../core/Kind.js"
 
 // NIP-75 kind-9041 zap goal.
 export class ZapGoalReader extends EventReader {

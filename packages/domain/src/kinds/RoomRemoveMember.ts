@@ -5,9 +5,9 @@ import {
 import {ROOM_REMOVE_MEMBER,
   getPubkeyTagValues,
 } from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 room remove-member op (kind 9001).
 export class RoomRemoveMemberReader extends EventReader {

@@ -1,9 +1,9 @@
 import {range, DAY, spec} from "@welshman/lib"
 import {EVENT_TIME, getTagValue} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
-import type {AnyConfiguredKind} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
+import type {AnyConfiguredKind} from "../core/Kind.js"
 
 // NIP-52 kind-31923 time-based calendar event.
 export class TimeEventReader extends EventReader {

@@ -2,9 +2,9 @@ import {uniq, spec} from "@welshman/lib"
 import {MUTES, getPubkeyTagValues,
   userOutbox,
 } from "@welshman/util"
-import {ListReader} from "../ListReader.js"
-import {ListWriter} from "../ListWriter.js"
-import {KindFactory} from "../Kind.js"
+import {ListReader} from "../core/ListReader.js"
+import {ListWriter} from "../core/ListWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10000 mute list.
 export class MuteListReader extends ListReader {

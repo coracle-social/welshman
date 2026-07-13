@@ -1,8 +1,8 @@
 import {spec} from "@welshman/lib"
 import {ROOM_META, getTag, getTagValue} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-39000 room metadata.
 export class RoomMetaReader extends EventReader {

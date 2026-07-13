@@ -1,8 +1,8 @@
 import {spec} from "@welshman/lib"
 import {PINBOARD, getTagValue, getTopicTagValues} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // Pinboards-NIP kind-30067 pinboard — addressable board metadata. Pins
 // themselves are separate kind-39067 events (see Pin).
