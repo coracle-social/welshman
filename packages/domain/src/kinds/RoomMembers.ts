@@ -1,9 +1,8 @@
 import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {ROOM_MEMBERS, getPubkeyTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-29 kind-39002 room members list.
 export class RoomMembersReader extends EventReader {
@@ -18,8 +17,9 @@ export class RoomMembersReader extends EventReader {
   }
 }
 
-export class RoomMembersBuilder extends EventBuilder<RoomMembersReader> {
+export class RoomMembersWriter extends EventWriter<RoomMembersReader> {
   readonly kind = ROOM_MEMBERS
+  readonly requiresRelays = true
 
   addPubkey(pubkey: string) {
     return this.dropTags(spec(["p", pubkey])).addTags(removeUndefined(["p", pubkey]))
@@ -34,8 +34,7 @@ export class RoomMembersBuilder extends EventBuilder<RoomMembersReader> {
   }
 }
 
-export const RoomMembers = new Kind({
+export const RoomMembers = new KindFactory({
   reader: RoomMembersReader,
-  builder: RoomMembersBuilder,
-  router: OutboxRouter,
+  writer: RoomMembersWriter,
 })

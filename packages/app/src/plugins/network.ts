@@ -1,5 +1,5 @@
 import {first} from "@welshman/lib"
-import {sortEventsDesc, outbox, relayHints} from "@welshman/util"
+import {sortEventsDesc, outbox, relays} from "@welshman/util"
 import type {Filter} from "@welshman/util"
 import {request, publish, diff, pull, push, makeLoader} from "@welshman/net"
 import type {
@@ -42,9 +42,9 @@ export class Network {
 
   loadUsingOutbox = async (pubkey: string, filter: Filter = {}, hints: string[] = []) => {
     const filters: Filter[] = [{...filter, authors: [pubkey]}]
-    const scenario = await this.app.use(Router).resolve([...relayHints(hints), outbox(pubkey)])
-    const relays = scenario.getUrls()
-    const events = await this.load({filters, relays})
+    const scenario = await this.app.use(Router).resolve([...relays(hints), outbox(pubkey)])
+    const urls = scenario.getUrls()
+    const events = await this.load({filters, relays: urls})
 
     return first(sortEventsDesc(events))
   }
@@ -54,9 +54,9 @@ export class Network {
   // just the newest one.
   loadAllUsingOutbox = async (pubkey: string, filter: Filter = {}, hints: string[] = []) => {
     const filters: Filter[] = [{...filter, authors: [pubkey]}]
-    const scenario = await this.app.use(Router).resolve([...relayHints(hints), outbox(pubkey)])
-    const relays = scenario.getUrls()
+    const scenario = await this.app.use(Router).resolve([...relays(hints), outbox(pubkey)])
+    const urls = scenario.getUrls()
 
-    return this.load({filters, relays})
+    return this.load({filters, relays: urls})
   }
 }

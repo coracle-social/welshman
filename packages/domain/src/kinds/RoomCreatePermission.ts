@@ -1,9 +1,8 @@
 import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {ROOM_CREATE_PERMISSION, getPubkeyTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // Flotilla/NIP-29 kind-19004 room-creation permission grant.
 export class RoomCreatePermissionReader extends EventReader {
@@ -18,8 +17,9 @@ export class RoomCreatePermissionReader extends EventReader {
   }
 }
 
-export class RoomCreatePermissionBuilder extends EventBuilder<RoomCreatePermissionReader> {
+export class RoomCreatePermissionWriter extends EventWriter<RoomCreatePermissionReader> {
   readonly kind = ROOM_CREATE_PERMISSION
+  readonly requiresRelays = true
 
   addPubkey(pubkey: string, role?: string) {
     return this.dropTags(spec(["p", pubkey])).addTags(removeUndefined(["p", pubkey, role]))
@@ -34,8 +34,7 @@ export class RoomCreatePermissionBuilder extends EventBuilder<RoomCreatePermissi
   }
 }
 
-export const RoomCreatePermission = new Kind({
+export const RoomCreatePermission = new KindFactory({
   reader: RoomCreatePermissionReader,
-  builder: RoomCreatePermissionBuilder,
-  router: OutboxRouter,
+  writer: RoomCreatePermissionWriter,
 })

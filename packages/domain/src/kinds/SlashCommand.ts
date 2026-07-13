@@ -1,9 +1,8 @@
 import {removeUndefined, spec} from "@welshman/lib"
 import {SLASH_COMMAND, getTags, getTagValues, getKindTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // A declared parameter: its label, a type hint (`string`/`number`/`pubkey`/
 // `topic`/`relay`) used for client-side input/auto-complete, and whether it's
@@ -85,7 +84,7 @@ export class SlashCommandReader extends EventReader {
   }
 }
 
-export class SlashCommandBuilder extends EventBuilder<SlashCommandReader> {
+export class SlashCommandWriter extends EventWriter<SlashCommandReader> {
   readonly kind = SLASH_COMMAND
 
   setName(name: string) {
@@ -119,7 +118,7 @@ export class SlashCommandBuilder extends EventBuilder<SlashCommandReader> {
   }
 
   removeParam(label: string) {
-    return this.dropTags(tag => ["param", "options"].includes(tag[0]) && tag[1] === label)
+    return this.dropTags(tag => ["param", "options"].includes(tag[0] as string) && tag[1] === label)
   }
 
   addOption(label: string, option: string) {
@@ -133,8 +132,7 @@ export class SlashCommandBuilder extends EventBuilder<SlashCommandReader> {
   }
 }
 
-export const SlashCommand = new Kind({
+export const SlashCommand = new KindFactory({
   reader: SlashCommandReader,
-  builder: SlashCommandBuilder,
-  router: OutboxRouter,
+  writer: SlashCommandWriter,
 })

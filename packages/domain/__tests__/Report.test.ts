@@ -3,6 +3,7 @@ import {makeSecret, REPORT, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {Report} from "../src/kinds/Report"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -32,7 +33,7 @@ describe("Report", () => {
       ],
     })
 
-    const report = await Report.read(event)
+    const report = await read(Report, event)
 
     expect(report.pubkey()).toBe(reported)
     expect(report.eventId()).toBe(eventId)
@@ -50,7 +51,7 @@ describe("Report", () => {
       ],
     })
 
-    const tmpl = await Report.builder(await Report.read(event)).toTemplate(signer)
+    const tmpl = await buildTemplate(write(Report, await read(Report, event)), signer)
 
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "e").length).toBe(1)
@@ -62,12 +63,11 @@ describe("Report", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await Report.builder()
+    const tmpl = await buildTemplate(write(Report)
       .setPubkey(reported)
       .setEventId(eventId)
       .setReason("impersonation")
-      .setContent("bad actor")
-      .toTemplate(signer)
+      .setContent("bad actor"), signer)
 
     expect(tmpl.kind).toBe(REPORT)
     expect(tmpl.tags).toContainEqual(["p", reported, "impersonation"])
@@ -76,6 +76,6 @@ describe("Report", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Report.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(Report, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

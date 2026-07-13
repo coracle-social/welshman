@@ -7,12 +7,13 @@ import {
   getAddress,
   isReplaceable,
   seen,
+  outbox,
 } from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {EventRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {hint} from "../Hint.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-09 kind-5 delete request.
 export class DeleteReader extends EventReader {
@@ -35,32 +36,25 @@ export class DeleteReader extends EventReader {
   }
 }
 
-// Author outbox + mentions, plus every relay each deleted event was found on, so
-// the delete reaches wherever those events live.
-export class DeleteRouter extends EventRouter {
-  async routes() {
-    const group = this.groupRoutes()
+export class DeleteWriter extends EventWriter<DeleteReader> {
+  readonly kind = DELETE
 
-    if (group) return group
-
+  // The default (author outbox + mentions) plus every relay each deleted event was
+  // found on, so the delete reaches wherever those events live.
+  protected async routes() {
     const tags = await this.getTags()
 
     return [
-      this.authorRoute(),
-      ...this.mentionRoutes(tags),
+      ...(await super.routes()),
       ...uniq(getEventTagValues(tags)).map(id => seen({id})),
     ]
   }
-}
-
-export class DeleteBuilder extends EventBuilder<DeleteReader> {
-  readonly kind = DELETE
 
   addEvent(event: TrustedEvent) {
-    this.addTags(["e", event.id], ["k", String(event.kind)])
+    this.addTags(["e", event.id, hint(outbox(event.pubkey))], ["k", String(event.kind)])
 
     if (isReplaceable(event)) {
-      this.addTags(["a", getAddress(event)])
+      this.addTags(["a", getAddress(event), hint(outbox(event.pubkey))])
     }
 
     return this
@@ -73,14 +67,13 @@ export class DeleteBuilder extends EventBuilder<DeleteReader> {
   protected validate() {
     super.validate()
 
-    if (!this.extraTags.some(t => ["e", "a"].includes(t[0]))) {
+    if (!this.extraTags.some(t => ["e", "a"].includes(t[0] as string))) {
       throw new Error("A delete must reference at least one event via an e or a tag")
     }
   }
 }
 
-export const Delete = new Kind({
+export const Delete = new KindFactory({
   reader: DeleteReader,
-  builder: DeleteBuilder,
-  router: DeleteRouter,
+  writer: DeleteWriter,
 })

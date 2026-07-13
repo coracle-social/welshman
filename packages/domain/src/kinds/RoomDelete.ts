@@ -1,16 +1,17 @@
 import {ROOM_DELETE} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-29 kind-9008 delete-room op. The target room is the "h" group tag.
 export class RoomDeleteReader extends EventReader {
   readonly kind = ROOM_DELETE
 }
 
-export class RoomDeleteBuilder extends EventBuilder<RoomDeleteReader> {
+export class RoomDeleteWriter extends EventWriter<RoomDeleteReader> {
   readonly kind = ROOM_DELETE
+  readonly requiresRelays = true
+
 
   protected validate() {
     super.validate()
@@ -21,8 +22,7 @@ export class RoomDeleteBuilder extends EventBuilder<RoomDeleteReader> {
   }
 }
 
-export const RoomDelete = new Kind({
+export const RoomDelete = new KindFactory({
   reader: RoomDeleteReader,
-  builder: RoomDeleteBuilder,
-  router: ContentRouter,
+  writer: RoomDeleteWriter,
 })

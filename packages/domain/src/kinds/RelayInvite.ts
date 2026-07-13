@@ -1,9 +1,11 @@
-import {spec} from "@welshman/lib"
-import {RELAY_INVITE, getTagValue} from "@welshman/util"
+import {
+  spec} from "@welshman/lib"
+import {RELAY_INVITE,
+  getTagValue,
+} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-29 kind-28935 relay invite.
 export class RelayInviteReader extends EventReader {
@@ -14,16 +16,17 @@ export class RelayInviteReader extends EventReader {
   }
 }
 
-export class RelayInviteBuilder extends EventBuilder<RelayInviteReader> {
+export class RelayInviteWriter extends EventWriter<RelayInviteReader> {
   readonly kind = RELAY_INVITE
+  readonly requiresRelays = true
+
 
   setClaim(claim: string) {
     return this.dropTags(spec(["claim"])).addTags(["claim", claim])
   }
 }
 
-export const RelayInvite = new Kind({
+export const RelayInvite = new KindFactory({
   reader: RelayInviteReader,
-  builder: RelayInviteBuilder,
-  router: ContentRouter,
+  writer: RelayInviteWriter,
 })

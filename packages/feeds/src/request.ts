@@ -7,7 +7,7 @@ import {
   getRelayTagValues,
   RELAYS,
   indexers,
-  relayHints,
+  relays,
   searchRelays,
   addMinimalFallbacks,
 } from "@welshman/util"
@@ -110,11 +110,11 @@ export const requestDVM = async ({
   router,
   onResult,
   tags = [],
-  relays = [],
+  relays: relayUrls = [],
   signer = Nip01Signer.ephemeral(),
   context,
 }: RequestDVMOptions) => {
-  if (relays.length === 0) {
+  if (relayUrls.length === 0) {
     const indexScenario = await router.resolve([indexers()])
     const events = await request({
       autoClose: true,
@@ -122,9 +122,9 @@ export const requestDVM = async ({
       relays: indexScenario.policy(addMinimalFallbacks).getUrls(),
     })
 
-    const scenario = await router.resolve(relayHints(events.flatMap(e => getRelayTagValues(e.tags))))
+    const scenario = await router.resolve(relays(events.flatMap(e => getRelayTagValues(e.tags))))
 
-    relays = scenario.policy(addMinimalFallbacks).getUrls()
+    relayUrls = scenario.policy(addMinimalFallbacks).getUrls()
   }
 
   if (!tags.some(nthEq(0, "expiration"))) {
@@ -132,7 +132,7 @@ export const requestDVM = async ({
   }
 
   if (!tags.some(nthEq(0, "relays"))) {
-    tags.push(["relays", ...relays])
+    tags.push(["relays", ...relayUrls])
   }
 
   if (!tags.some(nthEq(1, "user"))) {
@@ -147,7 +147,7 @@ export const requestDVM = async ({
   const filters = [{kinds: [event.kind + 1000], since: now() - 60, "#e": [event.id]}]
 
   return Promise.all([
-    publish({event, relays, context}),
-    request({filters, relays, context, autoClose: true, onEvent: onResult}),
+    publish({event, relays: relayUrls, context}),
+    request({filters, relays: relayUrls, context, autoClose: true, onEvent: onResult}),
   ])
 }

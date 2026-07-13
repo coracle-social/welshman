@@ -3,6 +3,7 @@ import {makeSecret, ZAP_RECEIPT, ZAP_REQUEST, NOTE} from "@welshman/util"
 import type {TrustedEvent, Zapper} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {ZapReceipt} from "../src/kinds/ZapReceipt"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -52,7 +53,7 @@ describe("ZapReceipt", () => {
       ],
     })
 
-    const receipt = await ZapReceipt.read(event)
+    const receipt = await read(ZapReceipt, event)
 
     expect(receipt.bolt11()).toBe(bolt11)
     expect(receipt.invoiceAmount()).toBe(10000)
@@ -67,7 +68,7 @@ describe("ZapReceipt", () => {
   })
 
   it("returns undefined invoice amount for a malformed bolt11", async () => {
-    const receipt = await ZapReceipt.read(makeEvent({tags: [["bolt11", "not-an-invoice"]]}))
+    const receipt = await read(ZapReceipt, makeEvent({tags: [["bolt11", "not-an-invoice"]]}))
 
     expect(receipt.invoiceAmount()).toBeUndefined()
   })
@@ -82,7 +83,7 @@ describe("ZapReceipt", () => {
       ],
     })
 
-    const receipt = await ZapReceipt.read(event)
+    const receipt = await read(ZapReceipt, event)
 
     const zapper = {
       pubkey: recipient,
@@ -107,7 +108,7 @@ describe("ZapReceipt", () => {
       ],
     })
 
-    const tmpl = await ZapReceipt.builder(await ZapReceipt.read(event)).toTemplate(signer)
+    const tmpl = await buildTemplate(write(ZapReceipt, await read(ZapReceipt, event)), signer)
 
     expect(tmpl.tags.filter(t => t[0] === "bolt11").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "description").length).toBe(1)
@@ -118,13 +119,12 @@ describe("ZapReceipt", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await ZapReceipt.builder()
+    const tmpl = await buildTemplate(write(ZapReceipt)
       .setBolt11(bolt11)
       .setDescription(JSON.stringify(request))
       .setRecipient(recipient)
       .setEventId(eventId)
-      .setPreimage("abcd")
-      .toTemplate(signer)
+      .setPreimage("abcd"), signer)
 
     expect(tmpl.kind).toBe(ZAP_RECEIPT)
     expect(tmpl.tags).toContainEqual(["bolt11", bolt11])
@@ -134,6 +134,6 @@ describe("ZapReceipt", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(ZapReceipt.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(ZapReceipt, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

@@ -6,12 +6,12 @@ import {
   getTagValues,
   isRelayUrl,
   normalizeRelayUrl,
-  relayHints,
+  relays,
+  userOutbox,
 } from "@welshman/util"
 import {ListReader} from "../ListReader.js"
-import {ListBuilder} from "../ListBuilder.js"
-import {EventRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {ListWriter} from "../ListWriter.js"
+import {KindFactory} from "../Kind.js"
 
 const matchesUrl = (normalized: string, value = "") =>
   isRelayUrl(value) && normalizeRelayUrl(value) === normalized
@@ -54,20 +54,18 @@ export class RoomListReader extends ListReader {
   }
 }
 
-// Publishes to every relay this list references — both its current urls and the
-// ones it used to have (via the builder's `before` reader) — so each relay learns
-// of the user's membership changes.
-export class RoomListRouter extends EventRouter<RoomListReader> {
-  async routes() {
-    const original = this.getReader()?.urls() ?? []
+export class RoomListWriter extends ListWriter<RoomListReader> {
+  readonly kind = ROOMS
+
+  // Publishes to every relay this list references — both its current urls and the
+  // ones it used to have (via the seed `reader`) — so each relay learns of the
+  // user's membership changes.
+  protected async routes() {
+    const original = this.reader?.urls() ?? []
     const current = getUrls(await this.getTags())
 
-    return [this.authorRoute(), ...relayHints(uniq([...original, ...current]))]
+    return [userOutbox(), ...relays(uniq([...original, ...current]))]
   }
-}
-
-export class RoomListBuilder extends ListBuilder<RoomListReader> {
-  readonly kind = ROOMS
 
   addGroup(groupId: string, url: string) {
     return this.addRelay(url).addPublic(["group", groupId, url])
@@ -77,7 +75,7 @@ export class RoomListBuilder extends ListBuilder<RoomListReader> {
     const normalized = url ? normalizeRelayUrl(url) : undefined
 
     return this.dropTags(
-      t => t[0] === "group" && t[1] === groupId && (!normalized || matchesUrl(normalized, t[2])),
+      t => t[0] === "group" && t[1] === groupId && (!normalized || matchesUrl(normalized, t[2] as string)),
     )
   }
 
@@ -85,7 +83,7 @@ export class RoomListBuilder extends ListBuilder<RoomListReader> {
     const normalized = normalizeRelayUrl(url)
     const tags = [...this.publicTags, ...this.privateTags]
 
-    if (!tags.some(t => t[0] === "r" && matchesUrl(normalized, t[1]))) {
+    if (!tags.some(t => t[0] === "r" && matchesUrl(normalized, t[1] as string))) {
       this.addPublic(["r", normalized])
     }
 
@@ -97,15 +95,15 @@ export class RoomListBuilder extends ListBuilder<RoomListReader> {
 
     return this.dropTags(
       t =>
-        (t[0] === "r" && matchesUrl(normalized, t[1])) ||
-        (t[0] === "group" && matchesUrl(normalized, t[2])),
+        (t[0] === "r" && matchesUrl(normalized, t[1] as string)) ||
+        (t[0] === "group" && matchesUrl(normalized, t[2] as string)),
     )
   }
 
   setRelays(urls: string[]) {
     const orderedUrls = uniq(urls.map(normalizeRelayUrl))
     const relayTags = orderedUrls.map(
-      url => this.publicTags.find(t => t[0] === "r" && matchesUrl(url, t[1])) || ["r", url],
+      url => this.publicTags.find(t => t[0] === "r" && matchesUrl(url, t[1] as string)) || ["r", url],
     )
 
     this.publicTags = [...relayTags, ...this.publicTags.filter(t => t[0] !== "r")]
@@ -114,8 +112,7 @@ export class RoomListBuilder extends ListBuilder<RoomListReader> {
   }
 }
 
-export const RoomList = new Kind({
+export const RoomList = new KindFactory({
   reader: RoomListReader,
-  builder: RoomListBuilder,
-  router: RoomListRouter,
+  writer: RoomListWriter,
 })

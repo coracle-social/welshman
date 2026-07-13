@@ -1,9 +1,8 @@
 import {uniq, spec} from "@welshman/lib"
 import {TOPICS, getTopicTagValues, getAddressTagValues} from "@welshman/util"
 import {ListReader} from "../ListReader.js"
-import {ListBuilder} from "../ListBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {ListWriter} from "../ListWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-51 kind-10015 interests/topics list.
 export class TopicListReader extends ListReader {
@@ -22,7 +21,7 @@ export class TopicListReader extends ListReader {
   }
 }
 
-export class TopicListBuilder extends ListBuilder<TopicListReader> {
+export class TopicListWriter extends ListWriter<TopicListReader> {
   readonly kind = TOPICS
 
   followPublicly(topic: string) {
@@ -42,8 +41,7 @@ export class TopicListBuilder extends ListBuilder<TopicListReader> {
   }
 }
 
-export const TopicList = new Kind({
+export const TopicList = new KindFactory({
   reader: TopicListReader,
-  builder: TopicListBuilder,
-  router: OutboxRouter,
+  writer: TopicListWriter,
 })

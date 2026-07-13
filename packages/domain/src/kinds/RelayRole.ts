@@ -1,9 +1,8 @@
 import {first, spec} from "@welshman/lib"
 import {RELAY_ROLE, getTags, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // An hsl color tuple. Components are raw strings; any may be empty, in which
 // case the client supplies its own default. Usually only `hue` is set.
@@ -40,8 +39,9 @@ export class RelayRoleReader extends EventReader {
   }
 }
 
-export class RelayRoleBuilder extends EventBuilder<RelayRoleReader> {
+export class RelayRoleWriter extends EventWriter<RelayRoleReader> {
   readonly kind = RELAY_ROLE
+  readonly requiresRelays = true
 
   setLabel(label: string) {
     return this.dropTags(spec(["label"])).addTags(["label", label])
@@ -60,8 +60,7 @@ export class RelayRoleBuilder extends EventBuilder<RelayRoleReader> {
   }
 }
 
-export const RelayRole = new Kind({
+export const RelayRole = new KindFactory({
   reader: RelayRoleReader,
-  builder: RelayRoleBuilder,
-  router: OutboxRouter,
+  writer: RelayRoleWriter,
 })

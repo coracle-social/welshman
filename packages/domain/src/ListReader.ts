@@ -1,6 +1,5 @@
 import {parseJson} from "@welshman/lib"
 import {decrypt} from "@welshman/signer"
-import type {ISigner} from "@welshman/signer"
 import {EventReader} from "./EventReader.js"
 
 export abstract class ListReader extends EventReader {
@@ -8,7 +7,9 @@ export abstract class ListReader extends EventReader {
   publicTags: string[][] = []
   privateTags: string[][] = []
 
-  async parse(signer?: ISigner) {
+  async parse() {
+    const {signer} = this.def.context
+
     this.publicTags = this.event.tags
 
     if (!this.event.content) {

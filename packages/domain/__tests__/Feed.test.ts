@@ -3,6 +3,7 @@ import {makeSecret, FEED, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {Feed} from "../src/kinds/Feed"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -33,7 +34,7 @@ describe("Feed", () => {
       ],
     })
 
-    const feed = await Feed.read(event)
+    const feed = await read(Feed, event)
 
     expect(feed.identifier()).toBe("abc")
     expect(feed.title()).toBe("My Feed")
@@ -53,7 +54,7 @@ describe("Feed", () => {
       ],
     })
 
-    const tmpl = await Feed.builder(await Feed.read(event)).toTemplate(signer)
+    const tmpl = await buildTemplate(write(Feed, await read(Feed, event)), signer)
 
     for (const key of ["d", "title", "description", "feed"]) {
       expect(tmpl.tags.filter(t => t[0] === key).length).toBe(1)
@@ -67,12 +68,11 @@ describe("Feed", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await Feed.builder()
+    const tmpl = await buildTemplate(write(Feed)
       .setIdentifier("feed1")
       .setTitle("Fresh")
       .setDescription("desc")
-      .setDefinition(definition)
-      .toTemplate(signer)
+      .setDefinition(definition), signer)
 
     expect(tmpl.kind).toBe(FEED)
     expect(tmpl.tags).toContainEqual(["d", "feed1"])
@@ -82,6 +82,6 @@ describe("Feed", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Feed.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(Feed, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

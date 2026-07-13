@@ -4,10 +4,9 @@ import type {Maybe} from "@welshman/lib"
 import {PROFILE, getLnUrl} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {IndexedRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
-import type {AnyKind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
+import type {AnyConfiguredKind} from "../Kind.js"
 
 export const parseLnUrl = (values: Record<string, any> = {}): Maybe<string> => {
   for (const key of ["lud06", "lud16"] as const) {
@@ -32,7 +31,7 @@ export class ProfileReader extends EventReader {
   readonly kind = PROFILE
   readonly values: Record<string, any> = {}
 
-  async parse(signer?: ISigner) {
+  async parse() {
     const json = parseJson(this.event.content)
 
     if (isPojo(json)) {
@@ -77,11 +76,11 @@ export class ProfileReader extends EventReader {
   }
 }
 
-export class ProfileBuilder extends EventBuilder<ProfileReader> {
+export class ProfileWriter extends EventWriter<ProfileReader> {
   readonly kind = PROFILE
   values: Record<string, any>
 
-  constructor(def: AnyKind, reader?: ProfileReader) {
+  constructor(def: AnyConfiguredKind, reader?: ProfileReader) {
     super(def, reader)
     this.values = {...(reader?.values ?? {})}
   }
@@ -137,8 +136,7 @@ export class ProfileBuilder extends EventBuilder<ProfileReader> {
   }
 }
 
-export const Profile = new Kind({
+export const Profile = new KindFactory({
   reader: ProfileReader,
-  builder: ProfileBuilder,
-  router: IndexedRouter,
+  writer: ProfileWriter,
 })

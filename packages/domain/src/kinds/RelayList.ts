@@ -1,9 +1,8 @@
 import {nth, uniq, uniqBy, remove} from "@welshman/lib"
-import {RELAYS, getRelayTags, normalizeRelayUrl, relayHints, indexers} from "@welshman/util"
+import {RELAYS, getRelayTags, normalizeRelayUrl, relays, indexers, userOutbox} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {EventRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 const getUrls = (tags: string[][], mode?: string) =>
   uniqBy(
@@ -30,20 +29,18 @@ export class RelayListReader extends EventReader {
   }
 }
 
-// Kind 10002 is indexed, and publishes to every relay the list references — both
-// its current urls and the ones it used to have (via the builder's `before`
-// reader), so each relay learns when it's added to or removed from the list.
-export class RelayListRouter extends EventRouter<RelayListReader> {
-  async routes() {
-    const original = this.getReader()?.urls() ?? []
+export class RelayListWriter extends EventWriter<RelayListReader> {
+  readonly kind = RELAYS
+
+  // Kind 10002 is indexed, and publishes to every relay the list references — both
+  // its current urls and the ones it used to have (via the seed `reader`), so each
+  // relay learns when it's added to or removed from the list.
+  protected async routes() {
+    const original = this.reader?.urls() ?? []
     const current = getUrls(await this.getTags())
 
-    return [this.authorRoute(), indexers(), ...relayHints(uniq([...original, ...current]))]
+    return [userOutbox(), indexers(), ...relays(uniq([...original, ...current]))]
   }
-}
-
-export class RelayListBuilder extends EventBuilder<RelayListReader> {
-  readonly kind = RELAYS
 
   addReadUrl(url: string) {
     return this.addUrlForMode(url, "read")
@@ -64,7 +61,7 @@ export class RelayListBuilder extends EventBuilder<RelayListReader> {
   private findUrlTag(url: string) {
     const normalized = normalizeRelayUrl(url)
 
-    return this.extraTags.find(t => t[0] === "r" && normalizeRelayUrl(t[1]) === normalized)
+    return this.extraTags.find(t => t[0] === "r" && normalizeRelayUrl(t[1] as string) === normalized)
   }
 
   private addUrlForMode(url: string, mode: "read" | "write") {
@@ -96,11 +93,11 @@ export class RelayListBuilder extends EventBuilder<RelayListReader> {
   }
 
   setReadUrls(urls: string[]) {
-    return this.setUrlsForModes(urls, getUrls(this.extraTags, "write"))
+    return this.setUrlsForModes(urls, getUrls(this.extraTags as string[][], "write"))
   }
 
   setWriteUrls(urls: string[]) {
-    return this.setUrlsForModes(getUrls(this.extraTags, "read"), urls)
+    return this.setUrlsForModes(getUrls(this.extraTags as string[][], "read"), urls)
   }
 
   private setUrlsForModes(readUrls: string[], writeUrls: string[]) {
@@ -127,8 +124,7 @@ export class RelayListBuilder extends EventBuilder<RelayListReader> {
   }
 }
 
-export const RelayList = new Kind({
+export const RelayList = new KindFactory({
   reader: RelayListReader,
-  builder: RelayListBuilder,
-  router: RelayListRouter,
+  writer: RelayListWriter,
 })

@@ -3,6 +3,7 @@ import {makeSecret, POLL_RESPONSE, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {PollResponse} from "../src/kinds/PollResponse"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -32,7 +33,7 @@ describe("PollResponse", () => {
       ],
     })
 
-    const response = await PollResponse.read(event)
+    const response = await read(PollResponse, event)
 
     expect(response.pollId()).toBe(poll)
     expect(response.selections()).toEqual(["1", "2"])
@@ -48,7 +49,7 @@ describe("PollResponse", () => {
       ],
     })
 
-    const tmpl = await PollResponse.builder(await PollResponse.read(event)).toTemplate(signer)
+    const tmpl = await buildTemplate(write(PollResponse, await read(PollResponse, event)), signer)
 
     expect(tmpl.tags.filter(t => t[0] === "e").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "response").length).toBe(2)
@@ -56,12 +57,11 @@ describe("PollResponse", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await PollResponse.builder()
+    const tmpl = await buildTemplate(write(PollResponse)
       .setPollId(poll)
       .addSelection("1")
       .addSelection("1")
-      .addSelection("2")
-      .toTemplate(signer)
+      .addSelection("2"), signer)
 
     expect(tmpl.kind).toBe(POLL_RESPONSE)
     expect(tmpl.tags).toContainEqual(["e", poll])
@@ -72,10 +72,10 @@ describe("PollResponse", () => {
   })
 
   it("requires a poll id", async () => {
-    await expect(PollResponse.builder().addSelection("1").toTemplate(signer)).rejects.toThrow()
+    await expect(buildTemplate(write(PollResponse).addSelection("1"), signer)).rejects.toThrow()
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(PollResponse.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(PollResponse, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

@@ -1,9 +1,8 @@
 import {uniqBy, spec} from "@welshman/lib"
 import {SEARCH_RELAYS, getTagValues, normalizeRelayUrl} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-51 kind-10007 search relays list.
 export class SearchRelayListReader extends EventReader {
@@ -18,7 +17,7 @@ export class SearchRelayListReader extends EventReader {
   }
 }
 
-export class SearchRelayListBuilder extends EventBuilder<SearchRelayListReader> {
+export class SearchRelayListWriter extends EventWriter<SearchRelayListReader> {
   readonly kind = SEARCH_RELAYS
 
   addUrl(url: string) {
@@ -36,8 +35,7 @@ export class SearchRelayListBuilder extends EventBuilder<SearchRelayListReader> 
   }
 }
 
-export const SearchRelayList = new Kind({
+export const SearchRelayList = new KindFactory({
   reader: SearchRelayListReader,
-  builder: SearchRelayListBuilder,
-  router: OutboxRouter,
+  writer: SearchRelayListWriter,
 })

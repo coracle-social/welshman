@@ -1,20 +1,20 @@
 import {RELAY_LEAVE} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // Ephemeral kind-28936 relay/space leave marker.
 export class RelayLeaveReader extends EventReader {
   readonly kind = RELAY_LEAVE
 }
 
-export class RelayLeaveBuilder extends EventBuilder<RelayLeaveReader> {
+export class RelayLeaveWriter extends EventWriter<RelayLeaveReader> {
   readonly kind = RELAY_LEAVE
+  readonly requiresRelays = true
+
 }
 
-export const RelayLeave = new Kind({
+export const RelayLeave = new KindFactory({
   reader: RelayLeaveReader,
-  builder: RelayLeaveBuilder,
-  router: ContentRouter,
+  writer: RelayLeaveWriter,
 })

@@ -3,6 +3,7 @@ import {makeSecret, COMMUNITIES, NOTE, getAddressTagValues} from "@welshman/util
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {GroupList} from "../src/kinds/GroupList"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -32,7 +33,7 @@ describe("GroupList", () => {
       ],
     })
 
-    const list = await GroupList.read(event)
+    const list = await read(GroupList, event)
 
     expect(list.addresses().sort()).toEqual([g1, g2].sort())
   })
@@ -46,8 +47,8 @@ describe("GroupList", () => {
       ],
     })
 
-    const list = await GroupList.read(event)
-    const tmpl = await GroupList.builder(list).toTemplate(signer)
+    const list = await read(GroupList, event)
+    const tmpl = await buildTemplate(write(GroupList, list), signer)
 
     expect(tmpl.kind).toBe(COMMUNITIES)
     expect(tmpl.tags.filter(t => t[0] === "a").length).toBe(2)
@@ -55,10 +56,9 @@ describe("GroupList", () => {
   })
 
   it("builds from a fresh builder with relay hint", async () => {
-    const tmpl = await GroupList.builder()
+    const tmpl = await buildTemplate(write(GroupList)
       .addGroup(g1, "wss://relay.example/")
-      .addGroup(g2)
-      .toTemplate(signer)
+      .addGroup(g2), signer)
 
     expect(getAddressTagValues(tmpl.tags).sort()).toEqual([g1, g2].sort())
     expect(tmpl.tags).toContainEqual(["a", g1, "wss://relay.example/"])
@@ -72,14 +72,14 @@ describe("GroupList", () => {
         ["a", g2],
       ],
     })
-    const list = await GroupList.read(event)
+    const list = await read(GroupList, event)
 
-    const tmpl = await GroupList.builder(list).removeGroup(g1).toTemplate(signer)
+    const tmpl = await buildTemplate(write(GroupList, list).removeGroup(g1), signer)
 
     expect(getAddressTagValues(tmpl.tags)).toEqual([g2])
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(GroupList.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(GroupList, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

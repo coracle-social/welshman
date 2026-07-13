@@ -3,6 +3,7 @@ import {makeSecret, ROOM_ADD_MEMBER, NOTE, getTagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomAddMember} from "../src/kinds/RoomAddMember"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -23,7 +24,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomAddMember", () => {
   it("reads pubkeys and group", async () => {
-    const op = await RoomAddMember.read(
+    const op = await read(RoomAddMember, 
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -40,7 +41,7 @@ describe("RoomAddMember", () => {
   })
 
   it("round-trips with no duplicated tags", async () => {
-    const op = await RoomAddMember.read(
+    const op = await read(RoomAddMember, 
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -51,9 +52,8 @@ describe("RoomAddMember", () => {
       }),
     )
 
-    const tmpl = await RoomAddMember.builder(op)
-      .setGroup("wss://relay.example.com/", "room1")
-      .toTemplate(signer)
+    const tmpl = await buildTemplate(write(RoomAddMember, op)
+      .setGroup("wss://relay.example.com/", "room1"), signer)
 
     expect(tmpl.kind).toBe(ROOM_ADD_MEMBER)
     // h round-trips via the base behavior tag.
@@ -67,12 +67,11 @@ describe("RoomAddMember", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await RoomAddMember.builder()
+    const tmpl = await buildTemplate(write(RoomAddMember)
       .setGroup("wss://relay.example.com/", "room2")
       .addPubkey(a)
       .addPubkey(a) // dedup
-      .addPubkey(b)
-      .toTemplate(signer)
+      .addPubkey(b), signer)
 
     expect(tmpl.kind).toBe(ROOM_ADD_MEMBER)
     expect(getTagValue("h", tmpl.tags)).toBe("room2")
@@ -82,6 +81,6 @@ describe("RoomAddMember", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RoomAddMember.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(RoomAddMember, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

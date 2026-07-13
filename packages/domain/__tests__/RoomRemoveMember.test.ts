@@ -3,6 +3,7 @@ import {makeSecret, ROOM_ADD_MEMBER, ROOM_REMOVE_MEMBER, getTagValue} from "@wel
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomRemoveMember} from "../src/kinds/RoomRemoveMember"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -23,7 +24,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomRemoveMember", () => {
   it("uses the remove kind and reads pubkeys", async () => {
-    const op = await RoomRemoveMember.read(
+    const op = await read(RoomRemoveMember, 
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -37,7 +38,7 @@ describe("RoomRemoveMember", () => {
   })
 
   it("round-trips through the remove builder", async () => {
-    const op = await RoomRemoveMember.read(
+    const op = await read(RoomRemoveMember, 
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -47,9 +48,8 @@ describe("RoomRemoveMember", () => {
       }),
     )
 
-    const tmpl = await RoomRemoveMember.builder(op)
-      .setGroup("wss://relay.example.com/", "room1")
-      .toTemplate(signer)
+    const tmpl = await buildTemplate(write(RoomRemoveMember, op)
+      .setGroup("wss://relay.example.com/", "room1"), signer)
 
     expect(tmpl.kind).toBe(ROOM_REMOVE_MEMBER)
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
@@ -58,10 +58,9 @@ describe("RoomRemoveMember", () => {
   })
 
   it("builds from a fresh remove builder", async () => {
-    const tmpl = await RoomRemoveMember.builder()
+    const tmpl = await buildTemplate(write(RoomRemoveMember)
       .setGroup("wss://relay.example.com/", "room2")
-      .addPubkey(a)
-      .toTemplate(signer)
+      .addPubkey(a), signer)
 
     expect(tmpl.kind).toBe(ROOM_REMOVE_MEMBER)
     expect(getTagValue("h", tmpl.tags)).toBe("room2")
@@ -70,7 +69,7 @@ describe("RoomRemoveMember", () => {
 
   it("throws on the wrong kind", async () => {
     await expect(
-      RoomRemoveMember.read(makeEvent({kind: ROOM_ADD_MEMBER, tags: [["p", a]]})),
+      read(RoomRemoveMember, makeEvent({kind: ROOM_ADD_MEMBER, tags: [["p", a]]})),
     ).rejects.toThrow()
   })
 })

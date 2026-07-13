@@ -1,56 +1,81 @@
-import type {TrustedEvent, RelaySelection} from "@welshman/util"
+import type {TrustedEvent, Resolver} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
+import type {Repository} from "@welshman/net"
 import type {EventReader} from "./EventReader.js"
-import type {EventBuilder} from "./EventBuilder.js"
-import type {EventRouter} from "./EventRouter.js"
+import type {EventWriter} from "./EventWriter.js"
+import {EventRouter} from "./EventRouter.js"
 
-export type KindConfig<R extends EventReader, B extends EventBuilder<R>> = {
-  reader: new (def: AnyKind, event: TrustedEvent) => R
-  builder: new (def: AnyKind, reader?: R) => B
-  // Loose in the reader type (like AnyKind) so a router pinned to a concrete
-  // reader — e.g. `RelayListRouter extends EventRouter<RelayListReader>` — fits.
-  router: new (event?: TrustedEvent, builder?: EventBuilder<any>) => EventRouter<any>
+export type KindContext = {
+  resolver: Resolver
+  signer?: ISigner
+  repository?: Repository
+}
+
+export type KindConfig<
+  Reader extends EventReader,
+  Writer extends EventWriter<Reader>,
+  Router extends EventRouter = EventRouter,
+> = {
+  reader: new (def: AnyConfiguredKind, event: TrustedEvent) => Reader
+  writer: new (def: AnyConfiguredKind, reader?: Reader) => Writer
+  router?: new (def: AnyConfiguredKind) => Router
 }
 
 /**
- * Bundles a kind's reader, builder, and router.
+ * Bundles a kind's reader, writer, and (optional) router classes.
  *
- * Usage: `export const Profile = new Kind({reader: ProfileReader, builder: ProfileBuilder, router: IndexedRouter})`
- * then `Profile.read(event)`, `Profile.build(reader)`, `Profile.factory(signer)`.
+ * Usage: `export const Profile = new KindFactory({reader: ProfileReader, writer:
+ * ProfileWriter})`, then `Profile.configure(context)` to bind the app's
+ * dependencies once.
  */
-export class Kind<R extends EventReader, B extends EventBuilder<R>> {
-  constructor(private readonly config: KindConfig<R, B>) {}
+export class KindFactory<
+  Reader extends EventReader,
+  Writer extends EventWriter<Reader>,
+  Router extends EventRouter = EventRouter,
+> {
+  constructor(readonly config: KindConfig<Reader, Writer, Router>) {}
 
-  // Parse an event into a reader (validating its kind), replacing `fromEvent`.
-  async read(event: TrustedEvent, signer?: ISigner): Promise<R> {
+  configure(context: KindContext): ConfiguredKind<Reader, Writer, Router> {
+    return new ConfiguredKind(this.config, context)
+  }
+}
+
+/**
+ * A kind bound to a `KindContext`. Produces readers, writers, and routers which share
+ * the configured dependencies.
+ */
+export class ConfiguredKind<
+  Reader extends EventReader,
+  Writer extends EventWriter<Reader>,
+  Router extends EventRouter = EventRouter,
+> {
+  constructor(
+    readonly config: KindConfig<Reader, Writer, Router>,
+    readonly context: KindContext,
+  ) {}
+
+  reader = async (event: TrustedEvent): Promise<Reader> => {
     const reader = new this.config.reader(this, event)
 
     if (event.kind !== reader.kind) {
       throw new Error(`Expected a kind ${reader.kind} event, got kind ${event.kind}`)
     }
 
-    await reader.parse(signer)
+    await reader.parse()
 
     return reader
   }
 
-  // A reusable, signer-bound `read`
-  factory(signer?: ISigner): (event: TrustedEvent) => Promise<R> {
-    return (event: TrustedEvent) => this.read(event, signer)
-  }
+  writer = (reader?: Reader): Writer => new this.config.writer(this, reader)
 
-  // A fresh builder, optionally seeded from a reader.
-  builder(reader?: R): B {
-    return new this.config.builder(this, reader)
-  }
+  router = (): Router => {
+    const Ctor = this.config.router ?? EventRouter
 
-  // A router over an event and/or a builder (its `before` state).
-  router(event?: TrustedEvent, builder?: EventBuilder<EventReader>): EventRouter {
-    return new this.config.router(event, builder)
+    return new Ctor(this) as Router
   }
 }
 
-// A loosely-typed reference to the owning kind, injected into every instance. The
-// `any` params dodge the circular generics — precise types live on the concrete
-// `Kind<XReader, XBuilder>` wrapper, which is what callers actually hold.
-export type AnyKind = Kind<any, any>
+// A loosely-typed reference to the owning configured kind, injected into every
+// reader/writer instance so it can reach the context. The `any` params dodge the
+// circular generics — precise types live on the concrete `ConfiguredKind` wrapper.
+export type AnyConfiguredKind = ConfiguredKind<any, any, any>

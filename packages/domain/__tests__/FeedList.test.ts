@@ -3,6 +3,7 @@ import {makeSecret, FEEDS, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {FeedList} from "../src/kinds/FeedList"
+import {buildTemplate, buildEvent, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -24,7 +25,7 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("FeedList", () => {
   it("reads saved feed addresses", async () => {
-    const reader = await FeedList.read(
+    const reader = await read(FeedList, 
       makeEvent({
         tags: [
           ["a", addressA],
@@ -39,7 +40,7 @@ describe("FeedList", () => {
   })
 
   it("round-trips without duplicating represented tags", async () => {
-    const reader = await FeedList.read(
+    const reader = await read(FeedList, 
       makeEvent({
         tags: [
           ["a", addressA],
@@ -48,18 +49,17 @@ describe("FeedList", () => {
       }),
     )
 
-    const tmpl = await FeedList.builder(reader).toTemplate(signer)
+    const tmpl = await buildTemplate(write(FeedList, reader), signer)
 
     expect(tmpl.tags.filter(t => t[0] === "a").length).toBe(1)
     expect(tmpl.tags).toContainEqual(["alt", "x"])
   })
 
   it("adds and removes feeds via a fresh builder", async () => {
-    const tmpl = await FeedList.builder()
+    const tmpl = await buildTemplate(write(FeedList)
       .addFeed(addressA, "wss://relay.example.com/")
       .addFeed(addressB)
-      .removeFeed(addressA)
-      .toTemplate(signer)
+      .removeFeed(addressA), signer)
 
     expect(tmpl.kind).toBe(FEEDS)
     expect(tmpl.tags).toContainEqual(["a", addressB, ""])
@@ -67,23 +67,22 @@ describe("FeedList", () => {
   })
 
   it("round-trips public and private feeds through encryption", async () => {
-    const event = await FeedList.builder()
+    const event = await buildEvent(write(FeedList)
       .addFeed(addressA)
-      .addFeedPrivately(addressB)
-      .toEvent(signer)
+      .addFeedPrivately(addressB), signer)
 
-    const decrypted = await FeedList.read(event, signer)
+    const decrypted = await read(FeedList, event, signer)
 
     expect(decrypted.decrypted).toBe(true)
     expect(decrypted.addresses().sort()).toEqual([addressA, addressB].sort())
 
-    const publicOnly = await FeedList.read(event)
+    const publicOnly = await read(FeedList, event)
 
     expect(publicOnly.decrypted).toBe(false)
     expect(publicOnly.addresses()).toEqual([addressA])
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(FeedList.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(FeedList, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

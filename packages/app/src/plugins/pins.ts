@@ -1,8 +1,8 @@
 import {PINS} from "@welshman/util"
-import {PinList, PinListReader, PinListBuilder} from "@welshman/domain"
+import {PinList, PinListReader, PinListWriter} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import {Network} from "./network.js"
-import {Router} from "./router.js"
+import {Domain} from "./domain.js"
 import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
@@ -14,7 +14,7 @@ export class PinLists extends DerivedPlugin<PinListReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [PINS]}],
-      eventToItem: PinList.factory(app.user?.signer),
+      eventToItem: app.use(Domain).reader(PinList),
       getKey: pins => pins.author(),
     })
   }
@@ -23,16 +23,16 @@ export class PinLists extends DerivedPlugin<PinListReader> {
     return this.app.use(Network).loadUsingOutbox(pubkey, {kinds: [PINS]}, relayHints)
   }
 
-  update = async (fn: (builder: PinListBuilder) => void) => {
+  update = async (fn: (writer: PinListWriter) => void) => {
     const user = User.require(this.app)
-    const builder = PinList.builder(await this.forceLoad(user.pubkey))
+    const writer = this.app.use(Domain).writer(PinList, await this.forceLoad(user.pubkey))
 
-    fn(builder)
+    fn(writer)
 
-    return this.app.use(Router).commandFromBuilder(builder)
+    return this.app.use(Domain).command(writer)
   }
 
-  pin = (tag: string[]) => this.update(builder => builder.pinPublicly(tag))
+  pin = (tag: string[]) => this.update(writer => writer.pinPublicly(tag))
 
-  unpin = (value: string) => this.update(builder => builder.unpin(value))
+  unpin = (value: string) => this.update(writer => writer.unpin(value))
 }

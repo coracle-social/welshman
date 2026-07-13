@@ -1,9 +1,13 @@
-import {uniq, spec, removeUndefined} from "@welshman/lib"
-import {ROOM_REMOVE_MEMBER, getPubkeyTagValues} from "@welshman/util"
+import {
+  uniq,
+  spec,
+  removeUndefined} from "@welshman/lib"
+import {ROOM_REMOVE_MEMBER,
+  getPubkeyTagValues,
+} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-29 room remove-member op (kind 9001).
 export class RoomRemoveMemberReader extends EventReader {
@@ -14,8 +18,10 @@ export class RoomRemoveMemberReader extends EventReader {
   }
 }
 
-export class RoomRemoveMemberBuilder extends EventBuilder<RoomRemoveMemberReader> {
+export class RoomRemoveMemberWriter extends EventWriter<RoomRemoveMemberReader> {
   readonly kind = ROOM_REMOVE_MEMBER
+  readonly requiresRelays = true
+
 
   addPubkey(pubkey: string) {
     return this.dropTags(spec(["p", pubkey])).addTags(removeUndefined(["p", pubkey]))
@@ -30,8 +36,7 @@ export class RoomRemoveMemberBuilder extends EventBuilder<RoomRemoveMemberReader
   }
 }
 
-export const RoomRemoveMember = new Kind({
+export const RoomRemoveMember = new KindFactory({
   reader: RoomRemoveMemberReader,
-  builder: RoomRemoveMemberBuilder,
-  router: ContentRouter,
+  writer: RoomRemoveMemberWriter,
 })

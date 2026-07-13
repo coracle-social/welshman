@@ -22,6 +22,7 @@
   "peerDependencies": {
     "@welshman/feeds": "workspace:*",
     "@welshman/lib": "workspace:*",
+    "@welshman/net": "workspace:*",
     "@welshman/signer": "workspace:*",
     "@welshman/util": "workspace:*",
     "nostr-tools": "^2.19.4"
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@welshman/feeds": "workspace:*",
     "@welshman/lib": "workspace:*",
+    "@welshman/net": "workspace:*",
     "@welshman/signer": "workspace:*",
     "@welshman/util": "workspace:*",
     "nostr-tools": "^2.19.4",

@@ -1,20 +1,17 @@
 import {describe, it, expect} from "vitest"
-import {FOLLOWS, MUTES, NOTE, REACTION, DELETE} from "@welshman/util"
-import type {RelayRoute, TrustedEvent} from "@welshman/util"
-import {ContentRouter, IndexedRouter, OutboxRouter} from "../src/EventRouter"
-import {FollowList} from "../src/kinds/FollowList"
-import {DeleteRouter} from "../src/kinds/Delete"
+import {NOTE} from "@welshman/util"
+import type {TrustedEvent} from "@welshman/util"
+import {Note} from "../src/kinds/Note"
+import {Delete} from "../src/kinds/Delete"
 import {RoomCreate} from "../src/kinds/RoomCreate"
+import {write, publishRelays, markerResolver, OUTBOX, INBOX, SEEN} from "./helpers.js"
 
-const author = "ee".repeat(32)
 const a = "aa".repeat(32)
-const b = "bb".repeat(32)
-const HINT = "wss://hint.example.com/"
 
-const makeEvent = (o: Partial<TrustedEvent>): TrustedEvent =>
+const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
   ({
     id: "ff".repeat(32),
-    pubkey: author,
+    pubkey: "ee".repeat(32),
     created_at: 0,
     kind: NOTE,
     tags: [],
@@ -23,88 +20,35 @@ const makeEvent = (o: Partial<TrustedEvent>): TrustedEvent =>
     ...o,
   }) as TrustedEvent
 
-// Collapse the routes to a comparable summary.
-const summarize = (routes: {route: RelayRoute}[]) =>
-  routes.map(({route}) => {
-    switch (route.type) {
-      case "pubkeyInbox":
-        return `read:${route.pubkey}`
-      case "pubkeyOutbox":
-        return `write:${route.pubkey}`
-      case "pubkeyMessaging":
-        return `messaging:${route.pubkey}`
-      case "relay":
-        return `relay:${route.url}`
-      case "seen":
-        return `seen:${route.ref.id}`
-      default:
-        return route.type
-    }
+// `markerResolver` maps each route type to a recognizable url, so the resolved
+// publish relays reveal which sources a writer targets. Writers aren't signed, so
+// "author" resolves to the current user's outbox (OUTBOX).
+describe("writer routing", () => {
+  it("the default reaches the author outbox + the inboxes of referenced pubkeys", async () => {
+    const relays = await publishRelays(write(Note, undefined, markerResolver).addTags(["p", a]))
+
+    expect(relays).toContain(OUTBOX)
+    expect(relays).toContain(INBOX)
   })
 
-describe("EventRouter", () => {
-  it("ContentRouter routes to author outbox + mention inboxes, ignoring tag relay hints", async () => {
-    const routes = await new ContentRouter(
-      makeEvent({kind: REACTION, tags: [["p", a], ["e", "id", HINT]]}),
-    ).routes()
+  it("with no referenced pubkeys, reaches only the author outbox", async () => {
+    const relays = await publishRelays(write(Note, undefined, markerResolver))
 
-    const summary = summarize(routes)
-
-    expect(summary).toContain(`write:${author}`) // author outbox
-    expect(summary).toContain(`read:${a}`) // mentioned pubkey inbox
-    // A tag's relay hint is a read-side breadcrumb (where to find the referenced
-    // event), not a publish target for this event.
-    expect(summary).not.toContain(`relay:${HINT}`)
+    expect(relays).toEqual([OUTBOX])
   })
 
-  it("IndexedRouter routes to author outbox + indexers, never p-tag inboxes", async () => {
-    const routes = await new IndexedRouter(
-      makeEvent({kind: FOLLOWS, tags: [["p", a], ["p", b]]}),
-    ).routes()
+  it("a delete also reaches where the deleted events were seen", async () => {
+    const deleted = makeEvent({id: "12".repeat(32)})
+    const relays = await publishRelays(write(Delete, undefined, markerResolver).addEvent(deleted))
 
-    const summary = summarize(routes)
-
-    // Only the author's outbox and indexers — never the followees' inboxes.
-    expect(summary).toContain(`write:${author}`)
-    expect(summary).toContain("index")
-    expect(summary).not.toContain(`read:${a}`)
-    expect(summary).not.toContain(`read:${b}`)
-  })
-
-  it("OutboxRouter routes to the author outbox only", async () => {
-    const routes = await new OutboxRouter(makeEvent({kind: MUTES, tags: [["p", a]]})).routes()
-
-    expect(summarize(routes)).toEqual([`write:${author}`])
-  })
-
-  it("DeleteRouter adds the deleted events' seen relays", async () => {
-    const deletedId = "12".repeat(32)
-    const routes = await new DeleteRouter(
-      makeEvent({kind: DELETE, tags: [["e", deletedId], ["k", "1"]]}),
-    ).routes()
-
-    const summary = summarize(routes)
-
-    expect(summary).toContain(`write:${author}`)
-    expect(summary).toContain(`seen:${deletedId}`)
-  })
-
-  it("uses userOutbox when routing a not-yet-signed builder", async () => {
-    const builder = FollowList.builder().addTags(["p", a])
-    const routes = await builder.routes()
-
-    // No signed author yet -> userOutbox (resolved against the current user).
-    expect(routes.some(r => r.route.type === "userOutbox")).toBe(true)
-    expect(summarize(routes)).toContain("index")
-    expect(summarize(routes)).not.toContain(`read:${a}`)
+    expect(relays).toContain(OUTBOX)
+    expect(relays).toContain(SEEN)
   })
 
   it("a NIP-29 group publish routes only to the group relay", async () => {
     const url = "wss://groups.example.com/"
-    const routes = await RoomCreate.builder().setGroup(url, "mygroup").routes()
+    const relays = await publishRelays(write(RoomCreate, undefined, markerResolver).setGroup(url, "x"))
 
-    // setGroup records the relay; the router short-circuits to it, dropping the
-    // author outbox it would otherwise use.
-    expect(summarize(routes)).toEqual([`relay:${url}`])
+    expect(relays).toEqual([url])
   })
 })

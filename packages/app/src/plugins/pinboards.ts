@@ -1,10 +1,11 @@
 import {uniq} from "@welshman/lib"
 import {Address, PINBOARD, PIN, inbox} from "@welshman/util"
-import {Pinboard, PinboardReader, PinboardBuilder, Pin, PinReader, PinBuilder} from "@welshman/domain"
+import {Pinboard, PinboardReader, PinboardWriter, Pin, PinReader, PinWriter} from "@welshman/domain"
 import {DerivedPlugin, projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
+import {Domain} from "./domain.js"
 import type {IApp} from "../app.js"
 
 export type PinboardFields = {
@@ -22,7 +23,7 @@ export class Pinboards extends DerivedPlugin<PinboardReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [PINBOARD]}],
-      eventToItem: Pinboard.factory(app.user?.signer),
+      eventToItem: app.use(Domain).reader(Pinboard),
       getKey: board => board.address(),
     })
   }
@@ -42,26 +43,26 @@ export class Pinboards extends DerivedPlugin<PinboardReader> {
     this.app.use(Network).loadAllUsingOutbox(pubkey, {kinds: [PINBOARD]}, relayHints)
 
   create = async (fields: PinboardFields) => {
-    const builder = Pinboard.builder().setIdentifier().setTitle(fields.title)
+    const writer = this.app.use(Domain).writer(Pinboard).setIdentifier().setTitle(fields.title)
 
-    if (fields.description) builder.setDescription(fields.description)
-    if (fields.image) builder.setImage(fields.image)
-    if (fields.topics) builder.setTopics(fields.topics)
-    if (fields.collaborative) builder.setCollaborative(fields.collaborative)
+    if (fields.description) writer.setDescription(fields.description)
+    if (fields.image) writer.setImage(fields.image)
+    if (fields.topics) writer.setTopics(fields.topics)
+    if (fields.collaborative) writer.setCollaborative(fields.collaborative)
 
-    return this.app.use(Router).commandFromBuilder(builder)
+    return this.app.use(Domain).command(writer)
   }
 
-  update = async (address: string, fn: (builder: PinboardBuilder) => void) => {
+  update = async (address: string, fn: (writer: PinboardWriter) => void) => {
     const board = await this.forceLoad(address)
 
     if (!board) throw new Error(`Unknown pinboard ${address}`)
 
-    const builder = Pinboard.builder(board)
+    const writer = this.app.use(Domain).writer(Pinboard, board)
 
-    fn(builder)
+    fn(writer)
 
-    return this.app.use(Router).commandFromBuilder(builder)
+    return this.app.use(Domain).command(writer)
   }
 }
 
@@ -73,7 +74,7 @@ export class Pins extends DerivedPlugin<PinReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [PIN]}],
-      eventToItem: Pin.factory(app.user?.signer),
+      eventToItem: app.use(Domain).reader(Pin),
       getKey: pin => pin.address(),
     })
   }
@@ -108,25 +109,25 @@ export class Pins extends DerivedPlugin<PinReader> {
   loadForProfile = (pubkey: string, relayHints: string[] = []) =>
     this.app.use(Network).loadAllUsingOutbox(pubkey, {kinds: [PIN]}, relayHints)
 
-  create = async (builder: PinBuilder) => {
-    return this.app.use(Router).commandFromBuilder(builder)
+  create = async (writer: PinWriter) => {
+    return this.app.use(Domain).command(writer)
   }
 
-  update = async (address: string, fn: (builder: PinBuilder) => void) => {
+  update = async (address: string, fn: (writer: PinWriter) => void) => {
     const pin = await this.forceLoad(address)
 
     if (!pin) throw new Error(`Unknown pin ${address}`)
 
-    const builder = Pin.builder(pin)
+    const writer = this.app.use(Domain).writer(Pin, pin)
 
-    fn(builder)
+    fn(writer)
 
-    return this.app.use(Router).commandFromBuilder(builder)
+    return this.app.use(Domain).command(writer)
   }
 
   addToBoard = (address: string, board: string) =>
-    this.update(address, builder => builder.addBoard(board))
+    this.update(address, writer => writer.addBoard(board))
 
   removeFromBoard = (address: string, board: string) =>
-    this.update(address, builder => builder.removeBoard(board))
+    this.update(address, writer => writer.removeBoard(board))
 }

@@ -2,11 +2,12 @@ import {Scope, FeedController} from "@welshman/feeds"
 import type {FeedControllerOptions, Feed as FeedDefinition} from "@welshman/feeds"
 import type {AdapterContext} from "@welshman/net"
 import {Address, FEED} from "@welshman/util"
-import {Feed, FeedReader, FeedBuilder} from "@welshman/domain"
+import {Feed, FeedReader, FeedWriter} from "@welshman/domain"
 import {DerivedPlugin, projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
+import {Domain} from "./domain.js"
 import {Wot} from "./wot.js"
 import type {IApp} from "../app.js"
 
@@ -30,7 +31,7 @@ export class Feeds extends DerivedPlugin<FeedReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [FEED]}],
-      eventToItem: Feed.factory(app.user?.signer),
+      eventToItem: app.use(Domain).reader(Feed),
       getKey: feed => feed.address(),
     })
   }
@@ -50,25 +51,25 @@ export class Feeds extends DerivedPlugin<FeedReader> {
     this.app.use(Network).loadAllUsingOutbox(pubkey, {kinds: [FEED]}, relayHints)
 
   create = async (fields: FeedFields) => {
-    const builder = Feed.builder().setIdentifier().setTitle(fields.title)
+    const writer = this.app.use(Domain).writer(Feed).setIdentifier().setTitle(fields.title)
 
-    if (fields.description) builder.setDescription(fields.description)
+    if (fields.description) writer.setDescription(fields.description)
 
-    builder.setDefinition(fields.definition)
+    writer.setDefinition(fields.definition)
 
-    return this.app.use(Router).commandFromBuilder(builder)
+    return this.app.use(Domain).command(writer)
   }
 
-  update = async (address: string, fn: (builder: FeedBuilder) => void) => {
+  update = async (address: string, fn: (writer: FeedWriter) => void) => {
     const feed = await this.forceLoad(address)
 
     if (!feed) throw new Error(`Unknown feed ${address}`)
 
-    const builder = Feed.builder(feed)
+    const writer = this.app.use(Domain).writer(Feed, feed)
 
-    fn(builder)
+    fn(writer)
 
-    return this.app.use(Router).commandFromBuilder(builder)
+    return this.app.use(Domain).command(writer)
   }
 
   getPubkeysForScope = (scope: Scope): string[] => {

@@ -3,6 +3,7 @@ import {makeSecret, ZAP_GOAL, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {ZapGoal} from "../src/kinds/ZapGoal"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -32,7 +33,7 @@ describe("ZapGoal", () => {
       ],
     })
 
-    const goal = await ZapGoal.read(event)
+    const goal = await read(ZapGoal, event)
 
     expect(goal.title()).toBe("New server fund")
     expect(goal.summary()).toBe("help us buy a server")
@@ -41,7 +42,7 @@ describe("ZapGoal", () => {
   })
 
   it("defaults amount to 0 when missing or unparseable", async () => {
-    const goal = await ZapGoal.read(makeEvent({content: "Goal"}))
+    const goal = await read(ZapGoal, makeEvent({content: "Goal"}))
 
     expect(goal.amount()).toBe(0)
   })
@@ -57,7 +58,7 @@ describe("ZapGoal", () => {
       ],
     })
 
-    const tmpl = await ZapGoal.builder(await ZapGoal.read(event)).toTemplate(signer)
+    const tmpl = await buildTemplate(write(ZapGoal, await read(ZapGoal, event)), signer)
 
     expect(tmpl.content).toBe("New server fund")
     expect(tmpl.tags.filter(t => t[0] === "summary").length).toBe(1)
@@ -67,12 +68,11 @@ describe("ZapGoal", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await ZapGoal.builder()
+    const tmpl = await buildTemplate(write(ZapGoal)
       .setTitle("Goal")
       .setSummary("a summary")
       .setAmount(1000)
-      .setUrls(["wss://relay.one"])
-      .toTemplate(signer)
+      .setUrls(["wss://relay.one"]), signer)
 
     expect(tmpl.kind).toBe(ZAP_GOAL)
     expect(tmpl.content).toBe("Goal")
@@ -82,10 +82,10 @@ describe("ZapGoal", () => {
   })
 
   it("requires a title", async () => {
-    await expect(ZapGoal.builder().setAmount(1000).toTemplate(signer)).rejects.toThrow()
+    await expect(buildTemplate(write(ZapGoal).setAmount(1000), signer)).rejects.toThrow()
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(ZapGoal.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(ZapGoal, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

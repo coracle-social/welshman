@@ -1,9 +1,8 @@
 import {uniq, spec, normalizeUrl} from "@welshman/lib"
 import {BLOSSOM_SERVERS, getTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // Blossom BUD-03 kind-10063 user server list.
 export class BlossomServerListReader extends EventReader {
@@ -18,7 +17,7 @@ export class BlossomServerListReader extends EventReader {
   }
 }
 
-export class BlossomServerListBuilder extends EventBuilder<BlossomServerListReader> {
+export class BlossomServerListWriter extends EventWriter<BlossomServerListReader> {
   readonly kind = BLOSSOM_SERVERS
 
   addUrl(url: string) {
@@ -36,8 +35,7 @@ export class BlossomServerListBuilder extends EventBuilder<BlossomServerListRead
   }
 }
 
-export const BlossomServerList = new Kind({
+export const BlossomServerList = new KindFactory({
   reader: BlossomServerListReader,
-  builder: BlossomServerListBuilder,
-  router: OutboxRouter,
+  writer: BlossomServerListWriter,
 })

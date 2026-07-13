@@ -3,6 +3,7 @@ import {makeSecret, REACTION, NOTE, FOLLOWS} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {Reaction} from "../src/kinds/Reaction"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -35,7 +36,7 @@ describe("Reaction", () => {
       ],
     })
 
-    const reaction = await Reaction.read(event)
+    const reaction = await read(Reaction, event)
 
     expect(reaction.content()).toBe(":soapbox:")
     expect(reaction.eventId()).toBe(targetId)
@@ -57,16 +58,14 @@ describe("Reaction", () => {
 
     const target = makeEvent({id: "11".repeat(32), pubkey: targetPubkey, kind: NOTE, content: ""})
 
-    const tmpl = await Reaction.builder(await Reaction.read(event))
-      .setEvent(target, "wss://relay.example.com")
-      .toTemplate(signer)
+    const tmpl = await buildTemplate(write(Reaction, await read(Reaction, event)).setEvent(target), signer)
 
     // Each target key emits exactly once.
     for (const key of ["e", "p", "k"]) {
       expect(tmpl.tags.filter(t => t[0] === key).length).toBe(1)
     }
-    expect(tmpl.tags).toContainEqual(["e", "11".repeat(32), "wss://relay.example.com"])
-    expect(tmpl.tags).toContainEqual(["p", targetPubkey, "wss://relay.example.com"])
+    expect(tmpl.tags).toContainEqual(["e", "11".repeat(32), ""])
+    expect(tmpl.tags).toContainEqual(["p", targetPubkey, "", ""])
     expect(tmpl.tags).toContainEqual(["k", "1"])
     // Unknown passthrough tag survives.
     expect(tmpl.tags).toContainEqual(["alt", "x"])
@@ -76,38 +75,38 @@ describe("Reaction", () => {
   it("adds an a tag for replaceable targets", async () => {
     const target = makeEvent({id: targetId, pubkey: targetPubkey, kind: FOLLOWS, content: ""})
 
-    const tmpl = await Reaction.builder().setContent("+").setEvent(target).toTemplate(signer)
+    const tmpl = await buildTemplate(write(Reaction).setContent("+").setEvent(target), signer)
 
     expect(tmpl.kind).toBe(REACTION)
-    expect(tmpl.tags).toContainEqual(["e", targetId])
-    expect(tmpl.tags).toContainEqual(["p", targetPubkey])
+    expect(tmpl.tags).toContainEqual(["e", targetId, ""])
+    expect(tmpl.tags).toContainEqual(["p", targetPubkey, "", ""])
     expect(tmpl.tags).toContainEqual(["k", String(FOLLOWS)])
-    expect(tmpl.tags).toContainEqual(["a", `${FOLLOWS}:${targetPubkey}:`])
+    expect(tmpl.tags).toContainEqual(["a", `${FOLLOWS}:${targetPubkey}:`, ""])
   })
 
   it("adds and removes emojis", async () => {
     const target = makeEvent({id: targetId, pubkey: targetPubkey, kind: NOTE, content: ""})
 
-    const builder = Reaction.builder()
+    const builder = write(Reaction)
       .setContent(":soapbox:")
       .setEvent(target)
       .addEmoji("soapbox", "https://example.com/soapbox.png")
       .addEmoji("gleasonator", "https://example.com/gleasonator.png")
       .removeEmoji("gleasonator")
 
-    const tmpl = await builder.toTemplate(signer)
+    const tmpl = await buildTemplate(builder, signer)
 
     expect(tmpl.tags).toContainEqual(["emoji", "soapbox", "https://example.com/soapbox.png"])
     expect(tmpl.tags.filter(t => t[0] === "emoji").length).toBe(1)
   })
 
   it("throws without an e tag", async () => {
-    await expect(Reaction.builder().setContent("+").toTemplate(signer)).rejects.toThrow(
+    await expect(buildTemplate(write(Reaction).setContent("+"), signer)).rejects.toThrow(
       "A reaction must reference an event via an e tag",
     )
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Reaction.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(Reaction, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

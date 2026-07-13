@@ -1,10 +1,15 @@
-import {spec, first} from "@welshman/lib"
-import {REPORT, getTag, getTagValue} from "@welshman/util"
+import {
+  spec,
+  first} from "@welshman/lib"
+import {REPORT,
+  getTag,
+  getTagValue,
+  userOutbox,
+} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
-import type {AnyKind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
+import type {AnyConfiguredKind} from "../Kind.js"
 
 // NIP-56 kind-1984 report.
 export class ReportReader extends EventReader {
@@ -23,10 +28,15 @@ export class ReportReader extends EventReader {
   }
 }
 
-export class ReportBuilder extends EventBuilder<ReportReader> {
+export class ReportWriter extends EventWriter<ReportReader> {
   readonly kind = REPORT
 
-  constructor(def: AnyKind, reader?: ReportReader) {
+  protected async routes() {
+    return [userOutbox()]
+  }
+
+
+  constructor(def: AnyConfiguredKind, reader?: ReportReader) {
     super(def, reader)
 
     // A report's reason lives on both the p and e tags; normalize so a reason
@@ -42,7 +52,7 @@ export class ReportBuilder extends EventBuilder<ReportReader> {
     const eTag = first(this.extraTags.filter(spec(["e"])))
     const pTag = first(this.extraTags.filter(spec(["p"])))
 
-    return eTag?.[2] ?? pTag?.[2]
+    return (eTag?.[2] ?? pTag?.[2]) as string | undefined
   }
 
   setPubkey(pubkey: string) {
@@ -75,8 +85,7 @@ export class ReportBuilder extends EventBuilder<ReportReader> {
   }
 }
 
-export const Report = new Kind({
+export const Report = new KindFactory({
   reader: ReportReader,
-  builder: ReportBuilder,
-  router: ContentRouter,
+  writer: ReportWriter,
 })

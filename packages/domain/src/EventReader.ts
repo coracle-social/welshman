@@ -1,18 +1,18 @@
 import {spec} from "@welshman/lib"
-import {getTagValue, getAddress} from "@welshman/util"
-import type {TrustedEvent} from "@welshman/util"
-import type {ISigner} from "@welshman/signer"
-import type {AnyKind} from "./Kind.js"
+import type {MaybeAsync} from "@welshman/lib"
+import {getTagValue, getAddress, seen, outbox} from "@welshman/util"
+import type {TrustedEvent, RelaySelection, RelayScenario} from "@welshman/util"
+import type {AnyConfiguredKind} from "./Kind.js"
 
 export abstract class EventReader {
   abstract readonly kind: number
 
   constructor(
-    readonly def: AnyKind,
+    readonly def: AnyConfiguredKind,
     readonly event: TrustedEvent,
   ) {}
 
-  async parse(signer?: ISigner): Promise<void> {}
+  async parse(): Promise<void> {}
 
   id() {
     return this.event.id
@@ -56,7 +56,11 @@ export abstract class EventReader {
     return isNaN(expiration) ? undefined : expiration
   }
 
-  routes() {
-    return this.def.router(this.event).routes()
+  protected routes(): MaybeAsync<RelaySelection[]> {
+    return [this.group() ? seen(this.event) : outbox(this.author())]
+  }
+
+  async scenario(): Promise<RelayScenario> {
+    return this.def.context.resolver.scenario(await this.routes())
   }
 }

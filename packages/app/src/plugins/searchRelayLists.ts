@@ -1,9 +1,9 @@
 import {SEARCH_RELAYS} from "@welshman/util"
-import {SearchRelayList, SearchRelayListReader, SearchRelayListBuilder} from "@welshman/domain"
+import {SearchRelayList, SearchRelayListReader, SearchRelayListWriter} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
-import {Router} from "./router.js"
+import {Domain} from "./domain.js"
 import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
@@ -16,7 +16,7 @@ export class SearchRelayLists extends DerivedPlugin<SearchRelayListReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [SEARCH_RELAYS]}],
-      eventToItem: SearchRelayList.factory(app.user?.signer),
+      eventToItem: app.use(Domain).reader(SearchRelayList),
       getKey: list => list.author(),
     })
   }
@@ -27,18 +27,18 @@ export class SearchRelayLists extends DerivedPlugin<SearchRelayListReader> {
 
   urls = (pubkey: string): Projection<string[]> => this.project(pubkey, list => list?.urls() ?? [])
 
-  update = async (fn: (builder: SearchRelayListBuilder) => void) => {
+  update = async (fn: (writer: SearchRelayListWriter) => void) => {
     const user = User.require(this.app)
-    const builder = SearchRelayList.builder(await this.forceLoad(user.pubkey))
+    const writer = this.app.use(Domain).writer(SearchRelayList, await this.forceLoad(user.pubkey))
 
-    fn(builder)
+    fn(writer)
 
-    return this.app.use(Router).commandFromBuilder(builder)
+    return this.app.use(Domain).command(writer)
   }
 
-  addUrl = (url: string) => this.update(builder => builder.addUrl(url))
+  addUrl = (url: string) => this.update(writer => writer.addUrl(url))
 
-  removeUrl = (url: string) => this.update(builder => builder.removeUrl(url))
+  removeUrl = (url: string) => this.update(writer => writer.removeUrl(url))
 
-  setUrls = (urls: string[]) => this.update(builder => builder.setUrls(urls))
+  setUrls = (urls: string[]) => this.update(writer => writer.setUrls(urls))
 }

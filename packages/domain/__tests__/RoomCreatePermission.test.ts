@@ -3,6 +3,7 @@ import {makeSecret, ROOM_CREATE_PERMISSION, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomCreatePermission} from "../src/kinds/RoomCreatePermission"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -24,7 +25,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomCreatePermission", () => {
   it("reads permitted pubkeys from p tags", async () => {
-    const perm = await RoomCreatePermission.read(
+    const perm = await read(RoomCreatePermission, 
       makeEvent({
         tags: [
           ["p", a],
@@ -40,7 +41,7 @@ describe("RoomCreatePermission", () => {
   })
 
   it("round-trips with no duplicate p tags and passthrough", async () => {
-    const perm = await RoomCreatePermission.read(
+    const perm = await read(RoomCreatePermission, 
       makeEvent({
         tags: [
           ["p", a],
@@ -50,7 +51,10 @@ describe("RoomCreatePermission", () => {
       }),
     )
 
-    const tmpl = await RoomCreatePermission.builder(perm).toTemplate(signer)
+    const tmpl = await buildTemplate(
+      write(RoomCreatePermission, perm).forceRelays("wss://relay.example.com/"),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(ROOM_CREATE_PERMISSION)
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(2)
@@ -60,7 +64,10 @@ describe("RoomCreatePermission", () => {
   })
 
   it("sets pubkeys via a fresh builder, deduped", async () => {
-    const tmpl = await RoomCreatePermission.builder().setPubkeys([a, b, a]).toTemplate(signer)
+    const tmpl = await buildTemplate(
+      write(RoomCreatePermission).setPubkeys([a, b, a]).forceRelays("wss://relay.example.com/"),
+      signer,
+    )
 
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(2)
     expect(tmpl.tags).toContainEqual(["p", a])
@@ -68,6 +75,6 @@ describe("RoomCreatePermission", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RoomCreatePermission.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(RoomCreatePermission, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

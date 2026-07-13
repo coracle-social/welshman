@@ -1,10 +1,18 @@
-import {first, spec} from "@welshman/lib"
-import {REACTION, getTagValue, getKindTagValues, getAddress, isReplaceable} from "@welshman/util"
+import {
+  first,
+  spec} from "@welshman/lib"
+import {REACTION,
+  getTagValue,
+  getKindTagValues,
+  getAddress,
+  isReplaceable,
+  outbox,
+} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {hint} from "../Hint.js"
+import {KindFactory} from "../Kind.js"
 
 const TARGET_KEYS = ["e", "a", "p", "k"]
 
@@ -34,19 +42,20 @@ export class ReactionReader extends EventReader {
   }
 }
 
-export class ReactionBuilder extends EventBuilder<ReactionReader> {
+export class ReactionWriter extends EventWriter<ReactionReader> {
   readonly kind = REACTION
 
+
   // A reaction targets exactly one event, so replace any existing target.
-  setEvent(event: TrustedEvent, relay?: string) {
-    this.dropTags(t => TARGET_KEYS.includes(t[0])).addTags(
+  setEvent(event: TrustedEvent) {
+    this.dropTags(t => TARGET_KEYS.includes(t[0] as string)).addTags(
       ["k", String(event.kind)],
-      relay ? ["p", event.pubkey, relay] : ["p", event.pubkey],
-      relay ? ["e", event.id, relay] : ["e", event.id],
+      this.tagPubkey(event.pubkey),
+      ["e", event.id, hint(outbox(event.pubkey))],
     )
 
     if (isReplaceable(event)) {
-      this.addTags(relay ? ["a", getAddress(event), relay] : ["a", getAddress(event)])
+      this.addTags(["a", getAddress(event), hint(outbox(event.pubkey))])
     }
 
     return this
@@ -69,8 +78,7 @@ export class ReactionBuilder extends EventBuilder<ReactionReader> {
   }
 }
 
-export const Reaction = new Kind({
+export const Reaction = new KindFactory({
   reader: ReactionReader,
-  builder: ReactionBuilder,
-  router: ContentRouter,
+  writer: ReactionWriter,
 })

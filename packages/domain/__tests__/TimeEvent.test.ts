@@ -3,6 +3,7 @@ import {makeSecret, EVENT_TIME, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {TimeEvent} from "../src/kinds/TimeEvent"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -38,7 +39,7 @@ describe("TimeEvent", () => {
       ],
     })
 
-    const time = await TimeEvent.read(event)
+    const time = await read(TimeEvent, event)
 
     expect(time.identifier()).toBe("abc")
     expect(time.title()).toBe("Party")
@@ -61,7 +62,7 @@ describe("TimeEvent", () => {
       ],
     })
 
-    const tmpl = await TimeEvent.builder(await TimeEvent.read(event)).toTemplate(signer)
+    const tmpl = await buildTemplate(write(TimeEvent, await read(TimeEvent, event)), signer)
 
     for (const key of ["d", "title", "location", "start", "end"]) {
       expect(tmpl.tags.filter(t => t[0] === key).length).toBe(1)
@@ -88,19 +89,18 @@ describe("TimeEvent", () => {
       ],
     })
 
-    const tmpl = await TimeEvent.builder(await TimeEvent.read(event)).toTemplate(signer)
+    const tmpl = await buildTemplate(write(TimeEvent, await read(TimeEvent, event)), signer)
 
     expect(tmpl.tags.filter(t => t[0] === "D").length).toBe(1)
     expect(tmpl.tags).not.toContainEqual(["D", "999999"])
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await TimeEvent.builder()
+    const tmpl = await buildTemplate(write(TimeEvent)
       .setIdentifier("event1")
       .setTitle("Fresh")
       .setStart(start)
-      .setEnd(end)
-      .toTemplate(signer)
+      .setEnd(end), signer)
 
     expect(tmpl.kind).toBe(EVENT_TIME)
     expect(tmpl.tags).toContainEqual(["d", "event1"])
@@ -109,6 +109,6 @@ describe("TimeEvent", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(TimeEvent.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(TimeEvent, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

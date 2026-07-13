@@ -1,9 +1,10 @@
 import {uniq, spec, removeUndefined} from "@welshman/lib"
-import {FOLLOWS, getPubkeyTagValues} from "@welshman/util"
+import {FOLLOWS, getPubkeyTagValues,
+  userOutbox,
+} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {IndexedRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-02 kind-3 follow list.
 export class FollowListReader extends EventReader {
@@ -18,8 +19,12 @@ export class FollowListReader extends EventReader {
   }
 }
 
-export class FollowListBuilder extends EventBuilder<FollowListReader> {
+export class FollowListWriter extends EventWriter<FollowListReader> {
   readonly kind = FOLLOWS
+
+  protected async routes() {
+    return [userOutbox()]
+  }
 
   follow(pubkey: string, relayHint?: string, petname?: string) {
     return this.addTags(removeUndefined(["p", pubkey, relayHint, petname]))
@@ -30,8 +35,7 @@ export class FollowListBuilder extends EventBuilder<FollowListReader> {
   }
 }
 
-export const FollowList = new Kind({
+export const FollowList = new KindFactory({
   reader: FollowListReader,
-  builder: FollowListBuilder,
-  router: IndexedRouter,
+  writer: FollowListWriter,
 })

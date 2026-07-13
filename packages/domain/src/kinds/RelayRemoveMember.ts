@@ -1,9 +1,13 @@
-import {uniq, spec, removeUndefined} from "@welshman/lib"
-import {RELAY_REMOVE_MEMBER, getPubkeyTagValues} from "@welshman/util"
+import {
+  uniq,
+  spec,
+  removeUndefined} from "@welshman/lib"
+import {RELAY_REMOVE_MEMBER,
+  getPubkeyTagValues,
+} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // Flotilla relay/space remove-member op (kind 8001).
 export class RelayRemoveMemberReader extends EventReader {
@@ -14,16 +18,17 @@ export class RelayRemoveMemberReader extends EventReader {
   }
 }
 
-export class RelayRemoveMemberBuilder extends EventBuilder<RelayRemoveMemberReader> {
+export class RelayRemoveMemberWriter extends EventWriter<RelayRemoveMemberReader> {
   readonly kind = RELAY_REMOVE_MEMBER
+  readonly requiresRelays = true
+
 
   addPubkey(pubkey: string) {
     return this.dropTags(spec(["p", pubkey])).addTags(removeUndefined(["p", pubkey]))
   }
 }
 
-export const RelayRemoveMember = new Kind({
+export const RelayRemoveMember = new KindFactory({
   reader: RelayRemoveMemberReader,
-  builder: RelayRemoveMemberBuilder,
-  router: ContentRouter,
+  writer: RelayRemoveMemberWriter,
 })

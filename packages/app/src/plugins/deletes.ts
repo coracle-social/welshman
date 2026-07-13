@@ -1,8 +1,7 @@
 import {getTagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {Delete, DeleteBuilder} from "@welshman/domain"
-import {Router} from "./router.js"
-import {Tags} from "./tags.js"
+import {Delete, DeleteWriter} from "@welshman/domain"
+import {Domain} from "./domain.js"
 import {Command} from "../command.js"
 import {User} from "../user.js"
 import type {IApp} from "../app.js"
@@ -14,14 +13,13 @@ import type {IApp} from "../app.js"
 export class Deletes {
   constructor(readonly app: IApp) {}
 
-  // `fn` lets the caller tweak the builder — e.g. `addTags` for extra references,
+  // `fn` lets the caller tweak the writer — e.g. `addEvent` for extra targets,
   // or `setProtected(true)` for NIP-70.
   deleteEvent = async (
     event: TrustedEvent,
-    fn?: (builder: DeleteBuilder) => void,
+    fn?: (writer: DeleteWriter) => void,
   ): Promise<Command> => {
-    const eventTags = await this.app.use(Tags).tagEvent(event)
-    const builder = Delete.builder().addTags(["k", String(event.kind)], ...eventTags)
+    const writer = this.app.use(Domain).writer(Delete).addEvent(event)
 
     // A delete of a NIP-29 group message goes to the group's relay — where the
     // target event lives (per the tracker).
@@ -29,16 +27,16 @@ export class Deletes {
     const [url] = this.app.tracker.getRelays(event.id)
 
     if (group && url) {
-      builder.setGroup(url, group)
+      writer.setGroup(url, group)
     }
 
-    fn?.(builder)
+    fn?.(writer)
 
-    // A delete should reach every relay its target lives on, so resolve manually
-    // with a raised limit rather than using commandFromBuilder's default.
-    const user = User.require(this.app)
-    const template = await builder.toTemplate(user.signer)
-    const scenario = await this.app.use(Router).resolve(await builder.routes())
+    // A delete should reach every relay its target lives on, so build the
+    // scenario ourselves and raise the limit above the default.
+    User.require(this.app)
+
+    const [template, scenario] = await Promise.all([writer.render(), writer.scenario()])
 
     return new Command(this.app, template, scenario.limit(30).getUrls())
   }

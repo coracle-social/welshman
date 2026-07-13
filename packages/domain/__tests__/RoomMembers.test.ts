@@ -3,6 +3,7 @@ import {makeSecret, ROOM_MEMBERS, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomMembers} from "../src/kinds/RoomMembers"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -24,7 +25,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomMembers", () => {
   it("reads represented tags", async () => {
-    const room = await RoomMembers.read(
+    const room = await read(RoomMembers, 
       makeEvent({
         tags: [
           ["d", "room1"],
@@ -42,7 +43,7 @@ describe("RoomMembers", () => {
   })
 
   it("round-trips with no duplicated tags", async () => {
-    const room = await RoomMembers.read(
+    const room = await read(RoomMembers, 
       makeEvent({
         tags: [
           ["d", "room1"],
@@ -53,7 +54,10 @@ describe("RoomMembers", () => {
       }),
     )
 
-    const tmpl = await RoomMembers.builder(room).toTemplate(signer)
+    const tmpl = await buildTemplate(
+      write(RoomMembers, room).forceRelays("wss://relay.example.com/"),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(ROOM_MEMBERS)
     expect(tmpl.tags.filter(t => t[0] === "d").length).toBe(1)
@@ -66,15 +70,15 @@ describe("RoomMembers", () => {
   })
 
   it("builds from a fresh builder and edits membership", async () => {
-    const builder = RoomMembers.builder()
+    const builder = write(RoomMembers)
     builder.setIdentifier("room2")
 
-    const tmpl = await builder
+    const tmpl = await buildTemplate(builder
       .addPubkey(a)
       .addPubkey(a) // dedup
       .addPubkey(b)
       .removePubkey(b)
-      .toTemplate(signer)
+      .forceRelays("wss://relay.example.com/"), signer)
 
     expect(tmpl.tags).toContainEqual(["d", "room2"])
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(1)
@@ -83,6 +87,6 @@ describe("RoomMembers", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RoomMembers.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(RoomMembers, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

@@ -1,9 +1,8 @@
 import {uniqBy, spec} from "@welshman/lib"
 import {MESSAGING_RELAYS, getTagValues, normalizeRelayUrl} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {IndexedRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-17 kind-10050 messaging/inbox relays list.
 export class MessagingRelayListReader extends EventReader {
@@ -14,7 +13,7 @@ export class MessagingRelayListReader extends EventReader {
   }
 }
 
-export class MessagingRelayListBuilder extends EventBuilder<MessagingRelayListReader> {
+export class MessagingRelayListWriter extends EventWriter<MessagingRelayListReader> {
   readonly kind = MESSAGING_RELAYS
 
   addUrl(url: string) {
@@ -32,8 +31,7 @@ export class MessagingRelayListBuilder extends EventBuilder<MessagingRelayListRe
   }
 }
 
-export const MessagingRelayList = new Kind({
+export const MessagingRelayList = new KindFactory({
   reader: MessagingRelayListReader,
-  builder: MessagingRelayListBuilder,
-  router: IndexedRouter,
+  writer: MessagingRelayListWriter,
 })

@@ -1,10 +1,16 @@
-import {now, uniq, randomId, spec} from "@welshman/lib"
-import {POLL, getTagValue, getTagValues} from "@welshman/util"
+import {
+  now,
+  uniq,
+  randomId,
+  spec} from "@welshman/lib"
+import {POLL,
+  getTagValue,
+  getTagValues,
+} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 export type PollType = "singlechoice" | "multiplechoice"
 
@@ -81,8 +87,9 @@ export class PollReader extends EventReader {
   }
 }
 
-export class PollBuilder extends EventBuilder<PollReader> {
+export class PollWriter extends EventWriter<PollReader> {
   readonly kind = POLL
+
 
   setTitle(title: string) {
     this.content = title
@@ -115,8 +122,7 @@ export class PollBuilder extends EventBuilder<PollReader> {
   }
 }
 
-export const Poll = new Kind({
+export const Poll = new KindFactory({
   reader: PollReader,
-  builder: PollBuilder,
-  router: ContentRouter,
+  writer: PollWriter,
 })

@@ -1,9 +1,10 @@
 import {uniq, spec} from "@welshman/lib"
-import {MUTES, getPubkeyTagValues} from "@welshman/util"
+import {MUTES, getPubkeyTagValues,
+  userOutbox,
+} from "@welshman/util"
 import {ListReader} from "../ListReader.js"
-import {ListBuilder} from "../ListBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {ListWriter} from "../ListWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-51 kind-10000 mute list.
 export class MuteListReader extends ListReader {
@@ -18,8 +19,12 @@ export class MuteListReader extends ListReader {
   }
 }
 
-export class MuteListBuilder extends ListBuilder<MuteListReader> {
+export class MuteListWriter extends ListWriter<MuteListReader> {
   readonly kind = MUTES
+
+  protected async routes() {
+    return [userOutbox()]
+  }
 
   mutePublicly(pubkey: string) {
     return this.addPublic(["p", pubkey])
@@ -34,8 +39,7 @@ export class MuteListBuilder extends ListBuilder<MuteListReader> {
   }
 }
 
-export const MuteList = new Kind({
+export const MuteList = new KindFactory({
   reader: MuteListReader,
-  builder: MuteListBuilder,
-  router: OutboxRouter,
+  writer: MuteListWriter,
 })

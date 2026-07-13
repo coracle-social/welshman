@@ -3,6 +3,7 @@ import {makeSecret, EMOJIS, NOTE, getAddressTagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {EmojiList} from "../src/kinds/EmojiList"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -29,7 +30,7 @@ describe("EmojiList", () => {
       tags: [["a", setAddress], emojiTag, ["alt", "x"]],
     })
 
-    const list = await EmojiList.read(event)
+    const list = await read(EmojiList, event)
 
     expect(list.emojiSets()).toEqual([setAddress])
     expect(list.emojis()).toEqual([emojiTag])
@@ -40,8 +41,8 @@ describe("EmojiList", () => {
       tags: [["a", setAddress], emojiTag, ["alt", "x"]],
     })
 
-    const list = await EmojiList.read(event)
-    const tmpl = await EmojiList.builder(list).toTemplate(signer)
+    const list = await read(EmojiList, event)
+    const tmpl = await buildTemplate(write(EmojiList, list), signer)
 
     expect(tmpl.kind).toBe(EMOJIS)
     expect(tmpl.tags.filter(t => t[0] === "a").length).toBe(1)
@@ -50,10 +51,9 @@ describe("EmojiList", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await EmojiList.builder()
+    const tmpl = await buildTemplate(write(EmojiList)
       .addEmojiSet(setAddress)
-      .addEmoji("soapbox", "https://example.com/soapbox.png")
-      .toTemplate(signer)
+      .addEmoji("soapbox", "https://example.com/soapbox.png"), signer)
 
     expect(getAddressTagValues(tmpl.tags)).toEqual([setAddress])
     expect(tmpl.tags).toContainEqual(emojiTag)
@@ -61,14 +61,14 @@ describe("EmojiList", () => {
 
   it("removeEmoji removes by value", async () => {
     const event = makeEvent({tags: [emojiTag, emojiTag2]})
-    const list = await EmojiList.read(event)
+    const list = await read(EmojiList, event)
 
-    const tmpl = await EmojiList.builder(list).removeEmoji("soapbox").toTemplate(signer)
+    const tmpl = await buildTemplate(write(EmojiList, list).removeEmoji("soapbox"), signer)
 
     expect(tmpl.tags.filter(t => t[0] === "emoji")).toEqual([emojiTag2])
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(EmojiList.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(EmojiList, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

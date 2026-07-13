@@ -1,9 +1,8 @@
 import {uniq, spec} from "@welshman/lib"
 import {EMOJIS, getAddressTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-51 kind-10030 user emoji list.
 export class EmojiListReader extends EventReader {
@@ -18,7 +17,7 @@ export class EmojiListReader extends EventReader {
   }
 }
 
-export class EmojiListBuilder extends EventBuilder<EmojiListReader> {
+export class EmojiListWriter extends EventWriter<EmojiListReader> {
   readonly kind = EMOJIS
 
   addEmoji(shortcode: string, url: string) {
@@ -38,8 +37,7 @@ export class EmojiListBuilder extends EventBuilder<EmojiListReader> {
   }
 }
 
-export const EmojiList = new Kind({
+export const EmojiList = new KindFactory({
   reader: EmojiListReader,
-  builder: EmojiListBuilder,
-  router: OutboxRouter,
+  writer: EmojiListWriter,
 })

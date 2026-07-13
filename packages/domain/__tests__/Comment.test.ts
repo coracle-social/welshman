@@ -3,6 +3,7 @@ import {makeSecret, COMMENT, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {Comment} from "../src/kinds/Comment"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -38,7 +39,7 @@ describe("Comment", () => {
       ],
     })
 
-    const comment = await Comment.read(event)
+    const comment = await read(Comment, event)
 
     expect(comment.content()).toBe("nice thread")
     expect(comment.root()).toEqual({id: rootId, address: undefined, kind: "11", pubkey: rootPubkey})
@@ -64,7 +65,7 @@ describe("Comment", () => {
       ],
     })
 
-    const tmpl = await Comment.builder(await Comment.read(event)).toTemplate(signer)
+    const tmpl = await buildTemplate(write(Comment, await read(Comment, event)), signer)
 
     // Each represented reference key emits exactly once.
     for (const key of ["E", "K", "P", "e", "k", "p"]) {
@@ -81,23 +82,22 @@ describe("Comment", () => {
     const root = makeEvent({id: rootId, pubkey: rootPubkey, kind: 11})
     const parent = makeEvent({id: parentId, pubkey: parentPubkey, kind: 1111})
 
-    const tmpl = await Comment.builder()
+    const tmpl = await buildTemplate(write(Comment)
       .setContent("reply")
       .setRootFromEvent(root)
-      .setParentFromEvent(parent)
-      .toTemplate(signer)
+      .setParentFromEvent(parent), signer)
 
     expect(tmpl.kind).toBe(COMMENT)
-    expect(tmpl.tags).toContainEqual(["E", rootId])
+    expect(tmpl.tags).toContainEqual(["E", rootId, ""])
     expect(tmpl.tags).toContainEqual(["K", "11"])
-    expect(tmpl.tags).toContainEqual(["P", rootPubkey])
-    expect(tmpl.tags).toContainEqual(["e", parentId])
+    expect(tmpl.tags).toContainEqual(["P", rootPubkey, ""])
+    expect(tmpl.tags).toContainEqual(["e", parentId, ""])
     expect(tmpl.tags).toContainEqual(["k", "1111"])
-    expect(tmpl.tags).toContainEqual(["p", parentPubkey])
+    expect(tmpl.tags).toContainEqual(["p", parentPubkey, ""])
     expect(tmpl.content).toBe("reply")
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Comment.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(Comment, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

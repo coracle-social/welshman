@@ -1,10 +1,9 @@
 import {range, DAY, spec} from "@welshman/lib"
 import {EVENT_TIME, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
-import type {AnyKind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
+import type {AnyConfiguredKind} from "../Kind.js"
 
 // NIP-52 kind-31923 time-based calendar event.
 export class TimeEventReader extends EventReader {
@@ -31,10 +30,10 @@ export class TimeEventReader extends EventReader {
   }
 }
 
-export class TimeEventBuilder extends EventBuilder<TimeEventReader> {
+export class TimeEventWriter extends EventWriter<TimeEventReader> {
   readonly kind = EVENT_TIME
 
-  constructor(def: AnyKind, reader?: TimeEventReader) {
+  constructor(def: AnyConfiguredKind, reader?: TimeEventReader) {
     super(def, reader)
 
     this.consumeTags("D")
@@ -59,8 +58,8 @@ export class TimeEventBuilder extends EventBuilder<TimeEventReader> {
   protected buildTags() {
     const tags: string[][] = []
 
-    const start = parseInt(this.extraTags.find(spec(["start"]))?.[1] ?? "")
-    const end = parseInt(this.extraTags.find(spec(["end"]))?.[1] ?? "")
+    const start = parseInt((this.extraTags.find(spec(["start"]))?.[1] as string) ?? "")
+    const end = parseInt((this.extraTags.find(spec(["end"]))?.[1] as string) ?? "")
 
     if (!isNaN(start) && !isNaN(end)) {
       for (const t of range(start, end, DAY)) {
@@ -72,8 +71,7 @@ export class TimeEventBuilder extends EventBuilder<TimeEventReader> {
   }
 }
 
-export const TimeEvent = new Kind({
+export const TimeEvent = new KindFactory({
   reader: TimeEventReader,
-  builder: TimeEventBuilder,
-  router: OutboxRouter,
+  writer: TimeEventWriter,
 })

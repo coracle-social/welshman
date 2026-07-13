@@ -3,6 +3,7 @@ import {makeSecret, SEARCH_RELAYS, NOTE, normalizeRelayUrl} from "@welshman/util
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {SearchRelayList} from "../src/kinds/SearchRelayList"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -24,7 +25,7 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("SearchRelayList", () => {
   it("reads search relay urls", async () => {
-    const reader = await SearchRelayList.read(
+    const reader = await read(SearchRelayList, 
       makeEvent({
         tags: [
           ["relay", relayA],
@@ -39,7 +40,7 @@ describe("SearchRelayList", () => {
   })
 
   it("round-trips without duplicating represented tags", async () => {
-    const reader = await SearchRelayList.read(
+    const reader = await read(SearchRelayList, 
       makeEvent({
         tags: [
           ["relay", relayA],
@@ -48,18 +49,17 @@ describe("SearchRelayList", () => {
       }),
     )
 
-    const tmpl = await SearchRelayList.builder(reader).toTemplate(signer)
+    const tmpl = await buildTemplate(write(SearchRelayList, reader), signer)
 
     expect(tmpl.tags.filter(t => t[0] === "relay").length).toBe(1)
     expect(tmpl.tags).toContainEqual(["alt", "x"])
   })
 
   it("adds and removes relays via a fresh builder", async () => {
-    const tmpl = await SearchRelayList.builder()
+    const tmpl = await buildTemplate(write(SearchRelayList)
       .addUrl(relayA)
       .addUrl(relayB)
-      .removeUrl(relayA)
-      .toTemplate(signer)
+      .removeUrl(relayA), signer)
 
     expect(tmpl.kind).toBe(SEARCH_RELAYS)
     expect(tmpl.tags).toContainEqual(["relay", normalizeRelayUrl(relayB)])
@@ -67,6 +67,6 @@ describe("SearchRelayList", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(SearchRelayList.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(SearchRelayList, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

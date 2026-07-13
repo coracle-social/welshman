@@ -1,9 +1,9 @@
 import {FEEDS} from "@welshman/util"
-import {FeedList, FeedListReader, FeedListBuilder} from "@welshman/domain"
+import {FeedList, FeedListReader, FeedListWriter} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
-import {Router} from "./router.js"
+import {Domain} from "./domain.js"
 import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
@@ -15,7 +15,7 @@ export class FeedLists extends DerivedPlugin<FeedListReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [FEEDS]}],
-      eventToItem: FeedList.factory(app.user?.signer),
+      eventToItem: app.use(Domain).reader(FeedList),
       getKey: list => list.author(),
     })
   }
@@ -27,20 +27,20 @@ export class FeedLists extends DerivedPlugin<FeedListReader> {
   addresses = (pubkey: string): Projection<string[]> =>
     this.project(pubkey, list => list?.addresses() ?? [])
 
-  update = async (fn: (builder: FeedListBuilder) => void) => {
+  update = async (fn: (writer: FeedListWriter) => void) => {
     const user = User.require(this.app)
-    const builder = FeedList.builder(await this.forceLoad(user.pubkey))
+    const writer = this.app.use(Domain).writer(FeedList, await this.forceLoad(user.pubkey))
 
-    fn(builder)
+    fn(writer)
 
-    return this.app.use(Router).commandFromBuilder(builder)
+    return this.app.use(Domain).command(writer)
   }
 
   addFeed = (address: string, relayHint?: string) =>
-    this.update(builder => builder.addFeed(address, relayHint))
+    this.update(writer => writer.addFeed(address, relayHint))
 
   addFeedPrivately = (address: string, relayHint?: string) =>
-    this.update(builder => builder.addFeedPrivately(address, relayHint))
+    this.update(writer => writer.addFeedPrivately(address, relayHint))
 
-  removeFeed = (address: string) => this.update(builder => builder.removeFeed(address))
+  removeFeed = (address: string) => this.update(writer => writer.removeFeed(address))
 }

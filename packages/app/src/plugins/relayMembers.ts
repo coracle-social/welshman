@@ -1,5 +1,6 @@
 import {RELAY_MEMBERS} from "@welshman/util"
 import {RelayMembers, RelayMembersReader} from "@welshman/domain"
+import {Domain} from "./domain.js"
 import {RelaySignedDerivedPlugin} from "./relaySigned.js"
 import {Network} from "./network.js"
 import type {IApp} from "../app.js"
@@ -13,7 +14,7 @@ export class RelayMemberLists extends RelaySignedDerivedPlugin<RelayMembersReade
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [RELAY_MEMBERS]}],
-      eventToItem: RelayMembers.factory(app.user?.signer),
+      eventToItem: app.use(Domain).reader(RelayMembers),
       getKey: (_members, url) => url,
     })
   }

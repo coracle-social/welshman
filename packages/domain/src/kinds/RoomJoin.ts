@@ -1,9 +1,11 @@
-import {spec} from "@welshman/lib"
-import {ROOM_JOIN, getTagValue} from "@welshman/util"
+import {
+  spec} from "@welshman/lib"
+import {ROOM_JOIN,
+  getTagValue,
+} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-29 kind-9021 room join request.
 export class RoomJoinReader extends EventReader {
@@ -18,8 +20,10 @@ export class RoomJoinReader extends EventReader {
   }
 }
 
-export class RoomJoinBuilder extends EventBuilder<RoomJoinReader> {
+export class RoomJoinWriter extends EventWriter<RoomJoinReader> {
   readonly kind = ROOM_JOIN
+  readonly requiresRelays = true
+
 
   setClaim(claim: string) {
     return this.dropTags(spec(["claim"])).addTags(["claim", claim])
@@ -38,8 +42,7 @@ export class RoomJoinBuilder extends EventBuilder<RoomJoinReader> {
   }
 }
 
-export const RoomJoin = new Kind({
+export const RoomJoin = new KindFactory({
   reader: RoomJoinReader,
-  builder: RoomJoinBuilder,
-  router: ContentRouter,
+  writer: RoomJoinWriter,
 })

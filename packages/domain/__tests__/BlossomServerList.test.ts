@@ -4,6 +4,7 @@ import type {TrustedEvent} from "@welshman/util"
 import {normalizeUrl} from "@welshman/lib"
 import {Nip01Signer} from "@welshman/signer"
 import {BlossomServerList} from "../src/kinds/BlossomServerList"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -36,7 +37,7 @@ describe("BlossomServerList", () => {
       ],
     })
 
-    const list = await BlossomServerList.read(event)
+    const list = await read(BlossomServerList, event)
 
     expect(list.urls().sort()).toEqual([norm(s1), norm(s2)].sort())
     expect(list.includes(s1)).toBe(true)
@@ -52,8 +53,8 @@ describe("BlossomServerList", () => {
       ],
     })
 
-    const list = await BlossomServerList.read(event)
-    const tmpl = await BlossomServerList.builder(list).toTemplate(signer)
+    const list = await read(BlossomServerList, event)
+    const tmpl = await buildTemplate(write(BlossomServerList, list), signer)
 
     expect(tmpl.kind).toBe(BLOSSOM_SERVERS)
     expect(tmpl.tags.filter(t => t[0] === "server").length).toBe(2)
@@ -61,21 +62,21 @@ describe("BlossomServerList", () => {
   })
 
   it("builds from a fresh builder and normalizes urls", async () => {
-    const tmpl = await BlossomServerList.builder().addUrl(s1).toTemplate(signer)
+    const tmpl = await buildTemplate(write(BlossomServerList).addUrl(s1), signer)
 
     expect(getTagValues("server", tmpl.tags)).toEqual([norm(s1)])
   })
 
   it("setServers replaces existing servers", async () => {
     const event = makeEvent({tags: [["server", s1]]})
-    const list = await BlossomServerList.read(event)
+    const list = await read(BlossomServerList, event)
 
-    const tmpl = await BlossomServerList.builder(list).setUrls([s2, s3]).toTemplate(signer)
+    const tmpl = await buildTemplate(write(BlossomServerList, list).setUrls([s2, s3]), signer)
 
     expect(getTagValues("server", tmpl.tags).sort()).toEqual([norm(s2), norm(s3)].sort())
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(BlossomServerList.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(BlossomServerList, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

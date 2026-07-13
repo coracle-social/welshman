@@ -1,9 +1,8 @@
 import {uniqBy, spec} from "@welshman/lib"
 import {BLOCKED_RELAYS, getTagValues, normalizeRelayUrl} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-51 kind-10006 blocked relays list.
 export class BlockedRelayListReader extends EventReader {
@@ -18,7 +17,7 @@ export class BlockedRelayListReader extends EventReader {
   }
 }
 
-export class BlockedRelayListBuilder extends EventBuilder<BlockedRelayListReader> {
+export class BlockedRelayListWriter extends EventWriter<BlockedRelayListReader> {
   readonly kind = BLOCKED_RELAYS
 
   addUrl(url: string) {
@@ -36,8 +35,7 @@ export class BlockedRelayListBuilder extends EventBuilder<BlockedRelayListReader
   }
 }
 
-export const BlockedRelayList = new Kind({
+export const BlockedRelayList = new KindFactory({
   reader: BlockedRelayListReader,
-  builder: BlockedRelayListBuilder,
-  router: OutboxRouter,
+  writer: BlockedRelayListWriter,
 })

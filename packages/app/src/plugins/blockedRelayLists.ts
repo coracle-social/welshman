@@ -1,9 +1,9 @@
 import {BLOCKED_RELAYS} from "@welshman/util"
-import {BlockedRelayList, BlockedRelayListReader, BlockedRelayListBuilder} from "@welshman/domain"
+import {BlockedRelayList, BlockedRelayListReader, BlockedRelayListWriter} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
-import {Router} from "./router.js"
+import {Domain} from "./domain.js"
 import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
@@ -16,7 +16,7 @@ export class BlockedRelayLists extends DerivedPlugin<BlockedRelayListReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [BLOCKED_RELAYS]}],
-      eventToItem: BlockedRelayList.factory(app.user?.signer),
+      eventToItem: app.use(Domain).reader(BlockedRelayList),
       getKey: list => list.author(),
     })
   }
@@ -27,18 +27,18 @@ export class BlockedRelayLists extends DerivedPlugin<BlockedRelayListReader> {
 
   urls = (pubkey: string): Projection<string[]> => this.project(pubkey, list => list?.urls() ?? [])
 
-  update = async (fn: (builder: BlockedRelayListBuilder) => void) => {
+  update = async (fn: (writer: BlockedRelayListWriter) => void) => {
     const user = User.require(this.app)
-    const builder = BlockedRelayList.builder(await this.forceLoad(user.pubkey))
+    const writer = this.app.use(Domain).writer(BlockedRelayList, await this.forceLoad(user.pubkey))
 
-    fn(builder)
+    fn(writer)
 
-    return this.app.use(Router).commandFromBuilder(builder)
+    return this.app.use(Domain).command(writer)
   }
 
-  addUrl = (url: string) => this.update(builder => builder.addUrl(url))
+  addUrl = (url: string) => this.update(writer => writer.addUrl(url))
 
-  removeUrl = (url: string) => this.update(builder => builder.removeUrl(url))
+  removeUrl = (url: string) => this.update(writer => writer.removeUrl(url))
 
-  setUrls = (urls: string[]) => this.update(builder => builder.setUrls(urls))
+  setUrls = (urls: string[]) => this.update(writer => writer.setUrls(urls))
 }

@@ -1,4 +1,4 @@
-import {add, inc, take, sortBy, shuffle, first} from "@welshman/lib"
+import {add, inc, take, sortBy, shuffle, first, uniq} from "@welshman/lib"
 import type {MaybeAsync} from "@welshman/lib"
 import {isRelayUrl, isOnionUrl, isLocalUrl, normalizeRelayUrl} from "./Relay.js"
 
@@ -74,9 +74,13 @@ export const eventOutbox = (ref: EventRef, weight = 1) => sel({type: "eventOutbo
 // Relays the given event was found on (its tracker relays plus any ref hints).
 export const seen = (ref: EventRef, weight = 1) => sel({type: "seen", ref}, weight)
 
-export const relayHint = (url: string, weight = 1) => sel({type: "relay", url}, weight)
+export const relay = (url: string, weight = 1) => sel({type: "relay", url}, weight)
 
-export const relayHints = (urls: string[], weight = 1) => urls.map(url => relayHint(url, weight))
+export const relays = (urls: string[], weight = 1) => urls.map(url => relay(url, weight))
+
+// Inbox selections for a set of pubkeys (mentions/recipients).
+export const inboxes = (pubkeys: string[], weight = 1) =>
+  uniq(pubkeys).map(pubkey => inbox(pubkey, weight))
 
 export const indexers = (weight = 1) => sel({type: "index"}, weight)
 
@@ -191,23 +195,27 @@ export class RelayScenario {
 
 // Resolver framework --------------------------------------------------------
 //
-// A `RouteResolver` turns a single declarative route into concrete relay urls.
-// It may be async — e.g. it loads a pubkey's relay list, or loads a referenced
-// event to discover its author. Everything stateful (relay lists, the tracker,
-// the network) lives behind this one injected function, so the orchestration
-// below stays stateless and testable. The app provides the concrete resolver.
+// A `Resolver` provides a convenient interface to get router scenarios or relay
+// based on a single route resolver function, bound options, and relay selections.
 
-export type RouteResolver = (route: RelayRoute) => MaybeAsync<string[]>
+export type ResolveRoute = (route: RelayRoute) => MaybeAsync<string[]>
 
-// Resolve a set of selections into a scored `RelayScenario`.
-export const resolve = async (
-  selections: RelaySelection[],
-  resolveRoute: RouteResolver,
-  options: RelayScenarioOptions = {},
-): Promise<RelayScenario> => {
-  const resolved = await Promise.all(
-    selections.map(async ({route, weight}) => makeSelection(await resolveRoute(route), weight)),
-  )
+export class Resolver {
+  constructor(readonly routeResolver: ResolveRoute, readonly options: RelayScenarioOptions = {}) {}
 
-  return new RelayScenario(resolved, options)
+  async scenario(selections: RelaySelection[]) {
+    const resolved = await Promise.all(
+      selections.map(async ({route, weight}) => makeSelection(await this.routeResolver(route), weight)),
+    )
+
+    return new RelayScenario(resolved, this.options)
+  }
+
+  async relays(selections: RelaySelection[]) {
+    return (await this.scenario(selections)).getUrls()
+  }
+
+  async relay(selections: RelaySelection[]) {
+    return (await this.scenario(selections)).getUrl()
+  }
 }

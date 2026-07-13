@@ -1,9 +1,10 @@
 import {uniq} from "@welshman/lib"
-import {RELAYS, relayHints, indexers} from "@welshman/util"
-import {RelayList, RelayListReader, RelayListBuilder} from "@welshman/domain"
+import {RELAYS, relays, indexers} from "@welshman/util"
+import {RelayList, RelayListReader, RelayListWriter} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import type {Projection} from "./base.js"
 import {Router} from "./router.js"
+import {Domain} from "./domain.js"
 import {Network} from "./network.js"
 import {User} from "../user.js"
 import type {IApp} from "../app.js"
@@ -16,21 +17,21 @@ export class RelayLists extends DerivedPlugin<RelayListReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [RELAYS]}],
-      eventToItem: RelayList.factory(app.user?.signer),
+      eventToItem: app.use(Domain).reader(RelayList),
       getKey: (list: RelayListReader) => list.author(),
     })
   }
 
   async fetch(pubkey: string, hints: string[] = []) {
     const filters = [{kinds: [RELAYS], authors: [pubkey], limit: 1}]
-    const scenario = await  this.app.use(Router).resolve([...relayHints(hints), indexers()])
+    const scenario = await  this.app.use(Router).resolve([...relays(hints), indexers()])
 
     // Resolving `outbox(pubkey)` here would recurse back into this loader (it's
     // what loads the relay list), so fall back to the pubkey's already-known
     // write relays, alongside caller hints and the indexers.
-    const relays = uniq([...scenario.getUrls(), ...this.writeUrls(pubkey).get()])
+    const urls = uniq([...scenario.getUrls(), ...this.writeUrls(pubkey).get()])
 
-    return this.app.use(Network).load({filters, relays})
+    return this.app.use(Network).load({filters, relays: urls})
   }
 
   urls = (pubkey: string): Projection<string[]> => this.project(pubkey, list => list?.urls() ?? [])
@@ -41,12 +42,12 @@ export class RelayLists extends DerivedPlugin<RelayListReader> {
   writeUrls = (pubkey: string): Projection<string[]> =>
     this.project(pubkey, list => list?.writeUrls() ?? [])
 
-  update = async (fn: (builder: RelayListBuilder) => void) => {
+  update = async (fn: (writer: RelayListWriter) => void) => {
     const user = User.require(this.app)
-    const builder = RelayList.builder(await this.forceLoad(user.pubkey))
+    const writer = this.app.use(Domain).writer(RelayList, await this.forceLoad(user.pubkey))
 
-    fn(builder)
+    fn(writer)
 
-    return this.app.use(Router).commandFromBuilder(builder)
+    return this.app.use(Domain).command(writer)
   }
 }

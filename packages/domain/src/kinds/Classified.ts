@@ -1,9 +1,8 @@
 import {spec} from "@welshman/lib"
 import {CLASSIFIED, getTag, getTagValue, getTagValues, getTopicTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 export type ClassifiedPrice = {
   amount: number
@@ -54,7 +53,7 @@ export class ClassifiedReader extends EventReader {
   }
 }
 
-export class ClassifiedBuilder extends EventBuilder<ClassifiedReader> {
+export class ClassifiedWriter extends EventWriter<ClassifiedReader> {
   readonly kind = CLASSIFIED
 
   setTitle(title: string) {
@@ -87,8 +86,7 @@ export class ClassifiedBuilder extends EventBuilder<ClassifiedReader> {
   }
 }
 
-export const Classified = new Kind({
+export const Classified = new KindFactory({
   reader: ClassifiedReader,
-  builder: ClassifiedBuilder,
-  router: OutboxRouter,
+  writer: ClassifiedWriter,
 })
