@@ -1,9 +1,8 @@
 import {uniqBy, spec} from "@welshman/lib"
 import {NAMED_RELAYS, getTagValue, getTagValues, normalizeRelayUrl} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-51 kind-30002 relay set.
 export class RelaySetReader extends EventReader {
@@ -26,7 +25,7 @@ export class RelaySetReader extends EventReader {
   }
 }
 
-export class RelaySetBuilder extends EventBuilder<RelaySetReader> {
+export class RelaySetWriter extends EventWriter<RelaySetReader> {
   readonly kind = NAMED_RELAYS
 
   setTitle(title: string) {
@@ -56,8 +55,7 @@ export class RelaySetBuilder extends EventBuilder<RelaySetReader> {
   }
 }
 
-export const RelaySet = new Kind({
+export const RelaySet = new KindFactory({
   reader: RelaySetReader,
-  builder: RelaySetBuilder,
-  router: OutboxRouter,
+  writer: RelaySetWriter,
 })

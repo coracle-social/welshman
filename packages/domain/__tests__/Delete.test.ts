@@ -3,6 +3,7 @@ import {makeSecret, DELETE, NOTE, LONG_FORM} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {Delete} from "../src/kinds/Delete"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -24,7 +25,7 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("Delete", () => {
   it("reads ids, addresses, kinds, and reason", async () => {
-    const reader = await Delete.read(
+    const reader = await read(Delete, 
       makeEvent({
         content: "posted by mistake",
         tags: [
@@ -46,7 +47,7 @@ describe("Delete", () => {
   })
 
   it("round-trips without duplicating represented tags", async () => {
-    const reader = await Delete.read(
+    const reader = await read(Delete, 
       makeEvent({
         content: "posted by mistake",
         tags: [
@@ -58,7 +59,7 @@ describe("Delete", () => {
       }),
     )
 
-    const tmpl = await Delete.builder(reader).toTemplate(signer)
+    const tmpl = await buildTemplate(write(Delete, reader), signer)
 
     expect(tmpl.tags.filter(t => t[0] === "e").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "a").length).toBe(1)
@@ -70,10 +71,10 @@ describe("Delete", () => {
   it("adds e and k tags for a regular target", async () => {
     const target = makeEvent({id: eventId, kind: NOTE})
 
-    const tmpl = await Delete.builder().addEvent(target).toTemplate(signer)
+    const tmpl = await buildTemplate(write(Delete).addEvent(target), signer)
 
     expect(tmpl.kind).toBe(DELETE)
-    expect(tmpl.tags).toContainEqual(["e", eventId])
+    expect(tmpl.tags).toContainEqual(["e", eventId, ""])
     expect(tmpl.tags).toContainEqual(["k", "1"])
     expect(tmpl.tags.filter(t => t[0] === "a")).toEqual([])
   })
@@ -86,31 +87,30 @@ describe("Delete", () => {
       tags: [["d", "article"]],
     })
 
-    const tmpl = await Delete.builder().addEvent(target).toTemplate(signer)
+    const tmpl = await buildTemplate(write(Delete).addEvent(target), signer)
 
-    expect(tmpl.tags).toContainEqual(["e", eventId])
+    expect(tmpl.tags).toContainEqual(["e", eventId, ""])
     expect(tmpl.tags).toContainEqual(["k", "30023"])
-    expect(tmpl.tags).toContainEqual(["a", address])
+    expect(tmpl.tags).toContainEqual(["a", address, ""])
   })
 
   it("sets a reason", async () => {
     const target = makeEvent({id: eventId, kind: NOTE})
 
-    const tmpl = await Delete.builder()
+    const tmpl = await buildTemplate(write(Delete)
       .addEvent(target)
-      .setReason("posted by mistake")
-      .toTemplate(signer)
+      .setReason("posted by mistake"), signer)
 
     expect(tmpl.content).toBe("posted by mistake")
   })
 
   it("throws without an e or a tag", async () => {
-    await expect(Delete.builder().setReason("oops").toTemplate(signer)).rejects.toThrow(
+    await expect(buildTemplate(write(Delete).setReason("oops"), signer)).rejects.toThrow(
       "A delete must reference at least one event via an e or a tag",
     )
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Delete.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(Delete, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

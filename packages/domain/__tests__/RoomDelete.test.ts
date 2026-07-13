@@ -3,6 +3,7 @@ import {makeSecret, ROOM_DELETE, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomDelete} from "../src/kinds/RoomDelete"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -22,13 +23,13 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomDelete", () => {
   it("reads the target room via group()", async () => {
-    const del = await RoomDelete.read(makeEvent({tags: [["h", group]]}))
+    const del = await read(RoomDelete, makeEvent({tags: [["h", group]]}))
 
     expect(del.group()).toBe(group)
   })
 
   it("round-trips the group behavior tag without duplication", async () => {
-    const del = await RoomDelete.read(
+    const del = await read(RoomDelete, 
       makeEvent({
         tags: [
           ["h", group],
@@ -37,9 +38,8 @@ describe("RoomDelete", () => {
       }),
     )
 
-    const tmpl = await RoomDelete.builder(del)
-      .setGroup("wss://relay.example.com/", group)
-      .toTemplate(signer)
+    const tmpl = await buildTemplate(write(RoomDelete, del)
+      .setGroup("wss://relay.example.com/", group), signer)
 
     expect(tmpl.kind).toBe(ROOM_DELETE)
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
@@ -48,16 +48,16 @@ describe("RoomDelete", () => {
   })
 
   it("sets the target room via a fresh builder", async () => {
-    const tmpl = await RoomDelete.builder().setGroup("wss://relay.example.com/", group).toTemplate(signer)
+    const tmpl = await buildTemplate(write(RoomDelete).setGroup("wss://relay.example.com/", group), signer)
 
     expect(tmpl.tags).toContainEqual(["h", group])
   })
 
   it("requires an h group", async () => {
-    await expect(RoomDelete.builder().toTemplate(signer)).rejects.toThrow()
+    await expect(buildTemplate(write(RoomDelete), signer)).rejects.toThrow()
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RoomDelete.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(RoomDelete, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

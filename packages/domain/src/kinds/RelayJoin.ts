@@ -1,9 +1,11 @@
-import {spec} from "@welshman/lib"
-import {RELAY_JOIN, getTagValue} from "@welshman/util"
+import {
+  spec} from "@welshman/lib"
+import {RELAY_JOIN,
+  getTagValue,
+} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // Ephemeral kind-28934 relay/space join request.
 export class RelayJoinReader extends EventReader {
@@ -18,8 +20,10 @@ export class RelayJoinReader extends EventReader {
   }
 }
 
-export class RelayJoinBuilder extends EventBuilder<RelayJoinReader> {
+export class RelayJoinWriter extends EventWriter<RelayJoinReader> {
   readonly kind = RELAY_JOIN
+  readonly requiresRelays = true
+
 
   setClaim(claim: string) {
     return this.dropTags(spec(["claim"])).addTags(["claim", claim])
@@ -30,8 +34,7 @@ export class RelayJoinBuilder extends EventBuilder<RelayJoinReader> {
   }
 }
 
-export const RelayJoin = new Kind({
+export const RelayJoin = new KindFactory({
   reader: RelayJoinReader,
-  builder: RelayJoinBuilder,
-  router: ContentRouter,
+  writer: RelayJoinWriter,
 })

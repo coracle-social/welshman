@@ -3,6 +3,7 @@ import {makeSecret, HANDLER_INFORMATION, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {Handler} from "../src/kinds/Handler"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -38,7 +39,7 @@ describe("Handler", () => {
       ],
     })
 
-    const handler = await Handler.read(event)
+    const handler = await read(Handler, event)
 
     expect(handler.values.name).toBe("Coracle")
     expect(handler.name()).toBe("Coracle")
@@ -56,7 +57,7 @@ describe("Handler", () => {
       tags: [["d", "myhandler"]],
     })
 
-    const tmpl = await Handler.builder(await Handler.read(event)).toTemplate(signer)
+    const tmpl = await buildTemplate(write(Handler, await read(Handler, event)), signer)
     const parsed = JSON.parse(tmpl.content)
 
     expect(parsed.name).toBe("Coracle")
@@ -64,7 +65,7 @@ describe("Handler", () => {
   })
 
   it("ignores non-spec aliases like display_name", async () => {
-    const handler = await Handler.read(
+    const handler = await read(Handler, 
       makeEvent({
         content: JSON.stringify({display_name: "Alias", picture: "https://example.com/p.png"}),
       }),
@@ -86,7 +87,7 @@ describe("Handler", () => {
       ],
     })
 
-    const tmpl = await Handler.builder(await Handler.read(event)).toTemplate(signer)
+    const tmpl = await buildTemplate(write(Handler, await read(Handler, event)), signer)
 
     expect(tmpl.tags.filter(t => t[0] === "k").length).toBe(2)
     // The d identifier is passed through untouched.
@@ -100,13 +101,12 @@ describe("Handler", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await Handler.builder()
+    const tmpl = await buildTemplate(write(Handler)
       .setIdentifier("myhandler")
       .setName("MyApp")
       .setAbout("does things")
       .setWebsite("https://my.app")
-      .setKinds([1, 7])
-      .toTemplate(signer)
+      .setKinds([1, 7]), signer)
 
     expect(tmpl.kind).toBe(HANDLER_INFORMATION)
     expect(tmpl.tags).toContainEqual(["d", "myhandler"])
@@ -119,6 +119,6 @@ describe("Handler", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Handler.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(Handler, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

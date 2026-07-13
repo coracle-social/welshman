@@ -3,6 +3,7 @@ import {makeSecret, FOLLOWS, NOTE, getPubkeyTagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {FollowList} from "../src/kinds/FollowList"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -34,7 +35,7 @@ describe("FollowList", () => {
       ],
     })
 
-    const list = await FollowList.read(event)
+    const list = await read(FollowList, event)
 
     expect(list.pubkeys().sort()).toEqual([a, b].sort())
     expect(list.includes(a)).toBe(true)
@@ -50,8 +51,8 @@ describe("FollowList", () => {
       ],
     })
 
-    const list = await FollowList.read(event)
-    const tmpl = await FollowList.builder(list).toTemplate(signer)
+    const list = await read(FollowList, event)
+    const tmpl = await buildTemplate(write(FollowList, list), signer)
 
     expect(tmpl.kind).toBe(FOLLOWS)
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(2)
@@ -59,10 +60,9 @@ describe("FollowList", () => {
   })
 
   it("builds from a fresh builder via follow", async () => {
-    const tmpl = await FollowList.builder()
+    const tmpl = await buildTemplate(write(FollowList)
       .follow(a)
-      .follow(b, "wss://relay.example/", "alice")
-      .toTemplate(signer)
+      .follow(b, "wss://relay.example/", "alice"), signer)
 
     expect(getPubkeyTagValues(tmpl.tags).sort()).toEqual([a, b].sort())
     expect(tmpl.tags).toContainEqual(["p", b, "wss://relay.example/", "alice"])
@@ -75,14 +75,14 @@ describe("FollowList", () => {
         ["p", b],
       ],
     })
-    const list = await FollowList.read(event)
+    const list = await read(FollowList, event)
 
-    const tmpl = await FollowList.builder(list).unfollow(a).toTemplate(signer)
+    const tmpl = await buildTemplate(write(FollowList, list).unfollow(a), signer)
 
     expect(getPubkeyTagValues(tmpl.tags)).toEqual([b])
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(FollowList.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(FollowList, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

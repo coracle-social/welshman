@@ -2,6 +2,7 @@ import {describe, it, expect} from "vitest"
 import {RELAY_ROLE, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {RelayRole} from "../src/kinds/RelayRole"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const pubkey = "ee".repeat(32)
 
@@ -19,7 +20,7 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelayRole", () => {
   it("reads the role id, label, description, color, and order", async () => {
-    const reader = await RelayRole.read(
+    const reader = await read(RelayRole, 
       makeEvent({
         tags: [
           ["d", "moderator"],
@@ -39,7 +40,7 @@ describe("RelayRole", () => {
   })
 
   it("preserves empty color components so clients can supply defaults", async () => {
-    const reader = await RelayRole.read(
+    const reader = await read(RelayRole, 
       makeEvent({
         tags: [
           ["d", "moderator"],
@@ -52,14 +53,14 @@ describe("RelayRole", () => {
   })
 
   it("returns empty color components when there is no color tag", async () => {
-    const reader = await RelayRole.read(makeEvent({tags: [["d", "moderator"]]}))
+    const reader = await read(RelayRole, makeEvent({tags: [["d", "moderator"]]}))
 
     expect(reader.color()).toEqual({hue: "", saturation: "", lightness: ""})
   })
 
   it("defaults order to zero when missing or invalid", async () => {
-    const missing = await RelayRole.read(makeEvent({tags: [["d", "moderator"]]}))
-    const invalid = await RelayRole.read(
+    const missing = await read(RelayRole, makeEvent({tags: [["d", "moderator"]]}))
+    const invalid = await read(RelayRole, 
       makeEvent({
         tags: [
           ["d", "moderator"],
@@ -73,13 +74,13 @@ describe("RelayRole", () => {
   })
 
   it("builds a role from scratch", async () => {
-    const tmpl = await RelayRole.builder()
+    const tmpl = await buildTemplate(write(RelayRole)
       .setIdentifier("moderator")
       .setLabel("Moderator")
       .setDescription("Keeps the peace")
       .setColor({hue: "120", saturation: "0.5", lightness: "0.4"})
       .setOrder(2)
-      .toTemplate()
+      .forceRelays("wss://relay.example.com/"))
 
     expect(tmpl.kind).toBe(RELAY_ROLE)
     expect(tmpl.tags).toContainEqual(["d", "moderator"])
@@ -90,7 +91,7 @@ describe("RelayRole", () => {
   })
 
   it("round-trips an existing role without duplicating tags", async () => {
-    const reader = await RelayRole.read(
+    const reader = await read(RelayRole, 
       makeEvent({
         tags: [
           ["d", "moderator"],
@@ -103,7 +104,9 @@ describe("RelayRole", () => {
       }),
     )
 
-    const tmpl = await RelayRole.builder(reader).setLabel("Mod").setOrder(3).toTemplate()
+    const tmpl = await buildTemplate(
+      write(RelayRole, reader).setLabel("Mod").setOrder(3).forceRelays("wss://relay.example.com/"),
+    )
 
     expect(tmpl.tags.filter(t => t[0] === "d")).toEqual([["d", "moderator"]])
     expect(tmpl.tags.filter(t => t[0] === "label")).toEqual([["label", "Mod"]])
@@ -116,19 +119,19 @@ describe("RelayRole", () => {
   })
 
   it("setColor writes empty components verbatim", async () => {
-    const tmpl = await RelayRole.builder()
+    const tmpl = await buildTemplate(write(RelayRole)
       .setIdentifier("moderator")
       .setColor({hue: "120", saturation: "", lightness: ""})
-      .toTemplate()
+      .forceRelays("wss://relay.example.com/"))
 
     expect(tmpl.tags).toContainEqual(["color", "120", "", ""])
   })
 
   it("requires a d tag", async () => {
-    await expect(RelayRole.builder().setLabel("Moderator").toTemplate()).rejects.toThrow(/d tag/)
+    await expect(buildTemplate(write(RelayRole).setLabel("Moderator"))).rejects.toThrow(/d tag/)
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RelayRole.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(RelayRole, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

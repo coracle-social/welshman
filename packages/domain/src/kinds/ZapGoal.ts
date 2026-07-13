@@ -1,10 +1,13 @@
-import {spec} from "@welshman/lib"
-import {ZAP_GOAL, getTagValue, getTagValues} from "@welshman/util"
+import {
+  spec} from "@welshman/lib"
+import {ZAP_GOAL,
+  getTagValue,
+  getTagValues,
+} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
-import type {AnyKind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
+import type {AnyConfiguredKind} from "../Kind.js"
 
 // NIP-75 kind-9041 zap goal.
 export class ZapGoalReader extends EventReader {
@@ -27,10 +30,11 @@ export class ZapGoalReader extends EventReader {
   }
 }
 
-export class ZapGoalBuilder extends EventBuilder<ZapGoalReader> {
+export class ZapGoalWriter extends EventWriter<ZapGoalReader> {
   readonly kind = ZAP_GOAL
 
-  constructor(def: AnyKind, reader?: ZapGoalReader) {
+
+  constructor(def: AnyConfiguredKind, reader?: ZapGoalReader) {
     super(def, reader)
 
     // A zap goal always carries an amount tag, defaulting to zero.
@@ -64,8 +68,7 @@ export class ZapGoalBuilder extends EventBuilder<ZapGoalReader> {
   }
 }
 
-export const ZapGoal = new Kind({
+export const ZapGoal = new KindFactory({
   reader: ZapGoalReader,
-  builder: ZapGoalBuilder,
-  router: ContentRouter,
+  writer: ZapGoalWriter,
 })

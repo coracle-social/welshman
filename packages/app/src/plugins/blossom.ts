@@ -1,5 +1,6 @@
 import {BLOSSOM_SERVERS} from "@welshman/util"
 import {BlossomServerList, BlossomServerListReader} from "@welshman/domain"
+import {Domain} from "./domain.js"
 import {DerivedPlugin} from "./base.js"
 import {Network} from "./network.js"
 import type {IApp} from "../app.js"
@@ -12,7 +13,7 @@ export class BlossomServerLists extends DerivedPlugin<BlossomServerListReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [BLOSSOM_SERVERS]}],
-      eventToItem: BlossomServerList.factory(app.user?.signer),
+      eventToItem: app.use(Domain).reader(BlossomServerList),
       getKey: list => list.author(),
     })
   }

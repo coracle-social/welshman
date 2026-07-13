@@ -3,6 +3,7 @@ import {makeSecret, RELAY_JOIN, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RelayJoin} from "../src/kinds/RelayJoin"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -21,7 +22,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelayJoin", () => {
   it("reads claim tag and reason content", async () => {
-    const join = await RelayJoin.read(
+    const join = await read(RelayJoin, 
       makeEvent({tags: [["claim", "abc123"]], content: "please let me in"}),
     )
 
@@ -30,14 +31,14 @@ describe("RelayJoin", () => {
   })
 
   it("returns undefined for missing claim/reason", async () => {
-    const join = await RelayJoin.read(makeEvent())
+    const join = await read(RelayJoin, makeEvent())
 
     expect(join.claim()).toBeUndefined()
     expect(join.reason()).toBeUndefined()
   })
 
   it("round-trips with no duplicate tags and preserves passthrough/content", async () => {
-    const join = await RelayJoin.read(
+    const join = await read(RelayJoin, 
       makeEvent({
         tags: [
           ["claim", "abc123"],
@@ -47,7 +48,10 @@ describe("RelayJoin", () => {
       }),
     )
 
-    const tmpl = await RelayJoin.builder(join).toTemplate(signer)
+    const tmpl = await buildTemplate(
+      write(RelayJoin, join).forceRelays("wss://relay.example.com/"),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(RELAY_JOIN)
     expect(tmpl.tags.filter(t => t[0] === "claim").length).toBe(1)
@@ -56,16 +60,19 @@ describe("RelayJoin", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await RelayJoin.builder()
-      .setClaim("invite42")
-      .setReason("hello")
-      .toTemplate(signer)
+    const tmpl = await buildTemplate(
+      write(RelayJoin)
+        .setClaim("invite42")
+        .setReason("hello")
+        .forceRelays("wss://relay.example.com/"),
+      signer,
+    )
 
     expect(tmpl.tags).toContainEqual(["claim", "invite42"])
     expect(tmpl.content).toBe("hello")
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RelayJoin.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(RelayJoin, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

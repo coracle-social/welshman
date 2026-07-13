@@ -1,9 +1,8 @@
 import {uniq, spec} from "@welshman/lib"
 import {FEEDS, getAddressTagValues} from "@welshman/util"
 import {ListReader} from "../ListReader.js"
-import {ListBuilder} from "../ListBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {ListWriter} from "../ListWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-51 kind-10014 saved feeds list.
 export class FeedListReader extends ListReader {
@@ -18,7 +17,7 @@ export class FeedListReader extends ListReader {
   }
 }
 
-export class FeedListBuilder extends ListBuilder<FeedListReader> {
+export class FeedListWriter extends ListWriter<FeedListReader> {
   readonly kind = FEEDS
 
   addFeed(address: string, relayHint?: string) {
@@ -34,8 +33,7 @@ export class FeedListBuilder extends ListBuilder<FeedListReader> {
   }
 }
 
-export const FeedList = new Kind({
+export const FeedList = new KindFactory({
   reader: FeedListReader,
-  builder: FeedListBuilder,
-  router: OutboxRouter,
+  writer: FeedListWriter,
 })

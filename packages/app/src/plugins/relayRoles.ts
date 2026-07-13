@@ -1,5 +1,6 @@
 import {RELAY_ROLE} from "@welshman/util"
 import {RelayRole, RelayRoleReader} from "@welshman/domain"
+import {Domain} from "./domain.js"
 import {projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
 import {RelaySignedDerivedPlugin} from "./relaySigned.js"
@@ -22,7 +23,7 @@ export class RelayRoles extends RelaySignedDerivedPlugin<RelayRoleReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [RELAY_ROLE]}],
-      eventToItem: RelayRole.factory(app.user?.signer),
+      eventToItem: app.use(Domain).reader(RelayRole),
       getKey: (role, url) => makeRelayRoleKey(url, role.identifier() ?? ""),
     })
   }

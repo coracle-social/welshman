@@ -1,8 +1,8 @@
 import {FOLLOWS} from "@welshman/util"
-import {FollowList, FollowListReader, FollowListBuilder} from "@welshman/domain"
+import {FollowList, FollowListReader, FollowListWriter} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import {Network} from "./network.js"
-import {Router} from "./router.js"
+import {Domain} from "./domain.js"
 import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
@@ -14,7 +14,7 @@ export class FollowLists extends DerivedPlugin<FollowListReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [FOLLOWS]}],
-      eventToItem: FollowList.factory(app.user?.signer),
+      eventToItem: app.use(Domain).reader(FollowList),
       getKey: followList => followList.author(),
     })
   }
@@ -23,16 +23,16 @@ export class FollowLists extends DerivedPlugin<FollowListReader> {
     return this.app.use(Network).loadUsingOutbox(pubkey, {kinds: [FOLLOWS]}, relayHints)
   }
 
-  update = async (fn: (builder: FollowListBuilder) => void) => {
+  update = async (fn: (writer: FollowListWriter) => void) => {
     const user = User.require(this.app)
-    const builder = FollowList.builder(await this.forceLoad(user.pubkey))
+    const writer = this.app.use(Domain).writer(FollowList, await this.forceLoad(user.pubkey))
 
-    fn(builder)
+    fn(writer)
 
-    return this.app.use(Router).commandFromBuilder(builder)
+    return this.app.use(Domain).command(writer)
   }
 
-  follow = (tag: string[]) => this.update(builder => builder.addTags(tag))
+  follow = (tag: string[]) => this.update(writer => writer.addTags(tag))
 
-  unfollow = (value: string) => this.update(builder => builder.unfollow(value))
+  unfollow = (value: string) => this.update(writer => writer.unfollow(value))
 }

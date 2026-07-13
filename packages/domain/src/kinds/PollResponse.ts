@@ -1,9 +1,13 @@
-import {uniq, spec} from "@welshman/lib"
-import {POLL_RESPONSE, getTagValue, getTagValues} from "@welshman/util"
+import {
+  uniq,
+  spec} from "@welshman/lib"
+import {POLL_RESPONSE,
+  getTagValue,
+  getTagValues,
+} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-88 kind-1018 poll response.
 export class PollResponseReader extends EventReader {
@@ -18,8 +22,9 @@ export class PollResponseReader extends EventReader {
   }
 }
 
-export class PollResponseBuilder extends EventBuilder<PollResponseReader> {
+export class PollResponseWriter extends EventWriter<PollResponseReader> {
   readonly kind = POLL_RESPONSE
+
 
   setPollId(pollId: string) {
     return this.dropTags(spec(["e"])).addTags(["e", pollId])
@@ -38,8 +43,7 @@ export class PollResponseBuilder extends EventBuilder<PollResponseReader> {
   }
 }
 
-export const PollResponse = new Kind({
+export const PollResponse = new KindFactory({
   reader: PollResponseReader,
-  builder: PollResponseBuilder,
-  router: ContentRouter,
+  writer: PollResponseWriter,
 })

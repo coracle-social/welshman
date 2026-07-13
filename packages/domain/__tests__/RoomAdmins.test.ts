@@ -3,6 +3,7 @@ import {makeSecret, ROOM_ADMINS, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomAdmins} from "../src/kinds/RoomAdmins"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -23,7 +24,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomAdmins", () => {
   it("reads represented tags", async () => {
-    const room = await RoomAdmins.read(
+    const room = await read(RoomAdmins, 
       makeEvent({
         tags: [
           ["d", "room1"],
@@ -39,7 +40,7 @@ describe("RoomAdmins", () => {
   })
 
   it("round-trips with no duplicated tags", async () => {
-    const room = await RoomAdmins.read(
+    const room = await read(RoomAdmins, 
       makeEvent({
         tags: [
           ["d", "room1"],
@@ -50,7 +51,10 @@ describe("RoomAdmins", () => {
       }),
     )
 
-    const tmpl = await RoomAdmins.builder(room).toTemplate(signer)
+    const tmpl = await buildTemplate(
+      write(RoomAdmins, room).forceRelays("wss://relay.example.com/"),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(ROOM_ADMINS)
     expect(tmpl.tags.filter(t => t[0] === "d").length).toBe(1)
@@ -63,12 +67,12 @@ describe("RoomAdmins", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await RoomAdmins.builder()
+    const tmpl = await buildTemplate(write(RoomAdmins)
       .setIdentifier("room2")
       .addPubkey(a)
       .addPubkey(a) // dedup
       .addPubkey(b)
-      .toTemplate(signer)
+      .forceRelays("wss://relay.example.com/"), signer)
 
     expect(tmpl.tags).toContainEqual(["d", "room2"])
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(2)
@@ -77,6 +81,6 @@ describe("RoomAdmins", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RoomAdmins.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(RoomAdmins, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

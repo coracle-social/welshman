@@ -1,9 +1,12 @@
-import {spec} from "@welshman/lib"
-import {ROOM_EDIT_META, getTag, getTagValue} from "@welshman/util"
+import {
+  spec} from "@welshman/lib"
+import {ROOM_EDIT_META,
+  getTag,
+  getTagValue,
+} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-29 kind-9002 edit-room-metadata action op. Carries the same metadata as the
 // addressable RoomMeta (kind 39000), but as a regular event scoped to the target
@@ -50,8 +53,10 @@ export class RoomEditReader extends EventReader {
   }
 }
 
-export class RoomEditBuilder extends EventBuilder<RoomEditReader> {
+export class RoomEditWriter extends EventWriter<RoomEditReader> {
   readonly kind = ROOM_EDIT_META
+  readonly requiresRelays = true
+
 
   setName(name: string) {
     return this.dropTags(spec(["name"])).addTags(["name", name])
@@ -104,8 +109,7 @@ export class RoomEditBuilder extends EventBuilder<RoomEditReader> {
   }
 }
 
-export const RoomEdit = new Kind({
+export const RoomEdit = new KindFactory({
   reader: RoomEditReader,
-  builder: RoomEditBuilder,
-  router: ContentRouter,
+  writer: RoomEditWriter,
 })

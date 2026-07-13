@@ -3,6 +3,7 @@ import {makeSecret, PINS, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {PinList} from "../src/kinds/PinList"
+import {buildTemplate, buildEvent, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -24,7 +25,7 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("PinList", () => {
   it("reads pinned event ids and addresses", async () => {
-    const reader = await PinList.read(
+    const reader = await read(PinList, 
       makeEvent({
         tags: [
           ["e", eventId],
@@ -39,7 +40,7 @@ describe("PinList", () => {
   })
 
   it("round-trips without duplicating represented tags", async () => {
-    const reader = await PinList.read(
+    const reader = await read(PinList, 
       makeEvent({
         tags: [
           ["e", eventId],
@@ -49,7 +50,7 @@ describe("PinList", () => {
       }),
     )
 
-    const tmpl = await PinList.builder(reader).toTemplate(signer)
+    const tmpl = await buildTemplate(write(PinList, reader), signer)
 
     expect(tmpl.tags.filter(t => t[0] === "e").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "a").length).toBe(1)
@@ -57,25 +58,24 @@ describe("PinList", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await PinList.builder().pinPublicly(["e", eventId]).toTemplate(signer)
+    const tmpl = await buildTemplate(write(PinList).pinPublicly(["e", eventId]), signer)
 
     expect(tmpl.kind).toBe(PINS)
     expect(tmpl.tags).toContainEqual(["e", eventId])
   })
 
   it("round-trips public and private pins through encryption", async () => {
-    const event = await PinList.builder()
+    const event = await buildEvent(write(PinList)
       .pinPublicly(["e", eventId])
-      .pinPrivately(["a", address])
-      .toEvent(signer)
+      .pinPrivately(["a", address]), signer)
 
-    const decrypted = await PinList.read(event, signer)
+    const decrypted = await read(PinList, event, signer)
 
     expect(decrypted.decrypted).toBe(true)
     expect(decrypted.ids()).toEqual([eventId])
     expect(decrypted.addresses()).toEqual([address])
 
-    const publicOnly = await PinList.read(event)
+    const publicOnly = await read(PinList, event)
 
     expect(publicOnly.decrypted).toBe(false)
     expect(publicOnly.ids()).toEqual([eventId])
@@ -83,6 +83,6 @@ describe("PinList", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(PinList.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(PinList, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

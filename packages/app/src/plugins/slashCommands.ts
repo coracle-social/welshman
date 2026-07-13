@@ -1,9 +1,10 @@
 import {Address, SLASH_COMMAND, userOutbox, inbox, outbox, indexers} from "@welshman/util"
-import {SlashCommand, SlashCommandReader, SlashCommandBuilder, formatSlashCommand} from "@welshman/domain"
+import {SlashCommand, SlashCommandReader, SlashCommandWriter, formatSlashCommand} from "@welshman/domain"
 import {DerivedPlugin, projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
+import {Domain} from "./domain.js"
 import {User} from "../user.js"
 import {Command} from "../command.js"
 import type {IApp} from "../app.js"
@@ -17,7 +18,7 @@ export class SlashCommands extends DerivedPlugin<SlashCommandReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [SLASH_COMMAND]}],
-      eventToItem: SlashCommand.factory(),
+      eventToItem: app.use(Domain).reader(SlashCommand),
       getKey: (command: SlashCommandReader) => command.address(),
     })
   }
@@ -49,15 +50,15 @@ export class SlashCommands extends DerivedPlugin<SlashCommandReader> {
     projectFrom(this.all, commands => commands.filter(command => command.appliesTo(kind, group)))
 
   // Publish/update one of the app user's own command manifests.
-  update = async (name: string, fn: (builder: SlashCommandBuilder) => void) => {
+  update = async (name: string, fn: (writer: SlashCommandWriter) => void) => {
     const user = User.require(this.app)
     const address = new Address(SLASH_COMMAND, user.pubkey, name).toString()
-    const builder = SlashCommand.builder(await this.forceLoad(address))
+    const writer = this.app.use(Domain).writer(SlashCommand, await this.forceLoad(address))
 
-    builder.setName(name)
-    fn(builder)
+    writer.setName(name)
+    fn(writer)
 
-    return this.app.use(Router).commandFromBuilder(builder)
+    return this.app.use(Domain).command(writer)
   }
 
   // Invoke a command: publish a `/name <args>` message in one of the command's

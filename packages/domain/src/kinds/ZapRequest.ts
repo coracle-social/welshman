@@ -1,9 +1,12 @@
-import {spec} from "@welshman/lib"
-import {ZAP_REQUEST, getTag, getTagValue} from "@welshman/util"
+import {
+  spec} from "@welshman/lib"
+import {ZAP_REQUEST,
+  getTag,
+  getTagValue,
+} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-57 kind-9734 zap request.
 export class ZapRequestReader extends EventReader {
@@ -34,8 +37,9 @@ export class ZapRequestReader extends EventReader {
   }
 }
 
-export class ZapRequestBuilder extends EventBuilder<ZapRequestReader> {
+export class ZapRequestWriter extends EventWriter<ZapRequestReader> {
   readonly kind = ZAP_REQUEST
+
 
   setAmount(amount: number) {
     return this.dropTags(spec(["amount"])).addTags(["amount", String(amount)])
@@ -58,8 +62,7 @@ export class ZapRequestBuilder extends EventBuilder<ZapRequestReader> {
   }
 }
 
-export const ZapRequest = new Kind({
+export const ZapRequest = new KindFactory({
   reader: ZapRequestReader,
-  builder: ZapRequestBuilder,
-  router: ContentRouter,
+  writer: ZapRequestWriter,
 })

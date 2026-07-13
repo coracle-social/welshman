@@ -1,9 +1,8 @@
 import {spec} from "@welshman/lib"
 import {ROOM_META, getTag, getTagValue} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-29 kind-39000 room metadata.
 export class RoomMetaReader extends EventReader {
@@ -48,8 +47,9 @@ export class RoomMetaReader extends EventReader {
   }
 }
 
-export class RoomMetaBuilder extends EventBuilder<RoomMetaReader> {
+export class RoomMetaWriter extends EventWriter<RoomMetaReader> {
   readonly kind = ROOM_META
+  readonly requiresRelays = true
 
   setName(name: string) {
     return this.dropTags(spec(["name"])).addTags(["name", name])
@@ -94,8 +94,7 @@ export class RoomMetaBuilder extends EventBuilder<RoomMetaReader> {
   }
 }
 
-export const RoomMeta = new Kind({
+export const RoomMeta = new KindFactory({
   reader: RoomMetaReader,
-  builder: RoomMetaBuilder,
-  router: OutboxRouter,
+  writer: RoomMetaWriter,
 })

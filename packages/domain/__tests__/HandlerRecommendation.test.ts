@@ -5,6 +5,7 @@ import {Nip01Signer} from "@welshman/signer"
 import {
   HandlerRecommendation,
 } from "../src/kinds/HandlerRecommendation"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -35,7 +36,7 @@ describe("HandlerRecommendation", () => {
       ],
     })
 
-    const rec = await HandlerRecommendation.read(event)
+    const rec = await read(HandlerRecommendation, event)
 
     expect(rec.addresses()).toEqual([otherAddress, webAddress])
     expect(rec.addressTags().length).toBe(2)
@@ -44,7 +45,7 @@ describe("HandlerRecommendation", () => {
   })
 
   it("falls back to the first recommendation without a web marker", async () => {
-    const rec = await HandlerRecommendation.read(
+    const rec = await read(HandlerRecommendation, 
       makeEvent({
         tags: [
           ["d", "1"],
@@ -66,7 +67,7 @@ describe("HandlerRecommendation", () => {
       ],
     })
 
-    const tmpl = await HandlerRecommendation.builder(await HandlerRecommendation.read(event)).toTemplate(signer)
+    const tmpl = await buildTemplate(write(HandlerRecommendation, await read(HandlerRecommendation, event)), signer)
 
     expect(tmpl.tags.filter(t => t[0] === "d").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "a").length).toBe(2)
@@ -76,15 +77,14 @@ describe("HandlerRecommendation", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const builder = HandlerRecommendation.builder()
+    const builder = write(HandlerRecommendation)
     // The d identifier holds the recommended kind.
     builder.setIdentifier("1")
 
-    const tmpl = await builder
+    const tmpl = await buildTemplate(builder
       .addRecommendation(webAddress, "wss://relay.one", "web")
       // Duplicate addresses are ignored.
-      .addRecommendation(webAddress, "wss://relay.one", "web")
-      .toTemplate(signer)
+      .addRecommendation(webAddress, "wss://relay.one", "web"), signer)
 
     expect(tmpl.kind).toBe(HANDLER_RECOMMENDATION)
     expect(tmpl.tags).toContainEqual(["d", "1"])
@@ -94,12 +94,12 @@ describe("HandlerRecommendation", () => {
   })
 
   it("requires a d identifier", async () => {
-    await expect(
-      HandlerRecommendation.builder().addRecommendation(webAddress).toTemplate(signer),
+    await expect(buildTemplate(
+      write(HandlerRecommendation).addRecommendation(webAddress), signer),
     ).rejects.toThrow()
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(HandlerRecommendation.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(HandlerRecommendation, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

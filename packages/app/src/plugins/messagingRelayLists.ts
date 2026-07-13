@@ -1,9 +1,9 @@
 import {MESSAGING_RELAYS} from "@welshman/util"
-import {MessagingRelayList, MessagingRelayListReader, MessagingRelayListBuilder} from "@welshman/domain"
+import {MessagingRelayList, MessagingRelayListReader, MessagingRelayListWriter} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
-import {Router} from "./router.js"
+import {Domain} from "./domain.js"
 import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
@@ -16,7 +16,7 @@ export class MessagingRelayLists extends DerivedPlugin<MessagingRelayListReader>
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [MESSAGING_RELAYS]}],
-      eventToItem: MessagingRelayList.factory(app.user?.signer),
+      eventToItem: app.use(Domain).reader(MessagingRelayList),
       getKey: list => list.author(),
     })
   }
@@ -27,18 +27,18 @@ export class MessagingRelayLists extends DerivedPlugin<MessagingRelayListReader>
 
   urls = (pubkey: string): Projection<string[]> => this.project(pubkey, list => list?.urls() ?? [])
 
-  update = async (fn: (builder: MessagingRelayListBuilder) => void) => {
+  update = async (fn: (writer: MessagingRelayListWriter) => void) => {
     const user = User.require(this.app)
-    const builder = MessagingRelayList.builder(await this.forceLoad(user.pubkey))
+    const writer = this.app.use(Domain).writer(MessagingRelayList, await this.forceLoad(user.pubkey))
 
-    fn(builder)
+    fn(writer)
 
-    return this.app.use(Router).commandFromBuilder(builder)
+    return this.app.use(Domain).command(writer)
   }
 
-  addUrl = (url: string) => this.update(builder => builder.addUrl(url))
+  addUrl = (url: string) => this.update(writer => writer.addUrl(url))
 
-  removeUrl = (url: string) => this.update(builder => builder.removeUrl(url))
+  removeUrl = (url: string) => this.update(writer => writer.removeUrl(url))
 
-  setUrls = (urls: string[]) => this.update(builder => builder.setUrls(urls))
+  setUrls = (urls: string[]) => this.update(writer => writer.setUrls(urls))
 }

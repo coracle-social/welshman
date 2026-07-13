@@ -1,9 +1,8 @@
 import {spec} from "@welshman/lib"
 import {PIN, getTag, getTagValue, getTagValues, getTopicTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // A pin references exactly one piece of content: a nostr event (`e`), an
 // addressable event (`a`), or an external id (`i`, with an optional `k` kind).
@@ -17,7 +16,7 @@ const REFERENCE_KEYS = ["e", "a", "i", "k"]
 // Pinboards-NIP kind-39067 pin — a single pinned item. Pins reference one or
 // more boards via `A` tags (none means it's a profile pin). Kind 39067 sits in
 // the parameterized-replaceable range, so each pin needs its own unique `d`
-// tag (see `PinBuilder`) — otherwise every pin from the same author would
+// tag (see `PinWriter`) — otherwise every pin from the same author would
 // collide at the same address and replace one another.
 export class PinReader extends EventReader {
   readonly kind = PIN
@@ -53,7 +52,7 @@ export class PinReader extends EventReader {
   }
 }
 
-export class PinBuilder extends EventBuilder<PinReader> {
+export class PinWriter extends EventWriter<PinReader> {
   readonly kind = PIN
 
   setTitle(title: string) {
@@ -88,20 +87,19 @@ export class PinBuilder extends EventBuilder<PinReader> {
 
   // A pin references exactly one item, so replace any existing reference.
   private dropReference() {
-    return this.dropTags(t => REFERENCE_KEYS.includes(t[0]))
+    return this.dropTags(t => REFERENCE_KEYS.includes(t[0] as string))
   }
 
   protected validate() {
     super.validate()
 
-    if (!this.extraTags.some(t => ["e", "a", "i"].includes(t[0]))) {
+    if (!this.extraTags.some(t => ["e", "a", "i"].includes(t[0] as string))) {
       throw new Error("A pin must reference content via an e, a, or i tag")
     }
   }
 }
 
-export const Pin = new Kind({
+export const Pin = new KindFactory({
   reader: PinReader,
-  builder: PinBuilder,
-  router: OutboxRouter,
+  writer: PinWriter,
 })

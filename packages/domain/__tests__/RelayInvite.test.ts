@@ -3,6 +3,7 @@ import {makeSecret, RELAY_INVITE, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RelayInvite} from "../src/kinds/RelayInvite"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -28,7 +29,7 @@ describe("RelayInvite", () => {
       ],
     })
 
-    const invite = await RelayInvite.read(event)
+    const invite = await read(RelayInvite, event)
 
     expect(invite.claim()).toBe("secret-code")
   })
@@ -41,7 +42,10 @@ describe("RelayInvite", () => {
       ],
     })
 
-    const tmpl = await RelayInvite.builder(await RelayInvite.read(event)).toTemplate(signer)
+    const tmpl = await buildTemplate(
+      write(RelayInvite, await read(RelayInvite, event)).forceRelays("wss://relay.example.com/"),
+      signer,
+    )
 
     expect(tmpl.tags.filter(t => t[0] === "claim").length).toBe(1)
     expect(tmpl.tags).toContainEqual(["claim", "secret-code"])
@@ -50,13 +54,16 @@ describe("RelayInvite", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await RelayInvite.builder().setClaim("fresh-code").toTemplate(signer)
+    const tmpl = await buildTemplate(
+      write(RelayInvite).setClaim("fresh-code").forceRelays("wss://relay.example.com/"),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(RELAY_INVITE)
     expect(tmpl.tags).toContainEqual(["claim", "fresh-code"])
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RelayInvite.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(RelayInvite, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

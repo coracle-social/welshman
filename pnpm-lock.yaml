@@ -130,6 +130,9 @@ importers:
       '@welshman/lib':
         specifier: workspace:*
         version: link:../lib
+      '@welshman/net':
+        specifier: workspace:*
+        version: link:../net
       '@welshman/signer':
         specifier: workspace:*
         version: link:../signer

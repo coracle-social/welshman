@@ -3,9 +3,8 @@ import {FEED, getTagValue} from "@welshman/util"
 import type {Feed as FeedDefinition} from "@welshman/feeds"
 
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-51 kind-31890 saved-feed definition.
 export class FeedReader extends EventReader {
@@ -24,7 +23,7 @@ export class FeedReader extends EventReader {
   }
 }
 
-export class FeedBuilder extends EventBuilder<FeedReader> {
+export class FeedWriter extends EventWriter<FeedReader> {
   readonly kind = FEED
 
   setTitle(title: string) {
@@ -40,8 +39,7 @@ export class FeedBuilder extends EventBuilder<FeedReader> {
   }
 }
 
-export const Feed = new Kind({
+export const Feed = new KindFactory({
   reader: FeedReader,
-  builder: FeedBuilder,
-  router: OutboxRouter,
+  writer: FeedWriter,
 })

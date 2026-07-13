@@ -1,16 +1,17 @@
 import {ROOM_LEAVE} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-29 kind-9022 room leave op. The target room is the "h" group tag.
 export class RoomLeaveReader extends EventReader {
   readonly kind = ROOM_LEAVE
 }
 
-export class RoomLeaveBuilder extends EventBuilder<RoomLeaveReader> {
+export class RoomLeaveWriter extends EventWriter<RoomLeaveReader> {
   readonly kind = ROOM_LEAVE
+  readonly requiresRelays = true
+
 
   protected validate() {
     super.validate()
@@ -21,8 +22,7 @@ export class RoomLeaveBuilder extends EventBuilder<RoomLeaveReader> {
   }
 }
 
-export const RoomLeave = new Kind({
+export const RoomLeave = new KindFactory({
   reader: RoomLeaveReader,
-  builder: RoomLeaveBuilder,
-  router: ContentRouter,
+  writer: RoomLeaveWriter,
 })

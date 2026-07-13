@@ -7,9 +7,8 @@ import {
   getTagValues,
 } from "@welshman/util"
 import {ListReader} from "../ListReader.js"
-import {ListBuilder} from "../ListBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {ListWriter} from "../ListWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-51 kind-10003 bookmark list.
 export class BookmarkListReader extends ListReader {
@@ -32,7 +31,7 @@ export class BookmarkListReader extends ListReader {
   }
 }
 
-export class BookmarkListBuilder extends ListBuilder<BookmarkListReader> {
+export class BookmarkListWriter extends ListWriter<BookmarkListReader> {
   readonly kind = BOOKMARKS
 
   bookmarkPublicly(tag: string[]) {
@@ -44,12 +43,11 @@ export class BookmarkListBuilder extends ListBuilder<BookmarkListReader> {
   }
 
   removeBookmark(value: string) {
-    return this.dropTags(t => ["e", "a", "t", "r"].includes(t[0]) && t[1] === value)
+    return this.dropTags(t => ["e", "a", "t", "r"].includes(t[0] as string) && t[1] === value)
   }
 }
 
-export const BookmarkList = new Kind({
+export const BookmarkList = new KindFactory({
   reader: BookmarkListReader,
-  builder: BookmarkListBuilder,
-  router: OutboxRouter,
+  writer: BookmarkListWriter,
 })

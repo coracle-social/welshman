@@ -6,6 +6,7 @@ import {
   parseSlashCommand,
   formatSlashCommand,
 } from "../src/kinds/SlashCommand"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const pubkey = "ee".repeat(32)
 
@@ -39,7 +40,7 @@ const manifest = makeEvent({
 
 describe("SlashCommand", () => {
   it("reads the manifest", async () => {
-    const command = await SlashCommand.read(manifest)
+    const command = await read(SlashCommand, manifest)
 
     expect(command.name()).toBe("generate")
     expect(command.description()).toBe("A command that generates images using an LLM.")
@@ -55,7 +56,7 @@ describe("SlashCommand", () => {
   })
 
   it("decides whether it applies to a context", async () => {
-    const command = await SlashCommand.read(manifest)
+    const command = await read(SlashCommand, manifest)
 
     expect(command.appliesTo(1, "98d9s")).toBe(true)
     expect(command.appliesTo(9, "98d9s")).toBe(true)
@@ -67,7 +68,7 @@ describe("SlashCommand", () => {
   })
 
   it("applies anywhere when no group is declared", async () => {
-    const command = await SlashCommand.read(
+    const command = await read(SlashCommand, 
       makeEvent({
         tags: [
           ["d", "ping"],
@@ -82,15 +83,14 @@ describe("SlashCommand", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await SlashCommand.builder()
+    const tmpl = await buildTemplate(write(SlashCommand)
       .setName("generate")
       .setDescription("generate images")
       .setKinds([1, 9])
       .addGroup("98d9s")
       .addParam("model")
       .addParam("style", "string", true)
-      .addOption("model", "Nano Banana Pro")
-      .toTemplate()
+      .addOption("model", "Nano Banana Pro"))
 
     expect(tmpl.kind).toBe(SLASH_COMMAND)
     expect(tmpl.tags).toContainEqual(["d", "generate"])
@@ -104,11 +104,10 @@ describe("SlashCommand", () => {
   })
 
   it("removeParam drops the param and its options", async () => {
-    const command = await SlashCommand.read(manifest)
-    const tmpl = await SlashCommand.builder(command)
+    const command = await read(SlashCommand, manifest)
+    const tmpl = await buildTemplate(write(SlashCommand, command)
       .setGroup("wss://relay.example.com/", "98d9s")
-      .removeParam("model")
-      .toTemplate()
+      .removeParam("model"))
 
     expect(tmpl.tags.some(t => t[0] === "param" && t[1] === "model")).toBe(false)
     expect(tmpl.tags.some(t => t[0] === "options" && t[1] === "model")).toBe(false)
@@ -118,11 +117,11 @@ describe("SlashCommand", () => {
   })
 
   it("requires a d tag (command name)", async () => {
-    await expect(SlashCommand.builder().addKind(1).toTemplate()).rejects.toThrow()
+    await expect(buildTemplate(write(SlashCommand).addKind(1))).rejects.toThrow()
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(SlashCommand.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(SlashCommand, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 
   it("parses an invocation string", () => {

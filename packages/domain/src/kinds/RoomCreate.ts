@@ -1,16 +1,17 @@
 import {ROOM_CREATE} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-29 kind-9007 create-room op.
 export class RoomCreateReader extends EventReader {
   readonly kind = ROOM_CREATE
 }
 
-export class RoomCreateBuilder extends EventBuilder<RoomCreateReader> {
+export class RoomCreateWriter extends EventWriter<RoomCreateReader> {
   readonly kind = ROOM_CREATE
+  readonly requiresRelays = true
+
 
   protected validate() {
     super.validate()
@@ -21,8 +22,7 @@ export class RoomCreateBuilder extends EventBuilder<RoomCreateReader> {
   }
 }
 
-export const RoomCreate = new Kind({
+export const RoomCreate = new KindFactory({
   reader: RoomCreateReader,
-  builder: RoomCreateBuilder,
-  router: ContentRouter,
+  writer: RoomCreateWriter,
 })

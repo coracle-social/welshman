@@ -3,6 +3,7 @@ import {makeSecret, BOOKMARKS, NOTE, getEventTagValues, getTopicTagValues} from 
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {BookmarkList} from "../src/kinds/BookmarkList"
+import {buildTemplate, buildEvent, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -36,7 +37,7 @@ describe("BookmarkList", () => {
       ],
     })
 
-    const list = await BookmarkList.read(event)
+    const list = await read(BookmarkList, event)
 
     expect(list.ids()).toEqual([noteId])
     expect(list.addresses()).toEqual([address])
@@ -55,8 +56,8 @@ describe("BookmarkList", () => {
       ],
     })
 
-    const list = await BookmarkList.read(event)
-    const tmpl = await BookmarkList.builder(list).toTemplate(signer)
+    const list = await read(BookmarkList, event)
+    const tmpl = await buildTemplate(write(BookmarkList, list), signer)
 
     expect(tmpl.kind).toBe(BOOKMARKS)
     expect(tmpl.tags.filter(t => t[0] === "e").length).toBe(1)
@@ -67,10 +68,9 @@ describe("BookmarkList", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await BookmarkList.builder()
+    const tmpl = await buildTemplate(write(BookmarkList)
       .bookmarkPublicly(["e", noteId])
-      .bookmarkPublicly(["t", "nostr"])
-      .toTemplate(signer)
+      .bookmarkPublicly(["t", "nostr"]), signer)
 
     expect(getEventTagValues(tmpl.tags)).toEqual([noteId])
     expect(getTopicTagValues(tmpl.tags)).toEqual(["nostr"])
@@ -83,52 +83,51 @@ describe("BookmarkList", () => {
         ["e", noteId2],
       ],
     })
-    const list = await BookmarkList.read(event)
+    const list = await read(BookmarkList, event)
 
-    const tmpl = await BookmarkList.builder(list).removeBookmark(noteId).toTemplate(signer)
+    const tmpl = await buildTemplate(write(BookmarkList, list).removeBookmark(noteId), signer)
 
     expect(getEventTagValues(tmpl.tags)).toEqual([noteId2])
   })
 
   it("round-trips public and private bookmarks through encryption", async () => {
-    const event = await BookmarkList.builder()
+    const event = await buildEvent(write(BookmarkList)
       .bookmarkPublicly(["e", noteId])
-      .bookmarkPrivately(["e", noteId2])
-      .toEvent(signer)
+      .bookmarkPrivately(["e", noteId2]), signer)
 
     expect(getEventTagValues(event.tags)).toEqual([noteId])
     expect(event.content).not.toBe("")
 
-    const decrypted = await BookmarkList.read(event, signer)
+    const decrypted = await read(BookmarkList, event, signer)
 
     expect(decrypted.decrypted).toBe(true)
     expect(decrypted.ids().sort()).toEqual([noteId, noteId2].sort())
 
-    const publicOnly = await BookmarkList.read(event)
+    const publicOnly = await read(BookmarkList, event)
 
     expect(publicOnly.decrypted).toBe(false)
     expect(publicOnly.ids()).toEqual([noteId])
   })
 
   it("preserves undecrypted ciphertext on pass-through", async () => {
-    const event = await BookmarkList.builder().bookmarkPrivately(["e", noteId2]).toEvent(signer)
-    const undecrypted = await BookmarkList.read(event)
+    const event = await buildEvent(write(BookmarkList).bookmarkPrivately(["e", noteId2]), signer)
+    const undecrypted = await read(BookmarkList, event)
 
-    const tmpl = await BookmarkList.builder(undecrypted).toTemplate(signer)
+    const tmpl = await buildTemplate(write(BookmarkList, undecrypted), signer)
 
     expect(tmpl.content).toBe(event.content)
   })
 
   it("refuses private mutation when undecrypted", async () => {
-    const event = await BookmarkList.builder().bookmarkPrivately(["e", noteId2]).toEvent(signer)
-    const undecrypted = await BookmarkList.read(event)
+    const event = await buildEvent(write(BookmarkList).bookmarkPrivately(["e", noteId2]), signer)
+    const undecrypted = await read(BookmarkList, event)
 
-    await expect(
-      BookmarkList.builder(undecrypted).bookmarkPrivately(["e", noteId]).toEvent(signer),
+    await expect(buildEvent(
+      write(BookmarkList, undecrypted).bookmarkPrivately(["e", noteId]), signer),
     ).rejects.toThrow()
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(BookmarkList.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(BookmarkList, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

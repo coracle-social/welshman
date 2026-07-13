@@ -1,16 +1,17 @@
 import {complement} from "@welshman/lib"
 import type {ISigner} from "@welshman/signer"
-import {EventBuilder} from "./EventBuilder.js"
+import {EventWriter} from "./EventWriter.js"
 import type {ListReader} from "./ListReader.js"
-import type {AnyKind} from "./Kind.js"
+import type {AnyConfiguredKind} from "./Kind.js"
+import type {Tag} from "./Hint.js"
 
-export abstract class ListBuilder<
+export abstract class ListWriter<
   Reader extends ListReader = ListReader,
-> extends EventBuilder<Reader> {
-  publicTags: string[][] = []
-  privateTags: string[][] = []
+> extends EventWriter<Reader> {
+  publicTags: Tag[] = []
+  privateTags: Tag[] = []
 
-  constructor(def: AnyKind, reader?: Reader) {
+  constructor(def: AnyConfiguredKind, reader?: Reader) {
     super(def, reader)
 
     this.publicTags = this.extraTags.splice(0)
@@ -32,38 +33,38 @@ export abstract class ListBuilder<
     return this
   }
 
-  keepPublic(pred: (tag: string[]) => boolean) {
+  keepPublic(pred: (tag: Tag) => boolean) {
     this.publicTags = this.publicTags.filter(pred)
 
     return this
   }
 
-  keepPrivate(pred: (tag: string[]) => boolean) {
+  keepPrivate(pred: (tag: Tag) => boolean) {
     this.privateTags = this.privateTags.filter(pred)
 
     return this
   }
 
-  keepTags(pred: (tag: string[]) => boolean) {
+  keepTags(pred: (tag: Tag) => boolean) {
     this.publicTags = this.publicTags.filter(pred)
     this.privateTags = this.privateTags.filter(pred)
 
     return this
   }
 
-  dropPublic(pred: (tag: string[]) => boolean) {
+  dropPublic(pred: (tag: Tag) => boolean) {
     this.publicTags = this.publicTags.filter(complement(pred))
 
     return this
   }
 
-  dropPrivate(pred: (tag: string[]) => boolean) {
+  dropPrivate(pred: (tag: Tag) => boolean) {
     this.privateTags = this.privateTags.filter(complement(pred))
 
     return this
   }
 
-  dropTags(pred: (tag: string[]) => boolean) {
+  dropTags(pred: (tag: Tag) => boolean) {
     this.publicTags = this.publicTags.filter(complement(pred))
     this.privateTags = this.privateTags.filter(complement(pred))
 

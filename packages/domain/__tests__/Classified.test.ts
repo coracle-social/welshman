@@ -3,6 +3,7 @@ import {makeSecret, CLASSIFIED, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {Classified} from "../src/kinds/Classified"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -36,7 +37,7 @@ describe("Classified", () => {
       ],
     })
 
-    const c = await Classified.read(event)
+    const c = await read(Classified, event)
 
     expect(c.identifier()).toBe("abc")
     expect(c.title()).toBe("Bike")
@@ -49,7 +50,7 @@ describe("Classified", () => {
   })
 
   it("defaults the price currency to SAT", async () => {
-    const c = await Classified.read(
+    const c = await read(Classified, 
       makeEvent({
         tags: [
           ["d", "x"],
@@ -77,7 +78,7 @@ describe("Classified", () => {
       ],
     })
 
-    const tmpl = await Classified.builder(await Classified.read(event)).toTemplate(signer)
+    const tmpl = await buildTemplate(write(Classified, await read(Classified, event)), signer)
 
     for (const key of ["d", "title", "summary", "price", "status"]) {
       expect(tmpl.tags.filter(t => t[0] === key).length).toBe(1)
@@ -92,14 +93,13 @@ describe("Classified", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await Classified.builder()
+    const tmpl = await buildTemplate(write(Classified)
       .setIdentifier("listing1")
       .setTitle("Fresh")
       .setContent("desc")
       .setPrice(25)
       .setImages(["https://example.com/c.jpg"])
-      .setTopics(["misc"])
-      .toTemplate(signer)
+      .setTopics(["misc"]), signer)
 
     expect(tmpl.kind).toBe(CLASSIFIED)
     expect(tmpl.tags).toContainEqual(["d", "listing1"])
@@ -111,6 +111,6 @@ describe("Classified", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Classified.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(Classified, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

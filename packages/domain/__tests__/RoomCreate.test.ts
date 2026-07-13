@@ -3,6 +3,7 @@ import {makeSecret, ROOM_CREATE, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomCreate} from "../src/kinds/RoomCreate"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -22,7 +23,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomCreate", () => {
   it("round-trips the group behavior tag without duplication", async () => {
-    const create = await RoomCreate.read(
+    const create = await read(RoomCreate, 
       makeEvent({
         tags: [
           ["h", group],
@@ -33,9 +34,8 @@ describe("RoomCreate", () => {
 
     expect(create.group()).toBe(group)
 
-    const tmpl = await RoomCreate.builder(create)
-      .setGroup("wss://relay.example.com/", group)
-      .toTemplate(signer)
+    const tmpl = await buildTemplate(write(RoomCreate, create)
+      .setGroup("wss://relay.example.com/", group), signer)
 
     expect(tmpl.kind).toBe(ROOM_CREATE)
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
@@ -44,12 +44,12 @@ describe("RoomCreate", () => {
   })
 
   it("sets the group via a fresh builder", async () => {
-    const tmpl = await RoomCreate.builder().setGroup("wss://relay.example.com/", group).toTemplate(signer)
+    const tmpl = await buildTemplate(write(RoomCreate).setGroup("wss://relay.example.com/", group), signer)
 
     expect(tmpl.tags).toContainEqual(["h", group])
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RoomCreate.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(RoomCreate, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

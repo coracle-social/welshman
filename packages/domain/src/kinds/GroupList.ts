@@ -1,9 +1,8 @@
 import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {COMMUNITIES, getAddressTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-51 kind-10004 group/community list.
 export class GroupListReader extends EventReader {
@@ -14,7 +13,7 @@ export class GroupListReader extends EventReader {
   }
 }
 
-export class GroupListBuilder extends EventBuilder<GroupListReader> {
+export class GroupListWriter extends EventWriter<GroupListReader> {
   readonly kind = COMMUNITIES
 
   addGroup(address: string, relayHint?: string) {
@@ -26,8 +25,7 @@ export class GroupListBuilder extends EventBuilder<GroupListReader> {
   }
 }
 
-export const GroupList = new Kind({
+export const GroupList = new KindFactory({
   reader: GroupListReader,
-  builder: GroupListBuilder,
-  router: OutboxRouter,
+  writer: GroupListWriter,
 })

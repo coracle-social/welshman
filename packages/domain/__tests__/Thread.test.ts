@@ -3,6 +3,7 @@ import {makeSecret, THREAD, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {Thread} from "../src/kinds/Thread"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -29,7 +30,7 @@ describe("Thread", () => {
       ],
     })
 
-    const thread = await Thread.read(event)
+    const thread = await read(Thread, event)
 
     expect(thread.title()).toBe("Hello")
     expect(thread.content()).toBe("thread body")
@@ -44,7 +45,7 @@ describe("Thread", () => {
       ],
     })
 
-    const tmpl = await Thread.builder(await Thread.read(event)).toTemplate(signer)
+    const tmpl = await buildTemplate(write(Thread, await read(Thread, event)), signer)
 
     expect(tmpl.tags.filter(t => t[0] === "title").length).toBe(1)
     expect(tmpl.tags).toContainEqual(["title", "Hello"])
@@ -62,20 +63,18 @@ describe("Thread", () => {
       ],
     })
 
-    const tmpl = await Thread.builder(await Thread.read(event))
-      .setGroup("wss://relay.example.com/", "room")
-      .toTemplate(signer)
+    const tmpl = await buildTemplate(write(Thread, await read(Thread, event))
+      .setGroup("wss://relay.example.com/", "room"), signer)
 
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
     expect(tmpl.tags).toContainEqual(["h", "room"])
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await Thread.builder()
+    const tmpl = await buildTemplate(write(Thread)
       .setTitle("New thread")
       .setContent("body")
-      .setGroup("wss://relay.example.com/", "room")
-      .toTemplate(signer)
+      .setGroup("wss://relay.example.com/", "room"), signer)
 
     expect(tmpl.kind).toBe(THREAD)
     expect(tmpl.tags).toContainEqual(["title", "New thread"])
@@ -84,6 +83,6 @@ describe("Thread", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Thread.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(Thread, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

@@ -1,9 +1,8 @@
 import {spec} from "@welshman/lib"
 import {PINBOARD, getTagValue, getTopicTagValues} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {OutboxRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // Pinboards-NIP kind-30067 pinboard — addressable board metadata. Pins
 // themselves are separate kind-39067 events (see Pin).
@@ -31,7 +30,7 @@ export class PinboardReader extends EventReader {
   }
 }
 
-export class PinboardBuilder extends EventBuilder<PinboardReader> {
+export class PinboardWriter extends EventWriter<PinboardReader> {
   readonly kind = PINBOARD
 
   setTitle(title: string) {
@@ -59,14 +58,13 @@ export class PinboardBuilder extends EventBuilder<PinboardReader> {
   protected validate() {
     super.validate()
 
-    if (!getTagValue("title", this.extraTags)) {
+    if (!getTagValue("title", this.extraTags as string[][])) {
       throw new Error("A title is required for a pinboard")
     }
   }
 }
 
-export const Pinboard = new Kind({
+export const Pinboard = new KindFactory({
   reader: PinboardReader,
-  builder: PinboardBuilder,
-  router: OutboxRouter,
+  writer: PinboardWriter,
 })

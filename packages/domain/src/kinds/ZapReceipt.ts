@@ -1,11 +1,14 @@
-import {parseJson, spec} from "@welshman/lib"
-import {ZAP_RECEIPT, getTagValue, getInvoiceAmount} from "@welshman/util"
+import {
+  parseJson,
+  spec} from "@welshman/lib"
+import {ZAP_RECEIPT,
+  getTagValue,
+  getInvoiceAmount,
+} from "@welshman/util"
 import type {TrustedEvent, Zapper} from "@welshman/util"
-import type {ISigner} from "@welshman/signer"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-57 kind-9735 zap receipt (relay/LN-generated, read-only).
 export class ZapReceiptReader extends EventReader {
@@ -13,7 +16,7 @@ export class ZapReceiptReader extends EventReader {
 
   plain?: TrustedEvent
 
-  async parse(signer?: ISigner) {
+  async parse() {
     const description = getTagValue("description", this.event.tags)
 
     this.plain = description ? parseJson(description) || undefined : undefined
@@ -95,8 +98,9 @@ export class ZapReceiptReader extends EventReader {
   }
 }
 
-export class ZapReceiptBuilder extends EventBuilder<ZapReceiptReader> {
+export class ZapReceiptWriter extends EventWriter<ZapReceiptReader> {
   readonly kind = ZAP_RECEIPT
+
 
   setBolt11(bolt11: string) {
     return this.dropTags(spec(["bolt11"])).addTags(["bolt11", bolt11])
@@ -119,8 +123,7 @@ export class ZapReceiptBuilder extends EventBuilder<ZapReceiptReader> {
   }
 }
 
-export const ZapReceipt = new Kind({
+export const ZapReceipt = new KindFactory({
   reader: ZapReceiptReader,
-  builder: ZapReceiptBuilder,
-  router: ContentRouter,
+  writer: ZapReceiptWriter,
 })

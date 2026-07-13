@@ -1,9 +1,9 @@
 import {ROOMS, normalizeRelayUrl} from "@welshman/util"
-import {RoomList, RoomListReader, RoomListBuilder} from "@welshman/domain"
+import {RoomList, RoomListReader, RoomListWriter} from "@welshman/domain"
 import {DerivedPlugin, projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
-import {Router} from "./router.js"
+import {Domain} from "./domain.js"
 import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
@@ -16,7 +16,7 @@ export class RoomLists extends DerivedPlugin<RoomListReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [ROOMS]}],
-      eventToItem: RoomList.factory(app.user?.signer),
+      eventToItem: app.use(Domain).reader(RoomList),
       getKey: list => list.author(),
     })
   }
@@ -35,12 +35,12 @@ export class RoomLists extends DerivedPlugin<RoomListReader> {
       lists.filter(list => list.urls().includes(normalizeRelayUrl(url))).map(list => list.author()),
     )
 
-  update = async (fn: (builder: RoomListBuilder) => void) => {
+  update = async (fn: (writer: RoomListWriter) => void) => {
     const user = User.require(this.app)
-    const builder = RoomList.builder(await this.forceLoad(user.pubkey))
+    const writer = this.app.use(Domain).writer(RoomList, await this.forceLoad(user.pubkey))
 
-    fn(builder)
+    fn(writer)
 
-    return this.app.use(Router).commandFromBuilder(builder)
+    return this.app.use(Domain).command(writer)
   }
 }

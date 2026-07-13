@@ -3,6 +3,7 @@ import {makeSecret, POLL, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {Poll} from "../src/kinds/Poll"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -34,7 +35,7 @@ describe("Poll", () => {
       ],
     })
 
-    const poll = await Poll.read(event)
+    const poll = await read(Poll, event)
 
     expect(poll.title()).toBe("Favorite color?")
     expect(poll.options()).toEqual([
@@ -47,7 +48,7 @@ describe("Poll", () => {
   })
 
   it("tallies results from response events", async () => {
-    const poll = await Poll.read(
+    const poll = await read(Poll, 
       makeEvent({
         content: "Pick one",
         tags: [
@@ -84,7 +85,7 @@ describe("Poll", () => {
       ],
     })
 
-    const tmpl = await Poll.builder(await Poll.read(event)).toTemplate(signer)
+    const tmpl = await buildTemplate(write(Poll, await read(Poll, event)), signer)
 
     expect(tmpl.content).toBe("Favorite color?")
     expect(tmpl.tags.filter(t => t[0] === "option").length).toBe(2)
@@ -96,14 +97,13 @@ describe("Poll", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await Poll.builder()
+    const tmpl = await buildTemplate(write(Poll)
       .setTitle("Q?")
       .addOption("Red", "1")
       .addOption("Blue", "2")
       .setPollType("multiplechoice")
       .setEndsAt(9999)
-      .setUrls(["wss://relay.one"])
-      .toTemplate(signer)
+      .setUrls(["wss://relay.one"]), signer)
 
     expect(tmpl.kind).toBe(POLL)
     expect(tmpl.content).toBe("Q?")
@@ -114,10 +114,10 @@ describe("Poll", () => {
   })
 
   it("requires at least one option", async () => {
-    await expect(Poll.builder().setTitle("Q?").toTemplate(signer)).rejects.toThrow()
+    await expect(buildTemplate(write(Poll).setTitle("Q?"), signer)).rejects.toThrow()
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(Poll.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(Poll, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })

@@ -1,9 +1,11 @@
-import {spec} from "@welshman/lib"
-import {THREAD, getTagValue} from "@welshman/util"
+import {
+  spec} from "@welshman/lib"
+import {THREAD,
+  getTagValue,
+} from "@welshman/util"
 import {EventReader} from "../EventReader.js"
-import {EventBuilder} from "../EventBuilder.js"
-import {ContentRouter} from "../EventRouter.js"
-import {Kind} from "../Kind.js"
+import {EventWriter} from "../EventWriter.js"
+import {KindFactory} from "../Kind.js"
 
 // NIP-7D kind-11 forum thread root.
 export class ThreadReader extends EventReader {
@@ -14,16 +16,16 @@ export class ThreadReader extends EventReader {
   }
 }
 
-export class ThreadBuilder extends EventBuilder<ThreadReader> {
+export class ThreadWriter extends EventWriter<ThreadReader> {
   readonly kind = THREAD
+
 
   setTitle(title: string) {
     return this.dropTags(spec(["title"])).addTags(["title", title])
   }
 }
 
-export const Thread = new Kind({
+export const Thread = new KindFactory({
   reader: ThreadReader,
-  builder: ThreadBuilder,
-  router: ContentRouter,
+  writer: ThreadWriter,
 })

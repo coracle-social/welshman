@@ -3,6 +3,7 @@ import {makeSecret, ROOM_META, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomMeta} from "../src/kinds/RoomMeta"
+import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -21,7 +22,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomMeta", () => {
   it("reads represented tags", async () => {
-    const room = await RoomMeta.read(
+    const room = await read(RoomMeta, 
       makeEvent({
         tags: [
           ["d", "room1"],
@@ -49,7 +50,7 @@ describe("RoomMeta", () => {
   })
 
   it("round-trips with no duplicated tags", async () => {
-    const room = await RoomMeta.read(
+    const room = await read(RoomMeta, 
       makeEvent({
         tags: [
           ["d", "room1"],
@@ -63,7 +64,10 @@ describe("RoomMeta", () => {
       }),
     )
 
-    const tmpl = await RoomMeta.builder(room).toTemplate(signer)
+    const tmpl = await buildTemplate(
+      write(RoomMeta, room).forceRelays("wss://relay.example.com/"),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(ROOM_META)
     expect(tmpl.tags.filter(t => t[0] === "d").length).toBe(1)
@@ -80,12 +84,12 @@ describe("RoomMeta", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await RoomMeta.builder()
+    const tmpl = await buildTemplate(write(RoomMeta)
       .setIdentifier("room2")
       .setName("Fresh")
       .setAbout("desc")
       .setPicture("https://pic", ["100x100"])
-      .toTemplate(signer)
+      .forceRelays("wss://relay.example.com/"), signer)
 
     expect(tmpl.tags).toContainEqual(["name", "Fresh"])
     expect(tmpl.tags).toContainEqual(["about", "desc"])
@@ -94,6 +98,6 @@ describe("RoomMeta", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    await expect(RoomMeta.read(makeEvent({kind: NOTE}))).rejects.toThrow()
+    await expect(read(RoomMeta, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
 })
