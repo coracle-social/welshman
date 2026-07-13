@@ -6,10 +6,10 @@ import {REPORT,
   getTagValue,
   userOutbox,
 } from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
-import type {AnyConfiguredKind} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
+import type {AnyConfiguredKind} from "../core/Kind.js"
 
 // NIP-56 kind-1984 report.
 export class ReportReader extends EventReader {

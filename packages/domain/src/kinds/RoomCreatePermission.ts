@@ -1,8 +1,8 @@
 import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {ROOM_CREATE_PERMISSION, getPubkeyTagValues} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // Flotilla/NIP-29 kind-19004 room-creation permission grant.
 export class RoomCreatePermissionReader extends EventReader {

@@ -3,10 +3,10 @@ import {ellipsize, isPojo, parseJson} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import {PROFILE, getLnUrl} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
-import type {AnyConfiguredKind} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
+import type {AnyConfiguredKind} from "../core/Kind.js"
 
 export const parseLnUrl = (values: Record<string, any> = {}): Maybe<string> => {
   for (const key of ["lud06", "lud16"] as const) {

@@ -1,10 +1,10 @@
 import {isPojo, parseJson} from "@welshman/lib"
 import {HANDLER_INFORMATION, getKindTagValues} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
-import type {AnyConfiguredKind} from "../Kind.js"
-import type {Tag} from "../Hint.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
+import type {AnyConfiguredKind} from "../core/Kind.js"
+import type {Tag} from "../core/Hint.js"
 
 export type HandlerMeta = {
   name?: string

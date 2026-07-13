@@ -1,8 +1,8 @@
 import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {ROOM_ADMINS, getPubkeyTagValues} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-39001 room admins list.
 export class RoomAdminsReader extends EventReader {

@@ -2,9 +2,9 @@ import {parseJson, spec} from "@welshman/lib"
 import {FEED, getTagValue} from "@welshman/util"
 import type {Feed as FeedDefinition} from "@welshman/feeds"
 
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-31890 saved-feed definition.
 export class FeedReader extends EventReader {

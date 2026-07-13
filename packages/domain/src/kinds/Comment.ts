@@ -6,12 +6,12 @@ import {COMMENT,
   outbox,
 } from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {hint} from "../Hint.js"
-import type {Tag} from "../Hint.js"
-import {KindFactory} from "../Kind.js"
-import type {AnyConfiguredKind} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {hint} from "../core/Hint.js"
+import type {Tag} from "../core/Hint.js"
+import {KindFactory} from "../core/Kind.js"
+import type {AnyConfiguredKind} from "../core/Kind.js"
 
 export type CommentRef = {
   id?: string

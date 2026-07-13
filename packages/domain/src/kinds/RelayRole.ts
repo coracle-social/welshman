@@ -1,8 +1,8 @@
 import {first, spec} from "@welshman/lib"
 import {RELAY_ROLE, getTags, getTagValue} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // An hsl color tuple. Components are raw strings; any may be empty, in which
 // case the client supplies its own default. Usually only `hue` is set.

@@ -6,9 +6,9 @@ import {ZAP_RECEIPT,
   getInvoiceAmount,
 } from "@welshman/util"
 import type {TrustedEvent, Zapper} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // NIP-57 kind-9735 zap receipt (relay/LN-generated, read-only).
 export class ZapReceiptReader extends EventReader {

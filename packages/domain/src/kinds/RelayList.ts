@@ -1,8 +1,8 @@
 import {nth, uniq, uniqBy, remove} from "@welshman/lib"
 import {RELAYS, getRelayTags, normalizeRelayUrl, relays, indexers, userOutbox} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 const getUrls = (tags: string[][], mode?: string) =>
   uniqBy(

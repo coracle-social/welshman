@@ -8,9 +8,9 @@ import {POLL,
   getTagValues,
 } from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 export type PollType = "singlechoice" | "multiplechoice"
 

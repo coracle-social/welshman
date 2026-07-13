@@ -4,9 +4,9 @@ import {ZAP_REQUEST,
   getTag,
   getTagValue,
 } from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // NIP-57 kind-9734 zap request.
 export class ZapRequestReader extends EventReader {

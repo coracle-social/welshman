@@ -1,8 +1,8 @@
 import {spec} from "@welshman/lib"
 import {PIN, getTag, getTagValue, getTagValues, getTopicTagValues} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // A pin references exactly one piece of content: a nostr event (`e`), an
 // addressable event (`a`), or an external id (`i`, with an optional `k` kind).

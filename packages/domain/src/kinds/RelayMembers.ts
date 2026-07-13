@@ -1,9 +1,9 @@
 import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {RELAY_MEMBERS, getTagValues} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
-import type {AnyConfiguredKind} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
+import type {AnyConfiguredKind} from "../core/Kind.js"
 
 // Flotilla kind-13534 relay/space member-list snapshot. Members are carried in
 // NIP-43 `member` tags, and the event is NIP-70 protected (`-`).

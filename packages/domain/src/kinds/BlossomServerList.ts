@@ -1,8 +1,8 @@
 import {uniq, spec, normalizeUrl} from "@welshman/lib"
 import {BLOSSOM_SERVERS, getTagValues} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {KindFactory} from "../core/Kind.js"
 
 // Blossom BUD-03 kind-10063 user server list.
 export class BlossomServerListReader extends EventReader {

@@ -10,10 +10,10 @@ import {
   outbox,
 } from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {EventReader} from "../EventReader.js"
-import {EventWriter} from "../EventWriter.js"
-import {hint} from "../Hint.js"
-import {KindFactory} from "../Kind.js"
+import {EventReader} from "../core/EventReader.js"
+import {EventWriter} from "../core/EventWriter.js"
+import {hint} from "../core/Hint.js"
+import {KindFactory} from "../core/Kind.js"
 
 // NIP-09 kind-5 delete request.
 export class DeleteReader extends EventReader {
