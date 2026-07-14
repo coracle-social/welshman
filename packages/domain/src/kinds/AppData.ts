@@ -1,6 +1,5 @@
 import {parseJson} from "@welshman/lib"
 import {decrypt} from "@welshman/signer"
-import type {ISigner} from "@welshman/signer"
 import {APP_DATA} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
@@ -10,8 +9,6 @@ import type {AnyConfiguredKind} from "../core/Kind.js"
 // NIP-78 kind-30078 arbitrary app data, keyed by `d` tag. Content is JSON,
 // optionally NIP-44 encrypted to the author.
 export class AppDataReader extends EventReader {
-  readonly kind = APP_DATA
-
   decrypted = false
   encrypted = false
 
@@ -53,8 +50,6 @@ export class AppDataReader extends EventReader {
 }
 
 export class AppDataWriter extends EventWriter<AppDataReader> {
-  readonly kind = APP_DATA
-
   values: unknown = undefined
   encrypted = false
 
@@ -85,7 +80,7 @@ export class AppDataWriter extends EventWriter<AppDataReader> {
     }
   }
 
-  protected async buildContent(signer?: ISigner): Promise<string> {
+  protected async buildContent(): Promise<string> {
     // Preserve the original ciphertext when we never decrypted it.
     if (this.reader?.decrypted === false) return this.reader.event.content
 
@@ -94,6 +89,8 @@ export class AppDataWriter extends EventWriter<AppDataReader> {
     const json = JSON.stringify(this.values)
 
     if (!this.encrypted) return json
+
+    const {signer} = this.def.context
 
     if (!signer) {
       throw new Error("A signer is required to encrypt app data")
@@ -106,6 +103,7 @@ export class AppDataWriter extends EventWriter<AppDataReader> {
 }
 
 export const AppData = new KindFactory({
+  kind: APP_DATA,
   reader: AppDataReader,
   writer: AppDataWriter,
 })

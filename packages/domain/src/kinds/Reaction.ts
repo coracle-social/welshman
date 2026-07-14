@@ -18,8 +18,6 @@ const TARGET_KEYS = ["e", "a", "p", "k"]
 // NIP-25 kind-7 reaction. The content is "+", "-", a unicode emoji, or a
 // `:shortcode:` referencing a NIP-30 `emoji` tag — set it via `setContent`.
 export class ReactionReader extends EventReader {
-  readonly kind = REACTION
-
   eventId() {
     return getTagValue("e", this.event.tags)
   }
@@ -42,8 +40,6 @@ export class ReactionReader extends EventReader {
 }
 
 export class ReactionWriter extends EventWriter<ReactionReader> {
-  readonly kind = REACTION
-
   // A reaction targets exactly one event, so replace any existing target.
   setEvent(event: TrustedEvent) {
     this.dropTags(t => TARGET_KEYS.includes(t[0] as string)).addTags(
@@ -77,6 +73,7 @@ export class ReactionWriter extends EventWriter<ReactionReader> {
 }
 
 export const Reaction = new KindFactory({
+  kind: REACTION,
   reader: ReactionReader,
   writer: ReactionWriter,
 })

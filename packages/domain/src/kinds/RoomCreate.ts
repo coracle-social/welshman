@@ -4,12 +4,9 @@ import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-9007 create-room op.
-export class RoomCreateReader extends EventReader {
-  readonly kind = ROOM_CREATE
-}
+export class RoomCreateReader extends EventReader {}
 
 export class RoomCreateWriter extends EventWriter<RoomCreateReader> {
-  readonly kind = ROOM_CREATE
   readonly requiresRelays = true
 
   protected validate() {
@@ -22,6 +19,7 @@ export class RoomCreateWriter extends EventWriter<RoomCreateReader> {
 }
 
 export const RoomCreate = new KindFactory({
+  kind: ROOM_CREATE,
   reader: RoomCreateReader,
   writer: RoomCreateWriter,
 })

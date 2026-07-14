@@ -7,14 +7,12 @@ import type {AnyConfiguredKind} from "../core/Kind.js"
 
 // NIP-56 kind-1984 report.
 export class ReportReader extends EventReader {
-  readonly kind = REPORT
-
   pubkey() {
     return getTagValue("p", this.event.tags)
   }
 
   eventId() {
-    return getTag("e", this.event.tags)?.[1]
+    return getTagValue("e", this.event.tags)
   }
 
   reason() {
@@ -23,8 +21,6 @@ export class ReportReader extends EventReader {
 }
 
 export class ReportWriter extends EventWriter<ReportReader> {
-  readonly kind = REPORT
-
   protected async routes() {
     return [userOutbox()]
   }
@@ -79,6 +75,7 @@ export class ReportWriter extends EventWriter<ReportReader> {
 }
 
 export const Report = new KindFactory({
+  kind: REPORT,
   reader: ReportReader,
   writer: ReportWriter,
 })

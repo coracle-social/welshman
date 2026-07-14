@@ -36,7 +36,7 @@ describe("RoomJoin", () => {
 
     expect(join.group()).toBe("room1")
     expect(join.claim()).toBe("invite-code")
-    expect(join.reason()).toBe("please let me in")
+    expect(join.content()).toBe("please let me in")
   })
 
   it("round-trips with no duplicated tags", async () => {
@@ -74,7 +74,7 @@ describe("RoomJoin", () => {
       write(RoomJoin)
         .setGroup("wss://relay.example.com/", "room2")
         .setClaim("xyz")
-        .setReason("hi there"),
+        .setContent("hi there"),
       signer,
     )
 

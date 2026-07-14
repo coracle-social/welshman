@@ -6,8 +6,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-30002 relay set.
 export class RelaySetReader extends EventReader {
-  readonly kind = NAMED_RELAYS
-
   title() {
     return getTagValue("title", this.event.tags)
   }
@@ -26,8 +24,6 @@ export class RelaySetReader extends EventReader {
 }
 
 export class RelaySetWriter extends EventWriter<RelaySetReader> {
-  readonly kind = NAMED_RELAYS
-
   setTitle(title: string) {
     return this.dropTags(spec(["title"])).addTags(["title", title])
   }
@@ -56,6 +52,7 @@ export class RelaySetWriter extends EventWriter<RelaySetReader> {
 }
 
 export const RelaySet = new KindFactory({
+  kind: NAMED_RELAYS,
   reader: RelaySetReader,
   writer: RelaySetWriter,
 })

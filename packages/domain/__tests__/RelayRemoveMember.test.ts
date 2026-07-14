@@ -25,7 +25,7 @@ describe("RelayRemoveMember", () => {
   it("reads affected pubkeys with the remove kind", async () => {
     const op = await read(RelayRemoveMember, makeEvent({tags: [["p", a]]}))
 
-    expect(op.kind).toBe(RELAY_REMOVE_MEMBER)
+    expect(op.def.kind).toBe(RELAY_REMOVE_MEMBER)
     expect(op.pubkeys()).toEqual([a])
   })
 

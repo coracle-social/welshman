@@ -5,8 +5,6 @@ import type {TrustedEvent, RelaySelection, RelayScenario} from "@welshman/util"
 import type {AnyConfiguredKind} from "./Kind.js"
 
 export abstract class EventReader {
-  abstract readonly kind: number
-
   constructor(
     readonly def: AnyConfiguredKind,
     readonly event: TrustedEvent,

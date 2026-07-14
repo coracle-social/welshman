@@ -6,8 +6,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10014 saved feeds list.
 export class FeedListReader extends ListReader {
-  readonly kind = FEEDS
-
   addresses() {
     return uniq(getAddressTagValues(this.tags()))
   }
@@ -18,8 +16,6 @@ export class FeedListReader extends ListReader {
 }
 
 export class FeedListWriter extends ListWriter<FeedListReader> {
-  readonly kind = FEEDS
-
   addFeed(address: string, relayHint?: string) {
     return this.addPublic(["a", address, relayHint || ""])
   }
@@ -34,6 +30,7 @@ export class FeedListWriter extends ListWriter<FeedListReader> {
 }
 
 export const FeedList = new KindFactory({
+  kind: FEEDS,
   reader: FeedListReader,
   writer: FeedListWriter,
 })

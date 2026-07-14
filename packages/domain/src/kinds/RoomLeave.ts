@@ -4,12 +4,9 @@ import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-9022 room leave op. The target room is the "h" group tag.
-export class RoomLeaveReader extends EventReader {
-  readonly kind = ROOM_LEAVE
-}
+export class RoomLeaveReader extends EventReader {}
 
 export class RoomLeaveWriter extends EventWriter<RoomLeaveReader> {
-  readonly kind = ROOM_LEAVE
   readonly requiresRelays = true
 
   protected validate() {
@@ -22,6 +19,7 @@ export class RoomLeaveWriter extends EventWriter<RoomLeaveReader> {
 }
 
 export const RoomLeave = new KindFactory({
+  kind: ROOM_LEAVE,
   reader: RoomLeaveReader,
   writer: RoomLeaveWriter,
 })

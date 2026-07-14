@@ -7,8 +7,6 @@ import type {AnyConfiguredKind} from "../core/Kind.js"
 
 // NIP-52 kind-31923 time-based calendar event.
 export class TimeEventReader extends EventReader {
-  readonly kind = EVENT_TIME
-
   title() {
     return getTagValue("title", this.event.tags)
   }
@@ -31,8 +29,6 @@ export class TimeEventReader extends EventReader {
 }
 
 export class TimeEventWriter extends EventWriter<TimeEventReader> {
-  readonly kind = EVENT_TIME
-
   constructor(def: AnyConfiguredKind, reader?: TimeEventReader) {
     super(def, reader)
 
@@ -58,8 +54,8 @@ export class TimeEventWriter extends EventWriter<TimeEventReader> {
   protected buildTags() {
     const tags: string[][] = []
 
-    const start = parseInt((this.extraTags.find(spec(["start"]))?.[1] as string) ?? "")
-    const end = parseInt((this.extraTags.find(spec(["end"]))?.[1] as string) ?? "")
+    const start = parseInt((this.extraTags.find(spec(["start"]))?.[1] ?? "") as string)
+    const end = parseInt((this.extraTags.find(spec(["end"]))?.[1] ?? "") as string)
 
     if (!isNaN(start) && !isNaN(end)) {
       for (const t of range(start, end, DAY)) {
@@ -72,6 +68,7 @@ export class TimeEventWriter extends EventWriter<TimeEventReader> {
 }
 
 export const TimeEvent = new KindFactory({
+  kind: EVENT_TIME,
   reader: TimeEventReader,
   writer: TimeEventWriter,
 })

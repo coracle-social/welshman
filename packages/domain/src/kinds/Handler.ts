@@ -17,7 +17,6 @@ export type HandlerMeta = {
 
 // NIP-89 kind-31990 handler information.
 export class HandlerReader extends EventReader {
-  readonly kind = HANDLER_INFORMATION
   readonly values: HandlerMeta = {}
 
   async parse() {
@@ -58,8 +57,6 @@ export class HandlerReader extends EventReader {
 }
 
 export class HandlerWriter extends EventWriter<HandlerReader> {
-  readonly kind = HANDLER_INFORMATION
-
   values: HandlerMeta = {}
   kindTags: Tag[] = []
 
@@ -122,6 +119,7 @@ export class HandlerWriter extends EventWriter<HandlerReader> {
 }
 
 export const Handler = new KindFactory({
+  kind: HANDLER_INFORMATION,
   reader: HandlerReader,
   writer: HandlerWriter,
 })

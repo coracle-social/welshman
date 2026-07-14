@@ -19,8 +19,6 @@ const REFERENCE_KEYS = ["e", "a", "i", "k"]
 // tag (see `PinWriter`) — otherwise every pin from the same author would
 // collide at the same address and replace one another.
 export class PinReader extends EventReader {
-  readonly kind = PIN
-
   boards() {
     return getTagValues("A", this.event.tags)
   }
@@ -53,8 +51,6 @@ export class PinReader extends EventReader {
 }
 
 export class PinWriter extends EventWriter<PinReader> {
-  readonly kind = PIN
-
   setTitle(title: string) {
     return this.dropTags(spec(["title"])).addTags(["title", title])
   }
@@ -100,6 +96,7 @@ export class PinWriter extends EventWriter<PinReader> {
 }
 
 export const Pin = new KindFactory({
+  kind: PIN,
   reader: PinReader,
   writer: PinWriter,
 })

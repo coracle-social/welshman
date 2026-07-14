@@ -6,8 +6,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-57 kind-9734 zap request.
 export class ZapRequestReader extends EventReader {
-  readonly kind = ZAP_REQUEST
-
   amount() {
     const amount = getTagValue("amount", this.event.tags)
 
@@ -34,8 +32,6 @@ export class ZapRequestReader extends EventReader {
 }
 
 export class ZapRequestWriter extends EventWriter<ZapRequestReader> {
-  readonly kind = ZAP_REQUEST
-
   setAmount(amount: number) {
     return this.dropTags(spec(["amount"])).addTags(["amount", String(amount)])
   }
@@ -58,6 +54,7 @@ export class ZapRequestWriter extends EventWriter<ZapRequestReader> {
 }
 
 export const ZapRequest = new KindFactory({
+  kind: ZAP_REQUEST,
   reader: ZapRequestReader,
   writer: ZapRequestWriter,
 })

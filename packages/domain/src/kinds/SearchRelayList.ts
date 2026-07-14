@@ -6,8 +6,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10007 search relays list.
 export class SearchRelayListReader extends EventReader {
-  readonly kind = SEARCH_RELAYS
-
   urls() {
     return uniqBy(normalizeRelayUrl, getTagValues("relay", this.tags()))
   }
@@ -18,8 +16,6 @@ export class SearchRelayListReader extends EventReader {
 }
 
 export class SearchRelayListWriter extends EventWriter<SearchRelayListReader> {
-  readonly kind = SEARCH_RELAYS
-
   addUrl(url: string) {
     return this.addTags(["relay", normalizeRelayUrl(url)])
   }
@@ -36,6 +32,7 @@ export class SearchRelayListWriter extends EventWriter<SearchRelayListReader> {
 }
 
 export const SearchRelayList = new KindFactory({
+  kind: SEARCH_RELAYS,
   reader: SearchRelayListReader,
   writer: SearchRelayListWriter,
 })

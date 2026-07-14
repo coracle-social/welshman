@@ -30,12 +30,14 @@ import {getAdapter, AdapterContext, AdapterEvent} from "./adapter.js"
 import {SocketEvent, SocketStatus} from "./socket.js"
 import {Tracker} from "./tracker.js"
 
+export type IsEventValid = (event: TrustedEvent, url: string) => boolean
+
 export type BaseRequestOptions = {
   signal?: AbortSignal
   tracker?: Tracker
   context?: AdapterContext
   autoClose?: boolean
-  isEventValid?: (event: TrustedEvent, url: string) => boolean
+  isEventValid?: IsEventValid
   onEvent?: (event: TrustedEvent, url: string) => void
   onDeleted?: (event: unknown, url: string) => void
   onInvalid?: (event: unknown, url: string) => void
@@ -59,8 +61,7 @@ export const requestOne = (options: RequestOneOptions) => {
   const deferred = defer<TrustedEvent[]>()
   const tracker = options.tracker || new Tracker()
   const adapter = getAdapter(options.relay, options.context)
-  const isEventValid: (event: TrustedEvent, url: string) => boolean =
-    options.isEventValid || (event => verifyEvent(event))
+  const isEventValid: IsEventValid = options.isEventValid || (event => verifyEvent(event))
 
   let closed = false
 

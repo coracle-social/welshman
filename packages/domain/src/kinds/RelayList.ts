@@ -14,8 +14,6 @@ const getUrls = (tags: string[][], mode?: string) =>
 
 // NIP-65 kind-10002 relay list.
 export class RelayListReader extends EventReader {
-  readonly kind = RELAYS
-
   urls() {
     return getUrls(this.tags())
   }
@@ -30,8 +28,6 @@ export class RelayListReader extends EventReader {
 }
 
 export class RelayListWriter extends EventWriter<RelayListReader> {
-  readonly kind = RELAYS
-
   // Kind 10002 is indexed, and publishes to every relay the list references — both
   // its current urls and the ones it used to have (via the seed `reader`), so each
   // relay learns when it's added to or removed from the list.
@@ -127,6 +123,7 @@ export class RelayListWriter extends EventWriter<RelayListReader> {
 }
 
 export const RelayList = new KindFactory({
+  kind: RELAYS,
   reader: RelayListReader,
   writer: RelayListWriter,
 })

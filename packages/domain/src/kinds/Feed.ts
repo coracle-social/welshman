@@ -8,8 +8,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-31890 saved-feed definition.
 export class FeedReader extends EventReader {
-  readonly kind = FEED
-
   title() {
     return getTagValue("title", this.event.tags) || ""
   }
@@ -24,8 +22,6 @@ export class FeedReader extends EventReader {
 }
 
 export class FeedWriter extends EventWriter<FeedReader> {
-  readonly kind = FEED
-
   setTitle(title: string) {
     return this.dropTags(spec(["title"])).addTags(["title", title])
   }
@@ -40,6 +36,7 @@ export class FeedWriter extends EventWriter<FeedReader> {
 }
 
 export const Feed = new KindFactory({
+  kind: FEED,
   reader: FeedReader,
   writer: FeedWriter,
 })

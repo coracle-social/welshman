@@ -27,7 +27,7 @@ describe("RelayRole", () => {
           ["d", "moderator"],
           ["label", "Moderator"],
           ["description", "Keeps the peace"],
-          ["color", "120", "0.5", "0.4"],
+          ["color", "120"],
           ["order", "2"],
         ],
       }),
@@ -36,28 +36,28 @@ describe("RelayRole", () => {
     expect(reader.identifier()).toBe("moderator")
     expect(reader.label()).toBe("Moderator")
     expect(reader.description()).toBe("Keeps the peace")
-    expect(reader.color()).toEqual({hue: "120", saturation: "0.5", lightness: "0.4"})
+    expect(reader.color()).toBe(120)
     expect(reader.order()).toBe(2)
   })
 
-  it("preserves empty color components so clients can supply defaults", async () => {
+  it("returns undefined when the hue is not a number", async () => {
     const reader = await read(
       RelayRole,
       makeEvent({
         tags: [
           ["d", "moderator"],
-          ["color", "120"],
+          ["color", "abc"],
         ],
       }),
     )
 
-    expect(reader.color()).toEqual({hue: "120", saturation: "", lightness: ""})
+    expect(reader.color()).toBeUndefined()
   })
 
-  it("returns empty color components when there is no color tag", async () => {
+  it("returns undefined when there is no color tag", async () => {
     const reader = await read(RelayRole, makeEvent({tags: [["d", "moderator"]]}))
 
-    expect(reader.color()).toEqual({hue: "", saturation: "", lightness: ""})
+    expect(reader.color()).toBeUndefined()
   })
 
   it("defaults order to zero when missing or invalid", async () => {
@@ -82,7 +82,7 @@ describe("RelayRole", () => {
         .setIdentifier("moderator")
         .setLabel("Moderator")
         .setDescription("Keeps the peace")
-        .setColor({hue: "120", saturation: "0.5", lightness: "0.4"})
+        .setColor(120)
         .setOrder(2)
         .forceRelays("wss://relay.example.com/"),
     )
@@ -91,7 +91,7 @@ describe("RelayRole", () => {
     expect(tmpl.tags).toContainEqual(["d", "moderator"])
     expect(tmpl.tags).toContainEqual(["label", "Moderator"])
     expect(tmpl.tags).toContainEqual(["description", "Keeps the peace"])
-    expect(tmpl.tags).toContainEqual(["color", "120", "0.5", "0.4"])
+    expect(tmpl.tags).toContainEqual(["color", "120"])
     expect(tmpl.tags).toContainEqual(["order", "2"])
   })
 
@@ -103,7 +103,7 @@ describe("RelayRole", () => {
           ["d", "moderator"],
           ["label", "Moderator"],
           ["description", "Keeps the peace"],
-          ["color", "120", "0.5", "0.4"],
+          ["color", "120"],
           ["order", "2"],
           ["zzz", "x"],
         ],
@@ -119,20 +119,20 @@ describe("RelayRole", () => {
     expect(tmpl.tags.filter(t => t[0] === "description")).toEqual([
       ["description", "Keeps the peace"],
     ])
-    expect(tmpl.tags.filter(t => t[0] === "color")).toEqual([["color", "120", "0.5", "0.4"]])
+    expect(tmpl.tags.filter(t => t[0] === "color")).toEqual([["color", "120"]])
     expect(tmpl.tags.filter(t => t[0] === "order")).toEqual([["order", "3"]])
     expect(tmpl.tags).toContainEqual(["zzz", "x"])
   })
 
-  it("setColor writes empty components verbatim", async () => {
+  it("setColor writes the hue", async () => {
     const tmpl = await buildTemplate(
       write(RelayRole)
         .setIdentifier("moderator")
-        .setColor({hue: "120", saturation: "", lightness: ""})
+        .setColor(120)
         .forceRelays("wss://relay.example.com/"),
     )
 
-    expect(tmpl.tags).toContainEqual(["color", "120", "", ""])
+    expect(tmpl.tags).toContainEqual(["color", "120"])
   })
 
   it("requires a d tag", async () => {

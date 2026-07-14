@@ -2,7 +2,6 @@ import {npubEncode} from "nostr-tools/nip19"
 import {ellipsize, isPojo, parseJson} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import {PROFILE, getLnUrl} from "@welshman/util"
-import type {ISigner} from "@welshman/signer"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -28,7 +27,6 @@ export const displayPubkey = (pubkey: string) => {
 
 // NIP-01 kind-0 profile metadata.
 export class ProfileReader extends EventReader {
-  readonly kind = PROFILE
   readonly values: Record<string, any> = {}
 
   async parse() {
@@ -77,7 +75,6 @@ export class ProfileReader extends EventReader {
 }
 
 export class ProfileWriter extends EventWriter<ProfileReader> {
-  readonly kind = PROFILE
   values: Record<string, any>
 
   constructor(def: AnyConfiguredKind, reader?: ProfileReader) {
@@ -131,12 +128,13 @@ export class ProfileWriter extends EventWriter<ProfileReader> {
     return []
   }
 
-  protected buildContent(_signer?: ISigner) {
+  protected buildContent() {
     return JSON.stringify(this.values)
   }
 }
 
 export const Profile = new KindFactory({
+  kind: PROFILE,
   reader: ProfileReader,
   writer: ProfileWriter,
 })

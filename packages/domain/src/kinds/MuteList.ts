@@ -6,8 +6,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10000 mute list.
 export class MuteListReader extends ListReader {
-  readonly kind = MUTES
-
   pubkeys() {
     return uniq(getPubkeyTagValues(this.tags()))
   }
@@ -18,8 +16,6 @@ export class MuteListReader extends ListReader {
 }
 
 export class MuteListWriter extends ListWriter<MuteListReader> {
-  readonly kind = MUTES
-
   protected async routes() {
     return [userOutbox()]
   }
@@ -38,6 +34,7 @@ export class MuteListWriter extends ListWriter<MuteListReader> {
 }
 
 export const MuteList = new KindFactory({
+  kind: MUTES,
   reader: MuteListReader,
   writer: MuteListWriter,
 })

@@ -6,8 +6,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-02 kind-3 follow list.
 export class FollowListReader extends EventReader {
-  readonly kind = FOLLOWS
-
   pubkeys() {
     return uniq(getPubkeyTagValues(this.tags()))
   }
@@ -18,8 +16,6 @@ export class FollowListReader extends EventReader {
 }
 
 export class FollowListWriter extends EventWriter<FollowListReader> {
-  readonly kind = FOLLOWS
-
   protected async routes() {
     return [userOutbox()]
   }
@@ -34,6 +30,7 @@ export class FollowListWriter extends EventWriter<FollowListReader> {
 }
 
 export const FollowList = new KindFactory({
+  kind: FOLLOWS,
   reader: FollowListReader,
   writer: FollowListWriter,
 })

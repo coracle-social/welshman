@@ -40,8 +40,6 @@ export const formatSlashCommand = (name: string, args: string[] = []) =>
 // are the monitored event kinds, `h` tags are the monitored NIP-29 groups (none
 // means it can be invoked anywhere).
 export class SlashCommandReader extends EventReader {
-  readonly kind = SLASH_COMMAND
-
   name() {
     return this.identifier()
   }
@@ -85,8 +83,6 @@ export class SlashCommandReader extends EventReader {
 }
 
 export class SlashCommandWriter extends EventWriter<SlashCommandReader> {
-  readonly kind = SLASH_COMMAND
-
   setName(name: string) {
     return this.setIdentifier(name)
   }
@@ -133,6 +129,7 @@ export class SlashCommandWriter extends EventWriter<SlashCommandReader> {
 }
 
 export const SlashCommand = new KindFactory({
+  kind: SLASH_COMMAND,
   reader: SlashCommandReader,
   writer: SlashCommandWriter,
 })

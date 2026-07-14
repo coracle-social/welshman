@@ -6,8 +6,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10001 pin list.
 export class PinListReader extends ListReader {
-  readonly kind = PINS
-
   ids() {
     return uniq(getEventTagValues(this.tags()))
   }
@@ -18,8 +16,6 @@ export class PinListReader extends ListReader {
 }
 
 export class PinListWriter extends ListWriter<PinListReader> {
-  readonly kind = PINS
-
   pinPublicly(tag: string[]) {
     return this.addPublic(tag)
   }
@@ -34,6 +30,7 @@ export class PinListWriter extends ListWriter<PinListReader> {
 }
 
 export const PinList = new KindFactory({
+  kind: PINS,
   reader: PinListReader,
   writer: PinListWriter,
 })

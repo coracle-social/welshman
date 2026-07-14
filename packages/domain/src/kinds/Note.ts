@@ -15,13 +15,9 @@ import {hint} from "../core/Hint.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-01 kind-1 short text note.
-export class NoteReader extends EventReader {
-  readonly kind = NOTE
-}
+export class NoteReader extends EventReader {}
 
 export class NoteWriter extends EventWriter<NoteReader> {
-  readonly kind = NOTE
-
   // NIP-10 reply threading: p-tag the parent's participants, then e/a-tag the
   // parent (and thread root) with the appropriate markers and relay hints.
   setParent(event: TrustedEvent) {
@@ -51,6 +47,7 @@ export class NoteWriter extends EventWriter<NoteReader> {
 }
 
 export const Note = new KindFactory({
+  kind: NOTE,
   reader: NoteReader,
   writer: NoteWriter,
 })

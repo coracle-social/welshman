@@ -6,16 +6,12 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-17 kind-10050 messaging/inbox relays list.
 export class MessagingRelayListReader extends EventReader {
-  readonly kind = MESSAGING_RELAYS
-
   urls() {
     return uniqBy(normalizeRelayUrl, getTagValues("relay", this.tags()))
   }
 }
 
 export class MessagingRelayListWriter extends EventWriter<MessagingRelayListReader> {
-  readonly kind = MESSAGING_RELAYS
-
   addUrl(url: string) {
     return this.addTags(["relay", normalizeRelayUrl(url)])
   }
@@ -32,6 +28,7 @@ export class MessagingRelayListWriter extends EventWriter<MessagingRelayListRead
 }
 
 export const MessagingRelayList = new KindFactory({
+  kind: MESSAGING_RELAYS,
   reader: MessagingRelayListReader,
   writer: MessagingRelayListWriter,
 })

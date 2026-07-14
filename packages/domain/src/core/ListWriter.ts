@@ -1,5 +1,4 @@
 import {complement} from "@welshman/lib"
-import type {ISigner} from "@welshman/signer"
 import {EventWriter} from "./EventWriter.js"
 import type {ListReader} from "./ListReader.js"
 import type {AnyConfiguredKind} from "./Kind.js"
@@ -85,12 +84,14 @@ export abstract class ListWriter<
     return this.publicTags
   }
 
-  protected async buildContent(signer?: ISigner): Promise<string> {
+  protected async buildContent(): Promise<string> {
     // Preserve the original ciphertext when we never decrypted it.
     if (this.reader?.decrypted === false) return this.reader.event.content
 
     // No need to encrypt an empty array
     if (this.privateTags.length === 0) return ""
+
+    const {signer} = this.def.context
 
     if (!signer) {
       throw new Error("A signer is required to encrypt private tags")
