@@ -34,7 +34,7 @@ describe("RoomRemoveMember", () => {
       }),
     )
 
-    expect(op.kind).toBe(ROOM_REMOVE_MEMBER)
+    expect(op.def.kind).toBe(ROOM_REMOVE_MEMBER)
     expect(op.pubkeys()).toEqual([a])
   })
 

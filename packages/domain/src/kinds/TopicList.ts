@@ -6,8 +6,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10015 interests/topics list.
 export class TopicListReader extends ListReader {
-  readonly kind = TOPICS
-
   topics() {
     return uniq(getTopicTagValues(this.tags()))
   }
@@ -22,8 +20,6 @@ export class TopicListReader extends ListReader {
 }
 
 export class TopicListWriter extends ListWriter<TopicListReader> {
-  readonly kind = TOPICS
-
   followPublicly(topic: string) {
     return this.addPublic(["t", topic])
   }
@@ -42,6 +38,7 @@ export class TopicListWriter extends ListWriter<TopicListReader> {
 }
 
 export const TopicList = new KindFactory({
+  kind: TOPICS,
   reader: TopicListReader,
   writer: TopicListWriter,
 })

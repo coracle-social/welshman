@@ -7,8 +7,6 @@ import {KindFactory} from "../core/Kind.js"
 // Pinboards-NIP kind-30067 pinboard — addressable board metadata. Pins
 // themselves are separate kind-39067 events (see Pin).
 export class PinboardReader extends EventReader {
-  readonly kind = PINBOARD
-
   title() {
     return getTagValue("title", this.event.tags)
   }
@@ -31,8 +29,6 @@ export class PinboardReader extends EventReader {
 }
 
 export class PinboardWriter extends EventWriter<PinboardReader> {
-  readonly kind = PINBOARD
-
   setTitle(title: string) {
     return this.dropTags(spec(["title"])).addTags(["title", title])
   }
@@ -65,6 +61,7 @@ export class PinboardWriter extends EventWriter<PinboardReader> {
 }
 
 export const Pinboard = new KindFactory({
+  kind: PINBOARD,
   reader: PinboardReader,
   writer: PinboardWriter,
 })

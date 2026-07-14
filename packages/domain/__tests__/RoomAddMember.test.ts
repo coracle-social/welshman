@@ -36,7 +36,7 @@ describe("RoomAddMember", () => {
       }),
     )
 
-    expect(op.kind).toBe(ROOM_ADD_MEMBER)
+    expect(op.def.kind).toBe(ROOM_ADD_MEMBER)
     expect(op.group()).toBe("room1")
     expect(op.pubkeys()).toEqual([a, b])
   })

@@ -6,8 +6,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-89 kind-31989 handler recommendation.
 export class HandlerRecommendationReader extends EventReader {
-  readonly kind = HANDLER_RECOMMENDATION
-
   addressTags() {
     return getAddressTags(this.event.tags)
   }
@@ -25,8 +23,6 @@ export class HandlerRecommendationReader extends EventReader {
 }
 
 export class HandlerRecommendationWriter extends EventWriter<HandlerRecommendationReader> {
-  readonly kind = HANDLER_RECOMMENDATION
-
   addRecommendation(address: string, relay?: string, platform?: string) {
     return this.dropTags(spec(["a", address])).addTags(
       removeUndefined(["a", address, relay || "", platform || ""]),
@@ -39,6 +35,7 @@ export class HandlerRecommendationWriter extends EventWriter<HandlerRecommendati
 }
 
 export const HandlerRecommendation = new KindFactory({
+  kind: HANDLER_RECOMMENDATION,
   reader: HandlerRecommendationReader,
   writer: HandlerRecommendationWriter,
 })

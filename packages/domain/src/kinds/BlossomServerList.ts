@@ -6,8 +6,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // Blossom BUD-03 kind-10063 user server list.
 export class BlossomServerListReader extends EventReader {
-  readonly kind = BLOSSOM_SERVERS
-
   urls() {
     return uniq(getTagValues("server", this.tags()).map(url => normalizeUrl(url)))
   }
@@ -18,8 +16,6 @@ export class BlossomServerListReader extends EventReader {
 }
 
 export class BlossomServerListWriter extends EventWriter<BlossomServerListReader> {
-  readonly kind = BLOSSOM_SERVERS
-
   addUrl(url: string) {
     return this.addTags(["server", normalizeUrl(url)])
   }
@@ -36,6 +32,7 @@ export class BlossomServerListWriter extends EventWriter<BlossomServerListReader
 }
 
 export const BlossomServerList = new KindFactory({
+  kind: BLOSSOM_SERVERS,
   reader: BlossomServerListReader,
   writer: BlossomServerListWriter,
 })

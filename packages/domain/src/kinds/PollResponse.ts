@@ -6,8 +6,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-88 kind-1018 poll response.
 export class PollResponseReader extends EventReader {
-  readonly kind = POLL_RESPONSE
-
   pollId() {
     return getTagValue("e", this.event.tags) || ""
   }
@@ -18,8 +16,6 @@ export class PollResponseReader extends EventReader {
 }
 
 export class PollResponseWriter extends EventWriter<PollResponseReader> {
-  readonly kind = POLL_RESPONSE
-
   setPollId(pollId: string) {
     return this.dropTags(spec(["e"])).addTags(["e", pollId])
   }
@@ -38,6 +34,7 @@ export class PollResponseWriter extends EventWriter<PollResponseReader> {
 }
 
 export const PollResponse = new KindFactory({
+  kind: POLL_RESPONSE,
   reader: PollResponseReader,
   writer: PollResponseWriter,
 })

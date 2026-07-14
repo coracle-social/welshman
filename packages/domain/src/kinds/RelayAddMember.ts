@@ -6,15 +6,12 @@ import {KindFactory} from "../core/Kind.js"
 
 // Flotilla relay/space add-member op (kind 8000).
 export class RelayAddMemberReader extends EventReader {
-  readonly kind = RELAY_ADD_MEMBER
-
   pubkeys() {
     return uniq(getPubkeyTagValues(this.event.tags))
   }
 }
 
 export class RelayAddMemberWriter extends EventWriter<RelayAddMemberReader> {
-  readonly kind = RELAY_ADD_MEMBER
   readonly requiresRelays = true
 
   addPubkey(pubkey: string) {
@@ -23,6 +20,7 @@ export class RelayAddMemberWriter extends EventWriter<RelayAddMemberReader> {
 }
 
 export const RelayAddMember = new KindFactory({
+  kind: RELAY_ADD_MEMBER,
   reader: RelayAddMemberReader,
   writer: RelayAddMemberWriter,
 })

@@ -16,6 +16,7 @@ export type KindConfig<
   Writer extends EventWriter<Reader>,
   Router extends EventRouter = EventRouter,
 > = {
+  kind: number
   reader: new (def: AnyConfiguredKind, event: TrustedEvent) => Reader
   writer: new (def: AnyConfiguredKind, reader?: Reader) => Writer
   router?: new (def: AnyConfiguredKind) => Router
@@ -34,6 +35,10 @@ export class KindFactory<
   Router extends EventRouter = EventRouter,
 > {
   constructor(readonly config: KindConfig<Reader, Writer, Router>) {}
+
+  get kind(): number {
+    return this.config.kind
+  }
 
   configure(context: KindContext): ConfiguredKind<Reader, Writer, Router> {
     return new ConfiguredKind(this.config, context)
@@ -54,12 +59,16 @@ export class ConfiguredKind<
     readonly context: KindContext,
   ) {}
 
-  reader = async (event: TrustedEvent): Promise<Reader> => {
-    const reader = new this.config.reader(this, event)
+  get kind(): number {
+    return this.config.kind
+  }
 
-    if (event.kind !== reader.kind) {
-      throw new Error(`Expected a kind ${reader.kind} event, got kind ${event.kind}`)
+  reader = async (event: TrustedEvent): Promise<Reader> => {
+    if (event.kind !== this.kind) {
+      throw new Error(`Expected a kind ${this.kind} event, got kind ${event.kind}`)
     }
+
+    const reader = new this.config.reader(this, event)
 
     await reader.parse()
 

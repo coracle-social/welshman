@@ -7,8 +7,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-57 kind-9735 zap receipt (relay/LN-generated, read-only).
 export class ZapReceiptReader extends EventReader {
-  readonly kind = ZAP_RECEIPT
-
   plain?: TrustedEvent
 
   async parse() {
@@ -94,8 +92,6 @@ export class ZapReceiptReader extends EventReader {
 }
 
 export class ZapReceiptWriter extends EventWriter<ZapReceiptReader> {
-  readonly kind = ZAP_RECEIPT
-
   setBolt11(bolt11: string) {
     return this.dropTags(spec(["bolt11"])).addTags(["bolt11", bolt11])
   }
@@ -118,6 +114,7 @@ export class ZapReceiptWriter extends EventWriter<ZapReceiptReader> {
 }
 
 export const ZapReceipt = new KindFactory({
+  kind: ZAP_RECEIPT,
   reader: ZapReceiptReader,
   writer: ZapReceiptWriter,
 })

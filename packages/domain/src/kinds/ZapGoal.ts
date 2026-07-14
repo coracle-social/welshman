@@ -7,8 +7,6 @@ import type {AnyConfiguredKind} from "../core/Kind.js"
 
 // NIP-75 kind-9041 zap goal.
 export class ZapGoalReader extends EventReader {
-  readonly kind = ZAP_GOAL
-
   title() {
     return this.event.content || ""
   }
@@ -27,8 +25,6 @@ export class ZapGoalReader extends EventReader {
 }
 
 export class ZapGoalWriter extends EventWriter<ZapGoalReader> {
-  readonly kind = ZAP_GOAL
-
   constructor(def: AnyConfiguredKind, reader?: ZapGoalReader) {
     super(def, reader)
 
@@ -64,6 +60,7 @@ export class ZapGoalWriter extends EventWriter<ZapGoalReader> {
 }
 
 export const ZapGoal = new KindFactory({
+  kind: ZAP_GOAL,
   reader: ZapGoalReader,
   writer: ZapGoalWriter,
 })

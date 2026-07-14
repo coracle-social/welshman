@@ -8,8 +8,6 @@ import {KindFactory} from "../core/Kind.js"
 // addressable RoomMeta (kind 39000), but as a regular event scoped to the target
 // room via the "h" group tag rather than a "d" identifier.
 export class RoomEditReader extends EventReader {
-  readonly kind = ROOM_EDIT_META
-
   name() {
     return getTagValue("name", this.event.tags)
   }
@@ -19,38 +17,35 @@ export class RoomEditReader extends EventReader {
   }
 
   picture() {
-    return getTag("picture", this.event.tags)?.[1]
+    return getTagValue("picture", this.event.tags)
   }
 
   pictureMeta() {
-    const tag = getTag("picture", this.event.tags)
-
-    return tag ? tag.slice(2) : undefined
+    return getTag("picture", this.event.tags)?.slice(2)
   }
 
   isClosed() {
-    return this.event.tags.some(t => t[0] === "closed")
+    return this.event.tags.some(spec(["closed"]))
   }
 
   isHidden() {
-    return this.event.tags.some(t => t[0] === "hidden")
+    return this.event.tags.some(spec(["hidden"]))
   }
 
   isPrivate() {
-    return this.event.tags.some(t => t[0] === "private")
+    return this.event.tags.some(spec(["private"]))
   }
 
   isRestricted() {
-    return this.event.tags.some(t => t[0] === "restricted")
+    return this.event.tags.some(spec(["restricted"]))
   }
 
   livekit() {
-    return this.event.tags.some(t => t[0] === "livekit")
+    return this.event.tags.some(spec(["livekit"]))
   }
 }
 
 export class RoomEditWriter extends EventWriter<RoomEditReader> {
-  readonly kind = ROOM_EDIT_META
   readonly requiresRelays = true
 
   setName(name: string) {
@@ -105,6 +100,7 @@ export class RoomEditWriter extends EventWriter<RoomEditReader> {
 }
 
 export const RoomEdit = new KindFactory({
+  kind: ROOM_EDIT_META,
   reader: RoomEditReader,
   writer: RoomEditWriter,
 })

@@ -4,12 +4,9 @@ import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-9008 delete-room op. The target room is the "h" group tag.
-export class RoomDeleteReader extends EventReader {
-  readonly kind = ROOM_DELETE
-}
+export class RoomDeleteReader extends EventReader {}
 
 export class RoomDeleteWriter extends EventWriter<RoomDeleteReader> {
-  readonly kind = ROOM_DELETE
   readonly requiresRelays = true
 
   protected validate() {
@@ -22,6 +19,7 @@ export class RoomDeleteWriter extends EventWriter<RoomDeleteReader> {
 }
 
 export const RoomDelete = new KindFactory({
+  kind: ROOM_DELETE,
   reader: RoomDeleteReader,
   writer: RoomDeleteWriter,
 })

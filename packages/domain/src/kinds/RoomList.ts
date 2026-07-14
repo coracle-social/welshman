@@ -27,8 +27,6 @@ const getUrls = (tags: string[][]) =>
 
 // NIP-51 kind-10009 simple-groups membership list.
 export class RoomListReader extends ListReader {
-  readonly kind = ROOMS
-
   groups() {
     return getGroupTagValues(this.tags())
   }
@@ -55,8 +53,6 @@ export class RoomListReader extends ListReader {
 }
 
 export class RoomListWriter extends ListWriter<RoomListReader> {
-  readonly kind = ROOMS
-
   // Publishes to every relay this list references — both its current urls and the
   // ones it used to have (via the seed `reader`) — so each relay learns of the
   // user's membership changes.
@@ -105,6 +101,7 @@ export class RoomListWriter extends ListWriter<RoomListReader> {
 }
 
 export const RoomList = new KindFactory({
+  kind: ROOMS,
   reader: RoomListReader,
   writer: RoomListWriter,
 })

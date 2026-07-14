@@ -22,8 +22,6 @@ const parsePrice = ([, amount = "0", currency = "SAT", frequency = ""]: string[]
 
 // NIP-99 kind-30402 classified listing.
 export class ClassifiedReader extends EventReader {
-  readonly kind = CLASSIFIED
-
   title() {
     return getTagValue("title", this.event.tags)
   }
@@ -54,8 +52,6 @@ export class ClassifiedReader extends EventReader {
 }
 
 export class ClassifiedWriter extends EventWriter<ClassifiedReader> {
-  readonly kind = CLASSIFIED
-
   setTitle(title: string) {
     return this.dropTags(spec(["title"])).addTags(["title", title])
   }
@@ -87,6 +83,7 @@ export class ClassifiedWriter extends EventWriter<ClassifiedReader> {
 }
 
 export const Classified = new KindFactory({
+  kind: CLASSIFIED,
   reader: ClassifiedReader,
   writer: ClassifiedWriter,
 })

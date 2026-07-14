@@ -6,22 +6,19 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-7D kind-11 forum thread root.
 export class ThreadReader extends EventReader {
-  readonly kind = THREAD
-
   title() {
     return getTagValue("title", this.event.tags)
   }
 }
 
 export class ThreadWriter extends EventWriter<ThreadReader> {
-  readonly kind = THREAD
-
   setTitle(title: string) {
     return this.dropTags(spec(["title"])).addTags(["title", title])
   }
 }
 
 export const Thread = new KindFactory({
+  kind: THREAD,
   reader: ThreadReader,
   writer: ThreadWriter,
 })

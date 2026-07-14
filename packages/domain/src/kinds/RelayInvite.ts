@@ -6,15 +6,12 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-28935 relay invite.
 export class RelayInviteReader extends EventReader {
-  readonly kind = RELAY_INVITE
-
   claim() {
     return getTagValue("claim", this.event.tags)
   }
 }
 
 export class RelayInviteWriter extends EventWriter<RelayInviteReader> {
-  readonly kind = RELAY_INVITE
   readonly requiresRelays = true
 
   setClaim(claim: string) {
@@ -23,6 +20,7 @@ export class RelayInviteWriter extends EventWriter<RelayInviteReader> {
 }
 
 export const RelayInvite = new KindFactory({
+  kind: RELAY_INVITE,
   reader: RelayInviteReader,
   writer: RelayInviteWriter,
 })

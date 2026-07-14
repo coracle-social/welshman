@@ -1,23 +1,13 @@
-import {first, spec} from "@welshman/lib"
-import {RELAY_ROLE, getTags, getTagValue} from "@welshman/util"
+import {spec} from "@welshman/lib"
+import {RELAY_ROLE, getTagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
-
-// An hsl color tuple. Components are raw strings; any may be empty, in which
-// case the client supplies its own default. Usually only `hue` is set.
-export type RelayRoleColor = {
-  hue: string // 0 to 360
-  saturation: string // 0 to 1
-  lightness: string // 0 to 1
-}
 
 // Flotilla kind-33534 relay role definition, published by the relay's self
 // key. The `d` tag is the role id; kind-13534 member lists reference roles via
 // extra values on `member` tags (["member", pubkey, ...roleIds]).
 export class RelayRoleReader extends EventReader {
-  readonly kind = RELAY_ROLE
-
   label() {
     return getTagValue("label", this.event.tags)
   }
@@ -26,10 +16,11 @@ export class RelayRoleReader extends EventReader {
     return getTagValue("description", this.event.tags)
   }
 
-  color(): RelayRoleColor {
-    const tag = first(getTags("color", this.event.tags)) ?? []
+  // A hue, 0 to 360. Undefined when unset or invalid, so the client can default.
+  color() {
+    const hue = parseInt(getTagValue("color", this.event.tags) ?? "")
 
-    return {hue: tag[1] ?? "", saturation: tag[2] ?? "", lightness: tag[3] ?? ""}
+    return isNaN(hue) ? undefined : hue
   }
 
   order() {
@@ -40,7 +31,6 @@ export class RelayRoleReader extends EventReader {
 }
 
 export class RelayRoleWriter extends EventWriter<RelayRoleReader> {
-  readonly kind = RELAY_ROLE
   readonly requiresRelays = true
 
   setLabel(label: string) {
@@ -51,8 +41,8 @@ export class RelayRoleWriter extends EventWriter<RelayRoleReader> {
     return this.dropTags(spec(["description"])).addTags(["description", description])
   }
 
-  setColor({hue, saturation, lightness}: RelayRoleColor) {
-    return this.dropTags(spec(["color"])).addTags(["color", hue, saturation, lightness])
+  setColor(hue: number) {
+    return this.dropTags(spec(["color"])).addTags(["color", String(hue)])
   }
 
   setOrder(order: number) {
@@ -61,6 +51,7 @@ export class RelayRoleWriter extends EventWriter<RelayRoleReader> {
 }
 
 export const RelayRole = new KindFactory({
+  kind: RELAY_ROLE,
   reader: RelayRoleReader,
   writer: RelayRoleWriter,
 })

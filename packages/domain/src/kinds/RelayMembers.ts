@@ -8,8 +8,6 @@ import type {AnyConfiguredKind} from "../core/Kind.js"
 // Flotilla kind-13534 relay/space member-list snapshot. Members are carried in
 // NIP-43 `member` tags, and the event is NIP-70 protected (`-`).
 export class RelayMembersReader extends EventReader {
-  readonly kind = RELAY_MEMBERS
-
   pubkeys() {
     return uniq(getTagValues("member", this.event.tags))
   }
@@ -20,7 +18,6 @@ export class RelayMembersReader extends EventReader {
 }
 
 export class RelayMembersWriter extends EventWriter<RelayMembersReader> {
-  readonly kind = RELAY_MEMBERS
   readonly requiresRelays = true
 
   constructor(def: AnyConfiguredKind, reader?: RelayMembersReader) {
@@ -46,6 +43,7 @@ export class RelayMembersWriter extends EventWriter<RelayMembersReader> {
 }
 
 export const RelayMembers = new KindFactory({
+  kind: RELAY_MEMBERS,
   reader: RelayMembersReader,
   writer: RelayMembersWriter,
 })

@@ -6,15 +6,12 @@ import {KindFactory} from "../core/Kind.js"
 
 // Flotilla relay/space remove-member op (kind 8001).
 export class RelayRemoveMemberReader extends EventReader {
-  readonly kind = RELAY_REMOVE_MEMBER
-
   pubkeys() {
     return uniq(getPubkeyTagValues(this.event.tags))
   }
 }
 
 export class RelayRemoveMemberWriter extends EventWriter<RelayRemoveMemberReader> {
-  readonly kind = RELAY_REMOVE_MEMBER
   readonly requiresRelays = true
 
   addPubkey(pubkey: string) {
@@ -23,6 +20,7 @@ export class RelayRemoveMemberWriter extends EventWriter<RelayRemoveMemberReader
 }
 
 export const RelayRemoveMember = new KindFactory({
+  kind: RELAY_REMOVE_MEMBER,
   reader: RelayRemoveMemberReader,
   writer: RelayRemoveMemberWriter,
 })

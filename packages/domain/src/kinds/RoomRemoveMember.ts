@@ -6,15 +6,12 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 room remove-member op (kind 9001).
 export class RoomRemoveMemberReader extends EventReader {
-  readonly kind = ROOM_REMOVE_MEMBER
-
   pubkeys() {
     return uniq(getPubkeyTagValues(this.event.tags))
   }
 }
 
 export class RoomRemoveMemberWriter extends EventWriter<RoomRemoveMemberReader> {
-  readonly kind = ROOM_REMOVE_MEMBER
   readonly requiresRelays = true
 
   addPubkey(pubkey: string) {
@@ -31,6 +28,7 @@ export class RoomRemoveMemberWriter extends EventWriter<RoomRemoveMemberReader> 
 }
 
 export const RoomRemoveMember = new KindFactory({
+  kind: ROOM_REMOVE_MEMBER,
   reader: RoomRemoveMemberReader,
   writer: RoomRemoveMemberWriter,
 })

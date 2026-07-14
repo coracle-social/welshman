@@ -6,8 +6,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // Flotilla/NIP-29 kind-19004 room-creation permission grant.
 export class RoomCreatePermissionReader extends EventReader {
-  readonly kind = ROOM_CREATE_PERMISSION
-
   pubkeys() {
     return uniq(getPubkeyTagValues(this.event.tags))
   }
@@ -18,7 +16,6 @@ export class RoomCreatePermissionReader extends EventReader {
 }
 
 export class RoomCreatePermissionWriter extends EventWriter<RoomCreatePermissionReader> {
-  readonly kind = ROOM_CREATE_PERMISSION
   readonly requiresRelays = true
 
   addPubkey(pubkey: string, role?: string) {
@@ -35,6 +32,7 @@ export class RoomCreatePermissionWriter extends EventWriter<RoomCreatePermission
 }
 
 export const RoomCreatePermission = new KindFactory({
+  kind: ROOM_CREATE_PERMISSION,
   reader: RoomCreatePermissionReader,
   writer: RoomCreatePermissionWriter,
 })

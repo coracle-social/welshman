@@ -6,8 +6,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // Ephemeral kind-28934 relay/space join request.
 export class RelayJoinReader extends EventReader {
-  readonly kind = RELAY_JOIN
-
   claim() {
     return getTagValue("claim", this.event.tags)
   }
@@ -18,7 +16,6 @@ export class RelayJoinReader extends EventReader {
 }
 
 export class RelayJoinWriter extends EventWriter<RelayJoinReader> {
-  readonly kind = RELAY_JOIN
   readonly requiresRelays = true
 
   setClaim(claim: string) {
@@ -31,6 +28,7 @@ export class RelayJoinWriter extends EventWriter<RelayJoinReader> {
 }
 
 export const RelayJoin = new KindFactory({
+  kind: RELAY_JOIN,
   reader: RelayJoinReader,
   writer: RelayJoinWriter,
 })

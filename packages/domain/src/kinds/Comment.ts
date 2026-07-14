@@ -17,8 +17,6 @@ export type CommentRef = {
 
 // NIP-22 kind-1111 comment (uppercase E/A/K/P tags = thread root, lowercase = immediate parent).
 export class CommentReader extends EventReader {
-  readonly kind = COMMENT
-
   root(): CommentRef {
     return {
       id: getTagValue("E", this.event.tags),
@@ -39,8 +37,6 @@ export class CommentReader extends EventReader {
 }
 
 export class CommentWriter extends EventWriter<CommentReader> {
-  readonly kind = COMMENT
-
   rootTags: Tag[] = []
   parentTags: Tag[] = []
 
@@ -113,6 +109,7 @@ export class CommentWriter extends EventWriter<CommentReader> {
 }
 
 export const Comment = new KindFactory({
+  kind: COMMENT,
   reader: CommentReader,
   writer: CommentWriter,
 })

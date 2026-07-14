@@ -6,8 +6,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10006 blocked relays list.
 export class BlockedRelayListReader extends EventReader {
-  readonly kind = BLOCKED_RELAYS
-
   urls() {
     return uniqBy(normalizeRelayUrl, getTagValues("relay", this.tags()))
   }
@@ -18,8 +16,6 @@ export class BlockedRelayListReader extends EventReader {
 }
 
 export class BlockedRelayListWriter extends EventWriter<BlockedRelayListReader> {
-  readonly kind = BLOCKED_RELAYS
-
   addUrl(url: string) {
     return this.addTags(["relay", normalizeRelayUrl(url)])
   }
@@ -36,6 +32,7 @@ export class BlockedRelayListWriter extends EventWriter<BlockedRelayListReader> 
 }
 
 export const BlockedRelayList = new KindFactory({
+  kind: BLOCKED_RELAYS,
   reader: BlockedRelayListReader,
   writer: BlockedRelayListWriter,
 })

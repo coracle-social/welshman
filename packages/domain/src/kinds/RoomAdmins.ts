@@ -6,15 +6,12 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-39001 room admins list.
 export class RoomAdminsReader extends EventReader {
-  readonly kind = ROOM_ADMINS
-
   pubkeys() {
     return uniq(getPubkeyTagValues(this.event.tags))
   }
 }
 
 export class RoomAdminsWriter extends EventWriter<RoomAdminsReader> {
-  readonly kind = ROOM_ADMINS
   readonly requiresRelays = true
 
   addPubkey(pubkey: string) {
@@ -31,6 +28,7 @@ export class RoomAdminsWriter extends EventWriter<RoomAdminsReader> {
 }
 
 export const RoomAdmins = new KindFactory({
+  kind: ROOM_ADMINS,
   reader: RoomAdminsReader,
   writer: RoomAdminsWriter,
 })

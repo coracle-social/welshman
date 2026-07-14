@@ -18,8 +18,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-09 kind-5 delete request.
 export class DeleteReader extends EventReader {
-  readonly kind = DELETE
-
   ids() {
     return uniq(getEventTagValues(this.tags()))
   }
@@ -38,8 +36,6 @@ export class DeleteReader extends EventReader {
 }
 
 export class DeleteWriter extends EventWriter<DeleteReader> {
-  readonly kind = DELETE
-
   // The default (author outbox + mentions) plus every relay each deleted event was
   // found on, so the delete reaches wherever those events live.
   protected async routes() {
@@ -84,6 +80,7 @@ export class DeleteWriter extends EventWriter<DeleteReader> {
 }
 
 export const Delete = new KindFactory({
+  kind: DELETE,
   reader: DeleteReader,
   writer: DeleteWriter,
 })

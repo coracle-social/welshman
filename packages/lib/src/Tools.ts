@@ -1134,11 +1134,32 @@ export const ifLet = <T>(x: T | undefined, f: (x: T) => void) =>
  */
 export const randomInt = (min = 0, max = 9) => min + Math.round(Math.random() * (max - min))
 
+const vowels = "a,e,i,o,u,ay,ey,oy,ou,ia,ea,ough,oo,ee,argh".split(",")
+
+const consonants =
+  "p,b,t,d,k,g,ch,sh,th,f,v,s,z,l,r,m,n,pl,bl,cl,gl,pr,br,tr,dr,kr,gr,fl,sl,fr,thr,str,sk,sp,st".split(
+    ",",
+  )
+
 /**
  * Generates random string ID
  * @returns Random string suitable for use as an ID
  */
-export const randomId = (): string => Math.random().toString().slice(2)
+export const randomId = () => {
+  const n = (6 + Math.random() * 2) | 0
+  const s = [consonants, vowels]
+
+  if (Math.random() < 0.5) {
+    s.reverse()
+  }
+
+  return (
+    Array.from({length: n}, (_, i) =>
+      s[i % 2].splice((Math.random() * s[i % 2].length) | 0, 1),
+    ).join("") +
+    (1 + Math.floor(Math.random() * 9))
+  )
+}
 
 // ----------------------------------------------------------------------------
 // Async

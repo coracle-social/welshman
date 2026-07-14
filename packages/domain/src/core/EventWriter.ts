@@ -13,15 +13,12 @@ import {
   relays,
 } from "@welshman/util"
 import type {EventTemplate, TrustedEvent, RelaySelection, RelayScenario} from "@welshman/util"
-import type {ISigner} from "@welshman/signer"
 import type {EventReader} from "./EventReader.js"
 import type {AnyConfiguredKind} from "./Kind.js"
 import {Hint, hint} from "./Hint.js"
 import type {Tag} from "./Hint.js"
 
 export abstract class EventWriter<Reader extends EventReader> {
-  abstract readonly kind: number
-
   content: string
   groupTag?: Tag
   protectTag?: Tag
@@ -164,17 +161,17 @@ export abstract class EventWriter<Reader extends EventReader> {
     return this.addTags(["zap", pubkey, hint(outbox(pubkey)), String(split)])
   }
 
-  protected buildTags(signer?: ISigner): MaybeAsync<Tag[]> {
+  protected buildTags(): MaybeAsync<Tag[]> {
     return []
   }
 
-  protected buildContent(signer?: ISigner): MaybeAsync<string> {
+  protected buildContent(): MaybeAsync<string> {
     return this.content
   }
 
   protected validate(): void {
-    if (isParameterizedReplaceableKind(this.kind) && !this.identifierTag) {
-      throw new Error(`A d tag is required for kind ${this.kind}`)
+    if (isParameterizedReplaceableKind(this.def.kind) && !this.identifierTag) {
+      throw new Error(`A d tag is required for kind ${this.def.kind}`)
     }
 
     if (this.groupTag && !this.forcedRelays?.length) {
@@ -183,7 +180,7 @@ export abstract class EventWriter<Reader extends EventReader> {
 
     if (this.requiresRelays && !this.forcedRelays?.length) {
       throw new Error(
-        `A kind ${this.kind} event must publish to explicit relays (via setGroup or forceRelays)`,
+        `A kind ${this.def.kind} event must publish to explicit relays (via setGroup or forceRelays)`,
       )
     }
   }
@@ -199,8 +196,8 @@ export abstract class EventWriter<Reader extends EventReader> {
     return tags
   }
 
-  private async rawTags(signer?: ISigner): Promise<Tag[]> {
-    const implTags = await this.buildTags(signer)
+  private async rawTags(): Promise<Tag[]> {
+    const implTags = await this.buildTags()
 
     return [...implTags, ...this.behaviorTags(), ...this.extraTags]
   }
@@ -226,11 +223,11 @@ export abstract class EventWriter<Reader extends EventReader> {
   }
 
   async render(): Promise<EventTemplate> {
-    const {signer, resolver} = this.def.context
+    const {resolver} = this.def.context
 
     this.validate()
 
-    const rawTags = await this.rawTags(signer)
+    const rawTags = await this.rawTags()
     const tags = await Promise.all(
       rawTags.map(tag =>
         Promise.all(
@@ -241,9 +238,9 @@ export abstract class EventWriter<Reader extends EventReader> {
       ),
     )
 
-    const content = await this.buildContent(signer)
+    const content = await this.buildContent()
 
-    return {kind: this.kind, content, tags}
+    return {kind: this.def.kind, content, tags}
   }
 
   async finalize(): Promise<{event: EventTemplate; relays: string[]}> {

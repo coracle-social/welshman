@@ -6,16 +6,12 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10004 group/community list.
 export class GroupListReader extends EventReader {
-  readonly kind = COMMUNITIES
-
   addresses() {
     return uniq(getAddressTagValues(this.tags()))
   }
 }
 
 export class GroupListWriter extends EventWriter<GroupListReader> {
-  readonly kind = COMMUNITIES
-
   addGroup(address: string, relayHint?: string) {
     return this.addTags(removeUndefined(["a", address, relayHint]))
   }
@@ -26,6 +22,7 @@ export class GroupListWriter extends EventWriter<GroupListReader> {
 }
 
 export const GroupList = new KindFactory({
+  kind: COMMUNITIES,
   reader: GroupListReader,
   writer: GroupListWriter,
 })

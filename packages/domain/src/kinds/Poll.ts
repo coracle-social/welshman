@@ -19,14 +19,12 @@ export type PollResult = {
 
 // NIP-88 kind-1068 poll.
 export class PollReader extends EventReader {
-  readonly kind = POLL
-
   title() {
     return this.event.content || ""
   }
 
   options(): PollOption[] {
-    return this.event.tags.filter(t => t[0] === "option").map(([, id, label = id]) => ({id, label}))
+    return this.event.tags.filter(spec(["option"])).map(([, id, label = id]) => ({id, label}))
   }
 
   pollType(): PollType {
@@ -81,8 +79,6 @@ export class PollReader extends EventReader {
 }
 
 export class PollWriter extends EventWriter<PollReader> {
-  readonly kind = POLL
-
   setTitle(title: string) {
     this.content = title
 
@@ -115,6 +111,7 @@ export class PollWriter extends EventWriter<PollReader> {
 }
 
 export const Poll = new KindFactory({
+  kind: POLL,
   reader: PollReader,
   writer: PollWriter,
 })

@@ -12,8 +12,6 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10003 bookmark list.
 export class BookmarkListReader extends ListReader {
-  readonly kind = BOOKMARKS
-
   ids() {
     return uniq(getEventTagValues(this.tags()))
   }
@@ -32,8 +30,6 @@ export class BookmarkListReader extends ListReader {
 }
 
 export class BookmarkListWriter extends ListWriter<BookmarkListReader> {
-  readonly kind = BOOKMARKS
-
   bookmarkPublicly(tag: string[]) {
     return this.addPublic(tag)
   }
@@ -48,6 +44,7 @@ export class BookmarkListWriter extends ListWriter<BookmarkListReader> {
 }
 
 export const BookmarkList = new KindFactory({
+  kind: BOOKMARKS,
   reader: BookmarkListReader,
   writer: BookmarkListWriter,
 })
