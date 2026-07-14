@@ -2,7 +2,7 @@
 
 [![version](https://badgen.net/npm/v/@welshman/app)](https://npmjs.com/package/@welshman/app)
 
-An instance-based, composable client for building nostr applications. It powers production clients like [Coracle](https://coracle.social) and [Flotilla](https://flotilla.social), and ties together the rest of the welshman packages (`util`, `net`, `store`, `router`, `signer`, `feeds`) into a single, cohesive app layer.
+An instance-based, composable client for building nostr applications. It powers production clients like [Coracle](https://coracle.social) and [Flotilla](https://flotilla.social), and ties together the rest of the welshman packages (`util`, `net`, `store`, `domain`, `signer`, `feeds`) into a single, cohesive app layer.
 
 ## The core idea: an app is an `App` instance
 
@@ -50,8 +50,7 @@ This replaces the previous global-singleton design (`pubkey`, `deriveProfile`, `
 ```typescript
 import {createApp, User, toSession, nip07, Profiles, Thunks, Router} from "@welshman/app"
 import {getNip07} from "@welshman/signer"
-import {makeEvent, NOTE} from "@welshman/util"
-import {addMinimalFallbacks} from "@welshman/router"
+import {makeEvent, NOTE, userOutbox} from "@welshman/util"
 
 // 1. Log in. A session is a serializable {method, data} descriptor; User
 //    turns it back into a live, signing identity.
@@ -68,10 +67,13 @@ const profile = app.use(Profiles).one(pubkey)   // Readable<Maybe<Profile>>
 profile.subscribe($profile => console.log($profile?.name))
 
 // 4. Publish optimistically. The event is written to the local repository
-//    immediately, signed lazily, and progress is reported per-relay.
+//    immediately, signed lazily, and progress is reported per-relay. Relays
+//    are chosen with the declarative routing DSL: `resolve` turns a list of
+//    `RelaySelection`s into a scored `RelayScenario`.
+const scenario = await app.use(Router).resolve([userOutbox()])
 const thunk = app.use(Thunks).publish({
   event: makeEvent(NOTE, {content: "hi"}),
-  relays: app.use(Router).FromUser().getUrls(),
+  relays: scenario.getUrls(),
   delay: 3000,                                   // soft-undo window
 })
 
@@ -92,4 +94,4 @@ pnpm add @welshman/app
 yarn add @welshman/app
 ```
 
-`@welshman/app` has peer dependencies on `svelte` (4 or 5) and the other welshman workspace packages (`@welshman/feeds`, `@welshman/lib`, `@welshman/net`, `@welshman/router`, `@welshman/signer`, `@welshman/store`, `@welshman/util`), plus `@pomade/core` for the optional Pomade signer.
+`@welshman/app` has peer dependencies on `svelte` (4 or 5) and the other welshman workspace packages (`@welshman/domain`, `@welshman/feeds`, `@welshman/lib`, `@welshman/net`, `@welshman/signer`, `@welshman/store`, `@welshman/util`), plus `@pomade/core` for the optional Pomade signer.

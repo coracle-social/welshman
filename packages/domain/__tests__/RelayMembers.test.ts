@@ -25,7 +25,8 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelayMembers", () => {
   it("reads members from member tags", async () => {
-    const members = await read(RelayMembers, 
+    const members = await read(
+      RelayMembers,
       makeEvent({
         tags: [
           ["member", a],
@@ -41,7 +42,8 @@ describe("RelayMembers", () => {
   })
 
   it("round-trips with deduped member tags and passthrough", async () => {
-    const members = await read(RelayMembers, 
+    const members = await read(
+      RelayMembers,
       makeEvent({
         tags: [
           ["member", a],
@@ -64,12 +66,15 @@ describe("RelayMembers", () => {
   })
 
   it("adds and removes members via the builder", async () => {
-    const tmpl = await buildTemplate(write(RelayMembers)
-      .addPubkey(a)
-      .addPubkey(b)
-      .addPubkey(a)
-      .removePubkey(b)
-      .forceRelays("wss://relay.example.com/"), signer)
+    const tmpl = await buildTemplate(
+      write(RelayMembers)
+        .addPubkey(a)
+        .addPubkey(b)
+        .addPubkey(a)
+        .removePubkey(b)
+        .forceRelays("wss://relay.example.com/"),
+      signer,
+    )
 
     expect(tmpl.tags.filter(t => t[0] === "member").length).toBe(1)
     expect(tmpl.tags).toContainEqual(["member", a])

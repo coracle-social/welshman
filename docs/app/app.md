@@ -6,7 +6,7 @@ An `App` is an application instance. It owns every piece of per-identity state a
 
 ### `createApp(options?)`
 
-The batteries-included factory. It returns an `App` wired with the [default policies](#policies) (event ingestion, relay-stats collection, gift-wrap unwrapping, and NIP-42 auth) unless you pass your own `policies`.
+The batteries-included factory. It returns an `App` wired with the [default policies](#policies) (event ingestion, relay-stats collection, gift-wrap unwrapping, decrypt caching, signer-method logging, and NIP-42 auth) unless you pass your own `policies`.
 
 ```typescript
 import {createApp} from "@welshman/app"
@@ -115,6 +115,8 @@ type AppPolicy = (app: IApp) => Unsubscriber
 | `appPolicyIngest` | Subscribes to the pool; verifies inbound relay events (skipping DVM/ephemeral kinds) and writes them to the `repository` and `tracker`. This is how every repository-backed store gets populated. |
 | `appPolicyRelayStats` | Pipes socket activity into the [`RelayStats`](./routing#relay-quality) store. |
 | `appPolicyWraps` | Enqueues existing and newly-arriving gift-wrap events for unwrapping. |
+| `appPolicyCacheDecrypt` | Wraps the user's signer so NIP-04/NIP-44 decryption consults the `Plaintext` cache before doing real work. No-op when there is no user. |
+| `appPolicyLogSignerMethods` | Wraps the user's signer to log every signer call (pending → success/failure) to the [`Logger`](#logging) plugin. No-op when there is no user. |
 | `appPolicyAuthUnlessBlocked` | Answers NIP-42 AUTH challenges, except for relays in the user's blocked-relay list. |
 
 ### Auth policy builders
@@ -134,40 +136,48 @@ Auth policies are no-ops when there is no signed-in user.
 Pass your own `policies` array to opt out of, or extend, the defaults:
 
 ```typescript
-import {App, defaultAppPolicies, makeAppPolicyLogger} from "@welshman/app"
+import type {AppPolicy} from "@welshman/app"
+import {App, defaultAppPolicies} from "@welshman/app"
+
+const myPolicy: AppPolicy = app =>
+  app.pool.subscribe(socket => {
+    // ...install a side effect, return an Unsubscriber
+    return () => {}
+  })
 
 const app = new App({
   user,
-  policies: [
-    ...defaultAppPolicies,
-    makeAppPolicyLogger(msg => console.log(msg)),   // see Logging
-  ],
+  policies: [...defaultAppPolicies, myPolicy],
 })
 ```
 
 ## Logging
 
-`@welshman/app` can make a user's signer observable. `User.fromSigner`/`User.fromSession` wrap the underlying signer in a `LoggingSigner`, which emits a structured `LogMessage` for every signer operation (pending → success/failure).
+`@welshman/app` exposes a durable, in-app log through the `Logger` plugin. Resolve it with `app.use(Logger)`, append entries with `log(source, {...})`, and subscribe to the `messages` store (a projection) to read them back. The store keeps the most recent 1000 entries.
 
 ```typescript
-type LogMessage =
-  | {type: "signer"; id: string; method: string; status: "pending" | "success" | "failure"; error?: unknown; at: number}
-  | {type: string; at: number; [key: string]: unknown}
+type LogMessage = {
+  source: string
+  id: string          // defaults to a random id
+  at: number          // defaults to Date.now()
+  [key: string]: unknown
+}
 ```
 
-Forward those messages by installing `makeAppPolicyLogger`:
-
 ```typescript
-import {makeAppPolicyLogger} from "@welshman/app"
+import {Logger} from "@welshman/app"
 
-const app = new App({
-  user,
-  policies: [...defaultAppPolicies, makeAppPolicyLogger(msg => {
-    if (msg.type === "signer" && msg.status === "failure") {
+const logger = app.use(Logger)
+
+logger.log("my-feature", {status: "ok"})
+
+logger.messages.subscribe(messages => {
+  for (const msg of messages) {
+    if (msg.source === "signer" && msg.status === "failure") {
       console.error("signing failed", msg.method, msg.error)
     }
-  })],
+  }
 })
 ```
 
-The logger policy is a no-op unless the user's signer is a `LoggingSigner` (which it is when the user was created via `User.fromSigner`/`User.fromSession`).
+Signer operations are logged automatically by the default `appPolicyLogSignerMethods` policy, which wraps the user's signer (via `User.wrapSigner`) and emits a `"signer"` message with `method` and `status` (`"pending"` → `"success"` / `"failure"`, with `error` on failure) for every signer call. It is a no-op when there is no signed-in user.

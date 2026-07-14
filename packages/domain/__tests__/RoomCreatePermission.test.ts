@@ -25,7 +25,8 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomCreatePermission", () => {
   it("reads permitted pubkeys from p tags", async () => {
-    const perm = await read(RoomCreatePermission, 
+    const perm = await read(
+      RoomCreatePermission,
       makeEvent({
         tags: [
           ["p", a],
@@ -41,7 +42,8 @@ describe("RoomCreatePermission", () => {
   })
 
   it("round-trips with no duplicate p tags and passthrough", async () => {
-    const perm = await read(RoomCreatePermission, 
+    const perm = await read(
+      RoomCreatePermission,
       makeEvent({
         tags: [
           ["p", a],

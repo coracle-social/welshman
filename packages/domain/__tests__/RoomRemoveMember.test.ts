@@ -24,7 +24,8 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomRemoveMember", () => {
   it("uses the remove kind and reads pubkeys", async () => {
-    const op = await read(RoomRemoveMember, 
+    const op = await read(
+      RoomRemoveMember,
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -38,7 +39,8 @@ describe("RoomRemoveMember", () => {
   })
 
   it("round-trips through the remove builder", async () => {
-    const op = await read(RoomRemoveMember, 
+    const op = await read(
+      RoomRemoveMember,
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -48,8 +50,10 @@ describe("RoomRemoveMember", () => {
       }),
     )
 
-    const tmpl = await buildTemplate(write(RoomRemoveMember, op)
-      .setGroup("wss://relay.example.com/", "room1"), signer)
+    const tmpl = await buildTemplate(
+      write(RoomRemoveMember, op).setGroup("wss://relay.example.com/", "room1"),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(ROOM_REMOVE_MEMBER)
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
@@ -58,9 +62,10 @@ describe("RoomRemoveMember", () => {
   })
 
   it("builds from a fresh remove builder", async () => {
-    const tmpl = await buildTemplate(write(RoomRemoveMember)
-      .setGroup("wss://relay.example.com/", "room2")
-      .addPubkey(a), signer)
+    const tmpl = await buildTemplate(
+      write(RoomRemoveMember).setGroup("wss://relay.example.com/", "room2").addPubkey(a),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(ROOM_REMOVE_MEMBER)
     expect(getTagValue("h", tmpl.tags)).toBe("room2")

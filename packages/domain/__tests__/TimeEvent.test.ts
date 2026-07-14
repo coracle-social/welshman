@@ -96,11 +96,10 @@ describe("TimeEvent", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(TimeEvent)
-      .setIdentifier("event1")
-      .setTitle("Fresh")
-      .setStart(start)
-      .setEnd(end), signer)
+    const tmpl = await buildTemplate(
+      write(TimeEvent).setIdentifier("event1").setTitle("Fresh").setStart(start).setEnd(end),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(EVENT_TIME)
     expect(tmpl.tags).toContainEqual(["d", "event1"])

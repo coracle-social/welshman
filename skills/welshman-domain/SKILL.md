@@ -1,20 +1,22 @@
 ---
 name: welshman-domain
-description: "Use this skill when working with @welshman/domain: reading and building typed nostr events by kind — the Reader/Builder split (EventReader/EventBuilder, ListReader/ListBuilder) that sits between @welshman/util's raw event types and @welshman/app's data plugins. Covers Profile, NIP-51 lists (follows, mutes, pins, relays, bookmarks, topics, emoji, feeds, blossom), NIP-29 rooms, Flotilla relay/space membership, NIP-89 handlers, NIP-57/75 zaps, and content kinds (comment, thread, classified, poll, calendar, report). Use it to parse an event into domain getters, build/edit an event template, handle NIP-44 private-list encryption, or migrate from the old makeProfile/readProfile/makeList/readHandlers/Encryptable/makeRoom*Event helpers."
+description: "Use this skill when working with @welshman/domain: reading, building, and routing typed nostr events by kind — the Reader/Writer split (EventReader/EventWriter, ListReader/ListWriter) bound to dependencies through KindFactory.configure → ConfiguredKind, that sits between @welshman/util's raw event types and @welshman/app's data plugins. Covers Profile, NIP-51 lists (follows, mutes, pins, relays, bookmarks, topics, emoji, feeds, blossom), NIP-29 rooms, Flotilla relay/space membership, NIP-89 handlers, NIP-57/75 zaps, notes/deletes/reactions, and content kinds (comment, thread, classified, poll, calendar, report). Use it to parse an event into domain getters, build/edit an event template, resolve publish relays via the RelaySelection routing DSL (routes/forceRelays/requiresRelays/scenario), handle NIP-44 private-list encryption, or migrate from the old Reader/Builder core (fromEvent/factory/toTemplate/toEvent/EventBuilder/ListBuilder/XBuilder/commandFromBuilder)."
 ---
 
-# welshman/domain — Typed Readers & Builders for Nostr Kinds
+# welshman/domain — Typed Readers, Writers & Routing for Nostr Kinds
 
 ## Overview
 
-`@welshman/domain` translates nostr events to and from typed domain objects. For each event kind it ships a matched pair:
+`@welshman/domain` translates nostr events to and from typed domain objects, and works out where to publish them. For each event kind it ships a matched pair:
 
 - a **Reader** — a read-only view over a `TrustedEvent` with synchronous getters (`profile.name()`, `followList.pubkeys()`), and
-- a **Builder** — a mutable, chainable producer of an `EventTemplate` (`new ProfileBuilder().setName("alice")`).
+- a **Writer** — a mutable, chainable producer of an `EventTemplate` plus the relays to publish it to (`writer.render()` / `writer.finalize()`).
 
-It sits one layer above `@welshman/util` (raw `TrustedEvent`/`EventTemplate` types, tag getters, kind constants) and one layer below `@welshman/app` (whose data plugins like `Profiles`/`FollowLists` use these readers as their `eventToItem`). The package is stateless: no stores, no network, no globals — just `event → object` and `object → template`.
+A kind is packaged as a **`KindFactory`**; you bind it to app dependencies once with `factory.configure(context)`, which returns a **`ConfiguredKind`** that mints readers and writers. Routing runs through the `@welshman/util` `RelaySelection` DSL and a `Resolver` supplied in the context.
 
-This replaces the old free-function helpers that used to live in `@welshman/util` (`makeProfile`/`readProfile`, `makeList`/`readList`, `readHandlers`, `Encryptable`, `makeRoom*Event`). See the migration table below.
+It sits one layer above `@welshman/util` (raw `TrustedEvent`/`EventTemplate` types, tag getters, kind constants, the routing DSL) and one layer below `@welshman/app` (whose `Domain` plugin supplies the context and whose data plugins use these readers as their `eventToItem`). The package holds no stores, no network, no globals — dependencies arrive through the `KindContext`.
+
+This replaces the old free-function helpers that used to live in `@welshman/util` (`makeProfile`/`readProfile`, `makeList`/`readList`, `readHandlers`, `Encryptable`, `makeRoom*Event`) **and** the earlier Reader/Builder core (`EventBuilder`/`ListBuilder`, `X.fromEvent`, `Kind.factory`, `builder.toTemplate`/`toEvent`). See the migration table below.
 
 ## Installation
 
@@ -24,202 +26,283 @@ npm install @welshman/domain
 pnpm add @welshman/domain
 ```
 
-Peer deps: `@welshman/lib`, `@welshman/util`, `@welshman/signer`, `@welshman/feeds`, and `nostr-tools`.
+Peer deps: `@welshman/lib`, `@welshman/util`, `@welshman/signer`, `@welshman/net` (the `Repository` type for parent-event routing), `@welshman/feeds`, and `nostr-tools`.
 
 ## Core mental model
 
-1. **Readers wrap an event; Builders produce a template.** A Reader is `new Profile(event)` (validated + parsed via the static factories); a Builder is `new ProfileBuilder()` (or seeded from a reader). Each Reader knows its `builder()`, each Builder optionally takes a `reader`.
-2. **Reading is async; getters are sync.** You enter through `await X.fromEvent(event, signer?)` (which runs `parse`), then call plain synchronous getters.
-3. **Building is chainable; output is async.** Setters return `this`; you finish with `await b.toTemplate(signer?)` / `toRumor(signer)` / `toEvent(signer)`.
-4. **The signer is optional and lazy.** Most kinds ignore it. Only NIP-51 lists need it — to *decrypt* private tags on read, and to *encrypt* them (NIP-44, self-encrypted) on build. Callers can always pass a signer; the kind decides whether it matters.
-5. **Round-trips preserve unknown tags.** Build a Builder from a Reader and any tags the class doesn't model are carried through verbatim into the rebuilt template.
+1. **A kind is a `KindFactory`; bind it once with `configure`.** Each exported kind constant is `new KindFactory({reader, writer})` — e.g. `export const Note = new KindFactory({reader: NoteReader, writer: NoteWriter})`. Call `Note.configure(context)` to get a `ConfiguredKind` carrying the app's `resolver`, optional `signer`, and optional `repository`. In an app you never call `configure` yourself — `@welshman/app`'s `Domain` plugin does it and memoizes the result.
+2. **Readers wrap an event; Writers produce a template + relays.** `configured.reader(event)` builds and parses a Reader; `configured.writer(reader?)` builds a Writer, optionally seeded from a Reader (the edit flow).
+3. **Reading is async at the door; getters are sync.** You enter through `await configured.reader(event)`, which validates `event.kind` (throwing `Expected a kind X event, got kind Y`) and runs the kind's `parse()`, then call plain synchronous getters.
+4. **Building is chainable; output is async.** Setters return `this`; you finish with `await w.render()` (an `EventTemplate`), `await w.relays()` (publish urls), or `await w.finalize()` (both). None of these take arguments — the signer, resolver, and repository come from the context bound at `configure`.
+5. **The signer is optional and lazy.** Most kinds ignore it. Only NIP-51 lists need it — to *decrypt* private tags on read, and to *encrypt* them (NIP-44, self-encrypted) on build. The app supplies it as a lazy getter so auth policies can swap it after `configure`.
+6. **Round-trips preserve unknown tags.** Seed a Writer from a Reader and any tags the class doesn't model are carried through verbatim into the rebuilt template.
 
 ## Reading an event
 
-`EventReader` exposes two static entry points. Both validate `event.kind === reader.kind` (throwing `Expected a kind X event, got kind Y`) and run the kind's `parse`.
+Go through a `ConfiguredKind`. `configured.reader` is an async function that validates `event.kind === reader.kind` and runs the kind's `parse()`.
 
 ```typescript
 import {Profile, FollowList} from "@welshman/domain"
 
-// One-shot read (the usual entry point):
-const profile = await Profile.fromEvent(event)               // no signer needed
-const follows = await FollowList.fromEvent(event, signer)    // signer decrypts private tags
+// Bind dependencies once (the app's Domain plugin does this for you):
+const profiles = Profile.configure(context)          // context: KindContext
+const follows  = FollowList.configure(context)        // context.signer decrypts private tags
 
-// Reusable, class-bound factory over a fixed signer — point-free friendly:
-const toProfile = Profile.factory(signer)                    // (event) => Promise<Profile>
-const profile2 = await toProfile(someEvent)
+// `reader` is `(event) => Promise<Reader>` — point-free friendly, the shape
+// @welshman/app data plugins want for their `eventToItem`:
+const profile = await profiles.reader(event)          // validates + parse()
+const list    = await follows.reader(event)
 ```
 
-`factory(signer?)` returns an `async (event) => Promise<Reader>`. It's the shape `@welshman/app` plugins want for their `eventToItem`.
+`ConfiguredKind.reader` / `.writer` / `.router` are instance arrow-function properties, so you can destructure them (`const {reader} = Profile.configure(ctx)`).
 
 Common base getters available on every reader (all synchronous): `id()`, `author()`, `content()`, `tags()`, `createdAt()`, `identifier()` (d-tag), `address()` (`kind:pubkey:d`), `group()` (NIP-29 h-tag), `protect()` (has `["-"]`), `expiration()`. Each kind adds its own — e.g. `profile.name()`, `profile.display()`, `followList.pubkeys()`, `followList.includes(pk)`.
+
+Readers also expose routing: `await reader.scenario()` resolves where the event lives — by default `[group() ? seen(event) : outbox(author())]`, i.e. a group event routes to where it was seen, otherwise to its author's outbox.
 
 ## Building / editing an event
 
 ```typescript
-import {ProfileBuilder, FollowListBuilder} from "@welshman/domain"
+import {Profile, FollowList} from "@welshman/domain"
 
 // Build from scratch:
-const template = await new ProfileBuilder()
+const {writer} = Profile.configure(context)
+const template = await writer()
   .setName("alice")
   .setAbout("hi")
-  .toTemplate()                       // EventTemplate {kind, content, tags}
+  .render()                           // EventTemplate {kind, content, tags}
 
-// Edit an existing event (seed the builder from a reader):
-const reader = await FollowList.fromEvent(event, signer)
-const signed = await reader.builder()      // === new FollowListBuilder(reader)
-  .addFollow(["p", pubkey])
-  .toEvent(signer)                    // SignedEvent
+// Edit an existing event (seed the writer from a reader):
+const reader = await FollowList.configure(context).reader(event)
+const w = FollowList.configure(context).writer(reader)   // seeded from reader
+  .follow(pubkey)
+const {event: template2, relays} = await w.finalize()    // template + publish urls
 ```
 
-- Construct empty (`new XBuilder()`) or from a reader (`new XBuilder(reader)`, or `reader.builder()`).
-- Base behavior setters (chainable): `setContent`, `setGroup`/`clearGroup` (h-tag), `setProtected(bool)`, `setExpiration`/`clearExpiration`, `setIdentifier`/`clearIdentifier` (d-tag, defaults to a random id). Each kind adds its own setters.
-- Output methods (all async): `toTemplate(signer?)` → `EventTemplate`; `toRumor(signer)` → `HashedEvent` (needs signer); `toEvent(signer)` → `SignedEvent` (signs + stamps, needs signer).
+- Construct empty (`configured.writer()`) or from a reader (`configured.writer(reader)`) for the edit flow.
+- Base behavior setters (chainable): `setContent`, `setGroup(url, group)`/`clearGroup` (h-tag + forced relays), `forceRelays(...urls)`/`clearForcedRelays`, `setProtected(bool)`, `setExpiration`/`clearExpiration`, `setIdentifier`/`clearIdentifier` (d-tag, defaults to a random id), `addTags`, `keepTags(pred)`, `dropTags(pred)`. Shared tag/hint helpers: `tagPubkey(pubkey, petname?)`, `addQuote(event, relay?)`, `addZapSplit(pubkey, split?)`. Each kind adds its own setters.
+- Output methods (all async, no arguments):
+  - `render()` → `EventTemplate` — runs `validate()`, resolves in-tag relay `Hint`s to a single url, encrypts private list content.
+  - `scenario()` → `RelayScenario` (chainable: `.limit()`, `.policy()`, `.allowLocal()`, …); `relays()` → `string[]` (the resolved publish urls).
+  - `finalize()` → `{event: EventTemplate; relays: string[]}` — `render()` and `relays()` together.
 
-**Round-trip / extra-tag passthrough.** When a builder is seeded from a reader, every tag in `event.tags` starts in `extraTags`. The base constructor lifts out `h`/`-`/`expiration`/`d`; each subclass lifts the tags it models (via `consumeTags`). Whatever is left is re-emitted unchanged by `toTemplate` (`[...implTags, ...behaviorTags, ...extraTags]`), so unmodeled tags survive an edit.
+There is **no** `toEvent`/`toRumor`/`toTemplate` on the writer — the caller signs the template. In an app you hand the writer to `Domain.command(writer)` (which calls `finalize()` and wraps it in a `Command`). Directly, you sign the render output:
+
+```typescript
+import {stamp} from "@welshman/util"
+const signed = await signer.sign(stamp(await writer.render()))   // SignedEvent
+```
+
+**Round-trip / extra-tag passthrough.** When a writer is seeded from a reader, every tag in `event.tags` starts in `extraTags`. The base constructor lifts out `h`/`-`/`expiration`/`d` (into `groupTag`/`protectTag`/`expirationTag`/`identifierTag`); each subclass lifts the tags it models. Whatever is left is re-emitted unchanged — tag assembly is `[...buildTags(), ...behaviorTags(h,-,expiration,d), ...extraTags]` — so unmodeled tags survive an edit.
+
+## Routing: routes / forceRelays / requiresRelays
+
+Publishing targets come from the `@welshman/util` `RelaySelection` DSL (`outbox`, `inbox`, `inboxes`, `userOutbox`, `seen`, `relay`, `relays`, `indexers`, …). A writer resolves them through `context.resolver`.
+
+- **Default routing** (`EventWriter.routes`): `[userOutbox(), ...inboxes(pTaggedPubkeys, 0.5)]` — deliver to the author's write relays (weight 1) and to every p-tagged pubkey's read relays (weight 0.5). Most kinds use this (`NoteWriter`, …).
+- **`forceRelays(...urls)`** sets `forcedRelays`; when non-empty, `scenario()` publishes **only** to those relays, bypassing `routes()`. `setGroup(url, group)` sets `forcedRelays=[url]` **and** the `h` tag (NIP-29 group events); `clearForcedRelays()`/`clearGroup()` undo it.
+- **`requiresRelays`** (a readonly `true` on a subclass) makes `validate()` demand `forcedRelays` — throwing `A kind N event must publish to explicit relays (via setGroup or forceRelays)`. The 18 kinds that set it are all NIP-29 room ops/state and relay-management ops/state: `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, `RelayMembers`. (`RoomCreate` and `RoomJoin` additionally require a `groupTag` — call `setGroup`.)
+- **Per-kind overrides.** Some writers replace `routes()`: `FollowListWriter`/`MuteListWriter`/`ReportWriter` publish to `[userOutbox()]` only (p-tags are data, not recipients); `RelayListWriter` adds `indexers()` and notifies every relay added to or removed from the list; `DeleteWriter` adds each deleted event's `seen` relays (and requires an `e`/`a` tag).
+
+The DSL constructors `relays(urls)` and `inboxes(pubkeys)` return **arrays** (spread with `...`); the others return a single `RelaySelection`. Note `relay(url)`/`relays(urls)` replaced the old `relayHint`/`relayHints`.
+
+`EventRouter` (`configured.router()`) is a thin base for domain-specific scenario methods; no current kind defines a custom one, so every factory omits `router`.
 
 ## Async & signer notes
 
-- **Async surface:** `fromEvent`, the function returned by `factory`, and all of `toTemplate`/`toRumor`/`toEvent` are async. Every getter and every setter is synchronous.
-- **Reading private list tags:** a `ListReader` only surfaces `privateTags` when you pass the **author's own** signer to `fromEvent`/`factory` (it decrypts NIP-44 content only when `signer.getPubkey() === event.pubkey`). Decryption failures are swallowed — `decrypted` stays `false` and private tags stay empty.
-- **Writing private list tags:** `ListBuilder.buildContent` is where encryption happens. If there are private tags it requires a signer and NIP-44-encrypts them to the author's own pubkey (`A signer is required to encrypt private tags`). If the source was never decrypted, the original ciphertext is preserved untouched (so you don't clobber tags you couldn't see).
-- **`toTemplate(signer?)`** needs a signer only for list kinds with non-empty private tags. `toRumor`/`toEvent` always need one. All other kinds ignore the signer entirely.
-- **`d`-tag required** (base `validate` throws otherwise) for parameterized-replaceable kinds: `RelaySet` (30002), `Pinboard` (30067), `Classified` (30402), `SlashCommand` (33318, via `setName`), `Feed` (31890), `TimeEvent` (31923), `HandlerRecommendation` (31989), `Handler` (31990), `RoomMeta` (39000), `RoomAdmins` (39001), `RoomMembers` (39002), `Pin` (39067). Call `setIdentifier()`. `Pin` additionally requires a content reference (`e`/`a`/`i` tag) — without a unique `d` tag per pin, every pin from the same author would collide at the same address and replace one another, since kind 39067 is itself in the addressable range.
-- **`h`-group required** (subclass `validate` throws): `RoomDelete` (9008), `RoomJoin` (9021), `RoomLeave` (9022). Call `setGroup(groupId)`.
+- **Async surface:** `configured.reader(event)`, and all of `render`/`scenario`/`relays`/`finalize`/`getTags` are async. Every getter and every setter is synchronous.
+- **Reading private list tags:** a `ListReader` only surfaces `privateTags` when the context carries the **author's own** signer (it decrypts NIP-44 content only when `signer.getPubkey() === event.pubkey`). Decryption failures are swallowed — `decrypted` stays `false` and private tags stay empty.
+- **Writing private list tags:** `ListWriter.buildContent` is where encryption happens. If there are private tags it requires a signer and NIP-44-encrypts them to the author's own pubkey (`A signer is required to encrypt private tags`). If the source was never decrypted, the original ciphertext is preserved untouched (so you don't clobber tags you couldn't see).
+- **`render()`** needs a signer only for list kinds with non-empty private tags. All other kinds ignore it. Signing (`signer.sign(stamp(...))`) always needs a signer.
+- **`d`-tag required** (base `validate` throws otherwise) for parameterized-replaceable kinds: `RelaySet` (30002), `Pinboard` (30067), `Classified` (30402), `SlashCommand` (33318, via `setName`), `Feed` (31890), `TimeEvent` (31923), `HandlerRecommendation` (31989), `Handler` (31990), `RoomMeta` (39000), `RoomAdmins` (39001), `RoomMembers` (39002), `Pin` (39067). Call `setIdentifier()`. `Pin` additionally requires a content reference (`e`/`a`/`i` tag) — without a unique `d` tag per pin, every pin from the same author would collide at the same address, since kind 39067 is itself addressable.
+- **Explicit relays required** (`requiresRelays`, see above): all NIP-29 room and relay-management ops. Call `setGroup(url, group)` (which sets both the `h` tag and the forced relay) or `forceRelays(...urls)`.
 
 ## Kind classes
 
-Each row: kind# — NIP — Reader / Builder.
+Each row: kind# — NIP — Reader / Writer.
 
 ### Profile
 
-| Kind | NIP | Reader / Builder |
+| Kind | NIP | Reader / Writer |
 |---|---|---|
-| 0 | NIP-01 | `Profile` / `ProfileBuilder` |
+| 0 | NIP-01 | `ProfileReader` / `ProfileWriter` (factory `Profile`) |
 
-`Profile`: `name`, `nip05`, `lnurl`, `about`, `banner`, `picture`, `website`, `display(fallback?)`. Builder: `update`, `setName`, `setNip05`, `setAbout`, `setBanner`, `setPicture`, `setWebsite`. (Also exports `parseLnUrl`, `displayPubkey`.)
+`ProfileReader`: `name`, `nip05`, `lnurl`, `about`, `banner`, `picture`, `website`, `display(fallback?)`. Writer: `update`, `setName`, `setNip05`, `setAbout`, `setBanner`, `setPicture`, `setWebsite`. (Also exports `parseLnUrl`, `displayPubkey`.)
 
-### Lists (ListReader/ListBuilder — public/private split, NIP-44 encryption)
+### Core notes / deletes / reactions
 
-| Kind | NIP | Reader / Builder |
+| Kind | NIP | Reader / Writer |
 |---|---|---|
-| 3 | NIP-02 | `FollowList` / `FollowListBuilder` |
-| 10000 | NIP-51 | `MuteList` / `MuteListBuilder` |
-| 10001 | NIP-51 | `PinList` / `PinListBuilder` |
-| 10002 | NIP-65 | `RelayList` / `RelayListBuilder` |
-| 10003 | NIP-51 | `BookmarkList` / `BookmarkListBuilder` |
-| 10004 | NIP-51 | `GroupList` / `GroupListBuilder` |
-| 10006 | NIP-51 | `BlockedRelayList` / `BlockedRelayListBuilder` |
-| 10007 | NIP-51 | `SearchRelayList` / `SearchRelayListBuilder` |
-| 10009 | NIP-51 | `RoomList` / `RoomListBuilder` |
-| 10014 | NIP-51 | `FeedList` / `FeedListBuilder` |
-| 10015 | NIP-51 | `TopicList` / `TopicListBuilder` |
-| 10030 | NIP-51 | `EmojiList` / `EmojiListBuilder` |
-| 10050 | NIP-17 | `MessagingRelayList` / `MessagingRelayListBuilder` |
-| 10063 | Blossom BUD-03 | `BlossomServerList` / `BlossomServerListBuilder` |
-| 30002 | NIP-51 | `RelaySet` / `RelaySetBuilder` |
+| 1 | NIP-01 / NIP-10 | `NoteReader` / `NoteWriter` (factory `Note`) |
+| 5 | NIP-09 | `DeleteReader` / `DeleteWriter` (factory `Delete`) |
+| 7 | NIP-25 | `ReactionReader` / `ReactionWriter` (factory `Reaction`) |
 
-List builders share the `ListBuilder` mutators: `addPublic`/`addPrivate`, `keepPublic`/`keepPrivate`/`keep`, `dropPublic`/`dropPrivate`/`drop`, `clearPublic`/`clearPrivate`/`clear`. Each kind also exposes intent-named helpers, e.g. `FollowListBuilder.addFollow`/`removeFollow`, `MuteListBuilder.mutePublicly`/`mutePrivately`/`unmute`, `RelayListBuilder.addUrl(url, mode)`/`setReadUrls`/`setWriteUrls`.
+`NoteWriter.setParent(event)` — NIP-10 reply threading (p-tags the parent's participants, e/a-tags the parent and thread root with markers + relay hints). `DeleteReader`: `ids()`, `addresses()`, `kinds()`, `reason()`; `DeleteWriter`: `addEvent(event)`, `setReason(reason)` (routes to the deleted events' `seen` relays; requires an `e`/`a` tag).
+
+### Lists (ListReader/ListWriter — public/private split, NIP-44 encryption)
+
+| Kind | NIP | Reader / Writer |
+|---|---|---|
+| 3 | NIP-02 | `FollowListReader` / `FollowListWriter` |
+| 10000 | NIP-51 | `MuteListReader` / `MuteListWriter` |
+| 10001 | NIP-51 | `PinListReader` / `PinListWriter` |
+| 10002 | NIP-65 | `RelayListReader` / `RelayListWriter` |
+| 10003 | NIP-51 | `BookmarkListReader` / `BookmarkListWriter` |
+| 10004 | NIP-51 | `GroupListReader` / `GroupListWriter` |
+| 10006 | NIP-51 | `BlockedRelayListReader` / `BlockedRelayListWriter` |
+| 10007 | NIP-51 | `SearchRelayListReader` / `SearchRelayListWriter` |
+| 10009 | NIP-51 | `RoomListReader` / `RoomListWriter` |
+| 10014 | NIP-51 | `FeedListReader` / `FeedListWriter` |
+| 10015 | NIP-51 | `TopicListReader` / `TopicListWriter` |
+| 10030 | NIP-51 | `EmojiListReader` / `EmojiListWriter` |
+| 10050 | NIP-17 | `MessagingRelayListReader` / `MessagingRelayListWriter` |
+| 10063 | Blossom BUD-03 | `BlossomServerListReader` / `BlossomServerListWriter` |
+| 30002 | NIP-51 | `RelaySetReader` / `RelaySetWriter` |
+
+`ListWriter` mutators (public/private split): `addPublic`/`addPrivate`, `keepPublic`/`keepPrivate`/`keepTags`, `dropPublic`/`dropPrivate`/`dropTags`. Each kind also exposes intent-named helpers, e.g. `FollowListWriter.follow(pubkey, relayHint?, petname?)`/`unfollow`, `MuteListWriter.mutePublicly`/`mutePrivately`/`unmute`, `RelayListWriter.addReadUrl`/`addWriteUrl`/`removeReadUrl`/`removeWriteUrl`/`setReadUrls`/`setWriteUrls`/`setTags`, `RoomListWriter.addGroup`/`removeGroup`/`addRelay`/`removeRelay`/`setRelays`. (Note `FollowList` is a plain `EventWriter`, not a `ListWriter` — follows are public.)
 
 ### Rooms (NIP-29)
 
-Room ops are scoped by the `h` group tag (base `setGroup`); metadata kinds 39000–39002 are addressable per room.
+Room ops are scoped by the `h` group tag and must publish to explicit relays — use `setGroup(url, group)`. Metadata kinds 39000–39002 are addressable per room.
 
-| Kind | NIP | Reader / Builder |
+| Kind | NIP | Reader / Writer |
 |---|---|---|
-| 9000 | NIP-29 | `RoomAddMember` / `RoomAddMemberBuilder` |
-| 9001 | NIP-29 | `RoomRemoveMember` / `RoomRemoveMemberBuilder` |
-| 9002 | NIP-29 | `RoomEdit` / `RoomEditBuilder` |
-| 9007 | NIP-29 | `RoomCreate` / `RoomCreateBuilder` |
-| 9008 | NIP-29 | `RoomDelete` / `RoomDeleteBuilder` |
-| 9021 | NIP-29 | `RoomJoin` / `RoomJoinBuilder` |
-| 9022 | NIP-29 | `RoomLeave` / `RoomLeaveBuilder` |
-| 19004 | NIP-29 / Flotilla | `RoomCreatePermission` / `RoomCreatePermissionBuilder` |
-| 39000 | NIP-29 | `RoomMeta` / `RoomMetaBuilder` |
-| 39001 | NIP-29 | `RoomAdmins` / `RoomAdminsBuilder` |
-| 39002 | NIP-29 | `RoomMembers` / `RoomMembersBuilder` |
+| 9000 | NIP-29 | `RoomAddMemberReader` / `RoomAddMemberWriter` |
+| 9001 | NIP-29 | `RoomRemoveMemberReader` / `RoomRemoveMemberWriter` |
+| 9002 | NIP-29 | `RoomEditReader` / `RoomEditWriter` |
+| 9007 | NIP-29 | `RoomCreateReader` / `RoomCreateWriter` |
+| 9008 | NIP-29 | `RoomDeleteReader` / `RoomDeleteWriter` |
+| 9021 | NIP-29 | `RoomJoinReader` / `RoomJoinWriter` |
+| 9022 | NIP-29 | `RoomLeaveReader` / `RoomLeaveWriter` |
+| 19004 | NIP-29 / Flotilla | `RoomCreatePermissionReader` / `RoomCreatePermissionWriter` |
+| 39000 | NIP-29 | `RoomMetaReader` / `RoomMetaWriter` |
+| 39001 | NIP-29 | `RoomAdminsReader` / `RoomAdminsWriter` |
+| 39002 | NIP-29 | `RoomMembersReader` / `RoomMembersWriter` |
 
-`RoomMeta`: `name`, `about`, `picture`, `pictureMeta`, `isClosed`/`isHidden`/`isPrivate`/`isRestricted`/`hasLivekit`. `RoomEdit` mirrors it but its livekit getter is named `livekit()`. `RoomJoin`: `claim()`, `reason()` (free-text `content`); builder `setClaim`/`setReason`.
+`RoomMetaReader`: `name`, `about`, `picture`, `pictureMeta`, `isClosed`/`isHidden`/`isPrivate`/`isRestricted`/`hasLivekit`; writer `setName`/`setAbout`/`setPicture`/`setClosed`/`setHidden`/`setPrivate`/`setRestricted`/`setLivekit`. `RoomJoinReader`: `claim()`, `reason()` (free-text `content`); writer `setClaim`/`setReason`. `RoomAddMemberWriter.addPubkey`.
 
 ### Relay membership (Flotilla "spaces" — relay-level, NIP-29-adjacent)
 
-| Kind | NIP | Reader / Builder |
+| Kind | NIP | Reader / Writer |
 |---|---|---|
-| 8000 | Flotilla | `RelayAddMember` / `RelayAddMemberBuilder` |
-| 8001 | Flotilla | `RelayRemoveMember` / `RelayRemoveMemberBuilder` |
-| 13534 | Flotilla | `RelayMembers` / `RelayMembersBuilder` |
-| 28934 | Flotilla | `RelayJoin` / `RelayJoinBuilder` |
-| 28935 | NIP-29 | `RelayInvite` / `RelayInviteBuilder` |
-| 28936 | Flotilla | `RelayLeave` / `RelayLeaveBuilder` |
+| 8000 | Flotilla | `RelayAddMemberReader` / `RelayAddMemberWriter` |
+| 8001 | Flotilla | `RelayRemoveMemberReader` / `RelayRemoveMemberWriter` |
+| — | Flotilla | `RelayRoleReader` / `RelayRoleWriter` |
+| 13534 | Flotilla | `RelayMembersReader` / `RelayMembersWriter` |
+| 28934 | Flotilla | `RelayJoinReader` / `RelayJoinWriter` |
+| 28935 | NIP-29 | `RelayInviteReader` / `RelayInviteWriter` |
+| 28936 | Flotilla | `RelayLeaveReader` / `RelayLeaveWriter` |
+
+`RelayMembersReader`: `pubkeys()`, `isMember(pk)`; writer `addPubkey(pk, role?)`/`removePubkey`/`setPubkeys` (its constructor calls `setProtected(true)` per NIP-43). All of these set `requiresRelays` — publish with `forceRelays(url)` or `setGroup`.
 
 ### Handlers (NIP-89)
 
-| Kind | NIP | Reader / Builder |
+| Kind | NIP | Reader / Writer |
 |---|---|---|
-| 31989 | NIP-89 | `HandlerRecommendation` / `HandlerRecommendationBuilder` |
-| 31990 | NIP-89 | `Handler` / `HandlerBuilder` |
+| 31989 | NIP-89 | `HandlerRecommendationReader` / `HandlerRecommendationWriter` |
+| 31990 | NIP-89 | `HandlerReader` / `HandlerWriter` |
 
-`Handler`: JSON content → `values: HandlerMeta`; getters `name`, `about`, `picture`, `website`, `lud16`, `nip05`, `kinds()`; builder `setName`/…/`setKinds(number[])`. Exports type `HandlerMeta`.
+`HandlerReader`: JSON content → `values: HandlerMeta`; getters `name`, `about`, `picture`, `website`, `lud16`, `nip05`, `kinds()`; writer `setName`/…/`setKinds(number[])`. Exports type `HandlerMeta`.
 
 ### Zaps (NIP-57 / NIP-75)
 
-| Kind | NIP | Reader / Builder |
+| Kind | NIP | Reader / Writer |
 |---|---|---|
-| 9041 | NIP-75 | `ZapGoal` / `ZapGoalBuilder` |
-| 9734 | NIP-57 | `ZapRequest` / `ZapRequestBuilder` |
-| 9735 | NIP-57 | `ZapReceipt` / `ZapReceiptBuilder` |
+| 9041 | NIP-75 | `ZapGoalReader` / `ZapGoalWriter` |
+| 9734 | NIP-57 | `ZapRequestReader` / `ZapRequestWriter` |
+| 9735 | NIP-57 | `ZapReceiptReader` / `ZapReceiptWriter` |
 
-`ZapRequest`: `amount`, `lnurl`, `recipient`, `eventId`, `urls` (the comment is the base `content()`). `ZapReceipt`: `bolt11`, `invoiceAmount`, `request`, `sender`, `recipient`, `eventId`, `comment`, `preimage`, plus `verify(zapper)`.
+`ZapRequestReader`: `amount`, `lnurl`, `recipient`, `eventId`, `urls` (the comment is the base `content()`). `ZapReceiptReader`: `bolt11`, `invoiceAmount`, `request`, `sender`, `recipient`, `eventId`, `comment`, `preimage`, plus `verify(zapper)`.
 
 ### Content
 
-| Kind | NIP | Reader / Builder |
+| Kind | NIP | Reader / Writer |
 |---|---|---|
-| 11 | NIP-7D | `Thread` / `ThreadBuilder` |
-| 1018 | NIP-88 | `PollResponse` / `PollResponseBuilder` |
-| 1068 | NIP-88 | `Poll` / `PollBuilder` |
-| 1111 | NIP-22 | `Comment` / `CommentBuilder` |
-| 1984 | NIP-56 | `Report` / `ReportBuilder` |
-| 30067 | Pinboards | `Pinboard` / `PinboardBuilder` |
-| 30402 | NIP-99 | `Classified` / `ClassifiedBuilder` |
-| 31890 | NIP-51 | `Feed` / `FeedBuilder` |
-| 31923 | NIP-52 | `TimeEvent` / `TimeEventBuilder` |
-| 33318 | slash-commands | `SlashCommand` / `SlashCommandBuilder` |
-| 39067 | Pinboards | `Pin` / `PinBuilder` |
+| 11 | NIP-7D | `ThreadReader` / `ThreadWriter` |
+| 1018 | NIP-88 | `PollResponseReader` / `PollResponseWriter` |
+| 1068 | NIP-88 | `PollReader` / `PollWriter` |
+| 1111 | NIP-22 | `CommentReader` / `CommentWriter` |
+| 1984 | NIP-56 | `ReportReader` / `ReportWriter` |
+| 30067 | Pinboards | `PinboardReader` / `PinboardWriter` |
+| 30402 | NIP-99 | `ClassifiedReader` / `ClassifiedWriter` |
+| 30078 | NIP-78 | `AppDataReader` / `AppDataWriter` |
+| 31890 | NIP-51 | `FeedReader` / `FeedWriter` |
+| 31923 | NIP-52 | `TimeEventReader` / `TimeEventWriter` |
+| 33318 | slash-commands | `SlashCommandReader` / `SlashCommandWriter` |
+| 39067 | Pinboards | `PinReader` / `PinWriter` |
 
-`Comment`: `root()`/`parent()`; builder `setRoot`/`setParent`/`setRootFromEvent`/`setParentFromEvent`. `Poll`: `title`, `options`, `pollType`, `endsAt`, `isClosed`, `urls`, plus `results(responses)`; builder `addOption`, `setPollType`, `setEndsAt`. Exported types: `CommentRef`, `ClassifiedPrice`, `PollType`, `PollOption`, `PollResult`, `PinReference`, `SlashCommandParam`, `SlashCommandInvocation`.
+`CommentReader`: `root()`/`parent()`; writer `setRoot`/`setParent`/`setRootFromEvent`/`setParentFromEvent`. `PollReader`: `title`, `options`, `pollType`, `endsAt`, `isClosed`, `urls`, plus `results(responses)`; writer `addOption`, `setPollType`, `setEndsAt`. `ReportWriter`: `setPubkey`/`setEventId`/`setReason` (routes to `[userOutbox()]`). Exported types: `CommentRef`, `ClassifiedPrice`, `PollType`, `PollOption`, `PollResult`, `PinReference`, `SlashCommandParam`, `SlashCommandInvocation`.
 
-`SlashCommand` (33318, addressable; `d` = command name): `name()`, `description()`, `kinds()` (monitored `k`), `groups()` (monitored `h`), `params()` (`SlashCommandParam[]`), `options(label)`, `appliesTo(kind, group?)`. Builder: `setName`/`setDescription`/`setKinds`/`addKind`/`addGroup`/`setGroups`/`addParam(label, type?, optional?)`/`removeParam`/`addOption`/`setOptions`. Plus free functions `parseSlashCommand(content)` / `formatSlashCommand(name, args)` for the `/name <arg> <arg>` invocation string.
+`SlashCommandReader` (33318, addressable; `d` = command name): `name()`, `description()`, `kinds()`, `groups()`, `params()`, `options(label)`, `appliesTo(kind, group?)`. Writer: `setName`/`setDescription`/`setKinds`/`addKind`/`addGroup`/`setGroups`/`addParam(label, type?, optional?)`/`removeParam`/`addOption`/`setOptions`. Plus free functions `parseSlashCommand(content)` / `formatSlashCommand(name, args)`.
 
-`Pinboard` (30067): board metadata — `title`, `description`, `image`, `topics()`, `collaborative()`; builder `setTitle`/`setDescription`/`setImage`/`setTopics`/`setCollaborative`. `Pin` (39067): a single pinned item — `boards()`, `isProfilePin()`, `reference()` (a `PinReference` discriminated union), `title`, `topics()`; builder `addBoard`/`removeBoard`, `setEvent`/`setAddress`/`setExternal` (each replaces the prior reference), `setTitle`/`setTopics`. Pins separate board metadata from items, allowing mixed content, multi-board membership, and profile pins (no board).
+`PinboardReader` (30067): `title`, `description`, `image`, `topics()`, `collaborative()`; writer `setTitle`/`setDescription`/`setImage`/`setTopics`/`setCollaborative`. `PinReader` (39067): `boards()`, `isProfilePin()`, `reference()` (a `PinReference` discriminated union), `title`, `topics()`; writer `addBoard`/`removeBoard`, `setEvent`/`setAddress`/`setExternal`, `setTitle`/`setTopics`.
+
+## Using it from @welshman/app
+
+`@welshman/app`'s `Domain` plugin binds the app's dependencies (resolver from the `Router` plugin, repository, and a lazy signer getter) and memoizes one `ConfiguredKind` per factory:
+
+```typescript
+import {Domain, Note, FollowList} from "@welshman/app"   // re-exports domain kinds
+
+// read side (event decoder for a data plugin):
+eventToItem: app.use(Domain).reader(Note)                 // ConfiguredKind.reader
+
+// mutation side — writer → Command → publish:
+const reader = existingReader                             // from a prior read, or undefined
+const writer = app.use(Domain).writer(FollowList, reader).follow(pubkey)
+const command = await app.use(Domain).command(writer)    // finalize() + wrap
+command.publish()                                          // or .publishToRelays(urls)
+```
+
+`Domain.command(writer)` requires a signed-in user, calls `writer.finalize()`, and returns a `Command` (`.publish()` / `.publishToRelays(urls)` / `.publishAsRelay(url)`). This replaces the old `Router.commandFromBuilder(builder)`. The `Router` plugin's `resolver` (a `Resolver`) is what dereferences every route to concrete relay urls.
 
 ## Gotchas
 
-- **Private list tags need the author's signer.** `await FollowList.fromEvent(event)` with no signer (or someone else's) yields only public tags; `decrypted` stays `false`. Pass the author's own signer to see private entries.
+- **Enter through a `ConfiguredKind`.** There is no `Profile.fromEvent(event)` / `Kind.read` / `Kind.factory` any more — do `Profile.configure(ctx).reader(event)` (or, in an app, `app.use(Domain).reader(Profile)`). Likewise no `new ProfileBuilder()` — do `configure(ctx).writer()`.
+- **Output is `render()`/`finalize()`, not `toTemplate`/`toEvent`.** The writer never signs; `render()` gives an `EventTemplate` you sign yourself (`signer.sign(stamp(await writer.render()))`), or hand the writer to `Domain.command`. `render`/`scenario`/`relays`/`finalize` take **no** arguments — dependencies come from the context.
+- **Private list tags need the author's signer in the context.** With no signer (or someone else's) a `ListReader` yields only public tags; `decrypted` stays `false`. Bind the author's own signer to see private entries.
 - **Don't clobber undecryptable lists.** If you edit a list you couldn't decrypt and try to write private tags, `validate()` throws `Unable to modify list when decryption was not performed`. Editing only public tags is fine — the original ciphertext is preserved.
-- **`toRumor`/`toEvent` always need a signer**, even for kinds whose `toTemplate` doesn't (they call `getPubkey()`/`sign`).
-- **Parameterized-replaceable kinds throw without a `d` tag** — call `setIdentifier()` (or let it default to a random id). Room ops scoped by `h` throw without `setGroup`.
+- **Room / relay-management kinds need explicit relays.** They set `requiresRelays`, so `render()` throws unless you called `setGroup(url, group)` or `forceRelays(...urls)`. `RoomCreate`/`RoomJoin` also require the `h` group tag (use `setGroup`).
+- **Parameterized-replaceable kinds throw without a `d` tag** — call `setIdentifier()` (or let it default to a random id).
 - **`RoomJoin`/`RelayJoin`/`RelayInvite` read the invite code via `claim()`.**
-- **No top-level free functions beyond `parseLnUrl` and `displayPubkey`.** The h/group tag is handled by `setGroup`/`group()`, not a helper. Don't invent `makeX`/`readX` helpers — those were removed (see below).
+- **Routing helpers renamed:** `relay(url)`/`relays(urls)` (not `relayHint`/`relayHints`); new `inboxes(pubkeys)`.
 
-## Moved from @welshman/util
+## OLD → NEW migration
 
-These helpers used to live in `@welshman/util` and have been replaced by Reader/Builder classes here:
+| Old API | New API |
+|---|---|
+| `new Kind({reader, builder, router})` | `new KindFactory({reader, writer, router?})` |
+| `Kind` class | `KindFactory` (+ `ConfiguredKind` after `.configure`) |
+| `EventBuilder` (base) / `XBuilder` | `EventWriter` / `XWriter` |
+| `ListBuilder` | `ListWriter` |
+| `X.fromEvent(event)` / `Kind.factory(event)` / `Kind.read(event)` | `factory.configure(ctx).reader(event)` (async; validates kind + `parse()`) |
+| `Kind.builder(...)` / `new XBuilder(...)` | `factory.configure(ctx).writer(reader?)` |
+| `builder.toTemplate()` | `writer.render()` → `Promise<EventTemplate>` |
+| `builder.toEvent(signer)` | `signer.sign(stamp(await writer.render()))` |
+| `builder.toRumor(signer)` | `prep(await writer.render(), await signer.getPubkey())` |
+| `Router.commandFromBuilder(builder)` | `app.use(Domain).command(writer)` |
+| `parse(signer)` | `parse()` (reads `def.context.signer`) |
+| `builder.finalize(context)` | `writer.finalize()` (no arg; context bound at `configure`) |
+| standalone `resolve(...)` | `new Resolver(routeResolver, options)` → `.scenario`/`.relays`/`.relay` |
+| `relayHint(url)` / `relayHints(urls)` | `relay(url)` / `relays(urls)` |
+| — (new) | `inboxes(pubkeys, weight?)`, `Resolver`, `RelayScenario`, `KindContext`, `Hint`/`hint` |
+
+These sit on top of an earlier round of removals — the free functions that once lived in `@welshman/util`:
 
 | Old (`@welshman/util`) | New (`@welshman/domain`) |
 |---|---|
-| `readProfile(event)` | `await Profile.fromEvent(event)` |
-| `makeProfile({...})` / editing | `new ProfileBuilder().setName(...)….toTemplate()` |
-| `readList(event, signer)` | `await FollowList.fromEvent(event, signer)` (or the kind-specific list reader) |
-| `makeList({...})` | `new FollowListBuilder().addFollow(...)….toTemplate(signer)` |
-| `readHandlers(event)` | `await Handler.fromEvent(event)` |
-| `Encryptable` (manual private-tag encrypt) | `ListBuilder.buildContent` — `addPrivate(...)` then `toTemplate(signer)` (NIP-44, self) |
-| `makeRoomMetaEvent` / `makeRoomEditEvent` / `makeRoomJoinEvent` / … | `RoomMetaBuilder` / `RoomEditBuilder` / `RoomJoinBuilder` / … `.toTemplate()` |
+| `readProfile(event)` | `await Profile.configure(ctx).reader(event)` |
+| `makeProfile({...})` / editing | `Profile.configure(ctx).writer().setName(...)….render()` |
+| `readList(event, signer)` | `await FollowList.configure(ctx).reader(event)` (or the kind-specific list reader) |
+| `makeList({...})` | `FollowList.configure(ctx).writer().follow(...)….render()` |
+| `readHandlers(event)` | `await Handler.configure(ctx).reader(event)` |
+| `Encryptable` (manual private-tag encrypt) | `ListWriter.buildContent` — `addPrivate(...)` then `render()` (NIP-44, self) |
+| `makeRoomMetaEvent` / `makeRoomEditEvent` / … | `RoomMetaWriter` / `RoomEditWriter` / … via `configure(ctx).writer()` |
 
-The shape of the change: free functions that returned/consumed raw events became classes with sync getters and chainable setters, and private-list encryption moved from an explicit `Encryptable` wrapper into the builder's async `buildContent`.
+The shape of the change: raw-event free functions became a `KindFactory` per kind, bound once via `configure` to a `KindContext` (resolver, signer, repository); readers stayed sync-getter views, builders became `EventWriter`s that both render a template and resolve their own publish relays.
 
 ## Related skills
 
-- `welshman-util` — the raw `TrustedEvent`/`EventTemplate` types, kind constants, and tag getters these classes are built on.
-- `welshman-app` — the instance-based app layer whose data plugins (`Profiles`, `FollowLists`, `MuteLists`, …) use these readers as `eventToItem`.
-- `welshman-signer` — the `ISigner` interface and NIP-44 `decrypt`/`encrypt` used for private list tags and for `toRumor`/`toEvent`.
+- `welshman-util` — the raw `TrustedEvent`/`EventTemplate` types, kind constants, tag getters, and the `RelaySelection` routing DSL + `Resolver`/`RelayScenario` these classes build on.
+- `welshman-app` — the instance-based app layer whose `Domain` plugin supplies the `KindContext`, whose `Router` plugin supplies the resolver, and whose data plugins use these readers as `eventToItem`.
+- `welshman-signer` — the `ISigner` interface and NIP-44 `decrypt`/`encrypt` used for private list tags and for signing rendered templates.

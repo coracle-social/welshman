@@ -51,11 +51,7 @@ describe("Resolver", () => {
   })
 
   it("honors a caller-set limit", async () => {
-    const scenario = await new Resolver(resolver).scenario([
-      relay(R1),
-      relay(R2),
-      relay(R3),
-    ])
+    const scenario = await new Resolver(resolver).scenario([relay(R1), relay(R2), relay(R3)])
 
     expect(scenario.limit(2).getUrls().length).toBe(2)
   })

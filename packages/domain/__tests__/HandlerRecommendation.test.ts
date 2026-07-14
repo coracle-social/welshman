@@ -2,9 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, HANDLER_RECOMMENDATION, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {
-  HandlerRecommendation,
-} from "../src/kinds/HandlerRecommendation"
+import {HandlerRecommendation} from "../src/kinds/HandlerRecommendation"
 import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
@@ -45,7 +43,8 @@ describe("HandlerRecommendation", () => {
   })
 
   it("falls back to the first recommendation without a web marker", async () => {
-    const rec = await read(HandlerRecommendation, 
+    const rec = await read(
+      HandlerRecommendation,
       makeEvent({
         tags: [
           ["d", "1"],
@@ -67,7 +66,10 @@ describe("HandlerRecommendation", () => {
       ],
     })
 
-    const tmpl = await buildTemplate(write(HandlerRecommendation, await read(HandlerRecommendation, event)), signer)
+    const tmpl = await buildTemplate(
+      write(HandlerRecommendation, await read(HandlerRecommendation, event)),
+      signer,
+    )
 
     expect(tmpl.tags.filter(t => t[0] === "d").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "a").length).toBe(2)
@@ -81,10 +83,13 @@ describe("HandlerRecommendation", () => {
     // The d identifier holds the recommended kind.
     builder.setIdentifier("1")
 
-    const tmpl = await buildTemplate(builder
-      .addRecommendation(webAddress, "wss://relay.one", "web")
-      // Duplicate addresses are ignored.
-      .addRecommendation(webAddress, "wss://relay.one", "web"), signer)
+    const tmpl = await buildTemplate(
+      builder
+        .addRecommendation(webAddress, "wss://relay.one", "web")
+        // Duplicate addresses are ignored.
+        .addRecommendation(webAddress, "wss://relay.one", "web"),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(HANDLER_RECOMMENDATION)
     expect(tmpl.tags).toContainEqual(["d", "1"])
@@ -94,8 +99,8 @@ describe("HandlerRecommendation", () => {
   })
 
   it("requires a d identifier", async () => {
-    await expect(buildTemplate(
-      write(HandlerRecommendation).addRecommendation(webAddress), signer),
+    await expect(
+      buildTemplate(write(HandlerRecommendation).addRecommendation(webAddress), signer),
     ).rejects.toThrow()
   })
 

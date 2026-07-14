@@ -26,7 +26,8 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("Pin", () => {
   it("reads boards and an event reference", async () => {
-    const reader = await read(Pin, 
+    const reader = await read(
+      Pin,
       makeEvent({
         content: "Sunrise at Mt. Fuji",
         tags: [
@@ -43,7 +44,8 @@ describe("Pin", () => {
   })
 
   it("reads an address reference", async () => {
-    const reader = await read(Pin, 
+    const reader = await read(
+      Pin,
       makeEvent({
         tags: [
           ["A", board],
@@ -56,7 +58,8 @@ describe("Pin", () => {
   })
 
   it("reads an external reference with its kind", async () => {
-    const reader = await read(Pin, 
+    const reader = await read(
+      Pin,
       makeEvent({
         tags: [
           ["A", board],
@@ -72,7 +75,8 @@ describe("Pin", () => {
   })
 
   it("treats a pin with no board as a profile pin", async () => {
-    const reader = await read(Pin, 
+    const reader = await read(
+      Pin,
       makeEvent({
         tags: [
           ["e", eventId],
@@ -87,11 +91,9 @@ describe("Pin", () => {
   })
 
   it("builds a pin to multiple boards", async () => {
-    const tmpl = await buildTemplate(write(Pin)
-      .setIdentifier("id1")
-      .addBoard(board)
-      .addBoard(board2)
-      .setEvent(eventId))
+    const tmpl = await buildTemplate(
+      write(Pin).setIdentifier("id1").addBoard(board).addBoard(board2).setEvent(eventId),
+    )
 
     expect(tmpl.kind).toBe(PIN)
     expect(tmpl.tags.filter(t => t[0] === "A")).toEqual([
@@ -108,10 +110,9 @@ describe("Pin", () => {
   })
 
   it("references exactly one item — a new reference replaces the old", async () => {
-    const tmpl = await buildTemplate(write(Pin)
-      .setIdentifier("id1")
-      .setEvent(eventId)
-      .setExternal("isbn:9784805311981", "isbn"))
+    const tmpl = await buildTemplate(
+      write(Pin).setIdentifier("id1").setEvent(eventId).setExternal("isbn:9784805311981", "isbn"),
+    )
 
     expect(tmpl.tags.some(t => t[0] === "e")).toBe(false)
     expect(tmpl.tags).toContainEqual(["i", "isbn:9784805311981"])
@@ -119,18 +120,21 @@ describe("Pin", () => {
   })
 
   it("removeBoard drops only the matching board", async () => {
-    const tmpl = await buildTemplate(write(Pin)
-      .setIdentifier("id1")
-      .addBoard(board)
-      .addBoard(board2)
-      .setEvent(eventId)
-      .removeBoard(board))
+    const tmpl = await buildTemplate(
+      write(Pin)
+        .setIdentifier("id1")
+        .addBoard(board)
+        .addBoard(board2)
+        .setEvent(eventId)
+        .removeBoard(board),
+    )
 
     expect(tmpl.tags.filter(t => t[0] === "A")).toEqual([["A", board2]])
   })
 
   it("round-trips an existing pin without duplicating tags", async () => {
-    const reader = await read(Pin, 
+    const reader = await read(
+      Pin,
       makeEvent({
         content: "comment",
         tags: [
@@ -154,9 +158,9 @@ describe("Pin", () => {
   })
 
   it("requires a content reference", async () => {
-    await expect(buildTemplate(
-      write(Pin).setIdentifier("id1").addBoard(board)),
-    ).rejects.toThrow(/reference/)
+    await expect(buildTemplate(write(Pin).setIdentifier("id1").addBoard(board))).rejects.toThrow(
+      /reference/,
+    )
   })
 
   it("requires a d tag", async () => {

@@ -1,8 +1,5 @@
-import {
-  spec} from "@welshman/lib"
-import {ROOM_JOIN,
-  getTagValue,
-} from "@welshman/util"
+import {spec} from "@welshman/lib"
+import {ROOM_JOIN, getTagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -23,7 +20,6 @@ export class RoomJoinReader extends EventReader {
 export class RoomJoinWriter extends EventWriter<RoomJoinReader> {
   readonly kind = ROOM_JOIN
   readonly requiresRelays = true
-
 
   setClaim(claim: string) {
     return this.dropTags(spec(["claim"])).addTags(["claim", claim])

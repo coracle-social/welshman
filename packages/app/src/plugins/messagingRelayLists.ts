@@ -1,5 +1,9 @@
 import {MESSAGING_RELAYS} from "@welshman/util"
-import {MessagingRelayList, MessagingRelayListReader, MessagingRelayListWriter} from "@welshman/domain"
+import {
+  MessagingRelayList,
+  MessagingRelayListReader,
+  MessagingRelayListWriter,
+} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
@@ -29,7 +33,9 @@ export class MessagingRelayLists extends DerivedPlugin<MessagingRelayListReader>
 
   update = async (fn: (writer: MessagingRelayListWriter) => void) => {
     const user = User.require(this.app)
-    const writer = this.app.use(Domain).writer(MessagingRelayList, await this.forceLoad(user.pubkey))
+    const writer = this.app
+      .use(Domain)
+      .writer(MessagingRelayList, await this.forceLoad(user.pubkey))
 
     fn(writer)
 

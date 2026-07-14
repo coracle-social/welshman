@@ -1,6 +1,7 @@
 import {uniq} from "@welshman/lib"
 import {
   DELETE,
+  getTagValue,
   getEventTagValues,
   getAddressTagValues,
   getKindTagValues,
@@ -44,17 +45,26 @@ export class DeleteWriter extends EventWriter<DeleteReader> {
   protected async routes() {
     const tags = await this.getTags()
 
-    return [
-      ...(await super.routes()),
-      ...uniq(getEventTagValues(tags)).map(id => seen({id})),
-    ]
+    return [...(await super.routes()), ...uniq(getEventTagValues(tags)).map(id => seen({id}))]
   }
 
-  addEvent(event: TrustedEvent) {
+  addEvent(event: TrustedEvent, groupUrl?: string) {
     this.addTags(["e", event.id, hint(outbox(event.pubkey))], ["k", String(event.kind)])
 
     if (isReplaceable(event)) {
       this.addTags(["a", getAddress(event), hint(outbox(event.pubkey))])
+    }
+
+    // If the deleted event was a NIP-29 group event, the delete must carry the
+    // same "h" tag and publish to the relay the event lives on (the hint).
+    const group = getTagValue("h", event.tags)
+
+    if (group) {
+      if (!groupUrl) {
+        throw new Error("Deletions of group events must be published to a group url")
+      }
+
+      this.setGroup(groupUrl, group)
     }
 
     return this

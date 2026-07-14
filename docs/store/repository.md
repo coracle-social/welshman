@@ -69,20 +69,26 @@ getter<T>(store: Readable<T>, options?: {threshold?: number}): () => T
 ## Example
 
 ```typescript
+import {parseJson} from "@welshman/lib"
 import {Repository} from "@welshman/net"
 import {deriveEvents, deriveItemsByKey, deriveItems} from "@welshman/store"
-import {readProfile, PROFILE} from "@welshman/util"
+import {PROFILE} from "@welshman/util"
+import type {TrustedEvent} from "@welshman/util"
 
 const repository = new Repository()
+
+type Profile = {event: TrustedEvent; name?: string; about?: string}
 
 // Reactive store of text notes
 const notes = deriveEvents({ repository, filters: [{kinds: [1], limit: 100}] })
 
-// Reactive store of profiles indexed by pubkey
-const profilesByPubkey = deriveItemsByKey({
+// Reactive store of profiles indexed by pubkey. `eventToItem` decodes each
+// event — here by parsing the profile's JSON content. In a full @welshman/app
+// setup you'd use `app.use(Domain).reader(Profile)` instead.
+const profilesByPubkey = deriveItemsByKey<Profile>({
   repository,
   filters: [{kinds: [PROFILE]}],
-  eventToItem: event => readProfile(event),
+  eventToItem: event => ({event, ...parseJson(event.content)}),
   getKey: profile => profile.event.pubkey
 })
 const profiles = deriveItems(profilesByPubkey)

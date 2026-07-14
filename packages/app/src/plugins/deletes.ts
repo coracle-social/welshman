@@ -1,4 +1,3 @@
-import {getTagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Delete, DeleteWriter} from "@welshman/domain"
 import {Domain} from "./domain.js"
@@ -13,22 +12,12 @@ import type {IApp} from "../app.js"
 export class Deletes {
   constructor(readonly app: IApp) {}
 
-  // `fn` lets the caller tweak the writer — e.g. `addEvent` for extra targets,
-  // or `setProtected(true)` for NIP-70.
   deleteEvent = async (
     event: TrustedEvent,
     fn?: (writer: DeleteWriter) => void,
   ): Promise<Command> => {
-    const writer = this.app.use(Domain).writer(Delete).addEvent(event)
-
-    // A delete of a NIP-29 group message goes to the group's relay — where the
-    // target event lives (per the tracker).
-    const group = getTagValue("h", event.tags)
     const [url] = this.app.tracker.getRelays(event.id)
-
-    if (group && url) {
-      writer.setGroup(url, group)
-    }
+    const writer = this.app.use(Domain).writer(Delete).addEvent(event, url)
 
     fn?.(writer)
 

@@ -68,11 +68,14 @@ describe("Feed", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(Feed)
-      .setIdentifier("feed1")
-      .setTitle("Fresh")
-      .setDescription("desc")
-      .setDefinition(definition), signer)
+    const tmpl = await buildTemplate(
+      write(Feed)
+        .setIdentifier("feed1")
+        .setTitle("Fresh")
+        .setDescription("desc")
+        .setDefinition(definition),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(FEED)
     expect(tmpl.tags).toContainEqual(["d", "feed1"])

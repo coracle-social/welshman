@@ -16,17 +16,23 @@ A utility package providing welshman-specific svelte store functionality and uti
 
 ```typescript
 import {Repository} from '@welshman/net'
-import {NAMED_PEOPLE, TrustedEvent, PublishedList, readList} from '@welshman/util'
+import {NAMED_PEOPLE, getPubkeyTagValues} from '@welshman/util'
+import type {TrustedEvent} from '@welshman/util'
 import {deriveItemsByKey} from '@welshman/store'
 
 const repository = new Repository()
 
-// Create a reactive map of lists indexed by pubkey
-const listsByPubkey = deriveItemsByKey<PublishedList>({
+type PeopleList = {event: TrustedEvent; pubkeys: string[]}
+
+// Create a reactive map of lists indexed by pubkey. `eventToItem` maps each
+// event to a stored item (or `null` to skip it) — decode it however you like.
+// In a full @welshman/app setup you'd use `app.use(Domain).reader(FollowList)`.
+const listsByPubkey = deriveItemsByKey<PeopleList>({
   repository,
   filters: [{kinds: [NAMED_PEOPLE]}],
-  eventToItem: (event: TrustedEvent) => (event.tags.length > 1 ? readList(event) : null),
-  getKey: (list: PublishedList) => list.event.pubkey,
+  eventToItem: (event: TrustedEvent) =>
+    event.tags.length > 1 ? {event, pubkeys: getPubkeyTagValues(event.tags)} : null,
+  getKey: list => list.event.pubkey,
 })
 ```
 

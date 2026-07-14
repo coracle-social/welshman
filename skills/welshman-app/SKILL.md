@@ -102,7 +102,7 @@ Every mutation method (`create`/`update`/`follow`/`addRelay`/`setRelays`/etc.) i
 | `Pinboards` | kind-30067 pinboards (many per author, keyed by address) | `one(addr)`, `forAuthor(pk)`, `loadForAuthor(pk)`, `create(fields)`, `update(addr, fn)` → `Command` |
 | `Pins` | kind-39067 pins (keyed by address; each pin has its own `d` tag) | `one(addr)`, `forBoard(addr)`, `forProfile(pk)`, `loadForBoard(addr)`, `loadForProfile(pk)`, `create(builder)`, `update(addr, fn)`, `addToBoard`, `removeFromBoard` → `Command` |
 | `Relays` | NIP-11 relay info (HTTP) | `one(url)`, `display(url)`, `hasNip(url, n)`, `hasNegentropy(url)` |
-| `RelayManagement` | NIP-86 | `post(url, request)`, `publishToRelay(url, event)` — signs `event` and publishes it directly to `url`, bypassing outbox routing |
+| `RelayManagement` | NIP-86 mgmt API | `forUrl(url)` → a `ManagementApi` client that signs auth as the app's user (`forUrl(url).signEvent(event)`, role/member ops, …) |
 | `Handles` | NIP-05 (HTTP, batched) | `forPubkey(pk)`, `display(nip05)`, `loadForPubkey(pk)` |
 | `Zappers` | LNURL zapper info (HTTP) | `forPubkey(pk)`, `validateZapReceipt(...)`, `validZapReceipts(...)` |
 | `BlossomServerLists` | kind-10063 media servers | `one(pk)`, `load(pk)` |
@@ -142,13 +142,14 @@ await app.use(RelayLists).addRelay("wss://relay.example", RelayMode.Write).then(
 
 ```typescript
 import {Thunks, Router} from "@welshman/app"
-import {makeEvent, NOTE} from "@welshman/util"
+import {makeEvent, NOTE, userOutbox} from "@welshman/util"
 
-// There's no dedicated outbox helper on Thunks — resolve write relays yourself via Router
-// (this is what Command.publish() does under the hood for every data-plugin mutation):
+// There's no dedicated outbox helper on Thunks — resolve write relays yourself via the
+// Router's Resolver + the RelaySelection DSL (this is what Command.publish() does under the
+// hood for every data-plugin mutation, whose `relays` come from the writer's own routes):
 const thunk = app.use(Thunks).publish({
   event: makeEvent(NOTE, {content: "hi"}),
-  relays: app.use(Router).FromUser().getUrls(),
+  relays: await app.use(Router).resolver.relays([userOutbox()]),   // Promise<string[]>
   delay: 3000,                  // abortable soft-undo window (ms)
 })
 
@@ -186,14 +187,16 @@ command.app      // the IApp it was built for
 command.event    // EventTemplate — unsigned, inspectable before publishing
 command.relays   // string[] — where publish() will send it
 
-command.publish()              // normal path: app.use(Thunks).publish({event, relays})
-command.publishAsRelay(url)     // sign as the app's user and send straight to `url`,
-                                // bypassing outbox routing — via app.use(RelayManagement).publishToRelay
+command.publish()               // normal path: app.use(Thunks).publish({event, relays: command.relays})
+command.publishToRelays(urls)   // publish to a specific relay set instead of command.relays
+command.publishAsRelay(url)     // NIP-86: the relay signs the event with its own key
+                                // (signevent), then publish the relay-signed event back to `url`
+command.signAsRelay(url)        // just the NIP-86 signevent step (returns {result, error})
 ```
 
 This lets a caller preview/log a command, choose a different transport, or drop it entirely, instead of every plugin method publishing unconditionally. `Wraps.publish` is the one exception — it fans a single rumor out to a `MergedThunk` of per-recipient wraps (each with its own relays), which doesn't fit the one-event/one-relay-set `Command` shape, so it still publishes directly.
 
-`publish`/`publishAsRelay` are also exported as free functions (`(command) => command.publish()` / `(url) => (command) => command.publishAsRelay(url)`) so you can chain straight off the mutation method's promise instead of double-awaiting:
+`publish`/`publishToRelays`/`publishAsRelay`/`signAsRelay` are also exported as free functions (e.g. `(command) => command.publish()`, `(url) => (command) => command.publishAsRelay(url)`) so you can chain straight off the mutation method's promise instead of double-awaiting:
 
 ```typescript
 import {publish, publishAsRelay} from "@welshman/app"
@@ -222,22 +225,29 @@ await app.use(Sync).push({relays, filters: [{authors: [pk]}]})
 
 ## Routing & tags
 
+`app.use(Router)` turns the declarative **`RelaySelection`** DSL (from `@welshman/util`) into scored relay urls. It exposes a `Resolver` (`router.resolver`) plus a `resolve(selections)` shortcut. That same `resolver` is injected into every `@welshman/domain` kind by `app.use(Domain)`, so writers/readers route through it too.
+
 ```typescript
-import {Router, Tags} from "@welshman/app"
-import {addMinimalFallbacks} from "@welshman/router"
+import {Router} from "@welshman/app"
+import {userOutbox, outbox, seen, relay, addMinimalFallbacks} from "@welshman/util"
 
 const router = app.use(Router)                // per-app; NOT Router.get()
-const relays = router.FromUser().policy(addMinimalFallbacks).limit(8).getUrls()
-const hint   = router.Event(event).getUrl()
-// Scenes: FromUser(), FromPubkey(pk), FromRelays(urls), Event(e), EventRoots(e), Search()
 
-const tags = app.use(Tags)
-const replyTags = tags.tagEventForReply(parentEvent)   // also: tagPubkey, tagEvent,
-                                                        // tagEventForComment/Quote/Reaction, tagZapSplit
-app.use(Thunks).publish({event: makeEvent(NOTE, {content: "ok", tags: replyTags}), relays})
+// resolver.relays(...) -> Promise<string[]>; resolver.relay(...) -> Promise<string | undefined>
+const writeRelays = await router.resolver.relays([userOutbox()])
+const hint        = await router.resolver.relay([seen(event)])
+
+// resolve(...) -> Promise<RelayScenario>; then tune fallbacks/limit and read urls
+const relays = (await router.resolve([userOutbox()])).policy(addMinimalFallbacks).limit(8).getUrls()
+
+// DSL selectors: userInbox/userOutbox/userMessaging, inbox(pk)/outbox(pk)/messaging(pk),
+// inboxes(pks), eventInbox(ref)/eventOutbox(ref), seen(ref), relay(url)/relays(urls),
+// indexers(), searchRelays() — each returns a RelaySelection (relays/inboxes return arrays).
 ```
 
-Relay quality used by the router comes from `app.use(RelayStats).getQuality(url)` (0–1; 0 for blocked/error-prone relays).
+Event tagging (reply/quote/reaction threading, p-tags, zap splits) now lives on the domain **writers** — `writer.tagPubkey(pk)`, `writer.addQuote(event)`, `writer.addZapSplit(pk)`, and kind-specific setters like `NoteWriter.setParent(parentEvent)` — not on a separate `Tags` plugin. See the `welshman-domain` skill.
+
+Relay quality used by the resolver comes from `app.use(RelayStats).getQuality(url)` (0–1; 0 for blocked/error-prone relays).
 
 ## Web of trust
 
@@ -276,16 +286,35 @@ Three base classes in `plugins/base.ts`:
 - **`LoadableMapPlugin<T>`** — owns its own `Map`, lazily fetches over HTTP (e.g. `Relays`, `Handles`, `Zappers`). Implement `fetch`.
 - **`MapPlugin<T>`** — owns its own `Map`, no network (e.g. `RelayStats`, `Plaintext`).
 
-```typescript
-import {DerivedPlugin, Network, type IApp} from "@welshman/app"
-import {SOME_KIND, readSomething} from "@welshman/util"
+Decode events with the app-configured `@welshman/domain` reader (`app.use(Domain).reader(Kind)`) as `eventToItem`, and mutate through `app.use(Domain).writer(Kind, reader?)` + `app.use(Domain).command(writer)`:
 
-export class Somethings extends DerivedPlugin<ReturnType<typeof readSomething>> {
+```typescript
+import {DerivedPlugin, Network, Domain, User, type IApp} from "@welshman/app"
+import {SOME_KIND} from "@welshman/util"
+import {SomeKind, SomeKindReader, SomeKindWriter} from "@welshman/domain"
+
+export class Somethings extends DerivedPlugin<SomeKindReader> {
   constructor(app: IApp) {
-    super(app, {filters: [{kinds: [SOME_KIND]}], eventToItem: readSomething, getKey: i => i.event.pubkey})
+    super(app, {
+      filters: [{kinds: [SOME_KIND]}],
+      eventToItem: app.use(Domain).reader(SomeKind),   // async: validates kind + parses
+      getKey: item => item.author(),
+    })
   }
+
   fetch = (pk: string, hints: string[] = []) =>
     this.app.use(Network).loadUsingOutbox(pk, {kinds: [SOME_KIND]}, hints)
+
+  // Build a writer (optionally seeded from the current reader for edits), mutate it, then
+  // wrap it in a Command via Domain.command — the caller decides when/how to publish.
+  update = async (fn: (writer: SomeKindWriter) => void) => {
+    const user = User.require(this.app)
+    const writer = this.app.use(Domain).writer(SomeKind, await this.forceLoad(user.pubkey))
+
+    fn(writer)
+
+    return this.app.use(Domain).command(writer)
+  }
 }
 
 const things = app.use(Somethings)   // lazily constructed + memoized
@@ -324,16 +353,18 @@ const app = new App({user, policies: [...defaultAppPolicies, makeAppPolicyLogger
 | `addSession(...)` / `pubkey.get()` | `User.fromSession(...)` + `createApp({user})`; `app.user?.pubkey` |
 | `deriveProfile(pk)` | `app.use(Profiles).one(pk)` |
 | `deriveProfileDisplay(pk)` | `app.use(Profiles).display(pk).$` |
-| `publishThunk({...})` | `app.use(Thunks).publish({...})` (resolve outbox relays yourself via `app.use(Router).FromUser().getUrls()`) |
+| `publishThunk({...})` | `app.use(Thunks).publish({...})` (resolve outbox relays via `await app.use(Router).resolver.relays([userOutbox()])`) |
 | `follow(tag)` / `mute(tag)` | `app.use(FollowLists).follow(tag).then(publish)` / `app.use(MuteLists).mutePublicly(tag).then(publish)` — these return a `Command` now, see [Commands](#commands-deferred-publishing) |
 | `load({...})` / `request({...})` | `app.use(Network).load({...})` / `request({...})` |
-| `Router.get().FromUser()` | `app.use(Router).FromUser()` |
+| `Router.get().FromUser()` / `router.Event(e)` | `app.use(Router).resolver` + the `RelaySelection` DSL (`resolver.relays([userOutbox()])`, `resolver.relay([seen(e)])`) |
+| `app.use(Tags).tagEventForReply(e)` | domain writer tagging (`NoteWriter.setParent(e)`, `writer.tagPubkey/addQuote/addZapSplit`) |
 | `relays` / `handles` / `zappers` stores | `app.use(Relays)` / `Handles` / `Zappers` |
 
 ## Related skills
 
 - `welshman-store` — the `Repository` and Svelte-store primitives this layer builds on.
-- `welshman-router` — relay-selection strategies behind `app.use(Router)`.
+- `welshman-domain` — the `Kind`/reader/writer model behind `app.use(Domain)` (event decoding + publishing).
+- `welshman-router` — the `RelaySelection` DSL / `Resolver` (in `@welshman/util`) behind `app.use(Router)`.
 - `welshman-net` — request/publish/sockets behind `app.use(Network)`.
 - `welshman-signer` — signers and login methods used by `User`/sessions.
 - `welshman-feeds` — feed construction used by `app.use(Feeds)`.

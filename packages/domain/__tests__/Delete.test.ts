@@ -25,7 +25,8 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("Delete", () => {
   it("reads ids, addresses, kinds, and reason", async () => {
-    const reader = await read(Delete, 
+    const reader = await read(
+      Delete,
       makeEvent({
         content: "posted by mistake",
         tags: [
@@ -47,7 +48,8 @@ describe("Delete", () => {
   })
 
   it("round-trips without duplicating represented tags", async () => {
-    const reader = await read(Delete, 
+    const reader = await read(
+      Delete,
       makeEvent({
         content: "posted by mistake",
         tags: [
@@ -97,9 +99,10 @@ describe("Delete", () => {
   it("sets a reason", async () => {
     const target = makeEvent({id: eventId, kind: NOTE})
 
-    const tmpl = await buildTemplate(write(Delete)
-      .addEvent(target)
-      .setReason("posted by mistake"), signer)
+    const tmpl = await buildTemplate(
+      write(Delete).addEvent(target).setReason("posted by mistake"),
+      signer,
+    )
 
     expect(tmpl.content).toBe("posted by mistake")
   })

@@ -58,7 +58,10 @@ describe("Reaction", () => {
 
     const target = makeEvent({id: "11".repeat(32), pubkey: targetPubkey, kind: NOTE, content: ""})
 
-    const tmpl = await buildTemplate(write(Reaction, await read(Reaction, event)).setEvent(target), signer)
+    const tmpl = await buildTemplate(
+      write(Reaction, await read(Reaction, event)).setEvent(target),
+      signer,
+    )
 
     // Each target key emits exactly once.
     for (const key of ["e", "p", "k"]) {

@@ -26,7 +26,8 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelayList", () => {
   it("reads relay urls split by read/write mode", async () => {
-    const reader = await read(RelayList,
+    const reader = await read(
+      RelayList,
       makeEvent({
         tags: [
           ["r", both],
@@ -43,7 +44,8 @@ describe("RelayList", () => {
   })
 
   it("round-trips without duplicating represented tags", async () => {
-    const reader = await read(RelayList,
+    const reader = await read(
+      RelayList,
       makeEvent({
         tags: [
           ["r", both],
@@ -60,11 +62,10 @@ describe("RelayList", () => {
   })
 
   it("adds modeless and single-mode relays via a fresh writer", async () => {
-    const tmpl = await buildTemplate(write(RelayList)
-      .addReadUrl(readUrl)
-      .addWriteUrl(writeUrl)
-      .addReadUrl(both)
-      .addWriteUrl(both), signer)
+    const tmpl = await buildTemplate(
+      write(RelayList).addReadUrl(readUrl).addWriteUrl(writeUrl).addReadUrl(both).addWriteUrl(both),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(RELAYS)
     // both was added for read then write, so it should collapse to modeless.
@@ -74,17 +75,18 @@ describe("RelayList", () => {
   })
 
   it("downgrades a modeless relay when one mode is removed", async () => {
-    const tmpl = await buildTemplate(write(RelayList)
-      .addReadUrl(both)
-      .addWriteUrl(both)
-      .removeReadUrl(both), signer)
+    const tmpl = await buildTemplate(
+      write(RelayList).addReadUrl(both).addWriteUrl(both).removeReadUrl(both),
+      signer,
+    )
 
     expect(tmpl.tags).toContainEqual(["r", both, "write"])
     expect(tmpl.tags).not.toContainEqual(["r", both])
   })
 
   it("routes to both original and current relays so removed relays are notified", async () => {
-    const reader = await read(RelayList,
+    const reader = await read(
+      RelayList,
       makeEvent({
         tags: [
           ["r", both],

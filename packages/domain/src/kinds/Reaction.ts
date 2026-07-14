@@ -1,7 +1,6 @@
+import {first, spec} from "@welshman/lib"
 import {
-  first,
-  spec} from "@welshman/lib"
-import {REACTION,
+  REACTION,
   getTagValue,
   getKindTagValues,
   getAddress,
@@ -44,7 +43,6 @@ export class ReactionReader extends EventReader {
 
 export class ReactionWriter extends EventWriter<ReactionReader> {
   readonly kind = REACTION
-
 
   // A reaction targets exactly one event, so replace any existing target.
   setEvent(event: TrustedEvent) {

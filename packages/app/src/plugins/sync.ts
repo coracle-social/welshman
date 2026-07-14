@@ -1,5 +1,6 @@
 import {isSignedEvent} from "@welshman/util"
 import type {Filter, SignedEvent} from "@welshman/util"
+import {pull, push} from "@welshman/net"
 import type {IApp} from "../app.js"
 import {Network} from "./network.js"
 import {Relays} from "./relays.js"
@@ -28,7 +29,7 @@ export class Sync {
     await Promise.all(
       relays.map(async relay => {
         if (await this.app.use(Relays).hasNegentropy(relay)) {
-          await net.pull({filters, events, relays: [relay]})
+          await pull({filters, events, relays: [relay], context: this.app.netContext})
         } else {
           await net.request({filters, relays: [relay], autoClose: true})
         }
@@ -43,7 +44,7 @@ export class Sync {
     await Promise.all(
       relays.map(async relay => {
         if (await this.app.use(Relays).hasNegentropy(relay)) {
-          await net.push({filters, events, relays: [relay]})
+          await push({filters, events, relays: [relay], context: this.app.netContext})
         } else {
           await Promise.all(
             events.map((event: SignedEvent) => net.publish({event, relays: [relay]})),

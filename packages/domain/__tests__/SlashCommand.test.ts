@@ -1,11 +1,7 @@
 import {describe, it, expect} from "vitest"
 import {SLASH_COMMAND, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {
-  SlashCommand,
-  parseSlashCommand,
-  formatSlashCommand,
-} from "../src/kinds/SlashCommand"
+import {SlashCommand, parseSlashCommand, formatSlashCommand} from "../src/kinds/SlashCommand"
 import {buildTemplate, read, write} from "./helpers.js"
 
 const pubkey = "ee".repeat(32)
@@ -68,7 +64,8 @@ describe("SlashCommand", () => {
   })
 
   it("applies anywhere when no group is declared", async () => {
-    const command = await read(SlashCommand, 
+    const command = await read(
+      SlashCommand,
       makeEvent({
         tags: [
           ["d", "ping"],
@@ -83,14 +80,16 @@ describe("SlashCommand", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(SlashCommand)
-      .setName("generate")
-      .setDescription("generate images")
-      .setKinds([1, 9])
-      .addGroup("98d9s")
-      .addParam("model")
-      .addParam("style", "string", true)
-      .addOption("model", "Nano Banana Pro"))
+    const tmpl = await buildTemplate(
+      write(SlashCommand)
+        .setName("generate")
+        .setDescription("generate images")
+        .setKinds([1, 9])
+        .addGroup("98d9s")
+        .addParam("model")
+        .addParam("style", "string", true)
+        .addOption("model", "Nano Banana Pro"),
+    )
 
     expect(tmpl.kind).toBe(SLASH_COMMAND)
     expect(tmpl.tags).toContainEqual(["d", "generate"])
@@ -105,9 +104,11 @@ describe("SlashCommand", () => {
 
   it("removeParam drops the param and its options", async () => {
     const command = await read(SlashCommand, manifest)
-    const tmpl = await buildTemplate(write(SlashCommand, command)
-      .setGroup("wss://relay.example.com/", "98d9s")
-      .removeParam("model"))
+    const tmpl = await buildTemplate(
+      write(SlashCommand, command)
+        .setGroup("wss://relay.example.com/", "98d9s")
+        .removeParam("model"),
+    )
 
     expect(tmpl.tags.some(t => t[0] === "param" && t[1] === "model")).toBe(false)
     expect(tmpl.tags.some(t => t[0] === "options" && t[1] === "model")).toBe(false)

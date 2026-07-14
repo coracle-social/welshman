@@ -25,7 +25,8 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelaySet", () => {
   it("reads metadata and relay urls", async () => {
-    const reader = await read(RelaySet, 
+    const reader = await read(
+      RelaySet,
       makeEvent({
         tags: [
           ["d", "my-set"],
@@ -46,7 +47,8 @@ describe("RelaySet", () => {
   })
 
   it("round-trips metadata, d and relay tags exactly once each", async () => {
-    const reader = await read(RelaySet, 
+    const reader = await read(
+      RelaySet,
       makeEvent({
         tags: [
           ["d", "my-set"],
@@ -76,10 +78,10 @@ describe("RelaySet", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(RelaySet)
-      .setIdentifier("my-set")
-      .setTitle("Fresh")
-      .addUrl(relayA), signer)
+    const tmpl = await buildTemplate(
+      write(RelaySet).setIdentifier("my-set").setTitle("Fresh").addUrl(relayA),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(NAMED_RELAYS)
     expect(tmpl.tags).toContainEqual(["d", "my-set"])
@@ -88,7 +90,8 @@ describe("RelaySet", () => {
   })
 
   it("setRelays replaces relays but preserves metadata", async () => {
-    const reader = await read(RelaySet, 
+    const reader = await read(
+      RelaySet,
       makeEvent({
         tags: [
           ["d", "my-set"],

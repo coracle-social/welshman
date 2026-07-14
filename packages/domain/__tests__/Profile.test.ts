@@ -42,7 +42,8 @@ describe("Profile", () => {
   })
 
   it("derives lnurl from a lud16 address", async () => {
-    const profile = await read(Profile, 
+    const profile = await read(
+      Profile,
       makeEvent({content: JSON.stringify({lud16: "alice@example.com"})}),
     )
 

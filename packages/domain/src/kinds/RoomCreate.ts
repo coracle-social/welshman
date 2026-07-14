@@ -12,7 +12,6 @@ export class RoomCreateWriter extends EventWriter<RoomCreateReader> {
   readonly kind = ROOM_CREATE
   readonly requiresRelays = true
 
-
   protected validate() {
     super.validate()
 

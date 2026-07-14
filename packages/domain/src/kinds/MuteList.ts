@@ -1,7 +1,5 @@
 import {uniq, spec} from "@welshman/lib"
-import {MUTES, getPubkeyTagValues,
-  userOutbox,
-} from "@welshman/util"
+import {MUTES, getPubkeyTagValues, userOutbox} from "@welshman/util"
 import {ListReader} from "../core/ListReader.js"
 import {ListWriter} from "../core/ListWriter.js"
 import {KindFactory} from "../core/Kind.js"

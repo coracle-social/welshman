@@ -75,7 +75,10 @@ export class RoomListWriter extends ListWriter<RoomListReader> {
     const normalized = url ? normalizeRelayUrl(url) : undefined
 
     return this.dropTags(
-      t => t[0] === "group" && t[1] === groupId && (!normalized || matchesUrl(normalized, t[2] as string)),
+      t =>
+        t[0] === "group" &&
+        t[1] === groupId &&
+        (!normalized || matchesUrl(normalized, t[2] as string)),
     )
   }
 
@@ -98,17 +101,6 @@ export class RoomListWriter extends ListWriter<RoomListReader> {
         (t[0] === "r" && matchesUrl(normalized, t[1] as string)) ||
         (t[0] === "group" && matchesUrl(normalized, t[2] as string)),
     )
-  }
-
-  setRelays(urls: string[]) {
-    const orderedUrls = uniq(urls.map(normalizeRelayUrl))
-    const relayTags = orderedUrls.map(
-      url => this.publicTags.find(t => t[0] === "r" && matchesUrl(url, t[1] as string)) || ["r", url],
-    )
-
-    this.publicTags = [...relayTags, ...this.publicTags.filter(t => t[0] !== "r")]
-
-    return this
   }
 }
 

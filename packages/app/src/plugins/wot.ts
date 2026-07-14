@@ -4,8 +4,8 @@ import type {FollowListReader, MuteListReader} from "@welshman/domain"
 import type {IApp} from "../app.js"
 import {projection, projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
-import {FollowLists} from "./follows.js"
-import {MuteLists} from "./mutes.js"
+import {FollowLists} from "./followLists.js"
+import {MuteLists} from "./muteLists.js"
 
 /**
  * Web-of-trust scoring derived from follow and mute lists. The trust graph is

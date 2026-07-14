@@ -1,7 +1,5 @@
 import {uniq, spec, removeUndefined} from "@welshman/lib"
-import {FOLLOWS, getPubkeyTagValues,
-  userOutbox,
-} from "@welshman/util"
+import {FOLLOWS, getPubkeyTagValues, userOutbox} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"

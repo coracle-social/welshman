@@ -1,115 +1,124 @@
 # Lists
 
-NIP-51 lists — follows, mutes, pins, bookmarks, relay lists, and friends — all share one shape: a set of **public** tags and an optional set of **private** tags that are NIP-44-encrypted into the event's content, self-encrypted to the author. Every list kind is a thin subclass of `ListReader` / `ListBuilder`, so once you know the shared pattern you know all of them. The base classes are documented in depth in [Readers & Builders](./readers-and-builders); this page covers the per-kind getters and setters.
+NIP-51 lists — follows, mutes, pins, bookmarks, relay lists, and friends — all share one shape: a set of **public** tags and, for the lists that support it, an optional set of **private** tags that are NIP-44-encrypted into the event's content, self-encrypted to the author. The lists with a private half are thin subclasses of `ListReader` / `ListWriter`; the relay-config lists that keep everything public subclass the plain `EventReader` / `EventWriter` instead. Once you know the shared pattern you know all of them. The base classes are documented in depth in [Readers & Writers](./readers-and-builders); this page covers the per-kind getters and setters.
 
 ## The shared pattern
 
-A `ListReader` exposes its tags as a merged view (`publicTags` + `privateTags`), and every getter reads through that merged view. **Private tags only decrypt when you pass the list author's own signer** to `fromEvent`/`factory`; reading someone else's list, or your own without a signer, yields public tags only.
+Like every kind in `@welshman/domain`, each list is a `KindFactory` that you `configure` **once** with a `KindContext` (resolver, optional signer, optional repository) to get a `ConfiguredKind`, whose `reader(event)` / `writer(reader?)` build the instances. In an app you get this through the `Domain` plugin; standalone you configure the factory yourself.
+
+A `ListReader` exposes its tags as a merged view (`publicTags` + `privateTags`), and every getter reads through that merged view. **Private tags only decrypt when the context signer is the list author** — `parse()` reads the signer off `def.context.signer` and only decrypts when `signer.getPubkey()` matches the event's author. Reading someone else's list, or your own without a signer in context, yields public tags only.
 
 ```typescript
-import {MuteList, MuteListBuilder} from "@welshman/domain"
+import {MuteList} from "@welshman/domain"
 
-// Read. Pass the author's signer to surface private (encrypted) entries.
-const mutes = await MuteList.fromEvent(event, signer)
+// Read. In an app, the signer comes from app.user, so private (encrypted)
+// entries surface automatically when you read your own list.
+const mutes = await app.use(Domain).reader(MuteList)(event)
+
+// Standalone: bind the signer into the context to decrypt private tags.
+const mutes = await MuteList.configure({resolver, signer}).reader(event)
+
 mutes.pubkeys()          // both public and private mutes, when decrypted
 mutes.includes(somePk)   // boolean
 
 // Build. Public vs private goes to different setters; encryption happens
 // in buildContent when there are private tags.
-const signed = await new MuteListBuilder()
+const configured = MuteList.configure({resolver, signer})
+
+const template = await configured.writer()
   .mutePublicly(pubkeyA)
   .mutePrivately(pubkeyB)
-  .toEvent(signer)       // toEvent/toRumor always pass the signer through
+  .render()              // EventTemplate; encrypts privateTags into content
 ```
 
-Every list builder inherits the base tag mutators from `ListBuilder`:
+Every list writer with a private half inherits the base tag mutators from `ListWriter`:
 
 ```typescript
-builder
-  .addPublic(...tags)    // append to the public set
-  .addPrivate(...tags)   // append to the private (encrypted) set
-  .keepPublic(pred)      // filter; also keepPrivate, keep (both sets)
-  .dropPublic(pred)      // filter out; also dropPrivate, drop (both sets)
-  .clearPublic()         // empty; also clearPrivate, clear (both sets)
+writer
+  .addPublic(...tags)     // append to the public set
+  .addPrivate(...tags)    // append to the private (encrypted) set
+  .keepPublic(pred)       // filter; also keepPrivate, keepTags (both sets)
+  .dropPublic(pred)       // filter out; also dropPrivate, dropTags (both sets)
 ```
 
-The per-kind methods below (`addFollow`, `mutePrivately`, `bookmarkPublicly`, …) are just named wrappers over these. Anything ending in `*Privately` is `addPrivate`; everything else is `addPublic`; `remove*`/`un*` is a `drop`.
+The per-kind methods below (`mutePrivately`, `bookmarkPublicly`, `pinPrivately`, …) are just named wrappers over these. Anything ending in `*Privately` is `addPrivate`; everything else is `addPublic`; `remove*`/`un*` is a `dropTags`.
 
-::: tip toTemplate and the signer
-Because encryption lives in `ListBuilder.buildContent`, `toTemplate(signer)` only needs a signer when you have actually written private tags. With private mutes/follows you must pass one (`A signer is required to encrypt private tags`); a purely public edit needs none. `toEvent`/`toRumor` always pass the signer through for you.
+::: tip render and the signer
+Because encryption lives in `ListWriter.buildContent`, `render()` only needs a signer in context when you have actually written private tags. With private mutes/follows you must supply one (`A signer is required to encrypt private tags`); a purely public edit needs none. `render()` replaces the old `toTemplate()` and takes no arguments — the signer is whatever was bound at `configure`. Hand the writer to `app.use(Domain).command(writer)` to finalize and publish, or sign the rendered template yourself.
 :::
 
 ## The kinds
 
-| Class | Kind | NIP | Reader getters | Builder methods |
-|---|---|---|---|---|
-| `FollowList` | 3 | NIP-02 | `pubkeys()`, `includes(pk)` | `addFollow(tag)`, `removeFollow(value)` |
-| `MuteList` | 10000 | NIP-51 | `pubkeys()`, `includes(pk)` | `mutePublicly(pk)`, `mutePrivately(pk)`, `unmute(pk)` |
-| `PinList` | 10001 | NIP-51 | `ids()`, `addresses()` | `pinPublicly(tag)`, `pinPrivately(tag)`, `unpin(value)` |
-| `RelayList` | 10002 | NIP-65 | `urls()`, `readUrls()`, `writeUrls()` | `addUrl(url, mode)`, `removeUrl(url, mode)`, `setReadUrls(urls)`, `setWriteUrls(urls)`, `setTags(tags)` |
-| `BookmarkList` | 10003 | NIP-51 | `ids()`, `addresses()`, `topics()`, `urls()` | `bookmarkPublicly(tag)`, `bookmarkPrivately(tag)`, `removeBookmark(value)` |
-| `GroupList` | 10004 | NIP-51 | `addresses()` | `addGroup(address, relayHint?)`, `removeGroup(address)` |
-| `BlockedRelayList` | 10006 | NIP-51 | `urls()`, `includes(url)` | `addUrl(url)`, `removeUrl(url)`, `setUrls(urls)` |
-| `SearchRelayList` | 10007 | NIP-51 | `urls()`, `includes(url)` | `addUrl(url)`, `removeUrl(url)`, `setUrls(urls)` |
-| `RoomList` | 10009 | NIP-51 | `groups()`, `groupTags()` | `join(groupId, url)`, `leave(groupId)` |
-| `FeedList` | 10014 | NIP-51 | `addresses()`, `includes(address)` | `addFeed(address, relayHint?)`, `addFeedPrivately(address, relayHint?)`, `removeFeed(address)` |
-| `TopicList` | 10015 | NIP-51 | `topics()`, `addresses()`, `includes(topic)` | `followPublicly(topic)`, `followPrivately(topic)`, `follow(topic)`, `unfollow(topic)` |
-| `EmojiList` | 10030 | NIP-51 | `emojis()`, `emojiSets()` | `addEmoji(shortcode, url)`, `removeEmoji(value)`, `addEmojiSet(address)`, `removeEmojiSet(value)` |
-| `MessagingRelayList` | 10050 | NIP-17 | `urls()` | `addUrl(url)`, `removeUrl(url)`, `setUrls(urls)` |
-| `BlossomServerList` | 10063 | Blossom BUD-03 | `urls()`, `includes(url)` | `addUrl(url)`, `removeUrl(url)`, `setUrls(urls)` |
-| `RelaySet` | 30002 | NIP-51 | `title()`, `description()`, `image()`, `urls()` | `setTitle`, `setDescription`, `setImage`, `addUrl(url)`, `removeUrl(url)`, `setUrls(urls)` |
+Lists marked **private-capable** subclass `ListReader` / `ListWriter` and expose the public/private split; the rest subclass the plain `EventReader` / `EventWriter`.
 
-Each comes with a matching `*Builder` (`FollowListBuilder`, `MuteListBuilder`, …).
+| Class | Kind | NIP | Private? | Reader getters | Writer methods |
+|---|---|---|---|---|---|
+| `FollowList` | 3 | NIP-02 | no | `pubkeys()`, `includes(pk)` | `follow(pk, relayHint?, petname?)`, `unfollow(pk)` |
+| `MuteList` | 10000 | NIP-51 | yes | `pubkeys()`, `includes(pk)` | `mutePublicly(pk)`, `mutePrivately(pk)`, `unmute(pk)` |
+| `PinList` | 10001 | NIP-51 | yes | `ids()`, `addresses()` | `pinPublicly(tag)`, `pinPrivately(tag)`, `unpin(value)` |
+| `RelayList` | 10002 | NIP-65 | no | `urls()`, `readUrls()`, `writeUrls()` | `addReadUrl(url)`, `addWriteUrl(url)`, `removeReadUrl(url)`, `removeWriteUrl(url)`, `setReadUrls(urls)`, `setWriteUrls(urls)`, `setTags(tags)` |
+| `BookmarkList` | 10003 | NIP-51 | yes | `ids()`, `addresses()`, `topics()`, `urls()` | `bookmarkPublicly(tag)`, `bookmarkPrivately(tag)`, `removeBookmark(value)` |
+| `GroupList` | 10004 | NIP-51 | no | `addresses()` | `addGroup(address, relayHint?)`, `removeGroup(address)` |
+| `BlockedRelayList` | 10006 | NIP-51 | no | `urls()`, `includes(url)` | `addUrl(url)`, `removeUrl(url)`, `setUrls(urls)` |
+| `SearchRelayList` | 10007 | NIP-51 | no | `urls()`, `includes(url)` | `addUrl(url)`, `removeUrl(url)`, `setUrls(urls)` |
+| `RoomList` | 10009 | NIP-51 | yes | `groups()`, `groupTags()`, `relays()`, `urls()`, `groupsForUrl(url)` | `addGroup(groupId, url)`, `removeGroup(groupId, url?)`, `addRelay(url)`, `removeRelay(url)`, `setRelays(urls)` |
+| `FeedList` | 10014 | NIP-51 | yes | `addresses()`, `includes(address)` | `addFeed(address, relayHint?)`, `addFeedPrivately(address, relayHint?)`, `removeFeed(address)` |
+| `TopicList` | 10015 | NIP-51 | yes | `topics()`, `addresses()`, `includes(topic)` | `followPublicly(topic)`, `followPrivately(topic)`, `follow(topic)`, `unfollow(topic)` |
+| `EmojiList` | 10030 | NIP-51 | no | `emojis()`, `emojiSets()` | `addEmoji(shortcode, url)`, `removeEmoji(value)`, `addEmojiSet(address)`, `removeEmojiSet(value)` |
+| `MessagingRelayList` | 10050 | NIP-17 | no | `urls()` | `addUrl(url)`, `removeUrl(url)`, `setUrls(urls)` |
+| `BlossomServerList` | 10063 | Blossom BUD-03 | no | `urls()`, `includes(url)` | `addUrl(url)`, `removeUrl(url)`, `setUrls(urls)` |
+| `RelaySet` | 30002 | NIP-51 | no | `title()`, `description()`, `image()`, `urls()` | `setTitle`, `setDescription`, `setImage`, `addUrl(url)`, `removeUrl(url)`, `setUrls(urls)` |
+
+Each kind exports a matching reader and writer class (`FollowListReader`/`FollowListWriter`, `MuteListReader`/`MuteListWriter`, …), plus the `KindFactory` constant itself (`FollowList`, `MuteList`, …).
 
 ## Public vs private (encrypted) tags
 
-A few of these kinds expose a deliberate public/private choice, mapping to the encrypted-content split:
+The private-capable kinds expose a deliberate public/private choice, mapping to the encrypted-content split:
 
 ```typescript
-import {FollowListBuilder, BookmarkListBuilder, TopicListBuilder} from "@welshman/domain"
+import {BookmarkList, TopicList} from "@welshman/domain"
 
-// Follows are public-only in practice (addFollow → addPublic)
-new FollowListBuilder().addFollow(["p", pubkey])
+const bookmarks = BookmarkList.configure({resolver, signer})
+bookmarks.writer().bookmarkPublicly(["e", noteId])    // visible to everyone
+bookmarks.writer().bookmarkPrivately(["e", noteId])   // encrypted, author-only
 
-// Bookmarks, pins, mutes, feeds, and topics offer both:
-new BookmarkListBuilder().bookmarkPublicly(["e", noteId])      // visible to everyone
-new BookmarkListBuilder().bookmarkPrivately(["e", noteId])     // encrypted, author-only
-new TopicListBuilder().followPrivately("nostr")                // encrypted interest
+TopicList.configure({resolver, signer}).writer().followPrivately("nostr")  // encrypted interest
 ```
 
-The relay-config lists (`RelayList`, `BlockedRelayList`, `SearchRelayList`, `MessagingRelayList`, `BlossomServerList`, `RelaySet`) keep everything in public tags — there is no private variant of `addUrl`.
+`FollowList` is public-only (`follow` appends a `p` tag to the public set), and the relay-config lists (`RelayList`, `BlockedRelayList`, `SearchRelayList`, `MessagingRelayList`, `BlossomServerList`, `RelaySet`, `GroupList`, `EmojiList`) keep everything in public tags — there is no private variant of their setters.
 
 ## Notes per family
 
-**`RelayList` (NIP-65).** Read/write are encoded by the `r`-tag's third element; a bare `["r", url]` counts as both. `urls()` returns all, `readUrls()`/`writeUrls()` filter by `RelayMode`. On the builder, `addUrl(url, mode)`/`removeUrl(url, mode)` preserve the *other* mode if it was present, so flipping write on a read-only relay produces a bare both-mode tag rather than clobbering it. URLs are normalized via `normalizeRelayUrl`.
+**`RelayList` (NIP-65).** Read/write are encoded by the `r`-tag's third element; a bare `["r", url]` counts as both. `urls()` returns all, `readUrls()`/`writeUrls()` filter by mode. On the writer, `addReadUrl`/`addWriteUrl`/`removeReadUrl`/`removeWriteUrl` preserve the *other* mode if it was present, so adding write to a read-only relay collapses it to a bare both-mode tag rather than clobbering it; removing one mode from a both-mode relay leaves the other. `setReadUrls`/`setWriteUrls` rewrite one axis while preserving the other, and `setTags` replaces the tag list wholesale. URLs are normalized via `normalizeRelayUrl`. Its `routes()` publishes to the author's outbox, the indexer relays, and every relay the list references now or used to (via the seed reader), so each relay learns when it is added to or removed from the list.
 
 ```typescript
-import {RelayListBuilder} from "@welshman/domain"
-import {RelayMode} from "@welshman/util"
+import {RelayList} from "@welshman/domain"
 
-await new RelayListBuilder()
-  .addUrl("wss://relay.example", RelayMode.Write)
-  .addUrl("wss://read.example", RelayMode.Read)
-  .toEvent(signer)
+const template = await RelayList.configure({resolver})
+  .writer()
+  .addWriteUrl("wss://relay.example")
+  .addReadUrl("wss://read.example")
+  .render()
 ```
 
-**Relay/server set lists.** `BlockedRelayList`, `SearchRelayList`, and `MessagingRelayList` store URLs under the `relay` tag key; `BlossomServerList` uses the `server` key instead. All four share `addUrl`/`removeUrl`/`setUrls` (where `setUrls` clears then re-adds), with `normalizeRelayUrl` applied.
+**Relay/server set lists.** `BlockedRelayList`, `SearchRelayList`, and `MessagingRelayList` store URLs under the `relay` tag key; `BlossomServerList` uses the `server` key instead. All four share `addUrl`/`removeUrl`/`setUrls` (where `setUrls` clears then re-adds), with `normalizeRelayUrl` (or `normalizeUrl` for Blossom) applied.
 
-**`RelaySet` (kind 30002).** A named, addressable relay set — it is parameterized-replaceable, so the builder needs a `d` tag (`setIdentifier()`). Its constructor lifts `title`/`description`/`image` out of the tags into dedicated fields, and `buildTags` prepends them ahead of the `relay` tags.
+**`RelaySet` (kind 30002).** A named, addressable relay set — it is parameterized-replaceable, so the writer needs a `d` tag (`setIdentifier()`). Its reader lifts `title`/`description`/`image` out of the tags, and the writer's `setTitle`/`setDescription`/`setImage` replace the corresponding tag in place.
 
 ```typescript
-import {RelaySetBuilder} from "@welshman/domain"
+import {RelaySet} from "@welshman/domain"
 
-await new RelaySetBuilder()
+const template = await RelaySet.configure({resolver})
+  .writer()
   .setIdentifier()                        // required d tag for kind 30002
   .setTitle("My relays")
   .addUrl("wss://relay.example")
-  .toEvent(signer)
+  .render()
 ```
 
-**`RoomList` (kind 10009).** A simple-groups membership list. `join(groupId, url)` writes `["group", groupId, url]`; `leave(groupId)` drops the matching tag. (NIP-29 room *operations* themselves live in [Rooms](./rooms).)
+**`RoomList` (kind 10009).** A NIP-51 simple-groups membership list, and itself a `ListWriter`. `addGroup(groupId, url)` writes `["group", groupId, url]` and ensures the relay is tracked via an `r` tag; `removeGroup(groupId, url?)` drops the matching group tag. `addRelay`/`removeRelay`/`setRelays` manage the bare `r` relay tags, and the reader's `urls()`/`groupsForUrl(url)` help resolve where each room lives. Like `RelayList`, its `routes()` publishes to the author's outbox plus every relay the list references now or used to, so each relay learns of membership changes. (NIP-29 room *operations* themselves live in [Rooms](./rooms).)
 
 ## See also
 
-- [Readers & Builders](./readers-and-builders) — the `ListReader`/`ListBuilder` base, including exactly how private-tag encryption and decryption work.
+- [Readers & Writers](./readers-and-builders) — the `ListReader`/`ListWriter` base, including exactly how private-tag encryption and decryption work, plus the `KindFactory` / `configure` / `ConfiguredKind` entry model.
 - [Rooms](./rooms) — NIP-29 room ops, referenced by `RoomList`.

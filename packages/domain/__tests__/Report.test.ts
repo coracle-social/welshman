@@ -63,11 +63,14 @@ describe("Report", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(Report)
-      .setPubkey(reported)
-      .setEventId(eventId)
-      .setReason("impersonation")
-      .setContent("bad actor"), signer)
+    const tmpl = await buildTemplate(
+      write(Report)
+        .setPubkey(reported)
+        .setEventId(eventId)
+        .setReason("impersonation")
+        .setContent("bad actor"),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(REPORT)
     expect(tmpl.tags).toContainEqual(["p", reported, "impersonation"])

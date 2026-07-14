@@ -1,10 +1,5 @@
-import {
-  parseJson,
-  spec} from "@welshman/lib"
-import {ZAP_RECEIPT,
-  getTagValue,
-  getInvoiceAmount,
-} from "@welshman/util"
+import {parseJson, spec} from "@welshman/lib"
+import {ZAP_RECEIPT, getTagValue, getInvoiceAmount} from "@welshman/util"
 import type {TrustedEvent, Zapper} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
@@ -100,7 +95,6 @@ export class ZapReceiptReader extends EventReader {
 
 export class ZapReceiptWriter extends EventWriter<ZapReceiptReader> {
   readonly kind = ZAP_RECEIPT
-
 
   setBolt11(bolt11: string) {
     return this.dropTags(spec(["bolt11"])).addTags(["bolt11", bolt11])

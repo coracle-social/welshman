@@ -43,4 +43,13 @@ export class RoomLists extends DerivedPlugin<RoomListReader> {
 
     return this.app.use(Domain).command(writer)
   }
+
+  addGroup = (groupId: string, url: string) => this.update(writer => writer.addGroup(groupId, url))
+
+  removeGroup = (groupId: string, url?: string) =>
+    this.update(writer => writer.removeGroup(groupId, url))
+
+  addRelay = (url: string) => this.update(writer => writer.addRelay(url))
+
+  removeRelay = (url: string) => this.update(writer => writer.removeRelay(url))
 }

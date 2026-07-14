@@ -51,9 +51,12 @@ describe("EmojiList", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(EmojiList)
-      .addEmojiSet(setAddress)
-      .addEmoji("soapbox", "https://example.com/soapbox.png"), signer)
+    const tmpl = await buildTemplate(
+      write(EmojiList)
+        .addEmojiSet(setAddress)
+        .addEmoji("soapbox", "https://example.com/soapbox.png"),
+      signer,
+    )
 
     expect(getAddressTagValues(tmpl.tags)).toEqual([setAddress])
     expect(tmpl.tags).toContainEqual(emojiTag)

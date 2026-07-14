@@ -50,7 +50,8 @@ describe("Classified", () => {
   })
 
   it("defaults the price currency to SAT", async () => {
-    const c = await read(Classified, 
+    const c = await read(
+      Classified,
       makeEvent({
         tags: [
           ["d", "x"],
@@ -93,13 +94,16 @@ describe("Classified", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(Classified)
-      .setIdentifier("listing1")
-      .setTitle("Fresh")
-      .setContent("desc")
-      .setPrice(25)
-      .setImages(["https://example.com/c.jpg"])
-      .setTopics(["misc"]), signer)
+    const tmpl = await buildTemplate(
+      write(Classified)
+        .setIdentifier("listing1")
+        .setTitle("Fresh")
+        .setContent("desc")
+        .setPrice(25)
+        .setImages(["https://example.com/c.jpg"])
+        .setTopics(["misc"]),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(CLASSIFIED)
     expect(tmpl.tags).toContainEqual(["d", "listing1"])

@@ -1,5 +1,4 @@
-import {
-  uniq} from "@welshman/lib"
+import {uniq} from "@welshman/lib"
 import {
   NOTE,
   getReplyTags,
@@ -22,7 +21,6 @@ export class NoteReader extends EventReader {
 
 export class NoteWriter extends EventWriter<NoteReader> {
   readonly kind = NOTE
-
 
   // NIP-10 reply threading: p-tag the parent's participants, then e/a-tag the
   // parent (and thread root) with the appropriate markers and relay hints.

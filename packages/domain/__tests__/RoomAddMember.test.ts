@@ -24,7 +24,8 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomAddMember", () => {
   it("reads pubkeys and group", async () => {
-    const op = await read(RoomAddMember, 
+    const op = await read(
+      RoomAddMember,
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -41,7 +42,8 @@ describe("RoomAddMember", () => {
   })
 
   it("round-trips with no duplicated tags", async () => {
-    const op = await read(RoomAddMember, 
+    const op = await read(
+      RoomAddMember,
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -52,8 +54,10 @@ describe("RoomAddMember", () => {
       }),
     )
 
-    const tmpl = await buildTemplate(write(RoomAddMember, op)
-      .setGroup("wss://relay.example.com/", "room1"), signer)
+    const tmpl = await buildTemplate(
+      write(RoomAddMember, op).setGroup("wss://relay.example.com/", "room1"),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(ROOM_ADD_MEMBER)
     // h round-trips via the base behavior tag.
@@ -67,11 +71,14 @@ describe("RoomAddMember", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(RoomAddMember)
-      .setGroup("wss://relay.example.com/", "room2")
-      .addPubkey(a)
-      .addPubkey(a) // dedup
-      .addPubkey(b), signer)
+    const tmpl = await buildTemplate(
+      write(RoomAddMember)
+        .setGroup("wss://relay.example.com/", "room2")
+        .addPubkey(a)
+        .addPubkey(a) // dedup
+        .addPubkey(b),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(ROOM_ADD_MEMBER)
     expect(getTagValue("h", tmpl.tags)).toBe("room2")

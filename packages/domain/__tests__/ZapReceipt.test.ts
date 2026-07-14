@@ -119,12 +119,15 @@ describe("ZapReceipt", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(ZapReceipt)
-      .setBolt11(bolt11)
-      .setDescription(JSON.stringify(request))
-      .setRecipient(recipient)
-      .setEventId(eventId)
-      .setPreimage("abcd"), signer)
+    const tmpl = await buildTemplate(
+      write(ZapReceipt)
+        .setBolt11(bolt11)
+        .setDescription(JSON.stringify(request))
+        .setRecipient(recipient)
+        .setEventId(eventId)
+        .setPreimage("abcd"),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(ZAP_RECEIPT)
     expect(tmpl.tags).toContainEqual(["bolt11", bolt11])

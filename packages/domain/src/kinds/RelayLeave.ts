@@ -11,7 +11,6 @@ export class RelayLeaveReader extends EventReader {
 export class RelayLeaveWriter extends EventWriter<RelayLeaveReader> {
   readonly kind = RELAY_LEAVE
   readonly requiresRelays = true
-
 }
 
 export const RelayLeave = new KindFactory({

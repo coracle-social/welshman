@@ -14,9 +14,7 @@ export class Domain {
 
   // Configure a kind, memoized per factory. The signer is resolved lazily — app
   // policies can swap it (via `wrapSigner`) after construction — while the resolver
-  // and repository are stable for the app's lifetime. The Router's `Resolver`
-  // dereferences routes; callers tune the scenario (limit, etc.) via
-  // `writer.scenario()`. The repository lets routers locate event parents.
+  // and repository are stable for the app's lifetime.
   configure = <R extends EventReader, W extends EventWriter<R>>(
     factory: KindFactory<R, W>,
   ): ConfiguredKind<R, W> => {
@@ -40,17 +38,14 @@ export class Domain {
     return configured
   }
 
-  // Parse events of this kind into readers — pass as an event decoder (`eventToItem`).
   reader = <R extends EventReader, W extends EventWriter<R>>(factory: KindFactory<R, W>) =>
     this.configure(factory).reader
 
-  // A fresh writer, optionally seeded from a reader.
   writer = <R extends EventReader, W extends EventWriter<R>>(
     factory: KindFactory<R, W>,
     reader?: R,
   ): W => this.configure(factory).writer(reader)
 
-  // Finalize a writer (as the required app user) into a publishable `Command`.
   command = async (writer: EventWriter<any>): Promise<Command> => {
     User.require(this.app)
 

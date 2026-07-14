@@ -138,16 +138,21 @@ notes.subscribe($notes => {
 ### 2. Profiles indexed by pubkey
 
 ```typescript
+import { parseJson } from "@welshman/lib"
 import { Repository } from "@welshman/net"
 import { deriveItemsByKey, deriveItems, makeDeriveItem } from "@welshman/store"
-import { readProfile, PROFILE, type PublishedProfile } from "@welshman/util"
+import { PROFILE, type TrustedEvent } from "@welshman/util"
 
 const repository = new Repository()
 
-const profilesByPubkey = deriveItemsByKey<PublishedProfile>({
+type Profile = { event: TrustedEvent; name?: string }
+
+const profilesByPubkey = deriveItemsByKey<Profile>({
   repository,
   filters: [{ kinds: [PROFILE] }],
-  eventToItem: event => readProfile(event),
+  // eventToItem decodes each event; here we parse the profile's JSON content.
+  // In a full @welshman/app setup use `app.use(Domain).reader(Profile)` instead.
+  eventToItem: event => ({ event, ...parseJson(event.content) }),
   getKey: profile => profile.event.pubkey,
 })
 
@@ -298,13 +303,13 @@ aliceBookmark.subscribe($b => console.log($b?.title))
 ## Integration Notes
 
 - **`@welshman/net`** — provides `Repository` and `Tracker`. `Repository` is the event cache that feeds all store primitives in this package. Events flow from the network into the repository, which triggers store updates automatically.
-- **`@welshman/util`** — provides `TrustedEvent`, `Filter`, `readProfile`, `readList`, and other event-parsing helpers that feed into `deriveItemsByKey` / `deriveEventsById`.
+- **`@welshman/util`** — provides `TrustedEvent`, `Filter`, and the tag/event helpers you use to decode events inside `eventToItem`. Higher-level typed decoders (profiles, lists, …) now live in `@welshman/domain` as async Reader classes (e.g. `Profile.configure(context).reader(event)`).
 - **`@welshman/app`** — the high-level app layer re-exports and composes store utilities with pre-configured repositories, loaders, and context. If you are using `@welshman/app`, many of these stores are already wired up for you.
 - Stores in this package are **framework-agnostic** at runtime (plain Svelte stores), so they work in SvelteKit SSR as well as browser-only Svelte apps. The `synced` store's `localStorageProvider` is browser-only — guard it with `if (browser)` in SvelteKit.
 
 ## Gotchas & Tips
 
-- **`eventToItem` can return `null`/`undefined`** — returning a falsy value from `eventToItem` in `deriveItemsByKey` causes that event to be skipped. Use this to filter out malformed events (e.g. `event.tags.length > 1 ? readList(event) : null`).
+- **`eventToItem` can return `null`/`undefined`** — returning a falsy value from `eventToItem` in `deriveItemsByKey` causes that event to be skipped. Use this to filter out malformed events (e.g. `event.tags.length > 1 ? {event, pubkeys: getPubkeyTagValues(event.tags)} : null`).
 - **`synced` is async on first read** — the store emits `defaultValue` synchronously, then overwrites it once storage resolves. Always `await store.ready` before reading in server-side or initialization code where you need the persisted value.
 - **`throttled(0, store)` is a no-op** — it returns the original store unchanged, so it is safe to call with a user-configurable delay that may be zero.
 - **`makeDeriveItem` is a factory** — call it once to create the lookup function, then call the returned function with a key to get a per-key `Readable`. Do not call `deriveItemsByKey` inside a Svelte `$:` block repeatedly; derive once at module level and pass the store down.

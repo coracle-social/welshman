@@ -1,6 +1,6 @@
 ---
 name: welshman-util
-description: "Use this skill when working with @welshman/util: nostr event types, kinds, tags, filters, addresses, NIPs (42/86/98), relays, zaps, wallets, or any core nostr data structures. (Profiles, lists, handlers, rooms, and Encryptable now live in @welshman/domain.)"
+description: "Use this skill when working with @welshman/util: nostr event types, kinds, tags, filters, addresses, NIPs (42/86/98), relays, zaps, wallets, or any core nostr data structures. (Profiles, lists, handlers, and rooms now live in @welshman/domain as Reader/Writer classes.)"
 ---
 
 # welshman/util — Core Nostr Utilities
@@ -337,6 +337,105 @@ isDVMKind(kind)                    // 5000–7000
 | `displayRelayUrl(url)` | Strip protocol and trailing slash |
 | `displayRelayProfile(profile?, fallback?)` | Get display name for relay |
 
+### Relay Selection (routing DSL)
+
+`RelaySelection.ts` provides a declarative routing DSL: a *relay selection* names a
+source ("the author's outbox", "this pubkey's inbox", "the relays this event was seen
+on") rather than a list of urls. Domain code (`@welshman/domain`) produces selections
+from an event; a `Resolver` (wired up by `@welshman/app`'s `Router`) turns them into
+concrete urls in a context where the necessary data (relay lists, tracker, repository)
+is available.
+
+**Route + selection types**
+
+| Type | Description |
+|------|-------------|
+| `EventRef` | `{ id?, pubkey?, kind?, identifier?, relays? }` — all optional/additive reference to an event to route relative to |
+| `RelayRoute` | Discriminated union: `userInbox` / `userOutbox` / `userMessaging`, `pubkeyInbox` / `pubkeyOutbox` / `pubkeyMessaging` (`{pubkey}`), `eventInbox` / `eventOutbox` / `seen` (`{ref}`), `relay` (`{url}`), `index`, `search` |
+| `RelaySelection` | `{ route: RelayRoute; weight: number }` |
+
+**DSL constructors** (each defaults `weight = 1`)
+
+| Export | Returns | Description |
+|--------|---------|-------------|
+| `inbox(pubkey, weight?)` | `RelaySelection` | that pubkey's read relays |
+| `outbox(pubkey, weight?)` | `RelaySelection` | that pubkey's write relays |
+| `messaging(pubkey, weight?)` | `RelaySelection` | that pubkey's NIP-17 messaging relays |
+| `userInbox(weight?)` / `userOutbox(weight?)` / `userMessaging(weight?)` | `RelaySelection` | the current user's relays |
+| `eventInbox(ref, weight?)` / `eventOutbox(ref, weight?)` | `RelaySelection` | the referenced event's author relays |
+| `seen(ref, weight?)` | `RelaySelection` | relays the event was found on (tracker + ref hints) |
+| `relay(url, weight?)` | `RelaySelection` | a literal relay url (formerly `relayHint`) |
+| `relays(urls, weight?)` | `RelaySelection[]` | one selection per url (formerly `relayHints`) |
+| `inboxes(pubkeys, weight?)` | `RelaySelection[]` | `uniq(pubkeys).map(inbox)` — inbox per referenced pubkey |
+| `indexers(weight?)` | `RelaySelection` | profile/relay-list index relays |
+| `searchRelays(weight?)` | `RelaySelection` | full-text search relays |
+
+Note `relays` and `inboxes` return **arrays** — spread them with `...` into a route list; every other constructor returns a single `RelaySelection`.
+
+**Resolved selections + fallback policies**
+
+| Export | Description |
+|--------|-------------|
+| `Selection` | `{ weight: number; relays: string[] }` — a concrete, resolved weighted relay set |
+| `makeSelection(relays, weight?)` | Build a `Selection`, filtering `isRelayUrl` and normalizing each url |
+| `FallbackPolicy` | `(count: number, limit: number) => number` |
+| `addNoFallbacks` | Never add fallback relays |
+| `addMinimalFallbacks` | Add one fallback only if nothing else was found |
+| `addMaximalFallbacks` | Top up to the limit with fallbacks |
+
+**`RelayScenario`** — scores and picks concrete relays from weighted `Selection`s:
+
+```typescript
+new RelayScenario(selections: Selection[], options?: RelayScenarioOptions)
+// options: { policy?, limit?, allowLocal?, allowOnion?, allowInsecure?,
+//            getRelayQuality?, getDefaultRelays? }
+
+scenario.limit(n)          // chainable (returns a cloned scenario)
+scenario.policy(fn)        // chainable
+scenario.allowLocal(bool) / allowOnion(bool) / allowInsecure(bool)   // chainable
+scenario.getUrls()         // string[] — weight-accumulated, quality-scored, limited, topped up per policy
+scenario.getUrl()          // first of getUrls()
+```
+
+Filters onion/local/insecure (`ws://`) relays unless explicitly allowed, accumulates
+weight per relay, scores each by `quality * (1 + log(weight))` with random noise, takes
+the best `limit` (default 3), then adds shuffled `getDefaultRelays()` per the fallback
+policy (default `addNoFallbacks`).
+
+**`Resolver`** — replaces the old standalone `resolve()`. Bundles a single route
+resolver function plus bound scenario options:
+
+```typescript
+type ResolveRoute = (route: RelayRoute) => MaybeAsync<string[]>
+
+new Resolver(routeResolver: ResolveRoute, options?: RelayScenarioOptions)
+
+await resolver.scenario(selections)  // Promise<RelayScenario> — resolves each route, builds a scenario
+await resolver.relays(selections)    // Promise<string[]>  — scenario(...).getUrls()
+await resolver.relay(selections)     // Promise<string | undefined> — scenario(...).getUrl()
+```
+
+In an app, `@welshman/app`'s `Router` owns the `Resolver` (`app.use(Router).resolver`),
+built with `getRelayQuality`/`getDefaultRelays` from app config, and injects it into
+every domain kind's context. Domain readers/writers then call
+`def.context.resolver.scenario(...)` / `.relay(...)`.
+
+```typescript
+import {outbox, inboxes, relay, relays, Resolver} from '@welshman/util'
+
+// Declarative selections: author's write relays (weight 1) + each mentioned
+// pubkey's read relays (weight 0.5) + an explicit relay hint.
+const selections = [
+  outbox(authorPubkey),
+  ...inboxes(mentionedPubkeys, 0.5),
+  relay('wss://relay.example.com'),
+]
+
+// A Resolver dereferences routes -> urls given some route resolver.
+const resolver = new Resolver(resolveRoute, {limit: 5, getRelayQuality})
+const urls = await resolver.relays(selections)   // string[]
+```
+
 ### Zaps (NIP-57)
 
 | Export | Description |
@@ -590,7 +689,7 @@ await fetch('https://api.example.com/upload', {
 - **`@welshman/store`** — provides Svelte stores over repositories built on `TrustedEvent`; relies on `isReplaceable`, `getAddress`, etc. for deduplication.
 - **`@welshman/app`** — high-level application layer; wraps net/store/router and uses zap helpers from this package (profile/list/handler/room helpers now live in `@welshman/domain`).
 - **`@welshman/router`** — uses `RelayMode` and relay URL helpers when computing relay selections.
-- **`@welshman/signer`** — produces `SignedEvent` objects that satisfy types defined here; signers also provide the `Encrypt` function used by `@welshman/domain` list/Encryptable builders.
+- **`@welshman/signer`** — produces `SignedEvent` objects that satisfy types defined here; signers also provide the `nip44` encrypt/decrypt functions used by `@welshman/domain` list writers to encrypt private (NIP-44) tags.
 
 ---
 
@@ -618,4 +717,4 @@ await fetch('https://api.example.com/upload', {
 
 ## Related
 
-- **`@welshman/domain`** (welshman-domain skill) — Profiles, lists, handlers, rooms, and Encryptable (`makeProfile`/`readProfile`/`displayProfile`/`PublishedProfile`, `makeList`/`readList`/`addToList*`/`removeFromList*`/`getListTags`/`getRelaysFromList`, `readHandlers`/`displayHandler`/`getHandlerKey`/`getHandlerAddress`, room helpers, `Encryptable`/`asDecryptedEvent`/`DecryptedEvent`) moved out of `@welshman/util` and now live here as Reader/Builder classes.
+- **`@welshman/domain`** (welshman-domain skill) — Profiles, lists, handlers, rooms, and event routing moved out of `@welshman/util` and now live here. The old free functions (`readProfile`/`makeProfile`, `readList`/`makeList`, `PublishedProfile`/`PublishedList`, `Encryptable`, the handler/room helpers, …) were replaced by configurable `KindFactory` bundles: `Kind.configure(context).reader(event)` returns an async Reader that decodes the event, and `.writer(reader?)` builds/edits one. Private (NIP-44) list tags are handled inside the list Reader/Writer, so `Encryptable`/`DecryptedEvent` no longer exist.

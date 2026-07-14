@@ -4,7 +4,9 @@ These plugins expose reactive collections of nostr data. They all follow the [pl
 
 Most event-backed plugins load via the **outbox model**: they first resolve the author's NIP-65 write relays (from [`RelayLists`](#relay-lists)), then query those relays. This is why nearly every data plugin depends on relay lists.
 
-Mutation methods (`create`, `update`, `follow`, `addRelay`, etc.) build the event and return a [`Command`](./publishing#commands) rather than publishing it — call `.publish()` on the result (or `.publishAsRelay(url)`) to actually send it. Since these methods are themselves `async`, the examples below use the `publish`/`publishAsRelay` free functions (`import {publish} from "@welshman/app"`) to chain onto the outer promise instead of double-awaiting.
+Under the hood, each event-backed plugin decodes raw events into [`@welshman/domain`](../domain/) **reader** objects via `app.use(Domain).reader(Kind)` — the `eventToItem` its collection is configured with. So the items you read back (`profiles.get(pubkey)`, `follows.one(pubkey).$`, …) are `Reader` instances such as `ProfileReader` or `FollowListReader`, with synchronous getter methods like `author()`, `pubkeys()`, or `urls()`.
+
+Mutation methods (`create`, `update`, `follow`, `mutePublicly`, etc.) build a domain **writer** with `app.use(Domain).writer(Kind, existingReader?)`, apply the change, and wrap it with `app.use(Domain).command(writer)`, returning a [`Command`](./publishing#commands) rather than publishing it — call `.publish()` on the result (or `.publishAsRelay(url)`) to actually send it. Since these methods are themselves `async`, the examples below use the `publish`/`publishAsRelay` free functions (`import {publish} from "@welshman/app"`) to chain onto the outer promise instead of double-awaiting.
 
 ## Profiles
 
@@ -13,13 +15,13 @@ Kind-0 profiles keyed by pubkey.
 ```typescript
 const profiles = app.use(Profiles)
 
-profiles.one(pubkey)              // Readable<Maybe<Profile>> — lazily loads
-profiles.get(pubkey)             // Maybe<Profile> — sync snapshot, no load
+profiles.one(pubkey)              // Readable<Maybe<ProfileReader>> — lazily loads
+profiles.get(pubkey)             // Maybe<ProfileReader> — sync snapshot, no load
 await profiles.load(pubkey)      // explicit load (cached)
 profiles.display(pubkey)         // Projection<string> — display name (falls back to npub)
 
 // merge a partial values record over the current profile (kind 0) and publish
-const command = await profiles.publish(values)
+const command = await profiles.update(writer => writer.update(values))
 await command.publish()
 ```
 
@@ -32,7 +34,7 @@ Kind-3 follow lists keyed by pubkey.
 ```typescript
 const follows = app.use(FollowLists)
 
-follows.one(pubkey)                                    // Readable<Maybe<FollowList>>
+follows.one(pubkey)                                    // Readable<Maybe<FollowListReader>>
 await follows.follow(["p", otherPubkey]).then(publish)   // add a tag, then publish to outbox
 await follows.unfollow(otherPubkey).then(publish)        // remove, then publish
 ```
@@ -44,7 +46,7 @@ Kind-10000 mute lists keyed by pubkey. Private entries are NIP-44 encrypted, so 
 ```typescript
 const mutes = app.use(MuteLists)
 
-mutes.one(pubkey)                                       // Readable<Maybe<MuteList>>
+mutes.one(pubkey)                                       // Readable<Maybe<MuteListReader>>
 const command = await mutes.mutePublicly(["p", pubkey])  // public mute — builds a Command
 await command.publish()
 await mutes.mutePrivately(["p", pubkey]).then(publish)   // encrypted mute
@@ -69,28 +71,30 @@ await pinLists.unpin(eventId).then(publish)
 `Pinboard` (kind 30067) is board metadata — many per author, keyed by address. `Pin` (kind 39067) is a single pinned item — a nostr event, addressable event, or external id, plus zero or more boards it belongs to via `A` tags (none means it's a profile pin). Each pin has its own unique `d` tag, so multiple pins from the same author don't collide (see [`welshman-domain`](../domain/content#pinboard-kind-30067-and-pin-kind-39067)).
 
 ```typescript
-import {Pinboards, Pins, PinBuilder} from "@welshman/app"
+import {Pinboards, Pins, Pin, Domain} from "@welshman/app"
 
 const pinboards = app.use(Pinboards)
 
-pinboards.one(address)                          // Readable<Maybe<Pinboard>>
-pinboards.forAuthor(pubkey)                      // Projection<Pinboard[]>
+pinboards.one(address)                          // Readable<Maybe<PinboardReader>>
+pinboards.forAuthor(pubkey)                      // Projection<PinboardReader[]>
 await pinboards.loadForAuthor(pubkey)            // fetch all of an author's boards
 
 const command = await pinboards.create({title: "Japan Trip 2024", topics: ["japan", "travel"]})
 await command.publish()
-await pinboards.update(address, builder => builder.setTitle("Renamed")).then(publish)
+await pinboards.update(address, writer => writer.setTitle("Renamed")).then(publish)
 
 const pins = app.use(Pins)
 
-pins.one(address)                                // Readable<Maybe<Pin>>
-pins.forBoard(address)                           // Projection<Pin[]> — pins on a board (any author)
-pins.forProfile(pubkey)                          // Projection<Pin[]> — an author's profile pins (no board)
+pins.one(address)                                // Readable<Maybe<PinReader>>
+pins.forBoard(address)                           // Projection<PinReader[]> — pins on a board (any author)
+pins.forProfile(pubkey)                          // Projection<PinReader[]> — an author's profile pins (no board)
 await pins.loadForBoard(address)                  // fetch from the board owner's read relays
 await pins.loadForProfile(pubkey)                 // fetch from the author's outbox
 
-// Pins.create takes an already-built PinBuilder (unlike Pinboards.create's fields object)
-const pinCommand = await pins.create(new PinBuilder().setEvent(eventId).addBoard(address))
+// Pins.create takes an already-built PinWriter (unlike Pinboards.create's fields object)
+const pinCommand = await pins.create(
+  app.use(Domain).writer(Pin).setEvent(eventId).addBoard(address),
+)
 await pinCommand.publish()
 
 await pins.addToBoard(address, otherBoardAddress).then(publish)
@@ -108,17 +112,18 @@ relayLists.urls(pubkey)          // Projection<string[]> — all relays
 relayLists.readUrls(pubkey)      // Projection<string[]> — read relays
 relayLists.writeUrls(pubkey)     // Projection<string[]> — write relays
 
-// Mutations for the current user — each returns a Command; call .publish() to send it
-await relayLists.addRelay(url, RelayMode.Write).then(publish)
-await relayLists.removeRelay(url, RelayMode.Read).then(publish)   // also notifies the removed relay
-await relayLists.setReadRelays(urls).then(publish)
-await relayLists.setWriteRelays(urls).then(publish)
-await relayLists.setRelays(tags).then(publish)
+// Mutations for the current user go through update(fn), which builds a
+// RelayListWriter, applies fn, and returns a Command — call .publish() to send it.
+await relayLists.update(writer => writer.addWriteUrl(url)).then(publish)
+await relayLists.update(writer => writer.removeReadUrl(url)).then(publish)   // also notifies the removed relay
+await relayLists.update(writer => writer.setReadUrls(urls)).then(publish)
+await relayLists.update(writer => writer.setWriteUrls(urls)).then(publish)
+await relayLists.update(writer => writer.setTags(tags)).then(publish)
 ```
 
 ### Specialized relay lists
 
-Each of these is a separate kind with the same shape (`urls(pubkey)`, `addUrl`, `removeUrl`, `setUrls` — the mutators return a [`Command`](./publishing#commands)):
+Each of these is a separate kind keyed by pubkey. All expose `urls(pubkey)` (a `Projection<string[]>`) and `update(fn)` (which builds the kind's writer and returns a [`Command`](./publishing#commands)). `MessagingRelayLists` and `SearchRelayLists` additionally expose `addUrl`/`removeUrl`/`setUrls` convenience mutators.
 
 | Plugin | Kind | Purpose |
 |---|---|---|
@@ -130,6 +135,8 @@ Each of these is a separate kind with the same shape (`urls(pubkey)`, `addUrl`, 
 app.use(BlockedRelayLists).urls(pubkey)      // Projection<string[]>
 app.use(MessagingRelayLists).urls(pubkey)
 app.use(SearchRelayLists).urls(pubkey)
+
+await app.use(SearchRelayLists).addUrl(url).then(publish)
 ```
 
 ## Relays (NIP-11)
@@ -148,16 +155,12 @@ await relays.hasNegentropy(url)              // boolean — NIP-77 / negentropy 
 ## Relay management (NIP-86)
 
 ```typescript
-await app.use(RelayManagement).post(url, managementRequest)
+await app.use(RelayManagement).forUrl(url).allowPubkey(pubkey, reason)
 ```
 
-Builds a NIP-98 HTTP-auth event signed by the current user and sends a NIP-86 management request to the relay.
+`forUrl(url)` returns a NIP-86 [`ManagementApi`](../util/) client whose auth events are signed by the current user. Call its methods (`allowPubkey`, `banPubkey`, `signEvent`, `deleteRole`, …) to issue management requests.
 
-`publishToRelay(url, event)` signs `event` as the current user and publishes it directly to `url` via `Thunks`, bypassing outbox routing entirely. It's what backs [`Command.publishAsRelay(url)`](./publishing#commands):
-
-```typescript
-await app.use(RelayManagement).publishToRelay(url, event)
-```
+This is also what backs [`Command.publishAsRelay(url)`](./publishing#commands): `signAsRelay(url)` uses `forUrl(url).signEvent(event)` to have the relay sign the event with its own key (NIP-86 `signevent`) before publishing it back to that relay.
 
 ## Handles (NIP-05)
 
@@ -205,7 +208,7 @@ topics.byName                                // Readable<Map<string, Topic>>
 
 ## Rooms (NIP-29)
 
-Relay-based group management. Each method builds the relevant room event and returns a [`Command`](./publishing#commands) targeting the given relay.
+Relay-based group management. Each method builds the relevant room event and returns a [`Command`](./publishing#commands) targeting the given relay. Routing is the domain's job: `setGroup(url, id)` records the group's relay and the writer sends the event there (only).
 
 ```typescript
 const rooms = app.use(Rooms)
@@ -221,9 +224,9 @@ await rooms.removeMember(relayUrl, roomMeta, pubkey).then(publish)
 
 ## Plaintext
 
-A cache of decrypted content, keyed by event id. Only decrypts events authored by the current user (e.g. your own private list entries or DMs).
+A cache of decrypted content, keyed by the ciphertext. Decryption itself is supplied by the caller (typically the current user's signer), so the cache stays independent of which signer produced the plaintext.
 
 ```typescript
-const text = await app.use(Plaintext).ensure(event)   // decrypts & caches
-const cached = app.use(Plaintext).get(event.id)        // sync read of the cache
+const text = await app.use(Plaintext).ensure(ciphertext, () => signer.nip44.decrypt(pubkey, ciphertext))
+const cached = app.use(Plaintext).get(ciphertext)      // sync read of the cache
 ```

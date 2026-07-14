@@ -12,7 +12,6 @@ export class RoomLeaveWriter extends EventWriter<RoomLeaveReader> {
   readonly kind = ROOM_LEAVE
   readonly requiresRelays = true
 
-
   protected validate() {
     super.validate()
 
