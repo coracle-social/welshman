@@ -1,9 +1,5 @@
-import {
-  spec} from "@welshman/lib"
-import {ROOM_EDIT_META,
-  getTag,
-  getTagValue,
-} from "@welshman/util"
+import {spec} from "@welshman/lib"
+import {ROOM_EDIT_META, getTag, getTagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -56,7 +52,6 @@ export class RoomEditReader extends EventReader {
 export class RoomEditWriter extends EventWriter<RoomEditReader> {
   readonly kind = ROOM_EDIT_META
   readonly requiresRelays = true
-
 
   setName(name: string) {
     return this.dropTags(spec(["name"])).addTags(["name", name])

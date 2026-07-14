@@ -39,9 +39,9 @@ describe("AppData", () => {
   })
 
   it("builds plaintext app data", async () => {
-    const tmpl = await buildTemplate(write(AppData)
-      .setIdentifier("my-app/settings")
-      .setValues({theme: "dark"}))
+    const tmpl = await buildTemplate(
+      write(AppData).setIdentifier("my-app/settings").setValues({theme: "dark"}),
+    )
 
     expect(tmpl.kind).toBe(APP_DATA)
     expect(tmpl.tags).toContainEqual(["d", "my-app/settings"])
@@ -49,10 +49,10 @@ describe("AppData", () => {
   })
 
   it("round-trips encrypted values", async () => {
-    const event = await buildEvent(write(AppData)
-      .setIdentifier("my-app/settings")
-      .setValues({theme: "dark"})
-      .setEncrypted(true), signer)
+    const event = await buildEvent(
+      write(AppData).setIdentifier("my-app/settings").setValues({theme: "dark"}).setEncrypted(true),
+      signer,
+    )
 
     const decrypted = await read(AppData, event, signer)
 
@@ -68,10 +68,10 @@ describe("AppData", () => {
   })
 
   it("re-encrypts by default when editing an encrypted event", async () => {
-    const event = await buildEvent(write(AppData)
-      .setIdentifier("my-app/settings")
-      .setValues({theme: "dark"})
-      .setEncrypted(true), signer)
+    const event = await buildEvent(
+      write(AppData).setIdentifier("my-app/settings").setValues({theme: "dark"}).setEncrypted(true),
+      signer,
+    )
 
     const reader = await read(AppData, event, signer)
     const edited = await buildEvent(write(AppData, reader).setValues({theme: "light"}), signer)
@@ -83,10 +83,10 @@ describe("AppData", () => {
   })
 
   it("preserves ciphertext when editing without decryption", async () => {
-    const event = await buildEvent(write(AppData)
-      .setIdentifier("my-app/settings")
-      .setValues({theme: "dark"})
-      .setEncrypted(true), signer)
+    const event = await buildEvent(
+      write(AppData).setIdentifier("my-app/settings").setValues({theme: "dark"}).setEncrypted(true),
+      signer,
+    )
 
     const reader = await read(AppData, event)
     const tmpl = await buildTemplate(write(AppData, reader).addTags(["alt", "x"]))
@@ -96,20 +96,21 @@ describe("AppData", () => {
   })
 
   it("throws when modifying values without decryption", async () => {
-    const event = await buildEvent(write(AppData)
-      .setIdentifier("my-app/settings")
-      .setValues({theme: "dark"})
-      .setEncrypted(true), signer)
+    const event = await buildEvent(
+      write(AppData).setIdentifier("my-app/settings").setValues({theme: "dark"}).setEncrypted(true),
+      signer,
+    )
 
     const reader = await read(AppData, event)
 
-    await expect(buildTemplate(write(AppData, reader).setValues({theme: "light"}), signer)).rejects.toThrow(
-      "Unable to modify app data when decryption was not performed",
-    )
+    await expect(
+      buildTemplate(write(AppData, reader).setValues({theme: "light"}), signer),
+    ).rejects.toThrow("Unable to modify app data when decryption was not performed")
   })
 
   it("round-trips unmodeled tags", async () => {
-    const reader = await read(AppData, 
+    const reader = await read(
+      AppData,
       makeEvent({
         tags: [
           ["d", "my-app/featured-content"],
@@ -125,11 +126,13 @@ describe("AppData", () => {
   })
 
   it("throws without a signer when encrypting", async () => {
-    await expect(buildTemplate(
-      write(AppData)
-        .setIdentifier("my-app/settings")
-        .setValues({theme: "dark"})
-        .setEncrypted(true)),
+    await expect(
+      buildTemplate(
+        write(AppData)
+          .setIdentifier("my-app/settings")
+          .setValues({theme: "dark"})
+          .setEncrypted(true),
+      ),
     ).rejects.toThrow("A signer is required to encrypt app data")
   })
 

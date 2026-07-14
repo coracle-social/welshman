@@ -20,7 +20,8 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("Pinboard", () => {
   it("reads metadata, topics and the collaborative flag", async () => {
-    const reader = await read(Pinboard, 
+    const reader = await read(
+      Pinboard,
       makeEvent({
         tags: [
           ["d", "japan-trip-2024"],
@@ -43,7 +44,8 @@ describe("Pinboard", () => {
   })
 
   it("treats a board without the flag as non-collaborative", async () => {
-    const reader = await read(Pinboard, 
+    const reader = await read(
+      Pinboard,
       makeEvent({
         tags: [
           ["d", "x"],
@@ -56,13 +58,15 @@ describe("Pinboard", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(Pinboard)
-      .setIdentifier("japan-trip-2024")
-      .setTitle("Japan Trip 2024")
-      .setDescription("Photos and memories")
-      .setImage("https://example.com/mt-fuji.jpg")
-      .setTopics(["japan", "travel"])
-      .setCollaborative(true))
+    const tmpl = await buildTemplate(
+      write(Pinboard)
+        .setIdentifier("japan-trip-2024")
+        .setTitle("Japan Trip 2024")
+        .setDescription("Photos and memories")
+        .setImage("https://example.com/mt-fuji.jpg")
+        .setTopics(["japan", "travel"])
+        .setCollaborative(true),
+    )
 
     expect(tmpl.kind).toBe(PINBOARD)
     expect(tmpl.tags).toContainEqual(["d", "japan-trip-2024"])
@@ -75,7 +79,8 @@ describe("Pinboard", () => {
   })
 
   it("replaces single-value metadata instead of duplicating it", async () => {
-    const reader = await read(Pinboard, 
+    const reader = await read(
+      Pinboard,
       makeEvent({
         tags: [
           ["d", "x"],
@@ -90,7 +95,8 @@ describe("Pinboard", () => {
   })
 
   it("setCollaborative(false) clears the flag", async () => {
-    const reader = await read(Pinboard, 
+    const reader = await read(
+      Pinboard,
       makeEvent({tags: [["d", "x"], ["title", "x"], ["collaborative"]]}),
     )
 

@@ -1,10 +1,5 @@
-import {
-  first} from "@welshman/lib"
-import {COMMENT,
-  Address,
-  getTagValue,
-  outbox,
-} from "@welshman/util"
+import {first} from "@welshman/lib"
+import {COMMENT, Address, getTagValue, outbox} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
@@ -45,7 +40,6 @@ export class CommentReader extends EventReader {
 
 export class CommentWriter extends EventWriter<CommentReader> {
   readonly kind = COMMENT
-
 
   rootTags: Tag[] = []
   parentTags: Tag[] = []

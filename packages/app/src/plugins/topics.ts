@@ -1,9 +1,11 @@
-import {readable} from "svelte/store"
+import {readable, derived} from "svelte/store"
 import type {Readable} from "svelte/store"
 import {on} from "@welshman/lib"
 import {getTopicTagValues} from "@welshman/util"
 import type {RepositoryUpdate} from "@welshman/net"
 import {deriveItems} from "@welshman/store"
+import {projection, createSearch} from "./base.js"
+import type {Projection, Search} from "./base.js"
 import type {IApp} from "../app.js"
 
 export type Topic = {
@@ -16,8 +18,9 @@ export type Topic = {
  * repository tag index.
  */
 export class Topics {
-  byName: Readable<Map<string, Topic>>
-  all: Readable<Topic[]>
+  byName: Projection<Map<string, Topic>>
+  all: Projection<Topic[]>
+  topicSearch: Readable<Search<string, Topic>>
 
   constructor(readonly app: IApp) {
     const topicsByName = new Map<string, Topic>()
@@ -38,23 +41,33 @@ export class Topics {
       }
     }
 
-    this.byName = readable(topicsByName, set =>
-      on(app.repository, "update", ({added}: RepositoryUpdate) => {
-        let dirty = false
+    this.byName = projection(
+      readable(topicsByName, set =>
+        on(app.repository, "update", ({added}: RepositoryUpdate) => {
+          let dirty = false
 
-        for (const event of added) {
-          for (const name of getTopicTagValues(event.tags)) {
-            addTopic(name)
-            dirty = true
+          for (const event of added) {
+            for (const name of getTopicTagValues(event.tags)) {
+              addTopic(name)
+              dirty = true
+            }
           }
-        }
 
-        if (dirty) {
-          set(topicsByName)
-        }
-      }),
+          if (dirty) {
+            set(topicsByName)
+          }
+        }),
+      ),
+      () => topicsByName,
     )
 
-    this.all = deriveItems(this.byName)
+    this.all = projection(deriveItems(this.byName.$))
+
+    this.topicSearch = derived(this.all.$, $topics =>
+      createSearch($topics, {
+        getValue: (topic: Topic) => topic.name,
+        fuseOptions: {keys: ["name"]},
+      }),
+    )
   }
 }

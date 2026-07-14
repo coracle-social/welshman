@@ -1,13 +1,6 @@
 import {uniq} from "@welshman/lib"
-import type {MaybeAsync} from "@welshman/lib"
-import {Resolver, addMinimalFallbacks, Address, isReplaceableKind} from "@welshman/util"
-import type {
-  RelayRoute,
-  RelaySelection,
-  RelayScenario,
-  RelayScenarioOptions,
-  EventRef,
-} from "@welshman/util"
+import {Resolver, Address, isReplaceableKind} from "@welshman/util"
+import type {RelayRoute, RelaySelection, EventRef} from "@welshman/util"
 import type {FeedRouter} from "@welshman/feeds"
 import {RelayLists} from "./relayLists.js"
 import {MessagingRelayLists} from "./messagingRelayLists.js"
@@ -81,7 +74,10 @@ export class Router implements FeedRouter {
   // Resolve an event reference to a pubkey's relays: route directly to a known
   // pubkey, else look the event up in the repository to find its author, else fall
   // back to any relay hints on the reference.
-  private resolveEvent = async (ref: EventRef, getRelays: (pubkey?: string) => Promise<string[]>) => {
+  private resolveEvent = async (
+    ref: EventRef,
+    getRelays: (pubkey?: string) => Promise<string[]>,
+  ) => {
     const relays = ref.relays ? [...ref.relays] : []
 
     if (ref.pubkey) {

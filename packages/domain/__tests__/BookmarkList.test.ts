@@ -68,9 +68,10 @@ describe("BookmarkList", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(BookmarkList)
-      .bookmarkPublicly(["e", noteId])
-      .bookmarkPublicly(["t", "nostr"]), signer)
+    const tmpl = await buildTemplate(
+      write(BookmarkList).bookmarkPublicly(["e", noteId]).bookmarkPublicly(["t", "nostr"]),
+      signer,
+    )
 
     expect(getEventTagValues(tmpl.tags)).toEqual([noteId])
     expect(getTopicTagValues(tmpl.tags)).toEqual(["nostr"])
@@ -91,9 +92,10 @@ describe("BookmarkList", () => {
   })
 
   it("round-trips public and private bookmarks through encryption", async () => {
-    const event = await buildEvent(write(BookmarkList)
-      .bookmarkPublicly(["e", noteId])
-      .bookmarkPrivately(["e", noteId2]), signer)
+    const event = await buildEvent(
+      write(BookmarkList).bookmarkPublicly(["e", noteId]).bookmarkPrivately(["e", noteId2]),
+      signer,
+    )
 
     expect(getEventTagValues(event.tags)).toEqual([noteId])
     expect(event.content).not.toBe("")
@@ -122,8 +124,8 @@ describe("BookmarkList", () => {
     const event = await buildEvent(write(BookmarkList).bookmarkPrivately(["e", noteId2]), signer)
     const undecrypted = await read(BookmarkList, event)
 
-    await expect(buildEvent(
-      write(BookmarkList, undecrypted).bookmarkPrivately(["e", noteId]), signer),
+    await expect(
+      buildEvent(write(BookmarkList, undecrypted).bookmarkPrivately(["e", noteId]), signer),
     ).rejects.toThrow()
   })
 

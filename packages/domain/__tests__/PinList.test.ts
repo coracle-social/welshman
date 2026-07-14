@@ -25,7 +25,8 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("PinList", () => {
   it("reads pinned event ids and addresses", async () => {
-    const reader = await read(PinList, 
+    const reader = await read(
+      PinList,
       makeEvent({
         tags: [
           ["e", eventId],
@@ -40,7 +41,8 @@ describe("PinList", () => {
   })
 
   it("round-trips without duplicating represented tags", async () => {
-    const reader = await read(PinList, 
+    const reader = await read(
+      PinList,
       makeEvent({
         tags: [
           ["e", eventId],
@@ -65,9 +67,10 @@ describe("PinList", () => {
   })
 
   it("round-trips public and private pins through encryption", async () => {
-    const event = await buildEvent(write(PinList)
-      .pinPublicly(["e", eventId])
-      .pinPrivately(["a", address]), signer)
+    const event = await buildEvent(
+      write(PinList).pinPublicly(["e", eventId]).pinPrivately(["a", address]),
+      signer,
+    )
 
     const decrypted = await read(PinList, event, signer)
 

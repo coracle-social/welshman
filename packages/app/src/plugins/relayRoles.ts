@@ -3,7 +3,7 @@ import {RelayRole, RelayRoleReader} from "@welshman/domain"
 import {Domain} from "./domain.js"
 import {projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
-import {RelaySignedDerivedPlugin} from "./relaySigned.js"
+import {RelaySignedDerivedPlugin} from "./relays.js"
 import {Network} from "./network.js"
 import type {IApp} from "../app.js"
 
@@ -18,7 +18,7 @@ export const splitRelayRoleKey = (key: string): [string, string] => {
   return [key.slice(0, i), key.slice(i + 1)]
 }
 
-/** Flotilla kind-33534 relay roles (relay-signed), keyed by `${url}|${roleId}`. */
+/** Flotilla kind-33534 relay roles  keyed by `${url}|${roleId}`. */
 export class RelayRoles extends RelaySignedDerivedPlugin<RelayRoleReader> {
   constructor(app: IApp) {
     super(app, {

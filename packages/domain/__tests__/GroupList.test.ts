@@ -56,9 +56,10 @@ describe("GroupList", () => {
   })
 
   it("builds from a fresh builder with relay hint", async () => {
-    const tmpl = await buildTemplate(write(GroupList)
-      .addGroup(g1, "wss://relay.example/")
-      .addGroup(g2), signer)
+    const tmpl = await buildTemplate(
+      write(GroupList).addGroup(g1, "wss://relay.example/").addGroup(g2),
+      signer,
+    )
 
     expect(getAddressTagValues(tmpl.tags).sort()).toEqual([g1, g2].sort())
     expect(tmpl.tags).toContainEqual(["a", g1, "wss://relay.example/"])

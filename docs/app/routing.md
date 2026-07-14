@@ -2,38 +2,109 @@
 
 ## The Router
 
-`app.use(Router)` is a per-app `Router` (from `@welshman/router`) wired to this app's data. It is the single source for relay selection — there is no global `Router.get()` anymore; one router belongs to each app.
+`app.use(Router)` is a per-app `Router` wired to this app's data. It is the single source for relay selection — there is no global `Router.get()`; one router belongs to each app.
 
 The app wires it up with:
 
 - **user pubkey** from `app.user`
-- **read/write relays** per pubkey from [`RelayLists`](./data#relay-lists)
+- **read/write relays** per pubkey from [`RelayLists`](./data#relay-lists) (and NIP-17 messaging relays from `MessagingRelayLists`)
 - **relay quality** from [`RelayStats`](#relay-quality)
 - **default / indexer / search relays** from [`AppConfig`](./appappconfig)
 
-### Relay-selection scenes
-
-The router exposes composable "scenes" (inherited from the base router) that resolve to a relay set:
+Routing is declarative. Rather than build a relay set imperatively, code produces a list of `RelaySelection`s — descriptions of *sources* ("the author's outbox", "this pubkey's inbox", "the relays this event was seen on") — and the router resolves them into concrete urls. The `Router` exposes two members:
 
 ```typescript
 const router = app.use(Router)
 
-router.FromUser()              // the current user's relays
-router.FromPubkey(pubkey)      // another user's relays
-router.FromRelays(urls)        // explicit relays
-router.Event(event)            // relays where an event is likely found
-router.EventRoots(event)       // relays for an event's thread roots
-router.Search()                // search relays
+router.resolver   // a @welshman/util Resolver: dereferences routes -> urls
+router.resolve(selections)   // = router.resolver.scenario(selections) -> Promise<RelayScenario>
 ```
 
-Scenes are chainable and terminate in `getUrls()` / `getUrl()`:
+`resolver` is a `Resolver` (from `@welshman/util`) built with the app's `getRelayQuality` (from `RelayStats`) and `getDefaultRelays` (from `AppConfig`). It is the same resolver injected into every domain kind via `app.use(Domain)`, so a writer's routing and the router's own routing agree.
+
+`resolveRoute(route)` is the underlying function that dereferences a single `RelayRoute`:
+
+- `userInbox` / `userOutbox` / `userMessaging` → the signed-in user's read / write / NIP-17 relays.
+- `pubkeyInbox` / `pubkeyOutbox` / `pubkeyMessaging` → that pubkey's relays (via `RelayLists` / `MessagingRelayLists`).
+- `eventInbox` / `eventOutbox` → resolve the referenced event's author, then its relays, merged with any `ref.relays` hints.
+- `seen` → the tracker's relays for the event id (or, for a replaceable ref, the resolved address's id), plus `ref.relays` hints.
+- `index` → `AppConfig.getIndexerRelays()`; `search` → `AppConfig.getSearchRelays()`.
+- `relay` → the literal `route.url`.
+
+### The RelaySelection DSL
+
+`@welshman/util` exports a small set of constructors that build `RelaySelection`s (each pairs a `RelayRoute` with a `weight`, default `1`). Most return a single selection; `relays`, `inboxes` return an array (spread them with `...`):
 
 ```typescript
-import {addMinimalFallbacks} from "@welshman/router"
+import {
+  inbox, outbox, messaging,
+  userInbox, userOutbox, userMessaging,
+  eventInbox, eventOutbox, seen,
+  relay, relays, inboxes,
+  indexers, searchRelays,
+} from "@welshman/util"
 
-const relays = router.FromUser().policy(addMinimalFallbacks).limit(8).getUrls()
-const hint = router.Event(event).getUrl()
+inbox(pubkey)             // that pubkey's read relays (deliver here so they receive)
+outbox(pubkey)            // that pubkey's write relays (their events live here)
+messaging(pubkey)         // that pubkey's NIP-17 relays
+userOutbox()              // the current user's write relays
+eventOutbox(ref)          // the author of a referenced event
+seen(ref)                 // relays a given event was found on
+relay(url)                // a literal relay url
+relays(urls)              // one selection per url  -> RelaySelection[]
+inboxes(pubkeys, 0.5)     // one weighted inbox per pubkey -> RelaySelection[]
+indexers()                // profile/relay-list index relays
+searchRelays()            // full-text search relays
 ```
+
+`relay` / `relays` replace the old `relayHint` / `relayHints`. Resolve a selection list to a scored scenario, then to urls:
+
+```typescript
+import {addMinimalFallbacks} from "@welshman/util"
+
+const scenario = await app.use(Router).resolve([
+  userOutbox(),
+  ...inboxes(mentionedPubkeys, 0.5),
+])
+
+const urls = scenario.policy(addMinimalFallbacks).limit(8).getUrls()
+const hint = scenario.getUrl()
+```
+
+A `RelayScenario` is chainable — `.limit(n)`, `.policy(fn)`, `.allowLocal(bool)`, `.allowOnion(bool)`, `.allowInsecure(bool)` — and terminates in `getUrls()` / `getUrl()`. It accumulates weight per relay, filters onion/local/insecure relays unless allowed, scores by relay quality (with noise), takes the best `limit`, then tops up from the default relays per the fallback policy (`addNoFallbacks` / `addMinimalFallbacks` / `addMaximalFallbacks`).
+
+### Routes from domain writers
+
+You rarely assemble selections by hand. Each [`@welshman/domain`](./data) kind knows how to route itself. A writer's `routes()` returns its `RelaySelection`s and `scenario()` resolves them through the injected resolver:
+
+```typescript
+const writer = app.use(Domain).writer(Note).setContent("gm")
+
+await writer.routes()      // RelaySelection[]  — where this event wants to go
+await writer.scenario()    // RelayScenario     — resolved & scored
+await writer.relays()      // string[]          — final urls
+```
+
+The default `EventWriter.routes()` is the author's outbox plus every p-tagged pubkey's inbox:
+
+```typescript
+return [userOutbox(), ...inboxes(getPubkeyTagValues(await this.getTags()), 0.5)]
+```
+
+Individual kinds override it. For example `FollowListWriter` / `MuteListWriter` route only to `[userOutbox()]` (their p-tags are data, not recipients); `RelayListWriter` adds `indexers()` and notifies every relay added to or removed from the list; `DeleteWriter` adds a `seen(...)` selection for each deleted event.
+
+On the read side, `EventReader.routes()` defaults to `[this.group() ? seen(this.event) : outbox(this.author())]` — a group event routes to where it was seen, otherwise to its author's outbox — and `reader.scenario()` resolves it.
+
+### forcedRelays
+
+Some events must publish to explicit relays, bypassing outbox/inbox routing. When a writer's `forcedRelays` is non-empty, `scenario()` publishes **only** there (`relays(forcedRelays)`):
+
+```typescript
+writer.forceRelays("wss://relay.example.com/")  // publish only here
+writer.setGroup("wss://groups.example.com/", groupId)  // forcedRelays + an "h" tag
+```
+
+NIP-29 room ops and relay-management ops set `requiresRelays = true`, so their `validate()` throws unless `forcedRelays` is set (via `setGroup` or `forceRelays`).
 
 ## Relay quality
 
@@ -48,33 +119,34 @@ stats.getQuality(url)          // number in [0, 1] — 0 for blocked/error-prone
 
 Stats are populated automatically by the [`appPolicyRelayStats`](./apppolicies) default policy. `getQuality` returns `0` for non-relay URLs, relays in the user's [blocked list](./data#specialized-relay-lists), or error-prone relays, and higher scores for relays that are connected or have been seen before.
 
-## Tag utilities
+## Tags & relay hints
 
-`app.use(Tags)` builds nostr tags using the router for relay hints, `Profiles` for display names, and the current user to avoid self-tagging.
-
-```typescript
-const tags = app.use(Tags)
-
-tags.tagPubkey(pubkey)                    // ["p", pubkey, hint, name]
-tags.tagEvent(event, url?, mark?)         // [["e", id, hint, mark, pubkey], ("a", ...)? ]
-tags.tagEventPubkeys(event)               // de-duped p-tags (author + mentions, minus self)
-tags.tagZapSplit(pubkey, split?)          // ["zap", pubkey, hint, split]
-
-tags.tagEventForReply(event, relay?)      // reply tag set (root/reply e/a + p tags)
-tags.tagEventForComment(event, relay?)    // NIP-22 comment tags (K/E/A/I/P + k/p/e)
-tags.tagEventForQuote(event, relay?)      // ["q", id, hint, pubkey]
-tags.tagEventForReaction(event, relay?)   // p, ["k", kind], ["e", id, hint], ("a", ...)?
-```
-
-A typical reply:
+Domain writers build their own tags, including relay hints. A hint is a deferred `Hint` object occupying the relay-hint slot of a tag; `render()` dereferences it to a single url through the resolver (unresolved views, like `getTags()`, render it as `""`). The shared helpers on `EventWriter` are:
 
 ```typescript
-import {makeEvent, NOTE} from "@welshman/util"
+const writer = app.use(Domain).writer(Note)
 
-const replyTags = app.use(Tags).tagEventForReply(parentEvent)
-
-app.use(Thunks).publish({
-  event: makeEvent(NOTE, {content: "well said", tags: replyTags}),
-  relays: app.use(Router).FromUser().getUrls(),
-})
+writer.tagPubkey(pubkey, petname?)     // ["p", pubkey, hint(outbox(pubkey)), petname]
+writer.addQuote(event, relay?)         // ["q", id, relay ?? hint(outbox(pubkey)), pubkey]
+writer.addZapSplit(pubkey, split?)     // ["zap", pubkey, hint(outbox(pubkey)), split]
 ```
+
+Kind-specific tagging lives on the concrete writer — e.g. `NoteWriter.setParent(event)` does NIP-10 reply threading (p-tags the parent's participants, then e/a-tags the parent and thread root with markers and relay hints).
+
+A typical reply, published through the domain:
+
+```typescript
+import {Note} from "@welshman/domain"
+
+const writer = app.use(Domain)
+  .writer(Note)
+  .setContent("well said")
+  .setParent(parentEvent)
+
+// finalize + wrap in a Command, which knows its own relays via routes()
+const command = await app.use(Domain).command(writer)
+
+await command.publish()
+```
+
+`app.use(Domain).command(writer)` requires a signed-in user, calls `writer.finalize()` (which renders the event and resolves its relays), and returns a `Command` you can `.publish()`. It replaces the old `Router.commandFromBuilder(builder)`.

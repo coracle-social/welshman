@@ -24,7 +24,7 @@ export class RelayLists extends DerivedPlugin<RelayListReader> {
 
   async fetch(pubkey: string, hints: string[] = []) {
     const filters = [{kinds: [RELAYS], authors: [pubkey], limit: 1}]
-    const scenario = await  this.app.use(Router).resolve([...relays(hints), indexers()])
+    const scenario = await this.app.use(Router).resolve([...relays(hints), indexers()])
 
     // Resolving `outbox(pubkey)` here would recurse back into this loader (it's
     // what loads the relay list), so fall back to the pubkey's already-known
@@ -50,4 +50,16 @@ export class RelayLists extends DerivedPlugin<RelayListReader> {
 
     return this.app.use(Domain).command(writer)
   }
+
+  addReadUrl = (url: string) => this.update(writer => writer.addReadUrl(url))
+
+  addWriteUrl = (url: string) => this.update(writer => writer.addWriteUrl(url))
+
+  removeReadUrl = (url: string) => this.update(writer => writer.removeReadUrl(url))
+
+  removeWriteUrl = (url: string) => this.update(writer => writer.removeWriteUrl(url))
+
+  setReadUrls = (urls: string[]) => this.update(writer => writer.setReadUrls(urls))
+
+  setWriteUrls = (urls: string[]) => this.update(writer => writer.setWriteUrls(urls))
 }

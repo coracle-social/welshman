@@ -1,11 +1,5 @@
-import {
-  spec,
-  first} from "@welshman/lib"
-import {REPORT,
-  getTag,
-  getTagValue,
-  userOutbox,
-} from "@welshman/util"
+import {spec, first} from "@welshman/lib"
+import {REPORT, getTag, getTagValue, userOutbox} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -34,7 +28,6 @@ export class ReportWriter extends EventWriter<ReportReader> {
   protected async routes() {
     return [userOutbox()]
   }
-
 
   constructor(def: AnyConfiguredKind, reader?: ReportReader) {
     super(def, reader)

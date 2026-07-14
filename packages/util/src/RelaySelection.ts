@@ -201,11 +201,16 @@ export class RelayScenario {
 export type ResolveRoute = (route: RelayRoute) => MaybeAsync<string[]>
 
 export class Resolver {
-  constructor(readonly routeResolver: ResolveRoute, readonly options: RelayScenarioOptions = {}) {}
+  constructor(
+    readonly routeResolver: ResolveRoute,
+    readonly options: RelayScenarioOptions = {},
+  ) {}
 
   async scenario(selections: RelaySelection[]) {
     const resolved = await Promise.all(
-      selections.map(async ({route, weight}) => makeSelection(await this.routeResolver(route), weight)),
+      selections.map(async ({route, weight}) =>
+        makeSelection(await this.routeResolver(route), weight),
+      ),
     )
 
     return new RelayScenario(resolved, this.options)

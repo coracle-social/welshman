@@ -23,7 +23,8 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelayLeave", () => {
   it("round-trips the group behavior tag without duplication", async () => {
-    const leave = await read(RelayLeave, 
+    const leave = await read(
+      RelayLeave,
       makeEvent({
         tags: [
           ["h", group],
@@ -34,8 +35,10 @@ describe("RelayLeave", () => {
 
     expect(leave.group()).toBe(group)
 
-    const tmpl = await buildTemplate(write(RelayLeave, leave)
-      .setGroup("wss://relay.example.com/", group), signer)
+    const tmpl = await buildTemplate(
+      write(RelayLeave, leave).setGroup("wss://relay.example.com/", group),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(RELAY_LEAVE)
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
@@ -44,7 +47,10 @@ describe("RelayLeave", () => {
   })
 
   it("sets the group via a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(RelayLeave).setGroup("wss://relay.example.com/", group), signer)
+    const tmpl = await buildTemplate(
+      write(RelayLeave).setGroup("wss://relay.example.com/", group),
+      signer,
+    )
 
     expect(tmpl.tags).toContainEqual(["h", group])
   })

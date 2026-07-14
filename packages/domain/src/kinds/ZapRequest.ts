@@ -1,9 +1,5 @@
-import {
-  spec} from "@welshman/lib"
-import {ZAP_REQUEST,
-  getTag,
-  getTagValue,
-} from "@welshman/util"
+import {spec} from "@welshman/lib"
+import {ZAP_REQUEST, getTag, getTagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -39,7 +35,6 @@ export class ZapRequestReader extends EventReader {
 
 export class ZapRequestWriter extends EventWriter<ZapRequestReader> {
   readonly kind = ZAP_REQUEST
-
 
   setAmount(amount: number) {
     return this.dropTags(spec(["amount"])).addTags(["amount", String(amount)])

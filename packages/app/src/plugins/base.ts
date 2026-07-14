@@ -1,5 +1,8 @@
+import Fuse from "fuse.js"
+import type {IFuseOptions, FuseResult} from "fuse.js"
 import {writable, derived} from "svelte/store"
 import type {Readable, Unsubscriber} from "svelte/store"
+import {sortBy} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import type {Filter} from "@welshman/util"
 import {deriveItems, getter, makeDeriveItem, makeLoadItem, makeForceLoadItem} from "@welshman/store"
@@ -13,6 +16,51 @@ import {Stores} from "./stores.js"
 export type Projection<T> = {
   get: () => T
   $: Readable<T>
+}
+
+export type SearchOptions<V, T> = {
+  getValue: (item: T) => V
+  fuseOptions?: IFuseOptions<T>
+  onSearch?: (term: string) => void
+  sortFn?: (items: FuseResult<T>) => any
+}
+
+export type Search<V, T> = {
+  options: T[]
+  getValue: (item: T) => V
+  getOption: (value: V) => T | undefined
+  searchOptions: (term: string) => T[]
+  searchValues: (term: string) => V[]
+}
+
+/**
+ * A reusable fuzzy-search primitive over a fixed list of `options`. Plugins that
+ * expose a search (profiles, topics, relays) build one of these reactively from
+ * their collection. Blends fuse scoring with an optional `sortFn`.
+ */
+export const createSearch = <V, T>(options: T[], opts: SearchOptions<V, T>): Search<V, T> => {
+  const fuse = new Fuse(options, {...opts.fuseOptions, includeScore: true})
+  const map = new Map<V, T>(options.map(item => [opts.getValue(item), item]))
+
+  const search = (term: string) => {
+    opts.onSearch?.(term)
+
+    let results = term ? fuse.search(term) : options.map(item => ({item}) as FuseResult<T>)
+
+    if (opts.sortFn) {
+      results = sortBy(opts.sortFn, results)
+    }
+
+    return results.map(result => result.item)
+  }
+
+  return {
+    options,
+    getValue: opts.getValue,
+    getOption: (value: V) => map.get(value),
+    searchOptions: (term: string) => search(term),
+    searchValues: (term: string) => search(term).map(opts.getValue),
+  }
 }
 
 export const projection = <T>($: Readable<T>, get = getter($)) => ({$, get})

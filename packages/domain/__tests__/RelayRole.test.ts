@@ -20,7 +20,8 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelayRole", () => {
   it("reads the role id, label, description, color, and order", async () => {
-    const reader = await read(RelayRole, 
+    const reader = await read(
+      RelayRole,
       makeEvent({
         tags: [
           ["d", "moderator"],
@@ -40,7 +41,8 @@ describe("RelayRole", () => {
   })
 
   it("preserves empty color components so clients can supply defaults", async () => {
-    const reader = await read(RelayRole, 
+    const reader = await read(
+      RelayRole,
       makeEvent({
         tags: [
           ["d", "moderator"],
@@ -60,7 +62,8 @@ describe("RelayRole", () => {
 
   it("defaults order to zero when missing or invalid", async () => {
     const missing = await read(RelayRole, makeEvent({tags: [["d", "moderator"]]}))
-    const invalid = await read(RelayRole, 
+    const invalid = await read(
+      RelayRole,
       makeEvent({
         tags: [
           ["d", "moderator"],
@@ -74,13 +77,15 @@ describe("RelayRole", () => {
   })
 
   it("builds a role from scratch", async () => {
-    const tmpl = await buildTemplate(write(RelayRole)
-      .setIdentifier("moderator")
-      .setLabel("Moderator")
-      .setDescription("Keeps the peace")
-      .setColor({hue: "120", saturation: "0.5", lightness: "0.4"})
-      .setOrder(2)
-      .forceRelays("wss://relay.example.com/"))
+    const tmpl = await buildTemplate(
+      write(RelayRole)
+        .setIdentifier("moderator")
+        .setLabel("Moderator")
+        .setDescription("Keeps the peace")
+        .setColor({hue: "120", saturation: "0.5", lightness: "0.4"})
+        .setOrder(2)
+        .forceRelays("wss://relay.example.com/"),
+    )
 
     expect(tmpl.kind).toBe(RELAY_ROLE)
     expect(tmpl.tags).toContainEqual(["d", "moderator"])
@@ -91,7 +96,8 @@ describe("RelayRole", () => {
   })
 
   it("round-trips an existing role without duplicating tags", async () => {
-    const reader = await read(RelayRole, 
+    const reader = await read(
+      RelayRole,
       makeEvent({
         tags: [
           ["d", "moderator"],
@@ -119,10 +125,12 @@ describe("RelayRole", () => {
   })
 
   it("setColor writes empty components verbatim", async () => {
-    const tmpl = await buildTemplate(write(RelayRole)
-      .setIdentifier("moderator")
-      .setColor({hue: "120", saturation: "", lightness: ""})
-      .forceRelays("wss://relay.example.com/"))
+    const tmpl = await buildTemplate(
+      write(RelayRole)
+        .setIdentifier("moderator")
+        .setColor({hue: "120", saturation: "", lightness: ""})
+        .forceRelays("wss://relay.example.com/"),
+    )
 
     expect(tmpl.tags).toContainEqual(["color", "120", "", ""])
   })

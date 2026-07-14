@@ -59,8 +59,10 @@ describe("BlockedRelayList", () => {
   })
 
   it("builds from a fresh builder and normalizes urls", async () => {
-    const tmpl = await buildTemplate(write(BlockedRelayList)
-      .addUrl("wss://relay.one.example"), signer)
+    const tmpl = await buildTemplate(
+      write(BlockedRelayList).addUrl("wss://relay.one.example"),
+      signer,
+    )
 
     expect(getTagValues("relay", tmpl.tags)).toEqual([normalizeRelayUrl("wss://relay.one.example")])
   })

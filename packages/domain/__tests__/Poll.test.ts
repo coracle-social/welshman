@@ -48,7 +48,8 @@ describe("Poll", () => {
   })
 
   it("tallies results from response events", async () => {
-    const poll = await read(Poll, 
+    const poll = await read(
+      Poll,
       makeEvent({
         content: "Pick one",
         tags: [
@@ -97,13 +98,16 @@ describe("Poll", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(Poll)
-      .setTitle("Q?")
-      .addOption("Red", "1")
-      .addOption("Blue", "2")
-      .setPollType("multiplechoice")
-      .setEndsAt(9999)
-      .setUrls(["wss://relay.one"]), signer)
+    const tmpl = await buildTemplate(
+      write(Poll)
+        .setTitle("Q?")
+        .addOption("Red", "1")
+        .addOption("Blue", "2")
+        .setPollType("multiplechoice")
+        .setEndsAt(9999)
+        .setUrls(["wss://relay.one"]),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(POLL)
     expect(tmpl.content).toBe("Q?")

@@ -30,7 +30,7 @@ makeLoader(options)     // build a custom batched Loader
 
 ## The outbox model: `loadUsingOutbox`
 
-`loadUsingOutbox` is the workhorse most data plugins use. Given an author's pubkey, it resolves that author's NIP-65 **write** relays, routes them (with minimal fallbacks, capped at 8), queries them a couple at a time, and resolves with the most recent matching event as soon as any relay responds.
+`loadUsingOutbox` is the workhorse most data plugins use. Given an author's pubkey, it builds a route list (`[...relays(hints), outbox(pubkey)]` — any passed relay hints plus the author's NIP-65 **write** relays), resolves it through `app.use(Router).resolve(...)` into a `RelayScenario`, takes that scenario's `getUrls()`, loads from them via the shared batched loader, and resolves with the most recent matching event.
 
 ```typescript
 const latestProfile = await net.loadUsingOutbox(pubkey, {kinds: [0]})
@@ -40,6 +40,8 @@ const note = await net.loadUsingOutbox(pubkey, {kinds: [1], limit: 1}, ["wss://h
 ```
 
 The filter is always constrained to `authors: [pubkey]`. This is the mechanism behind the lazy loading you get from `app.use(Profiles).one(pubkey)`, `FollowLists`, `MuteLists`, and friends.
+
+`loadAllUsingOutbox(pubkey, filter?, hints?)` is the collection variant: same routing, but it returns every matching event instead of just the newest one.
 
 ## Negentropy sync
 

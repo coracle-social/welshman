@@ -1,10 +1,5 @@
-import {
-  uniq,
-  spec,
-  removeUndefined} from "@welshman/lib"
-import {ROOM_ADD_MEMBER,
-  getPubkeyTagValues,
-} from "@welshman/util"
+import {uniq, spec, removeUndefined} from "@welshman/lib"
+import {ROOM_ADD_MEMBER, getPubkeyTagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -21,7 +16,6 @@ export class RoomAddMemberReader extends EventReader {
 export class RoomAddMemberWriter extends EventWriter<RoomAddMemberReader> {
   readonly kind = ROOM_ADD_MEMBER
   readonly requiresRelays = true
-
 
   addPubkey(pubkey: string) {
     return this.dropTags(spec(["p", pubkey])).addTags(removeUndefined(["p", pubkey]))

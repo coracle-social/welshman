@@ -39,7 +39,7 @@ export default defineConfig({
           text: "@welshman/domain",
           link: "/domain/",
           items: [
-            {text: "The App Reader/Builder model", link: "/domain/readers-and-builders"},
+            {text: "Readers & Writers", link: "/domain/readers-and-builders"},
             {text: "Profile", link: "/domain/profile"},
             {text: "Lists", link: "/domain/lists"},
             {text: "Rooms", link: "/domain/rooms"},

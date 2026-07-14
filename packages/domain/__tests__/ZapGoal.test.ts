@@ -68,11 +68,14 @@ describe("ZapGoal", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(ZapGoal)
-      .setTitle("Goal")
-      .setSummary("a summary")
-      .setAmount(1000)
-      .setUrls(["wss://relay.one"]), signer)
+    const tmpl = await buildTemplate(
+      write(ZapGoal)
+        .setTitle("Goal")
+        .setSummary("a summary")
+        .setAmount(1000)
+        .setUrls(["wss://relay.one"]),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(ZAP_GOAL)
     expect(tmpl.content).toBe("Goal")

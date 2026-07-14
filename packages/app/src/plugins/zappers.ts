@@ -74,7 +74,10 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
   forPubkey = (pubkey: string, relays: string[] = []): Projection<Maybe<Zapper>> => {
     this.loadForPubkey(pubkey, relays)
 
-    const read = ([$zappersByLnurl, $profile]: [ReadonlyMap<string, Zapper>, Maybe<ProfileReader>]) => {
+    const read = ([$zappersByLnurl, $profile]: [
+      ReadonlyMap<string, Zapper>,
+      Maybe<ProfileReader>,
+    ]) => {
       const lnurl = $profile?.lnurl()
 
       return lnurl ? $zappersByLnurl.get(lnurl) : undefined

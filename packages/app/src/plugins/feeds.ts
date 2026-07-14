@@ -1,6 +1,5 @@
 import {Scope, FeedController} from "@welshman/feeds"
 import type {FeedControllerOptions, Feed as FeedDefinition} from "@welshman/feeds"
-import type {AdapterContext} from "@welshman/net"
 import {Address, FEED} from "@welshman/util"
 import {Feed, FeedReader, FeedWriter} from "@welshman/domain"
 import {DerivedPlugin, projectFrom} from "./base.js"
@@ -108,19 +107,16 @@ export class Feeds extends DerivedPlugin<FeedReader> {
     return pubkeys
   }
 
-  // The net seam: route feed requests through this app's pool/repository so
-  // feeds fetch through THIS app rather than the global net context.
-  get netContext(): AdapterContext {
-    return {pool: this.app.pool, repository: this.app.repository}
-  }
-
   makeFeedController = (options: MakeFeedControllerOptions) =>
     new FeedController({
       router: this.app.use(Router),
       getPubkeysForScope: this.getPubkeysForScope,
       getPubkeysForWOTRange: this.getPubkeysForWOTRange,
       signer: this.app.user?.signer,
-      context: this.netContext,
+      context: {
+        pool: this.app.pool,
+        repository: this.app.repository,
+      },
       ...options,
     })
 }

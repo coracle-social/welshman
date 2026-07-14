@@ -1,15 +1,27 @@
+import {derived} from "svelte/store"
+import type {Readable} from "svelte/store"
 import {fetchJson} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import {displayRelayUrl, displayRelayProfile} from "@welshman/util"
 import type {RelayProfile} from "@welshman/util"
-import {LoadableMapPlugin} from "./base.js"
-import type {Projection} from "./base.js"
+import {LoadableMapPlugin, RelayScopedDerivedPlugin, createSearch} from "./base.js"
+import type {Projection, Search, RelayScopedDerivedPluginOptions} from "./base.js"
+import type {IApp} from "../app.js"
 
 /**
  * NIP-11 relay profiles, keyed by url. A "local" loadable collection: items
  * aren't nostr events, they're fetched over HTTP from each relay.
  */
 export class Relays extends LoadableMapPlugin<RelayProfile> {
+  relaySearch: Readable<Search<string, RelayProfile>> = derived(this.all.$, $relays =>
+    createSearch($relays, {
+      getValue: (relay: RelayProfile) => relay.url,
+      fuseOptions: {
+        keys: ["url", "name", {name: "description", weight: 0.3}],
+      },
+    }),
+  )
+
   fetch = async (url: string): Promise<Maybe<RelayProfile>> => {
     try {
       const json = await fetchJson(url.replace(/^ws/, "http"), {
@@ -51,4 +63,31 @@ export class Relays extends LoadableMapPlugin<RelayProfile> {
 
   hasNip = async (url: string, nip: number | string) =>
     (await this.load(url))?.supported_nips?.includes(String(nip)) ?? false
+}
+
+// Items must expose their author (the event pubkey) so it can be checked
+// against the relay's self pubkey. Domain readers satisfy this via `author()`.
+export type RelaySignedItem = {author(): string}
+
+/**
+ * A `RelayScopedDerivedPlugin` that additionally validates provenance: an item
+ * is only keyed on a relay when the relay ITSELF signed it — i.e. the event's
+ * author matches the relay's NIP-11 `self` pubkey. This is the trust model for
+ * relay-hosted, relay-signed content (NIP-29 group state, relay membership and
+ * roles), and rejects events of these kinds forged by other pubkeys.
+ *
+ * Relay self pubkeys load from NIP-11 and can arrive after the events, so the
+ * collection re-evaluates whenever the relay-profile collection changes.
+ */
+export abstract class RelaySignedDerivedPlugin<
+  T extends RelaySignedItem,
+> extends RelayScopedDerivedPlugin<T> {
+  constructor(app: IApp, options: RelayScopedDerivedPluginOptions<T>) {
+    super(app, {
+      ...options,
+      getKey: (item, url) =>
+        item.author() === app.use(Relays).get(url)?.self ? options.getKey(item, url) : undefined,
+      revalidateOn: app.use(Relays).index.$,
+    })
+  }
 }

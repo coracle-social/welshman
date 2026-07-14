@@ -26,7 +26,8 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("TopicList", () => {
   it("reads followed topics and interest-set addresses", async () => {
-    const reader = await read(TopicList, 
+    const reader = await read(
+      TopicList,
       makeEvent({
         tags: [
           ["t", topicA],
@@ -43,7 +44,8 @@ describe("TopicList", () => {
   })
 
   it("round-trips without duplicating represented tags", async () => {
-    const reader = await read(TopicList, 
+    const reader = await read(
+      TopicList,
       makeEvent({
         tags: [
           ["t", topicA],
@@ -61,10 +63,10 @@ describe("TopicList", () => {
   })
 
   it("follows and unfollows via a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(TopicList)
-      .follow(topicA)
-      .follow(topicB)
-      .unfollow(topicA), signer)
+    const tmpl = await buildTemplate(
+      write(TopicList).follow(topicA).follow(topicB).unfollow(topicA),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(TOPICS)
     expect(tmpl.tags).toContainEqual(["t", topicB])
@@ -72,9 +74,10 @@ describe("TopicList", () => {
   })
 
   it("round-trips public and private topics through encryption", async () => {
-    const event = await buildEvent(write(TopicList)
-      .followPublicly(topicA)
-      .followPrivately(topicB), signer)
+    const event = await buildEvent(
+      write(TopicList).followPublicly(topicA).followPrivately(topicB),
+      signer,
+    )
 
     const decrypted = await read(TopicList, event, signer)
 

@@ -1,10 +1,5 @@
-import {
-  uniq,
-  spec} from "@welshman/lib"
-import {POLL_RESPONSE,
-  getTagValue,
-  getTagValues,
-} from "@welshman/util"
+import {uniq, spec} from "@welshman/lib"
+import {POLL_RESPONSE, getTagValue, getTagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -24,7 +19,6 @@ export class PollResponseReader extends EventReader {
 
 export class PollResponseWriter extends EventWriter<PollResponseReader> {
   readonly kind = POLL_RESPONSE
-
 
   setPollId(pollId: string) {
     return this.dropTags(spec(["e"])).addTags(["e", pollId])

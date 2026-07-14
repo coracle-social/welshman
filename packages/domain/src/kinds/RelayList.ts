@@ -61,7 +61,9 @@ export class RelayListWriter extends EventWriter<RelayListReader> {
   private findUrlTag(url: string) {
     const normalized = normalizeRelayUrl(url)
 
-    return this.extraTags.find(t => t[0] === "r" && normalizeRelayUrl(t[1] as string) === normalized)
+    return this.extraTags.find(
+      t => t[0] === "r" && normalizeRelayUrl(t[1] as string) === normalized,
+    )
   }
 
   private addUrlForMode(url: string, mode: "read" | "write") {

@@ -25,7 +25,8 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("FeedList", () => {
   it("reads saved feed addresses", async () => {
-    const reader = await read(FeedList, 
+    const reader = await read(
+      FeedList,
       makeEvent({
         tags: [
           ["a", addressA],
@@ -40,7 +41,8 @@ describe("FeedList", () => {
   })
 
   it("round-trips without duplicating represented tags", async () => {
-    const reader = await read(FeedList, 
+    const reader = await read(
+      FeedList,
       makeEvent({
         tags: [
           ["a", addressA],
@@ -56,10 +58,13 @@ describe("FeedList", () => {
   })
 
   it("adds and removes feeds via a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(FeedList)
-      .addFeed(addressA, "wss://relay.example.com/")
-      .addFeed(addressB)
-      .removeFeed(addressA), signer)
+    const tmpl = await buildTemplate(
+      write(FeedList)
+        .addFeed(addressA, "wss://relay.example.com/")
+        .addFeed(addressB)
+        .removeFeed(addressA),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(FEEDS)
     expect(tmpl.tags).toContainEqual(["a", addressB, ""])
@@ -67,9 +72,10 @@ describe("FeedList", () => {
   })
 
   it("round-trips public and private feeds through encryption", async () => {
-    const event = await buildEvent(write(FeedList)
-      .addFeed(addressA)
-      .addFeedPrivately(addressB), signer)
+    const event = await buildEvent(
+      write(FeedList).addFeed(addressA).addFeedPrivately(addressB),
+      signer,
+    )
 
     const decrypted = await read(FeedList, event, signer)
 

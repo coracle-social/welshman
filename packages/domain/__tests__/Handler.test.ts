@@ -65,7 +65,8 @@ describe("Handler", () => {
   })
 
   it("ignores non-spec aliases like display_name", async () => {
-    const handler = await read(Handler, 
+    const handler = await read(
+      Handler,
       makeEvent({
         content: JSON.stringify({display_name: "Alias", picture: "https://example.com/p.png"}),
       }),
@@ -101,12 +102,15 @@ describe("Handler", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(Handler)
-      .setIdentifier("myhandler")
-      .setName("MyApp")
-      .setAbout("does things")
-      .setWebsite("https://my.app")
-      .setKinds([1, 7]), signer)
+    const tmpl = await buildTemplate(
+      write(Handler)
+        .setIdentifier("myhandler")
+        .setName("MyApp")
+        .setAbout("does things")
+        .setWebsite("https://my.app")
+        .setKinds([1, 7]),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(HANDLER_INFORMATION)
     expect(tmpl.tags).toContainEqual(["d", "myhandler"])

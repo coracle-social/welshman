@@ -60,9 +60,10 @@ describe("FollowList", () => {
   })
 
   it("builds from a fresh builder via follow", async () => {
-    const tmpl = await buildTemplate(write(FollowList)
-      .follow(a)
-      .follow(b, "wss://relay.example/", "alice"), signer)
+    const tmpl = await buildTemplate(
+      write(FollowList).follow(a).follow(b, "wss://relay.example/", "alice"),
+      signer,
+    )
 
     expect(getPubkeyTagValues(tmpl.tags).sort()).toEqual([a, b].sort())
     expect(tmpl.tags).toContainEqual(["p", b, "wss://relay.example/", "alice"])

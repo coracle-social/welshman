@@ -12,7 +12,6 @@ export class RoomDeleteWriter extends EventWriter<RoomDeleteReader> {
   readonly kind = ROOM_DELETE
   readonly requiresRelays = true
 
-
   protected validate() {
     super.validate()
 

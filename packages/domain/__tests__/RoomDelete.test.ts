@@ -29,7 +29,8 @@ describe("RoomDelete", () => {
   })
 
   it("round-trips the group behavior tag without duplication", async () => {
-    const del = await read(RoomDelete, 
+    const del = await read(
+      RoomDelete,
       makeEvent({
         tags: [
           ["h", group],
@@ -38,8 +39,10 @@ describe("RoomDelete", () => {
       }),
     )
 
-    const tmpl = await buildTemplate(write(RoomDelete, del)
-      .setGroup("wss://relay.example.com/", group), signer)
+    const tmpl = await buildTemplate(
+      write(RoomDelete, del).setGroup("wss://relay.example.com/", group),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(ROOM_DELETE)
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
@@ -48,7 +51,10 @@ describe("RoomDelete", () => {
   })
 
   it("sets the target room via a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(RoomDelete).setGroup("wss://relay.example.com/", group), signer)
+    const tmpl = await buildTemplate(
+      write(RoomDelete).setGroup("wss://relay.example.com/", group),
+      signer,
+    )
 
     expect(tmpl.tags).toContainEqual(["h", group])
   })

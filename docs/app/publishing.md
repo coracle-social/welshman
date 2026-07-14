@@ -20,9 +20,13 @@ const thunk = app.use(Thunks).publish({
 There's no dedicated outbox helper on `Thunks` — resolve the current user's write relays yourself (via the [Router](./routing)) and pass them to `publish`. This is what [`Command.publish()`](#commands) does under the hood for every data-plugin mutation.
 
 ```typescript
+import {userOutbox} from "@welshman/util"
+
+const scenario = await app.use(Router).resolve([userOutbox()])
+
 const thunk = app.use(Thunks).publish({
   event: makeEvent(NOTE, {content: "hi"}),
-  relays: app.use(Router).FromUser().getUrls(),
+  relays: scenario.getUrls(),
   delay: 3000,            // wait 3s before signing/sending — abortable until then
 })
 ```
@@ -80,7 +84,7 @@ Each thunk is queued (batched) and its event is written to the repository and tr
 
 ## Commands
 
-The [data plugins](./data)' mutation methods (`create`, `update`, `follow`, `addRelay`, `setRelays`, `Rooms.create`/`edit`/etc.) don't publish directly — they build the event and the relays it belongs on, and return a `Command` for the caller to decide how (or whether) to publish it.
+The [data plugins](./data)' mutation methods (`follow`, `update`, `addRelay`, `setRelays`, `Rooms.create`/`edit`/etc.) don't publish directly — they build the event and the relays it belongs on, and return a `Command` for the caller to decide how (or whether) to publish it.
 
 ```typescript
 import type {Command} from "@welshman/app"
@@ -92,13 +96,15 @@ command.event      // EventTemplate — unsigned, inspectable before publishing
 command.relays     // string[] — where publish() will send it
 
 command.publish()             // the normal path: app.use(Thunks).publish({event, relays})
-command.publishAsRelay(url)    // sign as the app's user and send straight to `url`, skipping
-                               // outbox routing — via app.use(RelayManagement).publishToRelay
+command.publishToRelays(urls)  // same, but override the relay set
+command.publishAsRelay(url)    // NIP-86: ask the relay to sign with its own key
+                               // (signevent), then publish the relay-signed event back
+command.signAsRelay(url)       // just the NIP-86 sign step, without publishing
 ```
 
-`publishAsRelay` is for cases like NIP-29 room management or NIP-86-adjacent workflows, where you want to hand an event directly to a specific relay rather than route it through the outbox model.
+`publishAsRelay` is for cases like NIP-29 room management or NIP-86-adjacent workflows, where the relay itself must sign the event (via `app.use(RelayManagement).forUrl(url).signEvent`) rather than routing a user-signed event through the outbox model.
 
-Since mutation methods are themselves `async`, calling `.publish()` on the result normally means a double `await`. `publish`/`publishAsRelay` are also exported as free functions so you can chain them onto the outer promise instead:
+Since mutation methods are themselves `async`, calling `.publish()` on the result normally means a double `await`. `publish`, `publishToRelays`, `publishAsRelay`, and `signAsRelay` are also exported as free functions so you can chain them onto the outer promise instead:
 
 ```typescript
 import {publish, publishAsRelay} from "@welshman/app"
@@ -109,6 +115,62 @@ await app.use(Rooms).join(relayUrl, roomMeta).then(publishAsRelay(relayUrl))
 ```
 
 `Wraps.publish` is the one mutation that still publishes directly rather than returning a `Command`: it fans a single rumor out into a `MergedThunk` of per-recipient wraps, each with its own relay set, which doesn't fit the one-event/one-relay-set shape a `Command` assumes.
+
+### Building a command from a domain writer
+
+Under the hood, every mutation method builds its event with a [`@welshman/domain`](../domain) *writer* and hands it to `app.use(Domain).command(writer)`. You can drive that flow directly. `app.use(Domain).writer(Kind, reader?)` returns a fresh writer — optionally seeded from an existing reader for an edit — and its setters are chainable (each returns the writer):
+
+```typescript
+import {FollowList} from "@welshman/domain"
+import {Domain} from "@welshman/app"
+
+// Seed from the current follow list, then mutate.
+const reader = await app.use(FollowLists).forceLoad(user.pubkey)
+
+const writer = app.use(Domain)
+  .writer(FollowList, reader)
+  .follow(otherPubkey)
+
+const command = await app.use(Domain).command(writer)   // -> Command
+```
+
+`app.use(Domain).command(writer)` requires a signed-in user, calls `writer.finalize()` to produce the unsigned template and its relay set, and wraps them in a `Command`. The signer, resolver, and repository are injected once when the kind is configured, so the writer's terminal methods take no arguments:
+
+```typescript
+await writer.render()      // Promise<EventTemplate> — the unsigned event (validated, hints resolved)
+await writer.scenario()    // Promise<RelayScenario> — chainable: .limit(n) / .policy(fn) / allow*
+await writer.relays()      // Promise<string[]> — scenario().getUrls()
+await writer.finalize()    // Promise<{event, relays}> — render() + relays() together
+```
+
+When you need finer control than `Domain.command` gives — for example to raise the relay limit — resolve the pieces yourself and build the `Command` by hand. This is how `Deletes` fans a deletion out to every relay its target lives on:
+
+```typescript
+import {Delete} from "@welshman/domain"
+import {Command} from "@welshman/app"
+
+const writer = app.use(Domain).writer(Delete).addEvent(event, seenRelay)
+
+const [template, scenario] = await Promise.all([writer.render(), writer.scenario()])
+
+// A delete should reach every relay its target lives on, so raise the limit
+// above the scenario default before taking the urls.
+return new Command(app, template, scenario.limit(30).getUrls())
+```
+
+### Forced relays
+
+Some events must go to specific relays regardless of the outbox model — NIP-29 room ops, relay-management ops, and anything else that lives on one server. Writers express this with `forcedRelays`: when it's set, `scenario()` publishes **only** to those urls, bypassing the usual author-outbox / p-tag-inbox routing.
+
+```typescript
+// setGroup records the group's relay AND writes the "h" tag (NIP-29):
+app.use(Domain).writer(RoomJoin).setGroup(relayUrl, roomId)
+
+// forceRelays pins the relay set without an "h" tag:
+app.use(Domain).writer(Note).forceRelays("wss://relay.example").setContent("hi")
+```
+
+Kinds that require explicit relays (the NIP-29 room ops/state and relay-management ops/state) fail validation in `render()`/`finalize()` unless `setGroup`/`forceRelays` has been called.
 
 ## Gift-wrapped messages
 

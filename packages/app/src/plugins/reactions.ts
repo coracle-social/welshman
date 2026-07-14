@@ -13,8 +13,6 @@ import type {IApp} from "../app.js"
 export class Reactions {
   constructor(readonly app: IApp) {}
 
-  // `fn` lets the caller tweak the writer — e.g. `addEmoji` for NIP-30 custom
-  // emoji, or `setProtected(true)` for NIP-70.
   react = async (
     event: TrustedEvent,
     content: string,

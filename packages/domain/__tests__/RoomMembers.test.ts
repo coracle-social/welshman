@@ -25,7 +25,8 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomMembers", () => {
   it("reads represented tags", async () => {
-    const room = await read(RoomMembers, 
+    const room = await read(
+      RoomMembers,
       makeEvent({
         tags: [
           ["d", "room1"],
@@ -43,7 +44,8 @@ describe("RoomMembers", () => {
   })
 
   it("round-trips with no duplicated tags", async () => {
-    const room = await read(RoomMembers, 
+    const room = await read(
+      RoomMembers,
       makeEvent({
         tags: [
           ["d", "room1"],
@@ -73,12 +75,15 @@ describe("RoomMembers", () => {
     const builder = write(RoomMembers)
     builder.setIdentifier("room2")
 
-    const tmpl = await buildTemplate(builder
-      .addPubkey(a)
-      .addPubkey(a) // dedup
-      .addPubkey(b)
-      .removePubkey(b)
-      .forceRelays("wss://relay.example.com/"), signer)
+    const tmpl = await buildTemplate(
+      builder
+        .addPubkey(a)
+        .addPubkey(a) // dedup
+        .addPubkey(b)
+        .removePubkey(b)
+        .forceRelays("wss://relay.example.com/"),
+      signer,
+    )
 
     expect(tmpl.tags).toContainEqual(["d", "room2"])
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(1)

@@ -57,11 +57,10 @@ describe("PollResponse", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(PollResponse)
-      .setPollId(poll)
-      .addSelection("1")
-      .addSelection("1")
-      .addSelection("2"), signer)
+    const tmpl = await buildTemplate(
+      write(PollResponse).setPollId(poll).addSelection("1").addSelection("1").addSelection("2"),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(POLL_RESPONSE)
     expect(tmpl.tags).toContainEqual(["e", poll])

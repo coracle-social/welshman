@@ -24,7 +24,8 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelayAddMember", () => {
   it("reads affected pubkeys, deduped", async () => {
-    const op = await read(RelayAddMember, 
+    const op = await read(
+      RelayAddMember,
       makeEvent({
         tags: [
           ["p", a],
@@ -38,7 +39,8 @@ describe("RelayAddMember", () => {
   })
 
   it("round-trips with no duplicate p tags and passthrough", async () => {
-    const op = await read(RelayAddMember, 
+    const op = await read(
+      RelayAddMember,
       makeEvent({
         tags: [
           ["p", a],

@@ -25,7 +25,8 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("SearchRelayList", () => {
   it("reads search relay urls", async () => {
-    const reader = await read(SearchRelayList, 
+    const reader = await read(
+      SearchRelayList,
       makeEvent({
         tags: [
           ["relay", relayA],
@@ -40,7 +41,8 @@ describe("SearchRelayList", () => {
   })
 
   it("round-trips without duplicating represented tags", async () => {
-    const reader = await read(SearchRelayList, 
+    const reader = await read(
+      SearchRelayList,
       makeEvent({
         tags: [
           ["relay", relayA],
@@ -56,10 +58,10 @@ describe("SearchRelayList", () => {
   })
 
   it("adds and removes relays via a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(SearchRelayList)
-      .addUrl(relayA)
-      .addUrl(relayB)
-      .removeUrl(relayA), signer)
+    const tmpl = await buildTemplate(
+      write(SearchRelayList).addUrl(relayA).addUrl(relayB).removeUrl(relayA),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(SEARCH_RELAYS)
     expect(tmpl.tags).toContainEqual(["relay", normalizeRelayUrl(relayB)])

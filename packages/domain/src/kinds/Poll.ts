@@ -1,12 +1,5 @@
-import {
-  now,
-  uniq,
-  randomId,
-  spec} from "@welshman/lib"
-import {POLL,
-  getTagValue,
-  getTagValues,
-} from "@welshman/util"
+import {now, uniq, randomId, spec} from "@welshman/lib"
+import {POLL, getTagValue, getTagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
@@ -89,7 +82,6 @@ export class PollReader extends EventReader {
 
 export class PollWriter extends EventWriter<PollReader> {
   readonly kind = POLL
-
 
   setTitle(title: string) {
     this.content = title

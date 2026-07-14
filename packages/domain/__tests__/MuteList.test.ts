@@ -38,11 +38,10 @@ describe("MuteList", () => {
   })
 
   it("removes from both public and private entries", async () => {
-    const event = await buildEvent(write(MuteList)
-      .mutePublicly(a)
-      .mutePrivately(b)
-      .unmute(a)
-      .unmute(b), signer)
+    const event = await buildEvent(
+      write(MuteList).mutePublicly(a).mutePrivately(b).unmute(a).unmute(b),
+      signer,
+    )
 
     const parsed = await read(MuteList, event, signer)
 
@@ -65,7 +64,9 @@ describe("MuteList", () => {
 
     // Mutation is now deferred-validated: adding a private entry to a list we
     // couldn't decrypt throws at emit time, not on the mutating call.
-    await expect(buildEvent(write(MuteList, undecrypted).mutePrivately(c), signer)).rejects.toThrow()
+    await expect(
+      buildEvent(write(MuteList, undecrypted).mutePrivately(c), signer),
+    ).rejects.toThrow()
   })
 
   it("toRumor encrypts but does not sign", async () => {

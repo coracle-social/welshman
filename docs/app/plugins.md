@@ -130,20 +130,129 @@ Internally it builds `index` from `app.use(Stores).itemsByKey({filters, eventToI
 
 You rarely call `Stores` directly — the higher-level data plugins are usually what you want — but it is the seam to use when you need a custom repository-derived store wired to the app.
 
+## The `Domain` plugin
+
+`app.use(Domain)` binds the app's dependencies to `@welshman/domain` kinds. Every kind in `@welshman/domain` is a **`KindFactory`** — a bundle of a `reader`, a `writer`, and an optional `router` class — that has no knowledge of any particular app. `Domain` is the seam that hands each factory the app's resolver, repository, and signer, turning it into a `ConfiguredKind` you can actually read events with and build events from.
+
+```typescript
+class Domain {
+  constructor(app: IApp)
+
+  configure(factory: KindFactory): ConfiguredKind   // memoized per factory
+  reader(factory: KindFactory): (event) => Promise<Reader>
+  writer(factory: KindFactory, reader?: Reader): Writer
+  command(writer: EventWriter): Promise<Command>
+}
+```
+
+`configure` is memoized per factory and injects the `KindContext`:
+
+```typescript
+factory.configure({
+  resolver: app.use(Router).resolver,   // dereferences routes -> relay urls
+  repository: app.repository,           // lets routers find event parents
+  get signer() { return app.user?.signer },   // lazy — auth policies can swap it
+})
+```
+
+The `signer` is a **lazy getter** so app auth policies can replace it (via `wrapSigner`) after configuration; the `resolver` (shared with the `Router` plugin) and `repository` are stable for the app's lifetime.
+
+### Reading — `reader(factory)`
+
+`reader(factory)` returns the configured kind's async `reader` function: `(event) => Promise<Reader>`. It validates the event's kind and runs `parse()` (which, for encrypted lists, decrypts private tags using the app's signer). This is exactly the shape a `DerivedPlugin` wants for its `eventToItem` decoder:
+
+```typescript
+import {Note, FollowList} from "@welshman/domain"
+
+// as a DerivedPlugin decoder:
+eventToItem: app.use(Domain).reader(Note)
+
+// or ad hoc:
+const reader = await app.use(Domain).reader(FollowList)(event)
+reader.pubkeys()          // string[]
+reader.includes(pubkey)   // boolean
+```
+
+A reader exposes synchronous getters over the event — `id()`, `author()`, `content()`, `tags()`, `createdAt()`, `address()`, `group()` — plus per-kind accessors (`FollowListReader.pubkeys()`, `RelayListReader.readUrls()/writeUrls()`, `DeleteReader.ids()`, etc.).
+
+### Writing — `writer(factory, reader?)`
+
+`writer(factory)` builds a fresh event writer; pass an existing `reader` to seed an **edit** (the writer starts from that event's content and tags):
+
+```typescript
+import {FollowList, Note} from "@welshman/domain"
+
+// edit an existing follow list:
+const writer = app.use(Domain)
+  .writer(FollowList, existingReader)
+  .follow(pubkey)
+
+// or compose a new note:
+const note = app.use(Domain)
+  .writer(Note)
+  .setContent("hello")
+  .setParent(parentEvent)   // NIP-10 reply threading
+```
+
+Writers are chainable (every setter returns `this`). Shared setters include `setContent`, `setGroup(url, group)`, `forceRelays(...urls)`, `setProtected`, `setExpiration`, `setIdentifier`, `addTags`, `keepTags`/`dropTags`; each kind adds its own (`FollowListWriter.follow/unfollow`, `DeleteWriter.addEvent/setReason`, `RelayListWriter.addReadUrl/addWriteUrl`, …).
+
+A writer resolves to a template via `render(): Promise<EventTemplate>` and to its target relays via `relays(): Promise<string[]>`; `finalize()` returns both at once (`{event, relays}`). There is no `toEvent`/`toRumor` on the writer — the caller signs the rendered template.
+
+### Publishing — `command(writer)`
+
+`command(writer)` requires a signed-in user, finalizes the writer (rendering the template and resolving its relays), and wraps the result in a `Command` — an event paired with its target relays that hasn't committed to *how* it publishes:
+
+```typescript
+const command = await app.use(Domain).command(writer)
+
+command.publish()                  // through the normal Thunks pipeline
+command.publishToRelays(urls)      // a specific relay set
+command.publishAsRelay(url)        // relay signs it (NIP-86 signevent), then publish back
+```
+
+This replaces the old `Router.commandFromBuilder(builder)`.
+
+### Routing
+
+A writer's target relays come from its `routes()` — a list of declarative `RelaySelection`s from `@welshman/util` (`userOutbox()`, `inboxes(pubkeys)`, `seen(event)`, `relays(urls)`, …) that the injected `resolver` scores into concrete urls. The default writer routes to the author's outbox plus every p-tagged pubkey's inbox; kinds override as needed (e.g. `FollowListWriter` routes to `[userOutbox()]` only, since its p-tags are data, not recipients). When a writer has `forcedRelays` (set via `setGroup`/`forceRelays`), it publishes **only** there. NIP-29 room ops and relay-management kinds set `requiresRelays`, so `render()`/`finalize()` throw unless explicit relays are supplied.
+
+## The `Router` plugin
+
+`app.use(Router)` is the app's relay router (it implements `FeedRouter` for `@welshman/feeds`). It owns the `Resolver` that `Domain` hands to every configured kind, so routing decisions are consistent across reads, writes, and feeds.
+
+```typescript
+class Router implements FeedRouter {
+  resolver: Resolver
+
+  resolve(selections: RelaySelection[]): Promise<RelayScenario>
+  resolveRoute(route: RelayRoute): MaybeAsync<string[]>
+}
+```
+
+- `resolver` is a `Resolver` (from `@welshman/util`) built with the app's `getRelayQuality` (from `RelayStats`) and `getDefaultRelays` (from `app.config`). This is the **same** resolver injected into every domain kind via `Domain.configure`.
+- `resolve(selections)` scores a list of `RelaySelection`s into a `RelayScenario` (`= resolver.scenario(selections)`).
+- `resolveRoute(route)` dereferences a single declarative route into urls:
+  - `userInbox`/`userOutbox`/`userMessaging` → the required user's read/write/NIP-17 relays.
+  - `pubkeyInbox`/`pubkeyOutbox`/`pubkeyMessaging` → that pubkey's relays (via `RelayLists` / `MessagingRelayLists`).
+  - `eventInbox`/`eventOutbox` → resolve the referenced event's author, then its relays, merged with the ref's relay hints.
+  - `seen` → the tracker's relays for the event id, plus the ref's relay hints.
+  - `index` → `app.config.getIndexerRelays?.()`; `search` → `app.config.getSearchRelays?.()`; `relay` → `[route.url]`.
+
 ## Writing your own plugin
 
 A plugin is any class with the shape `new (app: IApp) => T`. Extend one of the base classes for a data collection, or write a plain class for behavior:
 
 ```typescript
-import {DerivedPlugin, Network, type IApp} from "@welshman/app"
-import {SOME_KIND, readSomething} from "@welshman/util"
+import {DerivedPlugin, Domain, Network, type IApp} from "@welshman/app"
+import {Something, SomethingReader} from "@welshman/domain"
+import {SOME_KIND} from "@welshman/util"
 
-export class Somethings extends DerivedPlugin<ReturnType<typeof readSomething>> {
+export class Somethings extends DerivedPlugin<SomethingReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [SOME_KIND]}],
-      eventToItem: event => readSomething(event),
-      getKey: item => item.event.pubkey,
+      eventToItem: app.use(Domain).reader(Something),
+      getKey: item => item.author(),
     })
   }
 

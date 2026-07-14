@@ -22,7 +22,8 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RoomJoin", () => {
   it("reads represented fields", async () => {
-    const join = await read(RoomJoin, 
+    const join = await read(
+      RoomJoin,
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -39,7 +40,8 @@ describe("RoomJoin", () => {
   })
 
   it("round-trips with no duplicated tags", async () => {
-    const join = await read(RoomJoin, 
+    const join = await read(
+      RoomJoin,
       makeEvent({
         tags: [
           ["h", "room1"],
@@ -50,8 +52,10 @@ describe("RoomJoin", () => {
       }),
     )
 
-    const tmpl = await buildTemplate(write(RoomJoin, join)
-      .setGroup("wss://relay.example.com/", "room1"), signer)
+    const tmpl = await buildTemplate(
+      write(RoomJoin, join).setGroup("wss://relay.example.com/", "room1"),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(ROOM_JOIN)
     // h round-trips via the base behavior tag.
@@ -66,10 +70,13 @@ describe("RoomJoin", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(RoomJoin)
-      .setGroup("wss://relay.example.com/", "room2")
-      .setClaim("xyz")
-      .setReason("hi there"), signer)
+    const tmpl = await buildTemplate(
+      write(RoomJoin)
+        .setGroup("wss://relay.example.com/", "room2")
+        .setClaim("xyz")
+        .setReason("hi there"),
+      signer,
+    )
 
     expect(getTagValue("h", tmpl.tags)).toBe("room2")
     expect(tmpl.tags).toContainEqual(["claim", "xyz"])

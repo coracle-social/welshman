@@ -1,16 +1,8 @@
 import {first} from "@welshman/lib"
 import {sortEventsDesc, outbox, relays} from "@welshman/util"
 import type {Filter} from "@welshman/util"
-import {request, publish, diff, pull, push, makeLoader} from "@welshman/net"
-import type {
-  Loader,
-  LoaderOptions,
-  RequestOptions,
-  PublishOptions,
-  DiffOptions,
-  PullOptions,
-  PushOptions,
-} from "@welshman/net"
+import {request, publish, makeLoader} from "@welshman/net"
+import type {Loader, LoaderOptions, RequestOptions, PublishOptions} from "@welshman/net"
 import {Router} from "./router.js"
 import type {IApp} from "../app.js"
 
@@ -34,12 +26,6 @@ export class Network {
   publish = (options: Omit<PublishOptions, "context">) =>
     publish({...options, context: this.app.netContext})
 
-  diff = (options: Omit<DiffOptions, "context">) => diff({...options, context: this.app.netContext})
-
-  pull = (options: Omit<PullOptions, "context">) => pull({...options, context: this.app.netContext})
-
-  push = (options: Omit<PushOptions, "context">) => push({...options, context: this.app.netContext})
-
   loadUsingOutbox = async (pubkey: string, filter: Filter = {}, hints: string[] = []) => {
     const filters: Filter[] = [{...filter, authors: [pubkey]}]
     const scenario = await this.app.use(Router).resolve([...relays(hints), outbox(pubkey)])
@@ -49,9 +35,8 @@ export class Network {
     return first(sortEventsDesc(events))
   }
 
-  // Like `loadUsingOutbox`, but for collections rather than a single
-  // replaceable/singleton value — returns every matching event instead of
-  // just the newest one.
+  // Like `loadUsingOutbox`, but for collections rather than a single replaceable/singleton value —
+  // returns every matching event instead of just the newest one.
   loadAllUsingOutbox = async (pubkey: string, filter: Filter = {}, hints: string[] = []) => {
     const filters: Filter[] = [{...filter, authors: [pubkey]}]
     const scenario = await this.app.use(Router).resolve([...relays(hints), outbox(pubkey)])

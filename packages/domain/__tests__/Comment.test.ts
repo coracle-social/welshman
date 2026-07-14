@@ -82,10 +82,10 @@ describe("Comment", () => {
     const root = makeEvent({id: rootId, pubkey: rootPubkey, kind: 11})
     const parent = makeEvent({id: parentId, pubkey: parentPubkey, kind: 1111})
 
-    const tmpl = await buildTemplate(write(Comment)
-      .setContent("reply")
-      .setRootFromEvent(root)
-      .setParentFromEvent(parent), signer)
+    const tmpl = await buildTemplate(
+      write(Comment).setContent("reply").setRootFromEvent(root).setParentFromEvent(parent),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(COMMENT)
     expect(tmpl.tags).toContainEqual(["E", rootId, ""])

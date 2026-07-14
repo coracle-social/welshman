@@ -29,7 +29,8 @@ describe("RoomLeave", () => {
   })
 
   it("round-trips the group behavior tag without duplication", async () => {
-    const leave = await read(RoomLeave, 
+    const leave = await read(
+      RoomLeave,
       makeEvent({
         tags: [
           ["h", group],
@@ -38,8 +39,10 @@ describe("RoomLeave", () => {
       }),
     )
 
-    const tmpl = await buildTemplate(write(RoomLeave, leave)
-      .setGroup("wss://relay.example.com/", group), signer)
+    const tmpl = await buildTemplate(
+      write(RoomLeave, leave).setGroup("wss://relay.example.com/", group),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(ROOM_LEAVE)
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
@@ -48,7 +51,10 @@ describe("RoomLeave", () => {
   })
 
   it("sets the group via a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(RoomLeave).setGroup("wss://relay.example.com/", group), signer)
+    const tmpl = await buildTemplate(
+      write(RoomLeave).setGroup("wss://relay.example.com/", group),
+      signer,
+    )
 
     expect(tmpl.tags).toContainEqual(["h", group])
   })

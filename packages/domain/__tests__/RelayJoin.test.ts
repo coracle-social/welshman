@@ -22,7 +22,8 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
 
 describe("RelayJoin", () => {
   it("reads claim tag and reason content", async () => {
-    const join = await read(RelayJoin, 
+    const join = await read(
+      RelayJoin,
       makeEvent({tags: [["claim", "abc123"]], content: "please let me in"}),
     )
 
@@ -38,7 +39,8 @@ describe("RelayJoin", () => {
   })
 
   it("round-trips with no duplicate tags and preserves passthrough/content", async () => {
-    const join = await read(RelayJoin, 
+    const join = await read(
+      RelayJoin,
       makeEvent({
         tags: [
           ["claim", "abc123"],

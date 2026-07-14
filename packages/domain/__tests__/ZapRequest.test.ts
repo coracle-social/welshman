@@ -71,13 +71,16 @@ describe("ZapRequest", () => {
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(ZapRequest)
-      .setAmount(1000)
-      .setLnurl("lnurl1abc")
-      .setRecipient(recipient)
-      .setEventId(eventId)
-      .setUrls(["wss://relay.one"])
-      .setContent("hi"), signer)
+    const tmpl = await buildTemplate(
+      write(ZapRequest)
+        .setAmount(1000)
+        .setLnurl("lnurl1abc")
+        .setRecipient(recipient)
+        .setEventId(eventId)
+        .setUrls(["wss://relay.one"])
+        .setContent("hi"),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(ZAP_REQUEST)
     expect(tmpl.content).toBe("hi")

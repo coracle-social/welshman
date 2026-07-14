@@ -57,8 +57,10 @@ describe("MessagingRelayList", () => {
   })
 
   it("builds from a fresh builder and normalizes urls", async () => {
-    const tmpl = await buildTemplate(write(MessagingRelayList)
-      .addUrl("wss://inbox.one.example"), signer)
+    const tmpl = await buildTemplate(
+      write(MessagingRelayList).addUrl("wss://inbox.one.example"),
+      signer,
+    )
 
     expect(getTagValues("relay", tmpl.tags)).toEqual([normalizeRelayUrl("wss://inbox.one.example")])
   })

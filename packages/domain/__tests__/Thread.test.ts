@@ -63,18 +63,23 @@ describe("Thread", () => {
       ],
     })
 
-    const tmpl = await buildTemplate(write(Thread, await read(Thread, event))
-      .setGroup("wss://relay.example.com/", "room"), signer)
+    const tmpl = await buildTemplate(
+      write(Thread, await read(Thread, event)).setGroup("wss://relay.example.com/", "room"),
+      signer,
+    )
 
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
     expect(tmpl.tags).toContainEqual(["h", "room"])
   })
 
   it("builds from a fresh builder", async () => {
-    const tmpl = await buildTemplate(write(Thread)
-      .setTitle("New thread")
-      .setContent("body")
-      .setGroup("wss://relay.example.com/", "room"), signer)
+    const tmpl = await buildTemplate(
+      write(Thread)
+        .setTitle("New thread")
+        .setContent("body")
+        .setGroup("wss://relay.example.com/", "room"),
+      signer,
+    )
 
     expect(tmpl.kind).toBe(THREAD)
     expect(tmpl.tags).toContainEqual(["title", "New thread"])

@@ -1,9 +1,5 @@
-import {
-  spec} from "@welshman/lib"
-import {ZAP_GOAL,
-  getTagValue,
-  getTagValues,
-} from "@welshman/util"
+import {spec} from "@welshman/lib"
+import {ZAP_GOAL, getTagValue, getTagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -32,7 +28,6 @@ export class ZapGoalReader extends EventReader {
 
 export class ZapGoalWriter extends EventWriter<ZapGoalReader> {
   readonly kind = ZAP_GOAL
-
 
   constructor(def: AnyConfiguredKind, reader?: ZapGoalReader) {
     super(def, reader)

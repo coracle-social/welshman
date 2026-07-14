@@ -6,7 +6,6 @@ import type {ProfileReader} from "@welshman/domain"
 import {deriveDeduplicated} from "@welshman/store"
 import {LoadableMapPlugin, projection} from "./base.js"
 import type {Projection} from "./base.js"
-import type {IApp} from "../app.js"
 import {Profiles} from "./profiles.js"
 
 /**
@@ -17,10 +16,6 @@ import {Profiles} from "./profiles.js"
  * handle.
  */
 export class Handles extends LoadableMapPlugin<Handle> {
-  constructor(app: IApp) {
-    super(app)
-  }
-
   fetch = batcher(800, async (nip05s: string[]) => {
     const result = new Map<string, Handle>()
 
@@ -69,7 +64,10 @@ export class Handles extends LoadableMapPlugin<Handle> {
   forPubkey = (pubkey: string, relays: string[] = []): Projection<Maybe<Handle>> => {
     this.loadForPubkey(pubkey, relays)
 
-    const read = ([$handlesByNip05, $profile]: [ReadonlyMap<string, Handle>, Maybe<ProfileReader>]) => {
+    const read = ([$handlesByNip05, $profile]: [
+      ReadonlyMap<string, Handle>,
+      Maybe<ProfileReader>,
+    ]) => {
       const nip05 = $profile?.nip05()
 
       if (!nip05) return undefined
