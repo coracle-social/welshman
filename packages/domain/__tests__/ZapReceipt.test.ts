@@ -1,8 +1,9 @@
 import {describe, it, expect} from "vitest"
 import {makeSecret, ZAP_RECEIPT, ZAP_REQUEST, NOTE} from "@welshman/util"
-import type {TrustedEvent, Zapper} from "@welshman/util"
+import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {ZapReceipt} from "../src/kinds/ZapReceipt"
+import {Zapper} from "../src/other/Zapper"
 import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
@@ -73,7 +74,7 @@ describe("ZapReceipt", () => {
     expect(receipt.invoiceAmount()).toBeUndefined()
   })
 
-  it("verifies a legitimate zap from a zapper", async () => {
+  it("validates against a zapper via Zapper.validate", async () => {
     const event = makeEvent({
       pubkey: "dd".repeat(32),
       tags: [
@@ -85,15 +86,15 @@ describe("ZapReceipt", () => {
 
     const receipt = await read(ZapReceipt, event)
 
-    const zapper = {
+    const zapper = new Zapper({
       pubkey: recipient,
       lnurl: "lnurl1xyz",
       nostrPubkey: "dd".repeat(32),
-    } as Zapper
+    })
 
-    expect(receipt.verify(zapper)).toBe(true)
+    expect(zapper.validate(receipt)).toBeTruthy()
     // A forged receipt (wrong nostrPubkey) is rejected.
-    expect(receipt.verify({...zapper, nostrPubkey: "ab".repeat(32)})).toBe(false)
+    expect(new Zapper({...zapper, nostrPubkey: "ab".repeat(32)}).validate(receipt)).toBeUndefined()
   })
 
   it("round-trips with no duplication", async () => {

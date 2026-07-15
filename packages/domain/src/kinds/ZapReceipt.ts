@@ -1,6 +1,6 @@
 import {parseJson, spec} from "@welshman/lib"
 import {ZAP_RECEIPT, getTagValue, getInvoiceAmount} from "@welshman/util"
-import type {TrustedEvent, Zapper} from "@welshman/util"
+import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -53,41 +53,6 @@ export class ZapReceiptReader extends EventReader {
 
   preimage() {
     return getTagValue("preimage", this.event.tags)
-  }
-
-  verify(zapper: Zapper): boolean {
-    const request = this.request()
-    const invoiceAmount = this.invoiceAmount()
-    const recipient = this.recipient()
-
-    if (!request || invoiceAmount === undefined) {
-      return false
-    }
-
-    if (request.pubkey === zapper.pubkey) {
-      return false
-    }
-
-    const amount = getTagValue("amount", request.tags)
-    const lnurl = getTagValue("lnurl", request.tags)
-
-    if (amount && parseInt(amount) !== invoiceAmount) {
-      return false
-    }
-
-    if (recipient === this.event.pubkey) {
-      return true
-    }
-
-    if (lnurl && lnurl !== zapper.lnurl) {
-      return false
-    }
-
-    if (this.event.pubkey !== zapper.nostrPubkey) {
-      return false
-    }
-
-    return true
   }
 }
 
