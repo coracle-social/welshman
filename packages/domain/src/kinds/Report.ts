@@ -3,7 +3,7 @@ import {REPORT, getTag, getTagValue, userOutbox} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
-import type {AnyConfiguredKind} from "../core/Kind.js"
+import type {KindContext} from "../core/Kind.js"
 
 // NIP-56 kind-1984 report.
 export class ReportReader extends EventReader {
@@ -21,12 +21,8 @@ export class ReportReader extends EventReader {
 }
 
 export class ReportWriter extends EventWriter<ReportReader> {
-  protected async routes() {
-    return [userOutbox()]
-  }
-
-  constructor(def: AnyConfiguredKind, reader?: ReportReader) {
-    super(def, reader)
+  constructor(kind: number, context: KindContext, reader?: ReportReader) {
+    super(kind, context, reader)
 
     // A report's reason lives on both the p and e tags; normalize so a reason
     // present on either is reflected on both.
@@ -35,6 +31,10 @@ export class ReportWriter extends EventWriter<ReportReader> {
     if (reason) {
       this.setReason(reason)
     }
+  }
+
+  protected async renderRoutes() {
+    return [userOutbox()]
   }
 
   private reason() {

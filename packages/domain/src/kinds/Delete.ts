@@ -13,7 +13,6 @@ import {
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
-import {hint} from "../core/Hint.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-09 kind-5 delete request.
@@ -38,17 +37,29 @@ export class DeleteReader extends EventReader {
 export class DeleteWriter extends EventWriter<DeleteReader> {
   // The default (author outbox + mentions) plus every relay each deleted event was
   // found on, so the delete reaches wherever those events live.
-  protected async routes() {
-    const tags = await this.getTags()
+  protected async renderRoutes() {
+    const tags = await this.renderTags()
 
-    return [...(await super.routes()), ...uniq(getEventTagValues(tags)).map(id => seen({id}))]
+    return [...(await super.renderRoutes()), ...uniq(getEventTagValues(tags)).map(id => seen({id}))]
   }
 
   addEvent(event: TrustedEvent, groupUrl?: string) {
-    this.addTags(["e", event.id, hint(outbox(event.pubkey))], ["k", String(event.kind)])
+    const eTag = ["e", event.id, ""]
+
+    this.addTags(eTag, ["k", String(event.kind)])
+
+    this.hint(outbox(event.pubkey)).then(url => {
+      eTag[2] = url
+    })
 
     if (isReplaceable(event)) {
-      this.addTags(["a", getAddress(event), hint(outbox(event.pubkey))])
+      const aTag = ["a", getAddress(event), ""]
+
+      this.addTags(aTag)
+
+      this.hint(outbox(event.pubkey)).then(url => {
+        aTag[2] = url
+      })
     }
 
     // If the deleted event was a NIP-29 group event, the delete must carry the
@@ -70,7 +81,7 @@ export class DeleteWriter extends EventWriter<DeleteReader> {
     return this.setContent(reason)
   }
 
-  protected validate() {
+  validate() {
     super.validate()
 
     if (!this.extraTags.some(t => ["e", "a"].includes(t[0] as string))) {

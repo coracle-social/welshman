@@ -16,7 +16,7 @@ export class FollowListReader extends EventReader {
 }
 
 export class FollowListWriter extends EventWriter<FollowListReader> {
-  protected async routes() {
+  protected async renderRoutes() {
     return [userOutbox()]
   }
 

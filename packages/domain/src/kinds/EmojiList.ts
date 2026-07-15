@@ -6,24 +6,12 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10030 user emoji list.
 export class EmojiListReader extends EventReader {
-  emojis() {
-    return this.tags().filter(spec(["emoji"]))
-  }
-
   emojiSets() {
     return uniq(getAddressTagValues(this.tags()))
   }
 }
 
 export class EmojiListWriter extends EventWriter<EmojiListReader> {
-  addEmoji(shortcode: string, url: string) {
-    return this.addTags(["emoji", shortcode, url])
-  }
-
-  removeEmoji(value: string) {
-    return this.dropTags(spec(["emoji", value]))
-  }
-
   addEmojiSet(address: string) {
     return this.addTags(["a", address])
   }

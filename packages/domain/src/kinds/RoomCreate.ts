@@ -9,7 +9,7 @@ export class RoomCreateReader extends EventReader {}
 export class RoomCreateWriter extends EventWriter<RoomCreateReader> {
   readonly requiresRelays = true
 
-  protected validate() {
+  validate() {
     super.validate()
 
     if (!this.groupTag) {

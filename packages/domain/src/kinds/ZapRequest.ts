@@ -67,13 +67,13 @@ export class ZapRequestWriter extends EventWriter<ZapRequestReader> {
   async requestInvoice(
     zapper: Zapper,
   ): Promise<{event: SignedEvent; invoice?: string; error?: string}> {
-    const {signer} = this.def.context
+    const {signer} = this.context
 
     if (!signer) {
       throw new Error("A signer is required to request a zap invoice")
     }
 
-    const event = await signer.sign(stamp(await this.render()))
+    const event = await signer.sign(stamp(await this.renderTemplate()))
     const zapString = encodeURI(JSON.stringify(event))
     const msats = parseInt(getTagValue("amount", event.tags)!)
     const qs = `?amount=${msats}&nostr=${zapString}&lnurl=${zapper.lnurl}`

@@ -21,8 +21,7 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
   }) as TrustedEvent
 
 // `markerResolver` maps each route type to a recognizable url, so the resolved
-// publish relays reveal which sources a writer targets. Writers aren't signed, so
-// "author" resolves to the current user's outbox (OUTBOX).
+// publish relays reveal which sources a writer targets.
 describe("writer routing", () => {
   it("the default reaches the author outbox + the inboxes of referenced pubkeys", async () => {
     const relays = await publishRelays(write(Note, undefined, markerResolver).addTags(["p", a]))

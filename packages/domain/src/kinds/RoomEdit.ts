@@ -90,7 +90,7 @@ export class RoomEditWriter extends EventWriter<RoomEditReader> {
     return livekit ? this.addTags(["livekit"]) : this
   }
 
-  protected validate() {
+  validate() {
     super.validate()
 
     if (!this.groupTag) {

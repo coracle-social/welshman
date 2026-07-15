@@ -8,6 +8,7 @@ import {
   randomId,
   MaybeAsync,
   parseJson,
+  isHex32,
 } from "@welshman/lib"
 import {
   HashedEvent,
@@ -311,7 +312,7 @@ export class Nip46Broker extends Emitter {
       const _connectSecret = _url.searchParams.get("secret") || ""
 
       relays = _relays.map(normalizeRelayUrl)
-      signerPubkey = _signerPubkey.match(/^[0-9a-f]{64}$/)?.[0] || ""
+      signerPubkey = isHex32(_signerPubkey) ? _signerPubkey : ""
       connectSecret = _connectSecret
     } catch {
       // pass

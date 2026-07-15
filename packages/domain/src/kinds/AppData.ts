@@ -4,7 +4,7 @@ import {APP_DATA} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
-import type {AnyConfiguredKind} from "../core/Kind.js"
+import type {KindContext} from "../core/Kind.js"
 
 // NIP-78 kind-30078 arbitrary app data, keyed by `d` tag. Content is JSON,
 // optionally NIP-44 encrypted to the author.
@@ -15,7 +15,7 @@ export class AppDataReader extends EventReader {
   protected json: unknown = undefined
 
   async parse() {
-    const {signer} = this.def.context
+    const {signer} = this.context
 
     if (!this.event.content) {
       this.decrypted = true
@@ -53,8 +53,8 @@ export class AppDataWriter extends EventWriter<AppDataReader> {
   values: unknown = undefined
   encrypted = false
 
-  constructor(def: AnyConfiguredKind, reader?: AppDataReader) {
-    super(def, reader)
+  constructor(kind: number, context: KindContext, reader?: AppDataReader) {
+    super(kind, context, reader)
 
     this.values = reader?.values()
     this.encrypted = reader?.encrypted ?? false
@@ -72,7 +72,7 @@ export class AppDataWriter extends EventWriter<AppDataReader> {
     return this
   }
 
-  protected validate() {
+  validate() {
     super.validate()
 
     if (this.reader?.encrypted && this.reader?.decrypted === false && this.values !== undefined) {
@@ -80,7 +80,7 @@ export class AppDataWriter extends EventWriter<AppDataReader> {
     }
   }
 
-  protected async buildContent(): Promise<string> {
+  async renderContent(): Promise<string> {
     // Preserve the original ciphertext when we never decrypted it.
     if (this.reader?.decrypted === false) return this.reader.event.content
 
@@ -90,7 +90,7 @@ export class AppDataWriter extends EventWriter<AppDataReader> {
 
     if (!this.encrypted) return json
 
-    const {signer} = this.def.context
+    const {signer} = this.context
 
     if (!signer) {
       throw new Error("A signer is required to encrypt app data")

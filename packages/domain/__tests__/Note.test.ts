@@ -52,6 +52,63 @@ describe("Note", () => {
     ])
   })
 
+  it("reads and writes NIP-30 emoji tags", async () => {
+    const reader = await read(
+      Note,
+      makeEvent({
+        content: "gm :blobcat:",
+        tags: [["emoji", "blobcat", "https://example.com/blobcat.png", "30030:abc:blobcats"]],
+      }),
+    )
+
+    expect(reader.emojis()).toEqual([
+      {shortcode: "blobcat", url: "https://example.com/blobcat.png", address: "30030:abc:blobcats"},
+    ])
+
+    // Optional emoji-set address, and dedup by shortcode.
+    const tmpl = await buildTemplate(
+      write(Note)
+        .setContent(":a: :b:")
+        .addEmoji("a", "https://example.com/a.png")
+        .addEmoji("b", "https://example.com/b.png", "30030:abc:set")
+        .addEmoji("a", "https://example.com/a2.png")
+        .removeEmoji("b"),
+      signer,
+    )
+
+    expect(tmpl.tags.filter(t => t[0] === "emoji")).toEqual([
+      ["emoji", "a", "https://example.com/a2.png"],
+    ])
+  })
+
+  it("reads and writes NIP-57 zap-split tags", async () => {
+    const reader = await read(
+      Note,
+      makeEvent({
+        tags: [
+          ["zap", parentPubkey, "", "2"],
+          ["zap", pubkey, "", "1"],
+        ],
+      }),
+    )
+
+    expect(reader.zapSplits()).toEqual([
+      {pubkey: parentPubkey, relay: undefined, weight: 2},
+      {pubkey: pubkey, relay: undefined, weight: 1},
+    ])
+
+    const tmpl = await buildTemplate(
+      write(Note)
+        .setContent("gm")
+        .addZapSplit(parentPubkey, 3)
+        .addZapSplit(pubkey)
+        .removeZapSplit(pubkey),
+      signer,
+    )
+
+    expect(tmpl.tags.filter(t => t[0] === "zap")).toEqual([["zap", parentPubkey, "", "3"]])
+  })
+
   it("throws on the wrong kind", async () => {
     await expect(read(Note, makeEvent({kind: FOLLOWS}))).rejects.toThrow()
   })

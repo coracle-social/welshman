@@ -3,7 +3,7 @@ import {RELAY_MEMBERS, getTagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
-import type {AnyConfiguredKind} from "../core/Kind.js"
+import type {KindContext} from "../core/Kind.js"
 
 // Flotilla kind-13534 relay/space member-list snapshot. Members are carried in
 // NIP-43 `member` tags, and the event is NIP-70 protected (`-`).
@@ -20,8 +20,8 @@ export class RelayMembersReader extends EventReader {
 export class RelayMembersWriter extends EventWriter<RelayMembersReader> {
   readonly requiresRelays = true
 
-  constructor(def: AnyConfiguredKind, reader?: RelayMembersReader) {
-    super(def, reader)
+  constructor(kind: number, context: KindContext, reader?: RelayMembersReader) {
+    super(kind, context, reader)
 
     // NIP-43 requires kind-13534 member lists to be NIP-70 protected.
     this.setProtected(true)

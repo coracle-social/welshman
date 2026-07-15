@@ -33,7 +33,7 @@ describe("EmojiList", () => {
     const list = await read(EmojiList, event)
 
     expect(list.emojiSets()).toEqual([setAddress])
-    expect(list.emojis()).toEqual([emojiTag])
+    expect(list.emojis()).toEqual([{shortcode: "soapbox", url: "https://example.com/soapbox.png"}])
   })
 
   it("round-trips without duplicating tags and preserves passthrough", async () => {

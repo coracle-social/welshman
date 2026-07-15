@@ -1,6 +1,7 @@
 import {describe, it, expect} from "vitest"
 import {makeSecret, FEED, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
+import type {Feed as FeedDefinition} from "@welshman/feeds"
 import {Nip01Signer} from "@welshman/signer"
 import {Feed} from "../src/kinds/Feed"
 import {buildTemplate, read, write} from "./helpers.js"
@@ -8,7 +9,7 @@ import {buildTemplate, read, write} from "./helpers.js"
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
 
-const definition = ["union", ["search", "nostr"]]
+const definition = ["union", ["search", "nostr"]] as FeedDefinition
 
 const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
   ({

@@ -101,7 +101,7 @@ export class PollWriter extends EventWriter<PollReader> {
     return this.dropTags(spec(["relay"])).addTags(...urls.map(url => ["relay", url]))
   }
 
-  protected validate() {
+  validate() {
     super.validate()
 
     if (!this.extraTags.some(spec(["option"]))) {

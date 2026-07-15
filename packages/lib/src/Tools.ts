@@ -1761,6 +1761,10 @@ export const hexToBech32 = (prefix: string, hex: string) =>
 export const bech32ToHex = (b32: string) =>
   utf8.encode(bech32.fromWords(bech32.decode(b32 as any, false).words))
 
+const hex32Regexp = /^[0-9a-f]{64}$/
+
+export const isHex32 = (s: string) => hex32Regexp.test(s)
+
 // ----------------------------------------------------------------------------
 // Bytes <-> hex encoding
 // ----------------------------------------------------------------------------

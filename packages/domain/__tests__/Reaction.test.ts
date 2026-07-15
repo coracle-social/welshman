@@ -43,7 +43,9 @@ describe("Reaction", () => {
     expect(reaction.eventAddress()).toBe(`3:${targetPubkey}:`)
     expect(reaction.pubkey()).toBe(targetPubkey)
     expect(reaction.eventKind()).toBe(3)
-    expect(reaction.emojis()).toEqual([["emoji", "soapbox", "https://example.com/soapbox.png"]])
+    expect(reaction.emojis()).toEqual([
+      {shortcode: "soapbox", url: "https://example.com/soapbox.png"},
+    ])
   })
 
   it("round-trips with no duplicate target tags", async () => {
@@ -68,7 +70,7 @@ describe("Reaction", () => {
       expect(tmpl.tags.filter(t => t[0] === key).length).toBe(1)
     }
     expect(tmpl.tags).toContainEqual(["e", "11".repeat(32), ""])
-    expect(tmpl.tags).toContainEqual(["p", targetPubkey, "", ""])
+    expect(tmpl.tags).toContainEqual(["p", targetPubkey, ""])
     expect(tmpl.tags).toContainEqual(["k", "1"])
     // Unknown passthrough tag survives.
     expect(tmpl.tags).toContainEqual(["alt", "x"])
@@ -82,7 +84,7 @@ describe("Reaction", () => {
 
     expect(tmpl.kind).toBe(REACTION)
     expect(tmpl.tags).toContainEqual(["e", targetId, ""])
-    expect(tmpl.tags).toContainEqual(["p", targetPubkey, "", ""])
+    expect(tmpl.tags).toContainEqual(["p", targetPubkey, ""])
     expect(tmpl.tags).toContainEqual(["k", String(FOLLOWS)])
     expect(tmpl.tags).toContainEqual(["a", `${FOLLOWS}:${targetPubkey}:`, ""])
   })

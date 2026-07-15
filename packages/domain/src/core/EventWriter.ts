@@ -1,12 +1,9 @@
-import {complement, first, nth, partition, randomId, spec, uniq} from "@welshman/lib"
+import {remove, complement, first, partition, randomId, removeUndefined, spec} from "@welshman/lib"
 import type {MaybeAsync} from "@welshman/lib"
 import {
   isParameterizedReplaceableKind,
   normalizeRelayUrl,
-  getAncestorTags,
-  getPubkeyTags,
   getPubkeyTagValues,
-  isRelayUrl,
   outbox,
   userOutbox,
   inboxes,
@@ -14,41 +11,56 @@ import {
 } from "@welshman/util"
 import type {EventTemplate, TrustedEvent, RelaySelection, RelayScenario} from "@welshman/util"
 import type {EventReader} from "./EventReader.js"
-import type {AnyConfiguredKind} from "./Kind.js"
-import {Hint, hint} from "./Hint.js"
-import type {Tag} from "./Hint.js"
+import type {KindContext} from "./Kind.js"
+
+// A cursor over a tag list that splits out tags by key as they're consumed,
+// leaving the rest in `tags`. Writers use it to peel behavior/kind-specific tags
+// off an event being edited.
+export class TagParser {
+  tags: string[][]
+
+  constructor(tags: string[][]) {
+    this.tags = tags
+  }
+
+  consume(key: string) {
+    const [consumed, remaining] = partition(spec([key]), this.tags)
+
+    this.tags = remaining
+
+    return consumed
+  }
+}
 
 export abstract class EventWriter<Reader extends EventReader> {
-  content: string
-  groupTag?: Tag
-  protectTag?: Tag
-  expirationTag?: Tag
-  identifierTag?: Tag
-  extraTags: Tag[] = []
+  content = ""
+  groupTag?: string[]
+  protectTag?: string[]
+  expirationTag?: string[]
+  identifierTag?: string[]
+  extraTags: string[][] = []
   forcedRelays?: string[]
+  pendingResolves: Promise<unknown>[] = []
 
   // Kinds that must publish to explicit relays (e.g. NIP-29 group events) set this.
   // Annotated `boolean` (not the inferred literal `false`) so subclasses can override.
   readonly requiresRelays: boolean = false
 
   constructor(
-    readonly def: AnyConfiguredKind,
+    readonly kind: number,
+    readonly context: KindContext,
     readonly reader?: Reader,
   ) {
-    this.content = reader?.event.content ?? ""
-    this.extraTags = reader?.event.tags ?? []
-    this.groupTag = first(this.consumeTags("h"))
-    this.protectTag = first(this.consumeTags("-"))
-    this.expirationTag = first(this.consumeTags("expiration"))
-    this.identifierTag = first(this.consumeTags("d"))
-  }
+    if (reader) {
+      const parser = new TagParser(reader.event.tags)
 
-  protected consumeTags(key: string): Tag[] {
-    const [consumed, remaining] = partition(spec([key]), this.extraTags)
-
-    this.extraTags = remaining
-
-    return consumed
+      this.content = reader.event.content
+      this.groupTag = first(parser.consume("h"))
+      this.protectTag = first(parser.consume("-"))
+      this.expirationTag = first(parser.consume("expiration"))
+      this.identifierTag = first(parser.consume("d"))
+      this.extraTags = parser.tags
+    }
   }
 
   setContent(content: string) {
@@ -113,65 +125,80 @@ export abstract class EventWriter<Reader extends EventReader> {
     return this
   }
 
-  addTags(...tags: Tag[]) {
+  addTags(...tags: string[][]) {
     this.extraTags.push(...tags)
 
     return this
   }
 
-  keepTags(pred: (tag: Tag) => boolean) {
+  keepTags(pred: (tag: string[]) => boolean) {
     this.extraTags = this.extraTags.filter(pred)
 
     return this
   }
 
-  dropTags(pred: (tag: Tag) => boolean) {
+  dropTags(pred: (tag: string[]) => boolean) {
     this.extraTags = this.extraTags.filter(complement(pred))
 
     return this
   }
 
-  // Relay-hint helpers — deferred `Hint`s that `render` dereferences to a url.
+  addMention(pubkey: string) {
+    const tag = ["p", pubkey, ""]
 
-  protected eventRootsHint(event: TrustedEvent): Hint {
-    const {roots} = getAncestorTags(event)
-    const mentions = getPubkeyTags(event.tags)
-    const authors = roots.map(nth(3)).filter(p => p?.length === 64)
-    const others = mentions.map(nth(1)).filter(p => p?.length === 64)
-    const relayUrls = uniq([...roots, ...mentions].map(nth(2)).filter(r => r && isRelayUrl(r)))
+    this.addTags(tag)
 
-    return hint(
-      ...authors.map(pubkey => outbox(pubkey, 10)),
-      ...others.map(pubkey => outbox(pubkey)),
-      ...relays(relayUrls),
-    )
+    this.hint(outbox(pubkey)).then(url => {
+      tag[2] = url
+    })
+
+    return this
   }
 
-  // Shared tag builders.
+  addQuote(event: TrustedEvent) {
+    const tag = ["q", event.id, "", event.pubkey]
 
-  tagPubkey(pubkey: string, petname = ""): Tag {
-    return ["p", pubkey, hint(outbox(pubkey)), petname]
-  }
+    this.addTags(tag)
 
-  addQuote(event: TrustedEvent, relay?: string) {
-    return this.addTags(["q", event.id, relay ?? hint(outbox(event.pubkey)), event.pubkey])
+    this.hint(outbox(event.pubkey)).then(url => {
+      tag[2] = url
+    })
+
+    return this
   }
 
   addZapSplit(pubkey: string, split = 1) {
-    return this.addTags(["zap", pubkey, hint(outbox(pubkey)), String(split)])
+    const tag = ["zap", pubkey, "", String(split)]
+
+    this.addTags(tag)
+
+    this.hint(outbox(pubkey)).then(url => {
+      tag[2] = url
+    })
+
+    return this
   }
 
-  protected buildTags(): MaybeAsync<Tag[]> {
-    return []
+  removeZapSplit(pubkey: string) {
+    return this.dropTags(spec(["zap", pubkey]))
   }
 
-  protected buildContent(): MaybeAsync<string> {
-    return this.content
+  addEmoji(shortcode: string, url: string, address?: string) {
+    return this.dropTags(spec(["emoji", shortcode])).addTags(
+      removeUndefined(["emoji", shortcode, url, address]),
+    )
   }
 
-  protected validate(): void {
-    if (isParameterizedReplaceableKind(this.def.kind) && !this.identifierTag) {
-      throw new Error(`A d tag is required for kind ${this.def.kind}`)
+  removeEmoji(shortcode: string) {
+    return this.dropTags(spec(["emoji", shortcode]))
+  }
+
+  /**
+   * Validates a domain object, throwing an error if invalid.
+   */
+  validate(): void {
+    if (isParameterizedReplaceableKind(this.kind) && !this.identifierTag) {
+      throw new Error(`A d tag is required for kind ${this.kind}`)
     }
 
     if (this.groupTag && !this.forcedRelays?.length) {
@@ -180,71 +207,110 @@ export abstract class EventWriter<Reader extends EventReader> {
 
     if (this.requiresRelays && !this.forcedRelays?.length) {
       throw new Error(
-        `A kind ${this.def.kind} event must publish to explicit relays (via setGroup or forceRelays)`,
+        `A kind ${this.kind} event must publish to explicit relays (via setGroup or forceRelays)`,
       )
     }
   }
 
-  private behaviorTags(): Tag[] {
-    const tags: Tag[] = []
+  /**
+   * Tracks a promise that must resolve before the event is rendered.
+   */
+  private trackPending<T>(promise: Promise<T>): Promise<T> {
+    this.pendingResolves.push(promise)
 
-    if (this.groupTag) tags.push(this.groupTag)
-    if (this.protectTag) tags.push(this.protectTag)
-    if (this.expirationTag) tags.push(this.expirationTag)
-    if (this.identifierTag) tags.push(this.identifierTag)
+    promise.then(() => {
+      this.pendingResolves = remove(promise, this.pendingResolves)
+    })
 
-    return tags
+    return promise
   }
 
-  private async rawTags(): Promise<Tag[]> {
-    const implTags = await this.buildTags()
-
-    return [...implTags, ...this.behaviorTags(), ...this.extraTags]
+  /**
+   * Resolves one or more relay selections to a single hint url, tracking the
+   * in-flight promise so `renderTags` can wait for it. Callers backfill the
+   * resolved url into a tag's hint slot.
+   */
+  protected hint(...routes: RelaySelection[]): Promise<string> {
+    return this.trackPending(this.context.resolver.relay(routes).then(url => url ?? ""))
   }
 
-  async getTags(): Promise<string[][]> {
-    const tags = await this.rawTags()
-
-    return tags.map(tag => tag.map(part => (part instanceof Hint ? "" : part)))
+  /**
+   * Returns a list of tags that may be attached to any kind.
+   */
+  protected renderBehaviorTags(): MaybeAsync<string[][]> {
+    return removeUndefined([this.groupTag, this.protectTag, this.expirationTag, this.identifierTag])
   }
 
-  protected async routes(): Promise<RelaySelection[]> {
-    return [userOutbox(), ...inboxes(getPubkeyTagValues(await this.getTags()), 0.5)]
+  /**
+   * Returns a list of tags related to the kind.
+   */
+  protected renderDomainTags(): MaybeAsync<string[][]> {
+    return []
   }
 
+  /**
+   * Returns the complete tag list for publishing.
+   */
+  async renderTags(): Promise<string[][]> {
+    const behaviorTags = await this.renderBehaviorTags()
+    const domainTags = await this.renderDomainTags()
+
+    // Wait for any relay hints to resolve and backfill their tags.
+    await Promise.all(this.pendingResolves)
+
+    return [...behaviorTags, ...domainTags, ...this.extraTags]
+  }
+
+  /**
+   * Returns the content string as defined by the kind.
+   */
+  renderContent(): MaybeAsync<string> {
+    return this.content
+  }
+
+  /**
+   * Validates and renders an event template.
+   */
+  async renderTemplate(): Promise<EventTemplate> {
+    this.validate()
+
+    return {
+      kind: this.kind,
+      tags: await this.renderTags(),
+      content: await this.renderContent(),
+    }
+  }
+
+  /**
+   * Returns the list of routes this event should be published to. Defaults to
+   * the outbox model. Override to implement custom behavior.
+   */
+  protected async renderRoutes(): Promise<RelaySelection[]> {
+    return [userOutbox(), ...inboxes(getPubkeyTagValues(await this.renderTags()), 0.5)]
+  }
+
+  /**
+   * Returns a router scenario for this event. Publishes to forced relays (e.g. a
+   * NIP-29 group) when set, otherwise to the rendered routes.
+   */
   async scenario(): Promise<RelayScenario> {
-    const routes = this.forcedRelays?.length ? relays(this.forcedRelays) : await this.routes()
+    const routes = this.forcedRelays?.length ? relays(this.forcedRelays) : await this.renderRoutes()
 
-    return this.def.context.resolver.scenario(routes)
+    return this.context.resolver.scenario(routes)
   }
 
+  /**
+   * Shortcut for getting relays from the router scenario.
+   */
   async relays(): Promise<string[]> {
     return (await this.scenario()).getUrls()
   }
 
-  async render(): Promise<EventTemplate> {
-    const {resolver} = this.def.context
-
-    this.validate()
-
-    const rawTags = await this.rawTags()
-    const tags = await Promise.all(
-      rawTags.map(tag =>
-        Promise.all(
-          tag.map(async part =>
-            part instanceof Hint ? ((await resolver.relay(part.selections)) ?? "") : part,
-          ),
-        ),
-      ),
-    )
-
-    const content = await this.buildContent()
-
-    return {kind: this.def.kind, content, tags}
-  }
-
-  async finalize(): Promise<{event: EventTemplate; relays: string[]}> {
-    const [event, relays] = await Promise.all([this.render(), this.relays()])
+  /**
+   * Returns a rendered event template along with its relays.
+   */
+  async render(): Promise<{event: EventTemplate; relays: string[]}> {
+    const [event, relays] = await Promise.all([this.renderTemplate(), this.relays()])
 
     return {event, relays}
   }
