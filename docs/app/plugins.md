@@ -108,7 +108,7 @@ abstract class DerivedPlugin<T> {
 }
 ```
 
-Internally it builds `index` from `app.use(Stores).itemsByKey({filters, eventToItem, getKey})`, a live readable derived over the repository. `eventToItem` may be async — useful when a list has encrypted entries that must be decrypted first.
+Internally it builds `index` from `@welshman/store`'s `deriveItemsByKey({filters, eventToItem, getKey, repository: app.repository})`, a live readable derived over the repository. `eventToItem` may be async — useful when a list has encrypted entries that must be decrypted first.
 
 ## Lifecycle of a `DerivedPlugin` read
 
@@ -119,16 +119,14 @@ Internally it builds `index` from `app.use(Stores).itemsByKey({filters, eventToI
 
 `forceLoad` bypasses the cache and resolves to the freshly-read item.
 
-## The `Stores` plugin
+## Repository-derived stores
 
-`app.use(Stores)` is the repository/tracker-bound factory that `DerivedPlugin` builds on. It mostly forwards to `@welshman/store`, injecting the app's `repository` and `tracker`:
+The higher-level data plugins are usually what you want, but when you need a custom store derived straight from the repository, call the `@welshman/store` derivation functions directly and pass the app's `repository` (and `tracker` for relay-scoped views):
 
-- `itemsByKey<T>(opts)` — the live keyed collection used by `DerivedPlugin`
-- `events(opts)` / `eventsById(opts)` / `makeEvent(opts)` — derived event stores
-- `eventsByIdByUrl(opts)` / `eventsByIdForUrl(opts)` — relay-scoped views (inject the tracker)
-- `isDeleted(event)` — reactive deletion status
-
-You rarely call `Stores` directly — the higher-level data plugins are usually what you want — but it is the seam to use when you need a custom repository-derived store wired to the app.
+- `deriveItemsByKey<T>({filters, eventToItem, getKey, repository})` — the live keyed collection `DerivedPlugin` builds on
+- `deriveEvents(opts)` / `deriveEventsById(opts)` / `makeDeriveEvent(opts)` — derived event stores
+- `deriveEventsByIdByUrl(opts)` / `deriveEventsByIdForUrl(opts)` — relay-scoped views (also take the `tracker`)
+- `deriveIsDeleted(repository, event)` — reactive deletion status
 
 ## The `Domain` plugin
 

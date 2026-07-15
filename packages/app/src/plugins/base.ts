@@ -5,10 +5,17 @@ import type {Readable, Unsubscriber} from "svelte/store"
 import {sortBy} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import type {Filter} from "@welshman/util"
-import {deriveItems, getter, makeDeriveItem, makeLoadItem, makeForceLoadItem} from "@welshman/store"
+import {
+  deriveItems,
+  deriveItemsByKey,
+  deriveItemsByKeyByUrl,
+  getter,
+  makeDeriveItem,
+  makeLoadItem,
+  makeForceLoadItem,
+} from "@welshman/store"
 import type {EventToItem, ItemsByKey, MakeLoadItemOptions} from "@welshman/store"
 import type {IApp} from "../app.js"
-import {Stores} from "./stores.js"
 
 /**
  * Utility type which allows for using the same value both for hot gets and derived subscriptions
@@ -202,10 +209,11 @@ export abstract class DerivedPlugin<T> {
     protected readonly app: IApp,
     options: DerivedPluginOptions<T>,
   ) {
-    const index = app.use(Stores).itemsByKey<T>({
+    const index = deriveItemsByKey<T>({
       filters: options.filters,
       eventToItem: options.eventToItem,
       getKey: options.getKey,
+      repository: app.repository,
     })
 
     this.index = projection(index)
@@ -257,11 +265,13 @@ export abstract class RelayScopedDerivedPlugin<T> {
     protected readonly app: IApp,
     options: RelayScopedDerivedPluginOptions<T>,
   ) {
-    const index = app.use(Stores).itemsByKeyByUrl<T>({
+    const index = deriveItemsByKeyByUrl<T>({
       filters: options.filters,
       eventToItem: options.eventToItem,
       getKey: options.getKey,
       revalidateOn: options.revalidateOn,
+      tracker: app.tracker,
+      repository: app.repository,
     })
 
     this.index = projection(index)

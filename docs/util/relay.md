@@ -1,6 +1,8 @@
 # Relay
 
-The `Relay` module provides utilities for working with Nostr relays, including URL normalization, validation, and relay profile handling.
+The `Relay` module provides utilities for working with Nostr relay URLs — normalization, validation, and classification.
+
+NIP-11 relay information documents are modeled by the `Relay` class in `@welshman/domain`, which owns the profile display (`relay.display`) and capability checks (`relay.hasNegentropy`, `relay.hasNip`). `relay.displayUrl()` delegates to `displayRelayUrl` below.
 
 ## API
 
@@ -15,26 +17,6 @@ export enum RelayMode {
   Blocked = "blocked",
   Messaging = "messaging"
 }
-
-// Relay information from NIP-11
-export type RelayProfile = {
-  url: string;
-  icon?: string;
-  banner?: string;
-  name?: string;
-  pubkey?: string;
-  contact?: string;
-  software?: string;
-  version?: string;
-  negentropy?: number;
-  description?: string;
-  supported_nips?: string[];
-  limitation?: {
-    min_pow_difficulty?: number;
-    payment_required?: boolean;
-    auth_required?: boolean;
-  };
-};
 ```
 
 ### URL Validation
@@ -62,15 +44,8 @@ export declare const isShareableRelayUrl: (url: string) => boolean;
 // Normalize relay URL to standard format
 export declare const normalizeRelayUrl: (url: string) => string;
 
-// Format URL for display (remove protocol, trailing slash)
+// Format URL for display (strip protocol + trailing slash)
 export declare const displayRelayUrl: (url: string) => string;
-```
-
-### Relay Profile
-
-```typescript
-// Get display name for relay profile
-export declare const displayRelayProfile: (profile?: RelayProfile, fallback?: string) => string;
 ```
 
 ## Relay Selection DSL
