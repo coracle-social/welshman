@@ -1806,3 +1806,16 @@ export const sha256 = async (data: ArrayBuffer | Uint8Array): Promise<string> =>
   const hashArray = Array.from(new Uint8Array(hashBuffer))
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("")
 }
+
+/**
+ * Parses a string or number to an integer
+ * @param data - a string or number or undefined
+ * @returns number or undefined
+ */
+export const toInt = (x: number | string | undefined) => {
+  const v = parseInt(String(x))
+
+  if (!isNaN(v)) {
+    return v
+  }
+}
