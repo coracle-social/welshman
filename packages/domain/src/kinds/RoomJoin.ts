@@ -18,7 +18,7 @@ export class RoomJoinWriter extends EventWriter<RoomJoinReader> {
     return this.dropTags(spec(["claim"])).addTags(["claim", claim])
   }
 
-  protected validate() {
+  validate() {
     super.validate()
 
     if (!this.groupTag) {

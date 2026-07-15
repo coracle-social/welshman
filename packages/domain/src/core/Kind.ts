@@ -1,61 +1,45 @@
 import type {TrustedEvent, Resolver} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
-import type {Repository} from "@welshman/net"
 import type {EventReader} from "./EventReader.js"
 import type {EventWriter} from "./EventWriter.js"
-import {EventRouter} from "./EventRouter.js"
 
 export type KindContext = {
   resolver: Resolver
   signer?: ISigner
-  repository?: Repository
 }
 
-export type KindConfig<
-  Reader extends EventReader,
-  Writer extends EventWriter<Reader>,
-  Router extends EventRouter = EventRouter,
-> = {
+export type KindConfig<Reader extends EventReader, Writer extends EventWriter<Reader>> = {
   kind: number
-  reader: new (def: AnyConfiguredKind, event: TrustedEvent) => Reader
-  writer: new (def: AnyConfiguredKind, reader?: Reader) => Writer
-  router?: new (def: AnyConfiguredKind) => Router
+  reader: new (kind: number, context: KindContext, event: TrustedEvent) => Reader
+  writer: new (kind: number, context: KindContext, reader?: Reader) => Writer
 }
 
 /**
- * Bundles a kind's reader, writer, and (optional) router classes.
+ * Bundles a kind's number, reader, and writer classes.
  *
- * Usage: `export const Profile = new KindFactory({reader: ProfileReader, writer:
- * ProfileWriter})`, then `Profile.configure(context)` to bind the app's
- * dependencies once.
+ * Usage: `export const Profile = new KindFactory({kind: PROFILE, reader:
+ * ProfileReader, writer: ProfileWriter})`, then `Profile.kind` reads the number and
+ * `Profile.configure(context)` binds the app's dependencies once.
  */
-export class KindFactory<
-  Reader extends EventReader,
-  Writer extends EventWriter<Reader>,
-  Router extends EventRouter = EventRouter,
-> {
-  constructor(readonly config: KindConfig<Reader, Writer, Router>) {}
+export class KindFactory<Reader extends EventReader, Writer extends EventWriter<Reader>> {
+  constructor(readonly config: KindConfig<Reader, Writer>) {}
 
   get kind(): number {
     return this.config.kind
   }
 
-  configure(context: KindContext): ConfiguredKind<Reader, Writer, Router> {
+  configure(context: KindContext): ConfiguredKind<Reader, Writer> {
     return new ConfiguredKind(this.config, context)
   }
 }
 
 /**
- * A kind bound to a `KindContext`. Produces readers, writers, and routers which share
- * the configured dependencies.
+ * A kind bound to a `KindContext`. Produces readers and writers which share the
+ * configured dependencies.
  */
-export class ConfiguredKind<
-  Reader extends EventReader,
-  Writer extends EventWriter<Reader>,
-  Router extends EventRouter = EventRouter,
-> {
+export class ConfiguredKind<Reader extends EventReader, Writer extends EventWriter<Reader>> {
   constructor(
-    readonly config: KindConfig<Reader, Writer, Router>,
+    readonly config: KindConfig<Reader, Writer>,
     readonly context: KindContext,
   ) {}
 
@@ -63,28 +47,16 @@ export class ConfiguredKind<
     return this.config.kind
   }
 
+  // Build a reader for an existing event, awaiting `parse` (decryption, etc.).
   reader = async (event: TrustedEvent): Promise<Reader> => {
-    if (event.kind !== this.kind) {
-      throw new Error(`Expected a kind ${this.kind} event, got kind ${event.kind}`)
-    }
-
-    const reader = new this.config.reader(this, event)
+    const reader = new this.config.reader(this.config.kind, this.context, event)
 
     await reader.parse()
 
     return reader
   }
 
-  writer = (reader?: Reader): Writer => new this.config.writer(this, reader)
-
-  router = (): Router => {
-    const Ctor = this.config.router ?? EventRouter
-
-    return new Ctor(this) as Router
-  }
+  // Build a writer. Pass a reader to edit its event, or omit to draft a new one.
+  writer = (reader?: Reader): Writer =>
+    new this.config.writer(this.config.kind, this.context, reader)
 }
-
-// A loosely-typed reference to the owning configured kind, injected into every
-// reader/writer instance so it can reach the context. The `any` params dodge the
-// circular generics — precise types live on the concrete `ConfiguredKind` wrapper.
-export type AnyConfiguredKind = ConfiguredKind<any, any, any>

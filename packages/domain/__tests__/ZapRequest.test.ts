@@ -126,7 +126,7 @@ describe("ZapRequest", () => {
         .setLnurl("lnurl1abc")
         .setRecipient(recipient)
 
-      writer.def.context.signer = signer
+      writer.context.signer = signer
 
       return writer
     }

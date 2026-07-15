@@ -8,7 +8,7 @@ export abstract class ListReader extends EventReader {
   privateTags: string[][] = []
 
   async parse() {
-    const {signer} = this.def.context
+    const {signer} = this.context
 
     this.publicTags = this.event.tags
 

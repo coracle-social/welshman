@@ -25,7 +25,7 @@ export class Deletes {
     // scenario ourselves and raise the limit above the default.
     User.require(this.app)
 
-    const [template, scenario] = await Promise.all([writer.render(), writer.scenario()])
+    const [template, scenario] = await Promise.all([writer.renderTemplate(), writer.scenario()])
 
     return new Command(this.app, template, scenario.limit(30).getUrls())
   }

@@ -14,7 +14,7 @@ export class Domain {
 
   // Configure a kind, memoized per factory. The signer is resolved lazily — app
   // policies can swap it (via `wrapSigner`) after construction — while the resolver
-  // and repository are stable for the app's lifetime.
+  // is stable for the app's lifetime. The domain guards against a missing signer.
   configure = <R extends EventReader, W extends EventWriter<R>>(
     factory: KindFactory<R, W>,
   ): ConfiguredKind<R, W> => {
@@ -27,7 +27,6 @@ export class Domain {
         factory,
         (configured = factory.configure({
           resolver: app.use(Router).resolver,
-          repository: app.repository,
           get signer() {
             return app.user?.signer
           },
@@ -49,7 +48,7 @@ export class Domain {
   command = async (writer: EventWriter<any>): Promise<Command> => {
     User.require(this.app)
 
-    const {event, relays} = await writer.finalize()
+    const {event, relays} = await writer.render()
 
     return new Command(this.app, event, relays)
   }

@@ -1,4 +1,5 @@
 import {decode, npubEncode, nprofileEncode} from "nostr-tools/nip19"
+import {isHex32} from '@welshman/lib'
 
 export class Pubkey {
   constructor(
@@ -8,7 +9,7 @@ export class Pubkey {
 
   static from(entity: string, relays: string[] = []) {
     let pubkey: string
-    if (entity.match(/^[0-9a-f]{64}$/)) {
+    if (isHex32(entity)) {
       pubkey = entity
     } else {
       const {type, data} = decode(entity) as any

@@ -29,11 +29,11 @@ export class RelayListReader extends EventReader {
 
 export class RelayListWriter extends EventWriter<RelayListReader> {
   // Kind 10002 is indexed, and publishes to every relay the list references — both
-  // its current urls and the ones it used to have (via the seed `reader`), so each
+  // its current urls and the ones it used to have (via the seed reader) — so each
   // relay learns when it's added to or removed from the list.
-  protected async routes() {
+  protected async renderRoutes() {
     const original = this.reader?.urls() ?? []
-    const current = getUrls(await this.getTags())
+    const current = getUrls(await this.renderTags())
 
     return [userOutbox(), indexers(), ...relays(uniq([...original, ...current]))]
   }

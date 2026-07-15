@@ -86,7 +86,7 @@ export class PinWriter extends EventWriter<PinReader> {
     return this.dropTags(t => REFERENCE_KEYS.includes(t[0] as string))
   }
 
-  protected validate() {
+  validate() {
     super.validate()
 
     if (!this.extraTags.some(t => ["e", "a", "i"].includes(t[0] as string))) {

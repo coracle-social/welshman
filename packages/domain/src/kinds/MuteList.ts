@@ -16,7 +16,7 @@ export class MuteListReader extends ListReader {
 }
 
 export class MuteListWriter extends ListWriter<MuteListReader> {
-  protected async routes() {
+  protected async renderRoutes() {
     return [userOutbox()]
   }
 

@@ -5,7 +5,7 @@ import {PROFILE, getLnUrl} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
-import type {AnyConfiguredKind} from "../core/Kind.js"
+import type {KindContext} from "../core/Kind.js"
 
 export const parseLnUrl = (values: Record<string, any> = {}): Maybe<string> => {
   for (const key of ["lud06", "lud16"] as const) {
@@ -75,10 +75,11 @@ export class ProfileReader extends EventReader {
 }
 
 export class ProfileWriter extends EventWriter<ProfileReader> {
-  values: Record<string, any>
+  values: Record<string, any> = {}
 
-  constructor(def: AnyConfiguredKind, reader?: ProfileReader) {
-    super(def, reader)
+  constructor(kind: number, context: KindContext, reader?: ProfileReader) {
+    super(kind, context, reader)
+
     this.values = {...(reader?.values ?? {})}
   }
 
@@ -124,11 +125,7 @@ export class ProfileWriter extends EventWriter<ProfileReader> {
     return this
   }
 
-  protected buildTags() {
-    return []
-  }
-
-  protected buildContent() {
+  renderContent() {
     return JSON.stringify(this.values)
   }
 }

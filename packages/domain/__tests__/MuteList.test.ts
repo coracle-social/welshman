@@ -78,7 +78,13 @@ describe("MuteList", () => {
   })
 
   it("throws on the wrong kind", async () => {
-    const event = {kind: FOLLOWS, tags: [], content: "", pubkey: a} as TrustedEvent
+    const event = {
+      kind: FOLLOWS,
+      tags: [] as string[][],
+      content: "",
+      pubkey: a,
+      created_at: 0,
+    } as TrustedEvent
 
     await expect(read(MuteList, event)).rejects.toThrow()
   })

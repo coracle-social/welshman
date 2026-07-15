@@ -1,17 +1,20 @@
-import {uniq} from "@welshman/lib"
+import {nth, uniq} from "@welshman/lib"
 import {
   NOTE,
   getReplyTags,
+  getAncestorTags,
+  getPubkeyTags,
   getPubkeyTagValues,
   getAddress,
   isReplaceable,
+  isRelayUrl,
   isShareableRelayUrl,
   outbox,
+  relays,
 } from "@welshman/util"
-import type {TrustedEvent} from "@welshman/util"
+import type {TrustedEvent, RelaySelection} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
-import {hint} from "../core/Hint.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-01 kind-1 short text note.
@@ -22,7 +25,7 @@ export class NoteWriter extends EventWriter<NoteReader> {
   // parent (and thread root) with the appropriate markers and relay hints.
   setParent(event: TrustedEvent) {
     for (const pubkey of uniq([event.pubkey, ...getPubkeyTagValues(event.tags)])) {
-      this.addTags(this.tagPubkey(pubkey))
+      this.addMention(pubkey)
     }
 
     const {roots, replies} = getReplyTags(event.tags)
@@ -31,18 +34,54 @@ export class NoteWriter extends EventWriter<NoteReader> {
 
     // If the parent carried roots use them, otherwise fall back to its replies.
     for (const [k, id, originalHint = "", , pubkey = ""] of parents) {
-      const rootHint = isShareableRelayUrl(originalHint) ? originalHint : this.eventRootsHint(event)
+      if (isShareableRelayUrl(originalHint)) {
+        this.addTags([k, id, originalHint, "root", pubkey])
+      } else {
+        const tag = [k, id, "", "root", pubkey]
 
-      this.addTags([k, id, rootHint, "root", pubkey])
+        this.addTags(tag)
+
+        this.hint(...this.eventRootsSelections(event)).then(url => {
+          tag[2] = url
+        })
+      }
     }
 
-    this.addTags(["e", event.id, hint(outbox(event.pubkey)), mark, event.pubkey])
+    const eTag = ["e", event.id, "", mark, event.pubkey]
+
+    this.addTags(eTag)
+
+    this.hint(outbox(event.pubkey)).then(url => {
+      eTag[2] = url
+    })
 
     if (isReplaceable(event)) {
-      this.addTags(["a", getAddress(event), hint(outbox(event.pubkey)), mark, event.pubkey])
+      const aTag = ["a", getAddress(event), "", mark, event.pubkey]
+
+      this.addTags(aTag)
+
+      this.hint(outbox(event.pubkey)).then(url => {
+        aTag[2] = url
+      })
     }
 
     return this
+  }
+
+  // Relay selections for a reply's thread root: the roots' and mentions' authors
+  // plus any relay hints already present on those tags.
+  private eventRootsSelections(event: TrustedEvent): RelaySelection[] {
+    const {roots} = getAncestorTags(event)
+    const mentions = getPubkeyTags(event.tags)
+    const authors = roots.map(nth(3)).filter(p => p?.length === 64)
+    const others = mentions.map(nth(1)).filter(p => p?.length === 64)
+    const relayUrls = uniq([...roots, ...mentions].map(nth(2)).filter(r => r && isRelayUrl(r)))
+
+    return [
+      ...authors.map(pubkey => outbox(pubkey, 10)),
+      ...others.map(pubkey => outbox(pubkey)),
+      ...relays(relayUrls),
+    ]
   }
 }
 

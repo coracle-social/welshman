@@ -1,14 +1,22 @@
-import {spec} from "@welshman/lib"
-import type {MaybeAsync} from "@welshman/lib"
-import {getTagValue, getAddress, seen, outbox} from "@welshman/util"
-import type {TrustedEvent, RelaySelection, RelayScenario} from "@welshman/util"
-import type {AnyConfiguredKind} from "./Kind.js"
+import {spec, toInt} from "@welshman/lib"
+import {getTagValue, getAddress} from "@welshman/util"
+import type {TrustedEvent} from "@welshman/util"
+import type {KindContext} from "./Kind.js"
+import {getEmojis} from "../behaviors/Emoji.js"
+import type {Emoji} from "../behaviors/Emoji.js"
+import {getZapSplits} from "../behaviors/ZapSplits.js"
+import type {ZapSplit} from "../behaviors/ZapSplits.js"
 
 export abstract class EventReader {
   constructor(
-    readonly def: AnyConfiguredKind,
+    readonly kind: number,
+    readonly context: KindContext,
     readonly event: TrustedEvent,
-  ) {}
+  ) {
+    if (event.kind !== kind) {
+      throw new Error(`Expected a kind ${kind} event, got kind ${event.kind}`)
+    }
+  }
 
   async parse(): Promise<void> {}
 
@@ -49,16 +57,14 @@ export abstract class EventReader {
   }
 
   expiration() {
-    const expiration = parseInt(getTagValue("expiration", this.event.tags) ?? "")
-
-    return isNaN(expiration) ? undefined : expiration
+    return toInt(getTagValue("expiration", this.event.tags) ?? "")
   }
 
-  protected routes(): MaybeAsync<RelaySelection[]> {
-    return [this.group() ? seen(this.event) : outbox(this.author())]
+  emojis(): Emoji[] {
+    return getEmojis(this.event)
   }
 
-  async scenario(): Promise<RelayScenario> {
-    return this.def.context.resolver.scenario(await this.routes())
+  zapSplits(): ZapSplit[] {
+    return getZapSplits(this.event)
   }
 }

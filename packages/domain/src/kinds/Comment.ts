@@ -2,11 +2,9 @@ import {first} from "@welshman/lib"
 import {COMMENT, Address, getTagValue, outbox} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
-import {EventWriter} from "../core/EventWriter.js"
-import {hint} from "../core/Hint.js"
-import type {Tag} from "../core/Hint.js"
+import {EventWriter, TagParser} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
-import type {AnyConfiguredKind} from "../core/Kind.js"
+import type {KindContext} from "../core/Kind.js"
 
 export type CommentRef = {
   id?: string
@@ -37,21 +35,26 @@ export class CommentReader extends EventReader {
 }
 
 export class CommentWriter extends EventWriter<CommentReader> {
-  rootTags: Tag[] = []
-  parentTags: Tag[] = []
+  rootTags: string[][] = []
+  parentTags: string[][] = []
 
-  constructor(def: AnyConfiguredKind, reader?: CommentReader) {
-    super(def, reader)
+  constructor(kind: number, context: KindContext, reader?: CommentReader) {
+    super(kind, context, reader)
 
-    this.rootTags = this.consumeRefTags("E", "A", "K", "P")
-    this.parentTags = this.consumeRefTags("e", "a", "k", "p")
+    if (reader) {
+      const parser = new TagParser(this.extraTags)
+
+      this.rootTags = this.consumeRefTags(parser, "E", "A", "K", "P")
+      this.parentTags = this.consumeRefTags(parser, "e", "a", "k", "p")
+      this.extraTags = parser.tags
+    }
   }
 
-  private consumeRefTags(...keys: string[]) {
-    const tags: Tag[] = []
+  private consumeRefTags(parser: TagParser, ...keys: string[]) {
+    const tags: string[][] = []
 
     for (const key of keys) {
-      const tag = first(this.consumeTags(key))
+      const tag = first(parser.consume(key))
 
       if (tag) tags.push(tag)
     }
@@ -60,33 +63,45 @@ export class CommentWriter extends EventWriter<CommentReader> {
   }
 
   setRoot(kind: number, id: string, pubkey: string, identifier?: string) {
-    const h = hint(outbox(pubkey))
-
-    this.rootTags = [
+    const tags = [
       ["K", String(kind)],
-      ["E", id, h],
-      ["P", pubkey, h],
+      ["E", id],
+      ["P", pubkey],
     ]
 
     if (identifier) {
-      this.rootTags.push(["A", new Address(kind, pubkey, identifier).toString(), h])
+      tags.push(["A", new Address(kind, pubkey, identifier).toString()])
     }
+
+    this.hint(outbox(pubkey)).then(url => {
+      for (const tag of tags.slice(1)) {
+        tag.push(url)
+      }
+    })
+
+    this.rootTags = tags
 
     return this
   }
 
   setParent(kind: number, id: string, pubkey: string, identifier?: string) {
-    const h = hint(outbox(pubkey))
-
-    this.parentTags = [
+    const tags = [
       ["k", String(kind)],
-      ["e", id, h],
-      ["p", pubkey, h],
+      ["e", id],
+      ["p", pubkey],
     ]
 
     if (identifier) {
-      this.parentTags.push(["a", new Address(kind, pubkey, identifier).toString(), h])
+      tags.push(["a", new Address(kind, pubkey, identifier).toString()])
     }
+
+    this.hint(outbox(pubkey)).then(url => {
+      for (const tag of tags.slice(1)) {
+        tag.push(url)
+      }
+    })
+
+    this.parentTags = tags
 
     return this
   }
@@ -103,7 +118,7 @@ export class CommentWriter extends EventWriter<CommentReader> {
     return this
   }
 
-  protected buildTags() {
+  protected renderDomainTags() {
     return [...this.rootTags, ...this.parentTags]
   }
 }

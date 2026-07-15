@@ -51,7 +51,7 @@ export class PinboardWriter extends EventWriter<PinboardReader> {
     return collaborative ? this.addTags(["collaborative"]) : this
   }
 
-  protected validate() {
+  validate() {
     super.validate()
 
     if (!getTagValue("title", this.extraTags as string[][])) {

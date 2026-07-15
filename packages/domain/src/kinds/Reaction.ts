@@ -10,7 +10,6 @@ import {
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
-import {hint} from "../core/Hint.js"
 import {KindFactory} from "../core/Kind.js"
 
 const TARGET_KEYS = ["e", "a", "p", "k"]
@@ -33,37 +32,37 @@ export class ReactionReader extends EventReader {
   eventKind() {
     return first(getKindTagValues(this.event.tags))
   }
-
-  emojis() {
-    return this.tags().filter(spec(["emoji"]))
-  }
 }
 
 export class ReactionWriter extends EventWriter<ReactionReader> {
   // A reaction targets exactly one event, so replace any existing target.
   setEvent(event: TrustedEvent) {
-    this.dropTags(t => TARGET_KEYS.includes(t[0] as string)).addTags(
-      ["k", String(event.kind)],
-      this.tagPubkey(event.pubkey),
-      ["e", event.id, hint(outbox(event.pubkey))],
-    )
+    this.dropTags(t => TARGET_KEYS.includes(t[0] as string))
+    this.addTags(["k", String(event.kind)])
+    this.addMention(event.pubkey)
+
+    const eTag = ["e", event.id, ""]
+
+    this.addTags(eTag)
+
+    this.hint(outbox(event.pubkey)).then(url => {
+      eTag[2] = url
+    })
 
     if (isReplaceable(event)) {
-      this.addTags(["a", getAddress(event), hint(outbox(event.pubkey))])
+      const aTag = ["a", getAddress(event), ""]
+
+      this.addTags(aTag)
+
+      this.hint(outbox(event.pubkey)).then(url => {
+        aTag[2] = url
+      })
     }
 
     return this
   }
 
-  addEmoji(shortcode: string, url: string) {
-    return this.addTags(["emoji", shortcode, url])
-  }
-
-  removeEmoji(shortcode: string) {
-    return this.dropTags(spec(["emoji", shortcode]))
-  }
-
-  protected validate() {
+  validate() {
     super.validate()
 
     if (!this.extraTags.some(spec(["e"]))) {

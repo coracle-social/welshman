@@ -54,11 +54,11 @@ export class RoomListReader extends ListReader {
 
 export class RoomListWriter extends ListWriter<RoomListReader> {
   // Publishes to every relay this list references — both its current urls and the
-  // ones it used to have (via the seed `reader`) — so each relay learns of the
-  // user's membership changes.
-  protected async routes() {
+  // ones it used to have (via the seed reader) — so each relay learns of the user's
+  // membership changes.
+  protected async renderRoutes() {
     const original = this.reader?.urls() ?? []
-    const current = getUrls(await this.getTags())
+    const current = getUrls(await this.renderTags())
 
     return [userOutbox(), ...relays(uniq([...original, ...current]))]
   }

@@ -24,7 +24,7 @@ export class PollResponseWriter extends EventWriter<PollResponseReader> {
     return this.dropTags(spec(["response", id])).addTags(["response", id])
   }
 
-  protected validate() {
+  validate() {
     super.validate()
 
     if (!this.extraTags.some(spec(["e"]))) {

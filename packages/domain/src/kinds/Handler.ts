@@ -1,10 +1,9 @@
 import {isPojo, parseJson} from "@welshman/lib"
 import {HANDLER_INFORMATION, getKindTagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
-import {EventWriter} from "../core/EventWriter.js"
+import {EventWriter, TagParser} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
-import type {AnyConfiguredKind} from "../core/Kind.js"
-import type {Tag} from "../core/Hint.js"
+import type {KindContext} from "../core/Kind.js"
 
 export type HandlerMeta = {
   name?: string
@@ -58,13 +57,16 @@ export class HandlerReader extends EventReader {
 
 export class HandlerWriter extends EventWriter<HandlerReader> {
   values: HandlerMeta = {}
-  kindTags: Tag[] = []
+  kindTags: string[][] = []
 
-  constructor(def: AnyConfiguredKind, reader?: HandlerReader) {
-    super(def, reader)
+  constructor(kind: number, context: KindContext, reader?: HandlerReader) {
+    super(kind, context, reader)
+
+    const parser = new TagParser(this.extraTags)
 
     this.values = {...(reader?.values ?? {})}
-    this.kindTags = this.consumeTags("k")
+    this.kindTags = parser.consume("k")
+    this.extraTags = parser.tags
   }
 
   setName(name: string) {
@@ -109,11 +111,11 @@ export class HandlerWriter extends EventWriter<HandlerReader> {
     return this
   }
 
-  protected buildContent() {
+  renderContent() {
     return JSON.stringify(this.values)
   }
 
-  protected buildTags() {
+  protected renderDomainTags() {
     return this.kindTags
   }
 }
