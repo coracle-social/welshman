@@ -1,6 +1,8 @@
 # Zaps
 
-The lightning-zap flow (NIP-57) and zap goals (NIP-75) are modeled by three kinds: `ZapRequest` (what a sender publishes to ask for a zap), `ZapReceipt` (what the recipient's LN service publishes as proof of payment), and `ZapGoal` (a fundraising target). All three are plain `EventReader` / `EventWriter` subclasses — see [Readers & Writers](./readers-and-builders) for the base pattern.
+The lightning-zap flow (NIP-57) and zap goals (NIP-75) are modeled by three kinds: `ZapRequest` (what a sender publishes to ask for a zap), `ZapReceipt` (what the recipient's LN service publishes as proof of payment), and `ZapGoal` (a fundraising target). All three are plain `EventReader` / `EventWriter` subclasses — see [Readers & Writers](./readers-and-builders) for the base pattern. Alongside the kinds, the [`Zapper`](#zapper) class models the LNURL service and validates receipts, and [zap splits](#zap-splits) live on the base reader/writer.
+
+The low-level lightning helpers (`getLnUrl`, `getInvoiceAmount`, `hrpToMillisat`, `toMsats`/`fromMsats`) remain in `@welshman/util` — see [util/Lightning](../util/lightning).
 
 Each kind is a `KindFactory`. You get a reader or writer by configuring the factory with a `KindContext` (or, in `@welshman/app`, by letting the `Domain` plugin do it for you). The examples below use the app plugin; substitute `ZapRequest.configure(context).reader(event)` if you are wiring the context yourself.
 
@@ -19,6 +21,7 @@ req.recipient()    // p-tag value
 req.eventId()      // e-tag value (the zapped event)
 req.urls()         // the "relays" tag, sliced past the key
 req.content()      // event.content (the comment)
+req.anonymous()    // whether an "anon" tag is present
 
 const writer = app.use(Domain).writer(ZapRequest)
   .setAmount(21000)                         // millisats
@@ -26,12 +29,31 @@ const writer = app.use(Domain).writer(ZapRequest)
   .setLnurl(lnurl)
   .setEventId(zappedNoteId)
   .setUrls(["wss://relay.example"])         // ["relays", ...urls]
+  .setAnonymous(true)                       // add/remove the "anon" tag
   .setContent("great post")
 
 const template = await writer.render()      // EventTemplate {kind, content, tags}
 ```
 
 Each setter drops any existing tag of the same key before adding the new one, so calling a setter twice replaces rather than duplicates.
+
+### Fetching an invoice
+
+`requestInvoice(zapper)` renders and signs the request (using the configured context's signer), then hands it to the zapper's LNURL callback to fetch a bolt11 invoice. It returns the signed `event` alongside either an `invoice` (on success) or an `error` (when the service responds without one):
+
+```typescript
+const writer = app.use(Domain).writer(ZapRequest)
+  .setAmount(21000)
+  .setRecipient(recipientPubkey)
+  .setLnurl(zapper.lnurl)
+
+// {event: SignedEvent, invoice?: string, error?: string}
+const {event, invoice, error} = await writer.requestInvoice(zapper)
+
+if (invoice) {
+  // pay invoice with a lightning wallet
+}
+```
 
 ### Routing: reaching the recipient's inbox
 
@@ -71,15 +93,68 @@ receipt.comment()         // the embedded request's content
 receipt.preimage()        // string | undefined
 ```
 
-The important method is `verify(zapper)`, which validates the receipt against a `Zapper` (the recipient's LNURL zapper info from `@welshman/util`). It checks that the request is present, that the invoice amount matches the requested amount, that the sender is not the zapper itself, and that the recipient / lnurl / nostr pubkey are consistent. It returns a boolean.
+To check a receipt against a zapper, pass the parsed reader to [`Zapper.validate`](#zapper) — the reader already exposes the request, invoice amount, and recipient it needs.
 
 ```typescript
-import type {Zapper} from "@welshman/util"
-
-const ok: boolean = receipt.verify(zapper)
+const receipt = await app.use(Domain).reader(ZapReceipt)(event)
+const zap = zapper.validate(receipt)   // Zap | undefined
 ```
 
 A `ZapReceiptWriter` exists (`setBolt11`, `setDescription`, `setRecipient`, `setEventId`, `setPreimage`) for completeness — e.g. tests or a service generating receipts — but you rarely construct these by hand.
+
+## Zapper
+
+`Zapper` models the LNURL-pay service backing a pubkey's lightning address. These aren't nostr events — they're fetched over HTTP from the lnurl endpoint — so `Zapper` is a plain domain object rather than a reader/writer pair. In `@welshman/app` the `Zappers` collection loads and caches them by lnurl.
+
+`lnurl`, `pubkey` (the recipient), and `nostrPubkey` (the key the service signs receipts with) are required — validation is meaningless without them, so `@welshman/app` drops any fetched zapper missing `pubkey` or `nostrPubkey`.
+
+```typescript
+import {Zapper} from "@welshman/domain"
+
+const zapper = new Zapper({
+  lnurl: "lnurl1...",
+  pubkey: "…",        // the recipient being zapped
+  nostrPubkey: "…",   // pubkey the LN service signs receipts with
+  callback: "https://…",
+  minSendable: 1000,
+  maxSendable: 100000000,
+  allowsNostr: true,
+})
+```
+
+`validate(receipt)` takes a parsed [`ZapReceiptReader`](#zap-receipt-kind-9735), checks it against this zapper per NIP-57, and, if it passes, returns the reconstructed `Zap` (`{request, response, invoiceAmount}`, exported alongside `Zapper`); otherwise `undefined`. It rejects malformed invoices/descriptions, amount mismatches, self-zaps, lnurl mismatches, and receipts not signed by the zapper's nostr pubkey.
+
+```typescript
+import type {Zap} from "@welshman/domain"
+
+const receipt = await app.use(Domain).reader(ZapReceipt)(event)
+const zap: Zap | undefined = zapper.validate(receipt)
+```
+
+`getResponseFilter(pubkey, eventId?)` builds a filter for the zap receipts this zapper would publish for a recipient (optionally scoped to a single zapped event). It throws if the zapper has no `nostrPubkey`.
+
+```typescript
+const filter = zapper.getResponseFilter(recipientPubkey, zappedNoteId)
+// {kinds: [9735], authors: [zapper.nostrPubkey], "#p": [recipient], "#e": [eventId], since}
+```
+
+## Zap splits
+
+Any event can spread its zaps across multiple recipients via NIP-57 Appendix G `zap` tags (`["zap", pubkey, relayHint, weight]`). Because splits are read straight off an event's tags regardless of kind, the logic lives as standalone functions in `behaviors/ZapSplits` rather than on a kind reader:
+
+```typescript
+import {getZapSplits, splitZapAmount} from "@welshman/domain"
+
+getZapSplits(event)
+// ZapSplit[] — [{pubkey, relay?, weight}]. No zap tags -> whole zap to the author.
+// If some recipients carry weights, unweighted ones drop to weight 0.
+
+splitZapAmount(event, 100_000)
+// ZapSplitAmount[] — each split plus an integer `amount`. Rounding remainder goes
+// to the highest-weighted recipient so the parts sum back to the total exactly.
+```
+
+On the authoring side, `EventWriter` has `addZapSplit(pubkey, weight)` for writing the tags.
 
 ## Zap goal (kind 9041)
 

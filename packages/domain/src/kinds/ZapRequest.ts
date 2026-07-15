@@ -1,8 +1,10 @@
-import {spec} from "@welshman/lib"
-import {ZAP_REQUEST, getTag, getTagValue} from "@welshman/util"
+import {spec, tryCatch, fetchJson} from "@welshman/lib"
+import {ZAP_REQUEST, getTag, getTagValue, stamp} from "@welshman/util"
+import type {SignedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
+import type {Zapper} from "../other/Zapper.js"
 
 // NIP-57 kind-9734 zap request.
 export class ZapRequestReader extends EventReader {
@@ -29,6 +31,10 @@ export class ZapRequestReader extends EventReader {
 
     return tag ? tag.slice(1) : []
   }
+
+  anonymous() {
+    return this.event.tags.some(spec(["anon"]))
+  }
 }
 
 export class ZapRequestWriter extends EventWriter<ZapRequestReader> {
@@ -50,6 +56,34 @@ export class ZapRequestWriter extends EventWriter<ZapRequestReader> {
 
   setUrls(urls: string[]) {
     return this.dropTags(spec(["relays"])).addTags(["relays", ...urls])
+  }
+
+  setAnonymous(anonymous: boolean) {
+    return anonymous
+      ? this.dropTags(spec(["anon"])).addTags(["anon"])
+      : this.dropTags(spec(["anon"]))
+  }
+
+  async requestInvoice(
+    zapper: Zapper,
+  ): Promise<{event: SignedEvent; invoice?: string; error?: string}> {
+    const {signer} = this.def.context
+
+    if (!signer) {
+      throw new Error("A signer is required to request a zap invoice")
+    }
+
+    const event = await signer.sign(stamp(await this.render()))
+    const zapString = encodeURI(JSON.stringify(event))
+    const msats = parseInt(getTagValue("amount", event.tags)!)
+    const qs = `?amount=${msats}&nostr=${zapString}&lnurl=${zapper.lnurl}`
+    const res = await tryCatch(() => fetchJson(zapper.callback + qs))
+
+    return {
+      event,
+      invoice: res?.pr,
+      error: res?.pr ? undefined : res.reason || "Failed to request invoice",
+    }
   }
 }
 

@@ -1,3 +1,4 @@
+import {writable, get} from "svelte/store"
 import type {Readable} from "svelte/store"
 import {
   removeUndefined,
@@ -9,12 +10,14 @@ import {
   postJson,
 } from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
-import {getTagValue, getZapSplits, zapFromEvent} from "@welshman/util"
-import type {Zapper, Zap, TrustedEvent} from "@welshman/util"
-import type {ProfileReader} from "@welshman/domain"
+import {getTagValue} from "@welshman/util"
+import type {TrustedEvent} from "@welshman/util"
+import {getZapSplits, Zapper, ZapReceipt} from "@welshman/domain"
+import type {Zap, ProfileReader, ZapReceiptReader} from "@welshman/domain"
 import {deriveDeduplicated, deriveDeduplicatedByValue} from "@welshman/store"
 import {LoadableMapPlugin, projection} from "./base.js"
 import type {Projection} from "./base.js"
+import {Domain} from "./domain.js"
 import {Profiles} from "./profiles.js"
 
 /**
@@ -29,9 +32,11 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
     const valid = lnurls.filter(lnurl => lnurl.startsWith("lnurl1"))
 
     const addZapper = (lnurl: string, info: any) => {
-      if (info) {
+      // A zapper is only usable if it carries both the recipient pubkey and the
+      // nostr pubkey its receipts are signed with; skip anything missing either.
+      if (info?.pubkey && info?.nostrPubkey) {
         try {
-          result.set(lnurl, {...info, lnurl})
+          result.set(lnurl, new Zapper({...info, lnurl}))
         } catch (_e) {
           // pass
         }
@@ -109,7 +114,11 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
   validateZapReceipt = async (zapReceipt: TrustedEvent, parent: TrustedEvent) => {
     const zapper = await this.loadZapperForZap(zapReceipt, parent)
 
-    return zapper ? zapFromEvent(zapReceipt, zapper) : undefined
+    if (!zapper) return undefined
+
+    const receipt = await this.app.use(Domain).reader(ZapReceipt)(zapReceipt)
+
+    return zapper.validate(receipt)
   }
 
   validateZapReceipts = async (zapReceipts: TrustedEvent[], parent: TrustedEvent) =>
@@ -120,15 +129,23 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
   validZapReceipts = (zapReceipts: TrustedEvent[], parent: TrustedEvent): Projection<Zap[]> => {
     const splits = getZapSplits(parent)
     const profiles = this.app.use(Profiles)
+    const readReceipt = this.app.use(Domain).reader(ZapReceipt)
 
     // Ensure each recipient's profile (-> lnurl) and zapper are being loaded.
     for (const split of splits) {
       this.loadForPubkey(split.pubkey, removeUndefined([split.relay]))
     }
 
+    const receipts = writable<ZapReceiptReader[]>([])
+
+    void Promise.all(zapReceipts.map(event => readReceipt(event).catch(() => undefined))).then(
+      $readers => receipts.set(removeUndefined($readers)),
+    )
+
     const read = (values: any[]) => {
-      const $zappersByLnurl = values[0] as Map<string, Zapper>
-      const $profiles = values.slice(1) as Array<ProfileReader | undefined>
+      const $receipts = values[0] as ZapReceiptReader[]
+      const $zappersByLnurl = values[1] as Map<string, Zapper>
+      const $profiles = values.slice(2) as Array<ProfileReader | undefined>
 
       const zapperByPubkey = new Map<string, Zapper>()
 
@@ -140,22 +157,23 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
       })
 
       return removeUndefined(
-        zapReceipts.map(zapReceipt => {
-          const recipient = getTagValue("p", zapReceipt.tags)
+        $receipts.map(receipt => {
+          const recipient = receipt.recipient()
           const zapper = recipient ? zapperByPubkey.get(recipient) : undefined
 
-          return zapper ? zapFromEvent(zapReceipt, zapper) : undefined
+          return zapper ? zapper.validate(receipt) : undefined
         }),
       )
     }
 
     const stores: Readable<any>[] = [
+      receipts,
       this.index.$,
       ...splits.map(split => profiles.one(split.pubkey)),
     ]
 
     return projection(deriveDeduplicatedByValue(stores, read), () =>
-      read([this.index.get(), ...splits.map(split => profiles.get(split.pubkey))]),
+      read([get(receipts), this.index.get(), ...splits.map(split => profiles.get(split.pubkey))]),
     )
   }
 }

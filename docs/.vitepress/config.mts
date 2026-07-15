@@ -60,7 +60,7 @@ export default defineConfig({
             {text: "Filters", link: "/util/filters"},
             {text: "Tags", link: "/util/tags"},
             {text: "Relays", link: "/util/relay"},
-            {text: "Zaps", link: "/util/zaps"},
+            {text: "Lightning", link: "/util/lightning"},
             {text: "Relay Auth", link: "/util/nip42"},
             {text: "HTTP Auth", link: "/util/nip98"},
             {text: "Blossom", link: "/util/blossom"},
