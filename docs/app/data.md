@@ -146,7 +146,7 @@ Relay metadata fetched over **HTTP**, keyed by relay URL.
 ```typescript
 const relays = app.use(Relays)
 
-relays.one(url)                              // Readable<Maybe<RelayProfile>> — lazily fetches NIP-11
+relays.one(url)                              // Readable<Maybe<Relay>> — lazily fetches NIP-11
 relays.display(url)                          // Projection<string>
 await relays.hasNip(url, 50)                 // boolean — does the relay support a NIP?
 await relays.hasNegentropy(url)              // boolean — NIP-77 / negentropy support

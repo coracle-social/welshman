@@ -2,8 +2,8 @@ import {derived} from "svelte/store"
 import type {Readable} from "svelte/store"
 import {fetchJson} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
-import {displayRelayUrl, displayRelayProfile} from "@welshman/util"
-import type {RelayProfile} from "@welshman/util"
+import {displayRelayUrl} from "@welshman/util"
+import {Relay} from "@welshman/domain"
 import {LoadableMapPlugin, RelayScopedDerivedPlugin, createSearch} from "./base.js"
 import type {Projection, Search, RelayScopedDerivedPluginOptions} from "./base.js"
 import type {IApp} from "../app.js"
@@ -12,17 +12,17 @@ import type {IApp} from "../app.js"
  * NIP-11 relay profiles, keyed by url. A "local" loadable collection: items
  * aren't nostr events, they're fetched over HTTP from each relay.
  */
-export class Relays extends LoadableMapPlugin<RelayProfile> {
-  relaySearch: Readable<Search<string, RelayProfile>> = derived(this.all.$, $relays =>
+export class Relays extends LoadableMapPlugin<Relay> {
+  relaySearch: Readable<Search<string, Relay>> = derived(this.all.$, $relays =>
     createSearch($relays, {
-      getValue: (relay: RelayProfile) => relay.url,
+      getValue: (relay: Relay) => relay.url,
       fuseOptions: {
         keys: ["url", "name", {name: "description", weight: 0.3}],
       },
     }),
   )
 
-  fetch = async (url: string): Promise<Maybe<RelayProfile>> => {
+  fetch = async (url: string): Promise<Maybe<Relay>> => {
     try {
       const json = await fetchJson(url.replace(/^ws/, "http"), {
         headers: {
@@ -31,17 +31,11 @@ export class Relays extends LoadableMapPlugin<RelayProfile> {
       })
 
       if (json) {
-        const info = {...json, url} as RelayProfile
+        const relay = new Relay(url, json)
 
-        if (!Array.isArray(info.supported_nips)) {
-          info.supported_nips = []
-        }
+        this.set(url, relay)
 
-        info.supported_nips = info.supported_nips.map(String)
-
-        this.set(url, info)
-
-        return info
+        return relay
       }
     } catch (e) {
       // pass
@@ -49,20 +43,11 @@ export class Relays extends LoadableMapPlugin<RelayProfile> {
   }
 
   display = (url: string): Projection<string> =>
-    this.project(url, $relay => displayRelayProfile($relay, displayRelayUrl(url)))
+    this.project(url, $relay => $relay?.display() ?? displayRelayUrl(url))
 
-  hasNegentropy = async (url: string) => {
-    const relay = await this.load(url)
+  hasNegentropy = async (url: string) => (await this.load(url))?.hasNegentropy() ?? false
 
-    if (relay?.negentropy) return true
-    if (relay?.supported_nips?.includes("77")) return true
-    if (relay?.software?.includes?.("strfry") && !relay?.version?.match(/^0\./)) return true
-
-    return false
-  }
-
-  hasNip = async (url: string, nip: number | string) =>
-    (await this.load(url))?.supported_nips?.includes(String(nip)) ?? false
+  hasNip = async (url: string, nip: number | string) => (await this.load(url))?.hasNip(nip) ?? false
 }
 
 // Items must expose their author (the event pubkey) so it can be checked

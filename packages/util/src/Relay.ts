@@ -1,29 +1,5 @@
 import {last, normalizeUrl, stripProtocol} from "@welshman/lib"
 
-// Constants and types
-
-export type RelayProfile = {
-  url: string
-  icon?: string
-  banner?: string
-  name?: string
-  self?: string
-  pubkey?: string
-  contact?: string
-  software?: string
-  version?: string
-  negentropy?: number
-  description?: string
-  supported_nips?: string[]
-  privacy_policy?: string
-  terms_of_service?: string
-  limitation?: {
-    min_pow_difficulty?: number
-    payment_required?: boolean
-    auth_required?: boolean
-  }
-}
-
 // Utils related to bare urls
 
 export const LOCAL_RELAY_URL = "local://welshman.relay/"
@@ -81,6 +57,3 @@ export const normalizeRelayUrl = (url: string) => {
 }
 
 export const displayRelayUrl = (url: string) => last(url.split("://")).replace(/\/$/, "")
-
-export const displayRelayProfile = (profile?: RelayProfile, fallback = "") =>
-  profile?.name || fallback
