@@ -5,6 +5,8 @@
   "entryPoints": ["packages/*"],
   "entryPointStrategy": "packages",
   "exclude": ["**/normalize-url/*"],
+  "outputFileStrategy": "members",
+  "membersWithOwnFile": ["Class", "Interface"],
   "plugin": ["typedoc-plugin-markdown", "typedoc-vitepress-theme"],
   "hideGenerator": true
 }

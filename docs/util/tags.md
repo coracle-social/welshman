@@ -1,119 +1,69 @@
 # Tags
 
-The Tags module provides comprehensive utilities for working with Nostr event tags, including helpers for extracting, validating, and manipulating different types of tags.
+The Tags module provides utilities for selecting and reading values out of a Nostr event's `tags` array. It is built around a small `TagSpec` descriptor: you build a spec (optionally typed), then pass it together with a `tags` array to a selector.
 
-## Core Functions
+## TagSpec
 
-### Basic Tag Operations
+A `TagSpec` describes which tags to match and how to read their value:
+
 ```typescript
-// Get tags by type(s)
-getTags(types: string | string[], tags: string[][]): string[][]
-
-// Get single tag by type(s)
-getTag(types: string | string[], tags: string[][]): string[] | undefined
-
-// Get tag values
-getTagValues(types: string | string[], tags: string[][]): string[]
-
-// Get single tag value
-getTagValue(types: string | string[], tags: string[][]): string | undefined
-```
-
-## Tag Type Extractors
-
-### Event References
-```typescript
-// Get 'e' tags (event references)
-getEventTags(tags: string[][]): string[][]
-getEventTagValues(tags: string[][]): string[]
-
-// Get 'a' tags (event addresses)
-getAddressTags(tags: string[][]): string[][]
-getAddressTagValues(tags: string[][]): string[]
-```
-
-### Profile References
-```typescript
-// Get 'p' tags (pubkey references)
-getPubkeyTags(tags: string[][]): string[][]
-getPubkeyTagValues(tags: string[][]): string[]
-```
-
-### Topics and Relays
-```typescript
-// Get 't' tags (topics/hashtags)
-getTopicTags(tags: string[][]): string[][]
-getTopicTagValues(tags: string[][]): string[]
-
-// Get 'r' and 'relay' tags
-getRelayTags(tags: string[][]): string[][]
-getRelayTagValues(tags: string[][]): string[]
-```
-
-### Groups and Kinds
-```typescript
-// Get group tags
-getGroupTags(tags: string[][]): string[][]
-getGroupTagValues(tags: string[][]): string[]
-
-// Get 'k' tags (kind references)
-getKindTags(tags: string[][]): string[][]
-getKindTagValues(tags: string[][]): number[]
-```
-
-## Thread Management
-
-### Comment Tags
-```typescript
-// Get root and reply references
-getCommentTags(tags: string[][]): {
-  roots: string[][],
-  replies: string[][]
+type TagSpec<T = string> = {
+  keys: string[]                          // tag names to match (tag[0])
+  matchValue?: (value: string) => boolean // optional filter on tag[1]
+  normalizeValue?: (value: string) => T   // optional transform of tag[1]
 }
 
-getCommentTagValues(tags: string[][]): {
-  roots: string[],
-  replies: string[]
-}
+// Build a spec. `keys` accepts a single string or an array.
+tagSpec(keys: string | string[], matchValue?, normalizeValue?): TagSpec
 ```
 
-### Reply Tags
-```typescript
-// Get detailed reply structure
-getReplyTags(tags: string[][]): {
-  roots: string[][],     // Thread roots
-  replies: string[][],   // Direct replies
-  mentions: string[][]   // Mentions
-}
+### Typed spec builders
 
-getReplyTagValues(tags: string[][]): {
-  roots: string[],
-  replies: string[],
-  mentions: string[]
-}
-```
-
-## Utility Functions
+Shortcuts for the common value types. Each pins `keys` and an appropriate `matchValue`/`normalizeValue`:
 
 ```typescript
-// Remove duplicate tags
-uniqTags(tags: string[][]): string[][]
-
-// Parse imeta tags into array of tag arrays
-tagsFromIMeta(imeta: string[]): string[][]
+hexTags(keys)      // matchValue = isHex32           — 32-byte hex (e/p tags, ids, pubkeys)
+addressTags(keys)  // matchValue = Address.isAddress — replaceable addresses (a tags)
+relayTags(keys)    // matchValue = isRelayUrl        — relay urls (r/relay tags)
+topicTags(keys)    // normalizeValue strips a leading "#" (t tags)
+kindTags(keys)     // values are parsed to `number` (k tags)
 ```
+
+## Selecting and reading
+
+```typescript
+// All tags matching the spec
+matchTags(spec, tags): string[][]
+
+// First tag matching the spec, or undefined
+matchTag(spec, tags): string[] | undefined
+
+// Values (tag[1], normalized) of all matching tags; undefined values are dropped
+tagValues(spec, tags): T[]
+
+// Value (tag[1], normalized) of the first matching tag, or undefined
+tagValue(spec, tags): T | undefined
+```
+
+`tagMatcher(spec)` and `tagValueExtractor(spec)` return the underlying `(tag) => boolean` predicate and `(tag) => T` reader if you need them directly.
 
 ## Example
 
 ```typescript
-// Get specific tag types
-const pubkeys = getPubkeyTagValues(event.tags)
-const topics = getTopicTagValues(event.tags)
-const relays = getRelayTagValues(event.tags)
+import {tagSpec, hexTags, topicTags, relayTags, tagValue, tagValues} from "@welshman/util"
 
-// Get multiple tag types
-const refs = getTags(['p', 'e'], event.tags)
+// Values of specific tag types
+const pubkeys = tagValues(hexTags("p"), event.tags)     // string[]
+const topics = tagValues(topicTags("t"), event.tags)    // "#nostr" -> "nostr"
+const relays = tagValues(relayTags(["r", "relay"]), event.tags)
 
-// Get single tag
-const topic = getTagValue('t', event.tags)
+// Match multiple keys at once
+const refs = matchTags(tagSpec(["p", "e"]), event.tags)
+
+// Single value
+const title = tagValue(tagSpec("title"), event.tags)    // string | undefined
 ```
+
+## See also
+
+Thread-reference helpers are kind-specific and live in [`@welshman/domain`](../domain/content), not here: `getReplyTags`/`getReplyTagValues` (NIP-10, on kind 1) and `getCommentTags`/`getCommentTagValues` (NIP-22, on kind 1111).

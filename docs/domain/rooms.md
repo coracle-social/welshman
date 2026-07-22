@@ -5,7 +5,7 @@ NIP-29 rooms are relay-hosted groups. `@welshman/domain` models the room metadat
 - **Addressable metadata** (kinds 39000–39002) — replaceable, identified by a `d` tag, written by the relay. These are the canonical state of a room.
 - **Action ops** (kinds 9000–9022, 19004) — regular events scoped to a target room by the NIP-29 **`h` group tag** (set via the base `setGroup` / `clearGroup`, read via `group()`).
 
-All of these are plain `EventReader` / `EventWriter` subclasses — none of them are encrypted lists. See [Readers & Writers](./readers-and-builders) for the base pattern (`configure` → `reader`/`writer`, `render`, routing). The reactive `app.use(Rooms)` plugin in `@welshman/app` builds on these classes.
+All of these are plain `EventReader` / `EventWriter` subclasses — none of them are encrypted lists. See [Readers & Writers](./readers-and-writers) for the base pattern (`configure` → `reader`/`writer`, `render`, routing). The reactive `app.use(Rooms)` plugin in `@welshman/app` builds on these classes.
 
 Because every event here targets a specific relay, **all of these kinds set `requiresRelays = true`**: a writer's `validate()` throws unless the target relay has been set with `setGroup(url, group)` (or `forceRelays(url)`). That relay is the room's host, and the resulting event publishes *only* there — see [Publishing to the group relay](#publishing-to-the-group-relay).
 
@@ -36,7 +36,7 @@ const writer = app.use(Domain).writer(RoomMeta)
   .setPicture("https://example.com/room.png")
   .setClosed()                     // ["closed"]; pass false to clear
 
-const template = await writer.render()
+const template = await writer.renderTemplate()
 ```
 
 Flag setters (`setClosed`, `setHidden`, `setPrivate`, `setRestricted`, `setLivekit`) each take an optional boolean (default `true`) — passing `false` clears the tag. `setPicture(picture, meta = [])` appends the extra imeta elements.
@@ -124,7 +124,7 @@ await app.use(Domain).command(create).then(cmd => cmd.publish())
 
 `setGroup(url, group)` does two things: it sets the `h` group tag **and** pins `forcedRelays` to the room's host relay (`[normalizeRelayUrl(url)]`). When `forcedRelays` is non-empty, the writer's `scenario()` bypasses the usual outbox/inbox routing and publishes **only** to those relays — exactly what NIP-29 requires, since the hosting relay is the source of truth for the group.
 
-Because every room kind sets `requiresRelays = true`, `validate()` (run inside `render()`/`finalize()`) throws `A kind N event must publish to explicit relays (via setGroup or forceRelays)` if you forgot to set a relay. `RoomCreate` additionally requires the `h` group tag.
+Because every room kind sets `requiresRelays = true`, `validate()` (run inside `render()`) throws `A kind N event must publish to explicit relays (via setGroup or forceRelays)` if you forgot to set a relay. `RoomCreate` additionally requires the `h` group tag.
 
 The app path finalizes the writer and hands you a `Command` that publishes to the pinned relay:
 
@@ -134,17 +134,17 @@ import {RoomLeave} from "@welshman/domain"
 
 const writer = app.use(Domain).writer(RoomLeave).setGroup(relayUrl, roomId)
 
-// finalize() -> {event, relays}; command wraps it, publish() sends to `relays`.
+// render() -> {event, relays}; command wraps it, publish() sends to `relays`.
 const command = await app.use(Domain).command(writer)
 await command.publish()
 ```
 
 For an admin op that the relay must sign with its own key (NIP-86 `signevent`), use `command.publishAsRelay(url)` instead of `publish()`.
 
-If you need the raw pieces (e.g. in tests, without the app), call the writer's terminal methods directly: `writer.render()` returns the unsigned `EventTemplate`, `writer.relays()` returns the resolved publish relays, and `writer.finalize()` returns both. There is no `toTemplate`/`toEvent`/`toRumor` — the caller signs the template from `render()`.
+If you need the raw pieces (e.g. in tests, without the app), call the writer's terminal methods directly: `writer.renderTemplate()` returns the unsigned `EventTemplate`, `writer.relays()` returns the resolved publish relays, and `writer.render()` returns both. There is no `toTemplate`/`toEvent`/`toRumor` — the caller signs the template from `renderTemplate()`.
 
 ## See also
 
-- [Readers & Writers](./readers-and-builders) — the base pattern, the `configure`/`reader`/`writer` entry model, the `h`/group tag handling (`setGroup`/`clearGroup`/`group()`), and `d`-tag validation for the addressable kinds.
+- [Readers & Writers](./readers-and-writers) — the base pattern, the `configure`/`reader`/`writer` entry model, the `h`/group tag handling (`setGroup`/`clearGroup`/`group()`), and `d`-tag validation for the addressable kinds.
 - [Lists](./lists) — `RoomList` (kind 10009), the NIP-51 membership list that tracks which rooms a user belongs to.
 - [Relay membership](./relay-membership) — the Flotilla relay-level (non-NIP-29) membership ops.

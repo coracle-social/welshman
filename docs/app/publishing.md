@@ -134,13 +134,13 @@ const writer = app.use(Domain)
 const command = await app.use(Domain).command(writer)   // -> Command
 ```
 
-`app.use(Domain).command(writer)` requires a signed-in user, calls `writer.finalize()` to produce the unsigned template and its relay set, and wraps them in a `Command`. The signer, resolver, and repository are injected once when the kind is configured, so the writer's terminal methods take no arguments:
+`app.use(Domain).command(writer)` requires a signed-in user, calls `writer.render()` to produce the unsigned template and its relay set, and wraps them in a `Command`. The signer, resolver, and repository are injected once when the kind is configured, so the writer's terminal methods take no arguments:
 
 ```typescript
-await writer.render()      // Promise<EventTemplate> — the unsigned event (validated, hints resolved)
+await writer.renderTemplate()  // Promise<EventTemplate> — the unsigned event (validated, hints resolved)
 await writer.scenario()    // Promise<RelayScenario> — chainable: .limit(n) / .policy(fn) / allow*
 await writer.relays()      // Promise<string[]> — scenario().getUrls()
-await writer.finalize()    // Promise<{event, relays}> — render() + relays() together
+await writer.render()      // Promise<{event, relays}> — renderTemplate() + relays() together
 ```
 
 When you need finer control than `Domain.command` gives — for example to raise the relay limit — resolve the pieces yourself and build the `Command` by hand. This is how `Deletes` fans a deletion out to every relay its target lives on:
@@ -151,7 +151,7 @@ import {Command} from "@welshman/app"
 
 const writer = app.use(Domain).writer(Delete).addEvent(event, seenRelay)
 
-const [template, scenario] = await Promise.all([writer.render(), writer.scenario()])
+const [template, scenario] = await Promise.all([writer.renderTemplate(), writer.scenario()])
 
 // A delete should reach every relay its target lives on, so raise the limit
 // above the scenario default before taking the urls.
@@ -170,7 +170,7 @@ app.use(Domain).writer(RoomJoin).setGroup(relayUrl, roomId)
 app.use(Domain).writer(Note).forceRelays("wss://relay.example").setContent("hi")
 ```
 
-Kinds that require explicit relays (the NIP-29 room ops/state and relay-management ops/state) fail validation in `render()`/`finalize()` unless `setGroup`/`forceRelays` has been called.
+Kinds that require explicit relays (the NIP-29 room ops/state and relay-management ops/state) fail validation in `render()` unless `setGroup`/`forceRelays` has been called.
 
 ## Gift-wrapped messages
 

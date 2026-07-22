@@ -9,7 +9,7 @@ Utilities for translating nostr events to and from domain objects. Where `@welsh
 Every supported kind is modeled by a pair of classes:
 
 - A **Reader** — a read-only view over a single `TrustedEvent`. It decodes the content/tags into convenient getters (`profile.name()`, `list.pubkeys()`, `zap.amount()`). Readers hold the event and answer questions about it; some (lists) also `parse()` asynchronously to decrypt private tags.
-- A **Writer** — a mutable, chainable producer of an `EventTemplate`. You construct it empty (to author a new event) or from a Reader (to edit an existing one), apply setters, and finish with `render()` (the template) or `finalize()` (the template plus the relays to publish it to).
+- A **Writer** — a mutable, chainable producer of an `EventTemplate`. You construct it empty (to author a new event) or from a Reader (to edit an existing one), apply setters, and finish with `renderTemplate()` (the template) or `render()` (the template plus the relays to publish it to).
 
 You don't instantiate these classes directly. Each kind is exported as a **`KindFactory`** — `Profile`, `FollowList`, `MuteList`, `Note`, `RelayList`, … — and you `configure()` it once with a `KindContext` (a resolver, and optionally a signer and repository). Configuring binds those dependencies and hands back a `ConfiguredKind` whose `reader`/`writer` produce the actual objects:
 
@@ -31,34 +31,34 @@ profile.display()         // best-effort display name, falls back to a short npu
 const template = await ProfileKind.writer()
   .setName("alice")
   .setAbout("hello nostr")
-  .render()               // EventTemplate {kind, content, tags}
+  .renderTemplate()       // EventTemplate {kind, content, tags}
 ```
 
 Readers and Writers are two halves of a round-trip. Pass a reader to `writer()` and it comes back pre-populated, so editing is just "read, mutate, rebuild":
 
 ```typescript
-const next = await ProfileKind.writer(profile).setName("alice2").render()
+const next = await ProfileKind.writer(profile).setName("alice2").renderTemplate()
 ```
 
-`render()` produces an unsigned `EventTemplate`; you sign it yourself:
+`renderTemplate()` produces an unsigned `EventTemplate`; you sign it yourself:
 
 ```typescript
 import {stamp} from "@welshman/util"
 
-const signed = await signer.sign(stamp(await ProfileKind.writer(profile).setName("alice2").render()))
+const signed = await signer.sign(stamp(await ProfileKind.writer(profile).setName("alice2").renderTemplate()))
 ```
 
-Writers also know where their event belongs. `finalize()` returns both the template and the resolved relay list, and `scenario()`/`relays()` expose the routing directly:
+Writers also know where their event belongs. `render()` returns both the template and the resolved relay list, and `scenario()`/`relays()` expose the routing directly:
 
 ```typescript
-const {event, relays} = await ProfileKind.writer().setName("alice").finalize()
+const {event, relays} = await ProfileKind.writer().setName("alice").render()
 ```
 
 ## Where it sits
 
 `@welshman/domain` lives between `@welshman/util` and `@welshman/app`.
 
-- It depends on `@welshman/util` for the primitives it wraps — kind constants (`PROFILE`, `FOLLOWS`, `RELAYS`, …), tag getters (`getTagValue`, `getPubkeyTagValues`, …), `Address`, `stamp`/`prep`, the routing DSL (`Resolver`, `outbox`, `inbox`, `relay`, …), and the `TrustedEvent`/`EventTemplate` types. It depends on `@welshman/signer` for the `ISigner` interface (used to decrypt/encrypt private list tags) and `@welshman/net` for the `Repository` type routers can consult.
+- It depends on `@welshman/util` for the primitives it wraps — kind constants (`PROFILE`, `FOLLOWS`, `RELAYS`, …), tag selectors (`tagValue`, `tagValues`, `hexTags`, …), `Address`, `stamp`/`prep`, the routing DSL (`Resolver`, `outbox`, `inbox`, `relay`, …), and the `TrustedEvent`/`EventTemplate` types. It depends on `@welshman/signer` for the `ISigner` interface (used to decrypt/encrypt private list tags) and `@welshman/net` for the `Repository` type routers can consult.
 - `@welshman/app` is built on top of it. The `Domain` plugin (`app.use(Domain)`) memoizes a `ConfiguredKind` per factory — wiring the resolver, repository, and current user's signer in for you — and exposes `.reader(factory)` / `.writer(factory, reader?)` plus `.command(writer)` to publish. The reactive data plugins (`Profiles`, `FollowLists`, `MuteLists`, `RelayLists`, …) decode repository events into exactly these Reader objects and expose the Writers' setters as collection methods. If you have used `app.use(Profiles).one(pk)` and gotten a `Profile` back, that `Profile` is this package's `ProfileReader`.
 
 This means `@welshman/domain` is the right layer to reach for when you are working with events directly — parsing or constructing them — while the app takes care of dependency wiring, networking, and the repository.
@@ -107,14 +107,14 @@ const FollowListKind = FollowList.configure({resolver})
 const template = await FollowListKind.writer()
   .follow(pubkeyA)
   .follow(pubkeyB)
-  .render()
+  .renderTemplate()
 
 const signed = await signer.sign(stamp(template))
 ```
 
 ## Pages
 
-- [Readers & Writers](./readers-and-builders) — the `EventReader`/`EventWriter` and `ListReader`/`ListWriter` base classes in depth: `KindFactory`/`ConfiguredKind` and the context, async parsing, getters/setters, the `render`/`finalize` pipeline, routing (`scenario`/`relays`), validation, extra-tag passthrough, relay hints, and how list encryption works.
+- [Readers & Writers](./readers-and-writers) — the `EventReader`/`EventWriter` and `ListReader`/`ListWriter` base classes in depth: `KindFactory`/`ConfiguredKind` and the context, async parsing, getters/setters, the `renderTemplate`/`render` pipeline, routing (`scenario`/`relays`), validation, extra-tag passthrough, relay hints, and how list encryption works.
 - [Profile](./profile) — kind-0 metadata (`ProfileReader` / `ProfileWriter`).
 - [Lists](./lists) — NIP-51 public/private lists: follows, mutes, pins, bookmarks, relay sets, and friends.
 - [Rooms](./rooms) — NIP-29 group rooms: metadata, membership, and the join/leave/create/delete ops.

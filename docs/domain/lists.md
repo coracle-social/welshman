@@ -1,6 +1,6 @@
 # Lists
 
-NIP-51 lists — follows, mutes, pins, bookmarks, relay lists, and friends — all share one shape: a set of **public** tags and, for the lists that support it, an optional set of **private** tags that are NIP-44-encrypted into the event's content, self-encrypted to the author. The lists with a private half are thin subclasses of `ListReader` / `ListWriter`; the relay-config lists that keep everything public subclass the plain `EventReader` / `EventWriter` instead. Once you know the shared pattern you know all of them. The base classes are documented in depth in [Readers & Writers](./readers-and-builders); this page covers the per-kind getters and setters.
+NIP-51 lists — follows, mutes, pins, bookmarks, relay lists, and friends — all share one shape: a set of **public** tags and, for the lists that support it, an optional set of **private** tags that are NIP-44-encrypted into the event's content, self-encrypted to the author. The lists with a private half are thin subclasses of `ListReader` / `ListWriter`; the relay-config lists that keep everything public subclass the plain `EventReader` / `EventWriter` instead. Once you know the shared pattern you know all of them. The base classes are documented in depth in [Readers & Writers](./readers-and-writers); this page covers the per-kind getters and setters.
 
 ## The shared pattern
 
@@ -28,7 +28,7 @@ const configured = MuteList.configure({resolver, signer})
 const template = await configured.writer()
   .mutePublicly(pubkeyA)
   .mutePrivately(pubkeyB)
-  .render()              // EventTemplate; encrypts privateTags into content
+  .renderTemplate()              // EventTemplate; encrypts privateTags into content
 ```
 
 Every list writer with a private half inherits the base tag mutators from `ListWriter`:
@@ -43,8 +43,8 @@ writer
 
 The per-kind methods below (`mutePrivately`, `bookmarkPublicly`, `pinPrivately`, …) are just named wrappers over these. Anything ending in `*Privately` is `addPrivate`; everything else is `addPublic`; `remove*`/`un*` is a `dropTags`.
 
-::: tip render and the signer
-Because encryption lives in `ListWriter.buildContent`, `render()` only needs a signer in context when you have actually written private tags. With private mutes/follows you must supply one (`A signer is required to encrypt private tags`); a purely public edit needs none. `render()` replaces the old `toTemplate()` and takes no arguments — the signer is whatever was bound at `configure`. Hand the writer to `app.use(Domain).command(writer)` to finalize and publish, or sign the rendered template yourself.
+::: tip renderTemplate and the signer
+Because encryption lives in `ListWriter.buildContent`, `renderTemplate()` only needs a signer in context when you have actually written private tags. With private mutes/follows you must supply one (`A signer is required to encrypt private tags`); a purely public edit needs none. `renderTemplate()` replaces the old `toTemplate()` and takes no arguments — the signer is whatever was bound at `configure`. Hand the writer to `app.use(Domain).command(writer)` to finalize and publish, or sign the rendered template yourself.
 :::
 
 ## The kinds
@@ -89,7 +89,7 @@ TopicList.configure({resolver, signer}).writer().followPrivately("nostr")  // en
 
 ## Notes per family
 
-**`RelayList` (NIP-65).** Read/write are encoded by the `r`-tag's third element; a bare `["r", url]` counts as both. `urls()` returns all, `readUrls()`/`writeUrls()` filter by mode. On the writer, `addReadUrl`/`addWriteUrl`/`removeReadUrl`/`removeWriteUrl` preserve the *other* mode if it was present, so adding write to a read-only relay collapses it to a bare both-mode tag rather than clobbering it; removing one mode from a both-mode relay leaves the other. `setReadUrls`/`setWriteUrls` rewrite one axis while preserving the other, and `setTags` replaces the tag list wholesale. URLs are normalized via `normalizeRelayUrl`. Its `routes()` publishes to the author's outbox, the indexer relays, and every relay the list references now or used to (via the seed reader), so each relay learns when it is added to or removed from the list.
+**`RelayList` (NIP-65).** Read/write are encoded by the `r`-tag's third element; a bare `["r", url]` counts as both. `urls()` returns all, `readUrls()`/`writeUrls()` filter by mode. On the writer, `addReadUrl`/`addWriteUrl`/`removeReadUrl`/`removeWriteUrl` preserve the *other* mode if it was present, so adding write to a read-only relay collapses it to a bare both-mode tag rather than clobbering it; removing one mode from a both-mode relay leaves the other. `setReadUrls`/`setWriteUrls` rewrite one axis while preserving the other, and `setTags` replaces the tag list wholesale. URLs are normalized via `normalizeRelayUrl`. Its `renderRoutes()` publishes to the author's outbox, the indexer relays, and every relay the list references now or used to (via the seed reader), so each relay learns when it is added to or removed from the list.
 
 ```typescript
 import {RelayList} from "@welshman/domain"
@@ -98,7 +98,7 @@ const template = await RelayList.configure({resolver})
   .writer()
   .addWriteUrl("wss://relay.example")
   .addReadUrl("wss://read.example")
-  .render()
+  .renderTemplate()
 ```
 
 **Relay/server set lists.** `BlockedRelayList`, `SearchRelayList`, and `MessagingRelayList` store URLs under the `relay` tag key; `BlossomServerList` uses the `server` key instead. All four share `addUrl`/`removeUrl`/`setUrls` (where `setUrls` clears then re-adds), with `normalizeRelayUrl` (or `normalizeUrl` for Blossom) applied.
@@ -113,12 +113,12 @@ const template = await RelaySet.configure({resolver})
   .setIdentifier()                        // required d tag for kind 30002
   .setTitle("My relays")
   .addUrl("wss://relay.example")
-  .render()
+  .renderTemplate()
 ```
 
-**`RoomList` (kind 10009).** A NIP-51 simple-groups membership list, and itself a `ListWriter`. `addGroup(groupId, url)` writes `["group", groupId, url]` and ensures the relay is tracked via an `r` tag; `removeGroup(groupId, url?)` drops the matching group tag. `addRelay`/`removeRelay`/`setRelays` manage the bare `r` relay tags, and the reader's `urls()`/`groupsForUrl(url)` help resolve where each room lives. Like `RelayList`, its `routes()` publishes to the author's outbox plus every relay the list references now or used to, so each relay learns of membership changes. (NIP-29 room *operations* themselves live in [Rooms](./rooms).)
+**`RoomList` (kind 10009).** A NIP-51 simple-groups membership list, and itself a `ListWriter`. `addGroup(groupId, url)` writes `["group", groupId, url]` and ensures the relay is tracked via an `r` tag; `removeGroup(groupId, url?)` drops the matching group tag. `addRelay`/`removeRelay`/`setRelays` manage the bare `r` relay tags, and the reader's `urls()`/`groupsForUrl(url)` help resolve where each room lives. Like `RelayList`, its `renderRoutes()` publishes to the author's outbox plus every relay the list references now or used to, so each relay learns of membership changes. (NIP-29 room *operations* themselves live in [Rooms](./rooms).)
 
 ## See also
 
-- [Readers & Writers](./readers-and-builders) — the `ListReader`/`ListWriter` base, including exactly how private-tag encryption and decryption work, plus the `KindFactory` / `configure` / `ConfiguredKind` entry model.
+- [Readers & Writers](./readers-and-writers) — the `ListReader`/`ListWriter` base, including exactly how private-tag encryption and decryption work, plus the `KindFactory` / `configure` / `ConfiguredKind` entry model.
 - [Rooms](./rooms) — NIP-29 room ops, referenced by `RoomList`.
