@@ -211,7 +211,6 @@ export const ROOM_MEMBERS = 39002
 export const FOLLOW_PACK = 39089
 export const PINBOARD = 30067
 export const PIN = 39067
-export const SLASH_COMMAND = 33318
 export const RELAY_ROLE = 33534
 
 export const DEPRECATED_RELAY_RECOMMENDATION = 2
