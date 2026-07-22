@@ -1,6 +1,6 @@
 # Handlers
 
-NIP-89 lets clients advertise which event kinds they can handle, and lets users recommend handlers to each other. `@welshman/domain` models both sides: `Handler` (the handler's own information) and `HandlerRecommendation` (a user pointing at a handler). Both are parameterized-replaceable, so their writers need a `d` tag (`setIdentifier()`). See [Readers & Writers](./readers-and-builders) for the base pattern.
+NIP-89 lets clients advertise which event kinds they can handle, and lets users recommend handlers to each other. `@welshman/domain` models both sides: `Handler` (the handler's own information) and `HandlerRecommendation` (a user pointing at a handler). Both are parameterized-replaceable, so their writers need a `d` tag (`setIdentifier()`). See [Readers & Writers](./readers-and-writers) for the base pattern.
 
 Both kinds are `KindFactory` instances — you `configure(context)` a factory once to get a `ConfiguredKind`, then call `.reader(event)` (async) or `.writer(reader?)` on it. In `@welshman/app`, the `Domain` plugin owns the context for you.
 
@@ -76,4 +76,4 @@ command.publish()
 
 ## See also
 
-- [Readers & Writers](./readers-and-builders) — the base pattern, including `d`-tag validation for these parameterized-replaceable kinds.
+- [Readers & Writers](./readers-and-writers) — the base pattern, including `d`-tag validation for these parameterized-replaceable kinds.

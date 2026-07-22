@@ -75,25 +75,24 @@ A `RelayScenario` is chainable — `.limit(n)`, `.policy(fn)`, `.allowLocal(bool
 
 ### Routes from domain writers
 
-You rarely assemble selections by hand. Each [`@welshman/domain`](./data) kind knows how to route itself. A writer's `routes()` returns its `RelaySelection`s and `scenario()` resolves them through the injected resolver:
+You rarely assemble selections by hand. Each [`@welshman/domain`](./data) kind knows how to route itself. A writer computes its `RelaySelection`s in `renderRoutes()` (a protected override point); `scenario()` resolves them through the injected resolver and `relays()` returns the final urls:
 
 ```typescript
 const writer = app.use(Domain).writer(Note).setContent("gm")
 
-await writer.routes()      // RelaySelection[]  — where this event wants to go
-await writer.scenario()    // RelayScenario     — resolved & scored
-await writer.relays()      // string[]          — final urls
+await writer.scenario()    // RelayScenario  — resolved & scored
+await writer.relays()      // string[]       — final urls
 ```
 
-The default `EventWriter.routes()` is the author's outbox plus every p-tagged pubkey's inbox:
+The default `EventWriter.renderRoutes()` is the author's outbox plus every p-tagged pubkey's inbox:
 
 ```typescript
-return [userOutbox(), ...inboxes(getPubkeyTagValues(await this.getTags()), 0.5)]
+return [userOutbox(), ...inboxes(tagValues(hexTags("p"), await this.renderTags()), 0.5)]
 ```
 
 Individual kinds override it. For example `FollowListWriter` / `MuteListWriter` route only to `[userOutbox()]` (their p-tags are data, not recipients); `RelayListWriter` adds `indexers()` and notifies every relay added to or removed from the list; `DeleteWriter` adds a `seen(...)` selection for each deleted event.
 
-On the read side, `EventReader.routes()` defaults to `[this.group() ? seen(this.event) : outbox(this.author())]` — a group event routes to where it was seen, otherwise to its author's outbox — and `reader.scenario()` resolves it.
+Routing is a writer concern — readers are getter-only and do not compute routes. Where to *fetch* a kind's events is decided by the request/loader layer, not the reader.
 
 ### forcedRelays
 
@@ -121,7 +120,7 @@ Stats are populated automatically by the [`appPolicyRelayStats`](./apppolicies) 
 
 ## Tags & relay hints
 
-Domain writers build their own tags, including relay hints. A hint is a deferred `Hint` object occupying the relay-hint slot of a tag; `render()` dereferences it to a single url through the resolver (unresolved views, like `getTags()`, render it as `""`). The shared helpers on `EventWriter` are:
+Domain writers build their own tags, including relay hints. A hint is a deferred `Hint` object occupying the relay-hint slot of a tag; `renderTags()` dereferences it to a single url through the resolver (unresolved views render it as `""`). The shared helpers on `EventWriter` are:
 
 ```typescript
 const writer = app.use(Domain).writer(Note)
@@ -143,10 +142,10 @@ const writer = app.use(Domain)
   .setContent("well said")
   .setParent(parentEvent)
 
-// finalize + wrap in a Command, which knows its own relays via routes()
+// render + wrap in a Command, which carries the relays it resolved
 const command = await app.use(Domain).command(writer)
 
 await command.publish()
 ```
 
-`app.use(Domain).command(writer)` requires a signed-in user, calls `writer.finalize()` (which renders the event and resolves its relays), and returns a `Command` you can `.publish()`. It replaces the old `Router.commandFromBuilder(builder)`.
+`app.use(Domain).command(writer)` requires a signed-in user, calls `writer.render()` (which renders the event and resolves its relays), and returns a `Command` you can `.publish()`. It replaces the old `Router.commandFromBuilder(builder)`.

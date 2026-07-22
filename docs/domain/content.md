@@ -1,18 +1,18 @@
 # Content
 
-A grab-bag of content kinds: NIP-01 notes, NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-builders) for the base pattern. The parameterized-replaceable kinds (`Classified`, `TimeEvent`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
+A grab-bag of content kinds: NIP-01 notes, NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `TimeEvent`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
 
-Every example below assumes a bound `KindContext` — you get a reader/writer by calling `SomeKind.configure(context)`. A reader is parsed asynchronously (`await …reader(event)`); a writer is a chainable builder whose terminal `render()` returns an unsigned `EventTemplate`. To turn that into a signed event, hand it to a signer:
+Every example below assumes a bound `KindContext` — you get a reader/writer by calling `SomeKind.configure(context)`. A reader is parsed asynchronously (`await …reader(event)`); a writer is a chainable builder whose terminal `renderTemplate()` returns an unsigned `EventTemplate`. To turn that into a signed event, hand it to a signer:
 
 ```typescript
 import {stamp} from "@welshman/util"
 
-const signed = await signer.sign(stamp(await writer.render()))
+const signed = await signer.sign(stamp(await writer.renderTemplate()))
 ```
 
-In `@welshman/app` you never call `configure` yourself — `app.use(Domain).reader(Kind)` / `.writer(Kind, reader?)` do it for you, and `app.use(Domain).command(writer)` finalizes and wraps the result in a publishable `Command`. See [Readers & Writers](./readers-and-builders#with-welshmanapp-domain--command).
+In `@welshman/app` you never call `configure` yourself — `app.use(Domain).reader(Kind)` / `.writer(Kind, reader?)` do it for you, and `app.use(Domain).command(writer)` finalizes and wraps the result in a publishable `Command`. See [Readers & Writers](./readers-and-writers#with-welshmanapp-domain--command).
 
-Unless a kind says otherwise, writers route to the **author's outbox plus every p-tagged pubkey's inbox** — the default `EventWriter.routes()`. Notes and comments use that default; `Report` overrides it (see below).
+Unless a kind says otherwise, writers route to the **author's outbox plus every p-tagged pubkey's inbox** — the default `EventWriter.renderRoutes()`. Notes and comments use that default; `Report` overrides it (see below).
 
 ## Note (kind 1)
 
@@ -29,7 +29,7 @@ note.author()    // event.pubkey
 const template = await Note.configure(context)
   .writer()
   .setContent("gm")
-  .render()
+  .renderTemplate()
 
 // ...or a reply — setParent(parentEvent) p-tags the parent's participants and
 // e/a-tags the parent (and thread root) with NIP-10 markers and relay hints.
@@ -37,10 +37,10 @@ await Note.configure(context)
   .writer()
   .setContent("well said")
   .setParent(parentEvent)
-  .render()
+  .renderTemplate()
 ```
 
-A note routes to the author's outbox plus the inboxes of everyone it p-tags (the default `routes()`), so replies reach the people they mention.
+A note routes to the author's outbox plus the inboxes of everyone it p-tags (the default `renderRoutes()`), so replies reach the people they mention.
 
 ## Comment (kind 1111)
 
@@ -60,7 +60,7 @@ const template = await Comment.configure(context)
   .setContent("nice thread")
   .setRoot(rootKind, rootId, rootPubkey)
   .setParent(parentKind, parentId, parentPubkey)
-  .render()
+  .renderTemplate()
 
 // ...or derive them from events (uses the event's d tag as identifier)
 await Comment.configure(context)
@@ -68,7 +68,7 @@ await Comment.configure(context)
   .setContent("reply")
   .setRootFromEvent(rootEvent)
   .setParentFromEvent(parentEvent)
-  .render()
+  .renderTemplate()
 ```
 
 `setRoot`/`setParent` take an optional trailing `identifier`; when present, the writer also emits an `A`/`a` tag whose value is the full `kind:pubkey:identifier` address (built via `Address`). `setRootFromEvent`/`setParentFromEvent` pull that identifier from the source event's `d` tag automatically.
@@ -87,7 +87,7 @@ await Thread.configure(context)
   .writer()
   .setTitle("Welcome")
   .setContent("Read the rules first.")
-  .render()
+  .renderTemplate()
 ```
 
 ## Classified (kind 30402)
@@ -115,7 +115,7 @@ await Classified.configure(context)
   .setStatus("active")
   .setImages(["https://example.com/bike.jpg"])
   .setTopics(["bikes", "forsale"])
-  .render()
+  .renderTemplate()
 ```
 
 ## Pinboard (kind 30067) and Pin (kind 39067)
@@ -140,7 +140,7 @@ await Pinboard.configure(context)
   .setImage("https://example.com/mt-fuji.jpg")
   .setTopics(["japan", "travel"])
   .setCollaborative(true)
-  .render()
+  .renderTemplate()
 ```
 
 A `Pin` references exactly one item — a nostr event (`e`), an addressable event (`a`), or an external id (`i` + optional `k` per NIP-73) — exposed as a discriminated `PinReference`. It can belong to multiple boards via `A` tags; a pin with none is a profile pin. Its `content` is an optional comment. Kind 39067 sits in the parameterized-replaceable range, so each pin needs its own unique `d` tag (`setIdentifier()`) — otherwise every pin from the same author would collide at the same address and replace one another; `validate()` enforces this the same way it does for `Classified`/`TimeEvent`/`Pinboard`.
@@ -161,7 +161,7 @@ await Pin.configure(context)
   .addBoard("30067:" + pubkey + ":japan-trip-2024")
   .setEvent(pictureEventId, "wss://relay.example.com")   // or setAddress / setExternal
   .setContent("Sunrise at Mt. Fuji")
-  .render()
+  .renderTemplate()
 ```
 
 `setEvent`/`setAddress`/`setExternal` each replace any prior reference, keeping the "exactly one" invariant. `validate()` throws if none of `e`/`a`/`i` is present.
@@ -186,7 +186,7 @@ await TimeEvent.configure(context)
   .setLocation("Costa Rica")
   .setStart(startTs)
   .setEnd(endTs)
-  .render()
+  .renderTemplate()
 ```
 
 When both `start` and `end` are set, `buildTags` auto-generates one `["D", dayIndex]` tag per day in `[start, end)` (day-bucket index tags), so the event is discoverable by day.
@@ -214,7 +214,7 @@ await Poll.configure(context)
   .addOption("Flotilla")
   .setPollType("singlechoice")
   .setEndsAt(closeTs)
-  .render()
+  .renderTemplate()
 ```
 
 `validate()` requires at least one option. To tally votes, pass the response events to `results`:
@@ -240,7 +240,7 @@ await PollResponse.configure(context)
   .writer()
   .setPollId(pollId)
   .addSelection(optionId)     // deduped
-  .render()
+  .renderTemplate()
 ```
 
 `PollResponse.validate()` requires a pollId.
@@ -262,53 +262,11 @@ await Report.configure(context)
   .setPubkey(pubkey)
   .setEventId(noteId)
   .setReason("spam")
-  .render()
+  .renderTemplate()
 ```
 
-A report's reason lives on both the `p` and `e` tags; the writer normalizes it so a reason set on either (or via `setReason`) is reflected on both. Unlike most content kinds, `ReportWriter` overrides `routes()` to `[userOutbox()]` — a report's `p`/`e` tags identify what is being flagged, not recipients to notify, so it publishes only to the author's own outbox.
-
-## SlashCommand (kind 33318)
-
-An addressable manifest that defines a slash command (its `d` tag is the command name). `k` tags declare which event kinds the command monitors; `h` tags declare which NIP-29 groups (none means it can be invoked anywhere). Each `param` tag declares a parameter (`label`, a type hint — `string`/`number`/`pubkey`/`topic`/`relay` — and an optional `optional` flag); `options` tags supply custom auto-complete values for a param.
-
-```typescript
-import {SlashCommand} from "@welshman/domain"
-
-const command = await SlashCommand.configure(context).reader(event)
-command.name()                 // d tag — the command name
-command.description()          // content
-command.kinds()                // monitored event kinds (k tags), as numbers
-command.groups()               // monitored NIP-29 groups (h tags)
-command.params()               // SlashCommandParam[] — {label, type, optional}
-command.options("model")       // custom options for the "model" param
-command.appliesTo(kind, group) // should it be surfaced in this context?
-
-await SlashCommand.configure(context)
-  .writer()
-  .setName("generate") // required d tag for kind 33318
-  .setDescription("A command that generates images using an LLM.")
-  .setKinds([1, 9])
-  .addGroup("98d9s")
-  .addParam("model")
-  .addParam("style", "string", true) // optional
-  .addOption("model", "Nano Banana Pro")
-  .render()
-```
-
-A command is invoked by putting a `/name <arg> <arg>` string (arguments wrapped in angle brackets) into an event of one of the monitored kinds, p-tagging the manifest's author. Two free functions handle the invocation string:
-
-```typescript
-import {parseSlashCommand, formatSlashCommand} from "@welshman/domain"
-
-parseSlashCommand("/generate <Nano Banana Pro> <a turtle>")
-// => {name: "generate", args: ["Nano Banana Pro", "a turtle"]}
-
-formatSlashCommand("generate", ["Nano Banana Pro", "a turtle"])
-// => "/generate <Nano Banana Pro> <a turtle>"
-```
-
-In `@welshman/app`, the `SlashCommands` plugin loads manifests reactively (`forContext(kind, group)` surfaces only the commands valid in a context) and `invoke(command, args, {kind, group})` publishes an invocation.
+A report's reason lives on both the `p` and `e` tags; the writer normalizes it so a reason set on either (or via `setReason`) is reflected on both. Unlike most content kinds, `ReportWriter` overrides `renderRoutes()` to `[userOutbox()]` — a report's `p`/`e` tags identify what is being flagged, not recipients to notify, so it publishes only to the author's own outbox.
 
 ## See also
 
-- [Readers & Writers](./readers-and-builders) — the base `EventReader`/`EventWriter` pattern, the `configure` entry point, default routing, and `d`-tag validation for `Classified` and `TimeEvent`.
+- [Readers & Writers](./readers-and-writers) — the base `EventReader`/`EventWriter` pattern, the `configure` entry point, default routing, and `d`-tag validation for `Classified` and `TimeEvent`.

@@ -1,6 +1,6 @@
 # Profile
 
-`ProfileReader` / `ProfileWriter` model NIP-01 kind-0 metadata — the JSON blob that carries a user's name, picture, NIP-05, lightning address, and so on. Like every kind in `@welshman/domain`, `Profile` is a `KindFactory` pairing a read-only view (`ProfileReader`) with a chainable producer of an event template (`ProfileWriter`) — see the [base Reader/Writer machinery](./readers-and-builders).
+`ProfileReader` / `ProfileWriter` model NIP-01 kind-0 metadata — the JSON blob that carries a user's name, picture, NIP-05, lightning address, and so on. Like every kind in `@welshman/domain`, `Profile` is a `KindFactory` pairing a read-only view (`ProfileReader`) with a chainable producer of an event template (`ProfileWriter`) — see the [base Reader/Writer machinery](./readers-and-writers).
 
 You never construct the reader/writer directly. A `KindFactory` is `configure`d **once** with a `KindContext` (resolver, optional signer, optional repository) to yield a `ConfiguredKind`, whose `reader(event)` / `writer(reader?)` build the instances. In an app you get this through the `Domain` plugin; standalone you can configure the factory yourself.
 
@@ -38,7 +38,7 @@ profile.display("anonymous")  // fallback used only when there is nothing else
 
 ## Writing
 
-Get a fresh writer to author a new profile, or seed one from a reader to edit. Setters are chainable; finish with `render()` to produce the unsigned `EventTemplate`.
+Get a fresh writer to author a new profile, or seed one from a reader to edit. Setters are chainable; finish with `renderTemplate()` to produce the unsigned `EventTemplate`.
 
 ```typescript
 import {Profile} from "@welshman/domain"
@@ -50,10 +50,10 @@ const template = await configured.writer()
   .setAbout("hello nostr")
   .setPicture("https://example.com/avatar.png")
   .setNip05("alice@example.com")
-  .render()               // EventTemplate {kind: 0, content, tags: []}
+  .renderTemplate()       // EventTemplate {kind: 0, content, tags: []}
 ```
 
-`render()` replaces the old `toTemplate()` and takes no arguments. It validates, resolves any in-tag relay hints, and calls `buildContent` — which for profiles re-serializes `values` to JSON, so unknown profile fields you never touched are preserved. The caller signs the template.
+`renderTemplate()` replaces the old `toTemplate()` and takes no arguments. It validates, resolves any in-tag relay hints, and calls `buildContent` — which for profiles re-serializes `values` to JSON, so unknown profile fields you never touched are preserved. The caller signs the template.
 
 Editing round-trips through the reader — pass it to `writer(reader)` to seed `values` from the existing event:
 
@@ -61,7 +61,7 @@ Editing round-trips through the reader — pass it to `writer(reader)` to seed `
 const writer = configured.writer(profile).setAbout("updated bio")
 
 // Sign the rendered template yourself...
-const signed = await signer.sign(stamp(await writer.render()))
+const signed = await signer.sign(stamp(await writer.renderTemplate()))
 
 // ...or, in an app, hand the writer to Domain.command to finalize + publish:
 const command = await app.use(Domain).command(configured.writer(profile).setAbout("updated bio"))
@@ -90,4 +90,4 @@ displayPubkey(pubkey)                       // "npub1abc…wxyz"
 
 ## See also
 
-- [Readers & Writers](./readers-and-builders) — the base `EventReader`/`EventWriter` pattern every kind shares, plus `KindFactory` / `configure` / `ConfiguredKind`.
+- [Readers & Writers](./readers-and-writers) — the base `EventReader`/`EventWriter` pattern every kind shares, plus `KindFactory` / `configure` / `ConfiguredKind`.

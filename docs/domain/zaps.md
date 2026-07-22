@@ -1,6 +1,6 @@
 # Zaps
 
-The lightning-zap flow (NIP-57) and zap goals (NIP-75) are modeled by three kinds: `ZapRequest` (what a sender publishes to ask for a zap), `ZapReceipt` (what the recipient's LN service publishes as proof of payment), and `ZapGoal` (a fundraising target). All three are plain `EventReader` / `EventWriter` subclasses — see [Readers & Writers](./readers-and-builders) for the base pattern. Alongside the kinds, the [`Zapper`](#zapper) class models the LNURL service and validates receipts, and [zap splits](#zap-splits) live on the base reader/writer.
+The lightning-zap flow (NIP-57) and zap goals (NIP-75) are modeled by three kinds: `ZapRequest` (what a sender publishes to ask for a zap), `ZapReceipt` (what the recipient's LN service publishes as proof of payment), and `ZapGoal` (a fundraising target). All three are plain `EventReader` / `EventWriter` subclasses — see [Readers & Writers](./readers-and-writers) for the base pattern. Alongside the kinds, the [`Zapper`](#zapper) class models the LNURL service and validates receipts, and [zap splits](#zap-splits) live on the base reader/writer.
 
 The low-level lightning helpers (`getLnUrl`, `getInvoiceAmount`, `hrpToMillisat`, `toMsats`/`fromMsats`) remain in `@welshman/util` — see [util/Lightning](../util/lightning).
 
@@ -32,7 +32,7 @@ const writer = app.use(Domain).writer(ZapRequest)
   .setAnonymous(true)                       // add/remove the "anon" tag
   .setContent("great post")
 
-const template = await writer.render()      // EventTemplate {kind, content, tags}
+const template = await writer.renderTemplate()      // EventTemplate {kind, content, tags}
 ```
 
 Each setter drops any existing tag of the same key before adding the new one, so calling a setter twice replaces rather than duplicates.
@@ -60,8 +60,8 @@ if (invoice) {
 `ZapRequestWriter` uses the default writer routing — author outbox plus every p-tagged pubkey's inbox (weight `0.5`):
 
 ```typescript
-protected async routes(): Promise<RelaySelection[]> {
-  return [userOutbox(), ...inboxes(getPubkeyTagValues(await this.getTags()), 0.5)]
+protected async renderRoutes(): Promise<RelaySelection[]> {
+  return [userOutbox(), ...inboxes(tagValues(hexTags("p"), await this.renderTags()), 0.5)]
 }
 ```
 
@@ -175,11 +175,11 @@ const template = await app.use(Domain).writer(ZapGoal)
   .setSummary("keeps the lights on")
   .setAmount(1000000)                       // millisats
   .setUrls(["wss://relay.example"])         // one ["relays", url] per url
-  .render()
+  .renderTemplate()
 ```
 
 `validate()` requires a title (throws `ZapGoal requires a title` when content is empty), and the writer's constructor always seeds an `amount` tag, defaulting to `["amount", "0"]`.
 
 ## See also
 
-- [Readers & Writers](./readers-and-builders) — the base `EventReader`/`EventWriter` pattern, configuration, routing, and publishing with `@welshman/app`.
+- [Readers & Writers](./readers-and-writers) — the base `EventReader`/`EventWriter` pattern, configuration, routing, and publishing with `@welshman/app`.

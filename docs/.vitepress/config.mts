@@ -1,5 +1,15 @@
-import {defineConfig} from "vitepress"
+import {defineConfig, type DefaultTheme} from "vitepress"
 import typeDocSidebar from "../reference/typedoc-sidebar.json"
+
+// VitePress renders the whole sidebar tree into every page's static HTML, so pointing all
+// of /reference/ at the full typedoc tree makes each page carry every other package's
+// entries. Scope each package to its own path instead; the /reference/ landing page keeps
+// the full tree since it's the index.
+const referenceSidebar: DefaultTheme.SidebarMulti = Object.fromEntries(
+  (typeDocSidebar as DefaultTheme.SidebarItem[])
+    .filter(pkg => pkg.link)
+    .map(pkg => [pkg.link!, [{...pkg, collapsed: false}]]),
+)
 
 export default defineConfig({
   title: "Welshman",
@@ -11,6 +21,7 @@ export default defineConfig({
       {text: "Reference", link: "/reference/"},
     ],
     sidebar: {
+      ...referenceSidebar,
       "/reference/": [...typeDocSidebar],
       "/": [
         {
@@ -39,7 +50,7 @@ export default defineConfig({
           text: "@welshman/domain",
           link: "/domain/",
           items: [
-            {text: "Readers & Writers", link: "/domain/readers-and-builders"},
+            {text: "Readers & Writers", link: "/domain/readers-and-writers"},
             {text: "Profile", link: "/domain/profile"},
             {text: "Lists", link: "/domain/lists"},
             {text: "Rooms", link: "/domain/rooms"},

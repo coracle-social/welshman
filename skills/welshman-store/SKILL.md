@@ -245,7 +245,7 @@ import {
 import { load } from "@welshman/net"
 import { repository } from "@welshman/app"
 import { Router } from "@welshman/router"
-import { getTagValue, getTagValues } from "@welshman/util"
+import { tagSpec, tagValue, tagValues } from "@welshman/util"
 import type { TrustedEvent } from "@welshman/util"
 
 const BOOKMARK_KIND = 30003
@@ -259,8 +259,8 @@ type Bookmark = {
 
 const parseBookmark = (event: TrustedEvent): Bookmark => ({
   pubkey: event.pubkey,
-  title: getTagValue("title", event.tags) ?? "Untitled",
-  urls: getTagValues("r", event.tags),
+  title: tagValue(tagSpec("title"), event.tags) ?? "Untitled",
+  urls: tagValues(tagSpec("r"), event.tags),
   event,
 })
 
@@ -309,7 +309,7 @@ aliceBookmark.subscribe($b => console.log($b?.title))
 
 ## Gotchas & Tips
 
-- **`eventToItem` can return `null`/`undefined`** — returning a falsy value from `eventToItem` in `deriveItemsByKey` causes that event to be skipped. Use this to filter out malformed events (e.g. `event.tags.length > 1 ? {event, pubkeys: getPubkeyTagValues(event.tags)} : null`).
+- **`eventToItem` can return `null`/`undefined`** — returning a falsy value from `eventToItem` in `deriveItemsByKey` causes that event to be skipped. Use this to filter out malformed events (e.g. `event.tags.length > 1 ? {event, pubkeys: tagValues(hexTags("p"), event.tags)} : null`).
 - **`synced` is async on first read** — the store emits `defaultValue` synchronously, then overwrites it once storage resolves. Always `await store.ready` before reading in server-side or initialization code where you need the persisted value.
 - **`throttled(0, store)` is a no-op** — it returns the original store unchanged, so it is safe to call with a user-configurable delay that may be zero.
 - **`makeDeriveItem` is a factory** — call it once to create the lookup function, then call the returned function with a key to get a per-key `Readable`. Do not call `deriveItemsByKey` inside a Svelte `$:` block repeatedly; derive once at module level and pass the store down.

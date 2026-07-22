@@ -95,19 +95,7 @@ reader.expiration()     // number | undefined
 
 Each subclass adds its own getters on top — `profile.name()`, `followList.pubkeys()`, `zapGoal.amount()`, and so on.
 
-### Routing a reader
-
-A reader can compute where the event should be fetched from. The default `routes()` branches on whether it is a group event:
-
-```typescript
-protected routes(): MaybeAsync<RelaySelection[]> {
-  return [this.group() ? seen(this.event) : outbox(this.author())]
-}
-
-async scenario(): Promise<RelayScenario> {
-  return this.def.context.resolver.scenario(await this.routes())
-}
-```
+Readers are getter-only — they do not compute routes. Routing (below) is a writer concern, for publishing; deciding where to *fetch* a kind's events is the request/loader layer's job, not the reader's.
 
 A group (`h`-tagged) event routes to the relays it was seen on; otherwise it routes to its author's outbox. `scenario()` resolves those routes through the configured `Resolver` into a `RelayScenario`.
 
@@ -196,34 +184,34 @@ where `behaviorTags` are the present ones among `groupTag`, `protectTag`, `expir
 There is no `toTemplate`/`toEvent`/`toRumor` on the writer. Instead it produces an unsigned template, and the caller signs it. All are async and take **no** arguments — the context (signer, resolver) was injected at `configure`:
 
 ```typescript
-const template = await writer.render()     // EventTemplate {kind, content, tags}
-const relays   = await writer.relays()     // string[] — where to publish
-const {event, relays} = await writer.finalize()   // both at once
+const template = await writer.renderTemplate()   // EventTemplate {kind, content, tags}
+const relays   = await writer.relays()           // string[] — where to publish
+const {event, relays} = await writer.render()    // both at once
 ```
 
-`render()` is the heart of it: it runs `validate()`, resolves every in-tag `Hint` to a single url via `context.resolver.relay(...)` (falling back to `""`), builds the content (encrypting for list kinds), and returns `{kind, content, tags}`.
+`renderTemplate()` is the heart of it: it runs `validate()`, resolves every in-tag `Hint` to a single url via `context.resolver.relay(...)` (falling back to `""`), builds the content (encrypting for list kinds), and returns `{kind, content, tags}`. `render()` calls it and pairs the template with the resolved relay list.
 
 To sign, hand the template to a signer — this is what the app and the test helpers do:
 
 ```typescript
 import {stamp} from "@welshman/util"
 
-const signed = await signer.sign(stamp(await writer.render()))
+const signed = await signer.sign(stamp(await writer.renderTemplate()))
 ```
 
 ### Routing a writer
 
-A writer computes where the event should be published. The default `routes()` targets the author's outbox plus every p-tagged pubkey's inbox:
+A writer computes where the event should be published. The default `renderRoutes()` targets the author's outbox plus every p-tagged pubkey's inbox:
 
 ```typescript
-protected async routes(): Promise<RelaySelection[]> {
-  return [userOutbox(), ...inboxes(getPubkeyTagValues(await this.getTags()), 0.5)]
+protected async renderRoutes(): Promise<RelaySelection[]> {
+  return [userOutbox(), ...inboxes(tagValues(hexTags("p"), await this.renderTags()), 0.5)]
 }
 ```
 
-`getTags()` returns the fully-assembled tags with every `Hint` rendered as `""` — a synchronous view used purely for routing. `scenario()`/`relays()` resolve these routes through the configured `Resolver`.
+`renderTags()` returns the fully-assembled tags with every `Hint` rendered as `""` — the view used for routing. `scenario()`/`relays()` resolve these routes through the configured `Resolver`.
 
-Kinds override `routes()` when the default is wrong. For instance `FollowListWriter` and `MuteListWriter` route to `[userOutbox()]` only (their p-tags are data, not recipients), and `DeleteWriter` adds each deleted event's seen relays.
+Kinds override `renderRoutes()` when the default is wrong. For instance `FollowListWriter` and `MuteListWriter` route to `[userOutbox()]` only (their p-tags are data, not recipients), and `DeleteWriter` adds each deleted event's seen relays.
 
 ### Forced relays and required relays
 
@@ -236,7 +224,7 @@ writer.clearGroup()               // clears both
 writer.clearForcedRelays()        // clears forcedRelays
 ```
 
-When `forcedRelays` is non-empty, `scenario()` publishes **only** to those relays, bypassing `routes()` entirely.
+When `forcedRelays` is non-empty, `scenario()` publishes **only** to those relays, bypassing `renderRoutes()` entirely.
 
 A kind can also declare it *requires* explicit relays by overriding the readonly field:
 
@@ -356,7 +344,7 @@ command.publish()
 
 - `domain.reader(factory)` returns the configured kind's async `reader` function.
 - `domain.writer(factory, reader?)` returns a fresh writer, optionally seeded for editing.
-- `domain.command(writer)` requires the signed-in user, calls `writer.finalize()`, and wraps the `{event, relays}` in a `Command` you can `.publish()`.
+- `domain.command(writer)` requires the signed-in user, calls `writer.render()`, and wraps the `{event, relays}` in a `Command` you can `.publish()`.
 
 The context `Domain` builds wires in `app.use(Router).resolver`, `app.repository`, and a **lazy** `signer` getter (so auth policies can swap the signer after configuration).
 
@@ -369,9 +357,9 @@ The context `Domain` builds wires in `app.use(Router).resolver`, `app.repository
 | `X.fromEvent(event)` / `Kind.read(event)` / `Kind.factory(signer)` | `factory.configure(ctx).reader(event)` (async) |
 | `Kind.builder(reader?)` / `new XBuilder(reader?)` | `factory.configure(ctx).writer(reader?)` |
 | `parse(signer)` | `parse()` (reads `def.context.signer`) |
-| `builder.toTemplate(signer?)` | `writer.render()` (context injected at `configure`) |
-| `builder.toEvent(signer)` | `signer.sign(stamp(await writer.render()))` |
-| `builder.toRumor(signer)` | `prep(await writer.render(), await signer.getPubkey())` |
-| `builder.finalize(context)` | `writer.finalize()` (no arg) |
+| `builder.toTemplate(signer?)` | `writer.renderTemplate()` (context injected at `configure`) |
+| `builder.toEvent(signer)` | `signer.sign(stamp(await writer.renderTemplate()))` |
+| `builder.toRumor(signer)` | `prep(await writer.renderTemplate(), await signer.getPubkey())` |
+| `builder.finalize(context)` | `writer.render()` (no arg) |
 | `Router.commandFromBuilder(builder)` | `app.use(Domain).command(writer)` |
 | `Encryptable` wrapper around an event | `ListWriter.buildContent` (NIP-44, self-encrypted) — no separate wrapper |

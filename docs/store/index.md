@@ -16,7 +16,7 @@ A utility package providing welshman-specific svelte store functionality and uti
 
 ```typescript
 import {Repository} from '@welshman/net'
-import {NAMED_PEOPLE, getPubkeyTagValues} from '@welshman/util'
+import {NAMED_PEOPLE, hexTags, tagValues} from '@welshman/util'
 import type {TrustedEvent} from '@welshman/util'
 import {deriveItemsByKey} from '@welshman/store'
 
@@ -31,7 +31,7 @@ const listsByPubkey = deriveItemsByKey<PeopleList>({
   repository,
   filters: [{kinds: [NAMED_PEOPLE]}],
   eventToItem: (event: TrustedEvent) =>
-    event.tags.length > 1 ? {event, pubkeys: getPubkeyTagValues(event.tags)} : null,
+    event.tags.length > 1 ? {event, pubkeys: tagValues(hexTags("p"), event.tags)} : null,
   getKey: list => list.event.pubkey,
 })
 ```

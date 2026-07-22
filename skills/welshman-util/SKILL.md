@@ -273,24 +273,19 @@ isDVMKind(kind)                    // 5000–7000
 
 | Export | Description |
 |--------|-------------|
-| `getTags(types, tags)` | Get all tags matching one or more type strings |
-| `getTag(types, tags)` | Get first matching tag |
-| `getTagValues(types, tags)` | Get value (index 1) of all matching tags — types first, then the tags array |
-| `getTagValue(types, tags)` | Get value of first matching tag — types first, then the tags array |
-| `getEventTags(tags)` | `e` tags |
-| `getEventTagValues(tags)` | Values of `e` tags |
-| `getAddressTags(tags)` | `a` tags |
-| `getAddressTagValues(tags)` | Values of `a` tags |
-| `getPubkeyTags(tags)` | `p` tags |
-| `getPubkeyTagValues(tags)` | Values of `p` tags |
-| `getTopicTags(tags)` / `getTopicTagValues(tags)` | `t` (hashtag) tags |
-| `getRelayTags(tags)` / `getRelayTagValues(tags)` | `r` and `relay` tags |
-| `getKindTags(tags)` / `getKindTagValues(tags)` | `k` tags (returns `number[]`) |
-| `getGroupTags(tags)` / `getGroupTagValues(tags)` | group tags |
-| `getReplyTags(tags)` | `{ roots, replies, mentions }` — NIP-10 threading |
-| `getCommentTags(tags)` | `{ roots, replies }` — NIP-22 uppercase/lowercase tags |
-| `uniqTags(tags)` | Remove duplicate tags |
-| `tagsFromIMeta(imeta)` | Parse `imeta` tag into array of tag arrays |
+| `tagSpec(keys, matchValue?, normalizeValue?)` | Build a `TagSpec` — `keys` is a string or string[]; optional value filter/normalizer |
+| `hexTags(keys)` | Spec matching 32-byte hex values (`isHex32`) — e/p tags |
+| `addressTags(keys)` | Spec matching replaceable addresses (`Address.isAddress`) — a tags |
+| `relayTags(keys)` | Spec matching relay urls (`isRelayUrl`) — r/relay tags |
+| `topicTags(keys)` | Spec that strips a leading `#` from values — t tags |
+| `kindTags(keys)` | Spec whose values parse to `number` — k tags |
+| `matchTags(spec, tags)` | All tags matching the spec — spec first, then the tags array |
+| `matchTag(spec, tags)` | First tag matching the spec, or `undefined` |
+| `tagValues(spec, tags)` | Values (index 1, normalized) of all matching tags; undefined dropped |
+| `tagValue(spec, tags)` | Value of the first matching tag, or `undefined` |
+| `tagMatcher(spec)` / `tagValueExtractor(spec)` | The raw `(tag)=>boolean` / `(tag)=>T` for a spec |
+
+The old `getTagValue`/`getPubkeyTagValues`/`getEventTags`/… accessors were removed — use the spec selectors above (e.g. `tagValues(hexTags("p"), tags)`, `tagValue(tagSpec("title"), tags)`). Thread helpers `getReplyTags`/`getCommentTags` moved to `@welshman/domain` (kinds 1 / 1111).
 
 ### Filters
 
@@ -558,28 +553,27 @@ Only do this for events you persisted yourself after they were validated. Never 
 
 ```typescript
 import {
-  getTagValue,
-  getTagValues,
-  getPubkeyTagValues,
-  getTopicTagValues,
-  getRelayTagValues,
-  getReplyTags,
-  uniqTags,
+  tagSpec,
+  hexTags,
+  topicTags,
+  relayTags,
+  tagValue,
+  tagValues,
 } from '@welshman/util'
 
-// getTagValue and getTagValues: types argument FIRST, then the tags array
-const title  = getTagValue('title', event.tags)          // string | undefined
-const urls   = getTagValues('r', event.tags)             // string[]
+// A selector takes a spec FIRST, then the tags array
+const title  = tagValue(tagSpec('title'), event.tags)     // string | undefined
+const urls   = tagValues(tagSpec('r'), event.tags)        // string[]
 
-// Multiple types at once
-const ids    = getTagValues(['e', 'a'], event.tags)      // string[]
+// Multiple keys at once
+const ids    = tagValues(tagSpec(['e', 'a']), event.tags) // string[]
 
-const mentions = getPubkeyTagValues(event.tags)   // string[]
-const topics   = getTopicTagValues(event.tags)    // string[]
-const relays   = getRelayTagValues(event.tags)    // string[]
+const mentions = tagValues(hexTags('p'), event.tags)      // string[]
+const topics   = tagValues(topicTags('t'), event.tags)    // string[] ("#x" -> "x")
+const relays   = tagValues(relayTags(['r', 'relay']), event.tags)
 
-// NIP-10 thread context
-const { roots, replies, mentions: threadMentions } = getReplyTags(event.tags)
+// NIP-10 thread context lives in @welshman/domain now
+// const { roots, replies, mentions } = getReplyTags(event.tags)
 ```
 
 ### Matching and building filters
@@ -709,7 +703,7 @@ await fetch('https://api.example.com/upload', {
 
 - **`Address.isAddress`** checks the `kind:pubkey:identifier` format only, not naddr. To validate an naddr string, use `Address.fromNaddr` inside a try/catch.
 
-- **`getTagValue` / `getTagValues` argument order**: the type(s) come **first**, the tags array comes **second** — `getTagValue('title', event.tags)`. This is the opposite of the specialized helpers like `getEventTags(tags)` which take only the tags array. Mixing up the order produces no TypeScript error but silently returns `undefined` or `[]`.
+- **Tag selector argument order**: the spec comes **first**, the tags array **second** — `tagValue(tagSpec('title'), event.tags)`, `tagValues(hexTags('p'), event.tags)`. Mixing up the order produces no TypeScript error but silently returns `undefined` or `[]`.
 
 - **`verifiedSymbol` is a Symbol key**: you must import `verifiedSymbol` from `@welshman/util` and use it as a computed property key — `event[verifiedSymbol] = true`. You cannot use a string key. The symbol is re-exported from `nostr-tools/pure`, so it is the same identity as the one used internally by `verifyEvent`.
 
