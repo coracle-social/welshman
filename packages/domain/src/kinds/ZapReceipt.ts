@@ -1,5 +1,5 @@
 import {parseJson, spec} from "@welshman/lib"
-import {ZAP_RECEIPT, getTagValue, getInvoiceAmount} from "@welshman/util"
+import {ZAP_RECEIPT, tagSpec, tagValue, getInvoiceAmount} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
@@ -10,13 +10,13 @@ export class ZapReceiptReader extends EventReader {
   plain?: TrustedEvent
 
   async parse() {
-    const description = getTagValue("description", this.event.tags)
+    const description = tagValue(tagSpec("description"), this.event.tags)
 
     this.plain = description ? parseJson(description) || undefined : undefined
   }
 
   bolt11() {
-    return getTagValue("bolt11", this.event.tags)
+    return tagValue(tagSpec("bolt11"), this.event.tags)
   }
 
   invoiceAmount() {
@@ -40,11 +40,11 @@ export class ZapReceiptReader extends EventReader {
   }
 
   recipient() {
-    return getTagValue("p", this.event.tags)
+    return tagValue(tagSpec("p"), this.event.tags)
   }
 
   eventId() {
-    return getTagValue("e", this.event.tags)
+    return tagValue(tagSpec("e"), this.event.tags)
   }
 
   comment() {
@@ -52,7 +52,7 @@ export class ZapReceiptReader extends EventReader {
   }
 
   preimage() {
-    return getTagValue("preimage", this.event.tags)
+    return tagValue(tagSpec("preimage"), this.event.tags)
   }
 }
 

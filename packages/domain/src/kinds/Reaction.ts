@@ -1,8 +1,10 @@
 import {first, spec} from "@welshman/lib"
 import {
   REACTION,
-  getTagValue,
-  getKindTagValues,
+  kindTags,
+  tagSpec,
+  tagValue,
+  tagValues,
   getAddress,
   isReplaceable,
   outbox,
@@ -18,19 +20,19 @@ const TARGET_KEYS = ["e", "a", "p", "k"]
 // `:shortcode:` referencing a NIP-30 `emoji` tag — set it via `setContent`.
 export class ReactionReader extends EventReader {
   eventId() {
-    return getTagValue("e", this.event.tags)
+    return tagValue(tagSpec("e"), this.event.tags)
   }
 
   eventAddress() {
-    return getTagValue("a", this.event.tags)
+    return tagValue(tagSpec("a"), this.event.tags)
   }
 
   pubkey() {
-    return getTagValue("p", this.event.tags)
+    return tagValue(tagSpec("p"), this.event.tags)
   }
 
   eventKind() {
-    return first(getKindTagValues(this.event.tags))
+    return first(tagValues(kindTags("k"), this.event.tags))
   }
 }
 

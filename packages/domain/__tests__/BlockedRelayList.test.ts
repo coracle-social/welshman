@@ -1,5 +1,12 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, BLOCKED_RELAYS, NOTE, getTagValues, normalizeRelayUrl} from "@welshman/util"
+import {
+  makeSecret,
+  BLOCKED_RELAYS,
+  NOTE,
+  tagSpec,
+  tagValues,
+  normalizeRelayUrl,
+} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {BlockedRelayList} from "../src/kinds/BlockedRelayList"
@@ -64,7 +71,9 @@ describe("BlockedRelayList", () => {
       signer,
     )
 
-    expect(getTagValues("relay", tmpl.tags)).toEqual([normalizeRelayUrl("wss://relay.one.example")])
+    expect(tagValues(tagSpec("relay"), tmpl.tags)).toEqual([
+      normalizeRelayUrl("wss://relay.one.example"),
+    ])
   })
 
   it("setRelays replaces existing relays", async () => {
@@ -73,7 +82,7 @@ describe("BlockedRelayList", () => {
 
     const tmpl = await buildTemplate(write(BlockedRelayList, list).setUrls([r2, r3]), signer)
 
-    expect(getTagValues("relay", tmpl.tags).sort()).toEqual([r2, r3].sort())
+    expect(tagValues(tagSpec("relay"), tmpl.tags).sort()).toEqual([r2, r3].sort())
   })
 
   it("throws on the wrong kind", async () => {

@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, BLOSSOM_SERVERS, NOTE, getTagValues} from "@welshman/util"
+import {makeSecret, BLOSSOM_SERVERS, NOTE, tagSpec, tagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {normalizeUrl} from "@welshman/lib"
 import {Nip01Signer} from "@welshman/signer"
@@ -64,7 +64,7 @@ describe("BlossomServerList", () => {
   it("builds from a fresh builder and normalizes urls", async () => {
     const tmpl = await buildTemplate(write(BlossomServerList).addUrl(s1), signer)
 
-    expect(getTagValues("server", tmpl.tags)).toEqual([norm(s1)])
+    expect(tagValues(tagSpec("server"), tmpl.tags)).toEqual([norm(s1)])
   })
 
   it("setServers replaces existing servers", async () => {
@@ -73,7 +73,7 @@ describe("BlossomServerList", () => {
 
     const tmpl = await buildTemplate(write(BlossomServerList, list).setUrls([s2, s3]), signer)
 
-    expect(getTagValues("server", tmpl.tags).sort()).toEqual([norm(s2), norm(s3)].sort())
+    expect(tagValues(tagSpec("server"), tmpl.tags).sort()).toEqual([norm(s2), norm(s3)].sort())
   })
 
   it("throws on the wrong kind", async () => {

@@ -1,5 +1,5 @@
 import {spec} from "@welshman/lib"
-import {CLASSIFIED, getTag, getTagValue, getTagValues, getTopicTagValues} from "@welshman/util"
+import {CLASSIFIED, matchTag, tagSpec, tagValue, tagValues, topicTags} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -23,15 +23,15 @@ const parsePrice = ([, amount = "0", currency = "SAT", frequency = ""]: string[]
 // NIP-99 kind-30402 classified listing.
 export class ClassifiedReader extends EventReader {
   title() {
-    return getTagValue("title", this.event.tags)
+    return tagValue(tagSpec("title"), this.event.tags)
   }
 
   summary() {
-    return getTagValue("summary", this.event.tags)
+    return tagValue(tagSpec("summary"), this.event.tags)
   }
 
   price(): ClassifiedPrice | undefined {
-    const tag = getTag("price", this.event.tags)
+    const tag = matchTag(tagSpec("price"), this.event.tags)
 
     if (tag) {
       return parsePrice(tag)
@@ -39,15 +39,15 @@ export class ClassifiedReader extends EventReader {
   }
 
   status() {
-    return getTagValue("status", this.event.tags)
+    return tagValue(tagSpec("status"), this.event.tags)
   }
 
   images() {
-    return getTagValues("image", this.event.tags)
+    return tagValues(tagSpec("image"), this.event.tags)
   }
 
   topics() {
-    return getTopicTagValues(this.event.tags)
+    return tagValues(topicTags("t"), this.event.tags)
   }
 }
 

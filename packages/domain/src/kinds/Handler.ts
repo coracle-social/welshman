@@ -1,5 +1,5 @@
 import {isPojo, parseJson} from "@welshman/lib"
-import {HANDLER_INFORMATION, getKindTagValues} from "@welshman/util"
+import {HANDLER_INFORMATION, kindTags, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter, TagParser} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -51,7 +51,7 @@ export class HandlerReader extends EventReader {
   }
 
   kinds() {
-    return getKindTagValues(this.event.tags)
+    return tagValues(kindTags("k"), this.event.tags)
   }
 }
 

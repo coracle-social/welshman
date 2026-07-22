@@ -1,10 +1,25 @@
-import {first} from "@welshman/lib"
-import {COMMENT, Address, getTagValue, outbox} from "@welshman/util"
+import {first, mapVals, nth} from "@welshman/lib"
+import {COMMENT, Address, tagSpec, tagValue, outbox} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter, TagParser} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
+
+// NIP-22 comment reference tags: uppercase (A/E/P/K) point at the thread root,
+// lowercase (a/e/p/k) at the immediate parent.
+export const getCommentTags = (tags: string[][]) => {
+  const roots = tags.filter(t => ["A", "E", "P", "K"].includes(t[0]))
+  const replies = tags.filter(t => ["a", "e", "p", "k"].includes(t[0]))
+
+  return {roots, replies}
+}
+
+export const getCommentTagValues = (tags: string[][]) =>
+  mapVals(
+    tags => tags.filter(t => ["a", "e"].includes(t[0].toLowerCase())).map(nth(1)),
+    getCommentTags(tags),
+  )
 
 export type CommentRef = {
   id?: string
@@ -17,19 +32,19 @@ export type CommentRef = {
 export class CommentReader extends EventReader {
   root(): CommentRef {
     return {
-      id: getTagValue("E", this.event.tags),
-      address: getTagValue("A", this.event.tags),
-      kind: getTagValue("K", this.event.tags),
-      pubkey: getTagValue("P", this.event.tags),
+      id: tagValue(tagSpec("E"), this.event.tags),
+      address: tagValue(tagSpec("A"), this.event.tags),
+      kind: tagValue(tagSpec("K"), this.event.tags),
+      pubkey: tagValue(tagSpec("P"), this.event.tags),
     }
   }
 
   parent(): CommentRef {
     return {
-      id: getTagValue("e", this.event.tags),
-      address: getTagValue("a", this.event.tags),
-      kind: getTagValue("k", this.event.tags),
-      pubkey: getTagValue("p", this.event.tags),
+      id: tagValue(tagSpec("e"), this.event.tags),
+      address: tagValue(tagSpec("a"), this.event.tags),
+      kind: tagValue(tagSpec("k"), this.event.tags),
+      pubkey: tagValue(tagSpec("p"), this.event.tags),
     }
   }
 }
@@ -107,13 +122,13 @@ export class CommentWriter extends EventWriter<CommentReader> {
   }
 
   setRootFromEvent(event: TrustedEvent) {
-    this.setRoot(event.kind, event.id, event.pubkey, getTagValue("d", event.tags))
+    this.setRoot(event.kind, event.id, event.pubkey, tagValue(tagSpec("d"), event.tags))
 
     return this
   }
 
   setParentFromEvent(event: TrustedEvent) {
-    this.setParent(event.kind, event.id, event.pubkey, getTagValue("d", event.tags))
+    this.setParent(event.kind, event.id, event.pubkey, tagValue(tagSpec("d"), event.tags))
 
     return this
   }

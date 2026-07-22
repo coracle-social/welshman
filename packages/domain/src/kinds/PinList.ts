@@ -1,5 +1,5 @@
 import {uniq} from "@welshman/lib"
-import {PINS, getEventTagValues, getAddressTagValues} from "@welshman/util"
+import {PINS, addressTags, hexTags, tagValues} from "@welshman/util"
 import {ListReader} from "../core/ListReader.js"
 import {ListWriter} from "../core/ListWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,11 +7,11 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-51 kind-10001 pin list.
 export class PinListReader extends ListReader {
   ids() {
-    return uniq(getEventTagValues(this.tags()))
+    return uniq(tagValues(hexTags("e"), this.tags()))
   }
 
   addresses() {
-    return uniq(getAddressTagValues(this.tags()))
+    return uniq(tagValues(addressTags("a"), this.tags()))
   }
 }
 

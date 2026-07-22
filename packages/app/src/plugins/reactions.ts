@@ -1,4 +1,4 @@
-import {getTagValue} from "@welshman/util"
+import {tagSpec, tagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Reaction, ReactionWriter} from "@welshman/domain"
 import {Domain} from "./domain.js"
@@ -22,7 +22,7 @@ export class Reactions {
 
     // A reaction to a NIP-29 group message goes to the group's relay — where the
     // target event lives (per the tracker).
-    const group = getTagValue("h", event.tags)
+    const group = tagValue(tagSpec("h"), event.tags)
     const [url] = this.app.tracker.getRelays(event.id)
 
     if (group && url) writer.setGroup(url, group)

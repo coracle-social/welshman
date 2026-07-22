@@ -1,5 +1,5 @@
 import {spec} from "@welshman/lib"
-import {ROOM_JOIN, getTagValue} from "@welshman/util"
+import {ROOM_JOIN, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,7 +7,7 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-29 kind-9021 room join request.
 export class RoomJoinReader extends EventReader {
   claim() {
-    return getTagValue("claim", this.event.tags)
+    return tagValue(tagSpec("claim"), this.event.tags)
   }
 }
 

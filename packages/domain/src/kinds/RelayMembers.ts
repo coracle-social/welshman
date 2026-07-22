@@ -1,5 +1,5 @@
 import {uniq, spec, removeUndefined} from "@welshman/lib"
-import {RELAY_MEMBERS, getTagValues} from "@welshman/util"
+import {RELAY_MEMBERS, tagSpec, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -9,7 +9,7 @@ import type {KindContext} from "../core/Kind.js"
 // NIP-43 `member` tags, and the event is NIP-70 protected (`-`).
 export class RelayMembersReader extends EventReader {
   pubkeys() {
-    return uniq(getTagValues("member", this.event.tags))
+    return uniq(tagValues(tagSpec("member"), this.event.tags))
   }
 
   isMember(pubkey: string) {

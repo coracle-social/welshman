@@ -1,5 +1,5 @@
 import {uniqBy, spec} from "@welshman/lib"
-import {NAMED_RELAYS, getTagValue, getTagValues, normalizeRelayUrl} from "@welshman/util"
+import {NAMED_RELAYS, tagSpec, tagValue, tagValues, normalizeRelayUrl} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,19 +7,19 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-51 kind-30002 relay set.
 export class RelaySetReader extends EventReader {
   title() {
-    return getTagValue("title", this.event.tags)
+    return tagValue(tagSpec("title"), this.event.tags)
   }
 
   description() {
-    return getTagValue("description", this.event.tags)
+    return tagValue(tagSpec("description"), this.event.tags)
   }
 
   image() {
-    return getTagValue("image", this.event.tags)
+    return tagValue(tagSpec("image"), this.event.tags)
   }
 
   urls() {
-    return uniqBy(normalizeRelayUrl, getTagValues("relay", this.tags()))
+    return uniqBy(normalizeRelayUrl, tagValues(tagSpec("relay"), this.tags()))
   }
 }
 

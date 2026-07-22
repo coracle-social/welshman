@@ -10,7 +10,7 @@ import {
   postJson,
 } from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
-import {getTagValue} from "@welshman/util"
+import {tagSpec, tagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {getZapSplits, Zapper, ZapReceipt} from "@welshman/domain"
 import type {Zap, ProfileReader, ZapReceiptReader} from "@welshman/domain"
@@ -103,7 +103,7 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
    * other split recipients.
    */
   loadZapperForZap = async (zapReceipt: TrustedEvent, parent: TrustedEvent) => {
-    const recipient = getTagValue("p", zapReceipt.tags)
+    const recipient = tagValue(tagSpec("p"), zapReceipt.tags)
     const split = getZapSplits(parent).find(split => split.pubkey === recipient)
 
     if (!split) return

@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, ROOM_JOIN, NOTE, getTagValue} from "@welshman/util"
+import {makeSecret, ROOM_JOIN, NOTE, tagSpec, tagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomJoin} from "../src/kinds/RoomJoin"
@@ -61,7 +61,7 @@ describe("RoomJoin", () => {
     // h round-trips via the base behavior tag.
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "claim").length).toBe(1)
-    expect(getTagValue("h", tmpl.tags)).toBe("room1")
+    expect(tagValue(tagSpec("h"), tmpl.tags)).toBe("room1")
     expect(tmpl.tags).toContainEqual(["claim", "invite-code"])
     // Content (free-text reason) is preserved.
     expect(tmpl.content).toBe("please let me in")
@@ -78,7 +78,7 @@ describe("RoomJoin", () => {
       signer,
     )
 
-    expect(getTagValue("h", tmpl.tags)).toBe("room2")
+    expect(tagValue(tagSpec("h"), tmpl.tags)).toBe("room2")
     expect(tmpl.tags).toContainEqual(["claim", "xyz"])
     expect(tmpl.content).toBe("hi there")
   })

@@ -1,5 +1,5 @@
 import {parseJson, spec} from "@welshman/lib"
-import {FEED, getTagValue} from "@welshman/util"
+import {FEED, tagSpec, tagValue} from "@welshman/util"
 import type {Feed as FeedDefinition} from "@welshman/feeds"
 
 import {EventReader} from "../core/EventReader.js"
@@ -9,15 +9,15 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-51 kind-31890 saved-feed definition.
 export class FeedReader extends EventReader {
   title() {
-    return getTagValue("title", this.event.tags) || ""
+    return tagValue(tagSpec("title"), this.event.tags) || ""
   }
 
   description() {
-    return getTagValue("description", this.event.tags) || ""
+    return tagValue(tagSpec("description"), this.event.tags) || ""
   }
 
   definition(): FeedDefinition | undefined {
-    return parseJson(getTagValue("feed", this.event.tags))
+    return parseJson(tagValue(tagSpec("feed"), this.event.tags))
   }
 }
 

@@ -1,5 +1,5 @@
 import {spec, first} from "@welshman/lib"
-import {REPORT, getTag, getTagValue, userOutbox} from "@welshman/util"
+import {REPORT, matchTag, tagSpec, tagValue, userOutbox} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -8,15 +8,17 @@ import type {KindContext} from "../core/Kind.js"
 // NIP-56 kind-1984 report.
 export class ReportReader extends EventReader {
   pubkey() {
-    return getTagValue("p", this.event.tags)
+    return tagValue(tagSpec("p"), this.event.tags)
   }
 
   eventId() {
-    return getTagValue("e", this.event.tags)
+    return tagValue(tagSpec("e"), this.event.tags)
   }
 
   reason() {
-    return getTag("e", this.event.tags)?.[2] ?? getTag("p", this.event.tags)?.[2]
+    return (
+      matchTag(tagSpec("e"), this.event.tags)?.[2] ?? matchTag(tagSpec("p"), this.event.tags)?.[2]
+    )
   }
 }
 

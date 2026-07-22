@@ -2,7 +2,6 @@ import {now} from "@welshman/lib"
 import {describe, it, expect} from "vitest"
 import {verifiedSymbol} from "nostr-tools/pure"
 import * as Events from "../src/Events"
-import {COMMENT} from "../src/Kinds"
 
 describe("Events", () => {
   // Realistic Nostr data
@@ -35,26 +34,6 @@ describe("Events", () => {
   const createSignedEvent = () => ({
     ...createHashedEvent(),
     sig: sig,
-  })
-
-  const createCommentEvent = (parentId: string) => ({
-    ...createHashedEvent(),
-    kind: COMMENT,
-    tags: [
-      ["E", parentId, "", "root"],
-      ["P", pubkey],
-    ],
-  })
-
-  const createReplyEvent = (parentId: string) => ({
-    ...createHashedEvent(),
-    kind: 1,
-    tags: [
-      ["e", parentId, "", "root"],
-      ["e", parentId, "", "reply"],
-      ["p", pubkey, "", "root"],
-      ["p", pubkey, "", "reply"],
-    ],
   })
 
   describe("makeEvent", () => {
@@ -172,28 +151,6 @@ describe("Events", () => {
     })
   })
 
-  describe("event relationships", () => {
-    it("should identify parent-child relationships", () => {
-      const parent = createHashedEvent()
-      const child = createCommentEvent(parent.id)
-      expect(Events.isChildOf(child, parent)).toBe(true)
-    })
-
-    it("should get parent IDs", () => {
-      const parentId = id
-      const event = createCommentEvent(parentId)
-      expect(Events.getParentIds(event)).toContain(parentId)
-    })
-
-    it("should get parent addresses", () => {
-      const event = {
-        ...createCommentEvent(id),
-        tags: [["e", "30023:pubkey:identifier", "", "root"]],
-      }
-      expect(Events.getParentAddrs(event)[0]).toMatch(/^\d+:/)
-    })
-  })
-
   describe("event type checks", () => {
     it("should identify ephemeral events", () => {
       const event = {
@@ -217,29 +174,6 @@ describe("Events", () => {
         kind: 30000, // parameterized replaceable kind
       }
       expect(Events.isParameterizedReplaceable(event)).toBe(true)
-    })
-  })
-
-  describe("ancestor handling", () => {
-    it("should get ancestors for comments", () => {
-      const parentId = id
-      const event = createCommentEvent(parentId)
-      const ancestors = Events.getAncestors(event)
-      expect(ancestors.roots).toContain(parentId)
-    })
-
-    it("should get ancestors for replies", () => {
-      const parentId = id
-      const event = createReplyEvent(parentId)
-      const ancestors = Events.getAncestors(event)
-      expect(ancestors.roots).toContain(parentId)
-    })
-
-    it("should handle events without ancestors", () => {
-      const event = createBaseEvent()
-      const ancestors = Events.getAncestors(event)
-      expect(ancestors.roots).toEqual([])
-      expect(ancestors.replies).toEqual([])
     })
   })
 })

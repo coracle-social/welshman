@@ -1,5 +1,5 @@
 import {spec} from "@welshman/lib"
-import {ZAP_GOAL, getTagValue, getTagValues} from "@welshman/util"
+import {ZAP_GOAL, tagSpec, tagValue, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -12,15 +12,15 @@ export class ZapGoalReader extends EventReader {
   }
 
   summary() {
-    return getTagValue("summary", this.event.tags)
+    return tagValue(tagSpec("summary"), this.event.tags)
   }
 
   amount() {
-    return parseInt(getTagValue("amount", this.event.tags) || "0") || 0
+    return parseInt(tagValue(tagSpec("amount"), this.event.tags) || "0") || 0
   }
 
   urls() {
-    return getTagValues("relays", this.event.tags)
+    return tagValues(tagSpec("relays"), this.event.tags)
   }
 }
 

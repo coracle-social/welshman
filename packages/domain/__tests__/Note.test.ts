@@ -1,8 +1,8 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, NOTE, FOLLOWS, getPubkeyTagValues, getEventTagValues} from "@welshman/util"
+import {makeSecret, NOTE, FOLLOWS, hexTags, tagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {Note} from "../src/kinds/Note"
+import {Note, getReplyTags} from "../src/kinds/Note"
 import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
@@ -30,8 +30,8 @@ describe("Note", () => {
 
     expect(tmpl.kind).toBe(NOTE)
     expect(tmpl.content).toBe("hi")
-    expect(getPubkeyTagValues(tmpl.tags)).toContain(parentPubkey)
-    expect(getEventTagValues(tmpl.tags)).toContain(parentId)
+    expect(tagValues(hexTags("p"), tmpl.tags)).toContain(parentPubkey)
+    expect(tagValues(hexTags("e"), tmpl.tags)).toContain(parentId)
   })
 
   it("round-trips a kind-1 event", async () => {
@@ -111,5 +111,44 @@ describe("Note", () => {
 
   it("throws on the wrong kind", async () => {
     await expect(read(Note, makeEvent({kind: FOLLOWS}))).rejects.toThrow()
+  })
+})
+
+describe("getReplyTags", () => {
+  const eventId = "ff".repeat(32)
+  const address = `30023:${pubkey}:test`
+
+  it("splits marked root/reply/mention e and q tags", () => {
+    const {roots, replies, mentions} = getReplyTags([
+      ["e", eventId, "", "root"],
+      ["e", eventId, "", "reply"],
+      ["q", eventId],
+    ])
+
+    expect(roots).toHaveLength(1)
+    expect(replies).toHaveLength(1)
+    expect(mentions).toHaveLength(1)
+  })
+
+  it("infers position when markers are absent", () => {
+    const {roots, replies, mentions} = getReplyTags([
+      ["e", eventId],
+      ["e", eventId],
+      ["e", eventId],
+    ])
+
+    expect(roots).toHaveLength(1)
+    expect(replies).toHaveLength(1)
+    expect(mentions).toHaveLength(1)
+  })
+
+  it("handles marked address tags", () => {
+    const {roots, replies} = getReplyTags([
+      ["a", address, "", "root"],
+      ["a", address, "", "reply"],
+    ])
+
+    expect(roots).toHaveLength(1)
+    expect(replies).toHaveLength(1)
   })
 })

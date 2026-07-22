@@ -1572,6 +1572,12 @@ export const nth =
     xs[i]
 
 /** Returns a function that checks if nth element equals value */
+export const nthPass =
+  <T>(i: number, f: (x: T) => any) =>
+  (xs: T[], ...args: unknown[]) =>
+    f(xs[i])
+
+/** Returns a function that checks if nth element equals value */
 export const nthEq =
   (i: number, v: any) =>
   (xs: any[], ...args: unknown[]) =>

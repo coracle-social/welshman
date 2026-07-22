@@ -1,5 +1,5 @@
 import {uniq, spec} from "@welshman/lib"
-import {TOPICS, getTopicTagValues, getAddressTagValues} from "@welshman/util"
+import {TOPICS, addressTags, tagValues, topicTags} from "@welshman/util"
 import {ListReader} from "../core/ListReader.js"
 import {ListWriter} from "../core/ListWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,11 +7,11 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-51 kind-10015 interests/topics list.
 export class TopicListReader extends ListReader {
   topics() {
-    return uniq(getTopicTagValues(this.tags()))
+    return uniq(tagValues(topicTags("t"), this.tags()))
   }
 
   addresses() {
-    return uniq(getAddressTagValues(this.tags()))
+    return uniq(tagValues(addressTags("a"), this.tags()))
   }
 
   includes(topic: string) {

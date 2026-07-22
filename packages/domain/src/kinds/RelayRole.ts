@@ -1,5 +1,5 @@
 import {spec} from "@welshman/lib"
-import {RELAY_ROLE, getTagValue} from "@welshman/util"
+import {RELAY_ROLE, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -9,22 +9,22 @@ import {KindFactory} from "../core/Kind.js"
 // extra values on `member` tags (["member", pubkey, ...roleIds]).
 export class RelayRoleReader extends EventReader {
   label() {
-    return getTagValue("label", this.event.tags)
+    return tagValue(tagSpec("label"), this.event.tags)
   }
 
   description() {
-    return getTagValue("description", this.event.tags)
+    return tagValue(tagSpec("description"), this.event.tags)
   }
 
   // A hue, 0 to 360. Undefined when unset or invalid, so the client can default.
   color() {
-    const hue = parseInt(getTagValue("color", this.event.tags) ?? "")
+    const hue = parseInt(tagValue(tagSpec("color"), this.event.tags) ?? "")
 
     return isNaN(hue) ? undefined : hue
   }
 
   order() {
-    const order = parseInt(getTagValue("order", this.event.tags) ?? "")
+    const order = parseInt(tagValue(tagSpec("order"), this.event.tags) ?? "")
 
     return isNaN(order) ? 0 : order
   }

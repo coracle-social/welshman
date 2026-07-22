@@ -1,7 +1,7 @@
 import {readable, derived} from "svelte/store"
 import type {Readable} from "svelte/store"
 import {on} from "@welshman/lib"
-import {getTopicTagValues} from "@welshman/util"
+import {tagValues, topicTags} from "@welshman/util"
 import type {RepositoryUpdate} from "@welshman/net"
 import {deriveItems} from "@welshman/store"
 import {projection, createSearch} from "./base.js"
@@ -47,7 +47,7 @@ export class Topics {
           let dirty = false
 
           for (const event of added) {
-            for (const name of getTopicTagValues(event.tags)) {
+            for (const name of tagValues(topicTags("t"), event.tags)) {
               addTopic(name)
               dirty = true
             }

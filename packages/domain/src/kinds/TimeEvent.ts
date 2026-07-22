@@ -1,5 +1,5 @@
 import {range, DAY, spec} from "@welshman/lib"
-import {EVENT_TIME, getTagValue} from "@welshman/util"
+import {EVENT_TIME, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter, TagParser} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -8,21 +8,21 @@ import type {KindContext} from "../core/Kind.js"
 // NIP-52 kind-31923 time-based calendar event.
 export class TimeEventReader extends EventReader {
   title() {
-    return getTagValue("title", this.event.tags)
+    return tagValue(tagSpec("title"), this.event.tags)
   }
 
   location() {
-    return getTagValue("location", this.event.tags)
+    return tagValue(tagSpec("location"), this.event.tags)
   }
 
   start() {
-    const start = parseInt(getTagValue("start", this.event.tags)!)
+    const start = parseInt(tagValue(tagSpec("start"), this.event.tags)!)
 
     return isNaN(start) ? undefined : start
   }
 
   end() {
-    const end = parseInt(getTagValue("end", this.event.tags)!)
+    const end = parseInt(tagValue(tagSpec("end"), this.event.tags)!)
 
     return isNaN(end) ? undefined : end
   }

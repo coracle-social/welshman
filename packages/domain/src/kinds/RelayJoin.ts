@@ -1,5 +1,5 @@
 import {spec} from "@welshman/lib"
-import {RELAY_JOIN, getTagValue} from "@welshman/util"
+import {RELAY_JOIN, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,7 +7,7 @@ import {KindFactory} from "../core/Kind.js"
 // Ephemeral kind-28934 relay/space join request.
 export class RelayJoinReader extends EventReader {
   claim() {
-    return getTagValue("claim", this.event.tags)
+    return tagValue(tagSpec("claim"), this.event.tags)
   }
 
   reason() {

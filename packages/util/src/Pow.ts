@@ -1,5 +1,5 @@
 import {call} from "@welshman/lib"
-import {getTag} from "./Tags.js"
+import {matchTag, tagSpec} from "./Tags.js"
 import {makeSecret, own, getPubkey} from "./Keys.js"
 import {makeEvent, OwnedEvent, HashedEvent} from "./Events.js"
 
@@ -112,7 +112,7 @@ export const makePow = (event: OwnedEvent, difficulty: number): ProofOfWork => {
 }
 
 export const getPow = (event: HashedEvent): number => {
-  const difficulty = parseInt(getTag("nonce", event.tags)?.[2] || "")
+  const difficulty = parseInt(matchTag(tagSpec("nonce"), event.tags)?.[2] || "")
 
   if (isNaN(difficulty)) return 0
 

@@ -1,5 +1,5 @@
 import {uniq, spec, normalizeUrl} from "@welshman/lib"
-import {BLOSSOM_SERVERS, getTagValues} from "@welshman/util"
+import {BLOSSOM_SERVERS, tagSpec, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,7 +7,7 @@ import {KindFactory} from "../core/Kind.js"
 // Blossom BUD-03 kind-10063 user server list.
 export class BlossomServerListReader extends EventReader {
   urls() {
-    return uniq(getTagValues("server", this.tags()).map(url => normalizeUrl(url)))
+    return uniq(tagValues(tagSpec("server"), this.tags()).map(url => normalizeUrl(url)))
   }
 
   includes(url: string) {

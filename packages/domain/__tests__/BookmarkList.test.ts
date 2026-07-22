@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, BOOKMARKS, NOTE, getEventTagValues, getTopicTagValues} from "@welshman/util"
+import {makeSecret, BOOKMARKS, NOTE, hexTags, tagValues, topicTags} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {BookmarkList} from "../src/kinds/BookmarkList"
@@ -73,8 +73,8 @@ describe("BookmarkList", () => {
       signer,
     )
 
-    expect(getEventTagValues(tmpl.tags)).toEqual([noteId])
-    expect(getTopicTagValues(tmpl.tags)).toEqual(["nostr"])
+    expect(tagValues(hexTags("e"), tmpl.tags)).toEqual([noteId])
+    expect(tagValues(topicTags("t"), tmpl.tags)).toEqual(["nostr"])
   })
 
   it("removeBookmark removes by value", async () => {
@@ -88,7 +88,7 @@ describe("BookmarkList", () => {
 
     const tmpl = await buildTemplate(write(BookmarkList, list).removeBookmark(noteId), signer)
 
-    expect(getEventTagValues(tmpl.tags)).toEqual([noteId2])
+    expect(tagValues(hexTags("e"), tmpl.tags)).toEqual([noteId2])
   })
 
   it("round-trips public and private bookmarks through encryption", async () => {
@@ -97,7 +97,7 @@ describe("BookmarkList", () => {
       signer,
     )
 
-    expect(getEventTagValues(event.tags)).toEqual([noteId])
+    expect(tagValues(hexTags("e"), event.tags)).toEqual([noteId])
     expect(event.content).not.toBe("")
 
     const decrypted = await read(BookmarkList, event, signer)
