@@ -1,5 +1,5 @@
 import {spec} from "@welshman/lib"
-import {ROOM_META, getTag, getTagValue} from "@welshman/util"
+import {ROOM_META, matchTag, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,19 +7,19 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-29 kind-39000 room metadata.
 export class RoomMetaReader extends EventReader {
   name() {
-    return getTagValue("name", this.event.tags)
+    return tagValue(tagSpec("name"), this.event.tags)
   }
 
   about() {
-    return getTagValue("about", this.event.tags)
+    return tagValue(tagSpec("about"), this.event.tags)
   }
 
   picture() {
-    return getTag("picture", this.event.tags)?.[1]
+    return matchTag(tagSpec("picture"), this.event.tags)?.[1]
   }
 
   pictureMeta() {
-    const tag = getTag("picture", this.event.tags)
+    const tag = matchTag(tagSpec("picture"), this.event.tags)
 
     return tag ? tag.slice(2) : undefined
   }

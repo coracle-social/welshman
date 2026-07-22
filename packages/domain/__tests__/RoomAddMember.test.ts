@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, ROOM_ADD_MEMBER, NOTE, getTagValue} from "@welshman/util"
+import {makeSecret, ROOM_ADD_MEMBER, NOTE, tagSpec, tagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomAddMember} from "../src/kinds/RoomAddMember"
@@ -63,7 +63,7 @@ describe("RoomAddMember", () => {
     // h round-trips via the base behavior tag.
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(2)
-    expect(getTagValue("h", tmpl.tags)).toBe("room1")
+    expect(tagValue(tagSpec("h"), tmpl.tags)).toBe("room1")
     expect(tmpl.tags).toContainEqual(["p", a])
     expect(tmpl.tags).toContainEqual(["p", b])
     // Unknown passthrough tag survives.
@@ -81,7 +81,7 @@ describe("RoomAddMember", () => {
     )
 
     expect(tmpl.kind).toBe(ROOM_ADD_MEMBER)
-    expect(getTagValue("h", tmpl.tags)).toBe("room2")
+    expect(tagValue(tagSpec("h"), tmpl.tags)).toBe("room2")
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(2)
     expect(tmpl.tags).toContainEqual(["p", a])
     expect(tmpl.tags).toContainEqual(["p", b])

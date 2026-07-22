@@ -1,5 +1,5 @@
 import {removeUndefined, spec} from "@welshman/lib"
-import {SLASH_COMMAND, getTags, getTagValues, getKindTagValues} from "@welshman/util"
+import {SLASH_COMMAND, kindTags, matchTags, tagSpec, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -49,15 +49,15 @@ export class SlashCommandReader extends EventReader {
   }
 
   kinds() {
-    return getKindTagValues(this.event.tags)
+    return tagValues(kindTags("k"), this.event.tags)
   }
 
   groups() {
-    return getTagValues("h", this.event.tags)
+    return tagValues(tagSpec("h"), this.event.tags)
   }
 
   params(): SlashCommandParam[] {
-    return getTags("param", this.event.tags).map(tag => ({
+    return matchTags(tagSpec("param"), this.event.tags).map(tag => ({
       label: tag[1],
       type: tag[2] || "string",
       optional: tag[3] === "optional",
@@ -65,7 +65,7 @@ export class SlashCommandReader extends EventReader {
   }
 
   options(label: string) {
-    return getTags("options", this.event.tags)
+    return matchTags(tagSpec("options"), this.event.tags)
       .filter(tag => tag[1] === label)
       .map(tag => tag[2])
   }

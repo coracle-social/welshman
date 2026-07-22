@@ -1,6 +1,6 @@
 import {ensureNumber} from "@welshman/lib"
 import {Filter, unionFilters} from "@welshman/util"
-import {getTagValues} from "@welshman/util"
+import {tagSpec, tagValues} from "@welshman/util"
 import {
   FeedType,
   Feed,
@@ -153,7 +153,7 @@ export const feedsFromTags = (tags: string[][], mappings?: TagFeedMapping[]) => 
   const feeds = []
 
   for (const [tagName, templateFeed] of mappings || defaultTagFeedMappings) {
-    let values: any[] = getTagValues(tagName, tags)
+    let values: any[] = tagValues(tagSpec(tagName), tags)
 
     if (values.length > 0) {
       if (isKindFeed(templateFeed)) {

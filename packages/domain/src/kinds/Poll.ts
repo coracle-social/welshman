@@ -1,5 +1,5 @@
 import {now, uniq, randomId, spec} from "@welshman/lib"
-import {POLL, getTagValue, getTagValues} from "@welshman/util"
+import {POLL, tagSpec, tagValue, tagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
@@ -28,11 +28,11 @@ export class PollReader extends EventReader {
   }
 
   pollType(): PollType {
-    return (getTagValue("polltype", this.event.tags) as PollType) || "singlechoice"
+    return (tagValue(tagSpec("polltype"), this.event.tags) as PollType) || "singlechoice"
   }
 
   endsAt() {
-    const endsAt = parseInt(getTagValue("endsAt", this.event.tags) ?? "")
+    const endsAt = parseInt(tagValue(tagSpec("endsAt"), this.event.tags) ?? "")
 
     return isNaN(endsAt) ? undefined : endsAt
   }
@@ -44,7 +44,7 @@ export class PollReader extends EventReader {
   }
 
   urls() {
-    return getTagValues("relay", this.event.tags)
+    return tagValues(tagSpec("relay"), this.event.tags)
   }
 
   results(responses: TrustedEvent[]): PollResult {
@@ -62,7 +62,7 @@ export class PollReader extends EventReader {
     }
 
     for (const response of latestByPubkey.values()) {
-      const selections = getTagValues("response", response.tags)
+      const selections = tagValues(tagSpec("response"), response.tags)
       const ids = pollType === "singlechoice" ? selections.slice(0, 1) : uniq(selections)
 
       for (const id of ids) {

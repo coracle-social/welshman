@@ -1,5 +1,5 @@
 import {spec} from "@welshman/lib"
-import {THREAD, getTagValue} from "@welshman/util"
+import {THREAD, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,7 +7,7 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-7D kind-11 forum thread root.
 export class ThreadReader extends EventReader {
   title() {
-    return getTagValue("title", this.event.tags)
+    return tagValue(tagSpec("title"), this.event.tags)
   }
 }
 

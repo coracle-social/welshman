@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, EMOJIS, NOTE, getAddressTagValues} from "@welshman/util"
+import {makeSecret, EMOJIS, NOTE, addressTags, tagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {EmojiList} from "../src/kinds/EmojiList"
@@ -58,7 +58,7 @@ describe("EmojiList", () => {
       signer,
     )
 
-    expect(getAddressTagValues(tmpl.tags)).toEqual([setAddress])
+    expect(tagValues(addressTags("a"), tmpl.tags)).toEqual([setAddress])
     expect(tmpl.tags).toContainEqual(emojiTag)
   })
 

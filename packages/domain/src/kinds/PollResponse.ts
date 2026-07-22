@@ -1,5 +1,5 @@
 import {uniq, spec} from "@welshman/lib"
-import {POLL_RESPONSE, getTagValue, getTagValues} from "@welshman/util"
+import {POLL_RESPONSE, tagSpec, tagValue, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,11 +7,11 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-88 kind-1018 poll response.
 export class PollResponseReader extends EventReader {
   pollId() {
-    return getTagValue("e", this.event.tags) || ""
+    return tagValue(tagSpec("e"), this.event.tags) || ""
   }
 
   selections() {
-    return uniq(getTagValues("response", this.event.tags))
+    return uniq(tagValues(tagSpec("response"), this.event.tags))
   }
 }
 

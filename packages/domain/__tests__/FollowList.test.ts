@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, FOLLOWS, NOTE, getPubkeyTagValues} from "@welshman/util"
+import {makeSecret, FOLLOWS, NOTE, hexTags, tagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {FollowList} from "../src/kinds/FollowList"
@@ -65,7 +65,7 @@ describe("FollowList", () => {
       signer,
     )
 
-    expect(getPubkeyTagValues(tmpl.tags).sort()).toEqual([a, b].sort())
+    expect(tagValues(hexTags("p"), tmpl.tags).sort()).toEqual([a, b].sort())
     expect(tmpl.tags).toContainEqual(["p", b, "wss://relay.example/", "alice"])
   })
 
@@ -80,7 +80,7 @@ describe("FollowList", () => {
 
     const tmpl = await buildTemplate(write(FollowList, list).unfollow(a), signer)
 
-    expect(getPubkeyTagValues(tmpl.tags)).toEqual([b])
+    expect(tagValues(hexTags("p"), tmpl.tags)).toEqual([b])
   })
 
   it("throws on the wrong kind", async () => {

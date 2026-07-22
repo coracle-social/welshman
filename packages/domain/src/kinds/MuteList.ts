@@ -1,5 +1,5 @@
 import {uniq, spec} from "@welshman/lib"
-import {MUTES, getPubkeyTagValues, userOutbox} from "@welshman/util"
+import {MUTES, hexTags, tagValues, userOutbox} from "@welshman/util"
 import {ListReader} from "../core/ListReader.js"
 import {ListWriter} from "../core/ListWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,7 +7,7 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-51 kind-10000 mute list.
 export class MuteListReader extends ListReader {
   pubkeys() {
-    return uniq(getPubkeyTagValues(this.tags()))
+    return uniq(tagValues(hexTags("p"), this.tags()))
   }
 
   includes(pubkey: string) {

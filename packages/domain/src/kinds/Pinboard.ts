@@ -1,5 +1,5 @@
 import {spec} from "@welshman/lib"
-import {PINBOARD, getTagValue, getTopicTagValues} from "@welshman/util"
+import {PINBOARD, tagSpec, tagValue, tagValues, topicTags} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -8,19 +8,19 @@ import {KindFactory} from "../core/Kind.js"
 // themselves are separate kind-39067 events (see Pin).
 export class PinboardReader extends EventReader {
   title() {
-    return getTagValue("title", this.event.tags)
+    return tagValue(tagSpec("title"), this.event.tags)
   }
 
   description() {
-    return getTagValue("description", this.event.tags)
+    return tagValue(tagSpec("description"), this.event.tags)
   }
 
   image() {
-    return getTagValue("image", this.event.tags)
+    return tagValue(tagSpec("image"), this.event.tags)
   }
 
   topics() {
-    return getTopicTagValues(this.event.tags)
+    return tagValues(topicTags("t"), this.event.tags)
   }
 
   collaborative() {
@@ -54,7 +54,7 @@ export class PinboardWriter extends EventWriter<PinboardReader> {
   validate() {
     super.validate()
 
-    if (!getTagValue("title", this.extraTags as string[][])) {
+    if (!tagValue(tagSpec("title"), this.extraTags as string[][])) {
       throw new Error("A title is required for a pinboard")
     }
   }

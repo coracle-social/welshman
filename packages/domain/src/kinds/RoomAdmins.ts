@@ -1,5 +1,5 @@
 import {uniq, spec, removeUndefined} from "@welshman/lib"
-import {ROOM_ADMINS, getPubkeyTagValues} from "@welshman/util"
+import {ROOM_ADMINS, hexTags, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,7 +7,7 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-29 kind-39001 room admins list.
 export class RoomAdminsReader extends EventReader {
   pubkeys() {
-    return uniq(getPubkeyTagValues(this.event.tags))
+    return uniq(tagValues(hexTags("p"), this.event.tags))
   }
 }
 

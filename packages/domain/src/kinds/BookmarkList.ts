@@ -1,11 +1,5 @@
 import {uniq} from "@welshman/lib"
-import {
-  BOOKMARKS,
-  getEventTagValues,
-  getAddressTagValues,
-  getTopicTagValues,
-  getTagValues,
-} from "@welshman/util"
+import {BOOKMARKS, addressTags, hexTags, tagSpec, tagValues, topicTags} from "@welshman/util"
 import {ListReader} from "../core/ListReader.js"
 import {ListWriter} from "../core/ListWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -13,19 +7,19 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-51 kind-10003 bookmark list.
 export class BookmarkListReader extends ListReader {
   ids() {
-    return uniq(getEventTagValues(this.tags()))
+    return uniq(tagValues(hexTags("e"), this.tags()))
   }
 
   addresses() {
-    return uniq(getAddressTagValues(this.tags()))
+    return uniq(tagValues(addressTags("a"), this.tags()))
   }
 
   topics() {
-    return uniq(getTopicTagValues(this.tags()))
+    return uniq(tagValues(topicTags("t"), this.tags()))
   }
 
   urls() {
-    return uniq(getTagValues("r", this.tags()))
+    return uniq(tagValues(tagSpec("r"), this.tags()))
   }
 }
 

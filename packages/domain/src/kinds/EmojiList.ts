@@ -1,5 +1,5 @@
 import {uniq, spec} from "@welshman/lib"
-import {EMOJIS, getAddressTagValues} from "@welshman/util"
+import {EMOJIS, addressTags, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,7 +7,7 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-51 kind-10030 user emoji list.
 export class EmojiListReader extends EventReader {
   emojiSets() {
-    return uniq(getAddressTagValues(this.tags()))
+    return uniq(tagValues(addressTags("a"), this.tags()))
   }
 }
 

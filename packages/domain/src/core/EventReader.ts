@@ -1,5 +1,5 @@
 import {spec, toInt} from "@welshman/lib"
-import {getTagValue, getAddress} from "@welshman/util"
+import {tagSpec, tagValue, getAddress} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import type {KindContext} from "./Kind.js"
 import {getEmojis} from "../behaviors/Emoji.js"
@@ -41,7 +41,7 @@ export abstract class EventReader {
   }
 
   identifier() {
-    return getTagValue("d", this.event.tags)
+    return tagValue(tagSpec("d"), this.event.tags)
   }
 
   address() {
@@ -49,7 +49,7 @@ export abstract class EventReader {
   }
 
   group() {
-    return getTagValue("h", this.event.tags)
+    return tagValue(tagSpec("h"), this.event.tags)
   }
 
   protect() {
@@ -57,7 +57,7 @@ export abstract class EventReader {
   }
 
   expiration() {
-    return toInt(getTagValue("expiration", this.event.tags) ?? "")
+    return toInt(tagValue(tagSpec("expiration"), this.event.tags) ?? "")
   }
 
   emojis(): Emoji[] {

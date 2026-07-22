@@ -1,5 +1,5 @@
 import {spec} from "@welshman/lib"
-import {PIN, getTag, getTagValue, getTagValues, getTopicTagValues} from "@welshman/util"
+import {PIN, matchTag, tagSpec, tagValue, tagValues, topicTags} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -20,7 +20,7 @@ const REFERENCE_KEYS = ["e", "a", "i", "k"]
 // collide at the same address and replace one another.
 export class PinReader extends EventReader {
   boards() {
-    return getTagValues("A", this.event.tags)
+    return tagValues(tagSpec("A"), this.event.tags)
   }
 
   isProfilePin() {
@@ -28,25 +28,25 @@ export class PinReader extends EventReader {
   }
 
   reference(): PinReference | undefined {
-    const e = getTag("e", this.event.tags)
+    const e = matchTag(tagSpec("e"), this.event.tags)
 
     if (e) return {type: "event", id: e[1], relay: e[2]}
 
-    const a = getTag("a", this.event.tags)
+    const a = matchTag(tagSpec("a"), this.event.tags)
 
     if (a) return {type: "address", address: a[1], relay: a[2]}
 
-    const i = getTag("i", this.event.tags)
+    const i = matchTag(tagSpec("i"), this.event.tags)
 
-    if (i) return {type: "external", id: i[1], kind: getTagValue("k", this.event.tags)}
+    if (i) return {type: "external", id: i[1], kind: tagValue(tagSpec("k"), this.event.tags)}
   }
 
   title() {
-    return getTagValue("title", this.event.tags)
+    return tagValue(tagSpec("title"), this.event.tags)
   }
 
   topics() {
-    return getTopicTagValues(this.event.tags)
+    return tagValues(topicTags("t"), this.event.tags)
   }
 }
 

@@ -2,9 +2,10 @@ import {partition, now, nthEq, race} from "@welshman/lib"
 import {
   makeEvent,
   Filter,
-  getPubkeyTagValues,
+  hexTags,
+  relayTags,
+  tagValues,
   TrustedEvent,
-  getRelayTagValues,
   RELAYS,
   indexers,
   relays,
@@ -118,11 +119,13 @@ export const requestDVM = async ({
     const indexScenario = await router.resolve([indexers()])
     const events = await request({
       autoClose: true,
-      filters: [{kinds: [RELAYS], authors: getPubkeyTagValues(tags)}],
+      filters: [{kinds: [RELAYS], authors: tagValues(hexTags("p"), tags)}],
       relays: indexScenario.policy(addMinimalFallbacks).getUrls(),
     })
 
-    const scenario = await router.resolve(relays(events.flatMap(e => getRelayTagValues(e.tags))))
+    const scenario = await router.resolve(
+      relays(events.flatMap(e => tagValues(relayTags(["r", "relay"]), e.tags))),
+    )
 
     relayUrls = scenario.policy(addMinimalFallbacks).getUrls()
   }

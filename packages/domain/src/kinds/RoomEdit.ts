@@ -1,5 +1,5 @@
 import {spec} from "@welshman/lib"
-import {ROOM_EDIT_META, getTag, getTagValue} from "@welshman/util"
+import {ROOM_EDIT_META, matchTag, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -9,19 +9,19 @@ import {KindFactory} from "../core/Kind.js"
 // room via the "h" group tag rather than a "d" identifier.
 export class RoomEditReader extends EventReader {
   name() {
-    return getTagValue("name", this.event.tags)
+    return tagValue(tagSpec("name"), this.event.tags)
   }
 
   about() {
-    return getTagValue("about", this.event.tags)
+    return tagValue(tagSpec("about"), this.event.tags)
   }
 
   picture() {
-    return getTagValue("picture", this.event.tags)
+    return tagValue(tagSpec("picture"), this.event.tags)
   }
 
   pictureMeta() {
-    return getTag("picture", this.event.tags)?.slice(2)
+    return matchTag(tagSpec("picture"), this.event.tags)?.slice(2)
   }
 
   isClosed() {

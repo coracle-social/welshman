@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, COMMUNITIES, NOTE, getAddressTagValues} from "@welshman/util"
+import {makeSecret, COMMUNITIES, NOTE, addressTags, tagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {GroupList} from "../src/kinds/GroupList"
@@ -61,7 +61,7 @@ describe("GroupList", () => {
       signer,
     )
 
-    expect(getAddressTagValues(tmpl.tags).sort()).toEqual([g1, g2].sort())
+    expect(tagValues(addressTags("a"), tmpl.tags).sort()).toEqual([g1, g2].sort())
     expect(tmpl.tags).toContainEqual(["a", g1, "wss://relay.example/"])
     expect(tmpl.tags).toContainEqual(["a", g2])
   })
@@ -77,7 +77,7 @@ describe("GroupList", () => {
 
     const tmpl = await buildTemplate(write(GroupList, list).removeGroup(g1), signer)
 
-    expect(getAddressTagValues(tmpl.tags)).toEqual([g2])
+    expect(tagValues(addressTags("a"), tmpl.tags)).toEqual([g2])
   })
 
   it("throws on the wrong kind", async () => {

@@ -3,7 +3,8 @@ import type {MaybeAsync} from "@welshman/lib"
 import {
   isParameterizedReplaceableKind,
   normalizeRelayUrl,
-  getPubkeyTagValues,
+  hexTags,
+  tagValues,
   outbox,
   userOutbox,
   inboxes,
@@ -286,7 +287,7 @@ export abstract class EventWriter<Reader extends EventReader> {
    * the outbox model. Override to implement custom behavior.
    */
   protected async renderRoutes(): Promise<RelaySelection[]> {
-    return [userOutbox(), ...inboxes(getPubkeyTagValues(await this.renderTags()), 0.5)]
+    return [userOutbox(), ...inboxes(tagValues(hexTags("p"), await this.renderTags()), 0.5)]
   }
 
   /**

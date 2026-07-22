@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, MUTES, FOLLOWS, getPubkeyTagValues} from "@welshman/util"
+import {makeSecret, MUTES, FOLLOWS, hexTags, tagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {MuteList} from "../src/kinds/MuteList"
@@ -18,7 +18,7 @@ describe("MuteList", () => {
     expect(event.kind).toBe(MUTES)
     expect(event.sig).toBeTruthy()
     // Public entry is visible in tags; private entry is encrypted in content.
-    expect(getPubkeyTagValues(event.tags)).toEqual([a])
+    expect(tagValues(hexTags("p"), event.tags)).toEqual([a])
     expect(event.content).not.toBe("")
 
     // Re-parsing with a capable signer recovers the private entries.

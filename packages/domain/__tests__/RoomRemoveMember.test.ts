@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, ROOM_ADD_MEMBER, ROOM_REMOVE_MEMBER, getTagValue} from "@welshman/util"
+import {makeSecret, ROOM_ADD_MEMBER, ROOM_REMOVE_MEMBER, tagSpec, tagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomRemoveMember} from "../src/kinds/RoomRemoveMember"
@@ -58,7 +58,7 @@ describe("RoomRemoveMember", () => {
     expect(tmpl.kind).toBe(ROOM_REMOVE_MEMBER)
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "p").length).toBe(2)
-    expect(getTagValue("h", tmpl.tags)).toBe("room1")
+    expect(tagValue(tagSpec("h"), tmpl.tags)).toBe("room1")
   })
 
   it("builds from a fresh remove builder", async () => {
@@ -68,7 +68,7 @@ describe("RoomRemoveMember", () => {
     )
 
     expect(tmpl.kind).toBe(ROOM_REMOVE_MEMBER)
-    expect(getTagValue("h", tmpl.tags)).toBe("room2")
+    expect(tagValue(tagSpec("h"), tmpl.tags)).toBe("room2")
     expect(tmpl.tags).toContainEqual(["p", a])
   })
 

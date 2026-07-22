@@ -1,5 +1,5 @@
 import {decode, npubEncode, nprofileEncode} from "nostr-tools/nip19"
-import {isHex32} from '@welshman/lib'
+import {isHex32} from "@welshman/lib"
 
 export class Pubkey {
   constructor(

@@ -1,5 +1,5 @@
 import {TaskQueue, uniq, now} from "@welshman/lib"
-import {getPubkeyTagValues, prep} from "@welshman/util"
+import {hexTags, tagValues, prep} from "@welshman/util"
 import type {TrustedEvent, SignedEvent, EventTemplate} from "@welshman/util"
 import {Nip59} from "@welshman/signer"
 import {MergedThunk, Thunks} from "./thunk.js"
@@ -36,7 +36,7 @@ export class Wraps {
         const recipient = this.app.user?.pubkey
 
         // Only unwrap messages addressed to our user
-        if (!signer || !recipient || !getPubkeyTagValues(wrap.tags).includes(recipient)) {
+        if (!signer || !recipient || !tagValues(hexTags("p"), wrap.tags).includes(recipient)) {
           return
         }
 

@@ -1,9 +1,9 @@
 import {nth, uniq} from "@welshman/lib"
 import {
   ROOMS,
-  getGroupTags,
-  getGroupTagValues,
-  getTagValues,
+  matchTags,
+  tagSpec,
+  tagValues,
   isRelayUrl,
   normalizeRelayUrl,
   relays,
@@ -13,6 +13,9 @@ import {ListReader} from "../core/ListReader.js"
 import {ListWriter} from "../core/ListWriter.js"
 import {KindFactory} from "../core/Kind.js"
 
+// NIP-29 group tags (`h`/`group`) carry the group id at t[1] and a relay hint at t[2].
+const groupSpec = tagSpec(["h", "group"])
+
 const matchesUrl = (normalized: string, value = "") =>
   isRelayUrl(value) && normalizeRelayUrl(value) === normalized
 
@@ -20,7 +23,7 @@ const matchesUrl = (normalized: string, value = "") =>
 // group tags, normalized and deduped.
 const getUrls = (tags: string[][]) =>
   uniq(
-    [...getTagValues("r", tags), ...getGroupTags(tags).map(nth(2))]
+    [...tagValues(tagSpec("r"), tags), ...matchTags(groupSpec, tags).map(nth(2))]
       .filter(isRelayUrl)
       .map(normalizeRelayUrl),
   )
@@ -28,15 +31,15 @@ const getUrls = (tags: string[][]) =>
 // NIP-51 kind-10009 simple-groups membership list.
 export class RoomListReader extends ListReader {
   groups() {
-    return getGroupTagValues(this.tags())
+    return tagValues(groupSpec, this.tags())
   }
 
   groupTags() {
-    return getGroupTags(this.tags())
+    return matchTags(groupSpec, this.tags())
   }
 
   relays() {
-    return getTagValues("r", this.tags())
+    return tagValues(tagSpec("r"), this.tags())
   }
 
   urls() {
@@ -46,7 +49,7 @@ export class RoomListReader extends ListReader {
   groupsForUrl(url: string) {
     const normalized = normalizeRelayUrl(url)
 
-    return getGroupTags(this.tags())
+    return matchTags(groupSpec, this.tags())
       .filter(t => matchesUrl(normalized, t[2]))
       .map(nth(1))
   }

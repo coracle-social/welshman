@@ -1,5 +1,13 @@
 import {nth, uniq, uniqBy, remove} from "@welshman/lib"
-import {RELAYS, getRelayTags, normalizeRelayUrl, relays, indexers, userOutbox} from "@welshman/util"
+import {
+  RELAYS,
+  matchTags,
+  relayTags,
+  normalizeRelayUrl,
+  relays,
+  indexers,
+  userOutbox,
+} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,7 +15,7 @@ import {KindFactory} from "../core/Kind.js"
 const getUrls = (tags: string[][], mode?: string) =>
   uniqBy(
     normalizeRelayUrl,
-    getRelayTags(tags)
+    matchTags(relayTags(["r", "relay"]), tags)
       .filter(t => !mode || !t[2] || t[2] === mode)
       .map(nth(1)),
   )

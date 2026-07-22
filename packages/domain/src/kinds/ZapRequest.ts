@@ -1,5 +1,5 @@
 import {spec, tryCatch, fetchJson} from "@welshman/lib"
-import {ZAP_REQUEST, getTag, getTagValue, stamp} from "@welshman/util"
+import {ZAP_REQUEST, matchTag, tagSpec, tagValue, stamp} from "@welshman/util"
 import type {SignedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
@@ -9,25 +9,25 @@ import type {Zapper} from "../other/Zapper.js"
 // NIP-57 kind-9734 zap request.
 export class ZapRequestReader extends EventReader {
   amount() {
-    const amount = getTagValue("amount", this.event.tags)
+    const amount = tagValue(tagSpec("amount"), this.event.tags)
 
     return amount ? parseInt(amount) : undefined
   }
 
   lnurl() {
-    return getTagValue("lnurl", this.event.tags)
+    return tagValue(tagSpec("lnurl"), this.event.tags)
   }
 
   recipient() {
-    return getTagValue("p", this.event.tags)
+    return tagValue(tagSpec("p"), this.event.tags)
   }
 
   eventId() {
-    return getTagValue("e", this.event.tags)
+    return tagValue(tagSpec("e"), this.event.tags)
   }
 
   urls() {
-    const tag = getTag("relays", this.event.tags)
+    const tag = matchTag(tagSpec("relays"), this.event.tags)
 
     return tag ? tag.slice(1) : []
   }
@@ -75,7 +75,7 @@ export class ZapRequestWriter extends EventWriter<ZapRequestReader> {
 
     const event = await signer.sign(stamp(await this.renderTemplate()))
     const zapString = encodeURI(JSON.stringify(event))
-    const msats = parseInt(getTagValue("amount", event.tags)!)
+    const msats = parseInt(tagValue(tagSpec("amount"), event.tags)!)
     const qs = `?amount=${msats}&nostr=${zapString}&lnurl=${zapper.lnurl}`
     const res = await tryCatch(() => fetchJson(zapper.callback + qs))
 

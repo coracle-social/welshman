@@ -1,5 +1,5 @@
 import {last, removeUndefined, spec} from "@welshman/lib"
-import {HANDLER_RECOMMENDATION, getAddressTags, getAddressTagValues} from "@welshman/util"
+import {HANDLER_RECOMMENDATION, addressTags, matchTags, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,11 +7,11 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-89 kind-31989 handler recommendation.
 export class HandlerRecommendationReader extends EventReader {
   addressTags() {
-    return getAddressTags(this.event.tags)
+    return matchTags(addressTags("a"), this.event.tags)
   }
 
   addresses() {
-    return getAddressTagValues(this.event.tags)
+    return tagValues(addressTags("a"), this.event.tags)
   }
 
   handlerAddress() {

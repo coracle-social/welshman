@@ -1,4 +1,10 @@
-import {between} from "@welshman/lib"
+import {between, toInt} from "@welshman/lib"
+
+const kindRegExp = /^\d+$/
+
+export const isKind = (k: number | string) => typeof k === "number" || kindRegExp.test(k)
+
+export const normalizeKind = (k: number | string) => toInt(k)
 
 /** Events are **regular**, which means they're all expected to be stored by relays. */
 export function isRegularKind(kind: number): boolean {

@@ -2,7 +2,7 @@ import {describe, it, expect} from "vitest"
 import {makeSecret, COMMENT, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
-import {Comment} from "../src/kinds/Comment"
+import {Comment, getCommentTags, getCommentTagValues} from "../src/kinds/Comment"
 import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
@@ -99,5 +99,30 @@ describe("Comment", () => {
 
   it("throws on the wrong kind", async () => {
     await expect(read(Comment, makeEvent({kind: NOTE}))).rejects.toThrow()
+  })
+})
+
+describe("getCommentTags", () => {
+  const eventId = "ff".repeat(32)
+
+  it("splits uppercase root and lowercase parent reference tags", () => {
+    const tags = [
+      ["E", eventId],
+      ["e", eventId],
+      ["P", pubkey],
+      ["p", pubkey],
+      ["K", "1"],
+      ["k", "1"],
+    ]
+
+    const {roots, replies} = getCommentTags(tags)
+
+    expect(roots).toHaveLength(3)
+    expect(replies).toHaveLength(3)
+
+    const values = getCommentTagValues(tags)
+
+    expect(values.roots).toContain(eventId)
+    expect(values.replies).toContain(eventId)
   })
 })

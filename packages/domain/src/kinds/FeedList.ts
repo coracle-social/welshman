@@ -1,5 +1,5 @@
 import {uniq, spec} from "@welshman/lib"
-import {FEEDS, getAddressTagValues} from "@welshman/util"
+import {FEEDS, addressTags, tagValues} from "@welshman/util"
 import {ListReader} from "../core/ListReader.js"
 import {ListWriter} from "../core/ListWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,7 +7,7 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-51 kind-10014 saved feeds list.
 export class FeedListReader extends ListReader {
   addresses() {
-    return uniq(getAddressTagValues(this.tags()))
+    return uniq(tagValues(addressTags("a"), this.tags()))
   }
 
   includes(address: string) {

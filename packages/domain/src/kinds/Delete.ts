@@ -1,10 +1,12 @@
 import {uniq} from "@welshman/lib"
 import {
   DELETE,
-  getTagValue,
-  getEventTagValues,
-  getAddressTagValues,
-  getKindTagValues,
+  addressTags,
+  hexTags,
+  kindTags,
+  tagSpec,
+  tagValue,
+  tagValues,
   getAddress,
   isReplaceable,
   seen,
@@ -18,15 +20,15 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-09 kind-5 delete request.
 export class DeleteReader extends EventReader {
   ids() {
-    return uniq(getEventTagValues(this.tags()))
+    return uniq(tagValues(hexTags("e"), this.tags()))
   }
 
   addresses() {
-    return uniq(getAddressTagValues(this.tags()))
+    return uniq(tagValues(addressTags("a"), this.tags()))
   }
 
   kinds() {
-    return uniq(getKindTagValues(this.tags()))
+    return uniq(tagValues(kindTags("k"), this.tags()))
   }
 
   reason() {
@@ -40,7 +42,10 @@ export class DeleteWriter extends EventWriter<DeleteReader> {
   protected async renderRoutes() {
     const tags = await this.renderTags()
 
-    return [...(await super.renderRoutes()), ...uniq(getEventTagValues(tags)).map(id => seen({id}))]
+    return [
+      ...(await super.renderRoutes()),
+      ...uniq(tagValues(hexTags("e"), tags)).map(id => seen({id})),
+    ]
   }
 
   addEvent(event: TrustedEvent, groupUrl?: string) {
@@ -64,7 +69,7 @@ export class DeleteWriter extends EventWriter<DeleteReader> {
 
     // If the deleted event was a NIP-29 group event, the delete must carry the
     // same "h" tag and publish to the relay the event lives on (the hint).
-    const group = getTagValue("h", event.tags)
+    const group = tagValue(tagSpec("h"), event.tags)
 
     if (group) {
       if (!groupUrl) {
