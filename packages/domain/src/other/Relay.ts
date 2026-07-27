@@ -23,6 +23,9 @@ export type RelayInfo = {
     payment_required?: boolean
     auth_required?: boolean
   }
+  // Not part of NIP-11 — set by the loader when the metadata document responds
+  // with a 301/302 redirect. Holds the url the document points to.
+  redirect_to?: string
 }
 
 export class Relay {
@@ -45,6 +48,7 @@ export class Relay {
     payment_required?: boolean
     auth_required?: boolean
   }
+  redirect_to?: string
 
   constructor(url: string, json: RelayInfo = {}) {
     // Copy every field, including any non-standard NIP-11 ones, but force the url

@@ -1,6 +1,5 @@
 import {derived} from "svelte/store"
 import type {Readable} from "svelte/store"
-import {fetchJson} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import {displayRelayUrl} from "@welshman/util"
 import {Relay} from "@welshman/domain"
@@ -23,12 +22,31 @@ export class Relays extends LoadableMapPlugin<Relay> {
   )
 
   fetch = async (url: string): Promise<Maybe<Relay>> => {
+    const httpUrl = url.replace(/^ws/, "http")
+
     try {
-      const json = await fetchJson(url.replace(/^ws/, "http"), {
-        headers: {
-          Accept: "application/nostr+json",
-        },
+      // Don't auto-follow redirects, so a relay whose metadata document has moved
+      // (301/302) is recorded via `redirect_to` rather than silently resolved.
+      const res = await globalThis.fetch(httpUrl, {
+        headers: {Accept: "application/nostr+json"},
+        redirect: "manual",
       })
+
+      if (res.status === 301 || res.status === 302) {
+        const location = res.headers.get("location")
+
+        if (location) {
+          const relay = new Relay(url, {redirect_to: new URL(location, httpUrl).href})
+
+          this.set(url, relay)
+
+          return relay
+        }
+
+        return
+      }
+
+      const json = await res.json()
 
       if (json) {
         const relay = new Relay(url, json)
