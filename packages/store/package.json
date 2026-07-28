@@ -31,6 +31,6 @@
     "@welshman/lib": "workspace:*",
     "@welshman/net": "workspace:*",
     "@welshman/util": "workspace:*",
-    "svelte": "^5.39.12"
+    "svelte": "5.55.9"
   }
 }
