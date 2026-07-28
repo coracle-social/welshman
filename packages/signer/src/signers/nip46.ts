@@ -3,6 +3,7 @@ import {
   throttle,
   makePromise,
   defer,
+  memoize,
   sleep,
   tryCatch,
   randomId,
@@ -20,7 +21,14 @@ import {
   StampedEvent,
   TrustedEvent,
 } from "@welshman/util"
-import {publish, request, AdapterContext} from "@welshman/net"
+import {
+  publish,
+  request,
+  AdapterContext,
+  Pool,
+  socketPolicyConnectOnSend,
+  socketPolicyCloseInactive,
+} from "@welshman/net"
 import {ISigner, EncryptionImplementation, signWithOptions, SignOptions, decrypt} from "../util.js"
 import {Nip01Signer} from "./nip01.js"
 
@@ -132,6 +140,14 @@ const popupManager = (() => {
   }
 })()
 
+const getDefaultContext = memoize(() => {
+  const pool = new Pool()
+
+  pool.socketPolicies = [socketPolicyConnectOnSend, socketPolicyCloseInactive]
+
+  return {pool}
+})
+
 export class Nip46Receiver extends Emitter {
   public abortController?: AbortController
 
@@ -149,7 +165,7 @@ export class Nip46Receiver extends Emitter {
 
     this.abortController = new AbortController()
 
-    const {relays, context} = this.params
+    const {relays, context = getDefaultContext()} = this.params
     const userPubkey = await this.signer.getPubkey()
     const filters = [{kinds: [NOSTR_CONNECT], "#p": [userPubkey]}]
 
@@ -194,7 +210,7 @@ export class Nip46Sender extends Emitter {
   // send a request to the remote signer, emitting the request and the pub
   public send = async (request: Nip46Request) => {
     const {id, method, params} = request
-    const {relays, signerPubkey, context, algorithm = "nip44"} = this.params
+    const {relays, signerPubkey, context = getDefaultContext(), algorithm = "nip44"} = this.params
 
     if (!signerPubkey) {
       throw new Error("Unable to send nip46 request without a signer pubkey")
