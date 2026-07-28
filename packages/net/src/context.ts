@@ -2,7 +2,7 @@ import {AbstractAdapter} from "./adapter.js"
 import {Repository} from "./repository.js"
 import {Pool} from "./pool.js"
 
-export type AdapterFactory = (url: string, context: NetContext) => AbstractAdapter
+export type AdapterFactory = (url: string, context: NetContext) => AbstractAdapter | undefined
 
 export type NetContext = {
   pool?: Pool
