@@ -1,4 +1,4 @@
-import {nth, uniq} from "@welshman/lib"
+import {nth, uniq, spec, partition, indexBy} from "@welshman/lib"
 import {
   ROOMS,
   matchTags,
@@ -101,6 +101,40 @@ export class RoomListWriter extends ListWriter<RoomListReader> {
         (t[0] === "r" && matchesUrl(normalized, t[1] as string)) ||
         (t[0] === "group" && matchesUrl(normalized, t[2] as string)),
     )
+  }
+
+  // Replace the relay set, in the given order. Existing tags are reused so any extra values
+  // they carry survive a reorder, and non-relay tags are left alone.
+  setRelays(urls: string[]) {
+    const orderedUrls = uniq(urls.map(normalizeRelayUrl))
+    const [relayTags, otherTags] = partition(spec(["r"]), this.publicTags)
+    const relayTagByUrl = indexBy(t => normalizeRelayUrl(t[1]), relayTags)
+
+    this.publicTags = [
+      ...orderedUrls.map(url => relayTagByUrl.get(url) ?? ["r", url]),
+      ...otherTags,
+    ]
+
+    return this
+  }
+
+  // Point every reference to a relay at its new url, keeping the rooms listed under it.
+  migrateRelay(oldUrl: string, newUrl: string) {
+    const from = normalizeRelayUrl(oldUrl)
+    const to = normalizeRelayUrl(newUrl)
+
+    const rewrite = (tags: string[][]) =>
+      tags.map(t => {
+        if (t[0] === "r" && matchesUrl(from, t[1])) return ["r", to]
+        if (t[0] === "group" && matchesUrl(from, t[2])) return ["group", t[1], to]
+
+        return t
+      })
+
+    this.publicTags = rewrite(this.publicTags)
+    this.privateTags = rewrite(this.privateTags)
+
+    return this
   }
 }
 
