@@ -208,7 +208,7 @@ topics.byName                                // Readable<Map<string, Topic>>
 
 ## Rooms (NIP-29)
 
-Relay-based group management. Each method builds the relevant room event and returns a [`Command`](./publishing#commands) targeting the given relay. Routing is the domain's job: `setGroup(url, id)` records the group's relay and the writer sends the event there (only).
+Relay-based room management. Each method builds the relevant room event and returns a [`Command`](./publishing#commands) targeting the given relay. Routing is the domain's job: `setRoom(url, id)` records the room’s relay and the writer sends the event there (only).
 
 ```typescript
 const rooms = app.use(Rooms)

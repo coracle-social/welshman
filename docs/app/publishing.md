@@ -163,14 +163,14 @@ return new Command(app, template, scenario.limit(30).getUrls())
 Some events must go to specific relays regardless of the outbox model — NIP-29 room ops, relay-management ops, and anything else that lives on one server. Writers express this with `forcedRelays`: when it's set, `scenario()` publishes **only** to those urls, bypassing the usual author-outbox / p-tag-inbox routing.
 
 ```typescript
-// setGroup records the group's relay AND writes the "h" tag (NIP-29):
-app.use(Domain).writer(RoomJoin).setGroup(relayUrl, roomId)
+// setRoom records the room’s relay AND writes the "h" tag (NIP-29):
+app.use(Domain).writer(RoomJoin).setRoom(relayUrl, roomId)
 
 // forceRelays pins the relay set without an "h" tag:
 app.use(Domain).writer(Note).forceRelays("wss://relay.example").setContent("hi")
 ```
 
-Kinds that require explicit relays (the NIP-29 room ops/state and relay-management ops/state) fail validation in `render()` unless `setGroup`/`forceRelays` has been called.
+Kinds that require explicit relays (the NIP-29 room ops/state and relay-management ops/state) fail validation in `render()` unless `setRoom`/`forceRelays` has been called.
 
 ## Gift-wrapped messages
 

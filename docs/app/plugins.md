@@ -175,7 +175,7 @@ mutes.pubkeys()           // string[], public + private when decrypted
 mutes.includes(pubkey)    // boolean
 ```
 
-A reader exposes synchronous getters over the event — `id()`, `author()`, `content()`, `tags()`, `createdAt()`, `address()`, `group()` — plus per-kind accessors (`FollowListReader.pubkeys()`, `RelayListReader.readUrls()/writeUrls()`, `DeleteReader.ids()`, etc.).
+A reader exposes synchronous getters over the event — `id()`, `author()`, `content()`, `tags()`, `createdAt()`, `address()`, `room()` — plus per-kind accessors (`FollowListReader.pubkeys()`, `RelayListReader.readUrls()/writeUrls()`, `DeleteReader.ids()`, etc.).
 
 ### Writing — `writer(factory, reader?)`
 
@@ -196,7 +196,7 @@ const note = app.use(Domain)
   .setParent(parentEvent)   // NIP-10 reply threading
 ```
 
-Writers are chainable (every setter returns `this`). Shared setters include `setContent`, `setGroup(url, group)`, `forceRelays(...urls)`, `setProtected`, `setExpiration`, `setIdentifier`, `addTags`, `keepTags`/`dropTags`; each kind adds its own (`FollowListWriter.follow/unfollow`, `DeleteWriter.addEvent/setReason`, `RelayListWriter.addReadUrl/addWriteUrl`, …).
+Writers are chainable (every setter returns `this`). Shared setters include `setContent`, `setRoom(url, room)`, `forceRelays(...urls)`, `setProtected`, `setExpiration`, `setIdentifier`, `addTags`, `keepTags`/`dropTags`; each kind adds its own (`FollowListWriter.follow/unfollow`, `DeleteWriter.addEvent/setReason`, `RelayListWriter.addReadUrl/addWriteUrl`, …).
 
 A writer resolves to a template via `renderTemplate(): Promise<EventTemplate>` and to its target relays via `relays(): Promise<string[]>`; `render()` returns both at once (`{event, relays}`). There is no `toEvent`/`toRumor` on the writer — the caller signs the rendered template.
 
@@ -216,7 +216,7 @@ This replaces the old `Router.commandFromBuilder(builder)`.
 
 ### Routing
 
-A writer's target relays come from its `renderRoutes()` — a list of declarative `RelaySelection`s from `@welshman/util` (`userOutbox()`, `inboxes(pubkeys)`, `seen(event)`, `relays(urls)`, …) that the injected `resolver` scores into concrete urls. The default writer routes to the author's outbox plus every p-tagged pubkey's inbox; kinds override as needed (e.g. `FollowListWriter` routes to `[userOutbox()]` only, since its p-tags are data, not recipients). When a writer has `forcedRelays` (set via `setGroup`/`forceRelays`), it publishes **only** there. NIP-29 room ops and relay-management kinds set `requiresRelays`, so `render()` throws unless explicit relays are supplied.
+A writer's target relays come from its `renderRoutes()` — a list of declarative `RelaySelection`s from `@welshman/util` (`userOutbox()`, `inboxes(pubkeys)`, `seen(event)`, `relays(urls)`, …) that the injected `resolver` scores into concrete urls. The default writer routes to the author's outbox plus every p-tagged pubkey's inbox; kinds override as needed (e.g. `FollowListWriter` routes to `[userOutbox()]` only, since its p-tags are data, not recipients). When a writer has `forcedRelays` (set via `setRoom`/`forceRelays`), it publishes **only** there. NIP-29 room ops and relay-management kinds set `requiresRelays`, so `render()` throws unless explicit relays are supplied.
 
 ## The `Router` plugin
 

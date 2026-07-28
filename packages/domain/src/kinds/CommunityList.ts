@@ -4,25 +4,26 @@ import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
 
-// NIP-51 kind-10004 group/community list.
-export class GroupListReader extends EventReader {
+// NIP-51 kind-10004 community list — the NIP-72 moderated communities the user
+// follows, as `a` tags. Distinct from RoomList (10009), which tracks NIP-29 rooms.
+export class CommunityListReader extends EventReader {
   addresses() {
     return uniq(tagValues(addressTags("a"), this.tags()))
   }
 }
 
-export class GroupListWriter extends EventWriter<GroupListReader> {
-  addGroup(address: string, relayHint?: string) {
+export class CommunityListWriter extends EventWriter<CommunityListReader> {
+  addCommunity(address: string, relayHint?: string) {
     return this.addTags(removeUndefined(["a", address, relayHint]))
   }
 
-  removeGroup(address: string) {
+  removeCommunity(address: string) {
     return this.dropTags(spec(["a", address]))
   }
 }
 
-export const GroupList = new KindFactory({
+export const CommunityList = new KindFactory({
   kind: COMMUNITIES,
-  reader: GroupListReader,
-  writer: GroupListWriter,
+  reader: CommunityListReader,
+  writer: CommunityListWriter,
 })

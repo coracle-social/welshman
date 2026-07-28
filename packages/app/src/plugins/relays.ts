@@ -76,7 +76,7 @@ export type RelaySignedItem = {author(): string}
  * A `RelayScopedDerivedPlugin` that additionally validates provenance: an item
  * is only keyed on a relay when the relay ITSELF signed it — i.e. the event's
  * author matches the relay's NIP-11 `self` pubkey. This is the trust model for
- * relay-hosted, relay-signed content (NIP-29 group state, relay membership and
+ * relay-hosted, relay-signed content (NIP-29 room state, relay membership and
  * roles), and rejects events of these kinds forged by other pubkeys.
  *
  * Relay self pubkeys load from NIP-11 and can arrive after the events, so the

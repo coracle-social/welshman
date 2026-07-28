@@ -13,29 +13,30 @@ import {ListReader} from "../core/ListReader.js"
 import {ListWriter} from "../core/ListWriter.js"
 import {KindFactory} from "../core/Kind.js"
 
-// NIP-29 group tags (`h`/`group`) carry the group id at t[1] and a relay hint at t[2].
-const groupSpec = tagSpec(["h", "group"])
+// Room tags (`h`, and the `group` tag NIP-51 uses for this list) carry the room
+// id at t[1] and a relay hint at t[2].
+const roomSpec = tagSpec(["h", "group"])
 
 const matchesUrl = (normalized: string, value = "") =>
   isRelayUrl(value) && normalizeRelayUrl(value) === normalized
 
 // Every relay a room list references: its `r` relays plus the relay hints on its
-// group tags, normalized and deduped.
+// room tags, normalized and deduped.
 const getUrls = (tags: string[][]) =>
   uniq(
-    [...tagValues(tagSpec("r"), tags), ...matchTags(groupSpec, tags).map(nth(2))]
+    [...tagValues(tagSpec("r"), tags), ...matchTags(roomSpec, tags).map(nth(2))]
       .filter(isRelayUrl)
       .map(normalizeRelayUrl),
   )
 
-// NIP-51 kind-10009 simple-groups membership list.
+// NIP-51 kind-10009 room membership list (NIP-29 "simple groups").
 export class RoomListReader extends ListReader {
-  groups() {
-    return tagValues(groupSpec, this.tags())
+  rooms() {
+    return tagValues(roomSpec, this.tags())
   }
 
-  groupTags() {
-    return matchTags(groupSpec, this.tags())
+  roomTags() {
+    return matchTags(roomSpec, this.tags())
   }
 
   relays() {
@@ -46,10 +47,10 @@ export class RoomListReader extends ListReader {
     return getUrls(this.tags())
   }
 
-  groupsForUrl(url: string) {
+  roomsForUrl(url: string) {
     const normalized = normalizeRelayUrl(url)
 
-    return matchTags(groupSpec, this.tags())
+    return matchTags(roomSpec, this.tags())
       .filter(t => matchesUrl(normalized, t[2]))
       .map(nth(1))
   }
@@ -66,17 +67,17 @@ export class RoomListWriter extends ListWriter<RoomListReader> {
     return [userOutbox(), ...relays(uniq([...original, ...current]))]
   }
 
-  addGroup(groupId: string, url: string) {
-    return this.addRelay(url).addPublic(["group", groupId, url])
+  addRoom(roomId: string, url: string) {
+    return this.addRelay(url).addPublic(["group", roomId, url])
   }
 
-  removeGroup(groupId: string, url?: string) {
+  removeRoom(roomId: string, url?: string) {
     const normalized = url ? normalizeRelayUrl(url) : undefined
 
     return this.dropTags(
       t =>
         t[0] === "group" &&
-        t[1] === groupId &&
+        t[1] === roomId &&
         (!normalized || matchesUrl(normalized, t[2] as string)),
     )
   }

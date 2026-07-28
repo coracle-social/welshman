@@ -8,7 +8,7 @@ import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
 /**
- * NIP-51 kind-10009 room lists (relays the user belongs to, and groups on
+ * NIP-51 kind-10009 room lists (relays the user belongs to, and the rooms on
  * them), keyed by pubkey. Loaded via the outbox model (the author's write
  * relays), so it depends on the relay-list collection.
  */
@@ -27,8 +27,8 @@ export class RoomLists extends DerivedPlugin<RoomListReader> {
 
   urls = (pubkey: string): Projection<string[]> => this.project(pubkey, list => list?.urls() ?? [])
 
-  groupsForUrl = (pubkey: string, url: string): Projection<string[]> =>
-    this.project(pubkey, list => list?.groupsForUrl(url) ?? [])
+  roomsForUrl = (pubkey: string, url: string): Projection<string[]> =>
+    this.project(pubkey, list => list?.roomsForUrl(url) ?? [])
 
   pubkeysForUrl = (url: string): Projection<string[]> =>
     projectFrom(this.all, lists =>
@@ -44,10 +44,10 @@ export class RoomLists extends DerivedPlugin<RoomListReader> {
     return this.app.use(Domain).command(writer)
   }
 
-  addGroup = (groupId: string, url: string) => this.update(writer => writer.addGroup(groupId, url))
+  addRoom = (roomId: string, url: string) => this.update(writer => writer.addRoom(roomId, url))
 
-  removeGroup = (groupId: string, url?: string) =>
-    this.update(writer => writer.removeGroup(groupId, url))
+  removeRoom = (roomId: string, url?: string) =>
+    this.update(writer => writer.removeRoom(roomId, url))
 
   addRelay = (url: string) => this.update(writer => writer.addRelay(url))
 

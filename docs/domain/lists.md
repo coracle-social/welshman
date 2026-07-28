@@ -58,10 +58,10 @@ Lists marked **private-capable** subclass `ListReader` / `ListWriter` and expose
 | `PinList` | 10001 | NIP-51 | yes | `ids()`, `addresses()` | `pinPublicly(tag)`, `pinPrivately(tag)`, `unpin(value)` |
 | `RelayList` | 10002 | NIP-65 | no | `urls()`, `readUrls()`, `writeUrls()` | `addReadUrl(url)`, `addWriteUrl(url)`, `removeReadUrl(url)`, `removeWriteUrl(url)`, `setReadUrls(urls)`, `setWriteUrls(urls)`, `setTags(tags)` |
 | `BookmarkList` | 10003 | NIP-51 | yes | `ids()`, `addresses()`, `topics()`, `urls()` | `bookmarkPublicly(tag)`, `bookmarkPrivately(tag)`, `removeBookmark(value)` |
-| `GroupList` | 10004 | NIP-51 | no | `addresses()` | `addGroup(address, relayHint?)`, `removeGroup(address)` |
+| `CommunityList` | 10004 | NIP-51 | no | `addresses()` | `addCommunity(address, relayHint?)`, `removeCommunity(address)` |
 | `BlockedRelayList` | 10006 | NIP-51 | no | `urls()`, `includes(url)` | `addUrl(url)`, `removeUrl(url)`, `setUrls(urls)` |
 | `SearchRelayList` | 10007 | NIP-51 | no | `urls()`, `includes(url)` | `addUrl(url)`, `removeUrl(url)`, `setUrls(urls)` |
-| `RoomList` | 10009 | NIP-51 | yes | `groups()`, `groupTags()`, `relays()`, `urls()`, `groupsForUrl(url)` | `addGroup(groupId, url)`, `removeGroup(groupId, url?)`, `addRelay(url)`, `removeRelay(url)`, `setRelays(urls)` |
+| `RoomList` | 10009 | NIP-51 | yes | `rooms()`, `roomTags()`, `relays()`, `urls()`, `roomsForUrl(url)` | `addRoom(roomId, url)`, `removeRoom(roomId, url?)`, `addRelay(url)`, `removeRelay(url)`, `setRelays(urls)` |
 | `FeedList` | 10014 | NIP-51 | yes | `addresses()`, `includes(address)` | `addFeed(address, relayHint?)`, `addFeedPrivately(address, relayHint?)`, `removeFeed(address)` |
 | `TopicList` | 10015 | NIP-51 | yes | `topics()`, `addresses()`, `includes(topic)` | `followPublicly(topic)`, `followPrivately(topic)`, `follow(topic)`, `unfollow(topic)` |
 | `EmojiList` | 10030 | NIP-51 | no | `emojis()`, `emojiSets()` | `addEmoji(shortcode, url)`, `removeEmoji(value)`, `addEmojiSet(address)`, `removeEmojiSet(value)` |
@@ -85,7 +85,7 @@ bookmarks.writer().bookmarkPrivately(["e", noteId])   // encrypted, author-only
 TopicList.configure({resolver, signer}).writer().followPrivately("nostr")  // encrypted interest
 ```
 
-`FollowList` is public-only (`follow` appends a `p` tag to the public set), and the relay-config lists (`RelayList`, `BlockedRelayList`, `SearchRelayList`, `MessagingRelayList`, `BlossomServerList`, `RelaySet`, `GroupList`, `EmojiList`) keep everything in public tags — there is no private variant of their setters.
+`FollowList` is public-only (`follow` appends a `p` tag to the public set), and the relay-config lists (`RelayList`, `BlockedRelayList`, `SearchRelayList`, `MessagingRelayList`, `BlossomServerList`, `RelaySet`, `CommunityList`, `EmojiList`) keep everything in public tags — there is no private variant of their setters.
 
 ## Notes per family
 
@@ -116,7 +116,7 @@ const template = await RelaySet.configure({resolver})
   .renderTemplate()
 ```
 
-**`RoomList` (kind 10009).** A NIP-51 simple-groups membership list, and itself a `ListWriter`. `addGroup(groupId, url)` writes `["group", groupId, url]` and ensures the relay is tracked via an `r` tag; `removeGroup(groupId, url?)` drops the matching group tag. `addRelay`/`removeRelay`/`setRelays` manage the bare `r` relay tags, and the reader's `urls()`/`groupsForUrl(url)` help resolve where each room lives. Like `RelayList`, its `renderRoutes()` publishes to the author's outbox plus every relay the list references now or used to, so each relay learns of membership changes. (NIP-29 room *operations* themselves live in [Rooms](./rooms).)
+**`RoomList` (kind 10009).** A NIP-51 simple-groups membership list, and itself a `ListWriter`. `addRoom(roomId, url)` writes `["group", roomId, url]` and ensures the relay is tracked via an `r` tag; `removeRoom(roomId, url?)` drops the matching group tag. `addRelay`/`removeRelay`/`setRelays` manage the bare `r` relay tags, and the reader's `urls()`/`roomsForUrl(url)` help resolve where each room lives. Like `RelayList`, its `renderRoutes()` publishes to the author's outbox plus every relay the list references now or used to, so each relay learns of membership changes. (NIP-29 room *operations* themselves live in [Rooms](./rooms).)
 
 ## See also
 

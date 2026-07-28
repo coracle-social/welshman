@@ -12,8 +12,8 @@ export class RoomCreateWriter extends EventWriter<RoomCreateReader> {
   validate() {
     super.validate()
 
-    if (!this.groupTag) {
-      throw new Error("RoomCreate requires a group")
+    if (!this.roomTag) {
+      throw new Error("RoomCreate requires a room")
     }
   }
 }

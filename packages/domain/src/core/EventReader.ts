@@ -56,7 +56,7 @@ export abstract class BaseEventReader {
     return getAddress(this.event)
   }
 
-  group() {
+  room() {
     return tagValue(tagSpec("h"), this.event.tags)
   }
 

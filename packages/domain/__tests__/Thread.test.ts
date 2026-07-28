@@ -54,7 +54,7 @@ describe("Thread", () => {
     expect(tmpl.content).toBe("thread body")
   })
 
-  it("round-trips a group (h) behavior tag without rebuilding", async () => {
+  it("round-trips a room (h) behavior tag without rebuilding", async () => {
     const event = makeEvent({
       content: "thread body",
       tags: [
@@ -64,7 +64,7 @@ describe("Thread", () => {
     })
 
     const tmpl = await buildTemplate(
-      write(Thread, await read(Thread, event)).setGroup("wss://relay.example.com/", "room"),
+      write(Thread, await read(Thread, event)).setRoom("wss://relay.example.com/", "room"),
       signer,
     )
 
@@ -77,7 +77,7 @@ describe("Thread", () => {
       write(Thread)
         .setTitle("New thread")
         .setContent("body")
-        .setGroup("wss://relay.example.com/", "room"),
+        .setRoom("wss://relay.example.com/", "room"),
       signer,
     )
 

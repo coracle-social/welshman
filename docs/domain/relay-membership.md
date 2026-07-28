@@ -1,8 +1,8 @@
 # Relay membership
 
-These kinds model **relay-level** membership — Flotilla's notion of joining a relay/space, distinct from NIP-29 room membership (which is scoped to a room by an `h` tag). Where [Rooms](./rooms) deal with groups hosted *on* a relay, these events deal with belonging to the relay itself. They are all plain `EventReader` / `EventWriter` subclasses; see [Readers & Writers](./readers-and-writers) for the base pattern.
+These kinds model **relay-level** membership — Flotilla's notion of joining a relay/space, distinct from NIP-29 room membership (which is scoped to a room by an `h` tag). Where [Rooms](./rooms) deal with rooms hosted *on* a relay, these events deal with belonging to the relay itself. They are all plain `EventReader` / `EventWriter` subclasses; see [Readers & Writers](./readers-and-writers) for the base pattern.
 
-Every one of them sets `requiresRelays = true`, so it **must publish to explicit relays** — you set them with `forceRelays(...urls)` (or `setGroup(url, group)` for the group-scoped kinds) before rendering, and `render()` throws otherwise. See [Forced relays and required relays](./readers-and-writers#forced-relays-and-required-relays).
+Every one of them sets `requiresRelays = true`, so it **must publish to explicit relays** — you set them with `forceRelays(...urls)` (or `setRoom(url, room)` for the room-scoped kinds) before rendering, and `render()` throws otherwise. See [Forced relays and required relays](./readers-and-writers#forced-relays-and-required-relays).
 
 ## Ops and snapshots
 

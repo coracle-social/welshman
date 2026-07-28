@@ -96,7 +96,7 @@ All base getters are synchronous reads over the wrapped event:
 | `createdAt()` | `event.created_at` |
 | `identifier()` | the `d` tag value |
 | `address()` | the replaceable address `kind:pubkey:d` (via `getAddress`) |
-| `group()` | the NIP-29 `h` tag value |
+| `room()` | the NIP-29 `h` tag value |
 | `protect()` | `true` if a `["-"]` tag is present |
 | `expiration()` | the parsed `expiration` tag as a number, or `undefined` |
 
@@ -111,7 +111,7 @@ Each subclass adds its own getters on top — `profile.name()`, `followList.pubk
 
 Readers are getter-only — they do not compute routes. Routing (below) is a writer concern, for publishing; deciding where to *fetch* a kind's events is the request/loader layer's job, not the reader's.
 
-A group (`h`-tagged) event routes to the relays it was seen on; otherwise it routes to its author's outbox. `scenario()` resolves those routes through the configured `Resolver` into a `RelayScenario`.
+A room (`h`-tagged) event routes to the relays it was seen on; otherwise it routes to its author's outbox. `scenario()` resolves those routes through the configured `Resolver` into a `RelayScenario`.
 
 ## EventWriter
 
@@ -123,7 +123,7 @@ A `Writer` is a mutable, chainable producer of an `EventTemplate`. Get an empty 
 constructor(readonly def: AnyConfiguredKind, readonly reader?: Reader)
 ```
 
-When you pass a reader, the writer seeds `content` from `reader.event.content` and copies **all** of `event.tags` into `extraTags`. It then *consumes* the tags it manages — `h`, `-`, `expiration`, and `d` — lifting each out of `extraTags` into a dedicated field (`groupTag`, `protectTag`, `expirationTag`, `identifierTag`).
+When you pass a reader, the writer seeds `content` from `reader.event.content` and copies **all** of `event.tags` into `extraTags`. It then *consumes* the tags it manages — `h`, `-`, `expiration`, and `d` — lifting each out of `extraTags` into a dedicated field (`roomTag`, `protectTag`, `expirationTag`, `identifierTag`).
 
 Whatever remains in `extraTags` is **passed through verbatim** when the event is rebuilt. This is the extra-tag passthrough guarantee: tags the package does not model (or a subclass does not claim) survive an edit round-trip instead of being silently dropped.
 
@@ -140,7 +140,7 @@ The base behavior setters, all chainable:
 ```typescript
 someKind.writer()
   .setContent("…")
-  .setGroup(relayUrl, groupId)   // h tag + forcedRelays / clearGroup()
+  .setRoom(relayUrl, roomId)   // h tag + forcedRelays / clearRoom()
   .setProtected(true)            // ["-"] tag
   .setExpiration(timestamp)      //         / clearExpiration()
   .setIdentifier()               // d tag (defaults to a random id) / clearIdentifier()
@@ -180,8 +180,8 @@ protected validate(): void
 `validate` by default throws:
 
 - `A d tag is required for kind X` for parameterized-replaceable kinds with no identifier;
-- `A group event requires a relay url (set the group via setGroup)` when a `groupTag` is set but `forcedRelays` is empty;
-- `A kind X event must publish to explicit relays (via setGroup or forceRelays)` when `requiresRelays` is true but `forcedRelays` is empty.
+- `A room event requires a relay url (set the room via setRoom)` when a `roomTag` is set but `forcedRelays` is empty;
+- `A kind X event must publish to explicit relays (via setRoom or forceRelays)` when `requiresRelays` is true but `forcedRelays` is empty.
 
 Subclasses call `super.validate()` and add their own checks — `DeleteWriter` requires at least one `e`/`a` tag, and so on.
 
@@ -191,7 +191,7 @@ Tags are assembled as:
 [...buildTags(), ...behaviorTags, ...extraTags]
 ```
 
-where `behaviorTags` are the present ones among `groupTag`, `protectTag`, `expirationTag`, `identifierTag`. That ordering is the passthrough in action: kind-specific tags first, then the behavior tags, then the untouched leftovers.
+where `behaviorTags` are the present ones among `roomTag`, `protectTag`, `expirationTag`, `identifierTag`. That ordering is the passthrough in action: kind-specific tags first, then the behavior tags, then the untouched leftovers.
 
 ### Output methods
 
@@ -229,12 +229,12 @@ Kinds override `renderRoutes()` when the default is wrong. For instance `FollowL
 
 ### Forced relays and required relays
 
-Some events must go to specific relays regardless of outbox/inbox routing — NIP-29 group events, relay-management ops, and so on. Two mechanisms cover this:
+Some events must go to specific relays regardless of outbox/inbox routing — NIP-29 room events, relay-management ops, and so on. Two mechanisms cover this:
 
 ```typescript
-writer.setGroup(url, group)       // forcedRelays = [url]  AND  h tag = ["h", group]
+writer.setRoom(url, room)       // forcedRelays = [url]  AND  h tag = ["h", room]
 writer.forceRelays(...urls)       // forcedRelays = urls   (no h tag)
-writer.clearGroup()               // clears both
+writer.clearRoom()               // clears both
 writer.clearForcedRelays()        // clears forcedRelays
 ```
 
@@ -246,7 +246,7 @@ A kind can also declare it *requires* explicit relays by overriding the readonly
 readonly requiresRelays = true
 ```
 
-`validate()` then refuses to render until `forcedRelays` is set (via `setGroup` or `forceRelays`). The kinds that set this are all NIP-29 room ops/state and all relay-management ops/state — `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, and `RelayMembers`. (`RoomCreate` additionally requires a `groupTag`.)
+`validate()` then refuses to render until `forcedRelays` is set (via `setRoom` or `forceRelays`). The kinds that set this are all NIP-29 room ops/state and all relay-management ops/state — `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, and `RelayMembers`. (`RoomCreate` additionally requires a `roomTag`.)
 
 ## ListReader
 
@@ -290,7 +290,7 @@ writer
   .dropPublic(pred)          // filter out matches; also dropPrivate, dropTags (both)
 ```
 
-Subclasses build their domain methods on these. For instance `MuteListWriter` exposes `mutePublicly` (public) vs `mutePrivately` (private), and `RoomListWriter` exposes `addGroup`/`removeGroup`/`addRelay`/`removeRelay`.
+Subclasses build their domain methods on these. For instance `MuteListWriter` exposes `mutePublicly` (public) vs `mutePrivately` (private), and `RoomListWriter` exposes `addRoom`/`removeRoom`/`addRelay`/`removeRelay`.
 
 ### validate
 

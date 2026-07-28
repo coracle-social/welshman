@@ -23,7 +23,7 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
   }) as TrustedEvent
 
 describe("RoomAddMember", () => {
-  it("reads pubkeys and group", async () => {
+  it("reads pubkeys and room", async () => {
     const op = await read(
       RoomAddMember,
       makeEvent({
@@ -37,7 +37,7 @@ describe("RoomAddMember", () => {
     )
 
     expect(op.kind).toBe(ROOM_ADD_MEMBER)
-    expect(op.group()).toBe("room1")
+    expect(op.room()).toBe("room1")
     expect(op.pubkeys()).toEqual([a, b])
   })
 
@@ -55,7 +55,7 @@ describe("RoomAddMember", () => {
     )
 
     const tmpl = await buildTemplate(
-      write(RoomAddMember, op).setGroup("wss://relay.example.com/", "room1"),
+      write(RoomAddMember, op).setRoom("wss://relay.example.com/", "room1"),
       signer,
     )
 
@@ -73,7 +73,7 @@ describe("RoomAddMember", () => {
   it("builds from a fresh builder", async () => {
     const tmpl = await buildTemplate(
       write(RoomAddMember)
-        .setGroup("wss://relay.example.com/", "room2")
+        .setRoom("wss://relay.example.com/", "room2")
         .addPubkey(a)
         .addPubkey(a) // dedup
         .addPubkey(b),

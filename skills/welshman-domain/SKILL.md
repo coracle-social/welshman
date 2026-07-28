@@ -59,7 +59,7 @@ const mutes = await MuteList.configure(context).reader(event).parse()
 
 `ConfiguredKind.reader` / `.writer` are instance arrow-function properties, so you can destructure them (`const {reader} = Profile.configure(ctx)`).
 
-Common base getters available on every reader (all synchronous): `id()`, `author()`, `content()`, `tags()`, `createdAt()`, `identifier()` (d-tag), `address()` (`kind:pubkey:d`), `group()` (NIP-29 h-tag), `protect()` (has `["-"]`), `expiration()`. Each kind adds its own — e.g. `profile.name()`, `profile.display()`, `followList.pubkeys()`, `followList.includes(pk)`.
+Common base getters available on every reader (all synchronous): `id()`, `author()`, `content()`, `tags()`, `createdAt()`, `identifier()` (d-tag), `address()` (`kind:pubkey:d`), `room()` (NIP-29 h-tag), `protect()` (has `["-"]`), `expiration()`. Each kind adds its own — e.g. `profile.name()`, `profile.display()`, `followList.pubkeys()`, `followList.includes(pk)`.
 
 ## Building / editing an event
 
@@ -81,7 +81,7 @@ const {event: template2, relays} = await w.render()    // template + publish url
 ```
 
 - Construct empty (`configured.writer()`) or from a reader (`configured.writer(reader)`) for the edit flow.
-- Base behavior setters (chainable): `setContent`, `setGroup(url, group)`/`clearGroup` (h-tag + forced relays), `forceRelays(...urls)`/`clearForcedRelays`, `setProtected(bool)`, `setExpiration`/`clearExpiration`, `setIdentifier`/`clearIdentifier` (d-tag, defaults to a random id), `addTags`, `keepTags(pred)`, `dropTags(pred)`. Shared tag/hint helpers: `tagPubkey(pubkey, petname?)`, `addQuote(event, relay?)`, `addZapSplit(pubkey, split?)`. Each kind adds its own setters.
+- Base behavior setters (chainable): `setContent`, `setRoom(url, room)`/`clearRoom` (h-tag + forced relays), `forceRelays(...urls)`/`clearForcedRelays`, `setProtected(bool)`, `setExpiration`/`clearExpiration`, `setIdentifier`/`clearIdentifier` (d-tag, defaults to a random id), `addTags`, `keepTags(pred)`, `dropTags(pred)`. Shared tag/hint helpers: `tagPubkey(pubkey, petname?)`, `addQuote(event, relay?)`, `addZapSplit(pubkey, split?)`. Each kind adds its own setters.
 - Output methods (all async, no arguments):
   - `renderTemplate()` → `EventTemplate` — runs `validate()`, resolves in-tag relay `Hint`s to a single url, encrypts private list content.
   - `scenario()` → `RelayScenario` (chainable: `.limit()`, `.policy()`, `.allowLocal()`, …); `relays()` → `string[]` (the resolved publish urls).
@@ -94,15 +94,15 @@ import {stamp} from "@welshman/util"
 const signed = await signer.sign(stamp(await writer.renderTemplate()))   // SignedEvent
 ```
 
-**Round-trip / extra-tag passthrough.** When a writer is seeded from a reader, every tag in `event.tags` starts in `extraTags`. The base constructor lifts out `h`/`-`/`expiration`/`d` (into `groupTag`/`protectTag`/`expirationTag`/`identifierTag`); each subclass lifts the tags it models. Whatever is left is re-emitted unchanged — tag assembly is `[...buildTags(), ...behaviorTags(h,-,expiration,d), ...extraTags]` — so unmodeled tags survive an edit.
+**Round-trip / extra-tag passthrough.** When a writer is seeded from a reader, every tag in `event.tags` starts in `extraTags`. The base constructor lifts out `h`/`-`/`expiration`/`d` (into `roomTag`/`protectTag`/`expirationTag`/`identifierTag`); each subclass lifts the tags it models. Whatever is left is re-emitted unchanged — tag assembly is `[...buildTags(), ...behaviorTags(h,-,expiration,d), ...extraTags]` — so unmodeled tags survive an edit.
 
 ## Routing: routes / forceRelays / requiresRelays
 
 Publishing targets come from the `@welshman/util` `RelaySelection` DSL (`outbox`, `inbox`, `inboxes`, `userOutbox`, `seen`, `relay`, `relays`, `indexers`, …). A writer resolves them through `context.resolver`.
 
 - **Default routing** (`EventWriter.renderRoutes`): `[userOutbox(), ...inboxes(pTaggedPubkeys, 0.5)]` — deliver to the author's write relays (weight 1) and to every p-tagged pubkey's read relays (weight 0.5). Most kinds use this (`NoteWriter`, …).
-- **`forceRelays(...urls)`** sets `forcedRelays`; when non-empty, `scenario()` publishes **only** to those relays, bypassing `renderRoutes()`. `setGroup(url, group)` sets `forcedRelays=[url]` **and** the `h` tag (NIP-29 group events); `clearForcedRelays()`/`clearGroup()` undo it.
-- **`requiresRelays`** (a readonly `true` on a subclass) makes `validate()` demand `forcedRelays` — throwing `A kind N event must publish to explicit relays (via setGroup or forceRelays)`. The 18 kinds that set it are all NIP-29 room ops/state and relay-management ops/state: `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, `RelayMembers`. (`RoomCreate` and `RoomJoin` additionally require a `groupTag` — call `setGroup`.)
+- **`forceRelays(...urls)`** sets `forcedRelays`; when non-empty, `scenario()` publishes **only** to those relays, bypassing `renderRoutes()`. `setRoom(url, room)` sets `forcedRelays=[url]` **and** the `h` tag (NIP-29 room events); `clearForcedRelays()`/`clearRoom()` undo it.
+- **`requiresRelays`** (a readonly `true` on a subclass) makes `validate()` demand `forcedRelays` — throwing `A kind N event must publish to explicit relays (via setRoom or forceRelays)`. The 18 kinds that set it are all NIP-29 room ops/state and relay-management ops/state: `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, `RelayMembers`. (`RoomCreate` and `RoomJoin` additionally require a `roomTag` — call `setRoom`.)
 - **Per-kind overrides.** Some writers replace `renderRoutes()`: `FollowListWriter`/`MuteListWriter`/`ReportWriter` publish to `[userOutbox()]` only (p-tags are data, not recipients); `RelayListWriter` adds `indexers()` and notifies every relay added to or removed from the list; `DeleteWriter` adds each deleted event's `seen` relays (and requires an `e`/`a` tag).
 
 The DSL constructors `relays(urls)` and `inboxes(pubkeys)` return **arrays** (spread with `...`); the others return a single `RelaySelection`. Note `relay(url)`/`relays(urls)` replaced the old `relayHint`/`relayHints`.
@@ -116,7 +116,7 @@ The DSL constructors `relays(urls)` and `inboxes(pubkeys)` return **arrays** (sp
 - **Writing private list tags:** `ListWriter.buildContent` is where encryption happens. If there are private tags it requires a signer and NIP-44-encrypts them to the author's own pubkey (`A signer is required to encrypt private tags`). If the source was never decrypted, the original ciphertext is preserved untouched (so you don't clobber tags you couldn't see).
 - **`renderTemplate()`** needs a signer only for list kinds with non-empty private tags. All other kinds ignore it. Signing (`signer.sign(stamp(...))`) always needs a signer.
 - **`d`-tag required** (base `validate` throws otherwise) for parameterized-replaceable kinds: `RelaySet` (30002), `Pinboard` (30067), `Classified` (30402), `Feed` (31890), `TimeEvent` (31923), `HandlerRecommendation` (31989), `Handler` (31990), `RoomMeta` (39000), `RoomAdmins` (39001), `RoomMembers` (39002), `Pin` (39067). Call `setIdentifier()`. `Pin` additionally requires a content reference (`e`/`a`/`i` tag) — without a unique `d` tag per pin, every pin from the same author would collide at the same address, since kind 39067 is itself addressable.
-- **Explicit relays required** (`requiresRelays`, see above): all NIP-29 room and relay-management ops. Call `setGroup(url, group)` (which sets both the `h` tag and the forced relay) or `forceRelays(...urls)`.
+- **Explicit relays required** (`requiresRelays`, see above): all NIP-29 room and relay-management ops. Call `setRoom(url, room)` (which sets both the `h` tag and the forced relay) or `forceRelays(...urls)`.
 
 ## Kind classes
 
@@ -149,7 +149,7 @@ Each row: kind# — NIP — Reader / Writer.
 | 10001 | NIP-51 | `PinListReader` / `PinListWriter` |
 | 10002 | NIP-65 | `RelayListReader` / `RelayListWriter` |
 | 10003 | NIP-51 | `BookmarkListReader` / `BookmarkListWriter` |
-| 10004 | NIP-51 | `GroupListReader` / `GroupListWriter` |
+| 10004 | NIP-51 | `CommunityListReader` / `CommunityListWriter` |
 | 10006 | NIP-51 | `BlockedRelayListReader` / `BlockedRelayListWriter` |
 | 10007 | NIP-51 | `SearchRelayListReader` / `SearchRelayListWriter` |
 | 10009 | NIP-51 | `RoomListReader` / `RoomListWriter` |
@@ -160,11 +160,11 @@ Each row: kind# — NIP — Reader / Writer.
 | 10063 | Blossom BUD-03 | `BlossomServerListReader` / `BlossomServerListWriter` |
 | 30002 | NIP-51 | `RelaySetReader` / `RelaySetWriter` |
 
-`ListWriter` mutators (public/private split): `addPublic`/`addPrivate`, `keepPublic`/`keepPrivate`/`keepTags`, `dropPublic`/`dropPrivate`/`dropTags`. Each kind also exposes intent-named helpers, e.g. `FollowListWriter.follow(pubkey, relayHint?, petname?)`/`unfollow`, `MuteListWriter.mutePublicly`/`mutePrivately`/`unmute`, `RelayListWriter.addReadUrl`/`addWriteUrl`/`removeReadUrl`/`removeWriteUrl`/`setReadUrls`/`setWriteUrls`/`setTags`, `RoomListWriter.addGroup`/`removeGroup`/`addRelay`/`removeRelay`/`setRelays`. (Note `FollowList` is a plain `EventWriter`, not a `ListWriter` — follows are public.)
+`ListWriter` mutators (public/private split): `addPublic`/`addPrivate`, `keepPublic`/`keepPrivate`/`keepTags`, `dropPublic`/`dropPrivate`/`dropTags`. Each kind also exposes intent-named helpers, e.g. `FollowListWriter.follow(pubkey, relayHint?, petname?)`/`unfollow`, `MuteListWriter.mutePublicly`/`mutePrivately`/`unmute`, `RelayListWriter.addReadUrl`/`addWriteUrl`/`removeReadUrl`/`removeWriteUrl`/`setReadUrls`/`setWriteUrls`/`setTags`, `RoomListWriter.addRoom`/`removeRoom`/`addRelay`/`removeRelay`/`setRelays`. (Note `FollowList` is a plain `EventWriter`, not a `ListWriter` — follows are public.)
 
 ### Rooms (NIP-29)
 
-Room ops are scoped by the `h` group tag and must publish to explicit relays — use `setGroup(url, group)`. Metadata kinds 39000–39002 are addressable per room.
+Room ops are scoped by the `h` tag and must publish to explicit relays — use `setRoom(url, room)`. Metadata kinds 39000–39002 are addressable per room.
 
 | Kind | NIP | Reader / Writer |
 |---|---|---|
@@ -194,7 +194,7 @@ Room ops are scoped by the `h` group tag and must publish to explicit relays —
 | 28935 | NIP-29 | `RelayInviteReader` / `RelayInviteWriter` |
 | 28936 | Flotilla | `RelayLeaveReader` / `RelayLeaveWriter` |
 
-`RelayMembersReader`: `pubkeys()`, `isMember(pk)`; writer `addPubkey(pk, role?)`/`removePubkey`/`setPubkeys` (its constructor calls `setProtected(true)` per NIP-43). All of these set `requiresRelays` — publish with `forceRelays(url)` or `setGroup`.
+`RelayMembersReader`: `pubkeys()`, `isMember(pk)`; writer `addPubkey(pk, role?)`/`removePubkey`/`setPubkeys` (its constructor calls `setProtected(true)` per NIP-43). All of these set `requiresRelays` — publish with `forceRelays(url)` or `setRoom`.
 
 ### Handlers (NIP-89)
 
@@ -260,7 +260,7 @@ command.publish()                                          // or .publishToRelay
 - **Output is `renderTemplate()`/`render()`, not `toTemplate`/`toEvent`.** The writer never signs; `renderTemplate()` gives an `EventTemplate` you sign yourself (`signer.sign(stamp(await writer.renderTemplate()))`), or hand the writer to `Domain.command`. `renderTemplate`/`scenario`/`relays`/`render` take **no** arguments — dependencies come from the context.
 - **Private list tags need the author's signer in the context.** With no signer (or someone else's) a `ListReader` yields only public tags; `decrypted` stays `false`. Bind the author's own signer to see private entries.
 - **Don't clobber undecryptable lists.** If you edit a list you couldn't decrypt and try to write private tags, `validate()` throws `Unable to modify list when decryption was not performed`. Editing only public tags is fine — the original ciphertext is preserved.
-- **Room / relay-management kinds need explicit relays.** They set `requiresRelays`, so `render()` throws unless you called `setGroup(url, group)` or `forceRelays(...urls)`. `RoomCreate`/`RoomJoin` also require the `h` group tag (use `setGroup`).
+- **Room / relay-management kinds need explicit relays.** They set `requiresRelays`, so `render()` throws unless you called `setRoom(url, room)` or `forceRelays(...urls)`. `RoomCreate`/`RoomJoin` also require the `h` tag (use `setRoom`).
 - **Parameterized-replaceable kinds throw without a `d` tag** — call `setIdentifier()` (or let it default to a random id).
 - **`RoomJoin`/`RelayJoin`/`RelayInvite` read the invite code via `claim()`.**
 - **Routing helpers renamed:** `relay(url)`/`relays(urls)` (not `relayHint`/`relayHints`); new `inboxes(pubkeys)`.
