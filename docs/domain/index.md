@@ -22,8 +22,9 @@ import {Resolver} from "@welshman/util"
 const resolver = new Resolver(route => [/* urls for this route */])
 const ProfileKind = Profile.configure({resolver})
 
-// Read an event into a domain object (async: validates kind, runs parse()).
-const profile = await ProfileKind.reader(event)
+// Read an event into a domain object. `reader` validates the kind, `parse`
+// populates it — synchronously for kind 0, since nothing has to be decrypted.
+const profile = ProfileKind.reader(event).parse()
 profile.name()            // string | undefined
 profile.display()         // best-effort display name, falls back to a short npub
 
@@ -114,7 +115,7 @@ const signed = await signer.sign(stamp(template))
 
 ## Pages
 
-- [Readers & Writers](./readers-and-writers) — the `EventReader`/`EventWriter` and `ListReader`/`ListWriter` base classes in depth: `KindFactory`/`ConfiguredKind` and the context, async parsing, getters/setters, the `renderTemplate`/`render` pipeline, routing (`scenario`/`relays`), validation, extra-tag passthrough, relay hints, and how list encryption works.
+- [Readers & Writers](./readers-and-writers) — the `EventReader`/`AsyncEventReader`/`EventWriter` and `ListReader`/`ListWriter` base classes in depth: `KindFactory`/`ConfiguredKind` and the context, which kinds parse synchronously and which have to be awaited, getters/setters, the `renderTemplate`/`render` pipeline, routing (`scenario`/`relays`), validation, extra-tag passthrough, relay hints, and how list encryption works.
 - [Profile](./profile) — kind-0 metadata (`ProfileReader` / `ProfileWriter`).
 - [Lists](./lists) — NIP-51 public/private lists: follows, mutes, pins, bookmarks, relay sets, and friends.
 - [Rooms](./rooms) — NIP-29 group rooms: metadata, membership, and the join/leave/create/delete ops.

@@ -77,17 +77,17 @@ export class Rooms extends LoadableMapPlugin<Room> {
     await this.app.use(Network).load({
       relays: [url],
       filters: [{kinds: [ROOM_META, ROOM_MEMBERS, ROOM_ADMINS], "#d": [h]}],
-      onEvent: async event => {
+      onEvent: event => {
         if (event.pubkey !== relay?.self) return
 
         if (event.kind === ROOM_META && gt(event.created_at, room.meta?.createdAt())) {
-          room.meta = await this.app.use(Domain).reader(RoomMetaKind)(event)
+          room.meta = this.app.use(Domain).reader(RoomMetaKind)(event)
           this.set(id, room)
         } else if (event.kind === ROOM_MEMBERS && gt(event.created_at, room.members?.createdAt())) {
-          room.members = await this.app.use(Domain).reader(RoomMembers)(event)
+          room.members = this.app.use(Domain).reader(RoomMembers)(event)
           this.set(id, room)
         } else if (event.kind === ROOM_ADMINS && gt(event.created_at, room.admins?.createdAt())) {
-          room.admins = await this.app.use(Domain).reader(RoomAdmins)(event)
+          room.admins = this.app.use(Domain).reader(RoomAdmins)(event)
           this.set(id, room)
         }
       },

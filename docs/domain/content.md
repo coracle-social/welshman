@@ -2,7 +2,7 @@
 
 A grab-bag of content kinds: NIP-01 notes, NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `TimeEvent`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
 
-Every example below assumes a bound `KindContext` — you get a reader/writer by calling `SomeKind.configure(context)`. A reader is parsed asynchronously (`await …reader(event)`); a writer is a chainable builder whose terminal `renderTemplate()` returns an unsigned `EventTemplate`. To turn that into a signed event, hand it to a signer:
+Every example below assumes a bound `KindContext` — you get a reader/writer by calling `SomeKind.configure(context)`. A reader is built and then parsed (`…reader(event).parse()`); none of the kinds on this page decrypt, so nothing here needs awaiting. A writer is a chainable builder whose terminal `renderTemplate()` returns an unsigned `EventTemplate`. To turn that into a signed event, hand it to a signer:
 
 ```typescript
 import {stamp} from "@welshman/util"
@@ -21,7 +21,7 @@ A NIP-01 short text note. The reader adds nothing beyond the base getters; the w
 ```typescript
 import {Note} from "@welshman/domain"
 
-const note = await Note.configure(context).reader(event)
+const note = Note.configure(context).reader(event).parse()
 note.content()   // event.content
 note.author()    // event.pubkey
 
@@ -50,7 +50,7 @@ NIP-22 comments distinguish the **thread root** (uppercase `E`/`A`/`K`/`P` tags)
 import {Comment} from "@welshman/domain"
 import type {CommentRef} from "@welshman/domain"
 
-const comment = await Comment.configure(context).reader(event)
+const comment = Comment.configure(context).reader(event).parse()
 comment.root()     // CommentRef — uppercase tags (thread root)
 comment.parent()   // CommentRef — lowercase tags (immediate parent)
 
@@ -80,7 +80,7 @@ A NIP-7D forum thread root. Just a title plus the body content.
 ```typescript
 import {Thread} from "@welshman/domain"
 
-const thread = await Thread.configure(context).reader(event)
+const thread = Thread.configure(context).reader(event).parse()
 thread.title()     // "title" tag value
 
 await Thread.configure(context)
@@ -98,7 +98,7 @@ A NIP-99 marketplace listing. The price parses into a `ClassifiedPrice` (`{amoun
 import {Classified} from "@welshman/domain"
 import type {ClassifiedPrice} from "@welshman/domain"
 
-const listing = await Classified.configure(context).reader(event)
+const listing = Classified.configure(context).reader(event).parse()
 listing.title()     // "title" tag value
 listing.summary()   // "summary" tag value
 listing.price()     // ClassifiedPrice | undefined
@@ -125,7 +125,7 @@ A pinboard system (Pinboards NIP) that separates board metadata from the individ
 ```typescript
 import {Pinboard} from "@welshman/domain"
 
-const board = await Pinboard.configure(context).reader(event)
+const board = Pinboard.configure(context).reader(event).parse()
 board.title()           // "title" tag value
 board.description()     // "description" tag value
 board.image()           // "image" tag value
@@ -148,7 +148,7 @@ A `Pin` references exactly one item — a nostr event (`e`), an addressable even
 ```typescript
 import {Pin} from "@welshman/domain"
 
-const pin = await Pin.configure(context).reader(event)
+const pin = Pin.configure(context).reader(event).parse()
 pin.boards()         // "A" tag values (board coordinates)
 pin.isProfilePin()   // true when there are no boards
 pin.reference()      // {type: "event"|"address"|"external", ...} | undefined
@@ -173,7 +173,7 @@ A NIP-52 time-based calendar event.
 ```typescript
 import {TimeEvent} from "@welshman/domain"
 
-const evt = await TimeEvent.configure(context).reader(event)
+const evt = TimeEvent.configure(context).reader(event).parse()
 evt.title()      // "title" tag value
 evt.location()   // "location" tag value
 evt.start()      // unix seconds as int, or undefined
@@ -199,7 +199,7 @@ NIP-88 polls. A `Poll` has a title (content), options, a type, and an optional c
 import {Poll} from "@welshman/domain"
 import type {PollType, PollOption, PollResult} from "@welshman/domain"
 
-const poll = await Poll.configure(context).reader(event)
+const poll = Poll.configure(context).reader(event).parse()
 poll.title()        // event.content (or "")
 poll.options()      // PollOption[] — {id, label}
 poll.pollType()     // PollType, default "singlechoice"
@@ -232,7 +232,7 @@ A `PollResponse` is one voter's answer:
 ```typescript
 import {PollResponse} from "@welshman/domain"
 
-const response = await PollResponse.configure(context).reader(event)
+const response = PollResponse.configure(context).reader(event).parse()
 response.pollId()       // e-tag value
 response.selections()   // unique "response" tag values
 
@@ -252,7 +252,7 @@ A NIP-56 report flags a pubkey and/or an event with a reason.
 ```typescript
 import {Report} from "@welshman/domain"
 
-const report = await Report.configure(context).reader(event)
+const report = Report.configure(context).reader(event).parse()
 report.pubkey()    // p-tag value
 report.eventId()   // e-tag value (tag[1])
 report.reason()    // reason from the e-tag or p-tag (tag[2])

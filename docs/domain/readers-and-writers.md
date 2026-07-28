@@ -34,7 +34,7 @@ import {Profile} from "@welshman/domain"
 
 const profile = Profile.configure(context)   // ConfiguredKind
 
-const reader = await profile.reader(event)    // parsed reader (async)
+const reader = profile.reader(event).parse()  // reader, parsed
 const writer = profile.writer()               // fresh writer
 const writer2 = profile.writer(reader)         // writer seeded from a reader (edit)
 ```
@@ -49,25 +49,39 @@ A `Reader` wraps a single `TrustedEvent` and answers questions about it. It is a
 
 ### Construction and parse
 
-You get a parsed reader from `ConfiguredKind.reader(event)`, which is **async** because parsing may be. It validates the event's kind (throwing `Expected a kind X event, got kind Y` on mismatch), constructs the reader, and `await`s `reader.parse()` before handing it back.
+`ConfiguredKind.reader(event)` validates the event's kind (throwing `Expected a kind X event, got kind Y` on mismatch) and constructs the reader **unparsed**. Chain `parse()` to populate it — it returns the reader, so you keep reading straight off the call:
 
 ```typescript
-import {Profile} from "@welshman/domain"
+import {Profile, MuteList} from "@welshman/domain"
 
-const profile = await Profile.configure(context).reader(event)
+// Most kinds parse without IO, so there is nothing to await
+const profile = Profile.configure(context).reader(event).parse()
+
+// Kinds that decrypt return a promise, and the type makes you await it
+const mutes = await MuteList.configure(context).reader(event).parse()
 ```
+
+Whether `parse()` is async is a property of the kind, declared by the base class its reader extends:
 
 ```typescript
-protected async parse(): Promise<void> {}
+abstract class EventReader extends BaseEventReader {
+  parse(): this           // no IO — Profile, Note, RelayList, …
+}
+
+abstract class AsyncEventReader extends BaseEventReader {
+  abstract parse(): Promise<this>  // decrypts — the ListReader kinds, AppData
+}
 ```
 
-`parse` is the one async hook. It takes **no arguments** — a subclass that needs the signer reads it from `this.def.context.signer`. The base implementation is a no-op; subclasses override it to decode whatever they need:
+Only the six private-tag lists (`ListReader` subclasses) and `AppDataReader` are async; the other 46 kinds parse synchronously. Code that doesn't know the kind can always write `await kind.reader(event).parse()` — awaiting a non-promise is a no-op — and the exported `Parsed<R>` type names whichever result a given reader yields.
 
-- `Profile.parse` JSON-parses `event.content` into a `values` object.
-- `ZapReceipt.parse` decodes the embedded zap-request JSON out of the `description` tag.
+`parse` takes **no arguments** — a subclass that needs the signer reads it from `this.context.signer`. The base implementation is a no-op; subclasses override it to decode what they need and return `this`:
+
+- `ProfileReader.parse` JSON-parses `event.content` into a `values` object.
+- `ZapReceiptReader.parse` decodes the embedded zap-request JSON out of the `description` tag.
 - `ListReader.parse` decrypts the private tags (see below).
 
-Because `parse` is the only async step, everything downstream — the getters — is synchronous.
+Everything downstream — the getters — is synchronous either way.
 
 ### Getters
 
@@ -87,7 +101,7 @@ All base getters are synchronous reads over the wrapped event:
 | `expiration()` | the parsed `expiration` tag as a number, or `undefined` |
 
 ```typescript
-const reader = await SomeKind.configure(context).reader(event)
+const reader = await SomeKind.configure(context).reader(event).parse()
 reader.author()         // pubkey
 reader.identifier()     // d tag, if any
 reader.expiration()     // number | undefined
@@ -236,7 +250,7 @@ readonly requiresRelays = true
 
 ## ListReader
 
-NIP-51-style lists split their tags into a public set and a private (encrypted) set. `ListReader` extends `EventReader` and handles the decryption.
+NIP-51-style lists split their tags into a public set and a private (encrypted) set. `ListReader` extends `AsyncEventReader` — decryption is exactly what makes these kinds' `parse()` a promise — and handles the decryption.
 
 ```typescript
 decrypted = false
@@ -254,7 +268,7 @@ The practical consequence: **private tags only appear when the configured signer
 
 ```typescript
 // context.signer must be the list author's for private tags to decrypt
-const list = await MuteList.configure(context).reader(event)
+const list = await MuteList.configure(context).reader(event).parse()
 list.pubkeys()    // includes both public and private mutes, when decrypted
 ```
 
@@ -342,7 +356,7 @@ const command = await domain.command(writer)   // requires a signed-in user
 command.publish()
 ```
 
-- `domain.reader(factory)` returns the configured kind's async `reader` function.
+- `domain.reader(factory)` returns an `(event) => Parsed<Reader>` function — it builds *and* parses, so the result is the reader for sync kinds and a promise of it for kinds that decrypt. That is exactly the `EventToItem` shape a collection wants, and it keeps the sync path for kinds that have one.
 - `domain.writer(factory, reader?)` returns a fresh writer, optionally seeded for editing.
 - `domain.command(writer)` requires the signed-in user, calls `writer.render()`, and wraps the `{event, relays}` in a `Command` you can `.publish()`.
 
@@ -354,7 +368,7 @@ The context `Domain` builds wires in `app.use(Router).resolver`, `app.repository
 |---|---|
 | `new Kind({reader, builder, router})` | `new KindFactory({reader, writer, router?})` |
 | `EventBuilder` / `ListBuilder` / `XBuilder` | `EventWriter` / `ListWriter` / `XWriter` |
-| `X.fromEvent(event)` / `Kind.read(event)` / `Kind.factory(signer)` | `factory.configure(ctx).reader(event)` (async) |
+| `X.fromEvent(event)` / `Kind.read(event)` / `Kind.factory(signer)` | `factory.configure(ctx).reader(event).parse()` (async only for lists / app data) |
 | `Kind.builder(reader?)` / `new XBuilder(reader?)` | `factory.configure(ctx).writer(reader?)` |
 | `parse(signer)` | `parse()` (reads `def.context.signer`) |
 | `builder.toTemplate(signer?)` | `writer.renderTemplate()` (context injected at `configure`) |

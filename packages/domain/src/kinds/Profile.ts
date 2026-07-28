@@ -29,12 +29,14 @@ export const displayPubkey = (pubkey: string) => {
 export class ProfileReader extends EventReader {
   readonly values: Record<string, any> = {}
 
-  async parse() {
+  parse() {
     const json = parseJson(this.event.content)
 
     if (isPojo(json)) {
       Object.assign(this.values, json)
     }
+
+    return this
   }
 
   name(): Maybe<string> {

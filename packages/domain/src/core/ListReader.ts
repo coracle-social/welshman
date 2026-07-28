@@ -1,8 +1,8 @@
 import {parseJson} from "@welshman/lib"
 import {decrypt} from "@welshman/signer"
-import {EventReader} from "./EventReader.js"
+import {AsyncEventReader} from "./EventReader.js"
 
-export abstract class ListReader extends EventReader {
+export abstract class ListReader extends AsyncEventReader {
   decrypted = false
   publicTags: string[][] = []
   privateTags: string[][] = []
@@ -31,6 +31,8 @@ export abstract class ListReader extends EventReader {
         // pass
       }
     }
+
+    return this
   }
 
   tags() {

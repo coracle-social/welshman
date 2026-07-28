@@ -1,4 +1,5 @@
 import {spec, toInt} from "@welshman/lib"
+import type {MaybeAsync} from "@welshman/lib"
 import {tagSpec, tagValue, getAddress} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import type {KindContext} from "./Kind.js"
@@ -7,7 +8,12 @@ import type {Emoji} from "../behaviors/Emoji.js"
 import {getZapSplits} from "../behaviors/ZapSplits.js"
 import type {ZapSplit} from "../behaviors/ZapSplits.js"
 
-export abstract class EventReader {
+/**
+ * The accessors every reader shares. Readers don't extend this directly — they
+ * pick a branch below according to whether parsing their event can hit IO, which
+ * is what tells a caller whether `parse()` has to be awaited.
+ */
+export abstract class BaseEventReader {
   constructor(
     readonly kind: number,
     readonly context: KindContext,
@@ -18,7 +24,9 @@ export abstract class EventReader {
     }
   }
 
-  async parse(): Promise<void> {}
+  // Populate whatever the reader derives from the event, and return the reader so
+  // callers can chain: `Profile.reader(event).parse().name()`.
+  abstract parse(): MaybeAsync<this>
 
   id() {
     return this.event.id
@@ -68,3 +76,29 @@ export abstract class EventReader {
     return getZapSplits(this.event)
   }
 }
+
+/**
+ * A reader whose event can be parsed without IO — the common case. `parse()`
+ * returns the reader itself, so callers never await it. Override `parse` to
+ * derive state from the event, returning `this`.
+ */
+export abstract class EventReader extends BaseEventReader {
+  parse(): this {
+    return this
+  }
+}
+
+/**
+ * A reader that has to decrypt (or otherwise await something) before its
+ * accessors are complete. `parse()` returns a promise, so the type system makes
+ * callers await it rather than silently reading a half-parsed event.
+ */
+export abstract class AsyncEventReader extends BaseEventReader {
+  abstract parse(): Promise<this>
+}
+
+/**
+ * What `reader.parse()` yields for a given reader — the reader for sync kinds, a
+ * promise of it for kinds that decrypt. `await` works either way.
+ */
+export type Parsed<R extends BaseEventReader> = ReturnType<R["parse"]>

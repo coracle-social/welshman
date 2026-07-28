@@ -1,7 +1,7 @@
 import {stamp, prep, Resolver} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
-import type {EventReader, EventWriter, KindFactory} from "../src/index.js"
+import type {BaseEventReader, EventWriter, KindFactory} from "../src/index.js"
 
 // By default tests resolve every route to no relays (in-tag hints become "",
 // publish scenarios become empty).
@@ -45,17 +45,17 @@ const withSigner = (writer: EventWriter<any>, signer?: ISigner) => {
 export const publishRelays = async (writer: EventWriter<any>) =>
   (await writer.scenario()).limit(100).getUrls()
 
-// Parse an event into a reader (`fromEvent` awaits `parse`, so async work like
-// list decryption is done before the reader is returned).
-export const read = <R extends EventReader, W extends EventWriter<R>>(
+// Parse an event into a reader. Always awaits `parse`, whether or not the kind
+// needs it, so async work like list decryption is done before the reader is returned.
+export const read = async <R extends BaseEventReader, W extends EventWriter<R>>(
   factory: KindFactory<R, W>,
   event: TrustedEvent,
   signer?: ISigner,
-): Promise<R> => factory.configure({resolver: noopResolver, signer}).reader(event)
+): Promise<R> => factory.configure({resolver: noopResolver, signer}).reader(event).parse()
 
 // A fresh writer, optionally seeded from a reader to edit its event. Pass a
 // resolver (e.g. `markerResolver`) to route through recognizable urls.
-export const write = <R extends EventReader, W extends EventWriter<R>>(
+export const write = <R extends BaseEventReader, W extends EventWriter<R>>(
   factory: KindFactory<R, W>,
   reader?: R,
   resolver: Resolver = noopResolver,

@@ -1,5 +1,5 @@
 import type {Unsubscriber} from "svelte/store"
-import {on, noop, always} from "@welshman/lib"
+import {on, noop, always, randomId} from "@welshman/lib"
 import {WRAP, isDVMKind, isEphemeralKind, verifyEvent} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {SocketEvent, isRelayEvent, makeSocketPolicyAuth} from "@welshman/net"
@@ -145,16 +145,18 @@ export const appPolicyLogSignerMethods: AppPolicy = app => {
   const logger = app.use(Logger)
 
   return app.user.wrapSigner(async (method, thunk) => {
-    logger.log("signer", {method, status: "pending"})
+    const id = randomId()
+
+    logger.log("signer", {id, method, status: "pending"})
 
     try {
       const result = await thunk()
 
-      logger.log("signer", {method, status: "success"})
+      logger.log("signer", {id, method, status: "success"})
 
       return result
     } catch (error) {
-      logger.log("signer", {method, status: "failure", error})
+      logger.log("signer", {id, method, status: "failure", error})
 
       throw error
     }

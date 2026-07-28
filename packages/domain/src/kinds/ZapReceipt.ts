@@ -9,10 +9,12 @@ import {KindFactory} from "../core/Kind.js"
 export class ZapReceiptReader extends EventReader {
   plain?: TrustedEvent
 
-  async parse() {
+  parse() {
     const description = tagValue(tagSpec("description"), this.event.tags)
 
     this.plain = description ? parseJson(description) || undefined : undefined
+
+    return this
   }
 
   bolt11() {

@@ -15,7 +15,7 @@ Every one of them sets `requiresRelays = true`, so it **must publish to explicit
 | `RelayRemoveMember` | 8001 | remove a member | `pubkeys()` | `addPubkey(pk)` |
 | `RelayMembers` | 13534 | member-list snapshot | `pubkeys()`, `isMember(pk)` | `addPubkey(pk, role?)`, `removePubkey(pk)`, `setPubkeys(pks)` |
 
-Each exported constant is a `KindFactory` pairing a reader class with a writer class (`RelayJoinReader`/`RelayJoinWriter`, `RelayMembersReader`/`RelayMembersWriter`, …). You reach the reader/writer through a `ConfiguredKind` — either `RelayJoin.configure(context).reader(event)` directly, or, in `@welshman/app`, via the `Domain` plugin, which is what the examples below use.
+Each exported constant is a `KindFactory` pairing a reader class with a writer class (`RelayJoinReader`/`RelayJoinWriter`, `RelayMembersReader`/`RelayMembersWriter`, …). You reach the reader/writer through a `ConfiguredKind` — either `RelayJoin.configure(context).reader(event).parse()` directly, or, in `@welshman/app`, via the `Domain` plugin, which is what the examples below use.
 
 ## Joining and leaving
 
@@ -27,7 +27,7 @@ import {Domain} from "@welshman/app"
 
 const domain = app.use(Domain)
 
-const join = await domain.reader(RelayJoin)(event)
+const join = domain.reader(RelayJoin)(event)
 join.claim()      // string | undefined — the "claim" tag value
 join.reason()     // event.content, or undefined when empty
 
@@ -83,7 +83,7 @@ await (await domain.command(remove)).publish()
 ```typescript
 import {RelayMembers} from "@welshman/domain"
 
-const members = await domain.reader(RelayMembers)(event)
+const members = domain.reader(RelayMembers)(event)
 members.pubkeys()          // string[]
 members.isMember(pubkey)   // boolean
 

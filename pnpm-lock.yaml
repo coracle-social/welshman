@@ -70,8 +70,8 @@ importers:
         version: 5.0.2
     devDependencies:
       '@pomade/core':
-        specifier: ^0.2.1
-        version: 0.2.1(@frostr/bifrost@1.0.7(typescript@5.8.2))(@noble/hashes@2.0.1)(@welshman/lib@packages+lib)(@welshman/net@packages+net)(@welshman/signer@packages+signer)(@welshman/util@packages+util)(nostr-tools@2.19.4(typescript@5.8.2))
+        specifier: ^0.3.3
+        version: 0.3.3(@frostr/bifrost@1.0.7(typescript@5.8.2))(@noble/hashes@2.0.1)(@welshman/lib@packages+lib)(@welshman/net@packages+net)(@welshman/signer@packages+signer)(@welshman/util@packages+util)(nostr-tools@2.19.4(typescript@5.8.2))
       '@types/throttle-debounce':
         specifier: ^5.0.2
         version: 5.0.2
@@ -853,16 +853,16 @@ packages:
     resolution: {integrity: sha512-vsJDAkYR6qCPu+ioGScGiMYR7LvZYIXh/dlQeviqoTWNCVfKTLYD/LkNWH4Mxsv2a5vpIRc77FN5DnmK1eBggQ==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
 
-  '@pomade/core@0.2.1':
-    resolution: {integrity: sha512-zXpPQPkhVe7OchmRDe2MbHdUxiCSeUuMwrHOyeOBs/xD1EfY093Mwj6Cu/OLfz0wxivBDSp1GMMmxqKbLWam3Q==}
+  '@pomade/core@0.3.3':
+    resolution: {integrity: sha512-lpLOQbdA1mf2JLmlY51IXvckw7y1BzDH5lPVW7/4ZcZXJcMHoVwx+jsUHsBIudNdzku1bjqDG2s8XWT6CotHyg==}
     engines: {node: '>=12.0.0'}
     peerDependencies:
       '@frostr/bifrost': ^1.0.7
       '@noble/hashes': ^2.0.1
-      '@welshman/lib': ^0.8.0-pre.1
-      '@welshman/net': ^0.8.0-pre.1
-      '@welshman/signer': ^0.8.0-pre.1
-      '@welshman/util': ^0.8.0-pre.1
+      '@welshman/lib': ^0.9.0-pre2
+      '@welshman/net': ^0.9.0-pre2
+      '@welshman/signer': ^0.9.0-pre2
+      '@welshman/util': ^0.9.0-pre2
       nostr-tools: ^2.19.3
 
   '@popperjs/core@2.11.8':
@@ -3091,7 +3091,7 @@ snapshots:
 
   '@pkgr/core@0.2.0': {}
 
-  '@pomade/core@0.2.1(@frostr/bifrost@1.0.7(typescript@5.8.2))(@noble/hashes@2.0.1)(@welshman/lib@packages+lib)(@welshman/net@packages+net)(@welshman/signer@packages+signer)(@welshman/util@packages+util)(nostr-tools@2.19.4(typescript@5.8.2))':
+  '@pomade/core@0.3.3(@frostr/bifrost@1.0.7(typescript@5.8.2))(@noble/hashes@2.0.1)(@welshman/lib@packages+lib)(@welshman/net@packages+net)(@welshman/signer@packages+signer)(@welshman/util@packages+util)(nostr-tools@2.19.4(typescript@5.8.2))':
     dependencies:
       '@frostr/bifrost': 1.0.7(typescript@5.8.2)
       '@noble/hashes': 2.0.1

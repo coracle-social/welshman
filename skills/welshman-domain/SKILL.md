@@ -31,15 +31,15 @@ Peer deps: `@welshman/lib`, `@welshman/util`, `@welshman/signer`, `@welshman/net
 ## Core mental model
 
 1. **A kind is a `KindFactory`; bind it once with `configure`.** Each exported kind constant is `new KindFactory({reader, writer})` — e.g. `export const Note = new KindFactory({reader: NoteReader, writer: NoteWriter})`. Call `Note.configure(context)` to get a `ConfiguredKind` carrying the app's `resolver`, optional `signer`, and optional `repository`. In an app you never call `configure` yourself — `@welshman/app`'s `Domain` plugin does it and memoizes the result.
-2. **Readers wrap an event; Writers produce a template + relays.** `configured.reader(event)` builds and parses a Reader; `configured.writer(reader?)` builds a Writer, optionally seeded from a Reader (the edit flow).
-3. **Reading is async at the door; getters are sync.** You enter through `await configured.reader(event)`, which validates `event.kind` (throwing `Expected a kind X event, got kind Y`) and runs the kind's `parse()`, then call plain synchronous getters.
+2. **Readers wrap an event; Writers produce a template + relays.** `configured.reader(event)` builds a Reader (unparsed) and `.parse()` populates it; `configured.writer(reader?)` builds a Writer, optionally seeded from a Reader (the edit flow).
+3. **Reading is sync unless the kind decrypts; getters are always sync.** You enter through `configured.reader(event).parse()`, which validates `event.kind` (throwing `Expected a kind X event, got kind Y`) and parses. `parse()` returns the reader for kinds that extend `EventReader` and a promise of it for kinds that extend `AsyncEventReader` — only the six private-tag lists and `AppData`, which have to decrypt. `await` works for both, and `Parsed<R>` is the type of whichever one a reader yields.
 4. **Building is chainable; output is async.** Setters return `this`; you finish with `await w.renderTemplate()` (an `EventTemplate`), `await w.relays()` (publish urls), or `await w.render()` (both). None of these take arguments — the signer, resolver, and repository come from the context bound at `configure`.
 5. **The signer is optional and lazy.** Most kinds ignore it. Only NIP-51 lists need it — to *decrypt* private tags on read, and to *encrypt* them (NIP-44, self-encrypted) on build. The app supplies it as a lazy getter so auth policies can swap it after `configure`.
 6. **Round-trips preserve unknown tags.** Seed a Writer from a Reader and any tags the class doesn't model are carried through verbatim into the rebuilt template.
 
 ## Reading an event
 
-Go through a `ConfiguredKind`. `configured.reader` is an async function that validates `event.kind === reader.kind` and runs the kind's `parse()`.
+Go through a `ConfiguredKind`. `configured.reader` validates `event.kind === reader.kind` and builds the reader; chain `parse()` to populate it.
 
 ```typescript
 import {Profile, FollowList} from "@welshman/domain"
@@ -48,10 +48,13 @@ import {Profile, FollowList} from "@welshman/domain"
 const profiles = Profile.configure(context)          // context: KindContext
 const follows  = FollowList.configure(context)        // context.signer decrypts private tags
 
-// `reader` is `(event) => Promise<Reader>` — point-free friendly, the shape
-// @welshman/app data plugins want for their `eventToItem`:
-const profile = await profiles.reader(event)          // validates + parse()
-const list    = await follows.reader(event)
+// kind 0 parses without IO, so there is nothing to await:
+const profile = profiles.reader(event).parse()        // validates + parse()
+
+// follow lists are public, but a mute list would decrypt — and then `parse()`
+// returns a promise the type makes you await:
+const list  = follows.reader(event).parse()
+const mutes = await MuteList.configure(context).reader(event).parse()
 ```
 
 `ConfiguredKind.reader` / `.writer` are instance arrow-function properties, so you can destructure them (`const {reader} = Profile.configure(ctx)`).
@@ -71,7 +74,7 @@ const template = await writer()
   .renderTemplate()                           // EventTemplate {kind, content, tags}
 
 // Edit an existing event (seed the writer from a reader):
-const reader = await FollowList.configure(context).reader(event)
+const reader = FollowList.configure(context).reader(event).parse()
 const w = FollowList.configure(context).writer(reader)   // seeded from reader
   .follow(pubkey)
 const {event: template2, relays} = await w.render()    // template + publish urls
@@ -108,7 +111,7 @@ The DSL constructors `relays(urls)` and `inboxes(pubkeys)` return **arrays** (sp
 
 ## Async & signer notes
 
-- **Async surface:** `configured.reader(event)`, and all of `renderTemplate`/`render`/`scenario`/`relays`/`renderTags` are async. Every getter and every setter is synchronous.
+- **Async surface:** all of `renderTemplate`/`render`/`scenario`/`relays`/`renderTags` are async. `reader(event).parse()` is async only for the kinds that decrypt (`ListReader` subclasses, `AppData`); every getter and every setter is synchronous.
 - **Reading private list tags:** a `ListReader` only surfaces `privateTags` when the context carries the **author's own** signer (it decrypts NIP-44 content only when `signer.getPubkey() === event.pubkey`). Decryption failures are swallowed — `decrypted` stays `false` and private tags stay empty.
 - **Writing private list tags:** `ListWriter.buildContent` is where encryption happens. If there are private tags it requires a signer and NIP-44-encrypts them to the author's own pubkey (`A signer is required to encrypt private tags`). If the source was never decrypted, the original ciphertext is preserved untouched (so you don't clobber tags you couldn't see).
 - **`renderTemplate()`** needs a signer only for list kinds with non-empty private tags. All other kinds ignore it. Signing (`signer.sign(stamp(...))`) always needs a signer.
@@ -253,7 +256,7 @@ command.publish()                                          // or .publishToRelay
 
 ## Gotchas
 
-- **Enter through a `ConfiguredKind`.** There is no `Profile.fromEvent(event)` / `Kind.read` / `Kind.factory` any more — do `Profile.configure(ctx).reader(event)` (or, in an app, `app.use(Domain).reader(Profile)`). Likewise no `new ProfileBuilder()` — do `configure(ctx).writer()`.
+- **Enter through a `ConfiguredKind`.** There is no `Profile.fromEvent(event)` / `Kind.read` / `Kind.factory` any more — do `Profile.configure(ctx).reader(event).parse()` (or, in an app, `app.use(Domain).reader(Profile)`). Likewise no `new ProfileBuilder()` — do `configure(ctx).writer()`.
 - **Output is `renderTemplate()`/`render()`, not `toTemplate`/`toEvent`.** The writer never signs; `renderTemplate()` gives an `EventTemplate` you sign yourself (`signer.sign(stamp(await writer.renderTemplate()))`), or hand the writer to `Domain.command`. `renderTemplate`/`scenario`/`relays`/`render` take **no** arguments — dependencies come from the context.
 - **Private list tags need the author's signer in the context.** With no signer (or someone else's) a `ListReader` yields only public tags; `decrypted` stays `false`. Bind the author's own signer to see private entries.
 - **Don't clobber undecryptable lists.** If you edit a list you couldn't decrypt and try to write private tags, `validate()` throws `Unable to modify list when decryption was not performed`. Editing only public tags is fine — the original ciphertext is preserved.
@@ -270,7 +273,7 @@ command.publish()                                          // or .publishToRelay
 | `Kind` class | `KindFactory` (+ `ConfiguredKind` after `.configure`) |
 | `EventBuilder` (base) / `XBuilder` | `EventWriter` / `XWriter` |
 | `ListBuilder` | `ListWriter` |
-| `X.fromEvent(event)` / `Kind.factory(event)` / `Kind.read(event)` | `factory.configure(ctx).reader(event)` (async; validates kind + `parse()`) |
+| `X.fromEvent(event)` / `Kind.factory(event)` / `Kind.read(event)` | `factory.configure(ctx).reader(event).parse()` (validates kind, then parses — await only for lists / app data) |
 | `Kind.builder(...)` / `new XBuilder(...)` | `factory.configure(ctx).writer(reader?)` |
 | `builder.toTemplate()` | `writer.renderTemplate()` → `Promise<EventTemplate>` |
 | `builder.toEvent(signer)` | `signer.sign(stamp(await writer.renderTemplate()))` |
@@ -286,11 +289,11 @@ These sit on top of an earlier round of removals — the free functions that onc
 
 | Old (`@welshman/util`) | New (`@welshman/domain`) |
 |---|---|
-| `readProfile(event)` | `await Profile.configure(ctx).reader(event)` |
+| `readProfile(event)` | `Profile.configure(ctx).reader(event).parse()` |
 | `makeProfile({...})` / editing | `Profile.configure(ctx).writer().setName(...)….renderTemplate()` |
-| `readList(event, signer)` | `await FollowList.configure(ctx).reader(event)` (or the kind-specific list reader) |
+| `readList(event, signer)` | `FollowList.configure(ctx).reader(event).parse()` (or the kind-specific list reader) |
 | `makeList({...})` | `FollowList.configure(ctx).writer().follow(...)….renderTemplate()` |
-| `readHandlers(event)` | `await Handler.configure(ctx).reader(event)` |
+| `readHandlers(event)` | `Handler.configure(ctx).reader(event).parse()` |
 | `Encryptable` (manual private-tag encrypt) | `ListWriter.buildContent` — `addPrivate(...)` then `renderTemplate()` (NIP-44, self) |
 | `makeRoomMetaEvent` / `makeRoomEditEvent` / … | `RoomMetaWriter` / `RoomEditWriter` / … via `configure(ctx).writer()` |
 
