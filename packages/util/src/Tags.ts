@@ -10,7 +10,8 @@ export type TagSpec<T = string> = {
   normalizeValue?: (value: string) => T
 }
 
-export const tagSpec = <T = string>(
+// prettier-ignore
+export const tagSpec = <T=string>(
   keys: string | string[],
   matchValue?: (value: string) => boolean,
   normalizeValue?: (value: string) => T,
