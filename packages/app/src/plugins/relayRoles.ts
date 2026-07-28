@@ -9,7 +9,7 @@ import type {IApp} from "../app.js"
 
 // Flotilla kind-33534 relay roles are addressable (d = role id) and published
 // by a relay's self key, so key them by `${url}|${d}` — the `|` separator keeps
-// them distinct from the `'`-separated group keys and never appears in a url.
+// them distinct from the `'`-separated room keys and never appears in a url.
 export const makeRelayRoleKey = (url: string, d: string) => `${url}|${d}`
 
 export const splitRelayRoleKey = (key: string): [string, string] => {

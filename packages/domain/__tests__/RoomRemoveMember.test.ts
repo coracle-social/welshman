@@ -51,7 +51,7 @@ describe("RoomRemoveMember", () => {
     )
 
     const tmpl = await buildTemplate(
-      write(RoomRemoveMember, op).setGroup("wss://relay.example.com/", "room1"),
+      write(RoomRemoveMember, op).setRoom("wss://relay.example.com/", "room1"),
       signer,
     )
 
@@ -63,7 +63,7 @@ describe("RoomRemoveMember", () => {
 
   it("builds from a fresh remove builder", async () => {
     const tmpl = await buildTemplate(
-      write(RoomRemoveMember).setGroup("wss://relay.example.com/", "room2").addPubkey(a),
+      write(RoomRemoveMember).setRoom("wss://relay.example.com/", "room2").addPubkey(a),
       signer,
     )
 

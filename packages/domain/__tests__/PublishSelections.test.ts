@@ -44,10 +44,10 @@ describe("writer routing", () => {
     expect(relays).toContain(SEEN)
   })
 
-  it("a NIP-29 group publish routes only to the group relay", async () => {
-    const url = "wss://groups.example.com/"
+  it("a NIP-29 room publish routes only to the room relay", async () => {
+    const url = "wss://rooms.example.com/"
     const relays = await publishRelays(
-      write(RoomCreate, undefined, markerResolver).setGroup(url, "x"),
+      write(RoomCreate, undefined, markerResolver).setRoom(url, "x"),
     )
 
     expect(relays).toEqual([url])

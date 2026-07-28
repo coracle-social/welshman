@@ -21,8 +21,8 @@ export class RoomJoinWriter extends EventWriter<RoomJoinReader> {
   validate() {
     super.validate()
 
-    if (!this.groupTag) {
-      throw new Error("RoomJoin requires a group")
+    if (!this.roomTag) {
+      throw new Error("RoomJoin requires a room")
     }
   }
 }

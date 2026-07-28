@@ -8,10 +8,10 @@ import {buildTemplate, buildEvent, read, write, publishRelays, markerResolver} f
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
 
-const relayA = "wss://groups.example.com/"
+const relayA = "wss://rooms.example.com/"
 const relayB = "wss://other.example.com/"
-const groupA = "groupa"
-const groupB = "groupb"
+const roomA = "rooma"
+const roomB = "roomb"
 
 const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
   ({
@@ -26,29 +26,29 @@ const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
   }) as TrustedEvent
 
 describe("RoomList", () => {
-  it("reads joined groups", async () => {
+  it("reads joined rooms", async () => {
     const reader = await read(
       RoomList,
       makeEvent({
         tags: [
-          ["group", groupA, relayA],
+          ["group", roomA, relayA],
           ["alt", "x"],
         ],
       }),
     )
 
-    expect(reader.groups()).toEqual([groupA])
-    expect(reader.groupTags()).toEqual([["group", groupA, relayA]])
+    expect(reader.rooms()).toEqual([roomA])
+    expect(reader.roomTags()).toEqual([["group", roomA, relayA]])
   })
 
-  it("reads relays and urls from r tags and group relay hints", async () => {
+  it("reads relays and urls from r tags and room relay hints", async () => {
     const reader = await read(
       RoomList,
       makeEvent({
         tags: [
           ["r", relayA],
-          ["group", groupA, relayA],
-          ["group", groupB, "other.example.com"],
+          ["group", roomA, relayA],
+          ["group", roomB, "other.example.com"],
         ],
       }),
     )
@@ -57,19 +57,19 @@ describe("RoomList", () => {
     expect(reader.urls()).toEqual([relayA, relayB])
   })
 
-  it("reads groups scoped to a url", async () => {
+  it("reads rooms scoped to a url", async () => {
     const reader = await read(
       RoomList,
       makeEvent({
         tags: [
-          ["group", groupA, relayA],
-          ["group", groupB, "other.example.com"],
+          ["group", roomA, relayA],
+          ["group", roomB, "other.example.com"],
         ],
       }),
     )
 
-    expect(reader.groupsForUrl(relayA)).toEqual([groupA])
-    expect(reader.groupsForUrl(relayB)).toEqual([groupB])
+    expect(reader.roomsForUrl(relayA)).toEqual([roomA])
+    expect(reader.roomsForUrl(relayB)).toEqual([roomB])
   })
 
   it("round-trips without duplicating represented tags", async () => {
@@ -77,7 +77,7 @@ describe("RoomList", () => {
       RoomList,
       makeEvent({
         tags: [
-          ["group", groupA, relayA],
+          ["group", roomA, relayA],
           ["alt", "x"],
         ],
       }),
@@ -89,33 +89,33 @@ describe("RoomList", () => {
     expect(tmpl.tags).toContainEqual(["alt", "x"])
   })
 
-  it("joins and leaves groups via a fresh builder", async () => {
+  it("joins and leaves rooms via a fresh builder", async () => {
     const tmpl = await buildTemplate(
-      write(RoomList).addGroup(groupA, relayA).addGroup(groupB, relayA).removeGroup(groupA),
+      write(RoomList).addRoom(roomA, relayA).addRoom(roomB, relayA).removeRoom(roomA),
       signer,
     )
 
     expect(tmpl.kind).toBe(ROOMS)
-    expect(tmpl.tags).toContainEqual(["group", groupB, relayA])
-    expect(tmpl.tags.some(t => t[1] === groupA)).toBe(false)
+    expect(tmpl.tags).toContainEqual(["group", roomB, relayA])
+    expect(tmpl.tags.some(t => t[1] === roomA)).toBe(false)
   })
 
-  it("leaves groups scoped to a url", async () => {
+  it("leaves rooms scoped to a url", async () => {
     const tmpl = await buildTemplate(
       write(RoomList)
-        .addGroup(groupA, relayA)
-        .addGroup(groupA, relayB)
-        .removeGroup(groupA, "other.example.com"),
+        .addRoom(roomA, relayA)
+        .addRoom(roomA, relayB)
+        .removeRoom(roomA, "other.example.com"),
       signer,
     )
 
-    expect(tmpl.tags).toContainEqual(["group", groupA, relayA])
-    expect(tmpl.tags).not.toContainEqual(["group", groupA, relayB])
+    expect(tmpl.tags).toContainEqual(["group", roomA, relayA])
+    expect(tmpl.tags).not.toContainEqual(["group", roomA, relayB])
   })
 
   it("adds relays without duplicating normalized urls", async () => {
     const tmpl = await buildTemplate(
-      write(RoomList).addRelay(relayA).addRelay("groups.example.com").addRelay(relayB),
+      write(RoomList).addRelay(relayA).addRelay("rooms.example.com").addRelay(relayB),
       signer,
     )
 
@@ -125,38 +125,38 @@ describe("RoomList", () => {
     ])
   })
 
-  it("removes relays along with their group tags", async () => {
+  it("removes relays along with their room tags", async () => {
     const tmpl = await buildTemplate(
       write(RoomList)
         .addRelay(relayA)
         .addRelay(relayB)
-        .addGroup(groupA, relayA)
-        .addGroup(groupB, relayB)
-        .removeRelay("groups.example.com"),
+        .addRoom(roomA, relayA)
+        .addRoom(roomB, relayB)
+        .removeRelay("rooms.example.com"),
       signer,
     )
 
     expect(tmpl.tags).toEqual([
       ["r", relayB],
-      ["group", groupB, relayB],
+      ["group", roomB, relayB],
     ])
   })
 
-  it("round-trips public and private groups through encryption", async () => {
+  it("round-trips public and private rooms through encryption", async () => {
     const event = await buildEvent(
-      write(RoomList).addGroup(groupA, relayA).addPrivate(["group", groupB, relayA]),
+      write(RoomList).addRoom(roomA, relayA).addPrivate(["group", roomB, relayA]),
       signer,
     )
 
     const decrypted = await read(RoomList, event, signer)
 
     expect(decrypted.decrypted).toBe(true)
-    expect(decrypted.groups().sort()).toEqual([groupA, groupB].sort())
+    expect(decrypted.rooms().sort()).toEqual([roomA, roomB].sort())
 
     const publicOnly = await read(RoomList, event)
 
     expect(publicOnly.decrypted).toBe(false)
-    expect(publicOnly.groups()).toEqual([groupA])
+    expect(publicOnly.rooms()).toEqual([roomA])
   })
 
   it("routes to both original and current relays so dropped relays are notified", async () => {
@@ -165,12 +165,12 @@ describe("RoomList", () => {
       makeEvent({
         tags: [
           ["r", relayA],
-          ["group", groupB, relayB],
+          ["group", roomB, relayB],
         ],
       }),
     )
 
-    // Drop relayA (and its groups); relayB stays via its group hint.
+    // Drop relayA (and its rooms); relayB stays via its room hint.
     const writer = write(RoomList, reader, markerResolver).removeRelay(relayA)
     const urls = await publishRelays(writer)
 

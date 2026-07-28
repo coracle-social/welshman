@@ -3,7 +3,7 @@ import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
 
-// NIP-29 kind-9022 room leave op. The target room is the "h" group tag.
+// NIP-29 kind-9022 room leave op. The target room is the "h" tag.
 export class RoomLeaveReader extends EventReader {}
 
 export class RoomLeaveWriter extends EventWriter<RoomLeaveReader> {
@@ -12,8 +12,8 @@ export class RoomLeaveWriter extends EventWriter<RoomLeaveReader> {
   validate() {
     super.validate()
 
-    if (!this.groupTag) {
-      throw new Error("RoomLeave requires a group")
+    if (!this.roomTag) {
+      throw new Error("RoomLeave requires a room")
     }
   }
 }

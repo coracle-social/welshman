@@ -3,7 +3,7 @@ import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
 
-// NIP-29 kind-9008 delete-room op. The target room is the "h" group tag.
+// NIP-29 kind-9008 delete-room op. The target room is the "h" tag.
 export class RoomDeleteReader extends EventReader {}
 
 export class RoomDeleteWriter extends EventWriter<RoomDeleteReader> {
@@ -12,8 +12,8 @@ export class RoomDeleteWriter extends EventWriter<RoomDeleteReader> {
   validate() {
     super.validate()
 
-    if (!this.groupTag) {
-      throw new Error("RoomDelete requires an h group")
+    if (!this.roomTag) {
+      throw new Error("RoomDelete requires a room")
     }
   }
 }

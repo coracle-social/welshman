@@ -34,7 +34,7 @@ describe("RoomJoin", () => {
       }),
     )
 
-    expect(join.group()).toBe("room1")
+    expect(join.room()).toBe("room1")
     expect(join.claim()).toBe("invite-code")
     expect(join.content()).toBe("please let me in")
   })
@@ -53,7 +53,7 @@ describe("RoomJoin", () => {
     )
 
     const tmpl = await buildTemplate(
-      write(RoomJoin, join).setGroup("wss://relay.example.com/", "room1"),
+      write(RoomJoin, join).setRoom("wss://relay.example.com/", "room1"),
       signer,
     )
 
@@ -72,7 +72,7 @@ describe("RoomJoin", () => {
   it("builds from a fresh builder", async () => {
     const tmpl = await buildTemplate(
       write(RoomJoin)
-        .setGroup("wss://relay.example.com/", "room2")
+        .setRoom("wss://relay.example.com/", "room2")
         .setClaim("xyz")
         .setContent("hi there"),
       signer,
@@ -83,7 +83,7 @@ describe("RoomJoin", () => {
     expect(tmpl.content).toBe("hi there")
   })
 
-  it("requires an h/group", async () => {
+  it("requires a room", async () => {
     await expect(buildTemplate(write(RoomJoin).setClaim("xyz"), signer)).rejects.toThrow()
   })
 

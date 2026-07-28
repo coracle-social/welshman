@@ -6,7 +6,7 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-9002 edit-room-metadata action op. Carries the same metadata as the
 // addressable RoomMeta (kind 39000), but as a regular event scoped to the target
-// room via the "h" group tag rather than a "d" identifier.
+// room via the "h" tag rather than a "d" identifier.
 export class RoomEditReader extends EventReader {
   name() {
     return tagValue(tagSpec("name"), this.event.tags)
@@ -93,8 +93,8 @@ export class RoomEditWriter extends EventWriter<RoomEditReader> {
   validate() {
     super.validate()
 
-    if (!this.groupTag) {
-      throw new Error("RoomEdit requires a group")
+    if (!this.roomTag) {
+      throw new Error("RoomEdit requires a room")
     }
   }
 }

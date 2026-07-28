@@ -20,12 +20,12 @@ export class Reactions {
   ): Promise<Command> => {
     const writer = this.app.use(Domain).writer(Reaction).setContent(content).setEvent(event)
 
-    // A reaction to a NIP-29 group message goes to the group's relay — where the
+    // A reaction to a NIP-29 room message goes to the room's relay — where the
     // target event lives (per the tracker).
-    const group = tagValue(tagSpec("h"), event.tags)
+    const room = tagValue(tagSpec("h"), event.tags)
     const [url] = this.app.tracker.getRelays(event.id)
 
-    if (group && url) writer.setGroup(url, group)
+    if (room && url) writer.setRoom(url, room)
 
     fn?.(writer)
 

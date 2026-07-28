@@ -100,10 +100,10 @@ Some events must publish to explicit relays, bypassing outbox/inbox routing. Whe
 
 ```typescript
 writer.forceRelays("wss://relay.example.com/")  // publish only here
-writer.setGroup("wss://groups.example.com/", groupId)  // forcedRelays + an "h" tag
+writer.setRoom("wss://rooms.example.com/", roomId)  // forcedRelays + an "h" tag
 ```
 
-NIP-29 room ops and relay-management ops set `requiresRelays = true`, so their `validate()` throws unless `forcedRelays` is set (via `setGroup` or `forceRelays`).
+NIP-29 room ops and relay-management ops set `requiresRelays = true`, so their `validate()` throws unless `forcedRelays` is set (via `setRoom` or `forceRelays`).
 
 ## Relay quality
 

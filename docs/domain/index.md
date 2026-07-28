@@ -118,7 +118,7 @@ const signed = await signer.sign(stamp(template))
 - [Readers & Writers](./readers-and-writers) — the `EventReader`/`AsyncEventReader`/`EventWriter` and `ListReader`/`ListWriter` base classes in depth: `KindFactory`/`ConfiguredKind` and the context, which kinds parse synchronously and which have to be awaited, getters/setters, the `renderTemplate`/`render` pipeline, routing (`scenario`/`relays`), validation, extra-tag passthrough, relay hints, and how list encryption works.
 - [Profile](./profile) — kind-0 metadata (`ProfileReader` / `ProfileWriter`).
 - [Lists](./lists) — NIP-51 public/private lists: follows, mutes, pins, bookmarks, relay sets, and friends.
-- [Rooms](./rooms) — NIP-29 group rooms: metadata, membership, and the join/leave/create/delete ops.
+- [Rooms](./rooms) — NIP-29 rooms: metadata, membership, and the join/leave/create/delete ops.
 - [Relay membership](./relay-membership) — Flotilla relay/space membership ops and snapshots.
 - [Handlers](./handlers) — NIP-89 handler information and recommendations.
 - [Zaps](./zaps) — NIP-57/NIP-75 zap requests, receipts, and goals.

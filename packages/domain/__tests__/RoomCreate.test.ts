@@ -7,7 +7,7 @@ import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
-const group = "abcd1234"
+const room = "abcd1234"
 
 const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
   ({
@@ -22,37 +22,37 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
   }) as TrustedEvent
 
 describe("RoomCreate", () => {
-  it("round-trips the group behavior tag without duplication", async () => {
+  it("round-trips the room behavior tag without duplication", async () => {
     const create = await read(
       RoomCreate,
       makeEvent({
         tags: [
-          ["h", group],
+          ["h", room],
           ["alt", "x"],
         ],
       }),
     )
 
-    expect(create.group()).toBe(group)
+    expect(create.room()).toBe(room)
 
     const tmpl = await buildTemplate(
-      write(RoomCreate, create).setGroup("wss://relay.example.com/", group),
+      write(RoomCreate, create).setRoom("wss://relay.example.com/", room),
       signer,
     )
 
     expect(tmpl.kind).toBe(ROOM_CREATE)
     expect(tmpl.tags.filter(t => t[0] === "h").length).toBe(1)
-    expect(tmpl.tags).toContainEqual(["h", group])
+    expect(tmpl.tags).toContainEqual(["h", room])
     expect(tmpl.tags).toContainEqual(["alt", "x"])
   })
 
-  it("sets the group via a fresh builder", async () => {
+  it("sets the room via a fresh builder", async () => {
     const tmpl = await buildTemplate(
-      write(RoomCreate).setGroup("wss://relay.example.com/", group),
+      write(RoomCreate).setRoom("wss://relay.example.com/", room),
       signer,
     )
 
-    expect(tmpl.tags).toContainEqual(["h", group])
+    expect(tmpl.tags).toContainEqual(["h", room])
   })
 
   it("throws on the wrong kind", async () => {

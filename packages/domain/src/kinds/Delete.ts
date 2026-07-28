@@ -48,7 +48,7 @@ export class DeleteWriter extends EventWriter<DeleteReader> {
     ]
   }
 
-  addEvent(event: TrustedEvent, groupUrl?: string) {
+  addEvent(event: TrustedEvent, roomUrl?: string) {
     const eTag = ["e", event.id, ""]
 
     this.addTags(eTag, ["k", String(event.kind)])
@@ -67,16 +67,16 @@ export class DeleteWriter extends EventWriter<DeleteReader> {
       })
     }
 
-    // If the deleted event was a NIP-29 group event, the delete must carry the
+    // If the deleted event was a NIP-29 room event, the delete must carry the
     // same "h" tag and publish to the relay the event lives on (the hint).
-    const group = tagValue(tagSpec("h"), event.tags)
+    const room = tagValue(tagSpec("h"), event.tags)
 
-    if (group) {
-      if (!groupUrl) {
-        throw new Error("Deletions of group events must be published to a group url")
+    if (room) {
+      if (!roomUrl) {
+        throw new Error("Deletions of room events must be published to a room url")
       }
 
-      this.setGroup(groupUrl, group)
+      this.setRoom(roomUrl, room)
     }
 
     return this

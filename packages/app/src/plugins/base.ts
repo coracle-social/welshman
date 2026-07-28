@@ -249,7 +249,7 @@ export type RelayScopedDerivedPluginOptions<T> = {
  * `getKey(item, url)` once per relay it was seen on (via the tracker), so the
  * same addressable coordinate on two relays stays two distinct entries. Use it
  * for collections that only make sense relative to a relay — NIP-29 rooms
- * (`${url}'${group}`), relay roles (`${url}|${d}`), per-relay replaceables
+ * (`${url}'${room}`), relay roles (`${url}|${d}`), per-relay replaceables
  * (`${url}`). Subclasses implement `fetch` (loading from the relevant relay).
  */
 export abstract class RelayScopedDerivedPlugin<T> {

@@ -35,7 +35,7 @@ export class TagParser {
 
 export abstract class EventWriter<Reader extends BaseEventReader> {
   content = ""
-  groupTag?: string[]
+  roomTag?: string[]
   protectTag?: string[]
   expirationTag?: string[]
   identifierTag?: string[]
@@ -43,7 +43,7 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
   forcedRelays?: string[]
   pendingResolves: Promise<unknown>[] = []
 
-  // Kinds that must publish to explicit relays (e.g. NIP-29 group events) set this.
+  // Kinds that must publish to explicit relays (e.g. NIP-29 room events) set this.
   // Annotated `boolean` (not the inferred literal `false`) so subclasses can override.
   readonly requiresRelays: boolean = false
 
@@ -56,7 +56,7 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
       const parser = new TagParser(reader.event.tags)
 
       this.content = reader.event.content
-      this.groupTag = first(parser.consume("h"))
+      this.roomTag = first(parser.consume("h"))
       this.protectTag = first(parser.consume("-"))
       this.expirationTag = first(parser.consume("expiration"))
       this.identifierTag = first(parser.consume("d"))
@@ -70,16 +70,16 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
     return this
   }
 
-  setGroup(url: string, group: string) {
+  setRoom(url: string, room: string) {
     this.forcedRelays = [normalizeRelayUrl(url)]
-    this.groupTag = ["h", group]
+    this.roomTag = ["h", room]
 
     return this
   }
 
-  clearGroup() {
+  clearRoom() {
     this.forcedRelays = undefined
-    this.groupTag = undefined
+    this.roomTag = undefined
 
     return this
   }
@@ -202,13 +202,13 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
       throw new Error(`A d tag is required for kind ${this.kind}`)
     }
 
-    if (this.groupTag && !this.forcedRelays?.length) {
-      throw new Error("A group event requires a relay url (set the group via setGroup)")
+    if (this.roomTag && !this.forcedRelays?.length) {
+      throw new Error("A room event requires a relay url (set the room via setRoom)")
     }
 
     if (this.requiresRelays && !this.forcedRelays?.length) {
       throw new Error(
-        `A kind ${this.kind} event must publish to explicit relays (via setGroup or forceRelays)`,
+        `A kind ${this.kind} event must publish to explicit relays (via setRoom or forceRelays)`,
       )
     }
   }
@@ -239,7 +239,7 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
    * Returns a list of tags that may be attached to any kind.
    */
   protected renderBehaviorTags(): MaybeAsync<string[][]> {
-    return removeUndefined([this.groupTag, this.protectTag, this.expirationTag, this.identifierTag])
+    return removeUndefined([this.roomTag, this.protectTag, this.expirationTag, this.identifierTag])
   }
 
   /**
@@ -292,7 +292,7 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
 
   /**
    * Returns a router scenario for this event. Publishes to forced relays (e.g. a
-   * NIP-29 group) when set, otherwise to the rendered routes.
+   * NIP-29 room) when set, otherwise to the rendered routes.
    */
   async scenario(): Promise<RelayScenario> {
     const routes = this.forcedRelays?.length ? relays(this.forcedRelays) : await this.renderRoutes()
