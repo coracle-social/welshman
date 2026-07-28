@@ -1,4 +1,3 @@
-import {writable, get} from "svelte/store"
 import type {Readable} from "svelte/store"
 import {
   removeUndefined,
@@ -13,7 +12,7 @@ import type {Maybe} from "@welshman/lib"
 import {tagSpec, tagValue} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {getZapSplits, Zapper, ZapReceipt} from "@welshman/domain"
-import type {Zap, ProfileReader, ZapReceiptReader} from "@welshman/domain"
+import type {Zap, ProfileReader} from "@welshman/domain"
 import {deriveDeduplicated, deriveDeduplicatedByValue} from "@welshman/store"
 import {LoadableMapPlugin, projection} from "./base.js"
 import type {Projection} from "./base.js"
@@ -136,16 +135,11 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
       this.loadForPubkey(split.pubkey, removeUndefined([split.relay]))
     }
 
-    const receipts = writable<ZapReceiptReader[]>([])
-
-    void Promise.all(zapReceipts.map(event => readReceipt(event).catch(() => undefined))).then(
-      $readers => receipts.set(removeUndefined($readers)),
-    )
+    const receipts = removeUndefined(zapReceipts.map(event => tryCatch(() => readReceipt(event))))
 
     const read = (values: any[]) => {
-      const $receipts = values[0] as ZapReceiptReader[]
-      const $zappersByLnurl = values[1] as Map<string, Zapper>
-      const $profiles = values.slice(2) as Array<ProfileReader | undefined>
+      const $zappersByLnurl = values[0] as Map<string, Zapper>
+      const $profiles = values.slice(1) as Array<ProfileReader | undefined>
 
       const zapperByPubkey = new Map<string, Zapper>()
 
@@ -157,7 +151,7 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
       })
 
       return removeUndefined(
-        $receipts.map(receipt => {
+        receipts.map(receipt => {
           const recipient = receipt.recipient()
           const zapper = recipient ? zapperByPubkey.get(recipient) : undefined
 
@@ -167,13 +161,12 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
     }
 
     const stores: Readable<any>[] = [
-      receipts,
       this.index.$,
       ...splits.map(split => profiles.one(split.pubkey)),
     ]
 
     return projection(deriveDeduplicatedByValue(stores, read), () =>
-      read([get(receipts), this.index.get(), ...splits.map(split => profiles.get(split.pubkey))]),
+      read([this.index.get(), ...splits.map(split => profiles.get(split.pubkey))]),
     )
   }
 }

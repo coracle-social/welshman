@@ -1,14 +1,14 @@
 import {parseJson} from "@welshman/lib"
 import {decrypt} from "@welshman/signer"
 import {APP_DATA} from "@welshman/util"
-import {EventReader} from "../core/EventReader.js"
+import {AsyncEventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 
 // NIP-78 kind-30078 arbitrary app data, keyed by `d` tag. Content is JSON,
 // optionally NIP-44 encrypted to the author.
-export class AppDataReader extends EventReader {
+export class AppDataReader extends AsyncEventReader {
   decrypted = false
   encrypted = false
 
@@ -20,7 +20,7 @@ export class AppDataReader extends EventReader {
     if (!this.event.content) {
       this.decrypted = true
 
-      return
+      return this
     }
 
     const json = parseJson(this.event.content)
@@ -29,7 +29,7 @@ export class AppDataReader extends EventReader {
       this.json = json
       this.decrypted = true
 
-      return
+      return this
     }
 
     this.encrypted = true
@@ -42,6 +42,8 @@ export class AppDataReader extends EventReader {
         // pass
       }
     }
+
+    return this
   }
 
   values<T>() {

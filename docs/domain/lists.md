@@ -1,12 +1,12 @@
 # Lists
 
-NIP-51 lists — follows, mutes, pins, bookmarks, relay lists, and friends — all share one shape: a set of **public** tags and, for the lists that support it, an optional set of **private** tags that are NIP-44-encrypted into the event's content, self-encrypted to the author. The lists with a private half are thin subclasses of `ListReader` / `ListWriter`; the relay-config lists that keep everything public subclass the plain `EventReader` / `EventWriter` instead. Once you know the shared pattern you know all of them. The base classes are documented in depth in [Readers & Writers](./readers-and-writers); this page covers the per-kind getters and setters.
+NIP-51 lists — follows, mutes, pins, bookmarks, relay lists, and friends — all share one shape: a set of **public** tags and, for the lists that support it, an optional set of **private** tags that are NIP-44-encrypted into the event's content, self-encrypted to the author. The lists with a private half are thin subclasses of `ListReader` / `ListWriter` — the only readers besides `AppData` whose `parse()` you have to await, since decrypting is IO; the relay-config lists that keep everything public subclass the plain `EventReader` / `EventWriter` and parse synchronously. Once you know the shared pattern you know all of them. The base classes are documented in depth in [Readers & Writers](./readers-and-writers); this page covers the per-kind getters and setters.
 
 ## The shared pattern
 
 Like every kind in `@welshman/domain`, each list is a `KindFactory` that you `configure` **once** with a `KindContext` (resolver, optional signer, optional repository) to get a `ConfiguredKind`, whose `reader(event)` / `writer(reader?)` build the instances. In an app you get this through the `Domain` plugin; standalone you configure the factory yourself.
 
-A `ListReader` exposes its tags as a merged view (`publicTags` + `privateTags`), and every getter reads through that merged view. **Private tags only decrypt when the context signer is the list author** — `parse()` reads the signer off `def.context.signer` and only decrypts when `signer.getPubkey()` matches the event's author. Reading someone else's list, or your own without a signer in context, yields public tags only.
+A `ListReader` exposes its tags as a merged view (`publicTags` + `privateTags`), and every getter reads through that merged view. **Private tags only decrypt when the context signer is the list author** — `parse()` reads the signer off `this.context.signer` and only decrypts when `signer.getPubkey()` matches the event's author. Reading someone else's list, or your own without a signer in context, yields public tags only.
 
 ```typescript
 import {MuteList} from "@welshman/domain"
@@ -16,7 +16,7 @@ import {MuteList} from "@welshman/domain"
 const mutes = await app.use(Domain).reader(MuteList)(event)
 
 // Standalone: bind the signer into the context to decrypt private tags.
-const mutes = await MuteList.configure({resolver, signer}).reader(event)
+const mutes = await MuteList.configure({resolver, signer}).reader(event).parse()
 
 mutes.pubkeys()          // both public and private mutes, when decrypted
 mutes.includes(somePk)   // boolean

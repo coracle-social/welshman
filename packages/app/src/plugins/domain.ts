@@ -1,4 +1,11 @@
-import type {EventReader, EventWriter, KindFactory, ConfiguredKind} from "@welshman/domain"
+import type {TrustedEvent} from "@welshman/util"
+import type {
+  BaseEventReader,
+  EventWriter,
+  KindFactory,
+  ConfiguredKind,
+  Parsed,
+} from "@welshman/domain"
 import {Router} from "./router.js"
 import {Command} from "../command.js"
 import {User} from "../user.js"
@@ -15,7 +22,7 @@ export class Domain {
   // Configure a kind, memoized per factory. The signer is resolved lazily — app
   // policies can swap it (via `wrapSigner`) after construction — while the resolver
   // is stable for the app's lifetime. The domain guards against a missing signer.
-  configure = <R extends EventReader, W extends EventWriter<R>>(
+  configure = <R extends BaseEventReader, W extends EventWriter<R>>(
     factory: KindFactory<R, W>,
   ): ConfiguredKind<R, W> => {
     let configured = this.configured.get(factory) as ConfiguredKind<R, W> | undefined
@@ -37,10 +44,16 @@ export class Domain {
     return configured
   }
 
-  reader = <R extends EventReader, W extends EventWriter<R>>(factory: KindFactory<R, W>) =>
-    this.configure(factory).reader
+  // An event-to-reader function for a kind, parsed and ready to use. The result is
+  // the reader itself for kinds that parse synchronously and a promise of it for
+  // kinds that decrypt, which is exactly what `EventToItem` accepts — so
+  // collections keep their sync path where the kind allows one.
+  reader =
+    <R extends BaseEventReader, W extends EventWriter<R>>(factory: KindFactory<R, W>) =>
+    (event: TrustedEvent): Parsed<R> =>
+      this.configure(factory).reader(event).parse() as Parsed<R>
 
-  writer = <R extends EventReader, W extends EventWriter<R>>(
+  writer = <R extends BaseEventReader, W extends EventWriter<R>>(
     factory: KindFactory<R, W>,
     reader?: R,
   ): W => this.configure(factory).writer(reader)

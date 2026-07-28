@@ -2,7 +2,7 @@
 
 NIP-89 lets clients advertise which event kinds they can handle, and lets users recommend handlers to each other. `@welshman/domain` models both sides: `Handler` (the handler's own information) and `HandlerRecommendation` (a user pointing at a handler). Both are parameterized-replaceable, so their writers need a `d` tag (`setIdentifier()`). See [Readers & Writers](./readers-and-writers) for the base pattern.
 
-Both kinds are `KindFactory` instances — you `configure(context)` a factory once to get a `ConfiguredKind`, then call `.reader(event)` (async) or `.writer(reader?)` on it. In `@welshman/app`, the `Domain` plugin owns the context for you.
+Both kinds are `KindFactory` instances — you `configure(context)` a factory once to get a `ConfiguredKind`, then call `.reader(event).parse()` (synchronous for both of these kinds) or `.writer(reader?)` on it. In `@welshman/app`, the `Domain` plugin owns the context for you.
 
 ## Handler information (kind 31990)
 
@@ -12,7 +12,7 @@ Both kinds are `KindFactory` instances — you `configure(context)` a factory on
 import {Handler} from "@welshman/domain"
 import type {HandlerMeta} from "@welshman/domain"
 
-const handler = await Handler.configure(context).reader(event)
+const handler = Handler.configure(context).reader(event).parse()
 handler.name()       // string | undefined
 handler.about()      // string | undefined
 handler.picture()    // string | undefined
@@ -44,7 +44,7 @@ Available setters: `setName`, `setAbout`, `setPicture`, `setWebsite`, `setLud16`
 ```typescript
 import {HandlerRecommendation} from "@welshman/domain"
 
-const rec = await HandlerRecommendation.configure(context).reader(event)
+const rec = HandlerRecommendation.configure(context).reader(event).parse()
 rec.addressTags()     // raw a-tags, e.g. [["a", "31990:pk:d", "wss://…", "web"]]
 rec.addresses()       // just the address values
 rec.handlerAddress()  // prefers the a-tag whose last element is "web", else the first → tag[1]

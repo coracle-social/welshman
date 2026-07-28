@@ -1,6 +1,6 @@
 import type {TrustedEvent, Resolver} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
-import type {EventReader} from "./EventReader.js"
+import type {BaseEventReader} from "./EventReader.js"
 import type {EventWriter} from "./EventWriter.js"
 
 export type KindContext = {
@@ -8,7 +8,7 @@ export type KindContext = {
   signer?: ISigner
 }
 
-export type KindConfig<Reader extends EventReader, Writer extends EventWriter<Reader>> = {
+export type KindConfig<Reader extends BaseEventReader, Writer extends EventWriter<Reader>> = {
   kind: number
   reader: new (kind: number, context: KindContext, event: TrustedEvent) => Reader
   writer: new (kind: number, context: KindContext, reader?: Reader) => Writer
@@ -21,7 +21,7 @@ export type KindConfig<Reader extends EventReader, Writer extends EventWriter<Re
  * ProfileReader, writer: ProfileWriter})`, then `Profile.kind` reads the number and
  * `Profile.configure(context)` binds the app's dependencies once.
  */
-export class KindFactory<Reader extends EventReader, Writer extends EventWriter<Reader>> {
+export class KindFactory<Reader extends BaseEventReader, Writer extends EventWriter<Reader>> {
   constructor(readonly config: KindConfig<Reader, Writer>) {}
 
   get kind(): number {
@@ -37,7 +37,7 @@ export class KindFactory<Reader extends EventReader, Writer extends EventWriter<
  * A kind bound to a `KindContext`. Produces readers and writers which share the
  * configured dependencies.
  */
-export class ConfiguredKind<Reader extends EventReader, Writer extends EventWriter<Reader>> {
+export class ConfiguredKind<Reader extends BaseEventReader, Writer extends EventWriter<Reader>> {
   constructor(
     readonly config: KindConfig<Reader, Writer>,
     readonly context: KindContext,
@@ -47,14 +47,11 @@ export class ConfiguredKind<Reader extends EventReader, Writer extends EventWrit
     return this.config.kind
   }
 
-  // Build a reader for an existing event, awaiting `parse` (decryption, etc.).
-  reader = async (event: TrustedEvent): Promise<Reader> => {
-    const reader = new this.config.reader(this.config.kind, this.context, event)
-
-    await reader.parse()
-
-    return reader
-  }
+  // Build a reader for an existing event. It arrives unparsed — chain `parse()`,
+  // which returns the reader for sync kinds and a promise of it for kinds that
+  // decrypt. `await kind.reader(event).parse()` is correct for either.
+  reader = (event: TrustedEvent): Reader =>
+    new this.config.reader(this.config.kind, this.context, event)
 
   // Build a writer. Pass a reader to edit its event, or omit to draft a new one.
   writer = (reader?: Reader): Writer =>

@@ -8,16 +8,16 @@ The content of a kind-0 event is a JSON object, so `ProfileReader.parse` decodes
 
 ## Reading
 
-`ConfiguredKind.reader(event)` is async: it validates the event kind and runs `parse()`.
+`ConfiguredKind.reader(event)` validates the event kind and builds the reader; `parse()` populates it. Kind 0 parses synchronously, so there is nothing to await.
 
 ```typescript
 import {Profile} from "@welshman/domain"
 
 // In an app:
-const profile = await app.use(Domain).reader(Profile)(event)
+const profile = app.use(Domain).reader(Profile)(event)
 
 // Standalone (kind 0 is not encrypted, so no signer is needed):
-const profile = await Profile.configure({resolver}).reader(event)
+const profile = Profile.configure({resolver}).reader(event).parse()
 
 profile.name()            // string | undefined
 profile.about()           // string | undefined

@@ -11,7 +11,7 @@ import {
   relays,
 } from "@welshman/util"
 import type {EventTemplate, TrustedEvent, RelaySelection, RelayScenario} from "@welshman/util"
-import type {EventReader} from "./EventReader.js"
+import type {BaseEventReader} from "./EventReader.js"
 import type {KindContext} from "./Kind.js"
 
 // A cursor over a tag list that splits out tags by key as they're consumed,
@@ -33,7 +33,7 @@ export class TagParser {
   }
 }
 
-export abstract class EventWriter<Reader extends EventReader> {
+export abstract class EventWriter<Reader extends BaseEventReader> {
   content = ""
   groupTag?: string[]
   protectTag?: string[]

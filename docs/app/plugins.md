@@ -137,7 +137,7 @@ class Domain {
   constructor(app: IApp)
 
   configure(factory: KindFactory): ConfiguredKind   // memoized per factory
-  reader(factory: KindFactory): (event) => Promise<Reader>
+  reader(factory: KindFactory): (event) => Parsed<Reader>
   writer(factory: KindFactory, reader?: Reader): Writer
   command(writer: EventWriter): Promise<Command>
 }
@@ -157,18 +157,22 @@ The `signer` is a **lazy getter** so app auth policies can replace it (via `wrap
 
 ### Reading — `reader(factory)`
 
-`reader(factory)` returns the configured kind's async `reader` function: `(event) => Promise<Reader>`. It validates the event's kind and runs `parse()` (which, for encrypted lists, decrypts private tags using the app's signer). This is exactly the shape a `DerivedPlugin` wants for its `eventToItem` decoder:
+`reader(factory)` returns an `(event) => Parsed<Reader>` function: it validates the event's kind, builds the reader, and runs `parse()`. Most kinds parse synchronously, so you get the reader back directly; the private-tag lists and `AppData` decrypt with the app's signer and hand back a promise instead. Either way it is exactly the shape a `DerivedPlugin` wants for its `eventToItem` decoder — and the collection commits synchronously when the kind allows it, so items are in place before the first `get()`:
 
 ```typescript
-import {Note, FollowList} from "@welshman/domain"
+import {Note, MuteList} from "@welshman/domain"
 
 // as a DerivedPlugin decoder:
 eventToItem: app.use(Domain).reader(Note)
 
-// or ad hoc:
-const reader = await app.use(Domain).reader(FollowList)(event)
-reader.pubkeys()          // string[]
-reader.includes(pubkey)   // boolean
+// ad hoc, no IO — no await:
+const note = app.use(Domain).reader(Note)(event)
+note.content()
+
+// ad hoc, decrypts private tags — the type requires the await:
+const mutes = await app.use(Domain).reader(MuteList)(event)
+mutes.pubkeys()           // string[], public + private when decrypted
+mutes.includes(pubkey)    // boolean
 ```
 
 A reader exposes synchronous getters over the event — `id()`, `author()`, `content()`, `tags()`, `createdAt()`, `address()`, `group()` — plus per-kind accessors (`FollowListReader.pubkeys()`, `RelayListReader.readUrls()/writeUrls()`, `DeleteReader.ids()`, etc.).

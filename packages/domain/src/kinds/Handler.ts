@@ -18,12 +18,14 @@ export type HandlerMeta = {
 export class HandlerReader extends EventReader {
   readonly values: HandlerMeta = {}
 
-  async parse() {
+  parse() {
     const json = parseJson(this.event.content)
 
     if (isPojo(json)) {
       Object.assign(this.values, json)
     }
+
+    return this
   }
 
   name() {

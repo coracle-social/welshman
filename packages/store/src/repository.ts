@@ -353,19 +353,13 @@ export const deriveItemsByKey = <T>({
   const keysById = new Map<string, string>()
 
   return readable(itemsByKey, set => {
-    const addEvent = async (event: TrustedEvent) => {
+    const onError = (error: unknown) => console.warn("Failed to build an item from an event", error)
+
+    const addEvent = (event: TrustedEvent) => {
       if (deferred.has(event.id)) return
       if (keysById.has(event.id)) return
 
-      const itemOrPromise = eventToItem(event)
-
-      if (itemOrPromise instanceof Promise) {
-        deferred.set(event.id, itemOrPromise)
-      }
-
-      try {
-        const item = await itemOrPromise
-
+      const commit = (item: Maybe<T>) => {
         if (item) {
           const key = getKey(item)
 
@@ -375,8 +369,25 @@ export const deriveItemsByKey = <T>({
 
           set(itemsByKey)
         }
-      } finally {
-        deferred.delete(event.id)
+      }
+
+      try {
+        const itemOrPromise = eventToItem(event)
+
+        // Commit synchronously when `eventToItem` doesn't need IO, so items are in
+        // place before the initial subscription returns rather than a microtask later
+        if (itemOrPromise instanceof Promise) {
+          deferred.set(event.id, itemOrPromise)
+
+          itemOrPromise
+            .then(commit)
+            .catch(onError)
+            .finally(() => deferred.delete(event.id))
+        } else {
+          commit(itemOrPromise)
+        }
+      } catch (error) {
+        onError(error)
       }
     }
 
@@ -484,21 +495,15 @@ export const deriveItemsByKeyByUrl = <T>({
       return false
     }
 
-    const addEvent = async (event: TrustedEvent, urls: Iterable<string>) => {
+    const onError = (error: unknown) => console.warn("Failed to build an item from an event", error)
+
+    const addEvent = (event: TrustedEvent, urls: Iterable<string>) => {
       const pending = Array.from(urls).filter(url => keysById.get(event.id)?.get(url) === undefined)
 
       if (pending.length === 0) return
       if (deferred.has(event.id)) return
 
-      const itemOrPromise = eventToItem(event)
-
-      if (itemOrPromise instanceof Promise) {
-        deferred.add(event.id)
-      }
-
-      try {
-        const item = await itemOrPromise
-
+      const commit = (item: Maybe<T>) => {
         if (item) {
           for (const url of pending) {
             const key = getKey(item, url)
@@ -510,8 +515,25 @@ export const deriveItemsByKeyByUrl = <T>({
 
           set(itemsByKey)
         }
-      } finally {
-        deferred.delete(event.id)
+      }
+
+      try {
+        const itemOrPromise = eventToItem(event)
+
+        // Commit synchronously when `eventToItem` doesn't need IO, so items are in
+        // place before the initial subscription returns rather than a microtask later
+        if (itemOrPromise instanceof Promise) {
+          deferred.add(event.id)
+
+          itemOrPromise
+            .then(commit)
+            .catch(onError)
+            .finally(() => deferred.delete(event.id))
+        } else {
+          commit(itemOrPromise)
+        }
+      } catch (error) {
+        onError(error)
       }
     }
 

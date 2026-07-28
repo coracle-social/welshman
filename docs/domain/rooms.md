@@ -17,7 +17,7 @@ Because every event here targets a specific relay, **all of these kinds set `req
 import {Domain} from "@welshman/app"
 import {RoomMeta} from "@welshman/domain"
 
-const meta = await app.use(Domain).reader(RoomMeta)(event)
+const meta = app.use(Domain).reader(RoomMeta)(event)
 meta.name()           // string | undefined
 meta.about()          // string | undefined
 meta.picture()        // tag[1]
@@ -62,10 +62,10 @@ await app.use(Domain).command(writer).then(cmd => cmd.publish())
 import {Domain} from "@welshman/app"
 import {RoomAdmins, RoomMembers} from "@welshman/domain"
 
-const admins = await app.use(Domain).reader(RoomAdmins)(event)
+const admins = app.use(Domain).reader(RoomAdmins)(event)
 admins.pubkeys()                 // string[]
 
-const members = await app.use(Domain).reader(RoomMembers)(event)
+const members = app.use(Domain).reader(RoomMembers)(event)
 members.members()                // string[]
 members.isMember(pubkey)         // boolean
 

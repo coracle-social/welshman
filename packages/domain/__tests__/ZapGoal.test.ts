@@ -26,9 +26,10 @@ describe("ZapGoal", () => {
       content: "New server fund",
       tags: [
         ["summary", "help us buy a server"],
+        ["image", "https://example.com/goal.png"],
         ["amount", "500000"],
-        ["relays", "wss://relay.one"],
-        ["relays", "wss://relay.two"],
+        ["closed_at", "1700000000"],
+        ["relays", "wss://relay.one", "wss://relay.two"],
         ["alt", "x"],
       ],
     })
@@ -37,8 +38,32 @@ describe("ZapGoal", () => {
 
     expect(goal.title()).toBe("New server fund")
     expect(goal.summary()).toBe("help us buy a server")
+    expect(goal.image()).toBe("https://example.com/goal.png")
     expect(goal.amount()).toBe(500000)
+    expect(goal.closedAt()).toBe(1700000000)
     expect(goal.urls()).toEqual(["wss://relay.one", "wss://relay.two"])
+  })
+
+  it("tolerates relays split across several tags", async () => {
+    const goal = await read(
+      ZapGoal,
+      makeEvent({
+        content: "Goal",
+        tags: [
+          ["relays", "wss://relay.one"],
+          ["relays", "wss://relay.two", "wss://relay.one"],
+        ],
+      }),
+    )
+
+    expect(goal.urls()).toEqual(["wss://relay.one", "wss://relay.two"])
+  })
+
+  it("leaves closed_at and image undefined when absent or unparseable", async () => {
+    const goal = await read(ZapGoal, makeEvent({content: "Goal", tags: [["closed_at", "soon"]]}))
+
+    expect(goal.closedAt()).toBeUndefined()
+    expect(goal.image()).toBeUndefined()
   })
 
   it("defaults amount to 0 when missing or unparseable", async () => {
@@ -73,7 +98,9 @@ describe("ZapGoal", () => {
         .setTitle("Goal")
         .setSummary("a summary")
         .setAmount(1000)
-        .setUrls(["wss://relay.one"]),
+        .setImage("https://example.com/goal.png")
+        .setClosedAt(1700000000)
+        .setUrls(["wss://relay.one", "wss://relay.two"]),
       signer,
     )
 
@@ -81,11 +108,22 @@ describe("ZapGoal", () => {
     expect(tmpl.content).toBe("Goal")
     expect(tmpl.tags).toContainEqual(["summary", "a summary"])
     expect(tmpl.tags).toContainEqual(["amount", "1000"])
-    expect(tmpl.tags).toContainEqual(["relays", "wss://relay.one"])
+    expect(tmpl.tags).toContainEqual(["image", "https://example.com/goal.png"])
+    expect(tmpl.tags).toContainEqual(["closed_at", "1700000000"])
+    // NIP-75 expects one relays tag holding every url
+    expect(tmpl.tags).toContainEqual(["relays", "wss://relay.one", "wss://relay.two"])
+  })
+
+  it("requires at least one relay", async () => {
+    await expect(
+      buildTemplate(write(ZapGoal).setTitle("Goal").setUrls([]), signer),
+    ).rejects.toThrow()
   })
 
   it("requires a title", async () => {
-    await expect(buildTemplate(write(ZapGoal).setAmount(1000), signer)).rejects.toThrow()
+    await expect(
+      buildTemplate(write(ZapGoal).setAmount(1000).setUrls(["wss://relay.one"]), signer),
+    ).rejects.toThrow()
   })
 
   it("throws on the wrong kind", async () => {
