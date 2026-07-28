@@ -142,6 +142,46 @@ describe("RoomList", () => {
     ])
   })
 
+  it("sets relays in order, reusing existing tags and keeping other tags", async () => {
+    const reader = await read(
+      RoomList,
+      makeEvent({
+        tags: [
+          ["r", relayA, "read"],
+          ["r", relayB],
+          ["group", roomA, relayA],
+        ],
+      }),
+    )
+
+    const tmpl = await buildTemplate(
+      write(RoomList, reader).setRelays([relayB, "rooms.example.com"]),
+      signer,
+    )
+
+    // Reordered, relayA's extra "read" value survives, and the room tag is untouched.
+    expect(tmpl.tags.filter(t => t[0] === "r")).toEqual([
+      ["r", relayB],
+      ["r", relayA, "read"],
+    ])
+    expect(tmpl.tags).toContainEqual(["group", roomA, relayA])
+  })
+
+  it("migrates a relay across r tags and room hints, public and private", async () => {
+    const event = await buildEvent(
+      write(RoomList).addRoom(roomA, relayA).addPrivate(["group", roomB, relayA]),
+      signer,
+    )
+
+    const reader = await read(RoomList, event, signer)
+    const migrated = await buildEvent(write(RoomList, reader).migrateRelay(relayA, relayB), signer)
+    const result = await read(RoomList, migrated, signer)
+
+    expect(result.urls()).toEqual([relayB])
+    expect(result.roomsForUrl(relayB).sort()).toEqual([roomA, roomB].sort())
+    expect(result.roomsForUrl(relayA)).toEqual([])
+  })
+
   it("round-trips public and private rooms through encryption", async () => {
     const event = await buildEvent(
       write(RoomList).addRoom(roomA, relayA).addPrivate(["group", roomB, relayA]),

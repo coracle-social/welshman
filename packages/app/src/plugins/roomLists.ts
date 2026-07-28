@@ -1,5 +1,7 @@
+import type {Maybe} from "@welshman/lib"
 import {ROOMS, normalizeRelayUrl} from "@welshman/util"
 import {RoomList, RoomListReader, RoomListWriter} from "@welshman/domain"
+import type {Command} from "../command.js"
 import {DerivedPlugin, projectFrom} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
@@ -52,4 +54,21 @@ export class RoomLists extends DerivedPlugin<RoomListReader> {
   addRelay = (url: string) => this.update(writer => writer.addRelay(url))
 
   removeRelay = (url: string) => this.update(writer => writer.removeRelay(url))
+
+  setRelays = (urls: string[]) => this.update(writer => writer.setRelays(urls))
+
+  // Point every reference to a relay at its new url. Resolves to undefined when there's
+  // nothing to do, so a no-op migration doesn't publish.
+  migrateRelay = async (oldUrl: string, newUrl: string): Promise<Maybe<Command>> => {
+    const from = normalizeRelayUrl(oldUrl)
+    const to = normalizeRelayUrl(newUrl)
+
+    if (from === to) return undefined
+
+    const user = User.require(this.app)
+
+    if (!this.get(user.pubkey)?.urls().includes(from)) return undefined
+
+    return this.update(writer => writer.migrateRelay(from, to))
+  }
 }
