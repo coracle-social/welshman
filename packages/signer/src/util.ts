@@ -70,13 +70,10 @@ export class WrappedSigner extends Emitter implements ISigner {
     super()
   }
 
-  sign(event: StampedEvent, options: SignOptions = {}) {
-    return this.wrapMethod("sign", () => this.signer.sign(event, options), [event, options])
-  }
+  sign = (event: StampedEvent, options: SignOptions = {}) =>
+    this.wrapMethod("sign", () => this.signer.sign(event, options), [event, options])
 
-  getPubkey() {
-    return this.wrapMethod("getPubkey", () => this.signer.getPubkey(), [])
-  }
+  getPubkey = () => this.wrapMethod("getPubkey", () => this.signer.getPubkey(), [])
 
   nip04 = {
     encrypt: async (pubkey: string, message: string) =>

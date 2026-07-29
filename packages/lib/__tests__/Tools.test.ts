@@ -291,6 +291,22 @@ describe("Tools", () => {
     })
   })
 
+  describe("randomId", () => {
+    it("should return a pronounceable id, not just a digit", () => {
+      for (let i = 0; i < 100; i++) {
+        const id = T.randomId()
+
+        expect(id).toMatch(/^[a-z]{6,}[1-9]$/)
+      }
+    })
+
+    it("should not repeat itself", () => {
+      const ids = T.initArray(100, T.randomId)
+
+      expect(T.uniq(ids).length).toBe(ids.length)
+    })
+  })
+
   describe("String Operations", () => {
     it("should handle URL formatting", () => {
       expect(T.stripProtocol("https://example.com")).toBe("example.com")

@@ -1147,7 +1147,7 @@ const consonants =
  */
 export const randomId = () => {
   const n = (6 + Math.random() * 2) | 0
-  const s = [consonants, vowels]
+  const s = [[...consonants], [...vowels]]
 
   if (Math.random() < 0.5) {
     s.reverse()

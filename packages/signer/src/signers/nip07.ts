@@ -1,5 +1,5 @@
 import {noop} from "@welshman/lib"
-import {StampedEvent, hash, own} from "@welshman/util"
+import {StampedEvent} from "@welshman/util"
 import {signWithOptions, SignOptions, Sign, ISigner, EncryptionImplementation} from "../util.js"
 
 export type Nip07 = {
@@ -11,8 +11,19 @@ export type Nip07 = {
 
 export const getNip07 = () => (window as {nostr?: Nip07}).nostr
 
+const release = (promise: Promise<unknown>) =>
+  new Promise<void>(resolve => {
+    const timeout = setTimeout(resolve, 30_000)
+
+    promise.catch(noop).then(() => {
+      clearTimeout(timeout)
+      resolve()
+    })
+  })
+
 export class Nip07Signer implements ISigner {
   #lock = Promise.resolve()
+  #pubkey?: Promise<string>
 
   #then = async <T>(f: (ext: Nip07) => T | Promise<T>) => {
     const promise = this.#lock.then(() => {
@@ -23,17 +34,25 @@ export class Nip07Signer implements ISigner {
       return f(ext)
     })
 
-    // Recover from errors
-    this.#lock = promise.then(noop).catch(noop)
+    this.#lock = release(promise)
 
     return promise
   }
 
-  getPubkey = async () => this.#then<string>(ext => ext.getPublicKey() as string)
+  getPubkey = () => {
+    if (!this.#pubkey) {
+      this.#pubkey = this.#then<string>(ext => ext.getPublicKey() as string)
+      this.#pubkey.catch(() => {
+        this.#pubkey = undefined
+      })
+    }
+
+    return this.#pubkey
+  }
 
   sign = (template: StampedEvent, options: SignOptions = {}) =>
     signWithOptions(
-      this.#then(async ext => ext.signEvent(hash(own(template, await ext.getPublicKey()!)))),
+      this.#then(ext => ext.signEvent(template)),
       options,
     )
 

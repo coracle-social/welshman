@@ -42,7 +42,7 @@ export class AuthState extends EventEmitter {
     super()
 
     this._unsubscribers.push(
-      on(socket, SocketEvent.Receive, (message: RelayMessage) => {
+      on(socket, SocketEvent.Receiving, (message: RelayMessage) => {
         if (isRelayOk(message)) {
           const [_, id, ok, details] = message
 
@@ -105,7 +105,10 @@ export class AuthState extends EventEmitter {
     this.setStatus(AuthStatus.PendingSignature)
 
     const template = makeRelayAuth(this.socket.url, challenge)
-    const event = await tryCatch(() => sign(template))
+    const event = await tryCatch(
+      () => sign(template),
+      e => console.error("Failed to sign auth event", e),
+    )
 
     if (event) {
       // If a new challenge arrived while signing, our signature is stale, so

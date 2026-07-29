@@ -272,7 +272,7 @@ export class Thunk extends BaseThunk {
         this.event = await makePow(this.event, this.options.pow).result
       }
 
-      const signedEvent = await this.user.signer.sign(this.event, {
+      const signedEvent = await this.user.sign(this.event, {
         signal: AbortSignal.timeout(30_000),
       })
 
