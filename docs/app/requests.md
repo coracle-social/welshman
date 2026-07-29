@@ -69,3 +69,35 @@ net.diff(options)       // compute a NIP-77 set difference
 net.pull(options)       // negentropy pull
 net.push(options)       // negentropy push
 ```
+
+## Querying the repository: `Events`
+
+`app.use(Network)` fetches events; `app.use(Events)` reads the ones you already have. Every method
+binds this app's repository and tracker and returns a `Projection` — snapshot with `.get()`,
+subscribe with `.$` — so there's no separate get/derive pair to keep in sync.
+
+```typescript
+import {Events} from "@welshman/app"
+
+const events = app.use(Events)
+
+events.byId(filters).$          // Map<id, TrustedEvent>
+events.all(filters).$           // repository order
+events.asc(filters).$           // oldest first
+events.desc(filters).$          // newest first
+events.one(idOrAddress, hints)  // a single event, loaded on first read if missing
+events.isDeleted(event).$
+```
+
+Scoped to a relay, via the tracker:
+
+```typescript
+events.byIdForUrl(url, filters).$
+events.forUrl(url, filters).$
+events.byIdByUrl(filters).$             // Map<url, Map<id, TrustedEvent>>
+events.relaySignedForUrl(url, filters).$ // only events the relay itself signed
+```
+
+`relaySignedForUrl` is the loose counterpart to `RelaySignedDerivedPlugin`: relay-generated kinds
+(NIP-29 room state, relay membership) mean nothing from another author, so anything whose pubkey
+isn't the relay's NIP-11 `self` is dropped.
