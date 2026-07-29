@@ -2,7 +2,13 @@ import {first} from "@welshman/lib"
 import {sortEventsDesc, outbox, relays} from "@welshman/util"
 import type {Filter} from "@welshman/util"
 import {request, publish, makeLoader} from "@welshman/net"
-import type {Loader, LoaderOptions, RequestOptions, PublishOptions} from "@welshman/net"
+import type {
+  Loader,
+  LoadOptions,
+  LoaderOptions,
+  RequestOptions,
+  PublishOptions,
+} from "@welshman/net"
 import {Router} from "./router.js"
 import type {IApp} from "../app.js"
 
@@ -13,18 +19,32 @@ import type {IApp} from "../app.js"
 export class Network {
   load: Loader
 
+  private controller = new AbortController()
+
   constructor(readonly app: IApp) {
     this.load = this.makeLoader({delay: 50, timeout: 3000, threshold: 0.5})
+
+    app.onCleanup(() => this.controller.abort())
   }
 
-  makeLoader = (options: Omit<LoaderOptions, "context">): Loader =>
-    makeLoader({...options, context: this.app.netContext})
+  private withSignal = <T extends {signal?: AbortSignal}>(options: T) => ({
+    ...options,
+    signal: options.signal
+      ? AbortSignal.any([options.signal, this.controller.signal])
+      : this.controller.signal,
+  })
+
+  makeLoader = (options: Omit<LoaderOptions, "context">): Loader => {
+    const load = makeLoader({...options, context: this.app.netContext})
+
+    return (loadOptions: LoadOptions) => load(this.withSignal(loadOptions))
+  }
 
   request = (options: Omit<RequestOptions, "context">) =>
-    request({...options, context: this.app.netContext})
+    request({...this.withSignal(options), context: this.app.netContext})
 
   publish = (options: Omit<PublishOptions, "context">) =>
-    publish({...options, context: this.app.netContext})
+    publish({...this.withSignal(options), context: this.app.netContext})
 
   loadUsingOutbox = async (pubkey: string, filter: Filter = {}, hints: string[] = []) => {
     const filters: Filter[] = [{...filter, authors: [pubkey]}]

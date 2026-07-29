@@ -11,8 +11,6 @@ import {
 import {decrypt, ISigner} from "./util.js"
 import {Nip01Signer} from "./signers/nip01.js"
 
-export const seen = new Map<string, HashedEvent | Error>()
-
 export const now = (drift = 0) =>
   Math.round(Date.now() / 1000 - Math.random() * Math.pow(10, drift))
 
@@ -59,39 +57,18 @@ export const wrap = async (
 }
 
 export const unwrap = async (signer: ISigner, wrap: SignedEvent): Promise<HashedEvent> => {
-  // Avoid decrypting the same event multiple times
-  if (seen.has(wrap.id)) {
-    const rumorOrError = seen.get(wrap.id)
+  const seal = JSON.parse(await decrypt(signer, wrap.pubkey, wrap.content))
+  const rumor = JSON.parse(await decrypt(signer, seal.pubkey, seal.content))
 
-    if (rumorOrError instanceof Error) {
-      throw rumorOrError
-    } else {
-      return rumorOrError!
-    }
-  }
+  if (seal.pubkey !== rumor.pubkey) throw new Error("Seal pubkey does not match rumor pubkey")
+  if (!isHashedEvent(rumor)) throw new Error("Unwrapped object was not a hashed event")
 
-  try {
-    const seal = JSON.parse(await decrypt(signer, wrap.pubkey, wrap.content))
-    const rumor = JSON.parse(await decrypt(signer, seal.pubkey, seal.content))
-
-    if (seal.pubkey !== rumor.pubkey) throw new Error("Seal pubkey does not match rumor pubkey")
-    if (!isHashedEvent(rumor)) throw new Error("Unwrapped object was not a hashed event")
-
-    seen.set(wrap.id, rumor)
-
-    return rumor
-  } catch (error) {
-    seen.set(wrap.id, error as Error)
-
-    throw error
-  }
+  return rumor
 }
 
-// This is a utility that makes it harder to re-use wrapper signers, since that can result in
-// leaked metadata. It simultaneously makes it easier to wrap stuff, because it allows for
-// wrapping a single user signer and omit the wrapper signer argument to wrap, while still
-// making it possible to pass a wrapper signer if desired.
 export class Nip59 {
+  private cache = new Map<string, HashedEvent | Error>()
+
   constructor(
     private signer: ISigner,
     private wrapper?: ISigner,
@@ -106,5 +83,27 @@ export class Nip59 {
   wrap = (pubkey: string, template: StampedEvent, tags: string[][] = []) =>
     wrap(this.signer, this.wrapper || Nip01Signer.ephemeral(), pubkey, template, tags)
 
-  unwrap = (event: SignedEvent) => unwrap(this.signer, event)
+  unwrap = async (event: SignedEvent): Promise<HashedEvent> => {
+    const cached = this.cache.get(event.id)
+
+    if (cached) {
+      if (cached instanceof Error) {
+        throw cached
+      }
+
+      return cached
+    }
+
+    try {
+      const rumor = await unwrap(this.signer, event)
+
+      this.cache.set(event.id, rumor)
+
+      return rumor
+    } catch (error) {
+      this.cache.set(event.id, error as Error)
+
+      throw error
+    }
+  }
 }

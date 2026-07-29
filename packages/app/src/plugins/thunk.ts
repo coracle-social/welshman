@@ -1,5 +1,5 @@
 import type {Subscriber} from "svelte/store"
-import {writable} from "svelte/store"
+import {get, writable} from "svelte/store"
 import type {Override} from "@welshman/lib"
 import {append, TaskQueue, ensurePlural, remove, defer, sleep, nth, without} from "@welshman/lib"
 import {
@@ -276,6 +276,12 @@ export class Thunk extends BaseThunk {
         signal: AbortSignal.timeout(30_000),
       })
 
+      // Signing is slow enough to be aborted mid-flight; bail before writing the
+      // signed event, since the abort handler has already unwound the unsigned one
+      if (this.controller.signal.aborted) {
+        return
+      }
+
       // Update tracker and repository with the signed event since the id will have changed
       if (this.options.pow) {
         for (const url of this.options.relays) {
@@ -352,7 +358,20 @@ export class Thunks {
     },
   })
 
-  constructor(readonly app: IApp) {}
+  constructor(readonly app: IApp) {
+    app.onCleanup(() => {
+      this.queue.clear()
+
+      // Anything still in flight would go on publishing after teardown, opening
+      // sockets in the cleared pool and writing its event back into the cleared
+      // repository. Aborting also unwinds each thunk's optimistic write.
+      for (const thunk of get(this.history)) {
+        if (!thunk.isComplete()) {
+          thunk.abort()
+        }
+      }
+    })
+  }
 
   enqueue(thunk: Thunk) {
     this.queue.push(thunk)

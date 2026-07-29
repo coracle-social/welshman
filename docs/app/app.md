@@ -96,7 +96,21 @@ This is dependency resolution by demand. Plugins reach their own dependencies th
 app.cleanup()
 ```
 
-`cleanup()` runs every policy's unsubscribe function, then clears the `pool`, `tracker`, `repository`, and `wrapManager`. Call it when you discard an app (e.g. switching identities) to release connections and free memory.
+`cleanup()` runs every registered teardown function, then clears the `pool`, `tracker`, `repository`, and `wrapManager`. Call it when you discard an app (e.g. switching identities) to release connections and free memory.
+
+Teardowns run in reverse registration order, since ones that restore something they replaced only compose LIFO — `appPolicyCacheDecrypt` and `appPolicyLogSignerMethods` both wrap `user.signer`, and each has to unwrap in the opposite order it wrapped.
+
+A plugin that owns a resource the app can't see — a queue, a timer, a subscription to something outside the app — registers its own teardown with `onCleanup`:
+
+```typescript
+class MyPlugin {
+  queue = new TaskQueue({...})
+
+  constructor(readonly app: IApp) {
+    app.onCleanup(() => this.queue.clear())
+  }
+}
+```
 
 ## Policies
 
