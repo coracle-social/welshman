@@ -222,6 +222,33 @@ await app.use(Sync).pull({relays, filters: [{authors: [pk]}]})
 await app.use(Sync).push({relays, filters: [{authors: [pk]}]})
 ```
 
+## Querying the repository (`Events`)
+
+`Network` fetches; `Events` reads what's already local. Every method binds this app's repository
+and tracker and returns a `Projection` — `.get()` for a snapshot, `.$` to subscribe — so there's no
+get/derive pair to keep in sync.
+
+```typescript
+import {Events} from "@welshman/app"
+const events = app.use(Events)
+
+events.byId(filters).$           // Map<id, TrustedEvent>
+events.all(filters).$            // repository order
+events.asc(filters).$            // oldest first
+events.desc(filters).$           // newest first
+events.one(idOrAddress, hints)   // one event, loaded on first read if missing
+events.isDeleted(event).$
+
+// Scoped to a relay, via the tracker
+events.byIdForUrl(url, filters).$
+events.forUrl(url, filters).$
+events.byIdByUrl(filters).$              // Map<url, Map<id, TrustedEvent>>
+events.relaySignedForUrl(url, filters).$ // only what the relay itself signed
+```
+
+`relaySignedForUrl` is the loose counterpart to `RelaySignedDerivedPlugin` — relay-generated kinds
+mean nothing from another author, so anything not signed by the relay's NIP-11 `self` is dropped.
+
 ## Routing & tags
 
 `app.use(Router)` turns the declarative **`RelaySelection`** DSL (from `@welshman/util`) into scored relay urls. It exposes a `Resolver` (`router.resolver`) plus a `resolve(selections)` shortcut. That same `resolver` is injected into every `@welshman/domain` kind by `app.use(Domain)`, so writers/readers route through it too.
