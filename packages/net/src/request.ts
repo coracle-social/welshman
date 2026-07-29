@@ -55,6 +55,13 @@ export type RequestOneOptions = BaseRequestOptions & {
 }
 
 export const requestOne = (options: RequestOneOptions) => {
+  // An already-aborted signal never fires its listener, so bail before building
+  // an adapter — that would pull a socket out of the pool for a request no one
+  // is waiting on, and nothing would ever close it
+  if (options.signal?.aborted) {
+    return Promise.resolve([] as TrustedEvent[])
+  }
+
   const ids = new Set<string>()
   const eose = new Set<string>()
   const events: TrustedEvent[] = []
@@ -281,8 +288,12 @@ export const makeLoader = (options: LoaderOptions) =>
         pushToMapKey(requestsByRelay, relay, request)
         resultsByRequest.set(request, defer())
 
-        // Propagate abort when all requests have been closed for a given relay
-        if (request.signal) {
+        // Propagate abort when all requests have been closed for a given relay.
+        // A request aborted during the batch delay is already past its listener,
+        // so close it here instead.
+        if (request.signal?.aborted) {
+          close(relay, request)
+        } else if (request.signal) {
           const abortHandler = () => close(relay, request)
           abortHandlersByRequest.set(request, abortHandler)
           request.signal.addEventListener("abort", abortHandler)
@@ -304,6 +315,9 @@ export const makeLoader = (options: LoaderOptions) =>
     }
 
     Array.from(requestsByRelay).forEach(([relay, requests]) => {
+      // Don't touch the pool if every request for this relay was aborted
+      if (closedRequestsByRelay.get(relay)?.size === requests.length) return
+
       // Union all filters for a given request and send them together
       const filters = unionFilters(requests.flatMap(r => r.filters))
 

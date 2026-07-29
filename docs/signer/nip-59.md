@@ -7,7 +7,7 @@ The `Nip59` class provides utilities for implementing the Gift Wrap protocol (NI
 - Event wrapping (encryption) for specific recipients
 - Event unwrapping (decryption) of received wrapped events
 - Automatic ephemeral wrapper generation
-- Caching of previously unwrapped events
+- Caching of previously unwrapped events, scoped to the instance
 - Compatible with all signer implementations
 
 ## Basic Usage
@@ -57,6 +57,24 @@ export const wrap = async (
 }
 ```
 
+### Unwrapping Process
+
+`unwrap` reverses it: decrypt the wrap to get the seal, decrypt the seal to get the rumor, then check that the seal and rumor share an author.
+
+```typescript
+export const unwrap = async (signer: ISigner, wrap: SignedEvent): Promise<HashedEvent> => {
+  const seal = JSON.parse(await decrypt(signer, wrap.pubkey, wrap.content))
+  const rumor = JSON.parse(await decrypt(signer, seal.pubkey, seal.content))
+
+  if (seal.pubkey !== rumor.pubkey) throw new Error("Seal pubkey does not match rumor pubkey")
+  if (!isHashedEvent(rumor)) throw new Error("Unwrapped object was not a hashed event")
+
+  return rumor
+}
+```
+
+This free function does no caching — reach for `Nip59.unwrap` if you want that.
+
 ## API Reference
 
 ### Constructor & Factory Methods
@@ -86,7 +104,8 @@ class Nip59 {
   ): Promise<SignedEvent>
 
   /**
-   * Unwraps a received wrapped event
+   * Unwraps a received wrapped event, caching the result (or the failure) so
+   * the same wrap is never decrypted twice by this instance
    * @param event The wrapped event to decrypt
    * @returns Promise<HashedEvent> The original unwrapped event
    */

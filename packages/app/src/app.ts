@@ -21,20 +21,11 @@ export type AppOptions = {
 
 export type PluginCtor<T = unknown> = new (app: IApp) => T
 
-/**
- * Plugins that own resources — a database connection, a timer, a subscription to
- * something outside the app — implement `cleanup` to release them. The app calls
- * it on teardown, before it clears the primitives those plugins are watching.
- */
-export type CleanupablePlugin = {cleanup: () => void}
-
-const isCleanupable = (plugin: unknown): plugin is CleanupablePlugin =>
-  typeof (plugin as CleanupablePlugin).cleanup === "function"
-
 export interface IApp {
   user?: User
   config: AppConfig
   use: <T>(Ctor: PluginCtor<T>) => T
+  onCleanup: (unsubscriber: Unsubscriber) => void
   netContext: NetContext
   pool: Pool
   tracker: Tracker
@@ -77,13 +68,10 @@ export class App implements IApp {
     }
 
     for (const policy of options.policies ?? []) {
-      this.unsubscribers.push(policy(this))
+      this.onCleanup(policy(this))
     }
   }
 
-  // Resolve the per-app singleton of a data module, constructing it on first
-  // use. This is how modules reach their dependencies (e.g. app.use(RelayLists)),
-  // replacing constructor injection and letting cycles resolve lazily.
   use = <T>(Ctor: PluginCtor<T>): T => {
     let instance = this.singletons.get(Ctor) as T | undefined
 
@@ -94,14 +82,13 @@ export class App implements IApp {
     return instance
   }
 
-  cleanup() {
-    this.unsubscribers.forEach(call)
+  onCleanup = (unsubscriber: Unsubscriber) => {
+    this.unsubscribers.push(unsubscriber)
+  }
 
-    for (const plugin of this.singletons.values()) {
-      if (isCleanupable(plugin)) {
-        plugin.cleanup()
-      }
-    }
+  cleanup() {
+    // Unwind in reverse, since some teardowns only compose LIFO
+    this.unsubscribers.slice().reverse().forEach(call)
 
     this.pool.clear()
     this.tracker.clear()

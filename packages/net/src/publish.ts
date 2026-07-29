@@ -34,6 +34,22 @@ export type PublishOneOptions = {
 
 export const publishOne = (options: PublishOneOptions) =>
   new Promise<PublishResult>(resolve => {
+    // An already-aborted signal never fires its listener, so bail before building
+    // an adapter — that would pull a socket out of the pool to publish an event
+    // that's already been given up on, and nothing would ever close it
+    if (options.signal?.aborted) {
+      const result = {
+        relay: options.relay,
+        status: PublishStatus.Aborted,
+        detail: "aborted",
+      }
+
+      options.onAborted?.(result)
+      options.onComplete?.(result)
+
+      return resolve(result)
+    }
+
     const adapter = getAdapter(options.relay, options.context)
 
     const result = {
