@@ -70,7 +70,14 @@ export const createSearch = <V, T>(options: T[], opts: SearchOptions<V, T>): Sea
   }
 }
 
-export const projection = <T>($: Readable<T>, get = getter($)) => ({$, get})
+/**
+ * Build a `Projection` from a readable store and an optional `read` function, which falls
+ * back to `get($)`. On hot paths, the store value is cached, and read is skipped.
+ */
+export const projection = <T>($: Readable<T>, read?: () => T): Projection<T> => ({
+  $,
+  get: getter($, {read}),
+})
 
 /**
  * Build a `Projection` derived from another `Projection`: re-read `src`

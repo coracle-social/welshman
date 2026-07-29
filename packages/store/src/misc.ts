@@ -9,7 +9,14 @@ type StoresValues<T> =
 // Smart getter that adjusts between svelte's get and aggressive subscription depending on how hot
 // the path is
 
-export const getter = <T>(store: Readable<T>, {threshold = 10}: {threshold?: number} = {}) => {
+export type GetterOptions<T> = {
+  threshold?: number
+  // How to read the current value without subscribing. Defaults to `get(store)`, which stands the
+  // store up and tears it down again — pass a direct query when one is cheaper.
+  read?: () => T
+}
+
+export const getter = <T>(store: Readable<T>, {threshold = 10, read}: GetterOptions<T> = {}) => {
   const calls: number[] = []
   let unsubscribe: Unsubscriber | undefined
   let offset = 0
@@ -48,7 +55,7 @@ export const getter = <T>(store: Readable<T>, {threshold = 10}: {threshold?: num
         unsubscribe = undefined
       }
 
-      return get(store)
+      return read ? read() : get(store)
     }
   }
 }
