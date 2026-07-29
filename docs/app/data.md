@@ -71,7 +71,7 @@ await pinLists.unpin(eventId).then(publish)
 `Pinboard` (kind 30067) is board metadata — many per author, keyed by address. `Pin` (kind 39067) is a single pinned item — a nostr event, addressable event, or external id, plus zero or more boards it belongs to via `A` tags (none means it's a profile pin). Each pin has its own unique `d` tag, so multiple pins from the same author don't collide (see [`welshman-domain`](../domain/content#pinboard-kind-30067-and-pin-kind-39067)).
 
 ```typescript
-import {Pinboards, Pins, Pin, Domain} from "@welshman/app"
+import {Pinboards, Pins, Domain} from "@welshman/app"
 
 const pinboards = app.use(Pinboards)
 

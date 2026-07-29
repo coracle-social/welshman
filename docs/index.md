@@ -33,9 +33,9 @@ features:
   - title: "@welshman/signer"
     details: Implementations of various nostr signing methods (NIP-01, NIP-07, NIP-46, NIP-55).
     link: "/signer"
-  - title: "@welshman/router"
-    details: Tools for relay selection.
-    link: "/router"
+  - title: "@welshman/domain"
+    details: A typed reader/writer pair per event kind, so you never hand-parse tags.
+    link: "/domain"
   - title: "@welshman/content"
     details: Parser and renderer for nostr notes with customizable formatting options.
     link: "/content"

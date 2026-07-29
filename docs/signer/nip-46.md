@@ -11,12 +11,8 @@ The implementation consists of two main classes:
 ## Example
 
 ```typescript
-import {
-  makeSecret,
-  Nip46Broker,
-  Nip46Signer
-} from '@welshman/signer'
-import { makeEvent, NOTE } from '@welshman/util'
+import {Nip46Broker, Nip46Signer} from '@welshman/signer'
+import {makeEvent, makeSecret, NOTE} from '@welshman/util'
 
 async function connectToRemoteSigner() {
   // Initial setup

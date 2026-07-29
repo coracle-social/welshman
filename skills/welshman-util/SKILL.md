@@ -438,7 +438,7 @@ const urls = await resolver.relays(selections)   // string[]
 | `getLnUrl(address)` | Convert lightning address or URL to LNURL; returns `undefined` if invalid |
 | `getInvoiceAmount(bolt11)` | Extract millisatoshi amount from BOLT11 invoice |
 | `hrpToMillisat(hrpString)` | Convert human-readable BTC amount to millisats (`bigint`) |
-| `zapFromEvent(response, zapper)` | Validate zap receipt and return `Zap` or `undefined` |
+| `getLnUrl(address)` | Derive an lnurl from a lud06/lud16 address |
 | `Zapper` type | `{ lnurl, pubkey?, callback?, minSendable?, maxSendable?, nostrPubkey?, allowsNostr? }` |
 | `Zap` type | `{ request: TrustedEvent, response: TrustedEvent, invoiceAmount: number }` |
 
@@ -543,7 +543,7 @@ for (const event of storedEvents) {
   event[verifiedSymbol] = true
 }
 
-repository.load(storedEvents)
+app.repository.load(storedEvents)
 ```
 
 Only do this for events you persisted yourself after they were validated. Never set
@@ -618,7 +618,8 @@ const addressStr = getAddress(event)  // '30023:deadbeef:my-slug'
 ### Zap flow
 
 ```typescript
-import { getLnUrl, makeEvent, ZAP_REQUEST, zapFromEvent } from '@welshman/util'
+import { getLnUrl, makeEvent, ZAP_REQUEST } from '@welshman/util'
+import { Zappers } from '@welshman/app'
 
 // Step 1: resolve LNURL
 const lnurl = getLnUrl('satoshi@getalby.com')
@@ -639,7 +640,7 @@ const zapRequest = makeEvent(ZAP_REQUEST, {
 // Step 3: sign, send to LNURL callback, pay invoice...
 
 // Step 4: validate receipt (kind 9735)
-const zap = zapFromEvent(zapReceipt, { nostrPubkey: zapperPubkey, allowsNostr: true, lnurl })
+const zap = await app.use(Zappers).validateZapReceipt(zapReceipt, zappedEvent)
 if (zap) {
   console.log(`Received ${zap.invoiceAmount} msat`, zap.request.content)
 }
@@ -695,7 +696,7 @@ await fetch('https://api.example.com/upload', {
 
 - **`getAncestors` handles two protocols**: Kind 1111 (comment/NIP-22) uses uppercase `E`/`A` for roots and lowercase for replies, returning `{ roots, replies }`. All other kinds use NIP-10 positional rules, returning `{ roots, replies, mentions }` where `mentions` is always present but may be an empty array. You do not need to branch on this; `getAncestors`, `getParentIdOrAddr`, and `isChildOf` handle it automatically.
 
-- **`zapFromEvent` returns `undefined` on any validation failure** including amount mismatch, wrong zapper pubkey, malformed invoice, or self-zap. Always check the result.
+- **`app.use(Zappers).validateZapReceipt` returns `undefined` on any validation failure** including amount mismatch, wrong zapper pubkey, malformed invoice, or self-zap. Always check the result. For a reactive list of a parent's valid zaps use `validZapReceipts(receipts, parent)`, which re-validates as each recipient's zapper loads.
 
 - **`getLnUrl` handles three input forms**: bare lightning address (`user@domain`), full HTTPS URL, or already-encoded `lnurl1...`. Returns `undefined` for anything else.
 

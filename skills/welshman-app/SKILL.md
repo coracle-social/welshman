@@ -327,11 +327,11 @@ Side effects live in `AppPolicy`s (`(app) => Unsubscriber`), run at construction
 
 - `defaultAppPolicies` = `[appPolicyIngest, appPolicyRelayStats, appPolicyWraps, appPolicyAuthUnlessBlocked]`.
 - Auth builders: `makeAppPolicyAuth(shouldAuth)`, `appPolicyAuthAlways`, `appPolicyAuthNever`, `appPolicyAuthUnlessBlocked`.
-- `makeAppPolicyLogger(onMessage)` forwards `LogMessage`s from the user's `LoggingSigner` (users created via `User.fromSigner`/`fromSession` are wrapped automatically).
+- `appPolicyLogSignerMethods` records the user's signer calls into `app.use(Logger)` (users created via `User.fromSigner`/`fromSession` are wrapped automatically). Read them from `app.use(Logger).messages`.
 
 ```typescript
-import {App, defaultAppPolicies, makeAppPolicyLogger} from "@welshman/app"
-const app = new App({user, policies: [...defaultAppPolicies, makeAppPolicyLogger(console.log)]})
+import {App, appPolicyLogSignerMethods, defaultAppPolicies} from "@welshman/app"
+const app = new App({user, policies: [...defaultAppPolicies, appPolicyLogSignerMethods]})
 ```
 
 ## Gotchas & tips

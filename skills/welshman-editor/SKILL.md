@@ -138,8 +138,8 @@ import {get, writable} from "svelte/store"
 import {Node, Extension, mergeAttributes} from "@tiptap/core"
 import {Plugin, PluginKey} from "@tiptap/pm/state"
 import type {NodeViewRendererProps} from "@tiptap/core"
-import {Router} from "@welshman/router"
-import {createSearch, profiles, searchProfiles, deriveProfileDisplay} from "@welshman/app"
+import {Profiles, Router} from "@welshman/app"
+import {outbox} from "@welshman/util"
 import {
   Editor, WelshmanExtension, MentionSuggestion, TippySuggestion, editorProps,
 } from "@welshman/editor"
@@ -187,11 +187,8 @@ export const makeEditor = ({
   charCount?: ReturnType<typeof writable<number>>
   submit: () => void
 }) => {
-  const profileSearch = createSearch(get(profiles), {
-    onSearch: searchProfiles,
-    getValue: (p: any) => p.event.pubkey,
-    fuseOptions: {keys: ["nip05", "name"], threshold: 0.3},
-  })
+  // The Profiles plugin maintains a ready-made fuzzy search over known profiles
+  const profileSearch = get(app.use(Profiles).profileSearch)
 
   const editor = new Editor({
     content,
@@ -232,7 +229,7 @@ export const makeEditor = ({
               addNodeView: () => ({node}: NodeViewRendererProps) => {
                 const dom = document.createElement("span")
                 dom.classList.add("mention")
-                const unsub = deriveProfileDisplay(node.attrs.pubkey)
+                const unsub = app.use(Profiles).display(node.attrs.pubkey).$
                   .subscribe($d => { dom.textContent = "@" + $d })
                 return {
                   dom, destroy: unsub,
@@ -246,7 +243,8 @@ export const makeEditor = ({
                   MentionSuggestion({
                     editor: (this as any).editor,
                     search: term => profileSearch.searchValues(term),
-                    getRelays: pubkey => Router.get().FromPubkeys([pubkey]).getUrls(),
+                    getRelays: async pubkey =>
+                      (await app.use(Router).resolve([outbox(pubkey)])).getUrls(),
                     createSuggestion: pubkey => {
                       const el = document.createElement("span")
                       el.textContent = pubkey.slice(0, 12) + "…"
@@ -323,8 +321,8 @@ const onSubmit = (editor: Editor) => {
 
 ## Integration Notes
 
-- **`@welshman/app`** — `profileSearch` and `deriveProfileDisplay` are the typical sources for mention autocomplete data and display names.
-- **`@welshman/router`** — `Router.get().FromPubkeys([pubkey]).getUrls()` provides the relay hints encoded into nprofile bech32 strings.
+- **`@welshman/app`** — `app.use(Profiles).profileSearch` and `app.use(Profiles).display(pubkey)` are the typical sources for mention autocomplete data and display names.
+- **`@welshman/app`** — `app.use(Router).resolve([outbox(pubkey)])` provides the relay hints encoded into nprofile bech32 strings.
 - **`@welshman/util`** — `fromNostrURI` is used internally by `EventNodeView` to strip the `nostr:` scheme before displaying.
 - **`nostr-editor`** — `WelshmanExtension` extends `NostrExtension` from this package. Storage at `editor.storage.nostr` (including `getEditorTags()`) is provided by `nostr-editor`, not welshman itself.
 - **`@tiptap/core`** — `Editor`, `NodeViewProps`, and all extension primitives come from Tiptap. Welshman does not re-export every Tiptap helper; import additional ones directly from `@tiptap/core` as needed.

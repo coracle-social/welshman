@@ -18,15 +18,14 @@ npm install @welshman/editor
 import {get} from "svelte/store"
 import type {Writable} from "svelte/store"
 import type {NodeViewProps} from "@tiptap/core"
-import {Router} from "@welshman/router"
-import {removeUndefined} from "@welshman/lib"
 import type {FileAttributes} from "@welshman/editor"
 import {Editor, MentionSuggestion, WelshmanExtension} from "@welshman/editor"
-import {profileSearch, deriveProfileDisplay} from "@welshman/app"
+import {Profiles, Router} from "@welshman/app"
+import {outbox} from "@welshman/util"
 
 export const MentionNodeView = ({node}: NodeViewProps) => {
   const dom = document.createElement("span")
-  const display = deriveProfileDisplay(node.attrs.pubkey, removeUndefined([url]))
+  const display = app.use(Profiles).display(node.attrs.pubkey).$
 
   dom.classList.add("tiptap-object")
 
@@ -123,8 +122,10 @@ export const makeEditor = async ({
                 return [
                   MentionSuggestion({
                     editor: (this as any).editor,
-                    search: (term: string) => get(profileSearch).searchValues(term),
-                    getRelays: (pubkey: string) => Router.get().FromPubkeys([pubkey]).getUrls(),
+                    search: (term: string) =>
+                      get(app.use(Profiles).profileSearch).searchValues(term),
+                    getRelays: async (pubkey: string) =>
+                      (await app.use(Router).resolve([outbox(pubkey)])).getUrls(),
                     createSuggestion: (value: string) => {
                       const target = document.createElement("div")
 
