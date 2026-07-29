@@ -38,7 +38,7 @@ export const makeAppPolicyAuth =
     }
 
     const policy = makeSocketPolicyAuth({
-      sign: app.user.signer.sign,
+      sign: app.user.sign,
       shouldAuth: socket => shouldAuth(socket, app),
     })
 

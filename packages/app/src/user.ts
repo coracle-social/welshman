@@ -1,6 +1,6 @@
 import type {StampedEvent} from "@welshman/util"
 import {WrappedSigner} from "@welshman/signer"
-import type {ISigner, SignerMethodWrapper} from "@welshman/signer"
+import type {ISigner, SignOptions, SignerMethodWrapper} from "@welshman/signer"
 import {getSignerFromSession} from "./session.js"
 import type {Session} from "./session.js"
 import type {IApp} from "./app.js"
@@ -50,7 +50,7 @@ export class User {
     return app.user
   }
 
-  sign = (event: StampedEvent) => this.signer.sign(event)
+  sign = (event: StampedEvent, options?: SignOptions) => this.signer.sign(event, options)
 
   nip44EncryptToSelf = (payload: string) => this.signer.nip44.encrypt(this.pubkey, payload)
 

@@ -25,39 +25,33 @@ export type SendWrappedOptions = Omit<
  */
 export class Wraps {
   failedUnwraps = new Set<string>()
-  queue?: TaskQueue<TrustedEvent>
+  queue: TaskQueue<TrustedEvent>
 
   constructor(readonly app: IApp) {
-    if (app.user) {
-      const {pubkey, signer} = app.user
-      const nip59 = Nip59.fromSigner(signer)
+    this.queue = new TaskQueue<TrustedEvent>({
+      batchSize: 50,
+      batchDelay: 30,
+      processItem: async (wrap: TrustedEvent) => {
+        if (!app.user) return
+        if (!tagValues(hexTags("p"), wrap.tags).includes(app.user.pubkey)) return
 
-      this.queue = new TaskQueue<TrustedEvent>({
-        batchSize: 50,
-        batchDelay: 30,
-        processItem: async (wrap: TrustedEvent) => {
-          // Cleanup drops the queue, but a batch already in flight keeps going,
-          // so check on both sides of the decrypt rather than unwrapping into a
-          // repository that's been cleared out from under us
-          if (!this.queue) return
-          if (!tagValues(hexTags("p"), wrap.tags).includes(pubkey)) return
+        try {
+          const nip59 = Nip59.fromSigner(app.user.signer)
+          const rumor = await nip59.unwrap(wrap as SignedEvent)
 
-          try {
-            const rumor = await nip59.unwrap(wrap as SignedEvent)
-
-            if (this.queue) {
-              this.app.wrapManager.add({wrap: wrap as SignedEvent, rumor, recipient: pubkey})
-            }
-          } catch (e) {
-            this.failedUnwraps.add(wrap.id)
-          }
-        },
-      })
-    }
+          this.app.wrapManager.add({
+            wrap: wrap as SignedEvent,
+            rumor,
+            recipient: app.user.pubkey,
+          })
+        } catch (e) {
+          this.failedUnwraps.add(wrap.id)
+        }
+      },
+    })
 
     app.onCleanup(() => {
-      this.queue?.clear()
-      this.queue = undefined
+      this.queue.clear()
     })
   }
 
@@ -65,7 +59,7 @@ export class Wraps {
     if (this.failedUnwraps.has(wrap.id)) return
     if (this.app.wrapManager.getRumor(wrap.id)) return
 
-    this.queue?.push(wrap)
+    this.queue.push(wrap)
   }
 
   // NIP-59: wrap an event for each recipient (using their messaging relays) and

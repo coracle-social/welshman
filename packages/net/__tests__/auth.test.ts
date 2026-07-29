@@ -38,7 +38,7 @@ describe("auth", () => {
 
     it("should handle AUTH message from relay", () => {
       const message: RelayMessage = ["AUTH", "challenge123"]
-      socket.emit(SocketEvent.Receive, message)
+      socket.emit(SocketEvent.Receiving, message)
 
       expect(socket.auth.challenge).toBe("challenge123")
       expect(socket.auth.status).toBe(AuthStatus.Requested)
@@ -47,7 +47,7 @@ describe("auth", () => {
     it("should handle successful OK message", () => {
       socket.auth.request = "request123"
       const message: RelayMessage = ["OK", "request123", true, "success"]
-      socket.emit(SocketEvent.Receive, message)
+      socket.emit(SocketEvent.Receiving, message)
 
       expect(socket.auth.status).toBe(AuthStatus.Ok)
       expect(socket.auth.details).toBe("success")
@@ -56,7 +56,7 @@ describe("auth", () => {
     it("should handle failed OK message", () => {
       socket.auth.request = "request123"
       const message: RelayMessage = ["OK", "request123", false, "forbidden"]
-      socket.emit(SocketEvent.Receive, message)
+      socket.emit(SocketEvent.Receiving, message)
 
       expect(socket.auth.status).toBe(AuthStatus.Forbidden)
       expect(socket.auth.details).toBe("forbidden")
@@ -65,7 +65,7 @@ describe("auth", () => {
     it("should ignore OK messages for different requests", () => {
       socket.auth.request = "request123"
       const message: RelayMessage = ["OK", "different-request", true, "success"]
-      socket.emit(SocketEvent.Receive, message)
+      socket.emit(SocketEvent.Receiving, message)
 
       expect(socket.auth.status).toBe(AuthStatus.None)
     })
