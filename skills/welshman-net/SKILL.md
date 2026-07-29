@@ -366,25 +366,23 @@ repo.load(storedEvents)
 ### Startup: bulk-load Tracker state
 
 ```typescript
-import {tracker} from '@welshman/app'   // singleton wired to the pool and repository
 
 // Build the map from your stored relay<->event mappings
 const relaysById = new Map<string, Set<string>>()
 for (const {id, relays} of storedTrackerItems) {
-  if (repo.getEvent(id)) {           // skip orphaned entries
+  if (app.repository.getEvent(id)) {  // skip orphaned entries
     relaysById.set(id, new Set(relays))
   }
 }
 
 // Takes Map<string, Set<string>> — same shape as tracker.relaysById
-tracker.load(relaysById)
+app.tracker.load(relaysById)
 ```
 
 ### Persist repository changes to IndexedDB (canonical pattern)
 
 ```typescript
 import {on, batch} from '@welshman/lib'
-import {repository} from '@welshman/app'   // singleton; or Repository.get() standalone
 import type {RepositoryUpdate} from '@welshman/net'
 import type {TrustedEvent} from '@welshman/util'
 

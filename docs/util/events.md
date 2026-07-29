@@ -88,19 +88,14 @@ export declare const isReplaceable: (e: EventTemplate) => boolean;
 export declare const isPlainReplaceable: (e: EventTemplate) => boolean;
 export declare const isParameterizedReplaceable: (e: EventTemplate) => boolean;
 
-// Thread and reply handling
-// Note: getAncestors handles comments (kind 1111) differently from regular notes
-export declare const getAncestors: (event: EventTemplate) => { roots: string[]; replies: string[] };
-export declare const getParentIdsAndAddrs: (event: EventTemplate) => string[];
-export declare const getParentIdOrAddr: (event: EventTemplate) => string | undefined;
-export declare const getParentId: (event: EventTemplate) => string | undefined;
-export declare const getParentAddr: (event: EventTemplate) => string | undefined;
-export declare const isChildOf: (child: EventTemplate, parent: HashedEvent) => boolean;
+// Threading lives in @welshman/domain, alongside the kinds it applies to:
+//   getReplyTagValues(tags)    from the Note kind    (NIP-10)
+//   getCommentTagValues(tags)  from the Comment kind (NIP-22)
 ```
 
 ## Threading Protocols
 
-The `getAncestors` function handles two different threading protocols:
+`@welshman/domain` handles two different threading protocols:
 
 ### Regular Notes (NIP-10)
 For regular notes and most event kinds, threading follows [NIP-10](https://github.com/nostr-protocol/nips/blob/master/10.md):
@@ -116,7 +111,7 @@ For comments (kind 1111), threading follows [NIP-22](https://github.com/nostr-pr
 - Uses lowercase tags (`e`, `a`, `p`, `k`) for reply references
 - No positional rules - explicit tag types determine relationship
 
-All `getParent*` functions and `isChildOf` include this logic, automatically handling both protocols based on event kind.
+`getReplyTagValues` covers NIP-10 threading and `getCommentTagValues` covers NIP-22, each living with the kind it applies to.
 
 ## Examples
 
@@ -160,7 +155,8 @@ const reference = getIdOrAddress(hashedArticle);
 ### Working with Threads
 
 ```typescript
-import { getAncestors, isChildOf, NOTE, COMMENT } from '@welshman/util';
+import { NOTE, COMMENT } from '@welshman/util';
+import { getCommentTagValues, getReplyTagValues } from '@welshman/domain';
 
 // Regular note reply (NIP-10)
 const noteReply = makeEvent(NOTE, {
@@ -181,8 +177,8 @@ const commentReply = makeEvent(COMMENT, {
 });
 
 // Both work the same way
-const noteAncestors = getAncestors(noteReply);
-const commentAncestors = getAncestors(commentReply);
+const noteAncestors = getReplyTagValues(noteReply.tags);
+const commentAncestors = getCommentTagValues(commentReply.tags);
 
 console.log('Note roots:', noteAncestors.roots);     // ["root-event-id"]
 console.log('Note replies:', noteAncestors.replies); // ["parent-event-id"]
@@ -191,10 +187,10 @@ console.log('Comment roots:', commentAncestors.roots);     // ["root-event-id"]
 console.log('Comment replies:', commentAncestors.replies); // ["parent-event-id"]
 
 // Parent checking works for both protocols
-if (isChildOf(noteReply, parentEvent)) {
+if (getReplyTagValues(noteReply.tags).replies.includes(parentEvent.id)) {
   console.log('Note is a reply');
 }
-if (isChildOf(commentReply, parentEvent)) {
+if (getReplyTagValues(commentReply.tags).replies.includes(parentEvent.id)) {
   console.log('Comment is a reply');
 }
 ```

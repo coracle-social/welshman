@@ -49,11 +49,11 @@ export declare const sendManagementRequest: (url: string, request: ManagementReq
 ## Example
 
 ```typescript
-import { sendManagementRequest, ManagementMethod, makeHttpAuth } from '@welshman/util'
+import { sendManagementRequest, makeSupportedMethods, makeHttpAuth } from '@welshman/util'
 
 // Set up our url and params
 const url = "https://relay.example.com/"
-const payload = {method: ManagementMethod.SupportedMethods, params: []}
+const payload = makeSupportedMethods()
 
 // Create auth event for the management endpoint
 const authEvent = await makeHttpAuth(url, "POST", JSON.stringify(payload))

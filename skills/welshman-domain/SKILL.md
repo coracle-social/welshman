@@ -240,7 +240,8 @@ Room ops are scoped by the `h` tag and must publish to explicit relays — use `
 `@welshman/app`'s `Domain` plugin binds the app's dependencies (resolver from the `Router` plugin, repository, and a lazy signer getter) and memoizes one `ConfiguredKind` per factory:
 
 ```typescript
-import {Domain, Note, FollowList} from "@welshman/app"   // re-exports domain kinds
+import {Domain} from "@welshman/app"
+import {FollowList, Note} from "@welshman/domain"
 
 // read side (event decoder for a data plugin):
 eventToItem: app.use(Domain).reader(Note)                 // ConfiguredKind.reader

@@ -211,8 +211,7 @@ const plaintext = await signer.nip44.decrypt(theirPubkey, ciphertext)
 
 - **`@welshman/util`** supplies `makeEvent`, `makeSecret`, `StampedEvent`, `SignedEvent`, and nostr kind constants (`NOTE`, `DIRECT_MESSAGE`, etc.) used in all examples above.
 - **`@welshman/net`** and **`@welshman/app`** accept an `ISigner` wherever signing is needed (e.g. publishing events). Pass any concrete signer — they are interchangeable.
-- **`@welshman/app`** exposes a `signer` writable store (`import { signer } from '@welshman/app'`) that the rest of the app stack reads. Set it to your chosen `ISigner` after login.
-- `Nip59` wraps events with an ephemeral `Nip01Signer` by default (per the NIP-59 spec), so callers do not need to supply a wrapper unless they want a custom one.
+- **`@welshman/app`** exposes a `signer` writable store (`- `Nip59` wraps events with an ephemeral `Nip01Signer` by default (per the NIP-59 spec), so callers do not need to supply a wrapper unless they want a custom one.
 
 ## Gotchas & Tips
 

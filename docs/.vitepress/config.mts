@@ -107,12 +107,7 @@ export default defineConfig({
             {text: "NIP 59", link: "/signer/nip-59"},
           ],
         },
-        {
-          text: "@welshman/router",
-          link: "/router/",
-          items: [],
-        },
-        {
+                {
           text: "@welshman/content",
           link: "/content/",
           items: [

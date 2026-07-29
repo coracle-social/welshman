@@ -242,10 +242,8 @@ import {
   makeLoadItem,
   makeDeriveItem,
 } from "@welshman/store"
-import { load } from "@welshman/net"
-import { repository } from "@welshman/app"
-import { Router } from "@welshman/router"
-import { tagSpec, tagValue, tagValues } from "@welshman/util"
+import { Network, Router } from "@welshman/app"
+import { outbox, tagSpec, tagValue, tagValues } from "@welshman/util"
 import type { TrustedEvent } from "@welshman/util"
 
 const BOOKMARK_KIND = 30003
@@ -283,8 +281,10 @@ const getBookmark = (pubkey: string) => getBookmarksByPubkey().get(pubkey)
 //         re-fetches only after the timeout window (default: 3600 s)
 const loadBookmark = makeLoadItem<Bookmark>(
   async (pubkey: string) => {
-    await load({
-      relays: Router.get().ForPubkey(pubkey).getUrls(),
+    const scenario = await app.use(Router).resolve([outbox(pubkey)])
+
+    await app.use(Network).load({
+      relays: scenario.getUrls(),
       filters: [{ kinds: [BOOKMARK_KIND], authors: [pubkey], limit: 1 }],
     })
   },
