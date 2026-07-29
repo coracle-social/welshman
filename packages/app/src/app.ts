@@ -19,10 +19,22 @@ export type AppOptions = {
   policies?: AppPolicy[]
 }
 
+export type PluginCtor<T = unknown> = new (app: IApp) => T
+
+/**
+ * Plugins that own resources — a database connection, a timer, a subscription to
+ * something outside the app — implement `cleanup` to release them. The app calls
+ * it on teardown, before it clears the primitives those plugins are watching.
+ */
+export type CleanupablePlugin = {cleanup: () => void}
+
+const isCleanupable = (plugin: unknown): plugin is CleanupablePlugin =>
+  typeof (plugin as CleanupablePlugin).cleanup === "function"
+
 export interface IApp {
   user?: User
   config: AppConfig
-  use: <T>(Ctor: new (app: IApp) => T) => T
+  use: <T>(Ctor: PluginCtor<T>) => T
   netContext: NetContext
   pool: Pool
   tracker: Tracker
@@ -45,7 +57,7 @@ export class App implements IApp {
   repository: Repository
   wrapManager: WrapManager
 
-  private singletons = new Map<new (app: IApp) => unknown, unknown>()
+  private singletons = new Map<PluginCtor, unknown>()
   private unsubscribers: Unsubscriber[] = []
 
   constructor(options: AppOptions = {}) {
@@ -72,7 +84,7 @@ export class App implements IApp {
   // Resolve the per-app singleton of a data module, constructing it on first
   // use. This is how modules reach their dependencies (e.g. app.use(RelayLists)),
   // replacing constructor injection and letting cycles resolve lazily.
-  use = <T>(Ctor: new (app: IApp) => T): T => {
+  use = <T>(Ctor: PluginCtor<T>): T => {
     let instance = this.singletons.get(Ctor) as T | undefined
 
     if (!instance) {
@@ -84,6 +96,13 @@ export class App implements IApp {
 
   cleanup() {
     this.unsubscribers.forEach(call)
+
+    for (const plugin of this.singletons.values()) {
+      if (isCleanupable(plugin)) {
+        plugin.cleanup()
+      }
+    }
+
     this.pool.clear()
     this.tracker.clear()
     this.repository.clear()
