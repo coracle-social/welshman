@@ -1,5 +1,6 @@
 import {Scope, FeedController} from "@welshman/feeds"
 import type {FeedControllerOptions, Feed as FeedDefinition} from "@welshman/feeds"
+import {max as maxValue} from "@welshman/lib"
 import {Address, FEED} from "@welshman/util"
 import {Feed, FeedReader, FeedWriter} from "@welshman/domain"
 import {DerivedPlugin, projectFrom} from "./base.js"
@@ -7,7 +8,7 @@ import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {Domain} from "./domain.js"
-import {Wot} from "./wot.js"
+import {Wot, WotScope} from "./wot.js"
 import type {IApp} from "../app.js"
 
 export type MakeFeedControllerOptions = Partial<Omit<FeedControllerOptions, "feed">> & {
@@ -86,7 +87,7 @@ export class Feeds extends DerivedPlugin<FeedReader> {
       case Scope.Network:
         return this.app.use(Wot).network($pubkey).get()
       case Scope.Followers:
-        return this.app.use(Wot).followers($pubkey).get()
+        return this.app.use(Wot).followers($pubkey, WotScope.Global).get()
       default:
         return []
     }
@@ -94,11 +95,14 @@ export class Feeds extends DerivedPlugin<FeedReader> {
 
   getPubkeysForWOTRange = (min: number, max: number): string[] => {
     const pubkeys = []
-    const $maxWot = this.app.use(Wot).max.get() ?? 0
+    // Scored against the user's follows, so a range means the same thing to them as
+    // it does in their client's UI
+    const $scores = this.app.use(Wot).scores(WotScope.Follows).get()
+    const $maxWot = maxValue(Array.from($scores.values())) ?? 0
     const thresholdMin = $maxWot * min
     const thresholdMax = $maxWot * max
 
-    for (const [tpk, score] of this.app.use(Wot).graph.get().entries()) {
+    for (const [tpk, score] of $scores) {
       if (score >= thresholdMin && score <= thresholdMax) {
         pubkeys.push(tpk)
       }
