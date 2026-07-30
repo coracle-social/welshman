@@ -1,7 +1,7 @@
 import {derived, readable} from "svelte/store"
 import type {Readable} from "svelte/store"
 import {debounce} from "throttle-debounce"
-import {dec, inc} from "@welshman/lib"
+import {dec, inc, max} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import {PROFILE, searchRelays} from "@welshman/util"
 import {Profile, ProfileReader, ProfileWriter, displayPubkey} from "@welshman/domain"
@@ -12,7 +12,7 @@ import {Network} from "./network.js"
 import {Router} from "./router.js"
 import {Domain} from "./domain.js"
 import {Handles} from "./handles.js"
-import {Wot} from "./wot.js"
+import {Wot, WotScope} from "./wot.js"
 import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
@@ -58,6 +58,11 @@ export class Profiles extends DerivedPlugin<ProfileReader> {
   }
 
   private makeSearch = ($profiles = this.all.get()): Search<string, ProfileReader> => {
+    // Snapshot the scores the search ranks by — one walk of the web of trust per
+    // search, rather than a lookup per result per keystroke
+    const $scores = this.app.use(Wot).scores(WotScope.Follows).get()
+    const $maxScore = max(Array.from($scores.values())) || 1
+
     return createSearch($profiles, {
       onSearch: debounce(500, async (search: string) => {
         if (search.length > 2) {
@@ -70,12 +75,8 @@ export class Profiles extends DerivedPlugin<ProfileReader> {
         }
       }),
       getValue: (profile: ProfileReader) => profile.author(),
-      sortFn: ({score = 1, item}) => {
-        const wot = this.app.use(Wot)
-        const wotScore = wot.graph.get().get(item.author()) || 0
-
-        return dec(score) * inc(wotScore / (wot.max.get() || 1))
-      },
+      sortFn: ({score = 1, item}) =>
+        dec(score) * inc(($scores.get(item.author()) ?? 0) / $maxScore),
       fuseOptions: {
         keys: ["nip05", {name: "name", weight: 0.8}, {name: "about", weight: 0.3}],
         threshold: 0.3,

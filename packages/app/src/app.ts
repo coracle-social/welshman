@@ -19,12 +19,12 @@ export type AppOptions = {
   policies?: AppPolicy[]
 }
 
-export type PluginCtor<T = unknown> = new (app: IApp) => T
+export type Plugin<T = unknown> = new (app: IApp) => T
 
 export interface IApp {
   user?: User
   config: AppConfig
-  use: <T>(Ctor: PluginCtor<T>) => T
+  use: <T>(Ctor: Plugin<T>) => T
   onCleanup: (unsubscriber: Unsubscriber) => void
   netContext: NetContext
   pool: Pool
@@ -48,7 +48,7 @@ export class App implements IApp {
   repository: Repository
   wrapManager: WrapManager
 
-  private singletons = new Map<PluginCtor, unknown>()
+  private singletons = new Map<Plugin, unknown>()
   private unsubscribers: Unsubscriber[] = []
 
   constructor(options: AppOptions = {}) {
@@ -72,7 +72,7 @@ export class App implements IApp {
     }
   }
 
-  use = <T>(Ctor: PluginCtor<T>): T => {
+  use = <T>(Ctor: Plugin<T>): T => {
     let instance = this.singletons.get(Ctor) as T | undefined
 
     if (!instance) {

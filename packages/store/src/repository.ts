@@ -408,7 +408,10 @@ export const deriveItemsByKey = <T>({
         for (const id of removed) {
           const key = mapPop(id, keysById)
 
-          if (key) {
+          // Only remove if this id still owns the key — replacing a replaceable event
+          // reports the old id as removed in the same update that adds the new one,
+          // and the newer event has already taken the key over.
+          if (key && idsByKey.get(key) === id) {
             idsByKey.delete(key)
             itemsByKey.delete(key)
             dirty = true

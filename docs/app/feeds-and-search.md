@@ -33,7 +33,7 @@ You provide the `feed` (and typically `onEvent`); the app injects `router`, `sig
 - `Scope.Network` → `Wot.network(pubkey)`
 - `Scope.Followers` → `Wot.followers(pubkey)`
 
-WoT-range feeds resolve to the pubkeys whose trust score falls within a fraction of the maximum score in the graph.
+WoT-range feeds resolve to the pubkeys whose trust score falls within a fraction of the maximum score, scored against the user's follows rather than the whole repository (`WotScope.Follows`, see [scope](./wot#scope)).
 
 ## Search
 
