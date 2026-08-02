@@ -5,7 +5,6 @@
  */
 export class LRUCache<T, U> {
   map = new Map<T, U>()
-  keys: T[] = []
 
   constructor(readonly maxSize: number = Infinity) {}
 
@@ -14,30 +13,29 @@ export class LRUCache<T, U> {
   }
 
   get(k: T) {
-    const v = this.map.get(k)
+    if (!this.map.has(k)) return
 
-    if (v !== undefined) {
-      this.keys.push(k as T)
+    const v = this.map.get(k) as U
 
-      if (this.keys.length > this.maxSize * 2) {
-        this.keys = this.keys.splice(-this.maxSize)
-      }
-    }
+    this.map.delete(k)
+    this.map.set(k, v)
 
     return v
   }
 
   set(k: T, v: U) {
+    this.map.delete(k)
     this.map.set(k, v)
-    this.keys.push(k)
 
     if (this.map.size > this.maxSize) {
-      this.map.delete(this.keys.shift() as T)
+      const oldest = this.map.keys().next()
+
+      if (!oldest.done) this.map.delete(oldest.value)
     }
   }
 
   pop(k: T) {
-    const v = this.get(k)
+    const v = this.map.get(k)
 
     this.map.delete(k)
 
