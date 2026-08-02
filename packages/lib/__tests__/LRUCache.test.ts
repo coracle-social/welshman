@@ -34,20 +34,45 @@ describe("Caches", () => {
       })
 
       it("should update access order on get", () => {
-        cache.set("a", 1) // keys = [a]
-        cache.set("b", 2) // keys = [a, b]
-        cache.set("c", 3) // keys = [a, b, c]
+        cache.set("a", 1)
+        cache.set("b", 2)
+        cache.set("c", 3)
 
-        cache.get("b") // keys = [a, b, c, b]
-        cache.get("b") // keys = [a, b, c, b, b]
-        cache.get("b") // keys = [a, b, c, b, b, b] size at limit (maxSize * 2 = 6)
-        cache.get("a") // keys = [b, b, a] keys is over limit, only the 3 last are kept
-        cache.set("d", 4) // keys = [b, b, a, d],
+        cache.get("a")
+        cache.set("d", 4)
 
-        // @todo clarify with @staab the intended behavior
-        // "a" was recently accessed, it should not be evicted
-        expect(cache.has("a")).toBe(true) // 'a' should be present
-        expect(cache.has("b")).toBe(false) // 'b' should be evicted
+        expect(cache.has("a")).toBe(true)
+        expect(cache.has("b")).toBe(false)
+        expect(cache.has("c")).toBe(true)
+        expect(cache.has("d")).toBe(true)
+      })
+
+      it("should update access order when replacing a value", () => {
+        cache.set("a", 1)
+        cache.set("b", 2)
+        cache.set("c", 3)
+
+        cache.set("a", 10)
+        cache.set("d", 4)
+
+        expect(cache.get("a")).toBe(10)
+        expect(cache.has("b")).toBe(false)
+      })
+
+      it("should stay within maxSize after removing an entry", () => {
+        const smallCache = new LRUCache<string, number>(2)
+
+        smallCache.set("a", 1)
+        smallCache.set("b", 2)
+        expect(smallCache.pop("a")).toBe(1)
+
+        smallCache.set("c", 3)
+        smallCache.set("d", 4)
+
+        expect(smallCache.map.size).toBe(2)
+        expect(smallCache.has("b")).toBe(false)
+        expect(smallCache.has("c")).toBe(true)
+        expect(smallCache.has("d")).toBe(true)
       })
     })
   })
