@@ -10,6 +10,20 @@ The signer requires the Capacitor plugin to be installed:
 npm install nostr-signer-capacitor-plugin
 ```
 
+`@welshman/signer` does not import the plugin itself — it only describes the shape it needs
+as the `Nip55` type, so that apps which don't support NIP-55 never have to resolve a package
+they haven't installed. Your app hands the plugin over once at startup:
+
+```typescript
+import { NostrSignerPlugin } from 'nostr-signer-capacitor-plugin'
+import { setNip55Plugin } from '@welshman/signer'
+
+setNip55Plugin(NostrSignerPlugin)
+```
+
+Until you do, `getNip55()` returns an empty list and `Nip55Signer` operations reject with
+`"Nip55 is not enabled"` — the same way `Nip07Signer` behaves without a browser extension.
+
 ## Getting Started
 
 ```typescript
@@ -25,16 +39,23 @@ if (apps.length > 0) {
 
 ## API Reference
 
+### Registering the Plugin
+
+```typescript
+setNip55Plugin(plugin: Nip55 | undefined): void
+getNip55Plugin(): Nip55 | undefined
+```
+
 ### Detecting Available Signers
 
 ```typescript
-// Returns information about installed signing apps
-getNip55(): Promise<AppInfo[]>
+// Returns information about installed signing apps, or [] if no plugin is registered
+getNip55(): Promise<Nip55AppInfo[]>
 
-interface AppInfo {
+interface Nip55AppInfo {
   name: string
   packageName: string
-  // Other app-specific information
+  iconUrl?: string
 }
 ```
 
@@ -50,8 +71,11 @@ Creates a new signer instance that will communicate with the specified native ap
 ## Complete Example
 
 ```typescript
-import { Nip55Signer, getNip55 } from '@welshman/signer'
+import { NostrSignerPlugin } from 'nostr-signer-capacitor-plugin'
+import { Nip55Signer, getNip55, setNip55Plugin } from '@welshman/signer'
 import { makeEvent, NOTE } from '@welshman/util'
+
+setNip55Plugin(NostrSignerPlugin)
 
 async function example() {
   try {

@@ -282,8 +282,8 @@ importers:
   packages/signer:
     devDependencies:
       '@capacitor/core':
-        specifier: ^7.2.0
-        version: 7.2.0
+        specifier: ^8.5.0
+        version: 8.5.0
       '@noble/curves':
         specifier: ^1.9.7
         version: 1.9.7
@@ -301,7 +301,7 @@ importers:
         version: link:../util
       nostr-signer-capacitor-plugin:
         specifier: github:coracle-social/nostr-signer-capacitor-plugin#main
-        version: https://codeload.github.com/coracle-social/nostr-signer-capacitor-plugin/tar.gz/be4bb90a1a15c8eec0934f2f66ce9e82ecc72d51(@capacitor/core@7.2.0)
+        version: https://codeload.github.com/coracle-social/nostr-signer-capacitor-plugin/tar.gz/be4bb90a1a15c8eec0934f2f66ce9e82ecc72d51(@capacitor/core@8.5.0)
       nostr-tools:
         specifier: ^2.19.4
         version: 2.19.4(typescript@5.8.2)
@@ -461,8 +461,8 @@ packages:
   '@braintree/sanitize-url@7.1.1':
     resolution: {integrity: sha512-i1L7noDNxtFyL5DmZafWy1wRVhGehQmzZaz1HiN5e7iylJMSZR7ekOV7NsIqa5qBldlLrsKv4HbgFUVlQrz8Mw==}
 
-  '@capacitor/core@7.2.0':
-    resolution: {integrity: sha512-2zCnA6RJeZ9ec4470o8QMZEQTWpekw9FNoqm5TLc10jeCrhvHVI8MPgxdZVc3mOdFlyieYu4AS1fNxSqbS57Pw==}
+  '@capacitor/core@8.5.0':
+    resolution: {integrity: sha512-Ca4krtqH1hothjtBIwf2J2TW7IhYq1ujp8QeItTiJohNsqij8ja2DYYH3DU0l8RmxCWaBAFTGA2TgOgOMCSNsQ==}
 
   '@cbor-extract/cbor-extract-darwin-arm64@2.2.2':
     resolution: {integrity: sha512-ZKZ/F8US7JR92J4DMct6cLW/Y66o2K576+zjlEN/MevH70bFIsB10wkZEQPLzl2oNh2SMGy55xpJ9JoBRl5DOA==}
@@ -2709,7 +2709,7 @@ snapshots:
 
   '@braintree/sanitize-url@7.1.1': {}
 
-  '@capacitor/core@7.2.0':
+  '@capacitor/core@8.5.0':
     dependencies:
       tslib: 2.8.1
 
@@ -4246,9 +4246,9 @@ snapshots:
       prosemirror-view: 1.41.3
       tiptap-markdown: 0.8.10(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))
 
-  nostr-signer-capacitor-plugin@https://codeload.github.com/coracle-social/nostr-signer-capacitor-plugin/tar.gz/be4bb90a1a15c8eec0934f2f66ce9e82ecc72d51(@capacitor/core@7.2.0):
+  nostr-signer-capacitor-plugin@https://codeload.github.com/coracle-social/nostr-signer-capacitor-plugin/tar.gz/be4bb90a1a15c8eec0934f2f66ce9e82ecc72d51(@capacitor/core@8.5.0):
     dependencies:
-      '@capacitor/core': 7.2.0
+      '@capacitor/core': 8.5.0
 
   nostr-tools@2.19.4(typescript@5.8.2):
     dependencies:

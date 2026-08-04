@@ -25,11 +25,10 @@
     "@welshman/lib": "workspace:*",
     "@welshman/net": "workspace:*",
     "@welshman/util": "workspace:*",
-    "nostr-signer-capacitor-plugin": "*",
     "nostr-tools": "^2.19.4"
   },
   "devDependencies": {
-    "@capacitor/core": "^7.2.0",
+    "@capacitor/core": "^8.5.0",
     "@noble/curves": "^1.9.7",
     "@noble/hashes": "^2.0.1",
     "@welshman/lib": "workspace:*",

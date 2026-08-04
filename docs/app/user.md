@@ -92,6 +92,15 @@ These are registered automatically when the package loads:
 | `nip55` | `"nip55"` | `{pubkey, signer}` | `Nip55Signer` (Android signer app) |
 | `pomade` | `"pomade"` | `{clientOptions, email}` | `PomadeSigner` |
 
+`nip55` needs the Capacitor plugin handed to `@welshman/signer` before use — the handler is registered either way, but building a signer from it throws `"Nip55 is not enabled"` until you do. Call this once at startup in a Capacitor app:
+
+```typescript
+import {NostrSignerPlugin} from "nostr-signer-capacitor-plugin"
+import {setNip55Plugin} from "@welshman/signer"
+
+setNip55Plugin(NostrSignerPlugin)
+```
+
 ### Registering custom handlers
 
 Define a handler with `defineSessionHandler` (it infers `M`/`D` so `getSigner` is type-checked against the data shape), then register it:
