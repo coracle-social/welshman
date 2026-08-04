@@ -73,6 +73,83 @@ describe("requestOne", () => {
 
     expect(closeSpy).toHaveBeenCalledTimes(1)
   })
+
+  it("closes each subscription id as soon as it eoses", async () => {
+    const ids: string[] = []
+    const sendSpy = vi.fn(m => {
+      if (m[0] === "REQ") {
+        ids.push(m[1])
+      }
+    })
+    const adapter = new MockAdapter("1", sendSpy)
+    const eoseSpy = vi.fn()
+    const closeSpy = vi.fn()
+
+    requestOne({
+      relay: "whatever",
+      filters: [{kinds: [1]}, {kinds: [7]}],
+      context: {getAdapter: () => adapter},
+      autoClose: true,
+      onEose: eoseSpy,
+      onClose: closeSpy,
+    })
+
+    // Don't run all timers — that would trip the 30 second auto-close fallback
+    await vi.advanceTimersByTimeAsync(0)
+
+    const [id1, id2] = ids
+
+    // The fast filter releases its subscription without waiting on the slow one
+    adapter.receive(["EOSE", id1])
+
+    expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Close, id1])
+    expect(sendSpy).not.toHaveBeenCalledWith([ClientMessageType.Close, id2])
+    expect(eoseSpy).toHaveBeenCalledTimes(0)
+    expect(closeSpy).toHaveBeenCalledTimes(0)
+
+    adapter.receive(["EOSE", id2])
+
+    expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Close, id2])
+    expect(eoseSpy).toHaveBeenCalledTimes(1)
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+
+    // Neither id gets closed twice
+    expect(sendSpy.mock.calls.filter(([m]) => m[0] === ClientMessageType.Close)).toHaveLength(2)
+  })
+
+  it("keeps subscriptions open past eose when not auto-closing", async () => {
+    const ids: string[] = []
+    const sendSpy = vi.fn(m => {
+      if (m[0] === "REQ") {
+        ids.push(m[1])
+      }
+    })
+    const adapter = new MockAdapter("1", sendSpy)
+    const ctrl = new AbortController()
+    const eoseSpy = vi.fn()
+
+    requestOne({
+      relay: "whatever",
+      filters: [{kinds: [1]}, {kinds: [7]}],
+      context: {getAdapter: () => adapter},
+      signal: ctrl.signal,
+      onEose: eoseSpy,
+    })
+
+    await vi.runAllTimersAsync()
+
+    adapter.receive(["EOSE", ids[0]])
+    adapter.receive(["EOSE", ids[1]])
+
+    expect(eoseSpy).toHaveBeenCalledTimes(1)
+    expect(sendSpy).not.toHaveBeenCalledWith([ClientMessageType.Close, ids[0]])
+    expect(sendSpy).not.toHaveBeenCalledWith([ClientMessageType.Close, ids[1]])
+
+    ctrl.abort()
+
+    expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Close, ids[0]])
+    expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Close, ids[1]])
+  })
 })
 
 describe("request", () => {
