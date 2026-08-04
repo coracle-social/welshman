@@ -62,8 +62,12 @@ export const requestOne = (options: RequestOneOptions) => {
     return Promise.resolve([] as TrustedEvent[])
   }
 
+  // Every subscription id we own, used to decide whether a message is ours
   const ids = new Set<string>()
-  const eose = new Set<string>()
+  // Ids the relay still has subscription state for, which we're responsible for closing
+  const open = new Set<string>()
+  // Ids we're still waiting on, whether via eose or closed
+  const pending = new Set<string>()
   const events: TrustedEvent[] = []
   const deferred = defer<TrustedEvent[]>()
   const tracker = options.tracker || new Tracker()
@@ -72,13 +76,19 @@ export const requestOne = (options: RequestOneOptions) => {
 
   let closed = false
 
+  const closeId = (id: string) => {
+    if (open.delete(id)) {
+      adapter.send([ClientMessageType.Close, id])
+    }
+  }
+
   const close = () => {
     if (closed) return
 
     closed = true
 
-    for (const id of ids) {
-      adapter.send(["CLOSE", id])
+    for (const id of Array.from(open)) {
+      closeId(id)
     }
 
     options.onClose?.()
@@ -111,10 +121,14 @@ export const requestOne = (options: RequestOneOptions) => {
       if (isRelayEose(message)) {
         const [_, id] = message
 
-        if (ids.has(id)) {
-          eose.add(id)
+        if (pending.delete(id)) {
+          // Release the relay's subscription state for this filter as soon as it's
+          // done, rather than making it wait on slower filters in the same request
+          if (options.autoClose) {
+            closeId(id)
+          }
 
-          if (eose.size === ids.size) {
+          if (pending.size === 0) {
             options.onEose?.(url)
 
             if (options.autoClose) {
@@ -128,10 +142,11 @@ export const requestOne = (options: RequestOneOptions) => {
         const [_, id, reason] = message
 
         if (ids.has(id)) {
-          ids.delete(id)
+          pending.delete(id)
+          open.delete(id)
           options.onClosed?.(reason, url)
 
-          if (ids.size === 0) {
+          if (open.size === 0) {
             close()
           }
         }
@@ -171,6 +186,8 @@ export const requestOne = (options: RequestOneOptions) => {
     const id = `REQ-${randomId().slice(0, 8)}`
 
     ids.add(id)
+    open.add(id)
+    pending.add(id)
     adapter.send([ClientMessageType.Req, id, filter])
   }
 
