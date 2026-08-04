@@ -73,12 +73,21 @@ type SignOptions = { signal?: AbortSignal }
 
 ### Nip55Signer (native mobile)
 
+This package never imports `nostr-signer-capacitor-plugin` — it types the plugin structurally as `Nip55` and the app hands it over. Install it (`npm install nostr-signer-capacitor-plugin`) and register it once at startup:
+
+```ts
+import {NostrSignerPlugin} from "nostr-signer-capacitor-plugin"
+import {setNip55Plugin} from "@welshman/signer"
+
+setNip55Plugin(NostrSignerPlugin)
+```
+
 | Export | Description |
 |---|---|
-| `getNip55()` | Returns `Promise<AppInfo[]>` — installed signing apps via Capacitor |
+| `setNip55Plugin(plugin)` | Registers the Capacitor plugin. Until called, `Nip55Signer` operations throw `"Nip55 is not enabled"` |
+| `getNip55Plugin()` | Returns the registered plugin, or `undefined` |
+| `getNip55()` | Returns `Promise<Nip55AppInfo[]>` — installed signing apps, or `[]` when no plugin is registered |
 | `new Nip55Signer(packageName, pubkey?)` | Communicates with the specified native app; pass saved pubkey to resume a session |
-
-Requires the peer dependency: `npm install nostr-signer-capacitor-plugin`
 
 ### Nip59 (Gift Wrap)
 
@@ -216,7 +225,7 @@ const plaintext = await signer.nip44.decrypt(theirPubkey, ciphertext)
 ## Gotchas & Tips
 
 - **`Nip07Signer` is browser-only.** Do not instantiate it in SSR or Node environments; always guard with `getNip07()` first.
-- **`Nip55Signer` requires Capacitor.** It will not work in a plain browser build. Only use it in a Capacitor-wrapped mobile app after confirming `getNip55()` returns apps.
+- **`Nip55Signer` requires Capacitor.** It will not work in a plain browser build. Only use it in a Capacitor-wrapped mobile app, after calling `setNip55Plugin(NostrSignerPlugin)` and confirming `getNip55()` returns apps. Without the plugin, `getNip55()` returns `[]` rather than throwing, so it doubles as the feature check.
 - **`waitForNostrconnect` holds an open subscription.** Always pass an `AbortSignal` (e.g., from `new AbortController().signal`) so you can cancel if the user navigates away.
 - **`makeSecret()`** (from `@welshman/util`) generates a cryptographically secure random hex private key. Use it for the `clientSecret` in NIP-46 — never reuse the user's actual private key as the client secret.
 - **`nip59.wrap()` returns the gift-wrap `SignedEvent` directly** — the return value itself is the kind-1059 event to publish. There is no `.wrap` sub-property on the return value.

@@ -83,6 +83,15 @@ await u.nip44EncryptToSelf(payload)        // encrypt to self (private list entr
 
 Built-in session handlers (auto-registered): `nip01` `{secret}`, `nip07` `{}`, `nip46` `{clientSecret, signerPubkey, relays}`, `nip55` `{pubkey, signer}`, `pomade` `{clientOptions, email}`. Register custom ones with `defineSessionHandler` + `registerSessionHandler`.
 
+`nip55` additionally needs the Capacitor plugin passed to `@welshman/signer` once at startup, or building its signer throws `"Nip55 is not enabled"`:
+
+```ts
+import {NostrSignerPlugin} from "nostr-signer-capacitor-plugin"
+import {setNip55Plugin} from "@welshman/signer"
+
+setNip55Plugin(NostrSignerPlugin)
+```
+
 ## Data plugins (reactive collections)
 
 All follow the same shape — `get(key)` (sync), `one(key)` (reactive, lazy-loads), `load(key)`/`forceLoad(key)` (promises), plus convenience accessors returning `Projection`. Resolve with `app.use(...)`.
