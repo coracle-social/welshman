@@ -98,15 +98,7 @@ function getBytes(buf, n) {
 class Accumulator {
   constructor() {
     this.setToZero()
-
-    if (typeof window === "undefined") {
-      // node.js
-      this.sha256 = async slice =>
-        new Uint8Array(crypto.createHash("sha256").update(slice).digest())
-    } else {
-      // browser
-      this.sha256 = async slice => new Uint8Array(await crypto.subtle.digest("SHA-256", slice))
-    }
+    this.sha256 = async slice => new Uint8Array(await crypto.subtle.digest("SHA-256", slice))
   }
 
   setToZero() {
