@@ -1,5 +1,5 @@
 import {readable, Readable} from "svelte/store"
-import {on, now, mapPop, Maybe, MaybeAsync, call, sortBy, first} from "@welshman/lib"
+import {on, now, noop, mapPop, Maybe, MaybeAsync, call, sortBy, first} from "@welshman/lib"
 import {
   matchFilters,
   getIdFilters,
@@ -651,12 +651,13 @@ export const deriveItemsSorted = <T>(sortFn: (item: T) => number, itemsStore: Re
 
 export const makeDeriveItem = <T>(
   itemsByKeyStore: Readable<ItemsByKey<T>>,
-  onDerive?: (key: string, ...args: any[]) => void,
+  onDerive?: (key: string, ...args: any[]) => unknown,
 ) => {
   return (key?: string, ...args: any[]) => {
     if (!key) return readable(undefined)
 
-    onDerive?.(key, ...args)
+    // Nothing awaits this, so a failed load has nowhere to go
+    Promise.resolve(onDerive?.(key, ...args)).catch(noop)
 
     return deriveDeduplicated(itemsByKeyStore, itemsByKey => itemsByKey.get(key))
   }
@@ -667,7 +668,11 @@ export const makeDeriveItem = <T>(
 export type LoadItem = (key: string, ...args: any[]) => Promise<unknown>
 
 export const makeForceLoadItem = <T>(loadItem: LoadItem, getItem: GetItem<T>) => {
-  return (key: string, ...args: any[]) => loadItem(key, ...args).then(() => getItem(key))
+  return async (key: string, ...args: any[]) => {
+    await loadItem(key, ...args)
+
+    return getItem(key)
+  }
 }
 
 export type MakeLoadItemOptions = {
@@ -688,27 +693,27 @@ export const makeLoadItem = <T>(
   const pending = new Map<string, Promise<Maybe<T>>>()
   const attempts = new Map<string, number>()
 
-  return (key: string, ...args: any[]): Promise<Maybe<T>> => {
+  return async (key: string, ...args: any[]): Promise<Maybe<T>> => {
     const stale = getItem(key)
     const fetched = getFetched(key)
 
     // If we have an item, reload if it's relatively recent
     if (stale && fetched > now() - timeout) {
-      return Promise.resolve(stale)
+      return stale
     }
 
     const pendingItem = pending.get(key)
 
     // If we already are loading, await and return
     if (pendingItem) {
-      return Promise.resolve(pendingItem)
+      return pendingItem
     }
 
     const attempt = attempts.get(key) || 0
 
     // Use exponential backoff to throttle attempts
     if (fetched > now() - Math.pow(2, attempt)) {
-      return Promise.resolve(stale)
+      return stale
     }
 
     attempts.set(key, attempt + 1)
@@ -719,22 +724,19 @@ export const makeLoadItem = <T>(
 
     pending.set(key, promise)
 
-    return call(async () => {
-      let item
-      try {
-        item = await promise
-      } catch (e) {
-        console.warn(`Failed to load item ${key}`, e)
-      } finally {
-        pending.delete(key)
-      }
+    let item
 
-      if (item) {
-        attempts.delete(key)
-      }
+    try {
+      item = await promise
+    } finally {
+      pending.delete(key)
+    }
 
-      return item
-    })
+    if (item) {
+      attempts.delete(key)
+    }
+
+    return item
   }
 }
 

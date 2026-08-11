@@ -1,4 +1,4 @@
-import {uniq} from "@welshman/lib"
+import {uniq, noop} from "@welshman/lib"
 import {Resolver, Address, isReplaceableKind} from "@welshman/util"
 import type {RelayRoute, RelaySelection, EventRef} from "@welshman/util"
 import type {FeedRouter} from "@welshman/feeds"
@@ -61,15 +61,15 @@ export class Router implements FeedRouter {
 
   // A pubkey's read relays (its inbox — where to deliver so it receives events).
   private inboxRelays = async (pubkey?: string) =>
-    pubkey ? ((await this.app.use(RelayLists).load(pubkey))?.readUrls() ?? []) : []
+    pubkey ? ((await this.app.use(RelayLists).load(pubkey).catch(noop))?.readUrls() ?? []) : []
 
   // A pubkey's write relays (its outbox — where its events live).
   private outboxRelays = async (pubkey?: string) =>
-    pubkey ? ((await this.app.use(RelayLists).load(pubkey))?.writeUrls() ?? []) : []
+    pubkey ? ((await this.app.use(RelayLists).load(pubkey).catch(noop))?.writeUrls() ?? []) : []
 
   // A pubkey's NIP-17 messaging relays.
   private messagingRelays = async (pubkey?: string) =>
-    pubkey ? ((await this.app.use(MessagingRelayLists).load(pubkey))?.urls() ?? []) : []
+    pubkey ? ((await this.app.use(MessagingRelayLists).load(pubkey).catch(noop))?.urls() ?? []) : []
 
   // Resolve an event reference to a pubkey's relays: route directly to a known
   // pubkey, else look the event up in the repository to find its author, else fall

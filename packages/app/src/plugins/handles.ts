@@ -1,4 +1,4 @@
-import {tryCatch, batcher, postJson} from "@welshman/lib"
+import {noop, tryCatch, batcher, postJson} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import {queryProfile, displayNip05} from "@welshman/util"
 import type {Handle} from "@welshman/util"
@@ -62,7 +62,7 @@ export class Handles extends LoadableMapPlugin<Handle> {
   }
 
   forPubkey = (pubkey: string, relays: string[] = []): Projection<Maybe<Handle>> => {
-    this.loadForPubkey(pubkey, relays)
+    this.loadForPubkey(pubkey, relays).catch(noop)
 
     const read = ([$handlesByNip05, $profile]: [
       ReadonlyMap<string, Handle>,
