@@ -1315,13 +1315,22 @@ export const batch = <T>(t: number, f: (xs: T[]) => void) => {
  * @returns Function that returns promise of result
  */
 export const batcher = <T, U>(t: number, execute: (request: T[]) => U[] | Promise<U[]>) => {
-  const queue: {request: T; resolve: (x: U) => void; reject: (reason?: string) => void}[] = []
+  const queue: {request: T; resolve: (x: U) => void; reject: (reason?: unknown) => void}[] = []
   let timeoutId: ReturnType<typeof setTimeout> | undefined
 
   const _execute = async () => {
     timeoutId = undefined
     const items = queue.splice(0)
-    const results = await execute(items.map(item => item.request))
+
+    let results
+
+    try {
+      results = await execute(items.map(item => item.request))
+    } catch (e) {
+      items.forEach(item => item.reject(e))
+
+      return
+    }
 
     if (results.length === items.length) {
       results.forEach((r, i) => items[i].resolve(r))

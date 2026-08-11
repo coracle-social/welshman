@@ -1,5 +1,6 @@
 import type {Readable} from "svelte/store"
 import {
+  noop,
   removeUndefined,
   fetchJson,
   bech32ToHex,
@@ -76,7 +77,7 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
   }
 
   forPubkey = (pubkey: string, relays: string[] = []): Projection<Maybe<Zapper>> => {
-    this.loadForPubkey(pubkey, relays)
+    this.loadForPubkey(pubkey, relays).catch(noop)
 
     const read = ([$zappersByLnurl, $profile]: [
       ReadonlyMap<string, Zapper>,
@@ -132,7 +133,7 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
 
     // Ensure each recipient's profile (-> lnurl) and zapper are being loaded.
     for (const split of splits) {
-      this.loadForPubkey(split.pubkey, removeUndefined([split.relay]))
+      this.loadForPubkey(split.pubkey, removeUndefined([split.relay])).catch(noop)
     }
 
     const receipts = removeUndefined(zapReceipts.map(event => tryCatch(() => readReceipt(event))))

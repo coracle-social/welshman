@@ -1,7 +1,7 @@
 import {derived, readable} from "svelte/store"
 import type {Readable} from "svelte/store"
 import {debounce} from "throttle-debounce"
-import {dec, inc, max} from "@welshman/lib"
+import {dec, inc, max, noop} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import {PROFILE, searchRelays} from "@welshman/util"
 import {Profile, ProfileReader, ProfileWriter, displayPubkey} from "@welshman/domain"
@@ -68,10 +68,13 @@ export class Profiles extends DerivedPlugin<ProfileReader> {
         if (search.length > 2) {
           const scenario = await this.app.use(Router).resolve([searchRelays()])
 
-          this.app.use(Network).load({
-            filters: [{kinds: [PROFILE], search}],
-            relays: scenario.getUrls(),
-          })
+          this.app
+            .use(Network)
+            .load({
+              filters: [{kinds: [PROFILE], search}],
+              relays: scenario.getUrls(),
+            })
+            .catch(noop)
         }
       }),
       getValue: (profile: ProfileReader) => profile.author(),

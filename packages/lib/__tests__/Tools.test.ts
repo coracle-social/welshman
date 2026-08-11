@@ -206,18 +206,34 @@ describe("Tools", () => {
         expect(batch2Results).toEqual([6, 8])
       })
 
-      it.skip("should throw error if execute returns wrong number of results", async () => {
+      // Both rejection cases catch up front: a handler attached after the timers
+      // advance leaves the rejection unhandled, which fails the run.
+      it("should reject every queued request if execute rejects", async () => {
+        const executeFn = vi.fn(async () => {
+          throw new Error("batch failed")
+        })
+
+        const batchFn = T.batcher(100, executeFn)
+
+        const promise = Promise.all([batchFn(1), batchFn(2)]).catch(e => e)
+
+        await vi.advanceTimersByTimeAsync(100)
+
+        expect(await promise).toEqual(new Error("batch failed"))
+      })
+
+      it("should reject if execute returns wrong number of results", async () => {
         const executeFn = vi.fn(
           async (requests: number[]) => [requests[0] * 2], // Return fewer results than requests
         )
 
         const batchFn = T.batcher(100, executeFn)
 
-        const promise = Promise.all([batchFn(1), batchFn(2)])
+        const promise = Promise.all([batchFn(1), batchFn(2)]).catch(e => e)
 
         await vi.advanceTimersByTimeAsync(100)
 
-        await expect(promise).rejects.toMatch("Execute must return a result for each request")
+        expect(await promise).toMatch("Execute must return a result for each request")
       })
     })
 
