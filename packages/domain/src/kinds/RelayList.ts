@@ -1,13 +1,5 @@
 import {nth, uniq, uniqBy, remove} from "@welshman/lib"
-import {
-  RELAYS,
-  matchTags,
-  relayTags,
-  normalizeRelayUrl,
-  relays,
-  indexers,
-  userOutbox,
-} from "@welshman/util"
+import {RELAYS, matchTags, relayTags, normalizeRelayUrl, relays, indexers} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -36,14 +28,21 @@ export class RelayListReader extends EventReader {
 }
 
 export class RelayListWriter extends EventWriter<RelayListReader> {
+  // Every relay this event routes to has to receive it, so lift the scenario's
+  // default limit, which is tuned for reads and would drop most of them.
+  async scenario() {
+    return (await super.scenario()).limit(Infinity)
+  }
+
   // Kind 10002 is indexed, and publishes to every relay the list references — both
   // its current urls and the ones it used to have (via the seed reader) — so each
-  // relay learns when it's added to or removed from the list.
+  // relay learns when it's added to or removed from the list. The user's outbox is
+  // read off this same list, so it needs no separate route.
   protected async renderRoutes() {
     const original = this.reader?.urls() ?? []
     const current = getUrls(await this.renderTags())
 
-    return [userOutbox(), indexers(), ...relays(uniq([...original, ...current]))]
+    return [indexers(), ...relays(uniq([...original, ...current]))]
   }
 
   addReadUrl(url: string) {

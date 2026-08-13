@@ -3,15 +3,7 @@ import {makeSecret, DIRECT_MESSAGE, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {DirectMessage} from "../src/kinds/DirectMessage"
-import {
-  buildTemplate,
-  markerResolver,
-  publishRelays,
-  read,
-  write,
-  MESSAGING,
-  USER_MESSAGING,
-} from "./helpers.js"
+import {buildTemplate, markerResolver, publishRelays, read, write, MESSAGING} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -83,13 +75,15 @@ describe("DirectMessage", () => {
     expect(tmpl.tags.filter(t => t[0] === "e")).toEqual([["e", second.id, "", "reply"]])
   })
 
-  it("routes to the messaging relays of both parties", async () => {
+  it("routes nowhere, since each wrapped copy is published separately", async () => {
     const relays = await publishRelays(
       write(DirectMessage, undefined, markerResolver).addRecipient(recipient),
     )
 
-    expect(relays).toContain(USER_MESSAGING)
-    expect(relays).toContain(MESSAGING)
+    // The rumor is never published as-is: wrapping fans it out per recipient, to
+    // that recipient's messaging relays. Routing it here would leak a copy to
+    // relays the wrap didn't choose.
+    expect(relays).toEqual([])
   })
 
   it("throws without a recipient", async () => {

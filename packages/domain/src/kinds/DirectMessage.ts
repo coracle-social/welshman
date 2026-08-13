@@ -1,13 +1,5 @@
 import {spec} from "@welshman/lib"
-import {
-  DIRECT_MESSAGE,
-  hexTags,
-  messaging,
-  tagSpec,
-  tagValue,
-  tagValues,
-  userMessaging,
-} from "@welshman/util"
+import {DIRECT_MESSAGE, hexTags, messaging, tagSpec, tagValue, tagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
@@ -65,9 +57,8 @@ export class DirectMessageWriter extends EventWriter<DirectMessageReader> {
   }
 
   protected async renderRoutes() {
-    const pubkeys = tagValues(hexTags("p"), await this.renderTags())
-
-    return [userMessaging(), ...pubkeys.map(pubkey => messaging(pubkey))]
+    // Return nothing, because each wrapped copy is sent somewhere else
+    return []
   }
 
   validate() {
