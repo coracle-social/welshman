@@ -3,7 +3,15 @@ import {makeSecret, RELAYS, NOTE, normalizeRelayUrl} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RelayList} from "../src/kinds/RelayList"
-import {buildTemplate, read, write, publishRelays, markerResolver} from "./helpers.js"
+import {
+  buildTemplate,
+  read,
+  write,
+  publishRelays,
+  markerResolver,
+  INDEX,
+  OUTBOX,
+} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -105,6 +113,14 @@ describe("RelayList", () => {
     expect(urls).toContain(normalizeRelayUrl(readUrl))
     expect(urls).toContain(normalizeRelayUrl(both))
     expect(urls).toContain(normalizeRelayUrl(writeUrl))
+
+    // The list has more targets than the default relay limit, so this also covers
+    // the indexers surviving the scenario's cutoff.
+    expect(urls).toContain(INDEX)
+
+    // The user's write relays are read off this same list, so they're already
+    // covered by the urls above rather than routed to separately.
+    expect(urls).not.toContain(OUTBOX)
   })
 
   it("throws on the wrong kind", async () => {

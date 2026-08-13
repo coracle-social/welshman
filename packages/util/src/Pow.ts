@@ -71,19 +71,15 @@ self.onmessage = async function (ev) {
 }
 `
 
-const createPowWorker = (): Worker => {
+const createPowWorker = () => {
   if (typeof Worker === "undefined") {
     throw new Error("Worker is not available in this environment")
   }
 
   const blob = new Blob([workerCode], {type: "application/javascript"})
   const url = URL.createObjectURL(blob)
-  const worker = new Worker(url, {type: "module"})
 
-  // Clean up the blob URL after worker is created
-  URL.revokeObjectURL(url)
-
-  return worker
+  return {worker: new Worker(url), url}
 }
 
 export type ProofOfWork = {
@@ -92,17 +88,24 @@ export type ProofOfWork = {
 }
 
 export const makePow = (event: OwnedEvent, difficulty: number): ProofOfWork => {
-  const worker = createPowWorker()
+  const {worker, url} = createPowWorker()
 
   const result = new Promise<HashedEvent>((resolve, reject) => {
+    // Firefox fetches the worker script asynchronously, so revoking the blob url any
+    // earlier than this aborts the load and fires an error event with no error on it
+    const finish = () => {
+      worker.terminate()
+      URL.revokeObjectURL(url)
+    }
+
     worker.onmessage = (e: MessageEvent<HashedEvent>) => {
       resolve(e.data)
-      worker.terminate()
+      finish()
     }
 
     worker.onerror = (e: ErrorEvent) => {
-      reject(e.error || e)
-      worker.terminate()
+      reject(e.error || new Error("Proof of work worker failed to run"))
+      finish()
     }
 
     worker.postMessage({difficulty, event})
@@ -145,7 +148,12 @@ call(() => {
   const pow = makePow(event, benchmarkDifficulty)
   const start = Date.now()
 
-  pow.result.then(() => {
-    benchmark = Date.now() - start
-  })
+  pow.result.then(
+    () => {
+      benchmark = Date.now() - start
+    },
+    () => {
+      // Leave the benchmark at zero; failures get reported when pow is actually requested
+    },
+  )
 })
