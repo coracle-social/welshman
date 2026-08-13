@@ -100,6 +100,32 @@ describe("Content Parsing", () => {
       })
     })
 
+    it("should parse rooms", () => {
+      const result = parse({content: "join spatia-arcana.com'bamothoythr today"})
+
+      expect(result[1]).toMatchObject({
+        type: ParsedType.Room,
+        value: {url: "wss://spatia-arcana.com/", room: "bamothoythr"},
+        raw: "spatia-arcana.com'bamothoythr",
+      })
+    })
+
+    it("should parse rooms with a protocol", () => {
+      const result = parse({content: "ws://relay.example.com:7777'my-room_1"})
+
+      expect(result[0]).toMatchObject({
+        type: ParsedType.Room,
+        value: {url: "ws://relay.example.com:7777/", room: "my-room_1"},
+        raw: "ws://relay.example.com:7777'my-room_1",
+      })
+    })
+
+    it("should not parse possessives as rooms", () => {
+      const result = parse({content: "example.com's rooms"})
+
+      expect(result[0]).toMatchObject({type: ParsedType.Link})
+    })
+
     it("should parse topics", () => {
       const result = parse({content: "#nostr is cool"})
       expect(result[0]).toMatchObject({

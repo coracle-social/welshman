@@ -49,6 +49,7 @@ export enum ParsedType {
   LinkGrid = "link-grid",
   Newline = "newline",
   Profile = "profile",
+  Room = "room",
   Text = "text",
   Topic = "topic",
 }
@@ -141,6 +142,16 @@ export type ParsedAddress = ParsedBase & {
   value: AddressPointer
 }
 
+export type ParsedRoomValue = {
+  url: string
+  room: string
+}
+
+export type ParsedRoom = ParsedBase & {
+  type: ParsedType.Room
+  value: ParsedRoomValue
+}
+
 export type Parsed =
   | ParsedAddress
   | ParsedCashu
@@ -154,6 +165,7 @@ export type Parsed =
   | ParsedLinkGrid
   | ParsedNewline
   | ParsedProfile
+  | ParsedRoom
   | ParsedText
   | ParsedTopic
 
@@ -179,6 +191,7 @@ export const isNewline = (parsed: Parsed): parsed is ParsedNewline =>
   parsed.type === ParsedType.Newline
 export const isProfile = (parsed: Parsed): parsed is ParsedProfile =>
   parsed.type === ParsedType.Profile
+export const isRoom = (parsed: Parsed): parsed is ParsedRoom => parsed.type === ParsedType.Room
 export const isText = (parsed: Parsed): parsed is ParsedText => parsed.type === ParsedType.Text
 export const isTopic = (parsed: Parsed): parsed is ParsedTopic => parsed.type === ParsedType.Topic
 
@@ -342,6 +355,21 @@ export const parseProfile = (text: string, context: ParseContext): ParsedProfile
   }
 }
 
+export const parseRoom = (text: string, context: ParseContext): ParsedRoom | void => {
+  const [raw, protocol, host, room] =
+    text.match(/^(wss?:\/\/)?((?:[-\w]+\.)+[a-z]{2,}(?::\d+)?)'([-\w]+)/i) || []
+
+  // Skip possessives like "example.com's"
+  if (!raw || room.match(/^(d|ll|m|re|s|t|ve)$/i)) {
+    return
+  }
+
+  // Relay urls are normalized to include a protocol and a trailing slash
+  const url = (protocol || "wss://").toLowerCase() + host.toLowerCase() + "/"
+
+  return {type: ParsedType.Room, value: {url, room}, raw}
+}
+
 export const parseTopic = (text: string, context: ParseContext): ParsedTopic | void => {
   const [value] = text.match(/^#[^\s!\"#$%&'()*+,-.\/:;<=>?@[\\\]^_`{|}~]+/i) || []
 
@@ -386,6 +414,7 @@ export const parsers = [
   parseCashu,
   parseInvoice,
   parseEmail,
+  parseRoom,
   parseLink,
 ]
 
@@ -458,6 +487,7 @@ export const truncate = (
       case ParsedType.Event:
       case ParsedType.Address:
       case ParsedType.Profile:
+      case ParsedType.Room:
         return entityLength
       case ParsedType.Emoji:
         return parsed.value.name.length

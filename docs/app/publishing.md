@@ -174,7 +174,16 @@ Kinds that require explicit relays (the NIP-29 room ops/state and relay-manageme
 
 ## Gift-wrapped messages
 
-There are two ways to publish encrypted, NIP-59 gift-wrapped events.
+There are two ways to publish encrypted, NIP-59 gift-wrapped events. Both take a rumor template — for a NIP-17 message, build it with the [`DirectMessage`](../domain/content#directmessage-kind-14) kind:
+
+```typescript
+const rumorTemplate = await app
+  .use(Domain)
+  .writer(DirectMessage)
+  .setContent("gm")
+  .addRecipient(theirPubkey)
+  .renderTemplate()
+```
 
 ### A single thunk with a `recipient`
 

@@ -1,6 +1,6 @@
 # Content
 
-A grab-bag of content kinds: NIP-01 notes, NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `TimeEvent`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
+A grab-bag of content kinds: NIP-01 notes, NIP-17 direct messages, NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `TimeEvent`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
 
 Every example below assumes a bound `KindContext` — you get a reader/writer by calling `SomeKind.configure(context)`. A reader is built and then parsed (`…reader(event).parse()`); none of the kinds on this page decrypt, so nothing here needs awaiting. A writer is a chainable builder whose terminal `renderTemplate()` returns an unsigned `EventTemplate`. To turn that into a signed event, hand it to a signer:
 
@@ -12,7 +12,7 @@ const signed = await signer.sign(stamp(await writer.renderTemplate()))
 
 In `@welshman/app` you never call `configure` yourself — `app.use(Domain).reader(Kind)` / `.writer(Kind, reader?)` do it for you, and `app.use(Domain).command(writer)` finalizes and wraps the result in a publishable `Command`. See [Readers & Writers](./readers-and-writers#with-welshmanapp-domain--command).
 
-Unless a kind says otherwise, writers route to the **author's outbox plus every p-tagged pubkey's inbox** — the default `EventWriter.renderRoutes()`. Notes and comments use that default; `Report` overrides it (see below).
+Unless a kind says otherwise, writers route to the **author's outbox plus every p-tagged pubkey's inbox** — the default `EventWriter.renderRoutes()`. Notes and comments use that default; `DirectMessage` and `Report` override it (see below).
 
 ## Note (kind 1)
 
@@ -41,6 +41,31 @@ await Note.configure(context)
 ```
 
 A note routes to the author's outbox plus the inboxes of everyone it p-tags (the default `renderRoutes()`), so replies reach the people they mention.
+
+## DirectMessage (kind 14)
+
+A NIP-17 direct message. It is never signed or published on its own — it stays a rumor, gift-wrapped once per recipient (see [gift-wrapped messages](../app/publishing#gift-wrapped-messages)).
+
+```typescript
+import {DirectMessage} from "@welshman/domain"
+
+const message = DirectMessage.configure(context).reader(event).parse()
+message.recipients()   // p-tag pubkeys
+message.subject()      // "subject" tag value
+message.parentId()     // e-tag value, present when the message is a reply
+
+const template = await DirectMessage.configure(context)
+  .writer()
+  .setContent("gm")
+  .addRecipient(theirPubkey)
+  .setSubject("welshman")
+  .setParent(theirMessage)
+  .renderTemplate()
+```
+
+`addRecipient`/`removeRecipient` manage the `p` tags, hinting at the recipient's NIP-17 relays rather than their outbox. `setParent` replaces any existing `e` tag, so a message replies to exactly one other. Rendering throws unless there is at least one recipient.
+
+`DirectMessageWriter` routes to the messaging relays of the author and every recipient, since a wrap goes to NIP-17 inboxes rather than through the outbox model. `Wraps` resolves those relays per recipient itself, so the writer's routing only comes into play when you publish a wrap by hand.
 
 ## Comment (kind 1111)
 
