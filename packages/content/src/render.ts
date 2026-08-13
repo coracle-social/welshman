@@ -5,6 +5,7 @@ import {
   ParsedType,
   ParsedTopic,
   ParsedProfile,
+  ParsedRoom,
   ParsedNewline,
   ParsedLink,
   ParsedInvoice,
@@ -111,6 +112,8 @@ export const renderText = (p: ParsedText, r: Renderer) => r.addText(p.value)
 
 export const renderTopic = (p: ParsedTopic, r: Renderer) => r.addText(p.value)
 
+export const renderRoom = (p: ParsedRoom, r: Renderer) => r.addText(p.raw)
+
 export const renderEvent = (p: ParsedEvent, r: Renderer) => r.addEntityLink(neventEncode(p.value))
 
 export const renderProfile = (p: ParsedProfile, r: Renderer) =>
@@ -153,6 +156,9 @@ export const renderOne = (parsed: Parsed, renderer: Renderer) => {
       break
     case ParsedType.Profile:
       renderProfile(parsed as ParsedProfile, renderer)
+      break
+    case ParsedType.Room:
+      renderRoom(parsed as ParsedRoom, renderer)
       break
     case ParsedType.Text:
       renderText(parsed as ParsedText, renderer)

@@ -13,6 +13,8 @@ export const OUTBOX = "wss://outbox.test/"
 export const INBOX = "wss://inbox.test/"
 export const INDEX = "wss://index.test/"
 export const SEEN = "wss://seen.test/"
+export const MESSAGING = "wss://messaging.test/"
+export const USER_MESSAGING = "wss://user-messaging.test/"
 
 export const markerResolver = new Resolver((route): string[] => {
   switch (route.type) {
@@ -20,6 +22,10 @@ export const markerResolver = new Resolver((route): string[] => {
       return [OUTBOX]
     case "pubkeyInbox":
       return [INBOX]
+    case "userMessaging":
+      return [USER_MESSAGING]
+    case "pubkeyMessaging":
+      return [MESSAGING]
     case "index":
       return [INDEX]
     case "seen":
