@@ -155,6 +155,33 @@ describe("deriveItemsByKeyByUrl", () => {
     unsub()
   })
 
+  it("rebuilds when the tracker loads after the events (e.g. storage boot order)", async () => {
+    const repository = new Repository()
+    const tracker = new Tracker()
+
+    const event = makeEvent({id: "a".repeat(64), tags: [["d", "group1"]]})
+
+    const store = deriveItemsByKeyByUrl<TrustedEvent>({
+      filters: [{kinds: [ROOM_META]}],
+      repository,
+      tracker,
+      eventToItem: e => e,
+      getKey: (e, url) => `${url}'${dTag(e)}`,
+    })
+
+    const unsub = store.subscribe(() => {})
+
+    // Events land before the tracker has any provenance for them, then the
+    // tracker loads from a cache — the collection should re-key everything.
+    repository.load([event])
+    tracker.load(new Map([[event.id, new Set(["wss://a.example"])]]))
+    await tick()
+
+    expect(get(store).get("wss://a.example'group1")?.id).toBe(event.id)
+
+    unsub()
+  })
+
   it("re-evaluates keys when revalidateOn fires (e.g. relay self loads late)", async () => {
     const repository = new Repository()
     const tracker = new Tracker()
