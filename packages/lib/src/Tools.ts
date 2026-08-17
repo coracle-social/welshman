@@ -1375,6 +1375,21 @@ export const race = (threshold: number, promises: Promise<unknown>[]) => {
   })
 }
 
+/**
+ * Creates a function that runs async tasks one at a time, in the order they were enqueued.
+ * Rejections are logged rather than chained, so a failed task doesn't drop the ones behind it
+ * @returns Function that enqueues a task and resolves once it has run
+ */
+export const makeQueue = () => {
+  let p: Promise<unknown> = Promise.resolve()
+
+  return (f: () => Promise<unknown>) => {
+    p = p.then(f).catch(e => console.error(e))
+
+    return p
+  }
+}
+
 // ----------------------------------------------------------------------------
 // URLs
 // ----------------------------------------------------------------------------

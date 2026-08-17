@@ -291,6 +291,42 @@ describe("Tools", () => {
         expect(getValue).toHaveBeenCalledTimes(3)
       })
     })
+
+    describe("makeQueue", () => {
+      it("should run tasks one at a time in order", async () => {
+        const enqueue = T.makeQueue()
+        const order: string[] = []
+
+        const task = (name: string, ms: number) => async () => {
+          await new Promise(resolve => setTimeout(resolve, ms))
+          order.push(name)
+        }
+
+        // The slow task is enqueued first, so it has to finish first
+        const all = Promise.all([enqueue(task("slow", 100)), enqueue(task("fast", 10))])
+
+        await vi.advanceTimersByTimeAsync(200)
+        await all
+
+        expect(order).toEqual(["slow", "fast"])
+      })
+
+      it("should keep running tasks queued behind a rejected one", async () => {
+        const consoleError = vi.spyOn(console, "error").mockImplementation(T.noop)
+        const enqueue = T.makeQueue()
+        const after = vi.fn(async () => undefined)
+
+        await enqueue(async () => {
+          throw new Error("nope")
+        })
+        await enqueue(after)
+
+        expect(after).toHaveBeenCalledTimes(1)
+        expect(consoleError).toHaveBeenCalledTimes(1)
+
+        consoleError.mockRestore()
+      })
+    })
   })
 
   describe("Time Utilities", () => {
