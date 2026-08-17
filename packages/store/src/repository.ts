@@ -613,6 +613,7 @@ export const deriveItemsByKeyByUrl = <T>({
           set(itemsByKey)
         }
       }),
+      on(tracker, "load", rebuild),
       on(tracker, "clear", () => {
         itemsByKey.clear()
         ownerByKey.clear()
