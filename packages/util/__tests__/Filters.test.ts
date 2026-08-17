@@ -1,7 +1,10 @@
 import {describe, it, vi, expect, beforeEach} from "vitest"
-import {GENERIC_REPOST, LONG_FORM, MUTES, REPOST} from "@welshman/util"
+import {COMMENT, GENERIC_REPOST, LONG_FORM, MUTES, REPOST} from "@welshman/util"
 import {
   addRepostFilters,
+  getCommentFilters,
+  getCommentFiltersForParent,
+  getCommentFiltersForRoot,
   getFilterGenerality,
   getFilterId,
   getFilterResultCardinality,
@@ -181,6 +184,36 @@ describe("Filters", () => {
       const event = createEvent({kind: MUTES})
       const result = getReplyFilters([event])
       expect((result[0] as any)["#a"]).toBeDefined()
+    })
+  })
+
+  describe("getCommentFilters", () => {
+    it("should query uppercase tags for roots", () => {
+      const event = createEvent()
+      const result = getCommentFiltersForRoot([event])
+      expect(result[0].kinds).toEqual([COMMENT])
+      expect((result[0] as any)["#E"]).toContain(event.id)
+    })
+
+    it("should query lowercase tags for parents", () => {
+      const event = createEvent()
+      const result = getCommentFiltersForParent([event])
+      expect((result[0] as any)["#e"]).toContain(event.id)
+    })
+
+    it("should handle replaceable events", () => {
+      const event = createEvent({kind: MUTES})
+      const result = getCommentFiltersForRoot([event])
+      expect(result).toHaveLength(2)
+      expect((result[0] as any)["#A"]).toBeDefined()
+      expect((result[1] as any)["#E"]).toContain(event.id)
+    })
+
+    it("should let the caller override kinds", () => {
+      const event = createEvent()
+      const result = getCommentFilters([event], {kinds: [1], limit: 10}, {root: true})
+      expect(result[0].kinds).toEqual([1])
+      expect(result[0].limit).toBe(10)
     })
   })
 

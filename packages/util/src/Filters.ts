@@ -12,7 +12,7 @@ import {
   uniq,
 } from "@welshman/lib"
 import type {HashedEvent, TrustedEvent, SignedEvent} from "./Events.js"
-import {isReplaceableKind} from "./Kinds.js"
+import {COMMENT, isReplaceableKind} from "./Kinds.js"
 import {Address, getAddress} from "./Address.js"
 
 export const EPOCH = 1609459200
@@ -192,6 +192,41 @@ export const getReplyFilters = (events: TrustedEvent[], filter: Filter = {}) => 
 
   return filters
 }
+
+export const getCommentFilters = (
+  events: TrustedEvent[],
+  filter: Filter,
+  {root}: {root: boolean},
+) => {
+  const a = []
+  const e = []
+
+  for (const event of events) {
+    e.push(event.id)
+
+    if (isReplaceableKind(event.kind)) {
+      a.push(getAddress(event))
+    }
+  }
+
+  const filters: Filter[] = []
+
+  if (a.length > 0) {
+    filters.push({kinds: [COMMENT], ...filter, [root ? "#A" : "#a"]: a})
+  }
+
+  if (e.length > 0) {
+    filters.push({kinds: [COMMENT], ...filter, [root ? "#E" : "#e"]: e})
+  }
+
+  return filters
+}
+
+export const getCommentFiltersForRoot = (events: TrustedEvent[], filter: Filter = {}) =>
+  getCommentFilters(events, filter, {root: true})
+
+export const getCommentFiltersForParent = (events: TrustedEvent[], filter: Filter = {}) =>
+  getCommentFilters(events, filter, {root: false})
 
 export const addRepostFilters = (filters: Filter[]) =>
   filters.flatMap(original => {
