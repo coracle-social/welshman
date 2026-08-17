@@ -357,7 +357,7 @@ export const parseProfile = (text: string, context: ParseContext): ParsedProfile
 
 export const parseRoom = (text: string, context: ParseContext): ParsedRoom | void => {
   const [raw, protocol, host, room] =
-    text.match(/^(wss?:\/\/)?((?:[-\w]+\.)+[a-z]{2,}(?::\d+)?)'([-\w]+)/i) || []
+    text.match(/^(wss?:\/\/)?((?:[-\w]+\.)+[a-z]{2,}(?::\d+)?)\/?['’]([-\w]+)/i) || []
 
   // Skip possessives like "example.com's"
   if (!raw || room.match(/^(d|ll|m|re|s|t|ve)$/i)) {

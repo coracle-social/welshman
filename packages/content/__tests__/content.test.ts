@@ -120,6 +120,26 @@ describe("Content Parsing", () => {
       })
     })
 
+    it("should parse rooms with a trailing slash on the url", () => {
+      const result = parse({content: "wss://spatia-arcana.com/'ipreakrutroo"})
+
+      expect(result[0]).toMatchObject({
+        type: ParsedType.Room,
+        value: {url: "wss://spatia-arcana.com/", room: "ipreakrutroo"},
+        raw: "wss://spatia-arcana.com/'ipreakrutroo",
+      })
+    })
+
+    it("should parse rooms with a curly apostrophe", () => {
+      const result = parse({content: "wss://spatia-arcana.com’ipreakrutroo"})
+
+      expect(result[0]).toMatchObject({
+        type: ParsedType.Room,
+        value: {url: "wss://spatia-arcana.com/", room: "ipreakrutroo"},
+        raw: "wss://spatia-arcana.com’ipreakrutroo",
+      })
+    })
+
     it("should not parse possessives as rooms", () => {
       const result = parse({content: "example.com's rooms"})
 
