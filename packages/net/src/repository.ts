@@ -89,29 +89,15 @@ export class Repository extends Emitter {
   }
 
   load = (events: TrustedEvent[]) => {
-    const stale = new Set(this.eventsById.keys())
-
-    this.clear()
-
     const added = []
 
     for (const event of events) {
-      if (this.publish(event, {shouldNotify: false})) {
-        // Don't send duplicate events to subscribers
-        if (!stale.has(event.id)) {
-          added.push(event)
-        }
+      if (this.publish(event, {shouldNotify: false}) && !this.isDeleted(event)) {
+        added.push(event)
       }
     }
 
     const removed = new Set<string>()
-
-    // Anything we had before clearing the repository has been removed
-    for (const id of stale) {
-      if (!this.eventsById.has(id)) {
-        removed.add(id)
-      }
-    }
 
     // Anything removed via delete or replace has been removed
     for (const idOrAddress of this.deletes.keys()) {

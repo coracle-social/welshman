@@ -331,6 +331,42 @@ describe("Repository", () => {
         removed: new Set(),
       })
     })
+
+    it("should merge with existing events", () => {
+      const existing = createEvent(1)
+      const loaded = createEvent(1)
+
+      repo.publish(existing)
+      repo.load([loaded])
+
+      expect(repo.getEvent(existing.id)).toEqual(existing)
+      expect(repo.getEvent(loaded.id)).toEqual(loaded)
+    })
+
+    it("should not re-add events already present", () => {
+      const event = createEvent(1)
+      const updateHandler = vi.fn()
+
+      repo.publish(event)
+      repo.on("update", updateHandler)
+      repo.load([event])
+
+      expect(updateHandler).toHaveBeenCalledWith({
+        added: [],
+        removed: new Set(),
+      })
+    })
+
+    it("should replace an older version already present", () => {
+      const older = createEvent(MUTES, {created_at: now() - 100})
+      const newer = createEvent(MUTES, {created_at: now(), pubkey: older.pubkey})
+
+      repo.publish(older)
+      repo.load([newer])
+
+      expect(repo.getEvent(getAddress(newer))).toEqual(newer)
+      expect(repo.query([{kinds: [MUTES]}])).toEqual([newer])
+    })
   })
 
   describe("event removal", () => {
