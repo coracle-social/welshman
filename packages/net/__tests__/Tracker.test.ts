@@ -123,12 +123,13 @@ describe("Tracker", () => {
       expect(tracker.getIds("relay2")).toEqual(new Set(["event1", "event2"]))
     })
 
-    it("should clear existing data before loading", () => {
+    it("should merge with existing data", () => {
       tracker.addRelay("oldEvent", "oldRelay")
 
       tracker.load(new Map([["event1", new Set(["relay1"])]]))
 
-      expect(tracker.hasRelay("oldEvent", "oldRelay")).toBe(undefined)
+      expect(tracker.hasRelay("oldEvent", "oldRelay")).toBe(true)
+      expect(tracker.hasRelay("event1", "relay1")).toBe(true)
     })
 
     it("should emit update event", () => {

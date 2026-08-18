@@ -63,9 +63,6 @@ export class Tracker extends Emitter {
   }
 
   load = (relaysById: Tracker["relaysById"]) => {
-    this.relaysById.clear()
-    this.idsByRelay.clear()
-
     for (const [id, relays] of relaysById.entries()) {
       for (const relay of relays) {
         addToMapKey(this.relaysById, id, relay)
