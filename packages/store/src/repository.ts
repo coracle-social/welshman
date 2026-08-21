@@ -48,9 +48,11 @@ export const deriveEventsById = ({filters, repository, includeDeleted}: EventsBy
         }
       }
 
-      for (const id of removed) {
-        if (mapPop(id, eventsById)) {
-          dirty = true
+      if (!includeDeleted) {
+        for (const id of removed) {
+          if (mapPop(id, eventsById)) {
+            dirty = true
+          }
         }
       }
 
@@ -195,9 +197,11 @@ export const deriveEventsByIdByUrl = ({
           }
         }
 
-        for (const id of removed) {
-          for (const url of tracker.getRelays(id)) {
-            dirty = dirty || removeEvent(url, id)
+        if (!includeDeleted) {
+          for (const id of removed) {
+            for (const url of tracker.getRelays(id)) {
+              dirty = dirty || removeEvent(url, id)
+            }
           }
         }
 
@@ -289,10 +293,12 @@ export const deriveEventsByIdForUrl = ({
           }
         }
 
-        for (const id of removed) {
-          if (eventsById.has(id)) {
-            eventsById.delete(id)
-            dirty = true
+        if (!includeDeleted) {
+          for (const id of removed) {
+            if (eventsById.has(id)) {
+              eventsById.delete(id)
+              dirty = true
+            }
           }
         }
 

@@ -270,7 +270,13 @@ export const parseEmail = (text: string, context: ParseContext): ParsedEmail | v
 }
 
 export const parseInvoice = (text: string, context: ParseContext): ParsedInvoice | void => {
-  const [raw, _, value] = text.match(/^(lightning:)(ln(bc|url)[0-9a-z]{10,})/i) || []
+  const [raw, value] =
+    text.match(/^lightning:(ln(?:bc|url)[0-9a-z]{10,})/i) ||
+    // Without a scheme to vouch for it, require the bech32 shape — an hrp, the `1` separator,
+    // then data drawn from the bech32 charset — so a domain like lnbcsomething.example isn't
+    // mistaken for an invoice by the parser that runs ahead of parseLink.
+    text.match(/^(ln(?:bc|url)[0-9a-z]*1[ac-hj-np-z02-9]{20,})/i) ||
+    []
 
   if (raw && value) {
     return {type: ParsedType.Invoice, value, raw}
