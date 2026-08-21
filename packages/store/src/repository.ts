@@ -1,5 +1,17 @@
 import {readable, Readable} from "svelte/store"
-import {on, now, noop, mapPop, Maybe, MaybeAsync, call, sortBy, first} from "@welshman/lib"
+import {
+  on,
+  gt,
+  now,
+  noop,
+  mapPop,
+  LRUCache,
+  Maybe,
+  MaybeAsync,
+  call,
+  sortBy,
+  first,
+} from "@welshman/lib"
 import {
   matchFilters,
   getIdFilters,
@@ -685,6 +697,8 @@ export const makeForceLoadItem = <T>(loadItem: LoadItem, getItem: GetItem<T>) =>
 export type MakeLoadItemOptions = {
   getFetched?: (key: string) => number
   setFetched?: (key: string, ts: number) => void
+  getSource?: (...args: any[]) => string
+  maxSize?: number
   timeout?: number
 }
 
@@ -694,53 +708,57 @@ export const makeLoadItem = <T>(
   options: MakeLoadItemOptions = {},
 ) => {
   const timeout = options.timeout || 3600
-  const fetched = new Map<string, number>()
+  const maxSize = options.maxSize || 10_000
+  const fetched = new LRUCache<string, number>(maxSize)
   const getFetched = options.getFetched || ((key: string) => fetched.get(key) || 0)
   const setFetched = options.setFetched || ((key: string, ts: number) => fetched.set(key, ts))
+  const getSource = options.getSource || ((...args: any[]) => JSON.stringify(args))
+  const sourceFetched = new LRUCache<string, number>(maxSize)
+  const attempts = new LRUCache<string, number>(maxSize)
   const pending = new Map<string, Promise<Maybe<T>>>()
-  const attempts = new Map<string, number>()
 
   return async (key: string, ...args: any[]): Promise<Maybe<T>> => {
     const stale = getItem(key)
-    const fetched = getFetched(key)
 
     // If we have an item, reload if it's relatively recent
-    if (stale && fetched > now() - timeout) {
+    if (stale && getFetched(key) > now() - timeout) {
       return stale
     }
 
-    const pendingItem = pending.get(key)
+    const source = `${key}:${getSource(...args)}`
+    const pendingItem = pending.get(source)
 
-    // If we already are loading, await and return
+    // If we already are loading from this source, await and return
     if (pendingItem) {
       return pendingItem
     }
 
-    const attempt = attempts.get(key) || 0
+    const attempt = attempts.get(source) || 0
 
-    // Use exponential backoff to throttle attempts
-    if (fetched > now() - Math.pow(2, attempt)) {
+    // Use exponential backoff to throttle repeat attempts against the same source
+    if (gt(sourceFetched.get(source), now() - Math.pow(2, attempt))) {
       return stale
     }
 
-    attempts.set(key, attempt + 1)
+    attempts.set(source, attempt + 1)
+    sourceFetched.set(source, now())
 
     setFetched(key, now())
 
     const promise = loadItem(key, ...args).then(() => getItem(key))
 
-    pending.set(key, promise)
+    pending.set(source, promise)
 
     let item
 
     try {
       item = await promise
     } finally {
-      pending.delete(key)
+      pending.delete(source)
     }
 
     if (item) {
-      attempts.delete(key)
+      attempts.pop(source)
     }
 
     return item
