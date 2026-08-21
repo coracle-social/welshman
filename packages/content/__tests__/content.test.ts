@@ -5,6 +5,11 @@ import {npubEncode, noteEncode} from "nostr-tools/nip19"
 describe("Content Parsing", () => {
   const npub = npubEncode("ee".repeat(32))
   const nevent = noteEncode("ff".repeat(32))
+  // BOLT11 test vector, and an LNURL — both real, since what makes them parseable is their shape
+  const invoice =
+    "lnbc2500u1pvjluezpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdq5xysxxatsyp3k7enxv4jsxqzpuaztrnwngzn3kdzw5hydlzf03qdgm2hdq27cqv3agm2awhz5se903vruatfhq77w3ls4evs3ch9zw97j25emudupq63nyw24cg27h2rspfj9srp"
+  const lnurl =
+    "lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexujcc32r"
   describe("Basic Parsing", () => {
     it("should parse plain text", () => {
       const result = parse({content: "Hello world"})
@@ -152,6 +157,34 @@ describe("Content Parsing", () => {
         type: ParsedType.Topic,
         value: "nostr",
       })
+    })
+
+    it("should parse a bare invoice", () => {
+      const result = parse({content: `pay ${invoice} please`})
+
+      expect(result[1]).toMatchObject({type: ParsedType.Invoice, value: invoice})
+    })
+
+    it("should parse a bare lnurl", () => {
+      const result = parse({content: lnurl})
+
+      expect(result[0]).toMatchObject({type: ParsedType.Invoice, value: lnurl})
+    })
+
+    it("should strip the lightning scheme from an invoice's value", () => {
+      const result = parse({content: `lightning:${invoice}`})
+
+      expect(result[0]).toMatchObject({
+        type: ParsedType.Invoice,
+        value: invoice,
+        raw: `lightning:${invoice}`,
+      })
+    })
+
+    it("should not parse a domain starting with lnbc as an invoice", () => {
+      const result = parse({content: "lnbcsomethinglonger.example"})
+
+      expect(result[0]).toMatchObject({type: ParsedType.Link})
     })
   })
 
