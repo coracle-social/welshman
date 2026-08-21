@@ -158,22 +158,30 @@ const foldMembership = (
       continue
     }
 
-    if (event.created_at <= snapshotAt) continue
     if (!admins.has(event.pubkey) && event.pubkey !== self) continue
 
     for (const pubkey of tagValues(hexTags("p"), event.tags)) {
-      if (event.kind === ROOM_ADD_MEMBER) {
-        members.add(pubkey)
-      } else {
-        members.delete(pubkey)
+      // touchedAt records every op, including pre-snapshot ones, because a request
+      // is answered by the latest op on that pubkey.
+      if (event.created_at > snapshotAt) {
+        if (event.kind === ROOM_ADD_MEMBER) {
+          members.add(pubkey)
+        } else {
+          members.delete(pubkey)
+        }
       }
 
       touchedAt.set(pubkey, event.created_at)
     }
   }
 
+  // A request is answered by a later op on that pubkey, not by the snapshot.
+  // The snapshot regenerates on any member change, so pruning against its
+  // timestamp drops every request nobody has answered yet.
   for (const [pubkey, event] of requests) {
-    if (event.created_at <= max([snapshotAt, touchedAt.get(pubkey)])) {
+    const answeredAt = touchedAt.get(pubkey)
+
+    if (answeredAt !== undefined && event.created_at <= answeredAt) {
       requests.delete(pubkey)
     }
   }
