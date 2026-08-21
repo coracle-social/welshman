@@ -91,6 +91,71 @@ describe("item loaders", () => {
       expect(results.map(r => r.status)).toEqual(["rejected", "rejected"])
     })
 
+    it("retries a key when the hints it was given are ones nothing has tried yet", async () => {
+      const items: Record<string, string> = {}
+      const fetch = vi.fn(async (key: string, hints: string[] = []) => {
+        if (hints.length > 0) items[key] = "loaded"
+      })
+
+      const load = makeLoadItem(fetch, getItem(items))
+
+      // Nothing routes this one, so it finds nothing and would otherwise back the key off
+      await expect(load("a")).resolves.toBeUndefined()
+      await expect(load("a", ["wss://relay.example/"])).resolves.toBe("loaded")
+      expect(fetch).toHaveBeenCalledTimes(2)
+    })
+
+    it("throttles a repeat of the same hints", async () => {
+      const fetch = vi.fn(async () => {})
+      const load = makeLoadItem(fetch, getItem({}))
+
+      await load("a", ["wss://relay.example/"])
+      await load("a", ["wss://relay.example/"])
+
+      expect(fetch).toHaveBeenCalledTimes(1)
+    })
+
+    it("does not refetch a fresh item just because the hints are new", async () => {
+      const fetch = vi.fn(async () => {})
+      const load = makeLoadItem(fetch, getItem({a: "cached"}))
+
+      // The first call refreshes an item this loader has never fetched, which marks it fresh
+      await load("a")
+      await load("a", ["wss://relay.example/"])
+
+      expect(fetch).toHaveBeenCalledTimes(1)
+    })
+
+    it("gives novel hints their own in-flight entry rather than the pending one", async () => {
+      const items: Record<string, string> = {}
+      const fetch = vi.fn(async (key: string, hints: string[] = []) => {
+        await tick()
+
+        if (hints.length > 0) items[key] = "loaded"
+      })
+
+      const load = makeLoadItem(fetch, getItem(items))
+      const [unrouted, hinted] = await Promise.all([load("a"), load("a", ["wss://relay.example/"])])
+
+      expect(fetch).toHaveBeenCalledTimes(2)
+      expect(unrouted).toBeUndefined()
+      expect(hinted).toBe("loaded")
+    })
+
+    it("evicts the least recently used key rather than growing without bound", async () => {
+      const fetch = vi.fn(async () => {})
+      const load = makeLoadItem(fetch, getItem({}), {maxSize: 2})
+
+      await load("a")
+      await load("b")
+      await load("c")
+
+      // "a" was evicted by "c", so it reads as never attempted and is fetched again
+      await load("a")
+
+      expect(fetch).toHaveBeenCalledTimes(4)
+    })
+
     it("clears the pending entry after a failure so the key can be retried", async () => {
       let attempt = 0
       const items: Record<string, string> = {}

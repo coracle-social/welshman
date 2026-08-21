@@ -19,7 +19,7 @@ export class RelayJoinReader extends EventReader {
 export class RelayJoinWriter extends EventWriter<RelayJoinReader> {
   readonly requiresRelays = true
 
-  constructor(kind: number, context: KindContext, reader?: RelayLeaveReader) {
+  constructor(kind: number, context: KindContext, reader?: RelayJoinReader) {
     super(kind, context, reader)
 
     this.setProtected(true)

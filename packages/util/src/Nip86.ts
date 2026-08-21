@@ -61,7 +61,7 @@ export const makeCreateRole = (
   id: string,
   label: string,
   description: string,
-  color: string,
+  color: number,
   order: number,
 ): ManagementRequest => ({
   method: "createrole",
@@ -72,7 +72,7 @@ export const makeEditRole = (
   id: string,
   label: string,
   description: string,
-  color: string,
+  color: number,
   order: number,
 ): ManagementRequest => ({
   method: "editrole",
@@ -249,10 +249,10 @@ export class ManagementApi {
 
   listAllowedPubkeys = () => this.send(makeListAllowedPubkeys())
 
-  createRole = (id: string, label: string, description: string, color: string, order: number) =>
+  createRole = (id: string, label: string, description: string, color: number, order: number) =>
     this.send(makeCreateRole(id, label, description, color, order))
 
-  editRole = (id: string, label: string, description: string, color: string, order: number) =>
+  editRole = (id: string, label: string, description: string, color: number, order: number) =>
     this.send(makeEditRole(id, label, description, color, order))
 
   deleteRole = (id: string) => this.send(makeDeleteRole(id))
