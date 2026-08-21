@@ -159,6 +159,44 @@ describe("Rooms membership", () => {
     ).toEqual([ALICE])
   })
 
+  it("keeps other requests pending when one of them is accepted", () => {
+    // Accepting Alice makes the relay regenerate 39002, stamped with the moment it did so.
+    // Bob asked earlier and nobody has answered him, so his request has to survive it.
+    const events = [
+      makeEvent(ROOM_ADMINS, RELAY, 50, [ADMIN]),
+      makeEvent(ROOM_JOIN, ALICE, 100),
+      makeEvent(ROOM_JOIN, BOB, 100),
+      makeEvent(ROOM_ADD_MEMBER, ADMIN, 200, [ALICE]),
+      makeEvent(ROOM_MEMBERS, RELAY, 200, [ALICE]),
+    ]
+
+    expect(statusOf(events, ALICE)).toEqual(MembershipStatus.Granted)
+    expect(statusOf(events, BOB)).toEqual(MembershipStatus.Pending)
+    expect(
+      makeApp(events)
+        .use(Rooms)
+        .pendingJoins(URL)
+        .get()
+        .map(e => e.pubkey),
+    ).toEqual([BOB])
+  })
+
+  it("drops a request answered by an op the snapshot has already folded in", () => {
+    // Bob was admitted and later removed, and the relay has regenerated 39002 since. The
+    // remove no longer changes the member set, but it is still what answered his request.
+    const events = [
+      makeEvent(ROOM_ADMINS, RELAY, 50, [ADMIN]),
+      makeEvent(ROOM_JOIN, BOB, 100),
+      makeEvent(ROOM_ADD_MEMBER, ADMIN, 150, [BOB]),
+      makeEvent(ROOM_REMOVE_MEMBER, ADMIN, 200, [BOB]),
+      makeEvent(ROOM_MEMBERS, RELAY, 300, []),
+    ]
+
+    expect(membersOf(events)).toEqual([])
+    expect(statusOf(events, BOB)).toEqual(MembershipStatus.Initial)
+    expect(makeApp(events).use(Rooms).pendingJoins(URL).get()).toEqual([])
+  })
+
   it("treats a room admin as granted without a membership entry", () => {
     expect(statusOf([makeEvent(ROOM_ADMINS, RELAY, 50, [ADMIN])], ADMIN)).toEqual(
       MembershipStatus.Granted,
