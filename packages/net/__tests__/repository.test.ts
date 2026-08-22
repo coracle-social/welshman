@@ -164,6 +164,21 @@ describe("Repository", () => {
       expect(repo.isDeletedByAddress(event)).toBe(true)
     })
 
+    it("deletes an event taken back in the same second it was published", () => {
+      // Timestamps are whole seconds, and reacting then un-reacting lands inside one of them. An
+      // id names a single immutable event, so there is no newer version for a timestamp comparison
+      // to protect — the delete has to apply on the author alone.
+      const pubkey = randomHex()
+      const created_at = now()
+      const event = createEvent(7, {pubkey, created_at})
+      const deleteEvent = createEvent(DELETE, {pubkey, tags: [["e", event.id]], created_at})
+
+      repo.publish(event)
+      repo.publish(deleteEvent)
+
+      expect(repo.isDeleted(event)).toBe(true)
+    })
+
     it("should not delete events with mismatched pubkeys", () => {
       const event = createEvent(1)
       const deleteEvent = createEvent(DELETE, {tags: [["e", event.id]], created_at: now() + 1})
