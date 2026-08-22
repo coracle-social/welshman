@@ -13,6 +13,7 @@ import {
   range,
   mapPop,
   spec,
+  some,
 } from "@welshman/lib"
 import {
   DELETE,
@@ -284,22 +285,20 @@ export class Repository extends Emitter {
     return true
   }
 
-  _isDeleted = (key: string, event: TrustedEvent) => {
-    for (const {pubkey, created_at} of this.deletes.get(key) || []) {
-      if (pubkey === event.pubkey && created_at > event.created_at) {
-        return true
-      }
-    }
+  // No created_at comparison: an id names one immutable event, so there is no newer version for it
+  // to protect, and comparing would strand anything taken back in the same second it was made.
+  isDeletedById = (event: TrustedEvent) =>
+    some(spec({pubkey: event.pubkey}), this.deletes.get(event.id) || [])
 
-    return false
-  }
+  // Unlike an id, an address can be republished after a delete was issued, and that newer version
+  // is not the one the delete asked about.
+  isDeletedByAddress = (event: TrustedEvent) =>
+    some(
+      ({pubkey, created_at}) => pubkey === event.pubkey && created_at > event.created_at,
+      this.deletes.get(getAddress(event)) || [],
+    )
 
-  isDeletedByAddress = (event: TrustedEvent) => this._isDeleted(getAddress(event), event)
-
-  isDeletedById = (event: TrustedEvent) => this._isDeleted(event.id, event)
-
-  isDeleted = (event: TrustedEvent) =>
-    this._isDeleted(event.id, event) || this._isDeleted(getAddress(event), event)
+  isDeleted = (event: TrustedEvent) => this.isDeletedById(event) || this.isDeletedByAddress(event)
 
   isExpired = (event: TrustedEvent) => {
     const ts = this.expired.get(event.id)
