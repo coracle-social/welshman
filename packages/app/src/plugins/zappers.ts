@@ -102,17 +102,25 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
    * recipient's lnurl, which silently dropped legitimate zaps to any of the
    * other split recipients.
    */
-  loadZapperForZap = async (zapReceipt: TrustedEvent, parent: TrustedEvent) => {
+  loadZapperForZap = async (
+    zapReceipt: TrustedEvent,
+    parent: TrustedEvent,
+    relays: string[] = [],
+  ) => {
     const recipient = tagValue(tagSpec("p"), zapReceipt.tags)
     const split = getZapSplits(parent).find(split => split.pubkey === recipient)
 
     if (!split) return
 
-    return this.loadForPubkey(split.pubkey, removeUndefined([split.relay]))
+    return this.loadForPubkey(split.pubkey, removeUndefined([split.relay, ...relays]))
   }
 
-  validateZapReceipt = async (zapReceipt: TrustedEvent, parent: TrustedEvent) => {
-    const zapper = await this.loadZapperForZap(zapReceipt, parent)
+  validateZapReceipt = async (
+    zapReceipt: TrustedEvent,
+    parent: TrustedEvent,
+    relays: string[] = [],
+  ) => {
+    const zapper = await this.loadZapperForZap(zapReceipt, parent, relays)
 
     if (!zapper) return undefined
 
@@ -121,19 +129,29 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
     return zapper.validate(receipt)
   }
 
-  validateZapReceipts = async (zapReceipts: TrustedEvent[], parent: TrustedEvent) =>
+  validateZapReceipts = async (
+    zapReceipts: TrustedEvent[],
+    parent: TrustedEvent,
+    relays: string[] = [],
+  ) =>
     removeUndefined(
-      await Promise.all(zapReceipts.map(zapReceipt => this.validateZapReceipt(zapReceipt, parent))),
+      await Promise.all(
+        zapReceipts.map(zapReceipt => this.validateZapReceipt(zapReceipt, parent, relays)),
+      ),
     )
 
-  validZapReceipts = (zapReceipts: TrustedEvent[], parent: TrustedEvent): Projection<Zap[]> => {
+  validZapReceipts = (
+    zapReceipts: TrustedEvent[],
+    parent: TrustedEvent,
+    relays: string[] = [],
+  ): Projection<Zap[]> => {
     const splits = getZapSplits(parent)
     const profiles = this.app.use(Profiles)
     const readReceipt = this.app.use(Domain).reader(ZapReceipt)
 
     // Ensure each recipient's profile (-> lnurl) and zapper are being loaded.
     for (const split of splits) {
-      this.loadForPubkey(split.pubkey, removeUndefined([split.relay])).catch(noop)
+      this.loadForPubkey(split.pubkey, removeUndefined([split.relay, ...relays])).catch(noop)
     }
 
     const receipts = removeUndefined(zapReceipts.map(event => tryCatch(() => readReceipt(event))))
@@ -163,7 +181,7 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
 
     const stores: Readable<any>[] = [
       this.index.$,
-      ...splits.map(split => profiles.one(split.pubkey)),
+      ...splits.map(split => profiles.one(split.pubkey, removeUndefined([split.relay, ...relays]))),
     ]
 
     return projection(deriveDeduplicatedByValue(stores, read), () =>
