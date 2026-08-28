@@ -32,9 +32,10 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
     const valid = lnurls.filter(lnurl => lnurl.startsWith("lnurl1"))
 
     const addZapper = (lnurl: string, info: any) => {
-      // A zapper is only usable if it carries both the recipient pubkey and the
-      // nostr pubkey its receipts are signed with; skip anything missing either.
-      if (info?.pubkey && info?.nostrPubkey) {
+      // Gate on what a NIP-57 lnurl-pay response actually carries: the opt-in, and the
+      // nostr pubkey its receipts are signed with. The recipient's own pubkey is not
+      // part of that response — it comes from whoever looked the lnurl up.
+      if (info?.allowsNostr && info?.nostrPubkey) {
         try {
           result.set(lnurl, new Zapper({...info, lnurl}))
         } catch (_e) {
