@@ -249,6 +249,11 @@ export class Thunk extends BaseThunk {
         })
       }
 
+      // If we aborted during wrapping, signing, or pow, nevermind
+      if (this.controller.signal.aborted) {
+        return
+      }
+
       this.options.app.wrapManager.add({recipient, wrap: this.wrap, rumor: this.event})
 
       return this._publish(this.wrap)
