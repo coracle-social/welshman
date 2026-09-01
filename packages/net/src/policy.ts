@@ -152,6 +152,7 @@ export const socketPolicyCloseInactive = (socket: Socket) => {
 
   let lastOpen = now()
   let lastActivity = now()
+  let lastReceive = now()
 
   const unsubscribers = [
     on(socket, SocketEvent.Status, (newStatus: SocketStatus) => {
@@ -164,15 +165,14 @@ export const socketPolicyCloseInactive = (socket: Socket) => {
 
       // If the socket closed and we have no error, reopen it but don't flap
       if (isClosed && pending.size) {
-        const since = now()
+        const since = lastReceive
         const delay = Math.max(0, ms(5 - (now() - lastOpen)))
 
         sleep(delay).then(() => {
           socket.attemptToOpen()
 
           for (const message of pending.values()) {
-            // Add since to avoid re-downloading stuff on reconnect. If limit=0, remove it to catch up
-            if (isClientReq(message) && delay > 0) {
+            if (isClientReq(message)) {
               const filters: Filter[] = []
 
               for (let filter of message.slice(2) as Filter[]) {
@@ -180,7 +180,7 @@ export const socketPolicyCloseInactive = (socket: Socket) => {
                   filter = omit(["limit"], filter)
                 }
 
-                filters.push({...filter, since})
+                filters.push(filter.since === undefined ? {...filter, since} : filter)
               }
 
               socket.send([...message.slice(0, 2), ...filters])
@@ -208,6 +208,7 @@ export const socketPolicyCloseInactive = (socket: Socket) => {
     }),
     on(socket, SocketEvent.Receive, (message: RelayMessage) => {
       lastActivity = now()
+      lastReceive = now()
 
       if (isRelayClosed(message) || isRelayOk(message)) {
         pending.delete(message[1])
