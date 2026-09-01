@@ -1,5 +1,5 @@
-import {uniqBy, spec} from "@welshman/lib"
-import {SEARCH_RELAYS, tagSpec, tagValues, normalizeRelayUrl} from "@welshman/util"
+import {uniq, spec} from "@welshman/lib"
+import {SEARCH_RELAYS, relayTags, tagValues, normalizeRelayUrl} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -7,7 +7,7 @@ import {KindFactory} from "../core/Kind.js"
 // NIP-51 kind-10007 search relays list.
 export class SearchRelayListReader extends EventReader {
   urls() {
-    return uniqBy(normalizeRelayUrl, tagValues(tagSpec("relay"), this.tags()))
+    return uniq(tagValues(relayTags("relay"), this.tags()))
   }
 
   includes(url: string) {

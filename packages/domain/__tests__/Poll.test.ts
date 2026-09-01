@@ -44,7 +44,7 @@ describe("Poll", () => {
     ])
     expect(poll.pollType()).toBe("multiplechoice")
     expect(poll.endsAt()).toBe(1234)
-    expect(poll.urls()).toEqual(["wss://relay.one", "wss://relay.two"])
+    expect(poll.urls()).toEqual(["wss://relay.one/", "wss://relay.two/"])
   })
 
   it("tallies results from response events", async () => {

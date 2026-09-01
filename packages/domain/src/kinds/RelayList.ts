@@ -1,15 +1,24 @@
-import {nth, uniq, uniqBy, remove} from "@welshman/lib"
-import {RELAYS, matchTags, relayTags, normalizeRelayUrl, relays, indexers} from "@welshman/util"
+import {uniq, remove} from "@welshman/lib"
+import {
+  RELAYS,
+  matchTags,
+  relayTags,
+  tagValueExtractor,
+  normalizeRelayUrl,
+  relays,
+  indexers,
+} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
 
+const urlSpec = relayTags(["r", "relay"])
+
 const getUrls = (tags: string[][], mode?: string) =>
-  uniqBy(
-    normalizeRelayUrl,
-    matchTags(relayTags(["r", "relay"]), tags)
+  uniq(
+    matchTags(urlSpec, tags)
       .filter(t => !mode || !t[2] || t[2] === mode)
-      .map(nth(1)),
+      .map(tagValueExtractor(urlSpec)),
   )
 
 // NIP-65 kind-10002 relay list.
