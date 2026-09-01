@@ -27,7 +27,7 @@ import {
   AdapterContext,
   Pool,
   socketPolicyConnectOnSend,
-  socketPolicyCloseInactive,
+  socketPolicyLifecycle,
 } from "@welshman/net"
 import {ISigner, EncryptionImplementation, signWithOptions, SignOptions, decrypt} from "../util.js"
 import {Nip01Signer} from "./nip01.js"
@@ -143,7 +143,7 @@ const popupManager = (() => {
 const getDefaultContext = memoize(() => {
   const pool = new Pool()
 
-  pool.socketPolicies = [socketPolicyConnectOnSend, socketPolicyCloseInactive]
+  pool.socketPolicies = [socketPolicyConnectOnSend, socketPolicyLifecycle]
 
   return {pool}
 })

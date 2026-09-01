@@ -150,6 +150,175 @@ describe("requestOne", () => {
     expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Close, ids[0]])
     expect(sendSpy).toHaveBeenCalledWith([ClientMessageType.Close, ids[1]])
   })
+
+  it("does not ask again for a dropped subscription unless told to", async () => {
+    const ids: string[] = []
+    const sendSpy = vi.fn(m => {
+      if (m[0] === "REQ") {
+        ids.push(m[1])
+      }
+    })
+    const adapter = new MockAdapter("1", sendSpy)
+    const ctrl = new AbortController()
+    const closeSpy = vi.fn()
+
+    requestOne({
+      relay: "whatever",
+      filters: [{kinds: [1], limit: 0}],
+      context: {getAdapter: () => adapter},
+      signal: ctrl.signal,
+      onClose: closeSpy,
+    })
+
+    await vi.runAllTimersAsync()
+
+    adapter.receive(["CLOSED", ids[0], "error: too many concurrent REQs"])
+
+    await vi.runAllTimersAsync()
+
+    expect(ids).toHaveLength(1)
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("asks again for a live subscription the relay dropped, catching up on the gap", async () => {
+    const ids: string[] = []
+    const sendSpy = vi.fn(m => {
+      if (m[0] === "REQ") {
+        ids.push(m[1])
+      }
+    })
+    const adapter = new MockAdapter("1", sendSpy)
+    const ctrl = new AbortController()
+    const closeSpy = vi.fn()
+
+    requestOne({
+      relay: "whatever",
+      filters: [{kinds: [1], limit: 0}],
+      context: {getAdapter: () => adapter},
+      signal: ctrl.signal,
+      resubscribeAttempts: 5,
+      onClose: closeSpy,
+    })
+
+    await vi.runAllTimersAsync()
+
+    // Hitting the relay's cap on open subscriptions says nothing about the next attempt
+    adapter.receive(["CLOSED", ids[0], "error: too many concurrent REQs"])
+
+    await vi.runAllTimersAsync()
+
+    // Same id, so the relay replaces the subscription rather than accumulating one. limit 0 is
+    // gone and the window reaches back to the refusal, so the backoff isn't a hole.
+    expect(sendSpy).toHaveBeenCalledWith([
+      ClientMessageType.Req,
+      ids[0],
+      {kinds: [1], since: expect.any(Number)},
+    ])
+
+    // The request is still live rather than resolved out from under the caller
+    expect(closeSpy).not.toHaveBeenCalled()
+
+    ctrl.abort()
+  })
+
+  it("gives up on a refusal that asking again won't change", async () => {
+    const ids: string[] = []
+    const sendSpy = vi.fn(m => {
+      if (m[0] === "REQ") {
+        ids.push(m[1])
+      }
+    })
+    const adapter = new MockAdapter("1", sendSpy)
+    const ctrl = new AbortController()
+    const closeSpy = vi.fn()
+
+    requestOne({
+      relay: "whatever",
+      filters: [{kinds: [1], limit: 0}],
+      context: {getAdapter: () => adapter},
+      signal: ctrl.signal,
+      resubscribeAttempts: 5,
+      onClose: closeSpy,
+    })
+
+    await vi.runAllTimersAsync()
+
+    adapter.receive(["CLOSED", ids[0], "restricted: not a member of this group"])
+
+    await vi.runAllTimersAsync()
+
+    expect(ids).toHaveLength(1)
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("stops asking after a bounded number of refusals", async () => {
+    const ids: string[] = []
+    const sendSpy = vi.fn(m => {
+      if (m[0] === "REQ") {
+        ids.push(m[1])
+      }
+    })
+    const adapter = new MockAdapter("1", sendSpy)
+    const ctrl = new AbortController()
+    const closeSpy = vi.fn()
+
+    requestOne({
+      relay: "whatever",
+      filters: [{kinds: [1], limit: 0}],
+      context: {getAdapter: () => adapter},
+      signal: ctrl.signal,
+      resubscribeAttempts: 5,
+      onClose: closeSpy,
+    })
+
+    await vi.runAllTimersAsync()
+
+    // A relay that refuses every time shouldn't be asked forever
+    for (let attempt = 0; attempt < 10; attempt++) {
+      adapter.receive(["CLOSED", ids[0], "rate-limited: slow down"])
+      await vi.runAllTimersAsync()
+    }
+
+    // The first ask plus the five it was given
+    expect(ids).toHaveLength(6)
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("treats a refusal after a served subscription as a fresh problem", async () => {
+    const ids: string[] = []
+    const sendSpy = vi.fn(m => {
+      if (m[0] === "REQ") {
+        ids.push(m[1])
+      }
+    })
+    const adapter = new MockAdapter("1", sendSpy)
+    const ctrl = new AbortController()
+    const closeSpy = vi.fn()
+
+    requestOne({
+      relay: "whatever",
+      filters: [{kinds: [1], limit: 0}],
+      context: {getAdapter: () => adapter},
+      signal: ctrl.signal,
+      resubscribeAttempts: 5,
+      onClose: closeSpy,
+    })
+
+    await vi.runAllTimersAsync()
+
+    // Refuse, retry, then serve it — which settles the count, so the next refusal starts over
+    // rather than counting toward a limit reached hours ago
+    for (let round = 0; round < 4; round++) {
+      adapter.receive(["CLOSED", ids[ids.length - 1], "rate-limited: slow down"])
+      await vi.runAllTimersAsync()
+      adapter.receive(["EOSE", ids[ids.length - 1]])
+    }
+
+    expect(ids).toHaveLength(5)
+    expect(closeSpy).not.toHaveBeenCalled()
+
+    ctrl.abort()
+  })
 })
 
 describe("request", () => {

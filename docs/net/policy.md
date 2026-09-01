@@ -13,10 +13,6 @@ The contract for socket policies. Takes a Socket object and returns a cleanup fu
 
 ## Built-in Policies
 
-### `socketPolicyPing`
-
-Sends a PING message every 30 seconds when the socket is open and has been idle (no send or receive activity in the last 30 seconds). Keeps connections alive through NAT/firewall idle timeouts.
-
 ### `socketPolicyAuthBuffer`
 
 Buffers messages during authentication flow and replays them after successful auth.
@@ -25,9 +21,11 @@ Buffers messages during authentication flow and replays them after successful au
 
 Auto-connects closed sockets when messages are sent (with error cooldown).
 
-### `socketPolicyCloseInactive`
+### `socketPolicyLifecycle`
 
-Closes sockets after 30 seconds of inactivity and reopens sockets that have pending requests or publishes.
+Owns a socket's lifecycle. Closes sockets after 30 seconds of inactivity, and reopens ones that still have pending requests or publishes — re-sending each request bounded at the outage, so a live subscription catches up on what it missed rather than resuming from the present.
+
+A socket that still has work outstanding but has heard nothing for 30 seconds is probed with a `REQ` the relay is obliged to answer. If nothing comes back within 10 seconds the socket is closed, which hands it to the reconnect above. Without this, a device returning from suspend can hold a socket that reports itself open while its relay is long gone, leaving every subscription on it silently dead.
 
 ## Custom Auth Policy
 

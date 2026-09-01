@@ -1,5 +1,5 @@
-import {on, ms, omit, nthNe, always, call, sleep, ago, now} from "@welshman/lib"
-import {RELAY_JOIN, StampedEvent, SignedEvent, Filter} from "@welshman/util"
+import {on, ms, nthNe, always, call, randomId, sleep, ago, now} from "@welshman/lib"
+import {RELAY_JOIN, StampedEvent, SignedEvent, Filter, neverFilter} from "@welshman/util"
 import {
   ClientMessage,
   isClientAuth,
@@ -8,6 +8,7 @@ import {
   isClientReq,
   isClientNegOpen,
   isClientNegClose,
+  ClientMessageType,
   RelayMessage,
   isRelayOk,
   isRelayEose,
@@ -16,35 +17,7 @@ import {
 } from "./message.js"
 import {Socket, SocketStatus, SocketEvent, SocketPolicy} from "./socket.js"
 import {AuthStatus, AuthStateEvent} from "./auth.js"
-
-/**
- * Sends a ping message every so often to ensure connection health
- * @param socket - a Socket object
- * @return a cleanup function
- */
-export const socketPolicyPing = (socket: Socket) => {
-  let lastActivity = 0
-
-  const unsubscribers = [
-    on(socket, SocketEvent.Send, (message: ClientMessage) => {
-      lastActivity = Date.now()
-    }),
-    on(socket, SocketEvent.Receive, (message: ClientMessage) => {
-      lastActivity = Date.now()
-    }),
-  ]
-
-  const interval = setInterval(() => {
-    if (socket.status === SocketStatus.Open && lastActivity < Date.now() - 30_000) {
-      socket._ws?.send('["PING"]')
-    }
-  }, 30_000)
-
-  return () => {
-    unsubscribers.forEach(call)
-    clearInterval(interval)
-  }
-}
+import {catchUpFilter} from "./util.js"
 
 /**
  * Handles auth-related message management:
@@ -141,17 +114,26 @@ export const socketPolicyConnectOnSend = (socket: Socket) => {
   return () => unsubscribers.forEach(call)
 }
 
+// How long a socket carrying work sits quiet before we check the relay is still there
+const PROBE_IDLE = 30
+
+// How long a socket has to answer after probing
+const PROBE_TIMEOUT = 10
+
 /**
- * Auto-closes inactive sockets, and re-opens sockets with pending messages
+ * Owns a socket's lifecycle: closes it once nothing needs it, checks the relay is still there
+ * when something does, reopens it, and catches up on what it missed.
  * @param socket - a Socket object
  * @return a cleanup function
  */
-export const socketPolicyCloseInactive = (socket: Socket) => {
+export const socketPolicyLifecycle = (socket: Socket) => {
   const pending = new Map<string, ClientMessage>()
 
   let lastOpen = now()
   let lastActivity = now()
   let lastReceive = now()
+  let probeId: string | undefined
+  let probedAt = 0
 
   const unsubscribers = [
     on(socket, SocketEvent.Status, (newStatus: SocketStatus) => {
@@ -160,6 +142,12 @@ export const socketPolicyCloseInactive = (socket: Socket) => {
       // Keep track of the most recent open
       if (newStatus === SocketStatus.Open) {
         lastOpen = now()
+      }
+
+      // A probe belongs to the connection that was carrying it, not to the next one
+      if (isClosed && probeId) {
+        pending.delete(probeId)
+        probeId = undefined
       }
 
       // If the socket closed and we have no error, reopen it but don't flap
@@ -172,15 +160,9 @@ export const socketPolicyCloseInactive = (socket: Socket) => {
 
           for (const message of pending.values()) {
             if (isClientReq(message)) {
-              const filters: Filter[] = []
-
-              for (let filter of message.slice(2) as Filter[]) {
-                if (filter.limit === 0) {
-                  filter = omit(["limit"], filter)
-                }
-
-                filters.push({...filter, since})
-              }
+              const filters = (message.slice(2) as Filter[]).map(filter =>
+                catchUpFilter(filter, since),
+              )
 
               socket.send([...message.slice(0, 2), ...filters])
             } else {
@@ -209,6 +191,12 @@ export const socketPolicyCloseInactive = (socket: Socket) => {
       lastActivity = now()
       lastReceive = now()
 
+      // Any traffic at all proves the relay is there, so retire the probe
+      if (probeId) {
+        socket.send([ClientMessageType.Close, probeId])
+        probeId = undefined
+      }
+
       if (isRelayClosed(message) || isRelayOk(message)) {
         pending.delete(message[1])
       }
@@ -216,8 +204,29 @@ export const socketPolicyCloseInactive = (socket: Socket) => {
   ]
 
   const interval = setInterval(() => {
-    if (socket.status === SocketStatus.Open && lastActivity < ago(30) && pending.size === 0) {
-      socket.close()
+    if (socket.status !== SocketStatus.Open) return
+
+    // Nothing is waiting on this socket, so let it go
+    if (pending.size === 0) {
+      if (lastActivity < ago(30)) {
+        socket.close()
+      }
+
+      return
+    }
+
+    // Something is waiting, but a device coming back from a suspend can find a socket that only
+    // looks open: the relay went away without a close ever firing, so nothing reconnects and
+    // every subscription on it is quietly dead. Send a probe request and close if no response.
+    if (probeId) {
+      if (probedAt < ago(PROBE_TIMEOUT)) {
+        socket.close()
+      }
+    } else if (lastReceive < ago(PROBE_IDLE)) {
+      probeId = `PING-${randomId()}`
+      probedAt = now()
+
+      socket.send([ClientMessageType.Req, probeId, neverFilter])
     }
   }, 3000)
 
@@ -254,8 +263,7 @@ export const makeSocketPolicyAuth = (options: SocketPolicyAuthOptions) => (socke
 }
 
 export const defaultSocketPolicies: SocketPolicy[] = [
-  socketPolicyPing,
   socketPolicyAuthBuffer,
   socketPolicyConnectOnSend,
-  socketPolicyCloseInactive,
+  socketPolicyLifecycle,
 ]
