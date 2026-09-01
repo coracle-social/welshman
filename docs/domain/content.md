@@ -1,6 +1,6 @@
 # Content
 
-A grab-bag of content kinds: NIP-01 notes, NIP-17 direct messages, NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `TimeEvent`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
+A grab-bag of content kinds: NIP-01 notes, NIP-17 direct messages, NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-84 highlights, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `TimeEvent`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
 
 Every example below assumes a bound `KindContext` — you get a reader/writer by calling `SomeKind.configure(context)`. A reader is built and then parsed (`…reader(event).parse()`); none of the kinds on this page decrypt, so nothing here needs awaiting. A writer is a chainable builder whose terminal `renderTemplate()` returns an unsigned `EventTemplate`. To turn that into a signed event, hand it to a signer:
 
@@ -190,6 +190,52 @@ await Pin.configure(context)
 ```
 
 `setEvent`/`setAddress`/`setExternal` each replace any prior reference, keeping the "exactly one" invariant. `validate()` throws if none of `e`/`a`/`i` is present.
+
+## Highlight (kind 9802)
+
+A NIP-84 highlight. The `content` is the highlighted excerpt, which may be empty when the source is non-text media. A `comment` tag turns the highlight into a **quote highlight**, rendered like a quote repost. In that case a `p` tag marked `mention` is named in the comment rather than credited for the source, and the same marker on an `r` tag means the reference came from the comment.
+
+```typescript
+import {Highlight} from "@welshman/domain"
+import type {HighlightSource, HighlightAttribution} from "@welshman/domain"
+
+const highlight = Highlight.configure(context).reader(event).parse()
+highlight.content()         // the highlighted excerpt
+highlight.sources()         // HighlightSource[] — where it was taken from
+highlight.attributions()    // HighlightAttribution[] — authors/editors of the source
+highlight.mentions()        // pubkeys named in the comment
+highlight.sourceContext()   // "context" tag — text surrounding the excerpt
+highlight.comment()         // "comment" tag value
+highlight.references()      // r-tag values marked "mention"
+highlight.topics()          // t-tag values
+```
+
+A `HighlightSource` is a discriminated union over the four ways NIP-84 tags a source: `{type: "event", id, relay}` (`e`), `{type: "address", address, relay}` (`a`), `{type: "external", id}` (NIP-73 `i`), and `{type: "reference", value}` (`r`, a url or plain text). A missing relay hint reads as `""` rather than `undefined`; `i` and `r` tags have no hint slot at all. `sources()` returns a list because a highlight of a replaceable event carries both an `e` and an `a` tag. A `HighlightAttribution` is `{pubkey, relay, role?}`, where `role` is NIP-84's `author` or `editor` and is absent on the unmarked `p` tags older clients write. The `context` tag is read as `sourceContext()`, since `context` is the reader's own `KindContext`.
+
+```typescript
+await Highlight.configure(context)
+  .writer()
+  .setContent("the highlighted bit")
+  .setSourceEvent(sourceEvent)        // or setSourceReference / setSourceExternal
+  .setSourceContext("the surrounding paragraph")
+  .addAttribution(editorPubkey, "editor")
+  .setTopics(["nostr"])
+  .renderTemplate()
+
+// A quote highlight — the comment's refs are marked so they aren't read as the source.
+await Highlight.configure(context)
+  .writer()
+  .setContent("the highlighted bit")
+  .setSourceReference("https://example.com/essay")
+  .setComment("worth reading")
+  .addMention(somePubkey)
+  .addTags(["r", "https://example.com/related", "mention"])
+  .renderTemplate()
+```
+
+`setSourceEvent` credits the source's author with a `p` tag, and tags a replaceable source both ways (`e` and `a`) so the highlight survives an edit of the source. That attribution also routes the highlight to the credited author's inbox, under the default routing. Each `setSource*` replaces any prior source, leaving comment references alone.
+
+`addAttribution` keeps one `p` tag per pubkey, so re-attributing someone changes their role instead of crediting them twice, and `removeAttribution` drops that pubkey's tag whatever its role. `addMention` is `addAttribution(pubkey, "mention")`, which overrides the base writer's unmarked mention. There is no setter for a comment's `r` tags — add them with `addTags(["r", value, "mention"])`. NIP-84 only says a highlight *should* tag its source, so `validate()` doesn't require one.
 
 ## TimeEvent (kind 31923)
 
