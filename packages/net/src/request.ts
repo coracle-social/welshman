@@ -1,5 +1,8 @@
 import {
   on,
+  ms,
+  now,
+  sleep,
   uniq,
   flatten,
   addToMapKey,
@@ -25,10 +28,12 @@ import {
   isRelayEvent,
   isRelayEose,
   isRelayClosed,
+  isTerminalReason,
 } from "./message.js"
 import {getAdapter, AdapterContext, AdapterEvent} from "./adapter.js"
 import {SocketEvent, SocketStatus} from "./socket.js"
 import {Tracker} from "./tracker.js"
+import {catchUpFilter} from "./util.js"
 
 export type IsEventValid = (event: TrustedEvent, url: string) => boolean
 
@@ -37,6 +42,7 @@ export type BaseRequestOptions = {
   tracker?: Tracker
   context?: AdapterContext
   autoClose?: boolean
+  resubscribeAttempts?: number
   isEventValid?: IsEventValid
   onEvent?: (event: TrustedEvent, url: string) => void
   onDeleted?: (event: unknown, url: string) => void
@@ -68,11 +74,17 @@ export const requestOne = (options: RequestOneOptions) => {
   const open = new Set<string>()
   // Ids we're still waiting on, whether via eose or closed
   const pending = new Set<string>()
+  // What each id asked for, so a dropped subscription can be asked for again
+  const filtersById = new Map<string, Filter>()
+  // Ids the relay has refused, and how long they have been refused for
+  const retriesById = new Map<string, {attempts: number; since: number}>()
   const events: TrustedEvent[] = []
   const deferred = defer<TrustedEvent[]>()
   const tracker = options.tracker || new Tracker()
   const adapter = getAdapter(options.relay, options.context)
   const isEventValid: IsEventValid = options.isEventValid || (event => verifyEvent(event))
+  // Surviving a refusal is opt-in: a caller that wants one says how many times to ask again
+  const resubscribeAttempts = options.resubscribeAttempts || 0
 
   let closed = false
 
@@ -80,6 +92,34 @@ export const requestOne = (options: RequestOneOptions) => {
     if (open.delete(id)) {
       adapter.send([ClientMessageType.Close, id])
     }
+  }
+
+  // A relay that drops a long-lived subscription for a reason that might not hold next time — a
+  // rate limit, more subscriptions than it allows — leaves the caller with no events and nothing
+  // to notice, so ask again. `since` reaches back to the refusal rather than the retry, so the
+  // time spent backing off isn't a hole, and an eose clears the count: a relay that served us
+  // once and refused later is a fresh problem rather than an escalating one.
+  const resubscribe = (id: string) => {
+    const retry = retriesById.get(id) || {attempts: 0, since: now()}
+
+    retry.attempts += 1
+    retriesById.set(id, retry)
+
+    if (retry.attempts > resubscribeAttempts) {
+      if (open.size === 0) {
+        close()
+      }
+
+      return
+    }
+
+    sleep(ms(2 ** retry.attempts)).then(() => {
+      if (!closed) {
+        open.add(id)
+        pending.add(id)
+        adapter.send([ClientMessageType.Req, id, catchUpFilter(filtersById.get(id)!, retry.since)])
+      }
+    })
   }
 
   const close = () => {
@@ -122,6 +162,9 @@ export const requestOne = (options: RequestOneOptions) => {
         const [_, id] = message
 
         if (pending.delete(id)) {
+          // The relay served this one, so any earlier refusal of it is settled
+          retriesById.delete(id)
+
           // Release the relay's subscription state for this filter as soon as it's
           // done, rather than making it wait on slower filters in the same request
           if (options.autoClose) {
@@ -146,8 +189,14 @@ export const requestOne = (options: RequestOneOptions) => {
           open.delete(id)
           options.onClosed?.(reason, url)
 
-          if (open.size === 0) {
-            close()
+          // A one-shot request is finished either way, and a refusal that won't change on a
+          // retry finishes a long-lived one too
+          if (options.autoClose || isTerminalReason(reason)) {
+            if (open.size === 0) {
+              close()
+            }
+          } else {
+            resubscribe(id)
           }
         }
       }
@@ -188,6 +237,7 @@ export const requestOne = (options: RequestOneOptions) => {
     ids.add(id)
     open.add(id)
     pending.add(id)
+    filtersById.set(id, filter)
     adapter.send([ClientMessageType.Req, id, filter])
   }
 

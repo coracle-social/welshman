@@ -63,11 +63,29 @@ export const isRelayNegMsg = (m: RelayMessage): m is RelayNegMsg => m[0] === Rel
 
 export const isRelayOk = (m: RelayMessage): m is RelayOk => m[0] === RelayMessageType.Ok
 
-export const matchReason = (reason: string | undefined, message: string) =>
-  new RegExp(`(^|\\s)${message}:`, "i").test(reason || "")
+export enum RelayReasonPrefix {
+  AuthRequired = "auth-required",
+  Blocked = "blocked",
+  Invalid = "invalid",
+  Mute = "mute",
+  Pow = "pow",
+  Restricted = "restricted",
+  Unsupported = "unsupported",
+}
 
-export const matchReasons = (reason: string | undefined, messages: string[]) =>
-  messages.some(message => matchReason(reason, message))
+export const matchReason = (prefix: string, reason: string) =>
+  new RegExp(`(^|\\s)${prefix}:`, "i").test(reason)
+
+export const isTerminalReason = (reason = "") =>
+  [
+    RelayReasonPrefix.AuthRequired,
+    RelayReasonPrefix.Blocked,
+    RelayReasonPrefix.Invalid,
+    RelayReasonPrefix.Mute,
+    RelayReasonPrefix.Pow,
+    RelayReasonPrefix.Restricted,
+    RelayReasonPrefix.Unsupported,
+  ].some(prefix => matchReason(prefix, reason))
 
 // client -> relay
 

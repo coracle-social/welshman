@@ -5,7 +5,7 @@ import {AuthStatus, AuthStateEvent} from "../src/auth"
 import {
   socketPolicyAuthBuffer,
   socketPolicyConnectOnSend,
-  socketPolicyCloseInactive,
+  socketPolicyLifecycle,
 } from "../src/policy"
 import {ClientMessage, RelayMessage} from "../src/message"
 
@@ -296,9 +296,9 @@ describe("policy", () => {
     })
   })
 
-  describe("socketPolicyCloseInactive", () => {
+  describe("socketPolicyLifecycle", () => {
     it("should close socket after 30 seconds of inactivity", async () => {
-      const cleanup = socketPolicyCloseInactive(socket)
+      const cleanup = socketPolicyLifecycle(socket)
       const closeSpy = vi.spyOn(socket, "close")
 
       // Set socket as open
@@ -314,7 +314,7 @@ describe("policy", () => {
     }, 100000)
 
     it("should reset timer on send activity", () => {
-      const cleanup = socketPolicyCloseInactive(socket)
+      const cleanup = socketPolicyLifecycle(socket)
       const closeSpy = vi.spyOn(socket, "close")
 
       // Set socket as open
@@ -343,7 +343,7 @@ describe("policy", () => {
     })
 
     it("should reset timer on receive activity", () => {
-      const cleanup = socketPolicyCloseInactive(socket)
+      const cleanup = socketPolicyLifecycle(socket)
       const closeSpy = vi.spyOn(socket, "close")
 
       // Set socket as open
@@ -371,7 +371,7 @@ describe("policy", () => {
     })
 
     it("should not close socket if not open", () => {
-      const cleanup = socketPolicyCloseInactive(socket)
+      const cleanup = socketPolicyLifecycle(socket)
       const closeSpy = vi.spyOn(socket, "close")
 
       // Set socket as closed
@@ -387,7 +387,7 @@ describe("policy", () => {
     })
 
     it("should reopen socket when closed with pending messages", async () => {
-      const cleanup = socketPolicyCloseInactive(socket)
+      const cleanup = socketPolicyLifecycle(socket)
       const sendSpy = vi.spyOn(socket, "send")
 
       // Send an event that will be pending
@@ -407,7 +407,7 @@ describe("policy", () => {
     })
 
     it("should reopen socket when closed with pending requests, bounded at the outage", async () => {
-      const cleanup = socketPolicyCloseInactive(socket)
+      const cleanup = socketPolicyLifecycle(socket)
       const sendSpy = vi.spyOn(socket, "send")
 
       // Send a request that will be pending
@@ -427,7 +427,7 @@ describe("policy", () => {
     })
 
     it("should catch a live request up over an outage it only learns about on wake", async () => {
-      const cleanup = socketPolicyCloseInactive(socket)
+      const cleanup = socketPolicyLifecycle(socket)
       const sendSpy = vi.spyOn(socket, "send")
 
       socket.emit(SocketEvent.Status, SocketStatus.Open)
@@ -452,7 +452,7 @@ describe("policy", () => {
     })
 
     it("should bound a request that names its own window at the outage", async () => {
-      const cleanup = socketPolicyCloseInactive(socket)
+      const cleanup = socketPolicyLifecycle(socket)
       const sendSpy = vi.spyOn(socket, "send")
 
       socket.emit(SocketEvent.Status, SocketStatus.Open)
@@ -477,7 +477,7 @@ describe("policy", () => {
     })
 
     it("should not reopen socket immediately after previous open", async () => {
-      const cleanup = socketPolicyCloseInactive(socket)
+      const cleanup = socketPolicyLifecycle(socket)
       const sendSpy = vi.spyOn(socket, "send")
 
       // Send an event that will be pending
@@ -504,7 +504,7 @@ describe("policy", () => {
     })
 
     it("should remove pending messages when they complete", () => {
-      const cleanup = socketPolicyCloseInactive(socket)
+      const cleanup = socketPolicyLifecycle(socket)
       const sendSpy = vi.spyOn(socket, "send")
 
       // Send an event that will be pending
@@ -527,7 +527,7 @@ describe("policy", () => {
     })
 
     it("should remove pending messages when closed", () => {
-      const cleanup = socketPolicyCloseInactive(socket)
+      const cleanup = socketPolicyLifecycle(socket)
       const sendSpy = vi.spyOn(socket, "send")
 
       // Send a request that will be pending
@@ -546,6 +546,77 @@ describe("policy", () => {
 
       // Should not resend since request was closed
       expect(sendSpy).not.toHaveBeenCalled()
+
+      cleanup()
+    })
+
+    it("should probe a quiet socket that still has work outstanding", async () => {
+      const cleanup = socketPolicyLifecycle(socket)
+
+      socket.emit(SocketEvent.Status, SocketStatus.Open)
+      socket.emit(SocketEvent.Send, ["REQ", "123", {kinds: [1], limit: 0}])
+
+      const sendSpy = vi.spyOn(socket, "send")
+
+      // A live subscription on a quiet room neither sends nor receives, which on its own looks
+      // exactly like a socket whose relay has gone away
+      await vi.advanceTimersByTimeAsync(35000)
+
+      expect(sendSpy).toHaveBeenCalledWith(["REQ", expect.stringMatching(/^PING-/), {ids: []}])
+
+      cleanup()
+    })
+
+    it("should close a socket whose probe goes unanswered", async () => {
+      const cleanup = socketPolicyLifecycle(socket)
+      const closeSpy = vi.spyOn(socket, "close")
+
+      socket.emit(SocketEvent.Status, SocketStatus.Open)
+      socket.emit(SocketEvent.Send, ["REQ", "123", {kinds: [1], limit: 0}])
+
+      await vi.advanceTimersByTimeAsync(35000)
+
+      expect(closeSpy).not.toHaveBeenCalled()
+
+      // Nothing comes back, so the relay is gone however open the socket looks. Closing it is
+      // what hands it to the reconnect, which is the only thing that can catch the subscription
+      // back up.
+      await vi.advanceTimersByTimeAsync(15000)
+
+      expect(closeSpy).toHaveBeenCalled()
+
+      cleanup()
+    })
+
+    it("should leave a socket alone once anything answers its probe", async () => {
+      const cleanup = socketPolicyLifecycle(socket)
+      const closeSpy = vi.spyOn(socket, "close")
+
+      socket.emit(SocketEvent.Status, SocketStatus.Open)
+      socket.emit(SocketEvent.Send, ["REQ", "123", {kinds: [1], limit: 0}])
+
+      await vi.advanceTimersByTimeAsync(35000)
+
+      socket.emit(SocketEvent.Receive, ["EOSE", "123"])
+
+      await vi.advanceTimersByTimeAsync(15000)
+
+      expect(closeSpy).not.toHaveBeenCalled()
+
+      cleanup()
+    })
+
+    it("should reap an idle socket rather than probing one nothing is waiting on", async () => {
+      const cleanup = socketPolicyLifecycle(socket)
+      const sendSpy = vi.spyOn(socket, "send")
+      const closeSpy = vi.spyOn(socket, "close")
+
+      socket.emit(SocketEvent.Status, SocketStatus.Open)
+
+      await vi.advanceTimersByTimeAsync(35000)
+
+      expect(sendSpy).not.toHaveBeenCalled()
+      expect(closeSpy).toHaveBeenCalled()
 
       cleanup()
     })
