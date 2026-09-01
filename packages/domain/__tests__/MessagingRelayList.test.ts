@@ -46,6 +46,22 @@ describe("MessagingRelayList", () => {
     expect(list.urls().sort()).toEqual([r1, r2].sort())
   })
 
+  it("normalizes urls a list written elsewhere spelled differently", async () => {
+    const event = makeEvent({
+      tags: [
+        ["relay", "wss://inbox.one.example"],
+        ["relay", "wss://Inbox.Two.Example/"],
+        ["relay", "not a relay"],
+      ],
+    })
+
+    const list = await read(MessagingRelayList, event)
+
+    // The pool keys a socket by the normalized url and relay lists are matched against those keys,
+    // so a url that arrives spelled any other way has to read back as the one it names.
+    expect(list.urls()).toEqual([r1, r2])
+  })
+
   it("round-trips without duplicating tags and preserves passthrough", async () => {
     const event = makeEvent({
       tags: [

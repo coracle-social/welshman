@@ -1,5 +1,5 @@
 import {ensurePlural, isHex32, removeUndefined} from "@welshman/lib"
-import {isRelayUrl} from "./Relay.js"
+import {isRelayUrl, normalizeRelayUrl} from "./Relay.js"
 import {Address} from "./Address.js"
 import {isKind, normalizeKind} from "./Kinds.js"
 import {normalizeTopic} from "./Topics.js"
@@ -26,7 +26,7 @@ export const topicTags = (keys: string | string[]) => tagSpec(keys, undefined, n
 export const addressTags = (keys: string | string[]) =>
   tagSpec(keys, value => Address.isAddress(value))
 
-export const relayTags = (keys: string | string[]) => tagSpec(keys, isRelayUrl)
+export const relayTags = (keys: string | string[]) => tagSpec(keys, isRelayUrl, normalizeRelayUrl)
 
 export const tagMatcher = (spec: TagSpec<any>) => (tag: string[]) => {
   if (!spec.keys.includes(tag[0])) return false

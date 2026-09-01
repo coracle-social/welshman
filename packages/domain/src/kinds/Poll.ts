@@ -1,5 +1,5 @@
 import {now, uniq, randomId, spec} from "@welshman/lib"
-import {POLL, tagSpec, tagValue, tagValues} from "@welshman/util"
+import {POLL, relayTags, tagSpec, tagValue, tagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
@@ -44,7 +44,7 @@ export class PollReader extends EventReader {
   }
 
   urls() {
-    return tagValues(tagSpec("relay"), this.event.tags)
+    return tagValues(relayTags("relay"), this.event.tags)
   }
 
   results(responses: TrustedEvent[]): PollResult {

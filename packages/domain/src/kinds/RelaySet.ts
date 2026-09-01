@@ -1,5 +1,12 @@
-import {uniqBy, spec} from "@welshman/lib"
-import {NAMED_RELAYS, tagSpec, tagValue, tagValues, normalizeRelayUrl} from "@welshman/util"
+import {uniq, spec} from "@welshman/lib"
+import {
+  NAMED_RELAYS,
+  relayTags,
+  tagSpec,
+  tagValue,
+  tagValues,
+  normalizeRelayUrl,
+} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
@@ -19,7 +26,7 @@ export class RelaySetReader extends EventReader {
   }
 
   urls() {
-    return uniqBy(normalizeRelayUrl, tagValues(tagSpec("relay"), this.tags()))
+    return uniq(tagValues(relayTags("relay"), this.tags()))
   }
 }
 

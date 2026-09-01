@@ -71,17 +71,17 @@ describe("Tags", () => {
       expect(tagValues(topicTags("t"), t)).toEqual(["topic1", "topic2"])
     })
 
-    it("relayTags matches relay urls across r/relay keys", () => {
+    it("relayTags matches relay urls across r/relay keys and normalizes them", () => {
       const t = [
         ["r", "wss://relay.example.com"],
-        ["relay", "wss://relay2.example.com"],
+        ["relay", "wss://Relay2.Example.com/"],
         ["r", "invalid"],
         ["other", "wss://relay.example.com"],
       ]
 
       expect(tagValues(relayTags(["r", "relay"]), t)).toEqual([
-        "wss://relay.example.com",
-        "wss://relay2.example.com",
+        "wss://relay.example.com/",
+        "wss://relay2.example.com/",
       ])
     })
 
