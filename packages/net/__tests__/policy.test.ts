@@ -159,6 +159,36 @@ describe("policy", () => {
       cleanup()
     })
 
+    it("should retry CLOSED reasons that prefix auth-required with an error label", () => {
+      const cleanup = socketPolicyAuthBuffer(socket)
+      const recvQueueRemoveSpy = vi.spyOn(socket._recvQueue, "remove")
+
+      socket.emit(SocketEvent.Send, ["REQ", "123", {kinds: [1059]}])
+
+      const closed: RelayMessage = [
+        "CLOSED",
+        "123",
+        "ERROR: auth-required: requested filter requires authentication",
+      ]
+      socket.emit(SocketEvent.Receiving, closed)
+
+      expect(recvQueueRemoveSpy).toHaveBeenCalledWith(closed)
+
+      cleanup()
+    })
+
+    it("should not treat an unrelated reason as auth-required", () => {
+      const cleanup = socketPolicyAuthBuffer(socket)
+      const recvQueueRemoveSpy = vi.spyOn(socket._recvQueue, "remove")
+
+      socket.emit(SocketEvent.Send, ["REQ", "123", {kinds: [1]}])
+      socket.emit(SocketEvent.Receiving, ["CLOSED", "123", "error: too many concurrent REQs"])
+
+      expect(recvQueueRemoveSpy).not.toHaveBeenCalled()
+
+      cleanup()
+    })
+
     it("should not retry RELAY_JOIN events", () => {
       const cleanup = socketPolicyAuthBuffer(socket)
       const sendSpy = vi.spyOn(socket, "send")

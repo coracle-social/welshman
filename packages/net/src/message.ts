@@ -63,6 +63,12 @@ export const isRelayNegMsg = (m: RelayMessage): m is RelayNegMsg => m[0] === Rel
 
 export const isRelayOk = (m: RelayMessage): m is RelayOk => m[0] === RelayMessageType.Ok
 
+export const matchReason = (reason: string | undefined, message: string) =>
+  new RegExp(`(^|\\s)${message}:`, "i").test(reason || "")
+
+export const matchReasons = (reason: string | undefined, messages: string[]) =>
+  messages.some(message => matchReason(reason, message))
+
 // client -> relay
 
 export enum ClientMessageType {
