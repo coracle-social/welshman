@@ -180,7 +180,7 @@ export const socketPolicyCloseInactive = (socket: Socket) => {
                   filter = omit(["limit"], filter)
                 }
 
-                filters.push(filter.since === undefined ? {...filter, since} : filter)
+                filters.push({...filter, since})
               }
 
               socket.send([...message.slice(0, 2), ...filters])
