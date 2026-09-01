@@ -421,22 +421,27 @@ describe("policy", () => {
       cleanup()
     })
 
-    it("should replay a request that names its own window unchanged", async () => {
+    it("should bound a request that names its own window at the outage", async () => {
       const cleanup = socketPolicyCloseInactive(socket)
       const sendSpy = vi.spyOn(socket, "send")
 
       socket.emit(SocketEvent.Status, SocketStatus.Open)
+      socket.emit(SocketEvent.Receive, ["EOSE", "123"])
 
-      // A page of history. Bounding this at the outage would move `since` past `until` and return
-      // nothing, so it has to go back out as it was.
-      const req: ClientMessage = ["REQ", "123", {kinds: [1], since: 1000, until: 2000}]
+      const disconnectedAt = Math.round(Date.now() / 1000)
 
-      socket.emit(SocketEvent.Send, req)
+      // A page of history. Everything up to the outage already arrived, so the replay picks up
+      // from there rather than asking for the window again from its own start.
+      socket.emit(SocketEvent.Send, ["REQ", "123", {kinds: [1], since: 1000, until: 2000}])
       socket.emit(SocketEvent.Status, SocketStatus.Closed)
 
       await vi.advanceTimersByTimeAsync(10000)
 
-      expect(sendSpy).toHaveBeenCalledWith(req)
+      expect(sendSpy).toHaveBeenCalledWith([
+        "REQ",
+        "123",
+        {kinds: [1], since: disconnectedAt, until: 2000},
+      ])
 
       cleanup()
     })
