@@ -73,7 +73,7 @@ export enum RelayReasonPrefix {
   Unsupported = "unsupported",
 }
 
-export const matchReason = (prefix: string, reason: string) =>
+export const matchReason = (prefix: RelayReasonPrefix, reason: string) =>
   new RegExp(`(^|\\s)${prefix}:`, "i").test(reason)
 
 export const isTerminalReason = (reason = "") =>

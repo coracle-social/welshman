@@ -15,6 +15,7 @@ import {
   isRelayClosed,
   isRelayNegErr,
   matchReason,
+  RelayReasonPrefix,
 } from "./message.js"
 import {Socket, SocketStatus, SocketEvent, SocketPolicy} from "./socket.js"
 import {AuthStatus, AuthStateEvent} from "./auth.js"
@@ -56,7 +57,7 @@ export const socketPolicyAuthBuffer = (socket: Socket) => {
       // If the relay is closing a request during auth, don't tell the caller, we'll retry it
       if (
         (isRelayClosed(message) || isRelayNegErr(message)) &&
-        matchReason(message[2], "auth-required")
+        matchReason(RelayReasonPrefix.AuthRequired, message[2])
       ) {
         socket._recvQueue.remove(message)
       }
@@ -67,7 +68,11 @@ export const socketPolicyAuthBuffer = (socket: Socket) => {
       }
 
       // If the client is rejecting an event during auth, don't tell the caller, we'll retry it
-      if (isRelayOk(message) && !message[2] && matchReason(message[3], "auth-required")) {
+      if (
+        isRelayOk(message) &&
+        !message[2] &&
+        matchReason(RelayReasonPrefix.AuthRequired, message[3])
+      ) {
         socket._recvQueue.remove(message)
       }
     }),
