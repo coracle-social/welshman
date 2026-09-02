@@ -1,6 +1,6 @@
 {
   "name": "@welshman/app",
-  "version": "0.9.8",
+  "version": "0.9.9",
   "author": "hodlbod",
   "license": "MIT",
   "description": "An instance-based, composable client for building nostr applications",
