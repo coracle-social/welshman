@@ -10,6 +10,12 @@ export type LogMessage = {
   [key: string]: unknown
 }
 
+export type PartialLogMessage = {
+  id?: string
+  at?: number
+  [key: string]: unknown
+}
+
 /**
  * A logger which stores messages durably for inspection. Subscribe to `messages`
  * (a projection) to read the log; append with `log(source, {...})`.
@@ -20,14 +26,7 @@ export class Logger {
 
   constructor(protected readonly app: IApp) {}
 
-  log(
-    source: string,
-    {
-      id = randomId(),
-      at = Date.now(),
-      ...message
-    }: {id?: string; at?: number; [key: string]: unknown},
-  ) {
+  log(source: string, {id = randomId(), at = Date.now(), ...message}: PartialLogMessage) {
     this.store.update($messages => $messages.concat({source, id, at, ...message}).slice(-1000))
   }
 }
