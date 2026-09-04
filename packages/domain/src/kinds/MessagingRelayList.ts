@@ -1,23 +1,33 @@
 import {uniq, spec} from "@welshman/lib"
-import {MESSAGING_RELAYS, relayTags, tagValues, normalizeRelayUrl} from "@welshman/util"
+import {
+  MESSAGING_RELAYS,
+  relayTags,
+  tagValueMatcher,
+  tagValues,
+  normalizeRelayUrl,
+} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
 
+const urlSpec = relayTags("relay")
+
 // NIP-17 kind-10050 messaging/inbox relays list.
 export class MessagingRelayListReader extends EventReader {
   urls() {
-    return uniq(tagValues(relayTags("relay"), this.tags()))
+    return uniq(tagValues(urlSpec, this.tags()))
   }
 }
 
 export class MessagingRelayListWriter extends EventWriter<MessagingRelayListReader> {
   addUrl(url: string) {
-    return this.addTags(["relay", normalizeRelayUrl(url)])
+    const normalized = normalizeRelayUrl(url)
+
+    return this.dropTags(tagValueMatcher(urlSpec, normalized)).addTags(["relay", normalized])
   }
 
   removeUrl(url: string) {
-    return this.dropTags(spec(["relay", normalizeRelayUrl(url)]))
+    return this.dropTags(tagValueMatcher(urlSpec, normalizeRelayUrl(url)))
   }
 
   setUrls(urls: string[]) {

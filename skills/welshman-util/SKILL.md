@@ -284,6 +284,7 @@ isDVMKind(kind)                    // 5000–7000
 | `tagValues(spec, tags)` | Values (index 1, normalized) of all matching tags; undefined dropped |
 | `tagValue(spec, tags)` | Value of the first matching tag, or `undefined` |
 | `tagMatcher(spec)` / `tagValueExtractor(spec)` | The raw `(tag)=>boolean` / `(tag)=>T` for a spec |
+| `tagValueMatcher(spec, value)` | Predicate for one value, compared after normalization — matches however the tag spelled it |
 
 The old `getTagValue`/`getPubkeyTagValues`/`getEventTags`/… accessors were removed — use the spec selectors above (e.g. `tagValues(hexTags("p"), tags)`, `tagValue(tagSpec("title"), tags)`). Thread helpers `getReplyTags`/`getCommentTags` moved to `@welshman/domain` (kinds 1 / 1111).
 

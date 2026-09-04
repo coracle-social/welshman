@@ -92,6 +92,21 @@ describe("RelayList", () => {
     expect(tmpl.tags).not.toContainEqual(["r", both])
   })
 
+  it("removes a relay a list written elsewhere put under the `relay` key", async () => {
+    const reader = await read(RelayList, makeEvent({tags: [["relay", "wss://Both.Example.com"]]}))
+
+    expect(reader.urls()).toEqual([both])
+
+    const tmpl = await buildTemplate(
+      write(RelayList, reader).removeReadUrl(both).removeWriteUrl(both),
+      signer,
+    )
+
+    const rewritten = await read(RelayList, makeEvent({tags: tmpl.tags}))
+
+    expect(rewritten.urls()).toEqual([])
+  })
+
   it("routes to both original and current relays so removed relays are notified", async () => {
     const reader = await read(
       RelayList,

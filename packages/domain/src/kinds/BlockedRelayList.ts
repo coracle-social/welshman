@@ -1,13 +1,21 @@
 import {uniq, spec} from "@welshman/lib"
-import {BLOCKED_RELAYS, relayTags, tagValues, normalizeRelayUrl} from "@welshman/util"
+import {
+  BLOCKED_RELAYS,
+  relayTags,
+  tagValueMatcher,
+  tagValues,
+  normalizeRelayUrl,
+} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
 
+const urlSpec = relayTags("relay")
+
 // NIP-51 kind-10006 blocked relays list.
 export class BlockedRelayListReader extends EventReader {
   urls() {
-    return uniq(tagValues(relayTags("relay"), this.tags()))
+    return uniq(tagValues(urlSpec, this.tags()))
   }
 
   includes(url: string) {
@@ -17,11 +25,13 @@ export class BlockedRelayListReader extends EventReader {
 
 export class BlockedRelayListWriter extends EventWriter<BlockedRelayListReader> {
   addUrl(url: string) {
-    return this.addTags(["relay", normalizeRelayUrl(url)])
+    const normalized = normalizeRelayUrl(url)
+
+    return this.dropTags(tagValueMatcher(urlSpec, normalized)).addTags(["relay", normalized])
   }
 
   removeUrl(url: string) {
-    return this.dropTags(spec(["relay", normalizeRelayUrl(url)]))
+    return this.dropTags(tagValueMatcher(urlSpec, normalizeRelayUrl(url)))
   }
 
   setUrls(urls: string[]) {

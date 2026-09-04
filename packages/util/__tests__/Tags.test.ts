@@ -9,6 +9,7 @@ import {
   matchTag,
   matchTags,
   tagValue,
+  tagValueMatcher,
   tagValues,
 } from "../src/Tags"
 
@@ -35,6 +36,18 @@ describe("Tags", () => {
       expect(tagValues(tagSpec("p"), tags)).toEqual([pubkey])
       expect(tagValue(tagSpec("p"), tags)).toBe(pubkey)
       expect(tagValue(tagSpec("x"), tags)).toBeUndefined()
+    })
+
+    it("tagValueMatcher matches a value however it was spelled", () => {
+      const t = [
+        ["r", "wss://relay.example.com"],
+        ["r", "wss://other.example.com/"],
+        ["other", "wss://relay.example.com/"],
+      ]
+
+      expect(t.filter(tagValueMatcher(relayTags("r"), "wss://relay.example.com/"))).toEqual([
+        ["r", "wss://relay.example.com"],
+      ])
     })
   })
 

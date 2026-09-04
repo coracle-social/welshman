@@ -47,6 +47,8 @@ tagValue(spec, tags): T | undefined
 
 `tagMatcher(spec)` and `tagValueExtractor(spec)` return the underlying `(tag) => boolean` predicate and `(tag) => T` reader if you need them directly.
 
+`tagValueMatcher(spec, value)` narrows that predicate to one value, compared after normalization. Use it to find or drop a tag by value — a relay tagged `wss://nos.lol` matches `wss://nos.lol/`, where a raw comparison would not.
+
 ## Example
 
 ```typescript

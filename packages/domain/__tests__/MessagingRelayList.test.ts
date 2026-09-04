@@ -90,6 +90,29 @@ describe("MessagingRelayList", () => {
     ])
   })
 
+  it("removes a url a list written elsewhere spelled differently", async () => {
+    const event = makeEvent({
+      tags: [
+        ["relay", "wss://inbox.one.example"],
+        ["relay", r2],
+      ],
+    })
+
+    const list = await read(MessagingRelayList, event)
+    const tmpl = await buildTemplate(write(MessagingRelayList, list).removeUrl(r1), signer)
+
+    expect(tagValues(tagSpec("relay"), tmpl.tags)).toEqual([r2])
+  })
+
+  it("adds a url the list already has under another spelling only once", async () => {
+    const event = makeEvent({tags: [["relay", "wss://inbox.one.example"]]})
+
+    const list = await read(MessagingRelayList, event)
+    const tmpl = await buildTemplate(write(MessagingRelayList, list).addUrl(r1), signer)
+
+    expect(tagValues(tagSpec("relay"), tmpl.tags)).toEqual([r1])
+  })
+
   it("setRelays replaces existing relays", async () => {
     const event = makeEvent({tags: [["relay", r1]]})
     const list = await read(MessagingRelayList, event)

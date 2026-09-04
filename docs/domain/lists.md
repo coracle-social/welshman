@@ -101,7 +101,7 @@ const template = await RelayList.configure({resolver})
   .renderTemplate()
 ```
 
-**Relay/server set lists.** `BlockedRelayList`, `SearchRelayList`, and `MessagingRelayList` store URLs under the `relay` tag key; `BlossomServerList` uses the `server` key instead. All four share `addUrl`/`removeUrl`/`setUrls` (where `setUrls` clears then re-adds), with `normalizeRelayUrl` (or `normalizeUrl` for Blossom) applied.
+**Relay/server set lists.** `BlockedRelayList`, `SearchRelayList`, and `MessagingRelayList` store URLs under the `relay` tag key; `BlossomServerList` uses the `server` key instead. All four share `addUrl`/`removeUrl`/`setUrls` (where `setUrls` clears then re-adds), with `normalizeRelayUrl` (or `normalizeUrl` for Blossom) applied. Tags are matched on their normalized value, so `addUrl` and `removeUrl` find an entry another client wrote in a different spelling.
 
 **`RelaySet` (kind 30002).** A named, addressable relay set — it is parameterized-replaceable, so the writer needs a `d` tag (`setIdentifier()`). Its reader lifts `title`/`description`/`image` out of the tags, and the writer's `setTitle`/`setDescription`/`setImage` replace the corresponding tag in place.
 

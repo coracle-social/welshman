@@ -44,6 +44,13 @@ export const tagValueExtractor =
   (tag: string[]): T =>
     (spec.normalizeValue ? spec.normalizeValue(tag[1]) : tag[1]) as T
 
+// Matches a tag by its normalized value rather than its raw one, so a tag written
+// by another client in a different form still matches.
+export const tagValueMatcher =
+  <T>(spec: TagSpec<T>, value: T) =>
+  (tag: string[]) =>
+    tagMatcher(spec)(tag) && tagValueExtractor(spec)(tag) === value
+
 export const tagValues = <T>(spec: TagSpec<T>, tags: string[][]): NonNullable<T>[] =>
   removeUndefined(matchTags(spec, tags).map(tagValueExtractor(spec)))
 

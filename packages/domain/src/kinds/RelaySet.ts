@@ -4,12 +4,15 @@ import {
   relayTags,
   tagSpec,
   tagValue,
+  tagValueMatcher,
   tagValues,
   normalizeRelayUrl,
 } from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
+
+const urlSpec = relayTags("relay")
 
 // NIP-51 kind-30002 relay set.
 export class RelaySetReader extends EventReader {
@@ -26,7 +29,7 @@ export class RelaySetReader extends EventReader {
   }
 
   urls() {
-    return uniq(tagValues(relayTags("relay"), this.tags()))
+    return uniq(tagValues(urlSpec, this.tags()))
   }
 }
 
@@ -44,11 +47,13 @@ export class RelaySetWriter extends EventWriter<RelaySetReader> {
   }
 
   addUrl(url: string) {
-    return this.addTags(["relay", normalizeRelayUrl(url)])
+    const normalized = normalizeRelayUrl(url)
+
+    return this.dropTags(tagValueMatcher(urlSpec, normalized)).addTags(["relay", normalized])
   }
 
   removeUrl(url: string) {
-    return this.dropTags(spec(["relay", normalizeRelayUrl(url)]))
+    return this.dropTags(tagValueMatcher(urlSpec, normalizeRelayUrl(url)))
   }
 
   setUrls(urls: string[]) {

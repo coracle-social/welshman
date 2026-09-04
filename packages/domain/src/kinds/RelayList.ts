@@ -4,6 +4,7 @@ import {
   matchTags,
   relayTags,
   tagValueExtractor,
+  tagValueMatcher,
   normalizeRelayUrl,
   relays,
   indexers,
@@ -71,11 +72,7 @@ export class RelayListWriter extends EventWriter<RelayListReader> {
   }
 
   private findUrlTag(url: string) {
-    const normalized = normalizeRelayUrl(url)
-
-    return this.extraTags.find(
-      t => t[0] === "r" && normalizeRelayUrl(t[1] as string) === normalized,
-    )
+    return this.extraTags.find(tagValueMatcher(urlSpec, normalizeRelayUrl(url)))
   }
 
   private addUrlForMode(url: string, mode: "read" | "write") {

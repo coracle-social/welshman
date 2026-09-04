@@ -1,13 +1,15 @@
 import {uniq, spec, normalizeUrl} from "@welshman/lib"
-import {BLOSSOM_SERVERS, tagSpec, tagValues} from "@welshman/util"
+import {BLOSSOM_SERVERS, tagSpec, tagValueMatcher, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {KindFactory} from "../core/Kind.js"
 
+const urlSpec = tagSpec("server", undefined, (url: string) => normalizeUrl(url))
+
 // Blossom BUD-03 kind-10063 user server list.
 export class BlossomServerListReader extends EventReader {
   urls() {
-    return uniq(tagValues(tagSpec("server"), this.tags()).map(url => normalizeUrl(url)))
+    return uniq(tagValues(urlSpec, this.tags()))
   }
 
   includes(url: string) {
@@ -17,11 +19,13 @@ export class BlossomServerListReader extends EventReader {
 
 export class BlossomServerListWriter extends EventWriter<BlossomServerListReader> {
   addUrl(url: string) {
-    return this.addTags(["server", normalizeUrl(url)])
+    const normalized = normalizeUrl(url)
+
+    return this.dropTags(tagValueMatcher(urlSpec, normalized)).addTags(["server", normalized])
   }
 
   removeUrl(url: string) {
-    return this.dropTags(spec(["server", normalizeUrl(url)]))
+    return this.dropTags(tagValueMatcher(urlSpec, normalizeUrl(url)))
   }
 
   setUrls(urls: string[]) {
