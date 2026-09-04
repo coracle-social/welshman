@@ -1,7 +1,7 @@
 import {verifiedSymbol, verifyEvent as verifyEventPure} from "nostr-tools/pure"
 import {setNostrWasm, verifyEvent as verifyEventWasm} from "nostr-tools/wasm"
 import {initNostrWasm} from "nostr-wasm"
-import {sortBy, lte, pick, now} from "@welshman/lib"
+import {lte, pick, now} from "@welshman/lib"
 import {getAddress} from "./Address.js"
 import {
   isEphemeralKind,
@@ -152,6 +152,12 @@ export const isPlainReplaceable = (e: EventTemplate) => isPlainReplaceableKind(e
 export const isParameterizedReplaceable = (e: EventTemplate) =>
   isParameterizedReplaceableKind(e.kind)
 
-export const sortEventsAsc = (events: Iterable<TrustedEvent>) => sortBy(e => e.created_at, events)
+export const compareEventsAsc = (a: TrustedEvent, b: TrustedEvent) =>
+  a.created_at - b.created_at || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 
-export const sortEventsDesc = (events: Iterable<TrustedEvent>) => sortBy(e => -e.created_at, events)
+export const compareEventsDesc = (a: TrustedEvent, b: TrustedEvent) => compareEventsAsc(b, a)
+
+export const sortEventsAsc = (events: Iterable<TrustedEvent>) => [...events].sort(compareEventsAsc)
+
+export const sortEventsDesc = (events: Iterable<TrustedEvent>) =>
+  [...events].sort(compareEventsDesc)

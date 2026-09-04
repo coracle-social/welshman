@@ -44,6 +44,8 @@ yarn add @welshman/util
 | `getIdOrAddress(event)` | Returns address string for replaceable events, id otherwise |
 | `getIdAndAddress(event)` | Returns array with both id and address (if applicable) |
 | `deduplicateEvents(events)` | Deduplicate by id or address |
+| `compareEventsAsc(a, b)` / `compareEventsDesc(a, b)` | Canonical event order: `created_at`, then `id` to break a same-second tie |
+| `sortEventsAsc(events)` / `sortEventsDesc(events)` | Sort an iterable of events by that order |
 | `isEphemeral(event)` | True for ephemeral kinds (20000–29999) |
 | `isReplaceable(event)` | True for plain or parameterized replaceable |
 | `isPlainReplaceable(event)` | True for kinds 10000–19999 and metadata/contacts |

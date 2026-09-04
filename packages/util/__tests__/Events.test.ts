@@ -176,4 +176,33 @@ describe("Events", () => {
       expect(Events.isParameterizedReplaceable(event)).toBe(true)
     })
   })
+
+  describe("event ordering", () => {
+    const createTimedEvent = (created_at: number, idChar: string) => ({
+      ...createHashedEvent(),
+      id: idChar.repeat(64),
+      created_at,
+    })
+
+    const older = createTimedEvent(100, "a")
+    const tieA = createTimedEvent(200, "b")
+    const tieB = createTimedEvent(200, "c")
+
+    it("should sort ascending by created_at, then by id", () => {
+      expect(Events.sortEventsAsc([tieB, older, tieA])).toEqual([older, tieA, tieB])
+    })
+
+    it("should sort descending by created_at, then by id", () => {
+      expect(Events.sortEventsDesc([tieA, older, tieB])).toEqual([tieB, tieA, older])
+    })
+
+    it("should order a same-second tie independently of arrival order", () => {
+      expect(Events.sortEventsAsc([tieA, tieB])).toEqual(Events.sortEventsAsc([tieB, tieA]))
+    })
+
+    it("should consider an event equal to itself", () => {
+      expect(Events.compareEventsAsc(tieA, tieA)).toBe(0)
+      expect(Events.compareEventsDesc(tieA, tieA)).toBe(0)
+    })
+  })
 })

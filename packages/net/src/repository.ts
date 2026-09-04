@@ -5,7 +5,6 @@ import {
   pick,
   pushToMapKey,
   pluck,
-  sortBy,
   inc,
   uniq,
   omit,
@@ -21,6 +20,7 @@ import {
   matchFilter,
   isReplaceable,
   getAddress,
+  sortEventsDesc,
   Filter,
   TrustedEvent,
 } from "@welshman/util"
@@ -309,7 +309,7 @@ export class Repository extends Emitter {
   // Utilities
 
   _sortEvents = (shouldSort: boolean, events: TrustedEvent[]) =>
-    shouldSort ? sortBy(e => -e.created_at, events) : events
+    shouldSort ? sortEventsDesc(events) : events
 
   _updateIndex = <K>(
     m: Map<K, TrustedEvent[]>,
