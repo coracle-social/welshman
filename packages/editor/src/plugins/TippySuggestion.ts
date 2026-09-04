@@ -124,10 +124,9 @@ export class DefaultSuggestionsWrapper implements ISuggestionsWrapper {
   onKeyDown(event: any) {
     const {index, items} = this
     const {term, select, allowCreate} = this.props
+    const value = items[index]
 
     if (["Enter", "Tab"].includes(event.code)) {
-      const value = items[index]
-
       if (value) {
         select(value)
 
@@ -139,10 +138,16 @@ export class DefaultSuggestionsWrapper implements ISuggestionsWrapper {
       }
     }
 
-    if (event.code === "Space" && term && allowCreate) {
-      select(term)
+    if (event.code === "Space" && term) {
+      if (allowCreate) {
+        select(term)
 
-      return true
+        return true
+      } else if (value) {
+        select(value)
+
+        return true
+      }
     }
 
     if (event.code === "ArrowUp") {
