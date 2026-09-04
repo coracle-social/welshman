@@ -199,6 +199,7 @@ export const EVENT_TIME = 31923
 export const EVENT_RSVP = 31925
 export const HANDLER_RECOMMENDATION = 31989
 export const HANDLER_INFORMATION = 31990
+export const COMMAND = 31992
 export const ALERT_EMAIL = 32830
 export const ALERT_STATUS = 32831
 export const ALERT_WEB = 32832

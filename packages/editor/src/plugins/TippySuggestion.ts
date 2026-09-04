@@ -4,6 +4,7 @@ import {nprofileEncode} from "nostr-tools/nip19"
 import type {Editor} from "@tiptap/core"
 import {makeNProfileAttrs} from "nostr-editor"
 import {PluginKey} from "@tiptap/pm/state"
+import type {EditorState} from "@tiptap/pm/state"
 import Suggestion from "@tiptap/suggestion"
 import {throttle, enumerate, clamp} from "@welshman/lib"
 
@@ -173,6 +174,8 @@ type Signal = {
   subscribe: Subscribe
 }
 
+export type SuggestionRange = {from: number; to: number}
+
 export type TippySuggestionOptions = {
   char: string
   name: string
@@ -181,6 +184,11 @@ export type TippySuggestionOptions = {
   select: (value: string, props: any) => void
   updateSignal?: Signal
   allowCreate?: boolean
+  // Show the whole list before anything is typed. Right for a small, closed set the user is
+  // meant to browse; wrong for something like profiles, where the bare trigger matches everything
+  showOnEmpty?: boolean
+  // narrow where the suggestion can fire, on top of the schema check
+  allow?: (props: {state: EditorState; range: SuggestionRange}) => boolean
   createSuggestion?: CreateSuggestion
   createSuggestionsWrapper?: (
     target: HTMLElement,
@@ -196,6 +204,8 @@ export const TippySuggestion = ({
   select,
   updateSignal,
   allowCreate = false,
+  showOnEmpty = false,
+  allow,
   createSuggestion = defaultCreateSuggestion,
   createSuggestionsWrapper = (target: HTMLElement, props: SuggestionsWrapperProps) =>
     new DefaultSuggestionsWrapper(target, props),
@@ -229,7 +239,9 @@ export const TippySuggestion = ({
       const $from = state.doc.resolve(range.from)
       const type = state.schema.nodes[name]
 
-      return !!$from.parent.type.contentMatch.matchType(type)
+      if (!$from.parent.type.contentMatch.matchType(type)) return false
+
+      return allow?.({state, range}) ?? true
     },
     render: () => {
       let popover: Instance[]
@@ -259,7 +271,7 @@ export const TippySuggestion = ({
             placement: "bottom-start",
           })
 
-          if (!props.query) popover[0].hide()
+          if (!props.query && !showOnEmpty) popover[0].hide()
 
           wrapper = createSuggestionsWrapper(target, mapProps(props))
 
@@ -268,7 +280,7 @@ export const TippySuggestion = ({
           })
         },
         onUpdate: props => {
-          if (props.query) {
+          if (props.query || showOnEmpty) {
             popover[0].show()
           } else {
             popover[0].hide()
