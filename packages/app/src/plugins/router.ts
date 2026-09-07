@@ -5,7 +5,6 @@ import type {FeedRouter} from "@welshman/feeds"
 import {RelayLists} from "./relayLists.js"
 import {MessagingRelayLists} from "./messagingRelayLists.js"
 import {RelayStats} from "./relayStats.js"
-import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -32,12 +31,14 @@ export class Router implements FeedRouter {
   // Resolve a single route into concrete relay urls.
   resolveRoute = (route: RelayRoute) => {
     switch (route.type) {
+      // Signed out is a legitimate state on a read path, so contribute no relays
+      // rather than rejecting the whole resolution.
       case "userInbox":
-        return this.inboxRelays(User.require(this.app).pubkey)
+        return this.inboxRelays(this.app.user?.pubkey)
       case "userOutbox":
-        return this.outboxRelays(User.require(this.app).pubkey)
+        return this.outboxRelays(this.app.user?.pubkey)
       case "userMessaging":
-        return this.messagingRelays(User.require(this.app).pubkey)
+        return this.messagingRelays(this.app.user?.pubkey)
       case "pubkeyInbox":
         return this.inboxRelays(route.pubkey)
       case "pubkeyOutbox":
