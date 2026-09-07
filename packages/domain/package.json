@@ -1,6 +1,6 @@
 {
   "name": "@welshman/domain",
-  "version": "0.9.9",
+  "version": "0.9.10",
   "author": "hodlbod",
   "license": "MIT",
   "description": "Stateless utilities for translating nostr events to and from domain objects.",
