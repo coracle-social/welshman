@@ -1,5 +1,12 @@
 import {first, mapVals, nth} from "@welshman/lib"
-import {COMMENT, Address, tagSpec, tagValue, outbox} from "@welshman/util"
+import {
+  COMMENT,
+  Address,
+  isParameterizedReplaceableKind,
+  tagSpec,
+  tagValue,
+  outbox,
+} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter, TagParser} from "../core/EventWriter.js"
@@ -78,19 +85,21 @@ export class CommentWriter extends EventWriter<CommentReader> {
   }
 
   setRoot(kind: number, id: string, pubkey: string, identifier?: string) {
+    // Hint slot is index 2 in every reference tag; NIP-22 puts the referenced
+    // event's pubkey after it on E tags.
     const tags = [
       ["K", String(kind)],
-      ["E", id],
-      ["P", pubkey],
+      ["E", id, "", pubkey],
+      ["P", pubkey, ""],
     ]
 
-    if (identifier) {
-      tags.push(["A", new Address(kind, pubkey, identifier).toString()])
+    if (identifier && isParameterizedReplaceableKind(kind)) {
+      tags.push(["A", new Address(kind, pubkey, identifier).toString(), ""])
     }
 
     this.hint(outbox(pubkey)).then(url => {
       for (const tag of tags.slice(1)) {
-        tag.push(url)
+        tag[2] = url
       }
     })
 
@@ -102,17 +111,17 @@ export class CommentWriter extends EventWriter<CommentReader> {
   setParent(kind: number, id: string, pubkey: string, identifier?: string) {
     const tags = [
       ["k", String(kind)],
-      ["e", id],
-      ["p", pubkey],
+      ["e", id, "", pubkey],
+      ["p", pubkey, ""],
     ]
 
-    if (identifier) {
-      tags.push(["a", new Address(kind, pubkey, identifier).toString()])
+    if (identifier && isParameterizedReplaceableKind(kind)) {
+      tags.push(["a", new Address(kind, pubkey, identifier).toString(), ""])
     }
 
     this.hint(outbox(pubkey)).then(url => {
       for (const tag of tags.slice(1)) {
-        tag.push(url)
+        tag[2] = url
       }
     })
 
