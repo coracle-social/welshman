@@ -106,12 +106,15 @@ All base getters are synchronous reads over the wrapped event:
 | `room()` | the NIP-29 `h` tag value |
 | `protect()` | `true` if a `["-"]` tag is present |
 | `expiration()` | the parsed `expiration` tag as a number, or `undefined` |
+| `contentWarning()` | `true` if a NIP-36 `content-warning` tag is present |
+| `contentWarningReason()` | that tag's reason, or `undefined` when it was tagged bare |
 
 ```typescript
 const reader = await SomeKind.configure(context).reader(event).parse()
 reader.author()         // pubkey
 reader.identifier()     // d tag, if any
 reader.expiration()     // number | undefined
+reader.contentWarning() // boolean
 ```
 
 Each subclass adds its own getters on top — `profile.name()`, `followList.pubkeys()`, `zapGoal.amount()`, and so on.
@@ -130,7 +133,7 @@ A `Writer` is a mutable, chainable producer of an `EventTemplate`. Get an empty 
 constructor(readonly def: AnyConfiguredKind, readonly reader?: Reader)
 ```
 
-When you pass a reader, the writer seeds `content` from `reader.event.content` and copies **all** of `event.tags` into `extraTags`. It then *consumes* the tags it manages — `h`, `-`, `expiration`, and `d` — lifting each out of `extraTags` into a dedicated field (`roomTag`, `protectTag`, `expirationTag`, `identifierTag`).
+When you pass a reader, the writer seeds `content` from `reader.event.content` and copies **all** of `event.tags` into `extraTags`. It then *consumes* the tags it manages — `h`, `-`, `expiration`, `content-warning`, and `d` — lifting each out of `extraTags` into a dedicated field (`roomTag`, `protectTag`, `expirationTag`, `contentWarningTag`, `identifierTag`).
 
 Whatever remains in `extraTags` is **passed through verbatim** when the event is rebuilt. This is the extra-tag passthrough guarantee: tags the package does not model (or a subclass does not claim) survive an edit round-trip instead of being silently dropped.
 
@@ -150,6 +153,7 @@ someKind.writer()
   .setRoom(relayUrl, roomId)   // h tag + forcedRoutes / clearRoom()
   .setProtected(true)            // ["-"] tag
   .setExpiration(timestamp)      //         / clearExpiration()
+  .setContentWarning("nudity")   // NIP-36 tag, reason optional / clearContentWarning()
   .setIdentifier()               // d tag (defaults to a random id) / clearIdentifier()
 ```
 
@@ -198,7 +202,7 @@ Tags are assembled as:
 [...buildTags(), ...behaviorTags, ...extraTags]
 ```
 
-where `behaviorTags` are the present ones among `roomTag`, `protectTag`, `expirationTag`, `identifierTag`. That ordering is the passthrough in action: kind-specific tags first, then the behavior tags, then the untouched leftovers.
+where `behaviorTags` are the present ones among `roomTag`, `protectTag`, `expirationTag`, `contentWarningTag`, `identifierTag`. That ordering is the passthrough in action: kind-specific tags first, then the behavior tags, then the untouched leftovers.
 
 ### Output methods
 

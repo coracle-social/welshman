@@ -68,6 +68,14 @@ export abstract class BaseEventReader {
     return toInt(tagValue(tagSpec("expiration"), this.event.tags) ?? "")
   }
 
+  contentWarning() {
+    return this.event.tags.some(spec(["content-warning"]))
+  }
+
+  contentWarningReason() {
+    return tagValue(tagSpec("content-warning"), this.event.tags)
+  }
+
   emojis(): Emoji[] {
     return getEmojis(this.event)
   }
