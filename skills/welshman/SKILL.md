@@ -13,8 +13,8 @@ Welshman is a modular TypeScript nostr toolkit extracted from the [Coracle](http
 |---|---|
 | `@welshman/util` | Core nostr types, event helpers, filters, NIP implementations, and the relay-selection routing DSL |
 | `@welshman/lib` | General-purpose utilities: LRU cache, event emitter, deferred promises, task queue |
-| `@welshman/net` | Relay connections, request/publish lifecycle, and auth handling |
-| `@welshman/store` | Svelte stores and a Repository for indexing/querying nostr events client-side |
+| `@welshman/net` | Relay connections, request/publish lifecycle, auth, and the `Repository`/`Tracker`/`WrapManager` stores |
+| `@welshman/store` | Svelte store primitives over a `Repository` — live event and domain-object collections, cached loaders, persistence |
 | `@welshman/signer` | Signing and login methods: NIP-01 (privkey), NIP-07 (extension), NIP-46 (bunker), NIP-55 (app), NIP-59 (gift wrap) |
 | `@welshman/domain` | Typed Reader/Writer classes per event kind (profiles, notes, lists, rooms, relay management) that parse events, build templates, and emit relay routing |
 | `@welshman/feeds` | Dynamic feed construction, filtering, and composition |
@@ -33,6 +33,8 @@ Packages are layered so lower-level ones have no welshman dependencies:
 - **UI-focused** (largely independent, UI rendering concerns): `@welshman/content`, `@welshman/editor`
 
 For deep-dives on any package, load the `welshman-<name>` skill (e.g. `welshman-net`, `welshman-app`, `welshman-domain`, `welshman-signer`).
+
+Relay selection spans two packages. The `RelaySelection` DSL, `Resolver` and `RelayScenario` are in `@welshman/util` (`welshman-util` skill); the `Router` plugin that dereferences them is in `@welshman/app` (`welshman-app` skill). There is no `@welshman/router` package.
 
 ## Getting started
 
@@ -69,66 +71,44 @@ If you're building a conventional nostr web client, use `@welshman/app` for batt
 | Build a feed UI | `@welshman/feeds` + `@welshman/app` |
 | Parse note text and media | `@welshman/content` |
 | Embed a composer / editor | `@welshman/editor` |
-| Cache nostr events client-side | `@welshman/store` |
+| Cache nostr events client-side | `@welshman/net` (`Repository`) + `@welshman/store` (reactive views over it) |
 | Core event/filter utilities | `@welshman/util` |
 | Low-level helpers (LRU, emitter, utility functions) | `@welshman/lib` |
 
 ### App Example
 
 ```typescript
-import { openDB } from "idb"
-import { batch, on } from "@welshman/lib"
-import { verifiedSymbol } from "@welshman/util"
-import type { TrustedEvent } from "@welshman/util"
-import type { RepositoryUpdate } from "@welshman/net"
 import { Nip07Signer } from "@welshman/signer"
 import { Note } from "@welshman/domain"
 import { createApp, User, Domain, Profiles } from "@welshman/app"
 
 // 1. Create an app instance. Each App owns its own repository, socket pool,
-//    tracker, and (optional) signing user — so data never leaks across identities.
+//    tracker, and (optional) signing user, so data never leaks across identities.
+//    Pass the user at construction rather than assigning app.user afterwards.
+const user = await User.fromSigner(new Nip07Signer())
+
 const app = createApp({
+  user,
   config: {
     getDefaultRelays: () => ["wss://relay.example.com", "wss://relay2.example.com"],
     getIndexerRelays: () => ["wss://indexer.example.com"],
   },
 })
 
-// 2. Open IndexedDB and hydrate the app's repository
-const db = await openDB("my-app", 1, {
-  upgrade(db) {
-    db.createObjectStore("events", { keyPath: "id" })
-  },
-})
+// 2. Hydrate the repository from storage and flush changes back to it.
+//    See the welshman-net skill for repository.load() and the "update" listener.
 
-const stored: TrustedEvent[] = await db.getAll("events")
-for (const e of stored) e[verifiedSymbol] = true
-app.repository.load(stored)
-
-// Flush new events to IndexedDB
-on(app.repository, "update", batch(3000, async (updates: RepositoryUpdate[]) => {
-  const tx = db.transaction("events", "readwrite")
-  for (const { added, removed } of updates) {
-    for (const e of added) tx.store.put(e)
-    for (const id of removed) tx.store.delete(id)
-  }
-  await tx.done
-}))
-
-// 3. Log in by attaching a signing user
-app.user = await User.fromSigner(new Nip07Signer())
-
-// 4. Load the user's profile through the Profiles data module
+// 3. Load the user's profile through the Profiles data module
 //    (triggers a network fetch via the outbox model if not cached)
-const profile = await app.use(Profiles).forceLoad(app.user.pubkey)
+const profile = await app.use(Profiles).forceLoad(user.pubkey)
 if (profile) console.log("Hello,", profile.display())
 
 // ...or subscribe reactively:
-app.use(Profiles).one(app.user.pubkey).subscribe($profile => {
+app.use(Profiles).one(user.pubkey).subscribe($profile => {
   if ($profile) console.log("Profile:", $profile.display())
 })
 
-// 5. Compose and publish a note. Domain builds the event and resolves relays;
+// 4. Compose and publish a note. Domain builds the event and resolves relays;
 //    the returned Command sends it through the publish pipeline.
 const writer = app.use(Domain).writer(Note).setContent("Hello, Nostr!")
 const command = await app.use(Domain).command(writer)

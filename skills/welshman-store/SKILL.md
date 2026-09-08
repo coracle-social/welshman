@@ -30,6 +30,29 @@ yarn add @welshman/store
 | `deriveEventsDesc(eventsByIdStore)` | Takes a `Readable<Map<string, TrustedEvent>>` and returns events sorted descending by `created_at` |
 | `makeDeriveEvent(options)` | Factory returning `(idOrAddress: string) => Readable<TrustedEvent \| undefined>` for single-event lookups |
 | `deriveIsDeleted(repository, event)` | `Readable<boolean>` — tracks deletion status of an event |
+| `deriveArray(itemsByIdStore)` | Turns any `Readable<Map<string, T>>` into `Readable<T[]>` |
+| `getEventsById(options)` | The one-shot, non-reactive form of `deriveEventsById` |
+
+### Relay-scoped event stores
+
+These key events by the relays they were seen on, via a `Tracker`. Use them when the same event (or the same addressable coordinate) has to stay distinct per relay — NIP-29 rooms, relay membership, per-relay replaceables.
+
+| Export | Description |
+|---|---|
+| `deriveEventsByIdByUrl(options)` | `Readable<Map<url, Map<id, TrustedEvent>>>` — every relay at once |
+| `deriveEventsByIdForUrl(options)` | `Readable<Map<id, TrustedEvent>>` — one relay |
+| `getEventsByIdByUrl` / `getEventsByIdForUrl` | Non-reactive equivalents |
+| `deriveItemsByKeyByUrl<T>(options)` | The relay-scoped `deriveItemsByKey`: an event is keyed once per relay via `getKey(item, url)` |
+
+Both relay-scoped option types extend `EventsByIdOptions` with `tracker: Tracker` (and `url: string` for the `ForUrl` variants). `ItemsByKeyByUrlOptions` adds two things over `ItemsByKeyOptions`:
+
+```typescript
+{
+  getKey: (item: T, url: string) => string | undefined  // undefined excludes the item on that relay
+  revalidateOn?: Readable<unknown>   // re-evaluate every key when this changes — for keys that
+                                     // depend on state settling later (e.g. a relay's NIP-11 self)
+}
+```
 
 `deriveEventsById` / `deriveEvents` options (`EventsByIdOptions`):
 ```typescript
@@ -55,13 +78,6 @@ const deriveEvent = makeDeriveEvent({ repository })
 const eventStore = deriveEvent(someIdOrAddress) // Readable<TrustedEvent | undefined>
 ```
 
-`deriveEventsAsc` / `deriveEventsDesc` take a map store, not an array store:
-```typescript
-// correct: pass the Readable<Map<string, TrustedEvent>> directly
-const notesAsc = deriveEventsAsc(noteEventsById)
-const notesDesc = deriveEventsDesc(noteEventsById)
-```
-
 ### Indexed collections
 
 | Export | Description |
@@ -72,6 +88,17 @@ const notesDesc = deriveEventsDesc(noteEventsById)
 | `makeDeriveItem<T>(itemsByKey, onDerive?)` | Returns a factory `(key) => Readable<T \| undefined>` for per-key reactive lookups |
 | `makeLoadItem<T>(loadItem, getItem, options?)` | Cached async loader with staleness checks and exponential backoff |
 | `makeForceLoadItem<T>(loadItem, getItem)` | Async loader that always fetches fresh data |
+
+`makeLoadItem` options (`MakeLoadItemOptions`):
+```typescript
+{
+  timeout?: number     // staleness window in SECONDS (default 3600)
+  maxSize?: number     // LRU size for the fetched/attempt caches (default 10_000)
+  getFetched?: (key: string) => number          // override where "last fetched" is stored
+  setFetched?: (key: string, ts: number) => void
+  getSource?: (...args: any[]) => string        // how extra args key the backoff (default JSON.stringify)
+}
+```
 
 `deriveItemsByKey` options:
 ```typescript
@@ -88,7 +115,8 @@ const notesDesc = deriveEventsDesc(noteEventsById)
 
 | Export | Description |
 |---|---|
-| `synced(config)` | Writable store that auto-persists to a `StorageProvider`; exposes a `.ready` promise |
+| `synced(config)` | Writable store that auto-persists to a `StorageProvider`; exposes a `.ready` promise (type `Synced<T>`) |
+| `sync(config)` | The lower-level primitive: binds an existing store to a `StorageProvider` |
 | `localStorageProvider` | Built-in `StorageProvider` backed by `localStorage` |
 
 `StorageProvider` interface:
@@ -110,7 +138,16 @@ interface StorageProvider {
 | Export | Description |
 |---|---|
 | `getter<T>(store, options?)` | Returns `() => T`; auto-switches from `get()` to a subscription when call frequency exceeds `threshold` (default 10/s) |
-| `withGetter<T>(store)` | Adds a `.get()` method to a `Readable` or `Writable` store |
+| `withGetter<T>(store)` | Adds a `.get()` method to a `Readable` or `Writable` store (`WritableWithGetter` / `ReadableWithGetter`) |
+
+### Derivation helpers
+
+| Export | Description |
+|---|---|
+| `memoized(store)` | Suppresses notifications when the derived value is deep-equal to the last one |
+| `deriveDeduplicated(stores, read)` | Derives `read()` from `stores`, skipping updates whose result is deep-equal to the previous. The backbone of `Projection`s in `@welshman/app` |
+| `deriveDeduplicatedByValue(stores, read)` | Same, comparing by value identity rather than deep equality |
+| `merged(stores)` | `derived(stores, identity)` — combine several stores into one array store |
 
 ## Common Patterns
 
@@ -229,7 +266,7 @@ const getBookmark = (pubkey: string) => getBookmarksByPubkey().get(pubkey)
 This `getBookmark` function is the right shape to pass as `getItem` to `makeLoadItem`
 (see Pattern 6).
 
-### 6. Full reactive item chain: deriveItemsByKey → deriveItems → getter → makeLoadItem → makeDeriveItem
+### 6. Full reactive item chain
 
 This is the canonical pattern for domain objects derived from repository events with
 on-demand network loading.
@@ -313,7 +350,8 @@ aliceBookmark.subscribe($b => console.log($b?.title))
 - **`synced` is async on first read** — the store emits `defaultValue` synchronously, then overwrites it once storage resolves. Always `await store.ready` before reading in server-side or initialization code where you need the persisted value.
 - **`throttled(0, store)` is a no-op** — it returns the original store unchanged, so it is safe to call with a user-configurable delay that may be zero.
 - **`makeDeriveItem` is a factory** — call it once to create the lookup function, then call the returned function with a key to get a per-key `Readable`. Do not call `deriveItemsByKey` inside a Svelte `$:` block repeatedly; derive once at module level and pass the store down.
-- **`makeLoadItem` timeout is in seconds** — the `timeout` option is compared against `now()` from `@welshman/lib`, which returns Unix time in seconds. The default is `3600` (one hour). Use `{ timeout: 30 }` for a 30-second staleness window, not `30_000`.
-- **`makeLoadItem` uses exponential backoff** — repeated calls for the same key that already has a fresh result (item exists AND was fetched within the timeout window) are returned from cache without re-fetching. If the timeout has elapsed, it will re-fetch even if a previous value exists. Use `makeForceLoadItem` when you explicitly need fresh data.
+- **`makeLoadItem` timeout is in seconds**, because it is compared against `now()` from `@welshman/lib`. Write `{ timeout: 30 }` for a 30-second staleness window, not `30_000`.
+- **`makeLoadItem` propagates errors.** A rejection from `loadItem` rejects the returned promise; only the in-flight bookkeeping is cleaned up in a `finally`. Callers that treat a failed load as "no data yet" must catch it themselves, which is why app plugins wrap `load` in `.catch(noop)` on read paths.
+- **`makeLoadItem` backs off exponentially per source**, so repeat attempts against a key that is not resolving are throttled rather than retried on every call. Use `makeForceLoadItem` when you need a fetch regardless of the cache.
 - **`deriveEventsAsc`/`deriveEventsDesc` take a map store** — both functions accept a `Readable<Map<string, TrustedEvent>>` (the output of `deriveEventsById`), not an array store. To sort an array store use `deriveItemsSorted`.
 - **`getter` vs `withGetter`** — use `getter(store)` when you only need the accessor function; use `withGetter(store)` when you want to keep the full store API (`.subscribe`, `.set`, `.update`) plus `.get()` on the same object.

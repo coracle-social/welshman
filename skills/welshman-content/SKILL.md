@@ -42,6 +42,7 @@ yarn add @welshman/content
 | `Event` | `EventPointer` (`{ id, relays?, author?, kind? }`) | note / nevent references |
 | `Address` | `AddressPointer` (`{ identifier, pubkey, kind, relays? }`) | naddr references |
 | `Emoji` | `{ name: string, url?: string }` | `:shortcode:` — `url` resolved from `emoji` tags |
+| `Room` | `ParsedRoomValue` (`{ url, room }`) | A NIP-29 room reference written as `relay.example.com'roomid` (an apostrophe or `’` between host and room id). The url is normalized to include a protocol and trailing slash; possessives like `example.com's` are skipped |
 | `Code` | `string` | Backtick inline code or triple-backtick blocks |
 | `Cashu` | `string` | cashu: token strings |
 | `Invoice` | `string` | Bare lightning invoice string (without `lightning:` prefix); the `lightning:` prefix is in `raw` |
@@ -57,7 +58,8 @@ All guards narrow the union type:
 ```
 isAddress  isCashu    isCode    isEllipsis  isEmail
 isEmoji    isEvent    isImage   isInvoice   isLink
-isLinkGrid isNewline  isProfile isText      isTopic
+isLinkGrid isNewline  isProfile isRoom      isText
+isTopic
 ```
 
 `isImage(parsed)` — special guard: true only for `ParsedLink` elements whose URL ends in `.jpg/.jpeg/.png/.gif/.webp`.
@@ -83,7 +85,11 @@ isLinkGrid isNewline  isProfile isText      isTopic
 | `renderEntity(entity)` | `entity.slice(0, 16) + "…"` | Display text for entity links |
 | `createElement(tag)` | `document.createElement(tag)` | DOM element factory; override for SSR/non-browser |
 
-Individual per-type render helpers are also exported (`renderText`, `renderLink`, `renderProfile`, `renderEvent`, `renderAddress`, `renderTopic`, `renderEmoji`, `renderCode`, `renderCashu`, `renderInvoice`, `renderEmail`, `renderNewline`, `renderEllipsis`, `renderOne`, `renderMany`).
+Individual per-type render helpers are also exported (`renderText`, `renderLink`, `renderProfile`, `renderEvent`, `renderAddress`, `renderRoom`, `renderTopic`, `renderEmoji`, `renderCode`, `renderCashu`, `renderInvoice`, `renderEmail`, `renderNewline`, `renderEllipsis`, `renderOne`, `renderMany`), along with the default option bags `textRenderOptions` and `htmlRenderOptions`.
+
+### Extending the parser
+
+`parsers` is the ordered array of individual parsers (`parseNewline`, `parseLegacyMention`, `parseTopic`, `parseCodeBlock`, `parseCodeInline`, `parseEmoji`, `parseInvoice`, `parseCashu`, `parseEmail`, `parseProfile`, `parseEvent`, `parseAddress`, `parseRoom`, `parseLink`), and `parseNext(raw, context)` runs them in order at the current position. Each takes `(text, context: ParseContext)` and returns a `Parsed` or nothing. Order matters — `parseRoom` runs before `parseLink` so a `host'room` reference isn't swallowed as a bare-domain link.
 
 ## Common Patterns
 
@@ -206,4 +212,5 @@ const emojiElements = parsed.filter(isEmoji)
 - **`LinkGrid` is not rendered by default renderers**: `renderOne` has no case for `ParsedType.LinkGrid`. You must handle it yourself when building a custom UI (e.g. render each `value.links` entry as an image or card grid).
 - **Legacy mentions** (`#[0]`, `#[1]`) are parsed automatically from the `tags` array and emitted as `ParsedProfile` or `ParsedEvent` elements.
 - **Numeric hashtags are skipped**: `#42` will not produce a `Topic` element.
+- **`ParsedRoom` is emitted by `renderOne` as plain text** (`r.addText(p.raw)`) rather than a link, because the renderer has no way to know a room's display name. Handle `isRoom` yourself when building a UI, the same as `isLinkGrid`.
 - **Email matching** strips a leading `mailto:` — the resulting `ParsedEmail.value` is always the bare address string.
