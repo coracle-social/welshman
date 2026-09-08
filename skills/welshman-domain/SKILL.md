@@ -60,7 +60,7 @@ const mutes = await MuteList.configure(context).reader(event).parse()
 
 `ConfiguredKind.reader` / `.writer` / `.query` are instance arrow-function properties, so you can destructure them (`const {reader} = Profile.configure(ctx)`).
 
-Common base getters available on every reader (all synchronous): `id()`, `author()`, `content()`, `tags()`, `createdAt()`, `identifier()` (d-tag), `address()` (`kind:pubkey:d`), `room()` (NIP-29 h-tag), `protect()` (has `["-"]`), `expiration()`. Each kind adds its own — e.g. `profile.name()`, `profile.display()`, `followList.pubkeys()`, `followList.includes(pk)`.
+Common base getters available on every reader (all synchronous): `id()`, `author()`, `content()`, `tags()`, `createdAt()`, `identifier()` (d-tag), `address()` (`kind:pubkey:d`), `room()` (NIP-29 h-tag), `protect()` (has `["-"]`), `expiration()`, `contentWarning()` (has a NIP-36 `content-warning` tag), `contentWarningReason()`. Each kind adds its own — e.g. `profile.name()`, `profile.display()`, `followList.pubkeys()`, `followList.includes(pk)`.
 
 ## Building / editing an event
 
@@ -95,7 +95,7 @@ import {stamp} from "@welshman/util"
 const signed = await signer.sign(stamp(await writer.renderTemplate()))   // SignedEvent
 ```
 
-**Round-trip / extra-tag passthrough.** When a writer is seeded from a reader, every tag in `event.tags` starts in `extraTags`. The base constructor lifts out `h`/`-`/`expiration`/`d` (into `roomTag`/`protectTag`/`expirationTag`/`identifierTag`); each subclass lifts the tags it models. Whatever is left is re-emitted unchanged — tag assembly is `[...buildTags(), ...behaviorTags(h,-,expiration,d), ...extraTags]` — so unmodeled tags survive an edit.
+**Round-trip / extra-tag passthrough.** When a writer is seeded from a reader, every tag in `event.tags` starts in `extraTags`. The base constructor lifts out `h`/`-`/`expiration`/`content-warning`/`d` (into `roomTag`/`protectTag`/`expirationTag`/`contentWarningTag`/`identifierTag`); each subclass lifts the tags it models. Whatever is left is re-emitted unchanged — tag assembly is `[...buildTags(), ...behaviorTags(h,-,expiration,content-warning,d), ...extraTags]` — so unmodeled tags survive an edit.
 
 ## Querying a kind's events
 

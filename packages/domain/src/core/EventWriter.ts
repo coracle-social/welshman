@@ -38,6 +38,7 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
   roomTag?: string[]
   protectTag?: string[]
   expirationTag?: string[]
+  contentWarningTag?: string[]
   identifierTag?: string[]
   extraTags: string[][] = []
   forcedRoutes?: RelaySelection[]
@@ -59,6 +60,7 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
       this.roomTag = first(parser.consume("h"))
       this.protectTag = first(parser.consume("-"))
       this.expirationTag = first(parser.consume("expiration"))
+      this.contentWarningTag = first(parser.consume("content-warning"))
       this.identifierTag = first(parser.consume("d"))
       this.extraTags = parser.tags
     }
@@ -115,6 +117,19 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
 
   clearExpiration() {
     this.expirationTag = undefined
+
+    return this
+  }
+
+  // The reason is optional per NIP-36 — a bare tag flags the content without saying why.
+  setContentWarning(reason?: string) {
+    this.contentWarningTag = removeUndefined(["content-warning", reason])
+
+    return this
+  }
+
+  clearContentWarning() {
+    this.contentWarningTag = undefined
 
     return this
   }
@@ -244,7 +259,13 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
    * Returns a list of tags that may be attached to any kind.
    */
   protected renderBehaviorTags(): MaybeAsync<string[][]> {
-    return removeUndefined([this.roomTag, this.protectTag, this.expirationTag, this.identifierTag])
+    return removeUndefined([
+      this.roomTag,
+      this.protectTag,
+      this.expirationTag,
+      this.contentWarningTag,
+      this.identifierTag,
+    ])
   }
 
   /**
