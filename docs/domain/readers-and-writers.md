@@ -118,6 +118,19 @@ reader.expiration()     // number | undefined
 reader.contentWarning() // boolean
 ```
 
+The getters for tags any kind can carry delegate to standalone functions in `src/behaviors/`. Import those directly when you hold a bare event and no reader for its kind, since `reader()` throws on a kind mismatch:
+
+```typescript
+import {isProtected, getExpiration, getContentWarning, getClient} from "@welshman/domain"
+
+isProtected(event)        // boolean
+getExpiration(event)      // number | undefined
+getContentWarning(event)  // {reason?: string} | undefined — the reason is optional
+getClient(event)          // Client | undefined
+```
+
+`getEmojis` and `getZapSplits` back `emojis()` and `zapSplits()` the same way.
+
 Each subclass adds its own getters on top — `profile.name()`, `followList.pubkeys()`, `zapGoal.amount()`, and so on.
 
 Readers are getter-only — they do not compute routes. Where to publish an event is the writer's concern; where to fetch a kind's events is the query's.
