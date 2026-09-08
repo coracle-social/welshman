@@ -60,7 +60,7 @@ const mutes = await MuteList.configure(context).reader(event).parse()
 
 `ConfiguredKind.reader` / `.writer` / `.query` are instance arrow-function properties, so you can destructure them (`const {reader} = Profile.configure(ctx)`).
 
-Common base getters available on every reader (all synchronous): `id()`, `author()`, `content()`, `tags()`, `createdAt()`, `identifier()` (d-tag), `address()` (`kind:pubkey:d`), `room()` (NIP-29 h-tag), `protect()` (has `["-"]`), `expiration()`, `contentWarning()` (has a NIP-36 `content-warning` tag), `contentWarningReason()`. Each kind adds its own — e.g. `profile.name()`, `profile.display()`, `followList.pubkeys()`, `followList.includes(pk)`.
+Common base getters available on every reader (all synchronous): `id()`, `author()`, `content()`, `tags()`, `createdAt()`, `identifier()` (d-tag), `address()` (`kind:pubkey:d`), `room()` (NIP-29 h-tag), `protect()` (has `["-"]`), `expiration()`, `contentWarning()` (has a NIP-36 `content-warning` tag), `contentWarningReason()`, `client()` (the NIP-89 `client` tag as `{name, address?, relay?}`). Each kind adds its own — e.g. `profile.name()`, `profile.display()`, `followList.pubkeys()`, `followList.includes(pk)`.
 
 ## Building / editing an event
 
@@ -82,7 +82,7 @@ const {event: template2, relays} = await w.render()    // template + publish url
 ```
 
 - Construct empty (`configured.writer()`) or from a reader (`configured.writer(reader)`) for the edit flow.
-- Base behavior setters (chainable): `setContent`, `setRoom(url, room)`/`clearRoom` (h-tag + forced routes), `forceRoutes(...routes)`/`clearForcedRoutes`, `setProtected(bool)`, `setExpiration`/`clearExpiration`, `setIdentifier`/`clearIdentifier` (d-tag, defaults to a random id), `addTags`, `keepTags(pred)`, `dropTags(pred)`. Shared tag/hint helpers: `tagPubkey(pubkey, petname?)`, `addQuote(event, relay?)`, `addZapSplit(pubkey, split?)`. Each kind adds its own setters.
+- Base behavior setters (chainable): `setContent`, `setRoom(url, room)`/`clearRoom` (h-tag + forced routes), `forceRoutes(...routes)`/`clearForcedRoutes`, `setProtected(bool)`, `setExpiration`/`clearExpiration`, `setContentWarning(reason?)`/`clearContentWarning`, `setClient(name, address?)`/`clearClient`, `setIdentifier`/`clearIdentifier` (d-tag, defaults to a random id), `addTags`, `keepTags(pred)`, `dropTags(pred)`. Shared tag/hint helpers: `tagPubkey(pubkey, petname?)`, `addQuote(event, relay?)`, `addZapSplit(pubkey, split?)`. Each kind adds its own setters.
 - Output methods (all async, no arguments):
   - `renderTemplate()` → `EventTemplate` — runs `validate()`, resolves in-tag relay `Hint`s to a single url, encrypts private list content.
   - `scenario()` → `RelayScenario` (chainable: `.limit()`, `.policy()`, `.allowLocal()`, …); `relays()` → `string[]` (the resolved publish urls).
@@ -95,7 +95,7 @@ import {stamp} from "@welshman/util"
 const signed = await signer.sign(stamp(await writer.renderTemplate()))   // SignedEvent
 ```
 
-**Round-trip / extra-tag passthrough.** When a writer is seeded from a reader, every tag in `event.tags` starts in `extraTags`. The base constructor lifts out `h`/`-`/`expiration`/`content-warning`/`d` (into `roomTag`/`protectTag`/`expirationTag`/`contentWarningTag`/`identifierTag`); each subclass lifts the tags it models. Whatever is left is re-emitted unchanged — tag assembly is `[...buildTags(), ...behaviorTags(h,-,expiration,content-warning,d), ...extraTags]` — so unmodeled tags survive an edit.
+**Round-trip / extra-tag passthrough.** When a writer is seeded from a reader, every tag in `event.tags` starts in `extraTags`. The base constructor lifts out `h`/`-`/`expiration`/`content-warning`/`client`/`d` (into `roomTag`/`protectTag`/`expirationTag`/`contentWarningTag`/`clientTag`/`identifierTag`); each subclass lifts the tags it models. Whatever is left is re-emitted unchanged — tag assembly is `[...buildTags(), ...behaviorTags(h,-,expiration,content-warning,client,d), ...extraTags]` — so unmodeled tags survive an edit.
 
 ## Querying a kind's events
 

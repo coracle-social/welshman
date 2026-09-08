@@ -1,6 +1,7 @@
 import {remove, complement, first, partition, randomId, removeUndefined, spec} from "@welshman/lib"
 import type {MaybeAsync} from "@welshman/lib"
 import {
+  Address,
   isParameterizedReplaceableKind,
   normalizeRelayUrl,
   hexTags,
@@ -39,6 +40,7 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
   protectTag?: string[]
   expirationTag?: string[]
   contentWarningTag?: string[]
+  clientTag?: string[]
   identifierTag?: string[]
   extraTags: string[][] = []
   forcedRoutes?: RelaySelection[]
@@ -61,6 +63,7 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
       this.protectTag = first(parser.consume("-"))
       this.expirationTag = first(parser.consume("expiration"))
       this.contentWarningTag = first(parser.consume("content-warning"))
+      this.clientTag = first(parser.consume("client"))
       this.identifierTag = first(parser.consume("d"))
       this.extraTags = parser.tags
     }
@@ -130,6 +133,31 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
 
   clearContentWarning() {
     this.contentWarningTag = undefined
+
+    return this
+  }
+
+  /**
+   * Attributes the event to the NIP-89 client that produced it. `address` is an
+   * optional `31990:pubkey:d-tag` pointer to the client's handler information
+   * event; when given, its author's outbox fills in the tag's relay hint slot.
+   */
+  setClient(name: string, address?: string) {
+    const tag = removeUndefined(["client", name, address])
+
+    this.clientTag = tag
+
+    if (address && Address.isAddress(address)) {
+      this.hint(outbox(Address.from(address).pubkey)).then(url => {
+        tag[3] = url
+      })
+    }
+
+    return this
+  }
+
+  clearClient() {
+    this.clientTag = undefined
 
     return this
   }
@@ -264,6 +292,7 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
       this.protectTag,
       this.expirationTag,
       this.contentWarningTag,
+      this.clientTag,
       this.identifierTag,
     ])
   }
