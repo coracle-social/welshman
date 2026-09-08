@@ -25,24 +25,33 @@ yarn add @welshman/signer
 The common contract all signers implement.
 
 ```typescript
-import type { ISigner, SignOptions, SignWithOptions } from '@welshman/signer'
+import type {ISigner, SignOptions, EncryptionImplementation} from '@welshman/signer'
 
 interface ISigner {
-  sign: (event: StampedEvent, options?: SignOptions) => Promise<SignedEvent>
+  sign: SignWithOptions
+  nip04: EncryptionImplementation
+  nip44: EncryptionImplementation
   getPubkey: () => Promise<string>
-  nip04: {
-    encrypt: (pubkey: string, message: string) => Promise<string>
-    decrypt: (pubkey: string, message: string) => Promise<string>
-  }
-  nip44: {
-    encrypt: (pubkey: string, message: string) => Promise<string>
-    decrypt: (pubkey: string, message: string) => Promise<string>
-  }
   cleanup?: () => Promise<void>
 }
 
-type SignOptions = { signal?: AbortSignal }
+type SignOptions = {signal?: AbortSignal}
+type Sign = (event: StampedEvent) => Promise<SignedEvent>
+type SignWithOptions = (event: StampedEvent, options?: SignOptions) => Promise<SignedEvent>
+type Encrypt = (pubkey: string, message: string) => Promise<string>
+type Decrypt = (pubkey: string, message: string) => Promise<string>
+type EncryptionImplementation = {encrypt: Encrypt; decrypt: Decrypt}
 ```
+
+### Helpers & wrappers
+
+| Export | Description |
+|---|---|
+| `decrypt(signer, pubkey, message)` | Picks nip04 or nip44 by sniffing the ciphertext for `?iv=` |
+| `nip04` / `nip44` | The raw primitives (`encrypt`/`decrypt` taking an explicit secret; `nip04.detect(m)`; `nip44.getSharedSecret`, LRU-cached) |
+| `WrappedSigner` | An `ISigner` that routes every method through a `SignerMethodWrapper`, and an `Emitter`. `@welshman/app` layers decrypt-caching and signer logging onto the user's signer this way, via `User.wrapSigner(wrap)` |
+| `SignerMethodWrapper` | `<T>(method: string, thunk: () => Promise<T>, args: unknown[]) => Promise<T>` — `method` is `"sign"`, `"getPubkey"`, `"nip44.decrypt"`, …; `args` lets a wrapper key a cache off the call's arguments |
+| `signWithOptions(promise, options)` | Races a signing promise against a 30 s timeout and the caller's `AbortSignal` |
 
 ### Nip01Signer (local keypair)
 
@@ -220,7 +229,8 @@ const plaintext = await signer.nip44.decrypt(theirPubkey, ciphertext)
 
 - **`@welshman/util`** supplies `makeEvent`, `makeSecret`, `StampedEvent`, `SignedEvent`, and nostr kind constants (`NOTE`, `DIRECT_MESSAGE`, etc.) used in all examples above.
 - **`@welshman/net`** and **`@welshman/app`** accept an `ISigner` wherever signing is needed (e.g. publishing events). Pass any concrete signer — they are interchangeable.
-- **`@welshman/app`** exposes a `signer` writable store (`- `Nip59` wraps events with an ephemeral `Nip01Signer` by default (per the NIP-59 spec), so callers do not need to supply a wrapper unless they want a custom one.
+- **`@welshman/app`** has no `signer` store. An identity is a `User` (`{pubkey, signer}`) hanging off the app: `User.fromSigner(signer)` / `User.fromSession(session)`, then `createApp({user})`. Reach it as `app.user?.signer`, and require it with `User.require(app)`.
+- `Nip59` wraps events with an ephemeral `Nip01Signer` by default (per the NIP-59 spec), so callers do not need to supply a wrapper unless they want a custom one.
 
 ## Gotchas & Tips
 

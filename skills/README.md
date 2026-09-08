@@ -19,12 +19,11 @@ npx skills add coracle-social/welshman
 | Skill | Description |
 |-------|-------------|
 | welshman | General overview, package map, getting started |
-| welshman-util | Core nostr types, events, filters, tags, NIPs (profiles/lists/handlers/rooms moved to domain) |
-| welshman-domain | Nostr event kinds as Reader/Builder classes: profiles, lists, rooms, handlers, zaps |
+| welshman-util | Core nostr types, events, filters, tags, keys, NIPs, and the relay-selection routing DSL |
+| welshman-domain | Nostr event kinds as Reader/Writer/Query classes: profiles, lists, rooms, handlers, zaps |
 | welshman-lib | Utilities: LRU, emitter, deferred, task queue |
-| welshman-net | Relay connections, request/publish, auth |
-| welshman-router | Relay selection strategies |
-| welshman-store | Svelte stores and Repository pattern |
+| welshman-net | Relay connections, request/publish, auth, Repository/Tracker |
+| welshman-store | Svelte store primitives over a Repository |
 | welshman-signer | Signing, login methods, encrypted events |
 | welshman-feeds | Dynamic feed construction |
 | welshman-app | Instance-based client: plugins, sessions, publishing, requests |

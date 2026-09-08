@@ -17,7 +17,7 @@ A kind is packaged as a **`KindFactory`**; you bind it to app dependencies once 
 
 It sits one layer above `@welshman/util` (raw `TrustedEvent`/`EventTemplate` types, tag getters, kind constants, the routing DSL) and one layer below `@welshman/app` (whose `Domain` plugin supplies the context and whose data plugins use these readers as their `eventToItem`). The package holds no stores, no network, no globals — dependencies arrive through the `KindContext`.
 
-This replaces the old free-function helpers that used to live in `@welshman/util` (`makeProfile`/`readProfile`, `makeList`/`readList`, `readHandlers`, `Encryptable`, `makeRoom*Event`) **and** the earlier Reader/Builder core (`EventBuilder`/`ListBuilder`, `X.fromEvent`, `Kind.factory`, `builder.toTemplate`/`toEvent`). See the migration table below.
+This replaces the old free-function helpers that used to live in `@welshman/util` (`makeProfile`/`readProfile`, `makeList`/`readList`, `readHandlers`, `Encryptable`, `makeRoomMetaEvent`/`makeRoomEditEvent`) **and** the earlier Reader/Builder core (`EventBuilder`/`ListBuilder`, `X.fromEvent`, `Kind.factory`, `builder.toTemplate`/`toEvent`). See the migration table below.
 
 ## Installation
 
@@ -27,11 +27,11 @@ npm install @welshman/domain
 pnpm add @welshman/domain
 ```
 
-Peer deps: `@welshman/lib`, `@welshman/util`, `@welshman/signer`, `@welshman/net` (the `Repository` type for parent-event routing), `@welshman/feeds`, and `nostr-tools`.
+Peer deps: `@welshman/lib`, `@welshman/util`, `@welshman/signer`, `@welshman/net`, `@welshman/feeds`, and `nostr-tools`.
 
 ## Core mental model
 
-1. **A kind is a `KindFactory`; bind it once with `configure`.** Each exported kind constant is `new KindFactory({kind, reader, writer, query})` — e.g. `export const Note = new KindFactory({kind: NOTE, reader: NoteReader, writer: NoteWriter, query: NoteQuery})`. Call `Note.configure(context)` to get a `ConfiguredKind` carrying the app's `resolver`, optional `signer`, and optional `repository`. In an app you never call `configure` yourself — `@welshman/app`'s `Domain` plugin does it and memoizes the result.
+1. **A kind is a `KindFactory`; bind it once with `configure`.** Each exported kind constant is `new KindFactory({kind, reader, writer, query})` — e.g. `export const Note = new KindFactory({kind: NOTE, reader: NoteReader, writer: NoteWriter, query: NoteQuery})`. Call `Note.configure(context)` to get a `ConfiguredKind` carrying the app's `resolver` and an optional `signer`, which is all `KindContext` holds. In an app you never call `configure` yourself — `@welshman/app`'s `Domain` plugin does it and memoizes the result.
 2. **Readers wrap an event; Writers produce a template + relays; Queries produce filters + relays.** `configured.reader(event)` builds a Reader (unparsed) and `.parse()` populates it; `configured.writer(reader?)` builds a Writer, optionally seeded from a Reader (the edit flow); `configured.query()` builds a Query.
 3. **Reading is sync unless the kind decrypts; getters are always sync.** You enter through `configured.reader(event).parse()`, which validates `event.kind` (throwing `Expected a kind X event, got kind Y`) and parses. `parse()` returns the reader for kinds that extend `EventReader` and a promise of it for kinds that extend `AsyncEventReader` — only the six private-tag lists and `AppData`, which have to decrypt. `await` works for both, and `Parsed<R>` is the type of whichever one a reader yields.
 4. **Building is chainable; output is async.** Setters return `this`; you finish with `await w.renderTemplate()` (an `EventTemplate`), `await w.relays()` (publish urls), or `await w.render()` (both). None of these take arguments — the signer, resolver, and repository come from the context bound at `configure`.
@@ -86,7 +86,7 @@ const {event: template2, relays} = await w.render()    // template + publish url
 - Construct empty (`configured.writer()`) or from a reader (`configured.writer(reader)`) for the edit flow.
 - Base behavior setters (chainable): `setContent`, `setRoom(url, room)`/`clearRoom` (h-tag + forced routes), `forceRoutes(...routes)`/`clearForcedRoutes`, `setProtected(bool)`, `setExpiration`/`clearExpiration`, `setContentWarning(reason?)`/`clearContentWarning`, `setClient(name, address?)`/`clearClient`, `setIdentifier`/`clearIdentifier` (d-tag, defaults to a random id), `addTags`, `keepTags(pred)`, `dropTags(pred)`. Shared tag/hint helpers: `tagPubkey(pubkey, petname?)`, `addQuote(event, relay?)`, `addZapSplit(pubkey, split?)`. Each kind adds its own setters.
 - Output methods (all async, no arguments):
-  - `renderTemplate()` → `EventTemplate` — runs `validate()`, resolves in-tag relay `Hint`s to a single url, encrypts private list content.
+  - `renderTemplate()` → `EventTemplate` — runs `validate()`, then renders tags and content. A tag that carries a relay hint fills its hint slot through the protected `hint(...routes)` helper, which resolves routes to a single url; `renderTags()` awaits every in-flight hint before returning. List content is encrypted here.
   - `scenario()` → `RelayScenario` (chainable: `.limit()`, `.policy()`, `.allowLocal()`, …); `relays()` → `string[]` (the resolved publish urls).
   - `render()` → `{event: EventTemplate; relays: string[]}` — `renderTemplate()` and `relays()` together.
 
@@ -97,7 +97,7 @@ import {stamp} from "@welshman/util"
 const signed = await signer.sign(stamp(await writer.renderTemplate()))   // SignedEvent
 ```
 
-**Round-trip / extra-tag passthrough.** When a writer is seeded from a reader, every tag in `event.tags` starts in `extraTags`. The base constructor lifts out `h`/`-`/`expiration`/`content-warning`/`client`/`d` (into `roomTag`/`protectTag`/`expirationTag`/`contentWarningTag`/`clientTag`/`identifierTag`); each subclass lifts the tags it models. Whatever is left is re-emitted unchanged — tag assembly is `[...buildTags(), ...behaviorTags(h,-,expiration,content-warning,client,d), ...extraTags]` — so unmodeled tags survive an edit.
+**Round-trip / extra-tag passthrough.** When a writer is seeded from a reader, every tag in `event.tags` starts in `extraTags`. The base constructor lifts out `h`/`-`/`expiration`/`content-warning`/`client`/`d` (into `roomTag`/`protectTag`/`expirationTag`/`contentWarningTag`/`clientTag`/`identifierTag`); each subclass lifts the tags it models. Whatever is left is re-emitted unchanged, so unmodeled tags survive an edit. Tag assembly is `[...renderBehaviorTags(), ...renderDomainTags(), ...extraTags]`.
 
 ## Querying a kind's events
 
@@ -129,12 +129,10 @@ Publishing targets come from the `@welshman/util` `RelaySelection` DSL (`outbox`
 
 - **Default routing** (`EventWriter.renderRoutes`): `[userOutbox(), ...inboxes(pTaggedPubkeys, 0.5)]` — deliver to the author's write relays (weight 1) and to every p-tagged pubkey's read relays (weight 0.5). Most kinds use this (`NoteWriter`, …).
 - **`forceRoutes(...routes)`** sets `forcedRoutes`; when non-empty, `scenario()` publishes **only** there, bypassing `renderRoutes()`. It takes routes rather than urls, so `forceRoutes(userInbox())` pins an event to the user's read relays without resolving them first. `setRoom(url, room)` sets `forcedRoutes=[relay(url)]` **and** the `h` tag (NIP-29 room events); `clearForcedRoutes()`/`clearRoom()` undo it.
-- **`requiresRelays`** (a readonly `true` on a subclass) makes `validate()` demand `forcedRoutes` — throwing `A kind N event must publish to explicit relays (via setRoom or forceRoutes)`. The 18 kinds that set it are all NIP-29 room ops/state and relay-management ops/state: `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, `RelayMembers`. (`RoomCreate` and `RoomJoin` additionally require a `roomTag` — call `setRoom`.)
+- **`requiresRelays`** (a readonly `true` on a subclass) makes `validate()` demand `forcedRoutes` — throwing `A kind N event must publish to explicit relays (via setRoom or forceRoutes)`. The 20 kinds that set it are all NIP-29 room ops/state and relay-management ops/state: `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomPins`, `RoomUpdatePins`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, `RelayMembers`. (`RoomCreate` and `RoomJoin` additionally require a `roomTag` — call `setRoom`.)
 - **Per-kind overrides.** Some writers replace `renderRoutes()`: `FollowListWriter`/`MuteListWriter`/`ReportWriter` publish to `[userOutbox()]` only (p-tags are data, not recipients); `RelayListWriter` adds `indexers()` and notifies every relay added to or removed from the list; `DeleteWriter` adds each deleted event's `seen` relays (and requires an `e`/`a` tag).
 
 The DSL constructors `relays(urls)` and `inboxes(pubkeys)` return **arrays** (spread with `...`); the others return a single `RelaySelection`. Note `relay(url)`/`relays(urls)` replaced the old `relayHint`/`relayHints`.
-
-`EventRouter` (`configured.router()`) is a thin base for domain-specific scenario methods; no current kind defines a custom one, so every factory omits `router`.
 
 ## Async & signer notes
 
@@ -164,6 +162,12 @@ Each row: kind# — NIP — Reader / Writer.
 | 1 | NIP-01 / NIP-10 | `NoteReader` / `NoteWriter` (factory `Note`) |
 | 5 | NIP-09 | `DeleteReader` / `DeleteWriter` (factory `Delete`) |
 | 7 | NIP-25 | `ReactionReader` / `ReactionWriter` (factory `Reaction`) |
+| 14 | NIP-17 | `DirectMessageReader` / `DirectMessageWriter` (factory `DirectMessage`) |
+| 9802 | NIP-84 | `HighlightReader` / `HighlightWriter` (factory `Highlight`) |
+
+`DirectMessageReader`: `recipients()`, `subject()`, `parentId()`; writer `addRecipient`/`removeRecipient`/`setSubject`/`setParent`. The **writer** renders **no** routes (`[]`) — a NIP-17 message is published as one gift wrap per recipient, each to its own relays, so the caller fans it out (`app.use(Wraps).publish`). The **query** routes to `[userMessaging()]`.
+
+`HighlightReader`: `sources()`, `attributions()`, `mentions()`, `sourceContext()`, `comment()`, `references()`, `topics()`; writer `setSourceEvent`/`setSourceExternal`/`setSourceReference`, `addAttribution`/`removeAttribution`, `addMention`, `setSourceContext`/`clearSourceContext`, `setComment`/`clearComment`, `setTopics`.
 
 `NoteWriter.setParent(event)` — NIP-10 reply threading (p-tags the parent's participants, e/a-tags the parent and thread root with markers + relay hints). `DeleteReader`: `ids()`, `addresses()`, `kinds()`, `reason()`; `DeleteWriter`: `addEvent(event)`, `setReason(reason)` (routes to the deleted events' `seen` relays; requires an `e`/`a` tag).
 
@@ -206,6 +210,8 @@ Room ops are scoped by the `h` tag and must publish to explicit relays — use `
 | 39000 | NIP-29 | `RoomMetaReader` / `RoomMetaWriter` |
 | 39001 | NIP-29 | `RoomAdminsReader` / `RoomAdminsWriter` |
 | 39002 | NIP-29 | `RoomMembersReader` / `RoomMembersWriter` |
+| 9010 | NIP-29 | `RoomUpdatePinsReader` / `RoomUpdatePinsWriter` — the pin op |
+| 39005 | NIP-29 | `RoomPinsReader` / `RoomPinsWriter` — the relay-signed pin snapshot |
 
 `RoomMetaReader`: `name`, `about`, `picture`, `pictureMeta`, `isClosed`/`isHidden`/`isPrivate`/`isRestricted`/`hasLivekit`; writer `setName`/`setAbout`/`setPicture`/`setClosed`/`setHidden`/`setPrivate`/`setRestricted`/`setLivekit`. `RoomJoinReader`: `claim()`, `reason()` (free-text `content`); writer `setClaim`/`setReason`. `RoomAddMemberWriter.addPubkey`.
 
@@ -257,8 +263,16 @@ Room ops are scoped by the `h` tag and must publish to explicit relays — use `
 | 31890 | NIP-51 | `FeedReader` / `FeedWriter` |
 | 31923 | NIP-52 | `TimeEventReader` / `TimeEventWriter` |
 | 39067 | Pinboards | `PinReader` / `PinWriter` |
+| 30023 | NIP-23 | `ArticleReader` / `ArticleWriter` (factory `Article`) |
+| 31992 | slash commands | `CommandReader` / `CommandWriter` (factory `Command`) |
 
 `CommentReader`: `root()`/`parent()`; writer `setRoot`/`setParent`/`setRootFromEvent`/`setParentFromEvent`. `PollReader`: `title`, `options`, `pollType`, `endsAt`, `isClosed`, `urls`, plus `results(responses)`; writer `addOption`, `setPollType`, `setEndsAt`. `ReportWriter`: `setPubkey`/`setEventId`/`setReason` (routes to `[userOutbox()]`). Exported types: `CommentRef`, `ClassifiedPrice`, `PollType`, `PollOption`, `PollResult`, `PinReference`.
+
+`ArticleReader` (long-form, 30023): `title`, `summary`, `image`, `publishedAt`, `topics()`; writer `setTitle`/`setSummary`/`setImage`/`setPublishedAt`/`setTopics`.
+
+`CommandReader` (31992): `command`, `title`, `description`, `args()`, `scopes()`, `ignored()`, plus `matches(target: CommandScopeTarget)`; writer `setCommand`/`setTitle`/`setDescription`/`setArgs`/`setScopes`/`setIgnored`. The invocation grammar itself (parsing/rendering `/command arg…`) lives in `@welshman/util`'s `Command.ts`, so non-domain callers can use it.
+
+`RoomPinsReader`/`RoomUpdatePinsReader`: `pins()`, `ids()`, `addresses()` (`RoomPinsReader` adds `isPinned`); writer `setPins`. Both set `requiresRelays`.
 
 `PinboardReader` (30067): `title`, `description`, `image`, `topics()`, `collaborative()`; writer `setTitle`/`setDescription`/`setImage`/`setTopics`/`setCollaborative`. `PinReader` (39067): `boards()`, `isProfilePin()`, `reference()` (a `PinReference` discriminated union), `title`, `topics()`; writer `addBoard`/`removeBoard`, `setEvent`/`setAddress`/`setExternal`, `setTitle`/`setTopics`.
 
@@ -287,14 +301,13 @@ command.publish()                                          // or .publishToRelay
 
 ## Gotchas
 
-- **Enter through a `ConfiguredKind`.** There is no `Profile.fromEvent(event)` / `Kind.read` / `Kind.factory` any more — do `Profile.configure(ctx).reader(event).parse()` (or, in an app, `app.use(Domain).reader(Profile)`). Likewise no `new ProfileBuilder()` — do `configure(ctx).writer()`.
-- **Output is `renderTemplate()`/`render()`, not `toTemplate`/`toEvent`.** The writer never signs; `renderTemplate()` gives an `EventTemplate` you sign yourself (`signer.sign(stamp(await writer.renderTemplate()))`), or hand the writer to `Domain.command`. `renderTemplate`/`scenario`/`relays`/`render` take **no** arguments — dependencies come from the context.
+- **Enter through a `ConfiguredKind`.** `Profile.configure(ctx).reader(event).parse()` to read, `configure(ctx).writer()` to build. In an app, `app.use(Domain).reader(Profile)` and `.writer(Profile)`.
+- **The writer never signs.** `renderTemplate()` gives an `EventTemplate` you sign yourself (`signer.sign(stamp(await writer.renderTemplate()))`), or hand the writer to `Domain.command`. `renderTemplate`/`scenario`/`relays`/`render` take no arguments; dependencies come from the context.
 - **Private list tags need the author's signer in the context.** With no signer (or someone else's) a `ListReader` yields only public tags; `decrypted` stays `false`. Bind the author's own signer to see private entries.
 - **Don't clobber undecryptable lists.** If you edit a list you couldn't decrypt and try to write private tags, `validate()` throws `Unable to modify list when decryption was not performed`. Editing only public tags is fine — the original ciphertext is preserved.
 - **Room / relay-management kinds need explicit relays.** They set `requiresRelays`, so `render()` throws unless you called `setRoom(url, room)` or `forceRoutes(...routes)`. `RoomCreate`/`RoomJoin` also require the `h` tag (use `setRoom`).
 - **Parameterized-replaceable kinds throw without a `d` tag** — call `setIdentifier()` (or let it default to a random id).
 - **`RoomJoin`/`RelayJoin`/`RelayInvite` read the invite code via `claim()`.**
-- **Routing helpers renamed:** `relay(url)`/`relays(urls)` (not `relayHint`/`relayHints`); new `inboxes(pubkeys)`.
 
 ## OLD → NEW migration
 
@@ -314,21 +327,7 @@ command.publish()                                          // or .publishToRelay
 | `builder.finalize(context)` | `writer.render()` (no arg; context bound at `configure`) |
 | standalone `resolve(...)` | `new Resolver(routeResolver, options)` → `.scenario`/`.relays`/`.relay` |
 | `relayHint(url)` / `relayHints(urls)` | `relay(url)` / `relays(urls)` |
-| — (new) | `inboxes(pubkeys, weight?)`, `Resolver`, `RelayScenario`, `KindContext`, `Hint`/`hint` |
-
-These sit on top of an earlier round of removals — the free functions that once lived in `@welshman/util`:
-
-| Old (`@welshman/util`) | New (`@welshman/domain`) |
-|---|---|
-| `readProfile(event)` | `Profile.configure(ctx).reader(event).parse()` |
-| `makeProfile({...})` / editing | `Profile.configure(ctx).writer().setName(...)….renderTemplate()` |
-| `readList(event, signer)` | `FollowList.configure(ctx).reader(event).parse()` (or the kind-specific list reader) |
-| `makeList({...})` | `FollowList.configure(ctx).writer().follow(...)….renderTemplate()` |
-| `readHandlers(event)` | `Handler.configure(ctx).reader(event).parse()` |
-| `Encryptable` (manual private-tag encrypt) | `ListWriter.buildContent` — `addPrivate(...)` then `renderTemplate()` (NIP-44, self) |
-| `makeRoomMetaEvent` / `makeRoomEditEvent` / … | `RoomMetaWriter` / `RoomEditWriter` / … via `configure(ctx).writer()` |
-
-The shape of the change: raw-event free functions became a `KindFactory` per kind, bound once via `configure` to a `KindContext` (resolver, signer, repository); readers stayed sync-getter views, builders became `EventWriter`s that both render a template and resolve their own publish relays.
+| — (new) | `inboxes(pubkeys, weight?)`, `Resolver`, `RelayScenario`, `KindContext` |
 
 ## Related skills
 

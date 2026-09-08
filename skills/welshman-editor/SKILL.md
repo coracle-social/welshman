@@ -41,6 +41,7 @@ import "@welshman/editor/index.css"
 | `BreakOrSubmit` | Keyboard handler: `Mod-Enter` always submits; `Enter` submits only when `aggressive: true` (chat-style); `Shift-Enter` inserts a hard break. |
 | `CodeInline` | Inline `code` node with backtick input/paste rules. |
 | `WordCount` | Extension that tracks `editor.storage.wordCount.words` and `editor.storage.wordCount.chars` on every document update. |
+| `CommandExtension` | Inline atom node (`name: "command"`) holding a slash-command invocation — `{command, pubkey?}` attributes. `renderText` emits the canonical invocation via `renderCommandInvocation` from `@welshman/util`, so an executor that knows nothing about this client can read it back out of the note. |
 
 ### Node Views
 
@@ -57,8 +58,9 @@ These are drop-in Tiptap node-view factory functions that render inline pill ele
 
 | Export | Description |
 |--------|-------------|
-| `TippySuggestion` | Generic Tippy.js-powered `@tiptap/suggestion` wrapper. Requires `char`, `name`, `editor`, `search`, and `select`. Optional: `updateSignal`, `createSuggestion`. |
-| `MentionSuggestion` | Pre-configured `TippySuggestion` for `@`-triggered nprofile autocomplete. Requires `editor`, `search`, and `getRelays`. Optional: `updateSignal`, `createSuggestion`. |
+| `TippySuggestion` | Generic Tippy.js-powered `@tiptap/suggestion` wrapper. Requires `char`, `name`, `editor`, `search`, and `select`. |
+| `MentionSuggestion` | Pre-configured `TippySuggestion` for `@`-triggered nprofile autocomplete. Requires `editor`, `search`, and `getRelays`. |
+| `CommandSuggestion` | Pre-configured `TippySuggestion` for `/`-triggered slash commands. Requires `editor`, `search`, and `getAttributes(value) => CommandAttributes \| undefined`. Sets `showOnEmpty: true` (a bare `/` lists what's available) and `allow: ({range}) => range.from === 1` (an invocation is only valid at the very start of the content). |
 | `DefaultSuggestionsWrapper` | Default dropdown renderer used by `TippySuggestion`. Implements `ISuggestionsWrapper`; replace to use a framework component. |
 
 **`TippySuggestion` options:**
@@ -71,7 +73,11 @@ These are drop-in Tiptap node-view factory functions that render inline pill ele
 | `search` | yes | `(term: string) => string[]` — returns item values matching the query |
 | `select` | yes | `(value: string, props) => void` — called when the user picks an item; call `props.command({...attrs})` to insert the node |
 | `updateSignal` | no | A Svelte `Readable` store; when it emits, the suggestion list re-renders (use for async/reactive search results) |
+| `allowCreate` | no | Let the user commit the raw term as an item (default `false`) |
+| `showOnEmpty` | no | Show the whole list before anything is typed (default `false`). Right for a small closed set the user browses; wrong for profiles, where a bare trigger matches everything |
+| `allow` | no | `({state, range}) => boolean` — narrow where the suggestion can fire, on top of the schema check |
 | `createSuggestion` | no | `(value: string) => Element` — renders a custom DOM element for each dropdown item |
+| `createSuggestionsWrapper` | no | `(target, props) => ISuggestionsWrapper` — swap the dropdown for a framework component |
 
 `MentionSuggestion` is a pre-wired `TippySuggestion` for nprofile nodes. It handles `select` internally (encodes the pubkey as an nprofile with relay hints from `getRelays`) so you only need to supply `editor`, `search`, and `getRelays`.
 
@@ -81,7 +87,6 @@ These are drop-in Tiptap node-view factory functions that render inline pill ele
 |--------|--------|
 | `Editor` | `@tiptap/core` — the editor instance class |
 | `NodeViewProps` | `@tiptap/core` — prop type for node view factories (Tiptap's type) |
-| `NodeViewRendererProps` | `@tiptap/core` — alternate props type used in `Node.create({ addNodeView })` |
 | `UploadTask` | `nostr-editor` — shape of an in-progress or completed file upload |
 | `FileAttributes` | `nostr-editor` — `{ file: File, … }` passed to the `upload` callback |
 | `editorProps` | `nostr-editor` — base ProseMirror `editorProps` used by nostr-editor; pass directly to `new Editor({ editorProps })` |

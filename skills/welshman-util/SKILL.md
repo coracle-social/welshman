@@ -1,6 +1,6 @@
 ---
 name: welshman-util
-description: "Use this skill when working with @welshman/util: nostr event types, kinds, tags, filters, addresses, NIPs (42/86/98), relays, zaps, wallets, or any core nostr data structures. (Profiles, lists, handlers, and rooms now live in @welshman/domain as Reader/Writer classes.)"
+description: "Use this skill when working with @welshman/util: nostr event types, kinds, tags, filters, addresses, keys, NIPs (13/42/86/98), relay urls, lightning, wallets, slash commands, or any core nostr data structure. Also covers relay selection — the RelaySelection routing DSL, Resolver, RelayScenario and fallback policies all live here (there is no @welshman/router package). (Profiles, lists, handlers, and rooms now live in @welshman/domain as Reader/Writer classes.)"
 ---
 
 # welshman/util — Core Nostr Utilities
@@ -50,13 +50,34 @@ yarn add @welshman/util
 | `isReplaceable(event)` | True for plain or parameterized replaceable |
 | `isPlainReplaceable(event)` | True for kinds 10000–19999 and metadata/contacts |
 | `isParameterizedReplaceable(event)` | True for kinds 30000–39999 |
-| `getAncestors(event)` | Returns `{ roots, replies, mentions }` for NIP-10 events (mentions may be empty `[]` but is always present); NIP-22/COMMENT path returns `{ roots, replies }` without mentions |
-| `getParentIdOrAddr(event)` | Immediate parent id or address |
-| `isChildOf(child, parent)` | Check if child replies to parent |
+| `sortEventsAsc(events)` / `sortEventsDesc(events)` | Sort by `created_at` |
+| `asEventTemplate`, `asStampedEvent`, `asOwnedEvent`, `asHashedEvent`, `asSignedEvent` | Narrow an event down to the fields of a given level |
+
+NIP-10 and NIP-22 threading lives on the `Note` and `Comment` classes in `@welshman/domain`, not here. The free helpers `getAncestors`, `getParentIdOrAddr`, `isChildOf`, `getReplyTags` and `getCommentTags` do not exist in this package.
 
 ### Type Guards
 
 `isEventTemplate`, `isStampedEvent`, `isOwnedEvent`, `isHashedEvent`, `isSignedEvent`
+
+### Keys & event construction
+
+| Export | Description |
+|--------|-------------|
+| `makeSecret()` | Cryptographically secure random hex private key |
+| `getPubkey(secret)` | Derive the hex pubkey from a hex secret |
+| `stamp(event, created_at?)` | `EventTemplate` → `StampedEvent` |
+| `own(event, pubkey)` | `StampedEvent` → `OwnedEvent` |
+| `hash(event)` / `getHash(event)` | `OwnedEvent` → `HashedEvent` / the id alone |
+| `sign(event, secret)` / `getSig(event, secret)` | `HashedEvent` → `SignedEvent` / the sig alone |
+| `prep(event, pubkey, created_at?)` | Stamp + own + hash in one step — an unsigned rumor |
+
+### Proof of work (NIP-13)
+
+| Export | Description |
+|--------|-------------|
+| `makePow(event, difficulty)` | Mine a `nonce` tag until the id has `difficulty` leading zero bits; returns a `ProofOfWork` |
+| `getPow(event)` | Leading zero bits on an event's id |
+| `estimateWork(difficulty)` / `benchmarkDifficulty` | Rough cost estimate for a difficulty target |
 
 ### Event Kinds (constants)
 
@@ -138,8 +159,22 @@ ROOM_ADD_MEMBER = 9000 ROOM_REMOVE_MEMBER = 9001
 ROOM_ADD_PERM = 9003   ROOM_REMOVE_PERM = 9004
 ROOM_DELETE_EVENT = 9005                     ROOM_EDIT_STATUS = 9006
 ROOM_CREATE_PERMISSION = 19004
+ROOM_UPDATE_PINS = 9010                      ROOM_PINS = 39005
 RELAY_MEMBERS = 13534  RELAY_ADD_MEMBER = 8000   RELAY_REMOVE_MEMBER = 8001
 RELAY_JOIN = 28934     RELAY_INVITE = 28935      RELAY_LEAVE = 28936
+RELAY_ROLE = 33534
+```
+
+**Pinboards**
+
+```
+PINBOARD = 30067       PIN = 39067
+```
+
+**Slash commands**
+
+```
+COMMAND = 31992
 ```
 
 **Replaceable lists (kinds 10000–10099)**
@@ -195,7 +230,7 @@ ALERT_ANDROID = 32833  ALERT_IOS = 32834
 **Zaps / wallet / Lightning**
 
 ```
-ZAP_GOAL = 9041        ZAP_REQUEST = 9734    ZAP_RESPONSE = 9735
+ZAP_GOAL = 9041        ZAP_REQUEST = 9734    ZAP_RECEIPT = 9735
 WALLET_INFO = 13194    WALLET_REQUEST = 23194 WALLET_RESPONSE = 23195
 LIGHTNING_PUB_RPC = 21000
 OTS = 1040
@@ -288,7 +323,7 @@ isDVMKind(kind)                    // 5000–7000
 | `tagMatcher(spec)` / `tagValueExtractor(spec)` | The raw `(tag)=>boolean` / `(tag)=>T` for a spec |
 | `tagValueMatcher(spec, value)` | Predicate for one value, compared after normalization — matches however the tag spelled it |
 
-The old `getTagValue`/`getPubkeyTagValues`/`getEventTags`/… accessors were removed — use the spec selectors above (e.g. `tagValues(hexTags("p"), tags)`, `tagValue(tagSpec("title"), tags)`). Thread helpers `getReplyTags`/`getCommentTags` moved to `@welshman/domain` (kinds 1 / 1111).
+The old `getTagValue`/`getPubkeyTagValues`/`getEventTags`/… accessors were removed — use the spec selectors above (e.g. `tagValues(hexTags("p"), tags)`, `tagValue(tagSpec("title"), tags)`).
 
 ### Filters
 
@@ -324,31 +359,32 @@ The old `getTagValue`/`getPubkeyTagValues`/`getEventTags`/… accessors were rem
 
 | Export | Description |
 |--------|-------------|
-| `RelayMode` | Enum: `Read`, `Write`, `Search`, `Blocked`, `Messaging` |
-| `RelayProfile` | NIP-11 relay info type |
+| `LOCAL_RELAY_URL` | `"local://welshman.relay/"` — the conventional url for the in-memory repository |
 | `isRelayUrl(url)` | Validate relay URL |
 | `isShareableRelayUrl(url)` | True if valid relay URL and not a local address |
 | `isOnionUrl(url)` | Tor address check |
 | `isLocalUrl(url)` | Local address check |
 | `isIPAddress(url)` | IP address check |
-| `normalizeRelayUrl(url)` | Normalize to standard wss:// format |
+| `normalizeRelayUrl(url)` | Normalize to standard wss:// format (passes `LOCAL_RELAY_URL` through unchanged) |
 | `displayRelayUrl(url)` | Strip protocol and trailing slash |
-| `displayRelayProfile(profile?, fallback?)` | Get display name for relay |
+
+`RelayMode`, `RelayProfile` and `displayRelayProfile` are gone. Read/write intent is expressed by the NIP-65 `RelayList` reader/writer in `@welshman/domain` (`readUrls()`/`writeUrls()`, `addReadUrl`/`addWriteUrl`), and NIP-11 relay info by the `Relay` type in `@welshman/domain` plus `app.use(Relays)`.
 
 ### Relay Selection (routing DSL)
 
-`RelaySelection.ts` provides a declarative routing DSL: a *relay selection* names a
-source ("the author's outbox", "this pubkey's inbox", "the relays this event was seen
-on") rather than a list of urls. Domain code (`@welshman/domain`) produces selections
-from an event; a `Resolver` (wired up by `@welshman/app`'s `Router`) turns them into
-concrete urls in a context where the necessary data (relay lists, tracker, repository)
-is available.
+`RelaySelection.ts` holds the relay-routing DSL. A *relay selection* names a source, such as
+"the author's outbox" or "the relays this event was seen on", rather than a list of urls. Turning
+one into urls needs relay lists, a tracker and a repository, so producing and resolving selections
+are separate steps: this package defines and scores them, and `@welshman/app`'s `Router` plugin
+supplies the one `ResolveRoute` implementation that dereferences them (see the `welshman-app`
+skill). `@welshman/domain` readers/writers/queries emit selections, and `@welshman/feeds` asks for
+the capability as its `FeedRouter` interface.
 
 **Route + selection types**
 
 | Type | Description |
 |------|-------------|
-| `EventRef` | `{ id?, pubkey?, kind?, identifier?, relays? }` — all optional/additive reference to an event to route relative to |
+| `EventRef` | `{ id?, pubkey?, kind?, identifier?, relays? }` — all optional and additive. A known `pubkey` routes directly without finding the event; `id` (or `kind`+`pubkey`+`identifier`) lets the resolver look it up; `relays` are hints for that lookup and a last-resort fallback |
 | `RelayRoute` | Discriminated union: `userInbox` / `userOutbox` / `userMessaging`, `pubkeyInbox` / `pubkeyOutbox` / `pubkeyMessaging` (`{pubkey}`), `eventInbox` / `eventOutbox` / `seen` (`{ref}`), `relay` (`{url}`), `index`, `search` |
 | `RelaySelection` | `{ route: RelayRoute; weight: number }` |
 
@@ -360,7 +396,7 @@ is available.
 | `outbox(pubkey, weight?)` | `RelaySelection` | that pubkey's write relays |
 | `messaging(pubkey, weight?)` | `RelaySelection` | that pubkey's NIP-17 messaging relays |
 | `userInbox(weight?)` / `userOutbox(weight?)` / `userMessaging(weight?)` | `RelaySelection` | the current user's relays |
-| `eventInbox(ref, weight?)` / `eventOutbox(ref, weight?)` | `RelaySelection` | the referenced event's author relays |
+| `eventInbox(ref, weight?)` / `eventOutbox(ref, weight?)` | `RelaySelection` | the referenced event's author's relays |
 | `seen(ref, weight?)` | `RelaySelection` | relays the event was found on (tracker + ref hints) |
 | `relay(url, weight?)` | `RelaySelection` | a literal relay url (formerly `relayHint`) |
 | `relays(urls, weight?)` | `RelaySelection[]` | one selection per url (formerly `relayHints`) |
@@ -368,7 +404,8 @@ is available.
 | `indexers(weight?)` | `RelaySelection` | profile/relay-list index relays |
 | `searchRelays(weight?)` | `RelaySelection` | full-text search relays |
 
-Note `relays` and `inboxes` return **arrays** — spread them with `...` into a route list; every other constructor returns a single `RelaySelection`.
+Note `relays` and `inboxes` return **arrays** — spread them with `...` into a route list; every
+other constructor returns a single `RelaySelection`.
 
 **Resolved selections + fallback policies**
 
@@ -376,8 +413,8 @@ Note `relays` and `inboxes` return **arrays** — spread them with `...` into a 
 |--------|-------------|
 | `Selection` | `{ weight: number; relays: string[] }` — a concrete, resolved weighted relay set |
 | `makeSelection(relays, weight?)` | Build a `Selection`, filtering `isRelayUrl` and normalizing each url |
-| `FallbackPolicy` | `(count: number, limit: number) => number` |
-| `addNoFallbacks` | Never add fallback relays |
+| `FallbackPolicy` | `(count: number, limit: number) => number` — how many defaults to add |
+| `addNoFallbacks` | Never add fallback relays (**the default**) |
 | `addMinimalFallbacks` | Add one fallback only if nothing else was found |
 | `addMaximalFallbacks` | Top up to the limit with fallbacks |
 
@@ -391,17 +428,18 @@ new RelayScenario(selections: Selection[], options?: RelayScenarioOptions)
 scenario.limit(n)          // chainable (returns a cloned scenario)
 scenario.policy(fn)        // chainable
 scenario.allowLocal(bool) / allowOnion(bool) / allowInsecure(bool)   // chainable
-scenario.getUrls()         // string[] — weight-accumulated, quality-scored, limited, topped up per policy
+scenario.getUrls()         // string[]
 scenario.getUrl()          // first of getUrls()
 ```
 
-Filters onion/local/insecure (`ws://`) relays unless explicitly allowed, accumulates
-weight per relay, scores each by `quality * (1 + log(weight))` with random noise, takes
-the best `limit` (default 3), then adds shuffled `getDefaultRelays()` per the fallback
-policy (default `addNoFallbacks`).
+`getUrls()` drops onion, local and plain-`ws://` urls unless explicitly allowed, sums each url's
+weight across selections, scores as `quality * (1 + log(weight))` times a random factor, takes the
+best `limit` (default 3), then adds shuffled `getDefaultRelays()` urls per the fallback policy. The
+log keeps a relay that many selections name from dominating, and the random factor lets lower-ranked
+relays get picked occasionally.
 
-**`Resolver`** — replaces the old standalone `resolve()`. Bundles a single route
-resolver function plus bound scenario options:
+**`Resolver`** — bundles a single route-resolution function with the scenario options to apply to
+everything it produces:
 
 ```typescript
 type ResolveRoute = (route: RelayRoute) => MaybeAsync<string[]>
@@ -413,13 +451,12 @@ await resolver.relays(selections)    // Promise<string[]>  — scenario(...).get
 await resolver.relay(selections)     // Promise<string | undefined> — scenario(...).getUrl()
 ```
 
-In an app, `@welshman/app`'s `Router` owns the `Resolver` (`app.use(Router).resolver`),
-built with `getRelayQuality`/`getDefaultRelays` from app config, and injects it into
-every domain kind's context. Domain readers/writers then call
-`def.context.resolver.scenario(...)` / `.relay(...)`.
+In an app, `@welshman/app`'s `Router` owns the `Resolver` (`app.use(Router).resolver`), built with
+`getRelayQuality`/`getDefaultRelays` from app config, and injects it into every domain kind's
+context. Domain readers/writers then call `def.context.resolver.scenario(...)` / `.relay(...)`.
 
 ```typescript
-import {outbox, inboxes, relay, relays, Resolver} from '@welshman/util'
+import {outbox, inboxes, relay, Resolver} from '@welshman/util'
 
 // Declarative selections: author's write relays (weight 1) + each mentioned
 // pubkey's read relays (weight 0.5) + an explicit relay hint.
@@ -434,16 +471,46 @@ const resolver = new Resolver(resolveRoute, {limit: 5, getRelayQuality})
 const urls = await resolver.relays(selections)   // string[]
 ```
 
-### Zaps (NIP-57)
+**Routing gotchas**
+
+- **Resolution is async**, because resolving an outbox may have to load a NIP-65 list first.
+- **A scenario that resolves to nothing yields an empty array.** Add `.policy(addMinimalFallbacks)` where an empty result would break the caller.
+- **Weights express preference, not selection.** Naming the same url in ten selections does not make it ten times more likely. To force a relay, use `forceRoutes` (domain writers) or `setRoutes` (domain queries).
+- **Two calls with identical selections can return different urls.** In tests, assert on membership rather than exact url lists, or inject a deterministic `getRelayQuality`.
+- **A relay whose `getRelayQuality` is 0 is dropped entirely**, because the scenario filters on the score and `-0` is falsy. A scenario can come back empty even though its selections resolved to urls.
+
+### Slash commands
+
+`Command.ts` models NIP-89-style slash commands: `CommandArg`/`CommandArgType`/`COMMAND_ARG_TYPES`
+(`pubkey`, `event`, `address`, `relay`, `number`, `bool`, `enum`, `word`, `text`) with
+`validateCommandArgs`; `CommandScope`/`CommandScopeTarget` with `parseCommandScope`,
+`renderCommandScope`, `matchesCommandScopes`, `commandScopeRelays`, `commandScopesToFilter`; and
+the invocation grammar — `parseCommandInvocation`, `renderCommandInvocation`, `bindCommandArgs`,
+`parseCommandArgs`, `getActiveCommandArgIndex`. Kind `COMMAND` is 31992. `@welshman/editor`'s
+`CommandExtension`/`CommandSuggestion` render and autocomplete these in the composer.
+
+### Lightning (NIP-57 support)
 
 | Export | Description |
 |--------|-------------|
-| `getLnUrl(address)` | Convert lightning address or URL to LNURL; returns `undefined` if invalid |
-| `getInvoiceAmount(bolt11)` | Extract millisatoshi amount from BOLT11 invoice |
-| `hrpToMillisat(hrpString)` | Convert human-readable BTC amount to millisats (`bigint`) |
-| `getLnUrl(address)` | Derive an lnurl from a lud06/lud16 address |
-| `Zapper` type | `{ lnurl, pubkey?, callback?, minSendable?, maxSendable?, nostrPubkey?, allowsNostr? }` |
-| `Zap` type | `{ request: TrustedEvent, response: TrustedEvent, invoiceAmount: number }` |
+| `getLnUrl(address)` | Convert a lud16 address, HTTPS URL, or existing `lnurl1…` to an LNURL; `undefined` if invalid |
+| `getInvoiceAmount(bolt11)` | Extract the millisatoshi amount from a BOLT11 invoice |
+| `hrpToMillisat(hrpString)` | Convert a human-readable BTC amount to millisats (`bigint`) |
+| `toMsats(sats)` / `fromMsats(msats)` | Unit conversion |
+
+The `Zapper` and `Zap` types moved to `@welshman/domain` (`other/Zapper.ts`), alongside the `ZapRequest`/`ZapReceipt`/`ZapGoal` kinds. Receipt validation is `app.use(Zappers).validateZapReceipt(...)`.
+
+### NIP-05 handles
+
+| Export | Description |
+|--------|-------------|
+| `Handle` | `{ nip05, pubkey?, nip46?, relays? }` |
+| `queryProfile(nip05)` | Resolve a NIP-05 identifier via `/.well-known/nostr.json`; `undefined` on failure |
+| `displayNip05(nip05)` / `displayHandle(handle)` | Drop a leading `_@` for display |
+
+### Pubkey
+
+`Pubkey` wraps a hex pubkey plus relay hints. `Pubkey.from(entity, relays?)` accepts hex, `npub…` or `nprofile…`; instances expose `toString()`, `toNpub()`, `toNprofile()`.
 
 ### Wallet
 
@@ -473,8 +540,11 @@ makeHttpAuthHeader(event: SignedEvent): string  // Returns "Nostr <base64>"
 ```typescript
 sendManagementRequest(url: string, request: ManagementRequest, authEvent: SignedEvent): Promise<ManagementResponse>
 // ManagementResponse = { result?: any; error?: string }
-// ManagementMethod enum covers: BanPubkey, AllowPubkey, BanEvent, AllowEvent, etc.
 ```
+
+Requests are built by `make*` factories rather than an enum: `makeBanPubkey`, `makeAllowPubkey`, `makeBanEvent`, `makeAllowEvent`, `makeCreateRole`/`makeEditRole`/`makeDeleteRole`, `makeAssignRole`/`makeUnassignRole`, `makeAssignMethod`/`makeUnassignMethod`, `makeCreateClaim`/`makeDeleteClaim`/`makeListClaims`, `makeChangeRelayName`/`Description`/`Icon`, `makeAllowKind`/`makeDisallowKind`, `makeBlockIp`/`makeUnblockIp`, `makeSignEvent`, `makeSupportedMethods`, and the matching `makeList*` readers.
+
+`ManagementApi` is a client class that pairs a relay url with a `ManagementSign` function so you don't have to build the NIP-98 auth event per call. `app.use(RelayManagement).forUrl(url)` returns one bound to the app's user.
 
 ### Links
 
@@ -574,9 +644,6 @@ const ids    = tagValues(tagSpec(['e', 'a']), event.tags) // string[]
 const mentions = tagValues(hexTags('p'), event.tags)      // string[]
 const topics   = tagValues(topicTags('t'), event.tags)    // string[] ("#x" -> "x")
 const relays   = tagValues(relayTags(['r', 'relay']), event.tags)
-
-// NIP-10 thread context lives in @welshman/domain now
-// const { roots, replies, mentions } = getReplyTags(event.tags)
 ```
 
 ### Matching and building filters
@@ -685,8 +752,8 @@ await fetch('https://api.example.com/upload', {
 
 - **`@welshman/net`** — uses `TrustedEvent`, `Filter`, `SignedEvent` from this package as the wire types for relay connections and subscriptions.
 - **`@welshman/store`** — provides Svelte stores over repositories built on `TrustedEvent`; relies on `isReplaceable`, `getAddress`, etc. for deduplication.
-- **`@welshman/app`** — high-level application layer; wraps net/store/router and uses zap helpers from this package (profile/list/handler/room helpers now live in `@welshman/domain`).
-- **`@welshman/router`** — uses `RelayMode` and relay URL helpers when computing relay selections.
+- **`@welshman/app`** — high-level application layer; composes net/store/domain and uses the lightning helpers from this package (profile/list/handler/room helpers now live in `@welshman/domain`).
+- **`@welshman/app`'s `Router` plugin** — dereferences the `RelaySelection` DSL defined here, and injects its `Resolver` into every `@welshman/domain` kind.
 - **`@welshman/signer`** — produces `SignedEvent` objects that satisfy types defined here; signers also provide the `nip44` encrypt/decrypt functions used by `@welshman/domain` list writers to encrypt private (NIP-44) tags.
 
 ---
@@ -697,11 +764,11 @@ await fetch('https://api.example.com/upload', {
 
 - **Replaceable event identity**: Use `getIdOrAddress` rather than `event.id` when referencing events that may be addressable — the address string is stable across updates, the id is not.
 
-- **`getAncestors` handles two protocols**: Kind 1111 (comment/NIP-22) uses uppercase `E`/`A` for roots and lowercase for replies, returning `{ roots, replies }`. All other kinds use NIP-10 positional rules, returning `{ roots, replies, mentions }` where `mentions` is always present but may be an empty array. You do not need to branch on this; `getAncestors`, `getParentIdOrAddr`, and `isChildOf` handle it automatically.
-
 - **`app.use(Zappers).validateZapReceipt` returns `undefined` on any validation failure** including amount mismatch, wrong zapper pubkey, malformed invoice, or self-zap. Always check the result. For a reactive list of a parent's valid zaps use `validZapReceipts(receipts, parent)`, which re-validates as each recipient's zapper loads.
 
 - **`getLnUrl` handles three input forms**: bare lightning address (`user@domain`), full HTTPS URL, or already-encoded `lnurl1...`. Returns `undefined` for anything else.
+
+- **`normalizeTopic` is not exported.** `Topics.ts` isn't re-exported from the index; use `topicTags("t")` to get normalized topic values off an event's tags.
 
 - **`normalizeRelayUrl` vs `displayRelayUrl`**: Use `normalizeRelayUrl` before storing or comparing relay URLs. Use `displayRelayUrl` only for human-readable display (strips protocol/trailing slash).
 
@@ -713,6 +780,7 @@ await fetch('https://api.example.com/upload', {
 
 ---
 
-## Related
+## Related skills
 
+- **`welshman-app`** (welshman-app skill) — the `Router` plugin that dereferences the routing DSL above, plus `RelayStats.getQuality` for the scoring input.
 - **`@welshman/domain`** (welshman-domain skill) — Profiles, lists, handlers, rooms, and event routing moved out of `@welshman/util` and now live here. The old free functions (`readProfile`/`makeProfile`, `readList`/`makeList`, `PublishedProfile`/`PublishedList`, `Encryptable`, the handler/room helpers, …) were replaced by configurable `KindFactory` bundles: `Kind.configure(context).reader(event)` returns an async Reader that decodes the event, and `.writer(reader?)` builds/edits one. Private (NIP-44) list tags are handled inside the list Reader/Writer, so `Encryptable`/`DecryptedEvent` no longer exist.
