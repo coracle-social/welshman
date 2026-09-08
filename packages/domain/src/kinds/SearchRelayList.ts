@@ -2,6 +2,7 @@ import {uniq, spec} from "@welshman/lib"
 import {SEARCH_RELAYS, relayTags, tagValues, normalizeRelayUrl} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10007 search relays list.
@@ -31,8 +32,15 @@ export class SearchRelayListWriter extends EventWriter<SearchRelayListReader> {
   }
 }
 
+export class SearchRelayListQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const SearchRelayList = new KindFactory({
   kind: SEARCH_RELAYS,
   reader: SearchRelayListReader,
   writer: SearchRelayListWriter,
+  query: SearchRelayListQuery,
 })

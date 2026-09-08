@@ -1,6 +1,7 @@
 import {RELAY_LEAVE} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 
@@ -17,8 +18,15 @@ export class RelayLeaveWriter extends EventWriter<RelayLeaveReader> {
   }
 }
 
+export class RelayLeaveQuery extends EventQuery {
+  protected renderRoutes() {
+    return []
+  }
+}
+
 export const RelayLeave = new KindFactory({
   kind: RELAY_LEAVE,
   reader: RelayLeaveReader,
   writer: RelayLeaveWriter,
+  query: RelayLeaveQuery,
 })

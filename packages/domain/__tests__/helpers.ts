@@ -1,7 +1,7 @@
 import {stamp, prep, Resolver} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import type {ISigner} from "@welshman/signer"
-import type {BaseEventReader, EventWriter, KindFactory} from "../src/index.js"
+import type {BaseEventReader, EventQuery, EventWriter, KindFactory} from "../src/index.js"
 
 // By default tests resolve every route to no relays (in-tag hints become "",
 // publish scenarios become empty).
@@ -10,7 +10,9 @@ const noopResolver = new Resolver(() => [])
 // Marker urls a routing test can assert on: `markerResolver` maps each route type
 // to one, so a resolved scenario reveals which sources a writer targets.
 export const OUTBOX = "wss://outbox.test/"
+export const PUBKEY_OUTBOX = "wss://pubkey-outbox.test/"
 export const INBOX = "wss://inbox.test/"
+export const USER_INBOX = "wss://user-inbox.test/"
 export const INDEX = "wss://index.test/"
 export const SEEN = "wss://seen.test/"
 export const MESSAGING = "wss://messaging.test/"
@@ -20,8 +22,12 @@ export const markerResolver = new Resolver((route): string[] => {
   switch (route.type) {
     case "userOutbox":
       return [OUTBOX]
+    case "pubkeyOutbox":
+      return [PUBKEY_OUTBOX]
     case "pubkeyInbox":
       return [INBOX]
+    case "userInbox":
+      return [USER_INBOX]
     case "userMessaging":
       return [USER_MESSAGING]
     case "pubkeyMessaging":
@@ -52,19 +58,33 @@ export const publishRelays = async (writer: EventWriter<any>) => (await writer.s
 
 // Parse an event into a reader. Always awaits `parse`, whether or not the kind
 // needs it, so async work like list decryption is done before the reader is returned.
-export const read = async <R extends BaseEventReader, W extends EventWriter<R>>(
-  factory: KindFactory<R, W>,
+export const read = async <
+  R extends BaseEventReader,
+  W extends EventWriter<R>,
+  Q extends EventQuery,
+>(
+  factory: KindFactory<R, W, Q>,
   event: TrustedEvent,
   signer?: ISigner,
 ): Promise<R> => factory.configure({resolver: noopResolver, signer}).reader(event).parse()
 
 // A fresh writer, optionally seeded from a reader to edit its event. Pass a
 // resolver (e.g. `markerResolver`) to route through recognizable urls.
-export const write = <R extends BaseEventReader, W extends EventWriter<R>>(
-  factory: KindFactory<R, W>,
+export const write = <R extends BaseEventReader, W extends EventWriter<R>, Q extends EventQuery>(
+  factory: KindFactory<R, W, Q>,
   reader?: R,
   resolver: Resolver = noopResolver,
 ): W => factory.configure({resolver}).writer(reader)
+
+// A fresh query. Pass a resolver (e.g. `markerResolver`) to route through
+// recognizable urls.
+export const query = <R extends BaseEventReader, W extends EventWriter<R>, Q extends EventQuery>(
+  factory: KindFactory<R, W, Q>,
+  resolver: Resolver = noopResolver,
+): Q => factory.configure({resolver}).query()
+
+// A query's resolved request relays.
+export const queryRelays = async (query: EventQuery) => (await query.scenario()).getUrls()
 
 // The unsigned event template a writer produces.
 export const buildTemplate = (writer: EventWriter<any>, signer?: ISigner) =>

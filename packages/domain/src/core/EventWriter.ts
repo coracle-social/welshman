@@ -8,7 +8,7 @@ import {
   outbox,
   userOutbox,
   inboxes,
-  relays,
+  relay,
 } from "@welshman/util"
 import type {EventTemplate, TrustedEvent, RelaySelection, RelayScenario} from "@welshman/util"
 import type {BaseEventReader} from "./EventReader.js"
@@ -40,7 +40,7 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
   expirationTag?: string[]
   identifierTag?: string[]
   extraTags: string[][] = []
-  forcedRelays?: string[]
+  forcedRoutes?: RelaySelection[]
   pendingResolves: Promise<unknown>[] = []
 
   // Kinds that must publish to explicit relays (e.g. NIP-29 room events) set this.
@@ -71,27 +71,32 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
   }
 
   setRoom(url: string, room: string) {
-    this.forcedRelays = [normalizeRelayUrl(url)]
+    this.forcedRoutes = [relay(normalizeRelayUrl(url))]
     this.roomTag = ["h", room]
 
     return this
   }
 
   clearRoom() {
-    this.forcedRelays = undefined
+    this.forcedRoutes = undefined
     this.roomTag = undefined
 
     return this
   }
 
-  forceRelays(...urls: string[]) {
-    this.forcedRelays = urls.map(normalizeRelayUrl)
+  /**
+   * Replaces the rendered routes. These are routes rather than urls, so
+   * `forceRoutes(userInbox())` pins an event to the user's read relays without
+   * resolving them first.
+   */
+  forceRoutes(...routes: RelaySelection[]) {
+    this.forcedRoutes = routes
 
     return this
   }
 
-  clearForcedRelays() {
-    this.forcedRelays = undefined
+  clearForcedRoutes() {
+    this.forcedRoutes = undefined
 
     return this
   }
@@ -202,13 +207,13 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
       throw new Error(`A d tag is required for kind ${this.kind}`)
     }
 
-    if (this.roomTag && !this.forcedRelays?.length) {
+    if (this.roomTag && !this.forcedRoutes?.length) {
       throw new Error("A room event requires a relay url (set the room via setRoom)")
     }
 
-    if (this.requiresRelays && !this.forcedRelays?.length) {
+    if (this.requiresRelays && !this.forcedRoutes?.length) {
       throw new Error(
-        `A kind ${this.kind} event must publish to explicit relays (via setRoom or forceRelays)`,
+        `A kind ${this.kind} event must publish to explicit relays (via setRoom or forceRoutes)`,
       )
     }
   }
@@ -291,11 +296,11 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
   }
 
   /**
-   * Returns a router scenario for this event. Publishes to forced relays (e.g. a
-   * NIP-29 room) when set, otherwise to the rendered routes.
+   * Returns a router scenario for this event. Publishes to the forced routes (e.g. a
+   * NIP-29 room's relay) when set, otherwise to the rendered routes.
    */
   async scenario(): Promise<RelayScenario> {
-    const routes = this.forcedRelays?.length ? relays(this.forcedRelays) : await this.renderRoutes()
+    const routes = this.forcedRoutes?.length ? this.forcedRoutes : await this.renderRoutes()
 
     return this.context.resolver.scenario(routes)
   }

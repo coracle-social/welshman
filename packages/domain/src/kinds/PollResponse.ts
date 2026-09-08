@@ -2,6 +2,7 @@ import {uniq, spec} from "@welshman/lib"
 import {POLL_RESPONSE, tagSpec, tagValue, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-88 kind-1018 poll response.
@@ -33,8 +34,15 @@ export class PollResponseWriter extends EventWriter<PollResponseReader> {
   }
 }
 
+export class PollResponseQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+
 export const PollResponse = new KindFactory({
   kind: POLL_RESPONSE,
   reader: PollResponseReader,
   writer: PollResponseWriter,
+  query: PollResponseQuery,
 })

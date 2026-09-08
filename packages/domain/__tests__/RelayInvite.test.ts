@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, RELAY_INVITE, NOTE} from "@welshman/util"
+import {makeSecret, RELAY_INVITE, NOTE, relay} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RelayInvite} from "../src/kinds/RelayInvite"
@@ -43,7 +43,9 @@ describe("RelayInvite", () => {
     })
 
     const tmpl = await buildTemplate(
-      write(RelayInvite, await read(RelayInvite, event)).forceRelays("wss://relay.example.com/"),
+      write(RelayInvite, await read(RelayInvite, event)).forceRoutes(
+        relay("wss://relay.example.com/"),
+      ),
       signer,
     )
 
@@ -55,7 +57,7 @@ describe("RelayInvite", () => {
 
   it("builds from a fresh builder", async () => {
     const tmpl = await buildTemplate(
-      write(RelayInvite).setClaim("fresh-code").forceRelays("wss://relay.example.com/"),
+      write(RelayInvite).setClaim("fresh-code").forceRoutes(relay("wss://relay.example.com/")),
       signer,
     )
 

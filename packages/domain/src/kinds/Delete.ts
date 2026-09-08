@@ -15,6 +15,7 @@ import {
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-09 kind-5 delete request.
@@ -95,8 +96,15 @@ export class DeleteWriter extends EventWriter<DeleteReader> {
   }
 }
 
+export class DeleteQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+
 export const Delete = new KindFactory({
   kind: DELETE,
   reader: DeleteReader,
   writer: DeleteWriter,
+  query: DeleteQuery,
 })

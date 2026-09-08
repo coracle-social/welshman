@@ -2,6 +2,7 @@ import {uniq} from "@welshman/lib"
 import {PINS, addressTags, hexTags, tagValues} from "@welshman/util"
 import {ListReader} from "../core/ListReader.js"
 import {ListWriter} from "../core/ListWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10001 pin list.
@@ -29,8 +30,15 @@ export class PinListWriter extends ListWriter<PinListReader> {
   }
 }
 
+export class PinListQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const PinList = new KindFactory({
   kind: PINS,
   reader: PinListReader,
   writer: PinListWriter,
+  query: PinListQuery,
 })

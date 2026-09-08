@@ -1,15 +1,19 @@
-import {first, mapVals, nth} from "@welshman/lib"
+import {first, mapVals, nth, prop, uniqBy} from "@welshman/lib"
 import {
   COMMENT,
   Address,
   isParameterizedReplaceableKind,
   tagSpec,
   tagValue,
+  getCommentFiltersForParent,
+  getCommentFiltersForRoot,
+  inbox,
   outbox,
 } from "@welshman/util"
-import type {TrustedEvent} from "@welshman/util"
+import type {Filter, TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter, TagParser} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 
@@ -147,8 +151,49 @@ export class CommentWriter extends EventWriter<CommentReader> {
   }
 }
 
+export class CommentQuery extends EventQuery {
+  rootEvents: TrustedEvent[] = []
+  parentEvents: TrustedEvent[] = []
+
+  // Comments anywhere in `event`'s thread (NIP-22 uppercase reference tags).
+  forRoot(event: TrustedEvent) {
+    this.rootEvents = uniqBy(prop("id"), [...this.rootEvents, event])
+
+    return this
+  }
+
+  // Direct replies to `event` (lowercase reference tags).
+  forParent(event: TrustedEvent) {
+    this.parentEvents = uniqBy(prop("id"), [...this.parentEvents, event])
+
+    return this
+  }
+
+  // Each target contributes an id filter and, when it's replaceable, an address
+  // filter. A comment references its target one way or the other, never both.
+  protected renderDomainFilters(): Filter[] {
+    const filters = [
+      ...getCommentFiltersForRoot(this.rootEvents),
+      ...getCommentFiltersForParent(this.parentEvents),
+    ]
+
+    return filters.length > 0 ? filters : [{}]
+  }
+
+  protected renderRoutes() {
+    const targets = [...this.rootEvents, ...this.parentEvents]
+
+    return [
+      ...this.authorRoutes(),
+      ...this.mentionRoutes(),
+      ...targets.map(event => inbox(event.pubkey, 0.5)),
+    ]
+  }
+}
+
 export const Comment = new KindFactory({
   kind: COMMENT,
   reader: CommentReader,
   writer: CommentWriter,
+  query: CommentQuery,
 })

@@ -2,6 +2,7 @@ import {uniq} from "@welshman/lib"
 import {BOOKMARKS, addressTags, hexTags, tagSpec, tagValues, topicTags} from "@welshman/util"
 import {ListReader} from "../core/ListReader.js"
 import {ListWriter} from "../core/ListWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10003 bookmark list.
@@ -37,8 +38,15 @@ export class BookmarkListWriter extends ListWriter<BookmarkListReader> {
   }
 }
 
+export class BookmarkListQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const BookmarkList = new KindFactory({
   kind: BOOKMARKS,
   reader: BookmarkListReader,
   writer: BookmarkListWriter,
+  query: BookmarkListQuery,
 })

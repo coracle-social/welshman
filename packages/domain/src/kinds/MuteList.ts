@@ -2,6 +2,7 @@ import {uniq, spec} from "@welshman/lib"
 import {MUTES, hexTags, tagValues, userOutbox} from "@welshman/util"
 import {ListReader} from "../core/ListReader.js"
 import {ListWriter} from "../core/ListWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10000 mute list.
@@ -33,8 +34,15 @@ export class MuteListWriter extends ListWriter<MuteListReader> {
   }
 }
 
+export class MuteListQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const MuteList = new KindFactory({
   kind: MUTES,
   reader: MuteListReader,
   writer: MuteListWriter,
+  query: MuteListQuery,
 })

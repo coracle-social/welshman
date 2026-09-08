@@ -158,19 +158,19 @@ const [template, scenario] = await Promise.all([writer.renderTemplate(), writer.
 return new Command(app, template, scenario.limit(30).getUrls())
 ```
 
-### Forced relays
+### Forced routes
 
-Some events must go to specific relays regardless of the outbox model — NIP-29 room ops, relay-management ops, and anything else that lives on one server. Writers express this with `forcedRelays`: when it's set, `scenario()` publishes **only** to those urls, bypassing the usual author-outbox / p-tag-inbox routing.
+Some events must go to specific relays regardless of the outbox model — NIP-29 room ops, relay-management ops, and anything else that lives on one server. Writers express this with `forcedRoutes`: when it's set, `scenario()` publishes **only** there, bypassing the usual author-outbox / p-tag-inbox routing.
 
 ```typescript
 // setRoom records the room’s relay AND writes the "h" tag (NIP-29):
 app.use(Domain).writer(RoomJoin).setRoom(relayUrl, roomId)
 
-// forceRelays pins the relay set without an "h" tag:
-app.use(Domain).writer(Note).forceRelays("wss://relay.example").setContent("hi")
+// forceRoutes pins the target without an "h" tag — a literal relay, or any route:
+app.use(Domain).writer(Note).forceRoutes(relay("wss://relay.example")).setContent("hi")
 ```
 
-Kinds that require explicit relays (the NIP-29 room ops/state and relay-management ops/state) fail validation in `render()` unless `setRoom`/`forceRelays` has been called.
+Kinds that require explicit relays (the NIP-29 room ops/state and relay-management ops/state) fail validation in `render()` unless `setRoom`/`forceRoutes` has been called.
 
 ## Gift-wrapped messages
 

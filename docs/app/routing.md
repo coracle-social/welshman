@@ -92,18 +92,19 @@ return [userOutbox(), ...inboxes(tagValues(hexTags("p"), await this.renderTags()
 
 Individual kinds override it. For example `FollowListWriter` / `MuteListWriter` route only to `[userOutbox()]` (their p-tags are data, not recipients); `RelayListWriter` adds `indexers()` and notifies every relay added to or removed from the list; `DeleteWriter` adds a `seen(...)` selection for each deleted event.
 
-Routing is a writer concern — readers are getter-only and do not compute routes. Where to *fetch* a kind's events is decided by the request/loader layer, not the reader.
+Readers are getter-only and do not compute routes. Where to publish an event is the writer's concern; where to fetch a kind's events is its `EventQuery`'s.
 
-### forcedRelays
+### forcedRoutes
 
-Some events must publish to explicit relays, bypassing outbox/inbox routing. When a writer's `forcedRelays` is non-empty, `scenario()` publishes **only** there (`relays(forcedRelays)`):
+Some events must publish to explicit relays, bypassing outbox/inbox routing. When a writer's `forcedRoutes` is non-empty, `scenario()` publishes **only** there:
 
 ```typescript
-writer.forceRelays("wss://relay.example.com/")  // publish only here
-writer.setRoom("wss://rooms.example.com/", roomId)  // forcedRelays + an "h" tag
+writer.forceRoutes(relay("wss://relay.example.com/"))  // publish only here
+writer.forceRoutes(userInbox())                         // routes, so no url needed up front
+writer.setRoom("wss://rooms.example.com/", roomId)      // forcedRoutes + an "h" tag
 ```
 
-NIP-29 room ops and relay-management ops set `requiresRelays = true`, so their `validate()` throws unless `forcedRelays` is set (via `setRoom` or `forceRelays`).
+NIP-29 room ops and relay-management ops set `requiresRelays = true`, so their `validate()` throws unless `forcedRoutes` is set (via `setRoom` or `forceRoutes`).
 
 ## Relay quality
 

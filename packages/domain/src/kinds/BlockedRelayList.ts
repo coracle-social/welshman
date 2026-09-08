@@ -2,6 +2,7 @@ import {uniq, spec} from "@welshman/lib"
 import {BLOCKED_RELAYS, relayTags, tagValues, normalizeRelayUrl} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10006 blocked relays list.
@@ -31,8 +32,15 @@ export class BlockedRelayListWriter extends EventWriter<BlockedRelayListReader> 
   }
 }
 
+export class BlockedRelayListQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const BlockedRelayList = new KindFactory({
   kind: BLOCKED_RELAYS,
   reader: BlockedRelayListReader,
   writer: BlockedRelayListWriter,
+  query: BlockedRelayListQuery,
 })

@@ -2,6 +2,7 @@ import {isPojo, parseJson} from "@welshman/lib"
 import {HANDLER_INFORMATION, kindTags, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter, TagParser} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 
@@ -122,8 +123,15 @@ export class HandlerWriter extends EventWriter<HandlerReader> {
   }
 }
 
+export class HandlerQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const Handler = new KindFactory({
   kind: HANDLER_INFORMATION,
   reader: HandlerReader,
   writer: HandlerWriter,
+  query: HandlerQuery,
 })

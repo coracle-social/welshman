@@ -2,6 +2,7 @@ import {spec} from "@welshman/lib"
 import {PIN, matchTag, tagSpec, tagValue, tagValues, topicTags} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // A pin references exactly one piece of content: a nostr event (`e`), an
@@ -95,8 +96,15 @@ export class PinWriter extends EventWriter<PinReader> {
   }
 }
 
+export class PinQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const Pin = new KindFactory({
   kind: PIN,
   reader: PinReader,
   writer: PinWriter,
+  query: PinQuery,
 })

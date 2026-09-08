@@ -1,9 +1,10 @@
 import {npubEncode} from "nostr-tools/nip19"
 import {ellipsize, isPojo, parseJson} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
-import {PROFILE, getLnUrl} from "@welshman/util"
+import {PROFILE, getLnUrl, indexers} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 
@@ -132,8 +133,15 @@ export class ProfileWriter extends EventWriter<ProfileReader> {
   }
 }
 
+export class ProfileQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), indexers()]
+  }
+}
+
 export const Profile = new KindFactory({
   kind: PROFILE,
   reader: ProfileReader,
   writer: ProfileWriter,
+  query: ProfileQuery,
 })

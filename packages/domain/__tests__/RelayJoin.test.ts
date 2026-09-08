@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, RELAY_JOIN, NOTE} from "@welshman/util"
+import {makeSecret, RELAY_JOIN, NOTE, relay} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RelayJoin} from "../src/kinds/RelayJoin"
@@ -51,7 +51,7 @@ describe("RelayJoin", () => {
     )
 
     const tmpl = await buildTemplate(
-      write(RelayJoin, join).forceRelays("wss://relay.example.com/"),
+      write(RelayJoin, join).forceRoutes(relay("wss://relay.example.com/")),
       signer,
     )
 
@@ -66,7 +66,7 @@ describe("RelayJoin", () => {
       write(RelayJoin)
         .setClaim("invite42")
         .setReason("hello")
-        .forceRelays("wss://relay.example.com/"),
+        .forceRoutes(relay("wss://relay.example.com/")),
       signer,
     )
 

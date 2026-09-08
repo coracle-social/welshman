@@ -2,6 +2,7 @@ import {spec} from "@welshman/lib"
 import {ROOM_JOIN, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-9021 room join request.
@@ -27,8 +28,15 @@ export class RoomJoinWriter extends EventWriter<RoomJoinReader> {
   }
 }
 
+export class RoomJoinQuery extends EventQuery {
+  protected renderRoutes() {
+    return []
+  }
+}
+
 export const RoomJoin = new KindFactory({
   kind: ROOM_JOIN,
   reader: RoomJoinReader,
   writer: RoomJoinWriter,
+  query: RoomJoinQuery,
 })

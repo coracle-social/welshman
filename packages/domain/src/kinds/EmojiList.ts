@@ -2,6 +2,7 @@ import {uniq, spec} from "@welshman/lib"
 import {EMOJIS, addressTags, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10030 user emoji list.
@@ -21,8 +22,15 @@ export class EmojiListWriter extends EventWriter<EmojiListReader> {
   }
 }
 
+export class EmojiListQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const EmojiList = new KindFactory({
   kind: EMOJIS,
   reader: EmojiListReader,
   writer: EmojiListWriter,
+  query: EmojiListQuery,
 })

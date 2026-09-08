@@ -4,12 +4,13 @@
 
 Utilities for translating nostr events to and from domain objects. Where `@welshman/util` gives you the raw building blocks — events, tags, kind constants, tag getters — `@welshman/domain` gives you a typed, ergonomic object per kind: a `Profile` you can ask `.name()`, a `FollowList` you can ask `.pubkeys()`, a `ZapReceipt` you can `.verify()`. Each of those comes with a matching writer that turns edits back into a signable event template — and, because the same objects know how to route themselves, into the set of relays that event should be published to.
 
-## The core idea: Readers and Writers
+## The core idea: Readers, Writers, and Queries
 
-Every supported kind is modeled by a pair of classes:
+Every supported kind is modeled by three classes:
 
 - A **Reader** — a read-only view over a single `TrustedEvent`. It decodes the content/tags into convenient getters (`profile.name()`, `list.pubkeys()`, `zap.amount()`). Readers hold the event and answer questions about it; some (lists) also `parse()` asynchronously to decrypt private tags.
 - A **Writer** — a mutable, chainable producer of an `EventTemplate`. You construct it empty (to author a new event) or from a Reader (to edit an existing one), apply setters, and finish with `renderTemplate()` (the template) or `render()` (the template plus the relays to publish it to).
+- A **Query** — a mutable, chainable producer of the `Filter`s that fetch the kind's events. You set the parts of the filter you want and finish with `renderFilters()` (the filters) or `render()` (the filters plus the relays to request them from).
 
 You don't instantiate these classes directly. Each kind is exported as a **`KindFactory`** — `Profile`, `FollowList`, `MuteList`, `Note`, `RelayList`, … — and you `configure()` it once with a `KindContext` (a resolver, and optionally a signer and repository). Configuring binds those dependencies and hands back a `ConfiguredKind` whose `reader`/`writer` produce the actual objects:
 
@@ -53,6 +54,12 @@ Writers also know where their event belongs. `render()` returns both the templat
 
 ```typescript
 const {event, relays} = await ProfileKind.writer().setName("alice").render()
+```
+
+Queries resolve their relays in reverse: an author's events are fetched from their outbox.
+
+```typescript
+const {filters, relays} = await ProfileKind.query().setAuthors([pubkey]).render()
 ```
 
 ## Where it sits
@@ -115,7 +122,7 @@ const signed = await signer.sign(stamp(template))
 
 ## Pages
 
-- [Readers & Writers](./readers-and-writers) — the `EventReader`/`AsyncEventReader`/`EventWriter` and `ListReader`/`ListWriter` base classes in depth: `KindFactory`/`ConfiguredKind` and the context, which kinds parse synchronously and which have to be awaited, getters/setters, the `renderTemplate`/`render` pipeline, routing (`scenario`/`relays`), validation, extra-tag passthrough, relay hints, and how list encryption works.
+- [Readers & Writers](./readers-and-writers) — the `EventReader`/`AsyncEventReader`/`EventWriter`/`EventQuery` and `ListReader`/`ListWriter` base classes in depth: `KindFactory`/`ConfiguredKind` and the context, which kinds parse synchronously and which have to be awaited, getters/setters, the `renderTemplate`/`render` pipeline, routing (`scenario`/`relays`), validation, extra-tag passthrough, relay hints, and how list encryption works.
 - [Profile](./profile) — kind-0 metadata (`ProfileReader` / `ProfileWriter`).
 - [Lists](./lists) — NIP-51 public/private lists: follows, mutes, pins, bookmarks, relay sets, and friends.
 - [Rooms](./rooms) — NIP-29 rooms: metadata, membership, and the join/leave/create/delete ops.

@@ -3,6 +3,7 @@ import {decrypt} from "@welshman/signer"
 import {APP_DATA} from "@welshman/util"
 import {AsyncEventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 
@@ -104,8 +105,15 @@ export class AppDataWriter extends EventWriter<AppDataReader> {
   }
 }
 
+export class AppDataQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const AppData = new KindFactory({
   kind: APP_DATA,
   reader: AppDataReader,
   writer: AppDataWriter,
+  query: AppDataQuery,
 })

@@ -1,8 +1,17 @@
 import {spec} from "@welshman/lib"
-import {DIRECT_MESSAGE, hexTags, messaging, tagSpec, tagValue, tagValues} from "@welshman/util"
+import {
+  DIRECT_MESSAGE,
+  hexTags,
+  messaging,
+  tagSpec,
+  tagValue,
+  tagValues,
+  userMessaging,
+} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-17 kind-14 direct message. It is never signed or published on its own — it
@@ -70,8 +79,15 @@ export class DirectMessageWriter extends EventWriter<DirectMessageReader> {
   }
 }
 
+export class DirectMessageQuery extends EventQuery {
+  protected renderRoutes() {
+    return [userMessaging()]
+  }
+}
+
 export const DirectMessage = new KindFactory({
   kind: DIRECT_MESSAGE,
   reader: DirectMessageReader,
   writer: DirectMessageWriter,
+  query: DirectMessageQuery,
 })

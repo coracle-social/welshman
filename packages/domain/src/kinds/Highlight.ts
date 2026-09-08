@@ -16,6 +16,7 @@ import {
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // What a highlight was taken from: a nostr event (`e`), an addressable event
@@ -179,8 +180,15 @@ export class HighlightWriter extends EventWriter<HighlightReader> {
   }
 }
 
+export class HighlightQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+
 export const Highlight = new KindFactory({
   kind: HIGHLIGHT,
   reader: HighlightReader,
   writer: HighlightWriter,
+  query: HighlightQuery,
 })

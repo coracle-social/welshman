@@ -2,6 +2,7 @@ import {last, removeUndefined, spec} from "@welshman/lib"
 import {HANDLER_RECOMMENDATION, addressTags, matchTags, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-89 kind-31989 handler recommendation.
@@ -34,8 +35,15 @@ export class HandlerRecommendationWriter extends EventWriter<HandlerRecommendati
   }
 }
 
+export class HandlerRecommendationQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const HandlerRecommendation = new KindFactory({
   kind: HANDLER_RECOMMENDATION,
   reader: HandlerRecommendationReader,
   writer: HandlerRecommendationWriter,
+  query: HandlerRecommendationQuery,
 })

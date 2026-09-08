@@ -12,6 +12,7 @@ import {
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 const TARGET_KEYS = ["e", "a", "p", "k"]
@@ -73,8 +74,15 @@ export class ReactionWriter extends EventWriter<ReactionReader> {
   }
 }
 
+export class ReactionQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+
 export const Reaction = new KindFactory({
   kind: REACTION,
   reader: ReactionReader,
   writer: ReactionWriter,
+  query: ReactionQuery,
 })

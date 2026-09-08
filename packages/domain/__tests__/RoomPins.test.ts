@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, ROOM_PINS} from "@welshman/util"
+import {makeSecret, ROOM_PINS, relay} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomPins} from "../src/kinds/RoomPins"
@@ -95,7 +95,7 @@ describe("RoomPins", () => {
     )
 
     const tmpl = await buildTemplate(
-      write(RoomPins, pins).forceRelays("wss://relay.example.com/"),
+      write(RoomPins, pins).forceRoutes(relay("wss://relay.example.com/")),
       signer,
     )
 
@@ -115,7 +115,7 @@ describe("RoomPins", () => {
       builder
         .setPins([a, address])
         .setPins([b, otherAddress, b]) // replaces, and dedups
-        .forceRelays("wss://relay.example.com/"),
+        .forceRoutes(relay("wss://relay.example.com/")),
       signer,
     )
 

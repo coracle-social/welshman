@@ -14,6 +14,7 @@ import {
 import type {TrustedEvent, RelaySelection} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-10 reply threading tags, split into roots, replies, and mentions by their
@@ -125,8 +126,15 @@ export class NoteWriter extends EventWriter<NoteReader> {
   }
 }
 
+export class NoteQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+
 export const Note = new KindFactory({
   kind: NOTE,
   reader: NoteReader,
   writer: NoteWriter,
+  query: NoteQuery,
 })

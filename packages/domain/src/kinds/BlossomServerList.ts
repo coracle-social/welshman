@@ -2,6 +2,7 @@ import {uniq, spec, normalizeUrl} from "@welshman/lib"
 import {BLOSSOM_SERVERS, tagSpec, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // Blossom BUD-03 kind-10063 user server list.
@@ -31,8 +32,15 @@ export class BlossomServerListWriter extends EventWriter<BlossomServerListReader
   }
 }
 
+export class BlossomServerListQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const BlossomServerList = new KindFactory({
   kind: BLOSSOM_SERVERS,
   reader: BlossomServerListReader,
   writer: BlossomServerListWriter,
+  query: BlossomServerListQuery,
 })

@@ -2,6 +2,7 @@ import {range, DAY, spec} from "@welshman/lib"
 import {EVENT_TIME, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter, TagParser} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 
@@ -70,8 +71,15 @@ export class TimeEventWriter extends EventWriter<TimeEventReader> {
   }
 }
 
+export class TimeEventQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+
 export const TimeEvent = new KindFactory({
   kind: EVENT_TIME,
   reader: TimeEventReader,
   writer: TimeEventWriter,
+  query: TimeEventQuery,
 })

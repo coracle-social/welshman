@@ -2,6 +2,7 @@ import {spec} from "@welshman/lib"
 import {ROOM_EDIT_META, matchTag, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-9002 edit-room-metadata action op. Carries the same metadata as the
@@ -99,8 +100,15 @@ export class RoomEditWriter extends EventWriter<RoomEditReader> {
   }
 }
 
+export class RoomEditQuery extends EventQuery {
+  protected renderRoutes() {
+    return []
+  }
+}
+
 export const RoomEdit = new KindFactory({
   kind: ROOM_EDIT_META,
   reader: RoomEditReader,
   writer: RoomEditWriter,
+  query: RoomEditQuery,
 })

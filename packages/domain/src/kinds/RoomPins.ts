@@ -2,6 +2,7 @@ import {nth, somePass, spec, uniq} from "@welshman/lib"
 import {Address, ROOM_PINS, addressTags, hexTags, tagMatcher, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-39005 room pin list (see https://github.com/nostr-protocol/nips/pull/2379).
@@ -39,8 +40,15 @@ export class RoomPinsWriter extends EventWriter<RoomPinsReader> {
   }
 }
 
+export class RoomPinsQuery extends EventQuery {
+  protected renderRoutes() {
+    return []
+  }
+}
+
 export const RoomPins = new KindFactory({
   kind: ROOM_PINS,
   reader: RoomPinsReader,
   writer: RoomPinsWriter,
+  query: RoomPinsQuery,
 })

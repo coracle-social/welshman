@@ -2,6 +2,7 @@ import {spec, uniq} from "@welshman/lib"
 import {ZAP_GOAL, matchTags, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 
@@ -96,8 +97,15 @@ export class ZapGoalWriter extends EventWriter<ZapGoalReader> {
   }
 }
 
+export class ZapGoalQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+
 export const ZapGoal = new KindFactory({
   kind: ZAP_GOAL,
   reader: ZapGoalReader,
   writer: ZapGoalWriter,
+  query: ZapGoalQuery,
 })

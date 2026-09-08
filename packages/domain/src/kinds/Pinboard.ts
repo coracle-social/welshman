@@ -2,6 +2,7 @@ import {spec} from "@welshman/lib"
 import {PINBOARD, tagSpec, tagValue, tagValues, topicTags} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // Pinboards-NIP kind-30067 pinboard — addressable board metadata. Pins
@@ -60,8 +61,15 @@ export class PinboardWriter extends EventWriter<PinboardReader> {
   }
 }
 
+export class PinboardQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const Pinboard = new KindFactory({
   kind: PINBOARD,
   reader: PinboardReader,
   writer: PinboardWriter,
+  query: PinboardQuery,
 })

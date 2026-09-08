@@ -1,13 +1,14 @@
 # Readers & Writers
 
-Every kind in `@welshman/domain` is a thin subclass of four base classes:
+Every kind in `@welshman/domain` is a thin subclass of five base classes:
 
 - `EventReader` — read-only view over one event.
 - `EventWriter` — mutable producer of an event template.
+- `EventQuery` — mutable producer of the filters that fetch the kind's events.
 - `ListReader` — `EventReader` with a public/private (encrypted) tag split.
 - `ListWriter` — `EventWriter` with the same split, and NIP-44 encryption baked into its build step.
 
-Understanding these four classes means you understand every kind: the per-kind files (`Profile`, `FollowList`, `ZapReceipt`, …) only add getters and setters on top of the machinery described here.
+Understanding these five classes means you understand every kind: the per-kind files (`Profile`, `FollowList`, `ZapReceipt`, …) only add getters and setters on top of the machinery described here.
 
 ## Configuring a kind
 
@@ -21,13 +22,18 @@ export type KindContext = {
 }
 ```
 
-Each exported kind is a `KindFactory` — the pairing of a reader class and a writer class, with no dependencies bound yet:
+Each exported kind is a `KindFactory` — a kind number bundled with its reader, writer, and query classes, with no dependencies bound yet:
 
 ```typescript
-export const Profile = new KindFactory({reader: ProfileReader, writer: ProfileWriter})
+export const Profile = new KindFactory({
+  kind: PROFILE,
+  reader: ProfileReader,
+  writer: ProfileWriter,
+  query: ProfileQuery,
+})
 ```
 
-You bind dependencies **once** with `configure(context)`, which returns a `ConfiguredKind`. The configured kind is your entry point for building readers and writers:
+You bind dependencies **once** with `configure(context)`, which returns a `ConfiguredKind`. The configured kind is your entry point for building readers, writers, and queries:
 
 ```typescript
 import {Profile} from "@welshman/domain"
@@ -37,9 +43,10 @@ const profile = Profile.configure(context)   // ConfiguredKind
 const reader = profile.reader(event).parse()  // reader, parsed
 const writer = profile.writer()               // fresh writer
 const writer2 = profile.writer(reader)         // writer seeded from a reader (edit)
+const query = profile.query()                 // fresh query
 ```
 
-`reader`, `writer`, and `router` are instance arrow-function properties, so they are safe to destructure or pass point-free.
+`reader`, `writer`, and `query` are instance arrow-function properties, so they are safe to destructure or pass point-free.
 
 In `@welshman/app` you never call `configure` yourself — the `Domain` plugin does it for you, memoized per factory, wiring in the app's `Router.resolver`, `repository`, and a lazy `signer`. See [With `@welshman/app`](#with-welshmanapp-domain--command) below.
 
@@ -109,7 +116,7 @@ reader.expiration()     // number | undefined
 
 Each subclass adds its own getters on top — `profile.name()`, `followList.pubkeys()`, `zapGoal.amount()`, and so on.
 
-Readers are getter-only — they do not compute routes. Routing (below) is a writer concern, for publishing; deciding where to *fetch* a kind's events is the request/loader layer's job, not the reader's.
+Readers are getter-only — they do not compute routes. Where to publish an event is the writer's concern; where to fetch a kind's events is the query's.
 
 A room (`h`-tagged) event routes to the relays it was seen on; otherwise it routes to its author's outbox. `scenario()` resolves those routes through the configured `Resolver` into a `RelayScenario`.
 
@@ -140,7 +147,7 @@ The base behavior setters, all chainable:
 ```typescript
 someKind.writer()
   .setContent("…")
-  .setRoom(relayUrl, roomId)   // h tag + forcedRelays / clearRoom()
+  .setRoom(relayUrl, roomId)   // h tag + forcedRoutes / clearRoom()
   .setProtected(true)            // ["-"] tag
   .setExpiration(timestamp)      //         / clearExpiration()
   .setIdentifier()               // d tag (defaults to a random id) / clearIdentifier()
@@ -180,8 +187,8 @@ protected validate(): void
 `validate` by default throws:
 
 - `A d tag is required for kind X` for parameterized-replaceable kinds with no identifier;
-- `A room event requires a relay url (set the room via setRoom)` when a `roomTag` is set but `forcedRelays` is empty;
-- `A kind X event must publish to explicit relays (via setRoom or forceRelays)` when `requiresRelays` is true but `forcedRelays` is empty.
+- `A room event requires a relay url (set the room via setRoom)` when a `roomTag` is set but `forcedRoutes` is empty;
+- `A kind X event must publish to explicit relays (via setRoom or forceRoutes)` when `requiresRelays` is true but `forcedRoutes` is empty.
 
 Subclasses call `super.validate()` and add their own checks — `DeleteWriter` requires at least one `e`/`a` tag, and so on.
 
@@ -227,18 +234,20 @@ protected async renderRoutes(): Promise<RelaySelection[]> {
 
 Kinds override `renderRoutes()` when the default is wrong. For instance `FollowListWriter` and `MuteListWriter` route to `[userOutbox()]` only (their p-tags are data, not recipients), and `DeleteWriter` adds each deleted event's seen relays.
 
-### Forced relays and required relays
+### Forced routes and required relays
 
 Some events must go to specific relays regardless of outbox/inbox routing — NIP-29 room events, relay-management ops, and so on. Two mechanisms cover this:
 
 ```typescript
-writer.setRoom(url, room)       // forcedRelays = [url]  AND  h tag = ["h", room]
-writer.forceRelays(...urls)       // forcedRelays = urls   (no h tag)
-writer.clearRoom()               // clears both
-writer.clearForcedRelays()        // clears forcedRelays
+writer.setRoom(url, room)         // forcedRoutes = [relay(url)]  AND  h tag = ["h", room]
+writer.forceRoutes(...routes)     // forcedRoutes = routes         (no h tag)
+writer.clearRoom()                // clears both
+writer.clearForcedRoutes()        // clears forcedRoutes
 ```
 
-When `forcedRelays` is non-empty, `scenario()` publishes **only** to those relays, bypassing `renderRoutes()` entirely.
+`forceRoutes` takes routes rather than urls, so `forceRoutes(userInbox())` pins an event to the user's read relays without resolving them first.
+
+When `forcedRoutes` is non-empty, `scenario()` publishes **only** to those routes, bypassing `renderRoutes()` entirely.
 
 A kind can also declare it *requires* explicit relays by overriding the readonly field:
 
@@ -246,7 +255,67 @@ A kind can also declare it *requires* explicit relays by overriding the readonly
 readonly requiresRelays = true
 ```
 
-`validate()` then refuses to render until `forcedRelays` is set (via `setRoom` or `forceRelays`). The kinds that set this are all NIP-29 room ops/state and all relay-management ops/state — `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, and `RelayMembers`. (`RoomCreate` additionally requires a `roomTag`.)
+`validate()` then refuses to render until `forcedRoutes` is set (via `setRoom` or `forceRoutes`). The kinds that set this are all NIP-29 room ops/state and all relay-management ops/state — `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, and `RelayMembers`. (`RoomCreate` additionally requires a `roomTag`.)
+
+## EventQuery
+
+A `Query` is the read-side counterpart to a `Writer`, a mutable, chainable producer of the `Filter`s that fetch a kind's events and the relays to request them from. Get one with `configuredKind.query()`. The kind comes from the factory, so a query always filters on it.
+
+### Setters
+
+Every field of a filter has a set/add/remove/clear group (or set/clear, for the scalars). All chainable:
+
+```typescript
+query
+  .setIds(ids)                     // also addIds / removeIds / clearIds
+  .setAuthors(pubkeys)             // also addAuthors / removeAuthors / clearAuthors
+  .setTag("#e", ids)               // also addTag / removeTag / clearTag / clearTags
+  .setSince(timestamp)             // also clearSince; same for setUntil / setLimit / setSearch
+```
+
+Tag keys may be written with or without the `#`. A field left alone is unconstrained; one set to an explicitly empty array matches nothing. Adding no values is a no-op, so `addIds([])` leaves the field as it was.
+
+### Routing
+
+`renderRoutes()` is **abstract**, so every kind states where its events live. Two protected helpers cover the common shapes: `authorRoutes()` (the queried authors' outboxes) and `mentionRoutes()` (the inboxes of the pubkeys a `#p` filter names).
+
+```typescript
+class NoteQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+```
+
+Content kinds route to their authors' outboxes plus the inboxes of the pubkeys they tag. Lists and other author-scoped kinds route to their author's outbox alone, since their p-tags are data rather than recipients. Indexed kinds (`Profile`, `FollowList`, `RelayList`, `MessagingRelayList`) add `indexers()`. NIP-29 room and relay-management kinds return `[]`, because they only exist on the relay hosting them, and `DirectMessage` routes to the user's NIP-17 messaging relays.
+
+A query whose kind has nothing to route on resolves to no relays. There is no fallback to the user's own relays; supply the routes yourself when you want one:
+
+```typescript
+query.setRoutes(routes)   // replace the rendered routes (e.g. [relay(url)], [userInbox()])
+query.addRoutes(routes)   // request these alongside the rendered ones
+query.clearRoutes()       // undo both
+query.setRoom(url, room)  // #h filter + that one relay (NIP-29) / clearRoom()
+```
+
+### Output methods
+
+```typescript
+const filters = await query.renderFilters()   // Filter[]
+const relays  = await query.relays()          // string[] — where to request them
+const {filters, relays} = await query.render()  // both at once
+```
+
+### Kind-specific queries
+
+Past `renderRoutes`, most query subclasses are empty. A kind adds methods for relationships it models, backing them with `renderDomainFilters()` — merged onto the base filter, one filter per variant:
+
+```typescript
+// Comments anywhere in a thread, or direct replies to one event
+const {filters, relays} = await Comment.configure(context).query().forRoot(event).render()
+```
+
+`CommentQuery.forRoot(event)` / `.forParent(event)` emit a filter per reference form, since a comment points at its target with either an `E`/`e` id tag or an `A`/`a` address tag. Their `renderRoutes` adds each target author's inbox, where comments p-tagged to that author are delivered.
 
 ## ListReader
 

@@ -2,6 +2,7 @@ import {spec} from "@welshman/lib"
 import {RELAY_ROLE, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // Flotilla kind-33534 relay role definition, published by the relay's self
@@ -50,8 +51,15 @@ export class RelayRoleWriter extends EventWriter<RelayRoleReader> {
   }
 }
 
+export class RelayRoleQuery extends EventQuery {
+  protected renderRoutes() {
+    return []
+  }
+}
+
 export const RelayRole = new KindFactory({
   kind: RELAY_ROLE,
   reader: RelayRoleReader,
   writer: RelayRoleWriter,
+  query: RelayRoleQuery,
 })

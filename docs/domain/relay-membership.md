@@ -2,7 +2,7 @@
 
 These kinds model **relay-level** membership — Flotilla's notion of joining a relay/space, distinct from NIP-29 room membership (which is scoped to a room by an `h` tag). Where [Rooms](./rooms) deal with rooms hosted *on* a relay, these events deal with belonging to the relay itself. They are all plain `EventReader` / `EventWriter` subclasses; see [Readers & Writers](./readers-and-writers) for the base pattern.
 
-Every one of them sets `requiresRelays = true`, so it **must publish to explicit relays** — you set them with `forceRelays(...urls)` (or `setRoom(url, room)` for the room-scoped kinds) before rendering, and `render()` throws otherwise. See [Forced relays and required relays](./readers-and-writers#forced-relays-and-required-relays).
+Every one of them sets `requiresRelays = true`, so it **must publish to explicit relays** — you set them with `forceRoutes(...routes)` (or `setRoom(url, room)` for the room-scoped kinds) before rendering, and `render()` throws otherwise. See [Forced routes and required relays](./readers-and-writers#forced-routes-and-required-relays).
 
 ## Ops and snapshots
 
@@ -33,7 +33,7 @@ join.reason()     // event.content, or undefined when empty
 
 // A join must be published to the relay/space being joined:
 const writer = domain.writer(RelayJoin)
-  .forceRelays(relayUrl)       // required — RelayJoin sets requiresRelays
+  .forceRoutes(relay(relayUrl))  // required — RelayJoin sets requiresRelays
   .setClaim(inviteCode)        // ["claim", inviteCode]
   .setReason("hello")          // becomes the content
 
@@ -41,7 +41,7 @@ const command = await domain.command(writer)
 await command.publish()
 
 // Leaving is a bare marker — no fields, but still publishes to the relay.
-const leave = domain.writer(RelayLeave).forceRelays(relayUrl)
+const leave = domain.writer(RelayLeave).forceRoutes(relay(relayUrl))
 await (await domain.command(leave)).publish()
 ```
 
@@ -51,7 +51,7 @@ await (await domain.command(leave)).publish()
 import {RelayInvite} from "@welshman/domain"
 
 const invite = domain.writer(RelayInvite)
-  .forceRelays(relayUrl)
+  .forceRoutes(relay(relayUrl))
   .setClaim(inviteCode)
 
 await (await domain.command(invite)).publish()
@@ -65,14 +65,14 @@ await (await domain.command(invite)).publish()
 import {RelayAddMember, RelayRemoveMember} from "@welshman/domain"
 
 const add = domain.writer(RelayAddMember)
-  .forceRelays(relayUrl)
+  .forceRoutes(relay(relayUrl))
   .addPubkey(pubkeyA)
   .addPubkey(pubkeyB)
 
 await (await domain.command(add)).publish()
 
 const remove = domain.writer(RelayRemoveMember)
-  .forceRelays(relayUrl)
+  .forceRoutes(relay(relayUrl))
   .addPubkey(pubkeyA)
 
 await (await domain.command(remove)).publish()
@@ -88,7 +88,7 @@ members.pubkeys()          // string[]
 members.isMember(pubkey)   // boolean
 
 const writer = domain.writer(RelayMembers)
-  .forceRelays(relayUrl)
+  .forceRoutes(relay(relayUrl))
   .addPubkey(pubkeyA, "admin")   // optional role; also removePubkey(pk) / setPubkeys(pks)
 
 await (await domain.command(writer)).publish()
@@ -96,5 +96,5 @@ await (await domain.command(writer)).publish()
 
 ## See also
 
-- [Readers & Writers](./readers-and-writers) — the base `EventReader`/`EventWriter` pattern, plus [forced/required relays](./readers-and-writers#forced-relays-and-required-relays).
+- [Readers & Writers](./readers-and-writers) — the base `EventReader`/`EventWriter` pattern, plus [forced routes and required relays](./readers-and-writers#forced-routes-and-required-relays).
 - [Rooms](./rooms) — NIP-29 room-level (not relay-level) membership and metadata ops.

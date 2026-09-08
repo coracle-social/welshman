@@ -2,6 +2,7 @@ import {spec} from "@welshman/lib"
 import {ROOM_META, matchTag, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-39000 room metadata.
@@ -91,8 +92,15 @@ export class RoomMetaWriter extends EventWriter<RoomMetaReader> {
   }
 }
 
+export class RoomMetaQuery extends EventQuery {
+  protected renderRoutes() {
+    return []
+  }
+}
+
 export const RoomMeta = new KindFactory({
   kind: ROOM_META,
   reader: RoomMetaReader,
   writer: RoomMetaWriter,
+  query: RoomMetaQuery,
 })

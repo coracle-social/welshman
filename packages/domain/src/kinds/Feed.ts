@@ -4,6 +4,7 @@ import type {Feed as FeedDefinition} from "@welshman/feeds"
 
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-31890 saved-feed definition.
@@ -35,8 +36,15 @@ export class FeedWriter extends EventWriter<FeedReader> {
   }
 }
 
+export class FeedQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const Feed = new KindFactory({
   kind: FEED,
   reader: FeedReader,
   writer: FeedWriter,
+  query: FeedQuery,
 })

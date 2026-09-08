@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, ROOM_META, NOTE} from "@welshman/util"
+import {makeSecret, ROOM_META, NOTE, relay} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomMeta} from "../src/kinds/RoomMeta"
@@ -67,7 +67,7 @@ describe("RoomMeta", () => {
     )
 
     const tmpl = await buildTemplate(
-      write(RoomMeta, room).forceRelays("wss://relay.example.com/"),
+      write(RoomMeta, room).forceRoutes(relay("wss://relay.example.com/")),
       signer,
     )
 
@@ -92,7 +92,7 @@ describe("RoomMeta", () => {
         .setName("Fresh")
         .setAbout("desc")
         .setPicture("https://pic", ["100x100"])
-        .forceRelays("wss://relay.example.com/"),
+        .forceRoutes(relay("wss://relay.example.com/")),
       signer,
     )
 

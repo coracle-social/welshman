@@ -3,6 +3,7 @@ import {ZAP_RECEIPT, tagSpec, tagValue, getInvoiceAmount} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-57 kind-9735 zap receipt (relay/LN-generated, read-only).
@@ -80,8 +81,15 @@ export class ZapReceiptWriter extends EventWriter<ZapReceiptReader> {
   }
 }
 
+export class ZapReceiptQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+
 export const ZapReceipt = new KindFactory({
   kind: ZAP_RECEIPT,
   reader: ZapReceiptReader,
   writer: ZapReceiptWriter,
+  query: ZapReceiptQuery,
 })
