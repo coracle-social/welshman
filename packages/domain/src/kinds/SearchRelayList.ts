@@ -8,6 +8,7 @@ import {
 } from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 const urlSpec = relayTags("relay")
@@ -41,8 +42,15 @@ export class SearchRelayListWriter extends EventWriter<SearchRelayListReader> {
   }
 }
 
+export class SearchRelayListQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const SearchRelayList = new KindFactory({
   kind: SEARCH_RELAYS,
   reader: SearchRelayListReader,
   writer: SearchRelayListWriter,
+  query: SearchRelayListQuery,
 })

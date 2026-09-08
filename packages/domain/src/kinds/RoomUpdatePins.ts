@@ -9,6 +9,7 @@ import {
 } from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-9010 update-pins op. The relay replaces the room's kind-39005 list with what this
@@ -51,8 +52,15 @@ export class RoomUpdatePinsWriter extends EventWriter<RoomUpdatePinsReader> {
   }
 }
 
+export class RoomUpdatePinsQuery extends EventQuery {
+  protected renderRoutes() {
+    return []
+  }
+}
+
 export const RoomUpdatePins = new KindFactory({
   kind: ROOM_UPDATE_PINS,
   reader: RoomUpdatePinsReader,
   writer: RoomUpdatePinsWriter,
+  query: RoomUpdatePinsQuery,
 })

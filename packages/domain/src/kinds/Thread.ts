@@ -2,6 +2,7 @@ import {spec} from "@welshman/lib"
 import {THREAD, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-7D kind-11 forum thread root.
@@ -17,8 +18,15 @@ export class ThreadWriter extends EventWriter<ThreadReader> {
   }
 }
 
+export class ThreadQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+
 export const Thread = new KindFactory({
   kind: THREAD,
   reader: ThreadReader,
   writer: ThreadWriter,
+  query: ThreadQuery,
 })

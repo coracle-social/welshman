@@ -2,6 +2,7 @@ import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {COMMUNITIES, addressTags, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10004 community list — the NIP-72 moderated communities the user
@@ -22,8 +23,15 @@ export class CommunityListWriter extends EventWriter<CommunityListReader> {
   }
 }
 
+export class CommunityListQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const CommunityList = new KindFactory({
   kind: COMMUNITIES,
   reader: CommunityListReader,
   writer: CommunityListWriter,
+  query: CommunityListQuery,
 })

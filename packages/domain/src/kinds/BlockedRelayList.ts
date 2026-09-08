@@ -8,6 +8,7 @@ import {
 } from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 const urlSpec = relayTags("relay")
@@ -41,8 +42,15 @@ export class BlockedRelayListWriter extends EventWriter<BlockedRelayListReader> 
   }
 }
 
+export class BlockedRelayListQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const BlockedRelayList = new KindFactory({
   kind: BLOCKED_RELAYS,
   reader: BlockedRelayListReader,
   writer: BlockedRelayListWriter,
+  query: BlockedRelayListQuery,
 })

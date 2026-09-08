@@ -1,5 +1,6 @@
 export * from "./core/EventReader.js"
 export * from "./core/EventWriter.js"
+export * from "./core/EventQuery.js"
 export * from "./core/Kind.js"
 export * from "./behaviors/Emoji.js"
 export * from "./behaviors/ZapSplits.js"

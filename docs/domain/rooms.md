@@ -7,7 +7,7 @@ NIP-29 rooms are hosted by a relay. (The spec calls them groups; this package ca
 
 All of these are plain `EventReader` / `EventWriter` subclasses — none of them are encrypted lists. See [Readers & Writers](./readers-and-writers) for the base pattern (`configure` → `reader`/`writer`, `render`, routing). The reactive `app.use(Rooms)` plugin in `@welshman/app` builds on these classes.
 
-Because every event here targets a specific relay, **all of these kinds set `requiresRelays = true`**: a writer's `validate()` throws unless the target relay has been set with `setRoom(url, room)` (or `forceRelays(url)`). That relay is the room's host, and the resulting event publishes *only* there — see [Publishing to the room relay](#publishing-to-the-room-relay).
+Because every event here targets a specific relay, **all of these kinds set `requiresRelays = true`**: a writer's `validate()` throws unless the target relay has been set with `setRoom(url, room)` (or `forceRoutes(relay(url))`). That relay is the room's host, and the resulting event publishes *only* there — see [Publishing to the room relay](#publishing-to-the-room-relay).
 
 ## Room metadata
 
@@ -122,9 +122,9 @@ await app.use(Domain).command(create).then(cmd => cmd.publish())
 
 ## Publishing to the room relay
 
-`setRoom(url, room)` does two things: it sets the `h` tag **and** pins `forcedRelays` to the room's host relay (`[normalizeRelayUrl(url)]`). When `forcedRelays` is non-empty, the writer's `scenario()` bypasses the usual outbox/inbox routing and publishes **only** to those relays — exactly what NIP-29 requires, since the hosting relay is the source of truth for the room.
+`setRoom(url, room)` does two things: it sets the `h` tag **and** pins `forcedRoutes` to the room's host relay (`[relay(normalizeRelayUrl(url))]`). When `forcedRoutes` is non-empty, the writer's `scenario()` bypasses the usual outbox/inbox routing and publishes **only** there — exactly what NIP-29 requires, since the hosting relay is the source of truth for the room.
 
-Because every room kind sets `requiresRelays = true`, `validate()` (run inside `render()`) throws `A kind N event must publish to explicit relays (via setRoom or forceRelays)` if you forgot to set a relay. `RoomCreate` additionally requires the `h` tag.
+Because every room kind sets `requiresRelays = true`, `validate()` (run inside `render()`) throws `A kind N event must publish to explicit relays (via setRoom or forceRoutes)` if you forgot to set a relay. `RoomCreate` additionally requires the `h` tag.
 
 The app path finalizes the writer and hands you a `Command` that publishes to the pinned relay:
 

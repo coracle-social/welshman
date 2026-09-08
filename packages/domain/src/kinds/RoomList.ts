@@ -11,6 +11,7 @@ import {
 } from "@welshman/util"
 import {ListReader} from "../core/ListReader.js"
 import {ListWriter} from "../core/ListWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // Room tags (`h`, and the `group` tag NIP-51 uses for this list) carry the room
@@ -144,8 +145,15 @@ export class RoomListWriter extends ListWriter<RoomListReader> {
   }
 }
 
+export class RoomListQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const RoomList = new KindFactory({
   kind: ROOMS,
   reader: RoomListReader,
   writer: RoomListWriter,
+  query: RoomListQuery,
 })

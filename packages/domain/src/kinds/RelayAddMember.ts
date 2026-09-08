@@ -2,6 +2,7 @@ import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {RELAY_ADD_MEMBER, hexTags, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // Flotilla relay/space add-member op (kind 8000).
@@ -19,8 +20,15 @@ export class RelayAddMemberWriter extends EventWriter<RelayAddMemberReader> {
   }
 }
 
+export class RelayAddMemberQuery extends EventQuery {
+  protected renderRoutes() {
+    return []
+  }
+}
+
 export const RelayAddMember = new KindFactory({
   kind: RELAY_ADD_MEMBER,
   reader: RelayAddMemberReader,
   writer: RelayAddMemberWriter,
+  query: RelayAddMemberQuery,
 })

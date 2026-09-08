@@ -3,6 +3,7 @@ import {ZAP_REQUEST, matchTag, tagSpec, tagValue, stamp} from "@welshman/util"
 import type {SignedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 import type {Zapper} from "../other/Zapper.js"
 
@@ -87,8 +88,15 @@ export class ZapRequestWriter extends EventWriter<ZapRequestReader> {
   }
 }
 
+export class ZapRequestQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+
 export const ZapRequest = new KindFactory({
   kind: ZAP_REQUEST,
   reader: ZapRequestReader,
   writer: ZapRequestWriter,
+  query: ZapRequestQuery,
 })

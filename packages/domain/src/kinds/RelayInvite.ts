@@ -2,6 +2,7 @@ import {spec} from "@welshman/lib"
 import {RELAY_INVITE, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-28935 relay invite.
@@ -19,8 +20,15 @@ export class RelayInviteWriter extends EventWriter<RelayInviteReader> {
   }
 }
 
+export class RelayInviteQuery extends EventQuery {
+  protected renderRoutes() {
+    return []
+  }
+}
+
 export const RelayInvite = new KindFactory({
   kind: RELAY_INVITE,
   reader: RelayInviteReader,
   writer: RelayInviteWriter,
+  query: RelayInviteQuery,
 })

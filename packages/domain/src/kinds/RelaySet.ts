@@ -10,6 +10,7 @@ import {
 } from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 const urlSpec = relayTags("relay")
@@ -63,8 +64,15 @@ export class RelaySetWriter extends EventWriter<RelaySetReader> {
   }
 }
 
+export class RelaySetQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const RelaySet = new KindFactory({
   kind: NAMED_RELAYS,
   reader: RelaySetReader,
   writer: RelaySetWriter,
+  query: RelaySetQuery,
 })

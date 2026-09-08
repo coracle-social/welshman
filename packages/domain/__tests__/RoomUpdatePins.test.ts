@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, ROOM_UPDATE_PINS} from "@welshman/util"
+import {makeSecret, ROOM_UPDATE_PINS, relay} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomUpdatePins} from "../src/kinds/RoomUpdatePins"
@@ -48,7 +48,7 @@ describe("RoomUpdatePins", () => {
       write(RoomUpdatePins)
         .setRoom("wss://relay.example.com/", "room2")
         .setPins([a, address])
-        .forceRelays("wss://relay.example.com/"),
+        .forceRoutes(relay("wss://relay.example.com/")),
       signer,
     )
 
@@ -60,7 +60,9 @@ describe("RoomUpdatePins", () => {
 
   it("requires a room", async () => {
     await expect(
-      buildTemplate(write(RoomUpdatePins).setPins([a]).forceRelays("wss://relay.example.com/")),
+      buildTemplate(
+        write(RoomUpdatePins).setPins([a]).forceRoutes(relay("wss://relay.example.com/")),
+      ),
     ).rejects.toThrow("RoomUpdatePins requires a room")
   })
 })

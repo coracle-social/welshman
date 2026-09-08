@@ -2,6 +2,7 @@ import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {ROOM_MEMBERS, hexTags, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-39002 room members list.
@@ -31,8 +32,15 @@ export class RoomMembersWriter extends EventWriter<RoomMembersReader> {
   }
 }
 
+export class RoomMembersQuery extends EventQuery {
+  protected renderRoutes() {
+    return []
+  }
+}
+
 export const RoomMembers = new KindFactory({
   kind: ROOM_MEMBERS,
   reader: RoomMembersReader,
   writer: RoomMembersWriter,
+  query: RoomMembersQuery,
 })

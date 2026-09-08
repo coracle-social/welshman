@@ -2,6 +2,7 @@ import {spec} from "@welshman/lib"
 import {LONG_FORM, tagSpec, tagValue, tagValues, topicTags} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-23 kind-30023 long-form article.
@@ -53,8 +54,15 @@ export class ArticleWriter extends EventWriter<ArticleReader> {
   }
 }
 
+export class ArticleQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+
 export const Article = new KindFactory({
   kind: LONG_FORM,
   reader: ArticleReader,
   writer: ArticleWriter,
+  query: ArticleQuery,
 })

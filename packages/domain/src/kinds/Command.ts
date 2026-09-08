@@ -13,6 +13,7 @@ import {
 import type {CommandArg, CommandArgType, CommandScope, CommandScopeTarget} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 const parseArgTags = (tags: string[][]): CommandArg[] =>
@@ -124,8 +125,15 @@ export class CommandWriter extends EventWriter<CommandReader> {
   }
 }
 
+export class CommandQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+
 export const Command = new KindFactory({
   kind: COMMAND,
   reader: CommandReader,
   writer: CommandWriter,
+  query: CommandQuery,
 })

@@ -2,6 +2,7 @@ import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {ROOM_CREATE_PERMISSION, hexTags, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // Flotilla/NIP-29 kind-19004 room-creation permission grant.
@@ -31,8 +32,15 @@ export class RoomCreatePermissionWriter extends EventWriter<RoomCreatePermission
   }
 }
 
+export class RoomCreatePermissionQuery extends EventQuery {
+  protected renderRoutes() {
+    return []
+  }
+}
+
 export const RoomCreatePermission = new KindFactory({
   kind: ROOM_CREATE_PERMISSION,
   reader: RoomCreatePermissionReader,
   writer: RoomCreatePermissionWriter,
+  query: RoomCreatePermissionQuery,
 })

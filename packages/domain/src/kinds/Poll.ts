@@ -3,6 +3,7 @@ import {POLL, relayTags, tagSpec, tagValue, tagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 export type PollType = "singlechoice" | "multiplechoice"
@@ -110,8 +111,15 @@ export class PollWriter extends EventWriter<PollReader> {
   }
 }
 
+export class PollQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+
 export const Poll = new KindFactory({
   kind: POLL,
   reader: PollReader,
   writer: PollWriter,
+  query: PollQuery,
 })

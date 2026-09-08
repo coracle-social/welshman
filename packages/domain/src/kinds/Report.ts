@@ -2,6 +2,7 @@ import {spec, first} from "@welshman/lib"
 import {REPORT, matchTag, tagSpec, tagValue, userOutbox} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 
@@ -76,8 +77,15 @@ export class ReportWriter extends EventWriter<ReportReader> {
   }
 }
 
+export class ReportQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+
 export const Report = new KindFactory({
   kind: REPORT,
   reader: ReportReader,
   writer: ReportWriter,
+  query: ReportQuery,
 })

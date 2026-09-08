@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, ROOM_MEMBERS, NOTE} from "@welshman/util"
+import {makeSecret, ROOM_MEMBERS, NOTE, relay} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomMembers} from "../src/kinds/RoomMembers"
@@ -57,7 +57,7 @@ describe("RoomMembers", () => {
     )
 
     const tmpl = await buildTemplate(
-      write(RoomMembers, room).forceRelays("wss://relay.example.com/"),
+      write(RoomMembers, room).forceRoutes(relay("wss://relay.example.com/")),
       signer,
     )
 
@@ -81,7 +81,7 @@ describe("RoomMembers", () => {
         .addPubkey(a) // dedup
         .addPubkey(b)
         .removePubkey(b)
-        .forceRelays("wss://relay.example.com/"),
+        .forceRoutes(relay("wss://relay.example.com/")),
       signer,
     )
 

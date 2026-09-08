@@ -4,10 +4,12 @@ import {
   relayTags,
   tagValueMatcher,
   tagValues,
+  indexers,
   normalizeRelayUrl,
 } from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 const urlSpec = relayTags("relay")
@@ -37,8 +39,15 @@ export class MessagingRelayListWriter extends EventWriter<MessagingRelayListRead
   }
 }
 
+export class MessagingRelayListQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), indexers()]
+  }
+}
+
 export const MessagingRelayList = new KindFactory({
   kind: MESSAGING_RELAYS,
   reader: MessagingRelayListReader,
   writer: MessagingRelayListWriter,
+  query: MessagingRelayListQuery,
 })

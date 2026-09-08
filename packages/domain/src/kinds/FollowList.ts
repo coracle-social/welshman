@@ -1,7 +1,8 @@
 import {uniq, spec, removeUndefined} from "@welshman/lib"
-import {FOLLOWS, hexTags, tagValues, userOutbox} from "@welshman/util"
+import {FOLLOWS, hexTags, tagValues, indexers, userOutbox} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-02 kind-3 follow list.
@@ -29,8 +30,15 @@ export class FollowListWriter extends EventWriter<FollowListReader> {
   }
 }
 
+export class FollowListQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), indexers()]
+  }
+}
+
 export const FollowList = new KindFactory({
   kind: FOLLOWS,
   reader: FollowListReader,
   writer: FollowListWriter,
+  query: FollowListQuery,
 })

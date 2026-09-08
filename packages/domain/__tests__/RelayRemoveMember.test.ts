@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, RELAY_ADD_MEMBER, RELAY_REMOVE_MEMBER} from "@welshman/util"
+import {makeSecret, RELAY_ADD_MEMBER, RELAY_REMOVE_MEMBER, relay} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RelayRemoveMember} from "../src/kinds/RelayRemoveMember"
@@ -31,7 +31,7 @@ describe("RelayRemoveMember", () => {
 
   it("builds fresh with the remove kind", async () => {
     const tmpl = await buildTemplate(
-      write(RelayRemoveMember).addPubkey(a).forceRelays("wss://relay.example.com/"),
+      write(RelayRemoveMember).addPubkey(a).forceRoutes(relay("wss://relay.example.com/")),
       signer,
     )
 

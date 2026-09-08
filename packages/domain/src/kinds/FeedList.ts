@@ -2,6 +2,7 @@ import {uniq, spec} from "@welshman/lib"
 import {FEEDS, addressTags, tagValues} from "@welshman/util"
 import {ListReader} from "../core/ListReader.js"
 import {ListWriter} from "../core/ListWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-51 kind-10014 saved feeds list.
@@ -29,8 +30,15 @@ export class FeedListWriter extends ListWriter<FeedListReader> {
   }
 }
 
+export class FeedListQuery extends EventQuery {
+  protected renderRoutes() {
+    return this.authorRoutes()
+  }
+}
+
 export const FeedList = new KindFactory({
   kind: FEEDS,
   reader: FeedListReader,
   writer: FeedListWriter,
+  query: FeedListQuery,
 })

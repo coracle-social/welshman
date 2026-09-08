@@ -2,6 +2,7 @@ import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {RELAY_MEMBERS, tagSpec, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 
@@ -42,8 +43,15 @@ export class RelayMembersWriter extends EventWriter<RelayMembersReader> {
   }
 }
 
+export class RelayMembersQuery extends EventQuery {
+  protected renderRoutes() {
+    return []
+  }
+}
+
 export const RelayMembers = new KindFactory({
   kind: RELAY_MEMBERS,
   reader: RelayMembersReader,
   writer: RelayMembersWriter,
+  query: RelayMembersQuery,
 })

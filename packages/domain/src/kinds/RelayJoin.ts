@@ -2,6 +2,7 @@ import {spec} from "@welshman/lib"
 import {RELAY_JOIN, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 
@@ -34,8 +35,15 @@ export class RelayJoinWriter extends EventWriter<RelayJoinReader> {
   }
 }
 
+export class RelayJoinQuery extends EventQuery {
+  protected renderRoutes() {
+    return []
+  }
+}
+
 export const RelayJoin = new KindFactory({
   kind: RELAY_JOIN,
   reader: RelayJoinReader,
   writer: RelayJoinWriter,
+  query: RelayJoinQuery,
 })

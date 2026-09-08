@@ -3,7 +3,7 @@ import {makeSecret, Resolver, COMMENT, LONG_FORM, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {Comment, getCommentTags, getCommentTagValues} from "../src/kinds/Comment"
-import {buildTemplate, read, write} from "./helpers.js"
+import {buildTemplate, read, write, query, queryRelays, markerResolver, INBOX} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -182,5 +182,37 @@ describe("getCommentTags", () => {
 
     expect(values.roots).toContain(eventId)
     expect(values.replies).toContain(eventId)
+  })
+})
+
+describe("CommentQuery", () => {
+  const note = makeEvent({id: rootId, pubkey: rootPubkey, kind: NOTE})
+  const article = makeEvent({id: rootId, pubkey: rootPubkey, kind: LONG_FORM, tags: [["d", "x"]]})
+
+  it("queries a thread by its root, splitting id and address references", async () => {
+    expect(await query(Comment).forRoot(note).renderFilters()).toEqual([
+      {kinds: [COMMENT], "#E": [rootId]},
+    ])
+
+    expect(await query(Comment).forRoot(article).renderFilters()).toEqual([
+      {kinds: [COMMENT], "#A": [`${LONG_FORM}:${rootPubkey}:x`]},
+      {kinds: [COMMENT], "#E": [rootId]},
+    ])
+  })
+
+  it("queries direct replies by their parent, and applies base filter fields to each", async () => {
+    const parent = makeEvent({id: parentId, pubkey: parentPubkey, kind: NOTE})
+
+    const filters = await query(Comment).forRoot(note).forParent(parent).setSince(5).renderFilters()
+
+    expect(filters).toEqual([
+      {kinds: [COMMENT], "#E": [rootId], since: 5},
+      {kinds: [COMMENT], "#e": [parentId], since: 5},
+    ])
+  })
+
+  it("routes to the target author's inbox, wherever the target itself was read", async () => {
+    expect(await queryRelays(query(Comment, markerResolver).forRoot(note))).toEqual([INBOX])
+    expect(await queryRelays(query(Comment, markerResolver).forParent(note))).toEqual([INBOX])
   })
 })

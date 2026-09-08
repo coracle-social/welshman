@@ -2,6 +2,7 @@ import {spec} from "@welshman/lib"
 import {CLASSIFIED, matchTag, tagSpec, tagValue, tagValues, topicTags} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 export type ClassifiedPrice = {
@@ -82,8 +83,15 @@ export class ClassifiedWriter extends EventWriter<ClassifiedReader> {
   }
 }
 
+export class ClassifiedQuery extends EventQuery {
+  protected renderRoutes() {
+    return [...this.authorRoutes(), ...this.mentionRoutes()]
+  }
+}
+
 export const Classified = new KindFactory({
   kind: CLASSIFIED,
   reader: ClassifiedReader,
   writer: ClassifiedWriter,
+  query: ClassifiedQuery,
 })

@@ -2,6 +2,7 @@ import {uniq, spec, removeUndefined} from "@welshman/lib"
 import {ROOM_REMOVE_MEMBER, hexTags, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
+import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 room remove-member op (kind 9001).
@@ -27,8 +28,15 @@ export class RoomRemoveMemberWriter extends EventWriter<RoomRemoveMemberReader> 
   }
 }
 
+export class RoomRemoveMemberQuery extends EventQuery {
+  protected renderRoutes() {
+    return []
+  }
+}
+
 export const RoomRemoveMember = new KindFactory({
   kind: ROOM_REMOVE_MEMBER,
   reader: RoomRemoveMemberReader,
   writer: RoomRemoveMemberWriter,
+  query: RoomRemoveMemberQuery,
 })

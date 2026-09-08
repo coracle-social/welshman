@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, RELAY_ADD_MEMBER, NOTE} from "@welshman/util"
+import {makeSecret, RELAY_ADD_MEMBER, NOTE, relay} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RelayAddMember} from "../src/kinds/RelayAddMember"
@@ -51,7 +51,7 @@ describe("RelayAddMember", () => {
     )
 
     const tmpl = await buildTemplate(
-      write(RelayAddMember, op).forceRelays("wss://relay.example.com/"),
+      write(RelayAddMember, op).forceRoutes(relay("wss://relay.example.com/")),
       signer,
     )
 
@@ -63,7 +63,10 @@ describe("RelayAddMember", () => {
 
   it("builds fresh with the right kind", async () => {
     const tmpl = await buildTemplate(
-      write(RelayAddMember).addPubkey(a).addPubkey(a).forceRelays("wss://relay.example.com/"),
+      write(RelayAddMember)
+        .addPubkey(a)
+        .addPubkey(a)
+        .forceRoutes(relay("wss://relay.example.com/")),
       signer,
     )
 

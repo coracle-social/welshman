@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {RELAY_ROLE, NOTE} from "@welshman/util"
+import {RELAY_ROLE, NOTE, relay} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {RelayRole} from "../src/kinds/RelayRole"
 import {buildTemplate, read, write} from "./helpers.js"
@@ -84,7 +84,7 @@ describe("RelayRole", () => {
         .setDescription("Keeps the peace")
         .setColor(120)
         .setOrder(2)
-        .forceRelays("wss://relay.example.com/"),
+        .forceRoutes(relay("wss://relay.example.com/")),
     )
 
     expect(tmpl.kind).toBe(RELAY_ROLE)
@@ -111,7 +111,10 @@ describe("RelayRole", () => {
     )
 
     const tmpl = await buildTemplate(
-      write(RelayRole, reader).setLabel("Mod").setOrder(3).forceRelays("wss://relay.example.com/"),
+      write(RelayRole, reader)
+        .setLabel("Mod")
+        .setOrder(3)
+        .forceRoutes(relay("wss://relay.example.com/")),
     )
 
     expect(tmpl.tags.filter(t => t[0] === "d")).toEqual([["d", "moderator"]])
@@ -129,7 +132,7 @@ describe("RelayRole", () => {
       write(RelayRole)
         .setIdentifier("moderator")
         .setColor(120)
-        .forceRelays("wss://relay.example.com/"),
+        .forceRoutes(relay("wss://relay.example.com/")),
     )
 
     expect(tmpl.tags).toContainEqual(["color", "120"])

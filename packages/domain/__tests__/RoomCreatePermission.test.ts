@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, ROOM_CREATE_PERMISSION, NOTE} from "@welshman/util"
+import {makeSecret, ROOM_CREATE_PERMISSION, NOTE, relay} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {RoomCreatePermission} from "../src/kinds/RoomCreatePermission"
@@ -54,7 +54,7 @@ describe("RoomCreatePermission", () => {
     )
 
     const tmpl = await buildTemplate(
-      write(RoomCreatePermission, perm).forceRelays("wss://relay.example.com/"),
+      write(RoomCreatePermission, perm).forceRoutes(relay("wss://relay.example.com/")),
       signer,
     )
 
@@ -67,7 +67,9 @@ describe("RoomCreatePermission", () => {
 
   it("sets pubkeys via a fresh builder, deduped", async () => {
     const tmpl = await buildTemplate(
-      write(RoomCreatePermission).setPubkeys([a, b, a]).forceRelays("wss://relay.example.com/"),
+      write(RoomCreatePermission)
+        .setPubkeys([a, b, a])
+        .forceRoutes(relay("wss://relay.example.com/")),
       signer,
     )
 
