@@ -1,6 +1,7 @@
 import {describe, it, expect} from "vitest"
 import {NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
+import {getContentWarning} from "../src/behaviors/ContentWarning"
 import {Note} from "../src/kinds/Note"
 import {buildTemplate, read, write} from "./helpers.js"
 
@@ -14,6 +15,22 @@ const makeEvent = (tags: string[][]): TrustedEvent =>
     content: "nsfw",
     sig: "00".repeat(64),
   }) as TrustedEvent
+
+describe("getContentWarning", () => {
+  it("parses a warning with a reason", () => {
+    expect(getContentWarning(makeEvent([["content-warning", "nudity"]]))).toEqual({
+      reason: "nudity",
+    })
+  })
+
+  it("parses a bare warning, which is flagged with no reason", () => {
+    expect(getContentWarning(makeEvent([["content-warning"]]))).toEqual({reason: undefined})
+  })
+
+  it("returns undefined when the tag is absent", () => {
+    expect(getContentWarning(makeEvent([["t", "nostr"]]))).toBeUndefined()
+  })
+})
 
 describe("content warnings", () => {
   it("reads a content-warning tag with a reason", async () => {

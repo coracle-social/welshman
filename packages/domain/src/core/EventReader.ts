@@ -1,12 +1,14 @@
-import {spec, toInt} from "@welshman/lib"
 import type {MaybeAsync} from "@welshman/lib"
 import {tagSpec, tagValue, getAddress} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import type {KindContext} from "./Kind.js"
 import {getClient} from "../behaviors/Client.js"
 import type {Client} from "../behaviors/Client.js"
+import {getContentWarning} from "../behaviors/ContentWarning.js"
 import {getEmojis} from "../behaviors/Emoji.js"
 import type {Emoji} from "../behaviors/Emoji.js"
+import {getExpiration} from "../behaviors/Expiration.js"
+import {isProtected} from "../behaviors/Protected.js"
 import {getZapSplits} from "../behaviors/ZapSplits.js"
 import type {ZapSplit} from "../behaviors/ZapSplits.js"
 
@@ -63,19 +65,19 @@ export abstract class BaseEventReader {
   }
 
   protect() {
-    return this.event.tags.some(spec(["-"]))
+    return isProtected(this.event)
   }
 
   expiration() {
-    return toInt(tagValue(tagSpec("expiration"), this.event.tags) ?? "")
+    return getExpiration(this.event)
   }
 
   contentWarning() {
-    return this.event.tags.some(spec(["content-warning"]))
+    return Boolean(getContentWarning(this.event))
   }
 
   contentWarningReason() {
-    return tagValue(tagSpec("content-warning"), this.event.tags)
+    return getContentWarning(this.event)?.reason
   }
 
   client(): Client | undefined {

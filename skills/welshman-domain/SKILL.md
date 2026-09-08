@@ -62,6 +62,8 @@ const mutes = await MuteList.configure(context).reader(event).parse()
 
 Common base getters available on every reader (all synchronous): `id()`, `author()`, `content()`, `tags()`, `createdAt()`, `identifier()` (d-tag), `address()` (`kind:pubkey:d`), `room()` (NIP-29 h-tag), `protect()` (has `["-"]`), `expiration()`, `contentWarning()` (has a NIP-36 `content-warning` tag), `contentWarningReason()`, `client()` (the NIP-89 `client` tag as `{name, address?, relay?}`). Each kind adds its own — e.g. `profile.name()`, `profile.display()`, `followList.pubkeys()`, `followList.includes(pk)`.
 
+The getters for tags any kind can carry delegate to standalone functions in `src/behaviors/` — `isProtected`, `getExpiration`, `getContentWarning`, `getClient`, `getEmojis`, `getZapSplits` (plus `splitZapAmount`). Use those on a bare event: `reader()` throws on a kind mismatch, so a cross-kind check can't go through a reader.
+
 ## Building / editing an event
 
 ```typescript
