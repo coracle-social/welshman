@@ -58,6 +58,34 @@ const template = await HandlerRecommendation.configure(context)
 
 `addRecommendation(address, relay?, platform?)` writes `["a", address, relay || "", platform || ""]` and is deduped by address. `removeRecommendation(address)` drops the matching address tags.
 
+## Client attribution (the `client` tag)
+
+NIP-89's `client` tag names the app that published an event, optionally pointing at that app's kind-31990 handler event so a reader can look up its name, icon, and website. The tag is kind-agnostic, so every reader exposes it and every writer can set it.
+
+```typescript
+import {getClient} from "@welshman/domain"
+import type {Client} from "@welshman/domain"
+
+reader.client()      // {name, address?, relay?} | undefined
+getClient(event)     // the same, off a bare event
+```
+
+An address or relay hint that doesn't parse is dropped, so `client.address` is always safe to hand to `Address.from`.
+
+```typescript
+const {event} = await Note.configure(context)
+  .writer()
+  .setContent("hello")
+  .setClient("Coracle", "31990:pubkey:coracle")
+  .render()
+
+event.tags   // [["client", "Coracle", "31990:pubkey:coracle", "wss://…"]]
+```
+
+The address is optional: `setClient("Coracle")` writes a bare `["client", "Coracle"]`. When you pass one, the handler author's outbox fills the relay hint slot. `clearClient()` drops the tag, and leaving it alone preserves whatever the event being edited already had.
+
+The tag tells relays and readers which app a pubkey uses, so let users turn it off, and leave it off direct messages.
+
 ## With `@welshman/app`
 
 In app code you don't call `configure` yourself — the `Domain` plugin bundles the context and memoizes the configured kind:

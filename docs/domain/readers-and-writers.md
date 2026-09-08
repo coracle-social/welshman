@@ -108,6 +108,7 @@ All base getters are synchronous reads over the wrapped event:
 | `expiration()` | the parsed `expiration` tag as a number, or `undefined` |
 | `contentWarning()` | `true` if a NIP-36 `content-warning` tag is present |
 | `contentWarningReason()` | that tag's reason, or `undefined` when it was tagged bare |
+| `client()` | the NIP-89 `client` tag as a `Client`, or `undefined` |
 
 ```typescript
 const reader = await SomeKind.configure(context).reader(event).parse()
@@ -133,7 +134,7 @@ A `Writer` is a mutable, chainable producer of an `EventTemplate`. Get an empty 
 constructor(readonly def: AnyConfiguredKind, readonly reader?: Reader)
 ```
 
-When you pass a reader, the writer seeds `content` from `reader.event.content` and copies **all** of `event.tags` into `extraTags`. It then *consumes* the tags it manages — `h`, `-`, `expiration`, `content-warning`, and `d` — lifting each out of `extraTags` into a dedicated field (`roomTag`, `protectTag`, `expirationTag`, `contentWarningTag`, `identifierTag`).
+When you pass a reader, the writer seeds `content` from `reader.event.content` and copies **all** of `event.tags` into `extraTags`. It then *consumes* the tags it manages — `h`, `-`, `expiration`, `content-warning`, `client`, and `d` — lifting each out of `extraTags` into a dedicated field (`roomTag`, `protectTag`, `expirationTag`, `contentWarningTag`, `clientTag`, `identifierTag`).
 
 Whatever remains in `extraTags` is **passed through verbatim** when the event is rebuilt. This is the extra-tag passthrough guarantee: tags the package does not model (or a subclass does not claim) survive an edit round-trip instead of being silently dropped.
 
@@ -154,6 +155,7 @@ someKind.writer()
   .setProtected(true)            // ["-"] tag
   .setExpiration(timestamp)      //         / clearExpiration()
   .setContentWarning("nudity")   // NIP-36 tag, reason optional / clearContentWarning()
+  .setClient("Coracle")          // NIP-89 tag, handler address optional / clearClient()
   .setIdentifier()               // d tag (defaults to a random id) / clearIdentifier()
 ```
 
@@ -176,6 +178,7 @@ Several helpers emit tags carrying a **relay hint** — a deferred `Hint` occupy
 writer.tagPubkey(pubkey, petname?)      // ["p", pubkey, <hint>, petname]
 writer.addQuote(event, relay?)          // ["q", id, relay ?? <hint>, pubkey]
 writer.addZapSplit(pubkey, split = 1)   // ["zap", pubkey, <hint>, String(split)]
+writer.setClient(name, address?)        // ["client", name, address, <hint>]
 ```
 
 ### The build pipeline
@@ -202,7 +205,7 @@ Tags are assembled as:
 [...buildTags(), ...behaviorTags, ...extraTags]
 ```
 
-where `behaviorTags` are the present ones among `roomTag`, `protectTag`, `expirationTag`, `contentWarningTag`, `identifierTag`. That ordering is the passthrough in action: kind-specific tags first, then the behavior tags, then the untouched leftovers.
+where `behaviorTags` are the present ones among `roomTag`, `protectTag`, `expirationTag`, `contentWarningTag`, `clientTag`, `identifierTag`. That ordering is the passthrough in action: kind-specific tags first, then the behavior tags, then the untouched leftovers.
 
 ### Output methods
 

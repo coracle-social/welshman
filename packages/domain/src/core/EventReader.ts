@@ -3,6 +3,8 @@ import type {MaybeAsync} from "@welshman/lib"
 import {tagSpec, tagValue, getAddress} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import type {KindContext} from "./Kind.js"
+import {getClient} from "../behaviors/Client.js"
+import type {Client} from "../behaviors/Client.js"
 import {getEmojis} from "../behaviors/Emoji.js"
 import type {Emoji} from "../behaviors/Emoji.js"
 import {getZapSplits} from "../behaviors/ZapSplits.js"
@@ -74,6 +76,10 @@ export abstract class BaseEventReader {
 
   contentWarningReason() {
     return tagValue(tagSpec("content-warning"), this.event.tags)
+  }
+
+  client(): Client | undefined {
+    return getClient(this.event)
   }
 
   emojis(): Emoji[] {
