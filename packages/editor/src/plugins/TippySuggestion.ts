@@ -123,6 +123,8 @@ export class DefaultSuggestionsWrapper implements ISuggestionsWrapper {
   }
 
   onKeyDown(event: any) {
+    this.search.flush()
+
     const {index, items} = this
     const {term, select, allowCreate} = this.props
     const value = items[index]

@@ -1222,39 +1222,48 @@ export const yieldThread = () => {
 }
 
 /**
- * Creates throttled version of function
+ * Creates throttled version of function. Call `flush` to run a pending call immediately.
  * @param ms - Minimum time between calls
  * @param f - Function to throttle
  * @returns Throttled function
  */
 export const throttle = <F extends (...args: any[]) => any>(ms: number, f: F) => {
-  if (ms === 0) {
-    return f
-  }
-
   let timeoutId: ReturnType<typeof setTimeout> | undefined
   let lastArgs: Parameters<F> | undefined
 
-  const later = () => {
+  const flush = () => {
     if (lastArgs !== undefined) {
       const args = lastArgs
+
       lastArgs = undefined
       f(...args)
-      timeoutId = setTimeout(later, ms)
-    } else {
-      timeoutId = undefined
     }
   }
 
-  return (...args: Parameters<F>) => {
-    lastArgs = args
+  const later = () => {
+    if (lastArgs === undefined) {
+      timeoutId = undefined
+    } else {
+      flush()
+      timeoutId = setTimeout(later, ms)
+    }
+  }
 
+  const throttled = (...args: Parameters<F>) => {
     if (timeoutId === undefined) {
       f(...args)
-      lastArgs = undefined
-      timeoutId = setTimeout(later, ms)
+
+      if (ms > 0) {
+        timeoutId = setTimeout(later, ms)
+      }
+    } else {
+      lastArgs = args
     }
   }
+
+  throttled.flush = flush
+
+  return throttled
 }
 
 /**

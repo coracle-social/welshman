@@ -116,6 +116,25 @@ describe("Tools", () => {
       expect(fn).toHaveBeenCalledTimes(2)
     })
 
+    it("should flush a pending throttled call", () => {
+      const fn = vi.fn()
+      const throttled = T.throttle(100, fn)
+
+      throttled(1)
+      throttled(2)
+
+      expect(fn).toHaveBeenCalledTimes(1)
+
+      throttled.flush()
+
+      expect(fn).toHaveBeenCalledTimes(2)
+      expect(fn).toHaveBeenLastCalledWith(2)
+
+      throttled.flush()
+
+      expect(fn).toHaveBeenCalledTimes(2)
+    })
+
     describe("batch", () => {
       it("should collect items and process them in batches", async () => {
         const processBatch = vi.fn()

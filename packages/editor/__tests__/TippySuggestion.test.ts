@@ -71,4 +71,14 @@ describe("DefaultSuggestionsWrapper", () => {
       expect(selected).toEqual(["alice"])
     }
   })
+
+  it("selects a match for the term as typed when the throttled search is behind", () => {
+    const {wrapper, selected} = makeWrapper("ali")
+
+    wrapper.setProps({term: "alici"})
+
+    expect(wrapper.items).toEqual(["alice", "alicia"])
+    expect(wrapper.onKeyDown({code: "Enter"})).toBe(true)
+    expect(selected).toEqual(["alicia"])
+  })
 })
