@@ -18,6 +18,7 @@ import {
   ParsedCashu,
   ParsedAddress,
   ParsedText,
+  isImage,
 } from "./parser.js"
 
 export class Renderer {
@@ -197,3 +198,44 @@ export const renderAsText = (parsed: Parsed | Parsed[], options: Partial<RenderO
 
 export const renderAsHtml = (parsed: Parsed | Parsed[], options: Partial<RenderOptions> = {}) =>
   render(parsed, makeHtmlRenderer(options))
+
+// Summary rendering
+
+export type SummaryName = (parsed: Parsed) => string | undefined
+
+export const defaultSummaryName: SummaryName = parsed => {
+  switch (parsed.type) {
+    case ParsedType.Address:
+      return "another post"
+    case ParsedType.Cashu:
+      return "a cashu token"
+    case ParsedType.Email:
+      return parsed.value
+    case ParsedType.Emoji:
+      return parsed.value.name
+    case ParsedType.Event:
+      return "another message"
+    case ParsedType.Invoice:
+      return "a lightning invoice"
+    case ParsedType.Link: {
+      const {host} = parsed.value.url
+
+      return isImage(parsed) ? "an image" : `a link to ${host}`
+    }
+    case ParsedType.LinkGrid:
+      return "some images"
+    case ParsedType.Profile:
+      return "someone"
+    case ParsedType.Room:
+      return parsed.value.room
+  }
+}
+
+export const summarizeOne = (parsed: Parsed, getName?: SummaryName): Parsed => {
+  const value = getName?.(parsed) ?? defaultSummaryName(parsed)
+
+  return value === undefined ? parsed : {type: ParsedType.Text, value, raw: parsed.raw}
+}
+
+export const summarize = (parsed: Parsed | Parsed[], getName?: SummaryName) =>
+  (Array.isArray(parsed) ? parsed : [parsed]).map(p => summarizeOne(p, getName))

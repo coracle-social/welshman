@@ -33,6 +33,7 @@ type RenderOptions = {
 - `render(parsed, renderer)` - Renders single or multiple parsed elements
 - `renderAsText(parsed, options)` - Convenience function for text rendering
 - `renderAsHtml(parsed, options)` - Convenience function for HTML rendering
+- `summarize(parsed, getName?)` - Replaces every element that is not prose with text naming it, for rendering through `renderAsText` or `renderAsHtml`
 
 ## Example Usage
 
@@ -58,3 +59,38 @@ const html = renderAsHtml(parsed, {
 // Visit <a href="https://njump.me/nprofile1...">npub1jlrs53p...</a> for more info
 // <a href="https://github.com/coracle-social/welshman" class="custom-link">github.com/coracle-social/welshman</a>
 ```
+
+## Summaries
+
+Text and HTML rendering both resolve an entity to the string it links to. Anything reading
+content as a line of prose — a notification body, a speech synthesizer, a search result — wants
+it named instead.
+
+`summarize(parsed, getName?)` replaces every element that is not prose with text naming it and
+returns `Parsed[]`, so it goes through whichever renderer the caller already has.
+
+```typescript
+import { parse, ParsedType, renderAsText, summarize } from '@welshman/content'
+
+const parsed = parse({ content: "look at nostr:nevent1... https://example.com/cat.jpg" })
+
+renderAsText(summarize(parsed)).toString()
+// → 'look at another message an image'
+```
+
+`getName` is one function over the whole parsed element, so the pubkey a caller needs to look
+up a display name is there. Returning `undefined` leaves the element to `defaultSummaryName`:
+
+```typescript
+renderAsText(
+  summarize(parsed, p => {
+    if (p.type === ParsedType.Profile) {
+      return profilesByPubkey.get(p.value.pubkey)?.name
+    }
+  }),
+).toString()
+```
+
+Text, topics, code, commands, newlines and ellipses pass through untouched, and the result
+composes with `truncate`, `reduceLinks` and either renderer — `renderAsHtml(summarize(parsed))`
+names entities and still marks up the prose around them.
