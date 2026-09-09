@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {NOTE} from "@welshman/util"
+import {NOTE, relay} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Note} from "../src/kinds/Note"
 import {Delete} from "../src/kinds/Delete"
@@ -51,5 +51,28 @@ describe("writer routing", () => {
     )
 
     expect(relays).toEqual([url])
+  })
+
+  it("a room publish reaches a self-hosted relay the outbox model would skip", async () => {
+    const url = "ws://localhost:3334/"
+    const relays = await publishRelays(
+      write(RoomCreate, undefined, markerResolver).setRoom(url, "x"),
+    )
+
+    expect(relays).toEqual([url])
+  })
+
+  it("forced routes are all published to, past the limit a scored scenario applies", async () => {
+    const urls = [
+      "wss://a.example.com/",
+      "wss://b.example.com/",
+      "wss://c.example.com/",
+      "wss://d.example.com/",
+    ]
+    const relays = await publishRelays(
+      write(Note, undefined, markerResolver).forceRoutes(...urls.map(url => relay(url))),
+    )
+
+    expect(relays.sort()).toEqual(urls)
   })
 })

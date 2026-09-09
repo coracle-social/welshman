@@ -374,10 +374,12 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
   }
 
   /**
-   * Shortcut for getting relays from the router scenario.
+   * Shortcut for getting relays from the router scenario. Forced routes bypass scoring.
    */
   async relays(): Promise<string[]> {
-    return (await this.scenario()).getUrls()
+    const scenario = await this.scenario()
+
+    return this.forcedRoutes?.length ? scenario.getAllUrls() : scenario.getUrls()
   }
 
   /**

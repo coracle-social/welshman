@@ -52,9 +52,9 @@ const withSigner = (writer: EventWriter<any>, signer?: ISigner) => {
   return writer
 }
 
-// A writer's resolved publish relays. Applies the writer's own relay limit rather
-// than lifting it, so routing tests see what production actually publishes to.
-export const publishRelays = async (writer: EventWriter<any>) => (await writer.scenario()).getUrls()
+// A writer's resolved publish relays. Applies the writer's own limit and scoring rather
+// than lifting them, so routing tests see what production actually publishes to.
+export const publishRelays = (writer: EventWriter<any>) => writer.relays()
 
 // Parse an event into a reader. Always awaits `parse`, whether or not the kind
 // needs it, so async work like list decryption is done before the reader is returned.

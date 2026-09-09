@@ -147,6 +147,8 @@ export class RelayScenario {
 
   getPolicy = () => this.options.policy || addNoFallbacks
 
+  getAllUrls = () => uniq(this.selections.flatMap(selection => selection.relays))
+
   getUrls = () => {
     const limit = this.getLimit()
     const fallbackPolicy = this.getPolicy()
