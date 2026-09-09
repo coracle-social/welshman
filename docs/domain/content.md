@@ -1,6 +1,6 @@
 # Content
 
-A grab-bag of content kinds: NIP-01 notes, NIP-17 direct messages, NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-84 highlights, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `TimeEvent`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
+A grab-bag of content kinds: NIP-01 notes, NIP-17 direct messages, NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-84 highlights, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `DateEvent`, `TimeEvent`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
 
 Every example below assumes a bound `KindContext` — you get a reader/writer by calling `SomeKind.configure(context)`. A reader is built and then parsed (`…reader(event).parse()`); none of the kinds on this page decrypt, so nothing here needs awaiting. A writer is a chainable builder whose terminal `renderTemplate()` returns an unsigned `EventTemplate`. To turn that into a signed event, hand it to a signer:
 
@@ -237,6 +237,30 @@ await Highlight.configure(context)
 
 `addAttribution` keeps one `p` tag per pubkey, so re-attributing someone changes their role instead of crediting them twice, and `removeAttribution` drops that pubkey's tag whatever its role. `addMention` is `addAttribution(pubkey, "mention")`, which overrides the base writer's unmarked mention. There is no setter for a comment's `r` tags — add them with `addTags(["r", value, "mention"])`. NIP-84 only says a highlight *should* tag its source, so `validate()` doesn't require one.
 
+## DateEvent (kind 31922)
+
+A NIP-52 date-based calendar event — an all-day event, as against `TimeEvent` below, which starts and ends at an instant. Because such an event belongs to no timezone, its bounds are `YYYY-MM-DD` strings rather than timestamps, and `end` is the day *after* the last one covered.
+
+```typescript
+import {DateEvent} from "@welshman/domain"
+
+const evt = DateEvent.configure(context).reader(event).parse()
+evt.title()      // "title" tag value
+evt.location()   // "location" tag value
+evt.start()      // "YYYY-MM-DD", or undefined
+evt.end()        // "YYYY-MM-DD" (exclusive), absent on a one-day event
+
+await DateEvent.configure(context)
+  .writer()
+  .setIdentifier()                       // required d tag for kind 31922
+  .setTitle("Nostrica")
+  .setLocation("Costa Rica")
+  .setStart("2024-03-19")
+  .setEnd("2024-03-22")                  // covers the 19th, 20th and 21st
+  .renderTemplate()
+```
+
+Like `TimeEvent`, the writer derives one `["D", dayIndex]` tag per day covered, so both calendar kinds are discoverable by the same day-bucket filter. An event with a start and no end covers that one day; a start that doesn't parse as a date produces no index at all.
 ## TimeEvent (kind 31923)
 
 A NIP-52 time-based calendar event.
@@ -340,4 +364,4 @@ A report's reason lives on both the `p` and `e` tags; the writer normalizes it s
 
 ## See also
 
-- [Readers & Writers](./readers-and-writers) — the base `EventReader`/`EventWriter` pattern, the `configure` entry point, default routing, and `d`-tag validation for `Classified` and `TimeEvent`.
+- [Readers & Writers](./readers-and-writers) — the base `EventReader`/`EventWriter` pattern, the `configure` entry point, default routing, and `d`-tag validation for `Classified`, `DateEvent` and `TimeEvent`.

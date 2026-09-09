@@ -140,7 +140,7 @@ The DSL constructors `relays(urls)` and `inboxes(pubkeys)` return **arrays** (sp
 - **Reading private list tags:** a `ListReader` only surfaces `privateTags` when the context carries the **author's own** signer (it decrypts NIP-44 content only when `signer.getPubkey() === event.pubkey`). Decryption failures are swallowed — `decrypted` stays `false` and private tags stay empty.
 - **Writing private list tags:** `ListWriter.buildContent` is where encryption happens. If there are private tags it requires a signer and NIP-44-encrypts them to the author's own pubkey (`A signer is required to encrypt private tags`). If the source was never decrypted, the original ciphertext is preserved untouched (so you don't clobber tags you couldn't see).
 - **`renderTemplate()`** needs a signer only for list kinds with non-empty private tags. All other kinds ignore it. Signing (`signer.sign(stamp(...))`) always needs a signer.
-- **`d`-tag required** (base `validate` throws otherwise) for parameterized-replaceable kinds: `RelaySet` (30002), `Pinboard` (30067), `Classified` (30402), `Feed` (31890), `TimeEvent` (31923), `HandlerRecommendation` (31989), `Handler` (31990), `RoomMeta` (39000), `RoomAdmins` (39001), `RoomMembers` (39002), `Pin` (39067). Call `setIdentifier()`. `Pin` additionally requires a content reference (`e`/`a`/`i` tag) — without a unique `d` tag per pin, every pin from the same author would collide at the same address, since kind 39067 is itself addressable.
+- **`d`-tag required** (base `validate` throws otherwise) for parameterized-replaceable kinds: `RelaySet` (30002), `Pinboard` (30067), `Classified` (30402), `Feed` (31890), `DateEvent` (31922), `TimeEvent` (31923), `HandlerRecommendation` (31989), `Handler` (31990), `RoomMeta` (39000), `RoomAdmins` (39001), `RoomMembers` (39002), `Pin` (39067). Call `setIdentifier()`. `Pin` additionally requires a content reference (`e`/`a`/`i` tag) — without a unique `d` tag per pin, every pin from the same author would collide at the same address, since kind 39067 is itself addressable.
 - **Explicit relays required** (`requiresRelays`, see above): all NIP-29 room and relay-management ops. Call `setRoom(url, room)` (which sets both the `h` tag and the forced route) or `forceRoutes(...routes)`.
 
 ## Kind classes
@@ -261,12 +261,13 @@ Room ops are scoped by the `h` tag and must publish to explicit relays — use `
 | 30402 | NIP-99 | `ClassifiedReader` / `ClassifiedWriter` |
 | 30078 | NIP-78 | `AppDataReader` / `AppDataWriter` |
 | 31890 | NIP-51 | `FeedReader` / `FeedWriter` |
+| 31922 | NIP-52 | `DateEventReader` / `DateEventWriter` |
 | 31923 | NIP-52 | `TimeEventReader` / `TimeEventWriter` |
 | 39067 | Pinboards | `PinReader` / `PinWriter` |
 | 30023 | NIP-23 | `ArticleReader` / `ArticleWriter` (factory `Article`) |
 | 31992 | slash commands | `CommandReader` / `CommandWriter` (factory `Command`) |
 
-`CommentReader`: `root()`/`parent()`; writer `setRoot`/`setParent`/`setRootFromEvent`/`setParentFromEvent`. `PollReader`: `title`, `options`, `pollType`, `endsAt`, `isClosed`, `urls`, plus `results(responses)`; writer `addOption`, `setPollType`, `setEndsAt`. `ReportWriter`: `setPubkey`/`setEventId`/`setReason` (routes to `[userOutbox()]`). Exported types: `CommentRef`, `ClassifiedPrice`, `PollType`, `PollOption`, `PollResult`, `PinReference`.
+`CommentReader`: `root()`/`parent()`; writer `setRoot`/`setParent`/`setRootFromEvent`/`setParentFromEvent`. `PollReader`: `title`, `options`, `pollType`, `endsAt`, `isClosed`, `urls`, plus `results(responses)`; writer `addOption`, `setPollType`, `setEndsAt`. `ReportWriter`: `setPubkey`/`setEventId`/`setReason` (routes to `[userOutbox()]`). `DateEventReader` (31922): the all-day sibling of `TimeEvent`, with `start`/`end` as `YYYY-MM-DD` strings and `end` exclusive; writer `setTitle`/`setLocation`/`setStart`/`setEnd`, deriving the same `D` day-bucket tags (the start day alone when there is no end). Exported types: `CommentRef`, `ClassifiedPrice`, `PollType`, `PollOption`, `PollResult`, `PinReference`.
 
 `ArticleReader` (long-form, 30023): `title`, `summary`, `image`, `publishedAt`, `topics()`; writer `setTitle`/`setSummary`/`setImage`/`setPublishedAt`/`setTopics`.
 
