@@ -12,6 +12,8 @@ import {
   relay,
 } from "@welshman/util"
 import type {EventTemplate, TrustedEvent, RelaySelection, RelayScenario} from "@welshman/util"
+import {parseImeta, parseImetas, renderImeta} from "../behaviors/Imeta.js"
+import type {Imeta} from "../behaviors/Imeta.js"
 import type {BaseEventReader} from "./EventReader.js"
 import type {KindContext} from "./Kind.js"
 
@@ -230,6 +232,22 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
 
   removeZapSplit(pubkey: string) {
     return this.dropTags(spec(["zap", pubkey]))
+  }
+
+  imeta(): Imeta[] {
+    return parseImetas(this.extraTags)
+  }
+
+  /**
+   * Attaches a NIP-92 `imeta` tag describing a piece of media, replacing any
+   * attachment already at that url rather than listing it twice.
+   */
+  addImeta(imeta: Imeta) {
+    return this.removeImeta(imeta.url).addTags(renderImeta(imeta))
+  }
+
+  removeImeta(url: string) {
+    return this.dropTags(tag => parseImeta(tag)?.url === url)
   }
 
   addEmoji(shortcode: string, url: string, address?: string) {

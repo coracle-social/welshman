@@ -44,15 +44,15 @@ A note routes to the author's outbox plus the inboxes of everyone it p-tags (the
 
 ## Picture (kind 20)
 
-A NIP-68 picture event. The content is the description and every image is a NIP-92 `imeta` tag, read as a `PictureImage`.
+A NIP-68 picture event. The content is the description and every image is a NIP-92 `imeta` tag, read and written through the media-attachment behavior any kind has.
 
 ```typescript
 import {Picture} from "@welshman/domain"
-import type {PictureImage} from "@welshman/domain"
+import type {Imeta} from "@welshman/domain"
 
 const picture = Picture.configure(context).reader(event).parse()
 picture.title()      // "title" tag value
-picture.images()     // PictureImage[]
+picture.imeta()      // Imeta[]
 picture.topics()     // t-tag values
 picture.location()   // "location" tag value
 picture.geohash()    // "g" tag value
@@ -61,7 +61,7 @@ await Picture.configure(context)
   .writer()
   .setTitle("Sunrise")
   .setContent("a day out")
-  .addImage({
+  .addImeta({
     url: "https://example.com/a.jpg",
     mimeType: "image/jpeg",
     blurhash: "…",
@@ -74,9 +74,9 @@ await Picture.configure(context)
   .renderTemplate()
 ```
 
-A `PictureImage` is `{url, mimeType?, blurhash?, dim?, alt?, hash?, fallbacks?, extra?}`. `extra` holds the `imeta` entries this type doesn't model — NIP-68's `annotate-user`, say — as raw `key value` strings, so editing a picture another client wrote doesn't silently drop them.
+An `Imeta` is `{url, mimeType?, blurhash?, dim?, alt?, hash?, fallbacks?, extra?}`. `extra` holds the `imeta` entries this type doesn't model — NIP-68's `annotate-user`, say — as raw `key value` strings, so editing a picture another client wrote doesn't silently drop them.
 
-`addImage` replaces any image already at that url rather than listing it twice; `removeImage` takes a url. `renderTemplate` derives the top-level `x` and `m` tags from the images, which is how NIP-68 makes pictures findable by hash and mime type without reading every `imeta` tag, so setting those by hand is unnecessary. `validate()` requires at least one image.
+`renderTemplate` derives the top-level `x` and `m` tags from the attached images, which is how NIP-68 makes pictures findable by hash and mime type without reading every `imeta` tag, so setting those by hand is unnecessary. `validate()` requires at least one image.
 
 ## DirectMessage (kind 14)
 

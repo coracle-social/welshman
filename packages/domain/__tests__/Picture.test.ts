@@ -29,18 +29,7 @@ describe("Picture", () => {
         content: "a day out",
         tags: [
           ["title", "Sunrise"],
-          [
-            "imeta",
-            "url https://example.com/a.jpg",
-            "m image/jpeg",
-            "blurhash bh",
-            "dim 3024x4032",
-            "alt A sunrise over the sea",
-            `x ${hash}`,
-            "fallback https://mirror.example.com/a.jpg",
-            "annotate-user " + pubkey + ":10:20",
-          ],
-          ["imeta", "url https://example.com/b.jpg"],
+          ["imeta", "url https://example.com/a.jpg", "m image/jpeg"],
           ["t", "photography"],
           ["location", "Lisbon"],
           ["g", "ez3"],
@@ -53,36 +42,17 @@ describe("Picture", () => {
     expect(picture.topics()).toEqual(["photography"])
     expect(picture.location()).toBe("Lisbon")
     expect(picture.geohash()).toBe("ez3")
-    expect(picture.images()).toEqual([
-      {
-        url: "https://example.com/a.jpg",
-        mimeType: "image/jpeg",
-        blurhash: "bh",
-        dim: "3024x4032",
-        alt: "A sunrise over the sea",
-        hash,
-        fallbacks: ["https://mirror.example.com/a.jpg"],
-        extra: ["annotate-user " + pubkey + ":10:20"],
-      },
-      {url: "https://example.com/b.jpg", fallbacks: [], extra: []},
+    expect(picture.imeta()).toEqual([
+      {url: "https://example.com/a.jpg", mimeType: "image/jpeg", fallbacks: [], extra: []},
     ])
-  })
-
-  it("skips an imeta tag with no url", async () => {
-    const picture = await read(
-      Picture,
-      makeEvent({tags: [["imeta", "m image/jpeg", "blurhash bh"]]}),
-    )
-
-    expect(picture.images()).toEqual([])
   })
 
   it("mirrors each image's hash and mime type at the top level", async () => {
     const tmpl = await buildTemplate(
       write(Picture)
         .setTitle("Sunrise")
-        .addImage({url: "https://example.com/a.jpg", mimeType: "image/jpeg", hash})
-        .addImage({url: "https://example.com/b.jpg", mimeType: "image/jpeg"}),
+        .addImeta({url: "https://example.com/a.jpg", mimeType: "image/jpeg", hash})
+        .addImeta({url: "https://example.com/b.jpg", mimeType: "image/jpeg"}),
       signer,
     )
 
@@ -119,33 +89,6 @@ describe("Picture", () => {
       event.tags.filter(t => t[0] === "imeta"),
     )
     expect(tmpl.tags).toContainEqual(["alt", "x"])
-  })
-
-  it("replaces an image added twice at the same url", async () => {
-    const tmpl = await buildTemplate(
-      write(Picture)
-        .addImage({url: "https://example.com/a.jpg", alt: "first"})
-        .addImage({url: "https://example.com/a.jpg", alt: "second"}),
-      signer,
-    )
-
-    expect(tmpl.tags.filter(t => t[0] === "imeta")).toEqual([
-      ["imeta", "url https://example.com/a.jpg", "alt second"],
-    ])
-  })
-
-  it("drops an image", async () => {
-    const tmpl = await buildTemplate(
-      write(Picture)
-        .addImage({url: "https://example.com/a.jpg"})
-        .addImage({url: "https://example.com/b.jpg"})
-        .removeImage("https://example.com/a.jpg"),
-      signer,
-    )
-
-    expect(tmpl.tags.filter(t => t[0] === "imeta")).toEqual([
-      ["imeta", "url https://example.com/b.jpg"],
-    ])
   })
 
   it("requires an image", async () => {

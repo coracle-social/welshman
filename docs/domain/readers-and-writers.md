@@ -109,6 +109,7 @@ All base getters are synchronous reads over the wrapped event:
 | `contentWarning()` | `true` if a NIP-36 `content-warning` tag is present |
 | `contentWarningReason()` | that tag's reason, or `undefined` when it was tagged bare |
 | `client()` | the NIP-89 `client` tag as a `Client`, or `undefined` |
+| `imeta()` | the NIP-92 `imeta` tags as an `Imeta[]` |
 
 ```typescript
 const reader = await SomeKind.configure(context).reader(event).parse()
@@ -129,7 +130,7 @@ getContentWarning(event)  // {reason?: string} | undefined — the reason is opt
 getClient(event)          // Client | undefined
 ```
 
-`getEmojis` and `getZapSplits` back `emojis()` and `zapSplits()` the same way.
+`getEmojis`, `getImeta` and `getZapSplits` back `emojis()`, `imeta()` and `zapSplits()` the same way.
 
 Each subclass adds its own getters on top — `profile.name()`, `followList.pubkeys()`, `zapGoal.amount()`, and so on.
 
@@ -182,6 +183,16 @@ writer
   .keepTags(tag => tag[0] !== "t") // keep matching
   .dropTags(tag => tag[0] === "t") // drop matching
 ```
+
+A behavior tag a kind can carry any number of times gets add/remove helpers instead of a setter:
+
+```typescript
+writer
+  .addEmoji(shortcode, url, address?)                     // ["emoji", …] / removeEmoji(shortcode)
+  .addImeta({url, mimeType, alt, …})                      // NIP-92 ["imeta", …] / removeImeta(url)
+```
+
+`addImeta` replaces whatever is already attached at that url rather than listing it twice, and `writer.imeta()` reads back what the writer is carrying. `parseImeta` and `renderImeta` are exported for working with a single tag.
 
 ### Shared tag / hint helpers
 
