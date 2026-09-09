@@ -1,5 +1,5 @@
-import {describe, it, expect, beforeEach} from "vitest"
-import {htmlRenderOptions, Renderer, textRenderOptions} from "../src"
+import {describe, it, expect, beforeEach, vi} from "vitest"
+import {htmlRenderOptions, parse, renderAsText, Renderer, textRenderOptions} from "../src"
 
 describe("Renderer", () => {
   let renderer: Renderer
@@ -61,9 +61,21 @@ describe("Renderer", () => {
       expect(renderer.toString()).toBe("1234567890abcdef")
     })
 
-    it("should escape HTML in text content", () => {
-      renderer.addText('<script>alert("xss")</script>')
-      expect(renderer.toString()).not.toContain("<script>")
+    it("should leave markup in text content alone", () => {
+      renderer.addText("a < b && c")
+      expect(renderer.toString()).toBe("a < b && c")
+    })
+
+    it("should render without a document", () => {
+      vi.stubGlobal("document", undefined)
+
+      try {
+        const parsed = parse({content: "Hello https://example.com"})
+
+        expect(renderAsText(parsed).toString()).toBe("Hello https://example.com/")
+      } finally {
+        vi.unstubAllGlobals()
+      }
     })
   })
 })

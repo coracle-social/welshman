@@ -28,11 +28,7 @@ export class Renderer {
   toString = () => this.value
 
   addText = (value: string) => {
-    const element = this.options.createElement("div")
-
-    element.innerText = value
-
-    this.value += element.innerHTML
+    this.value += this.options.escapeText(value)
   }
 
   addNewlines = (count: number) => {
@@ -53,15 +49,16 @@ export class Renderer {
 export type RenderOptions = {
   newline: string
   entityBase: string
+  escapeText: (value: string) => string
   renderLink: (href: string, display: string) => string
   renderEntity: (entity: string) => string
-  createElement: (tag: string) => any
+  createElement?: (tag: string) => any
 }
 
 export const textRenderOptions = {
   newline: "\n",
   entityBase: "",
-  createElement: (tag: string) => document.createElement(tag) as any,
+  escapeText: (value: string) => value,
   renderLink: (href: string, display: string) => href,
   renderEntity: (entity: string) => entity.slice(0, 16) + "…",
 }
@@ -70,6 +67,13 @@ export const htmlRenderOptions = {
   newline: "\n",
   entityBase: "https://njump.me/",
   createElement: (tag: string) => document.createElement(tag) as any,
+  escapeText(value: string) {
+    const element = this.createElement("div")
+
+    element.innerText = value
+
+    return element.innerHTML
+  },
   renderLink(href: string, display: string) {
     const element = this.createElement("a")
 
