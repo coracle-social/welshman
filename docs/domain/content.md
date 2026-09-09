@@ -1,6 +1,6 @@
 # Content
 
-A grab-bag of content kinds: NIP-01 notes, NIP-17 direct messages, NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-84 highlights, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `DateEvent`, `TimeEvent`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
+A grab-bag of content kinds: NIP-01 notes, NIP-68 pictures, NIP-17 direct messages, NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-84 highlights, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `DateEvent`, `TimeEvent`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
 
 Every example below assumes a bound `KindContext` — you get a reader/writer by calling `SomeKind.configure(context)`. A reader is built and then parsed (`…reader(event).parse()`); none of the kinds on this page decrypt, so nothing here needs awaiting. A writer is a chainable builder whose terminal `renderTemplate()` returns an unsigned `EventTemplate`. To turn that into a signed event, hand it to a signer:
 
@@ -41,6 +41,42 @@ await Note.configure(context)
 ```
 
 A note routes to the author's outbox plus the inboxes of everyone it p-tags (the default `renderRoutes()`), so replies reach the people they mention.
+
+## Picture (kind 20)
+
+A NIP-68 picture event. The content is the description and every image is a NIP-92 `imeta` tag, read as a `PictureImage`.
+
+```typescript
+import {Picture} from "@welshman/domain"
+import type {PictureImage} from "@welshman/domain"
+
+const picture = Picture.configure(context).reader(event).parse()
+picture.title()      // "title" tag value
+picture.images()     // PictureImage[]
+picture.topics()     // t-tag values
+picture.location()   // "location" tag value
+picture.geohash()    // "g" tag value
+
+await Picture.configure(context)
+  .writer()
+  .setTitle("Sunrise")
+  .setContent("a day out")
+  .addImage({
+    url: "https://example.com/a.jpg",
+    mimeType: "image/jpeg",
+    blurhash: "…",
+    dim: "3024x4032",
+    alt: "A sunrise over the sea",
+    hash: sha256,
+    fallbacks: ["https://mirror.example.com/a.jpg"],
+  })
+  .setTopics(["photography"])
+  .renderTemplate()
+```
+
+A `PictureImage` is `{url, mimeType?, blurhash?, dim?, alt?, hash?, fallbacks?, extra?}`. `extra` holds the `imeta` entries this type doesn't model — NIP-68's `annotate-user`, say — as raw `key value` strings, so editing a picture another client wrote doesn't silently drop them.
+
+`addImage` replaces any image already at that url rather than listing it twice; `removeImage` takes a url. `renderTemplate` derives the top-level `x` and `m` tags from the images, which is how NIP-68 makes pictures findable by hash and mime type without reading every `imeta` tag, so setting those by hand is unnecessary. `validate()` requires at least one image.
 
 ## DirectMessage (kind 14)
 
