@@ -140,7 +140,7 @@ The DSL constructors `relays(urls)` and `inboxes(pubkeys)` return **arrays** (sp
 - **Reading private list tags:** a `ListReader` only surfaces `privateTags` when the context carries the **author's own** signer (it decrypts NIP-44 content only when `signer.getPubkey() === event.pubkey`). Decryption failures are swallowed — `decrypted` stays `false` and private tags stay empty.
 - **Writing private list tags:** `ListWriter.buildContent` is where encryption happens. If there are private tags it requires a signer and NIP-44-encrypts them to the author's own pubkey (`A signer is required to encrypt private tags`). If the source was never decrypted, the original ciphertext is preserved untouched (so you don't clobber tags you couldn't see).
 - **`renderTemplate()`** needs a signer only for list kinds with non-empty private tags. All other kinds ignore it. Signing (`signer.sign(stamp(...))`) always needs a signer.
-- **`d`-tag required** (base `validate` throws otherwise) for parameterized-replaceable kinds: `RelaySet` (30002), `Pinboard` (30067), `Classified` (30402), `Feed` (31890), `DateEvent` (31922), `TimeEvent` (31923), `HandlerRecommendation` (31989), `Handler` (31990), `RoomMeta` (39000), `RoomAdmins` (39001), `RoomMembers` (39002), `Pin` (39067). Call `setIdentifier()`. `Pin` additionally requires a content reference (`e`/`a`/`i` tag) — without a unique `d` tag per pin, every pin from the same author would collide at the same address, since kind 39067 is itself addressable.
+- **`d`-tag required** (base `validate` throws otherwise) for parameterized-replaceable kinds: `RelaySet` (30002), `BadgeDefinition` (30009), `Pinboard` (30067), `Classified` (30402), `Feed` (31890), `DateEvent` (31922), `TimeEvent` (31923), `HandlerRecommendation` (31989), `Handler` (31990), `RoomMeta` (39000), `RoomAdmins` (39001), `RoomMembers` (39002), `Pin` (39067). Call `setIdentifier()`. `Pin` additionally requires a content reference (`e`/`a`/`i` tag) — without a unique `d` tag per pin, every pin from the same author would collide at the same address, since kind 39067 is itself addressable.
 - **Explicit relays required** (`requiresRelays`, see above): all NIP-29 room and relay-management ops. Call `setRoom(url, room)` (which sets both the `h` tag and the forced route) or `forceRoutes(...routes)`.
 
 ## Kind classes
@@ -277,6 +277,16 @@ Room ops are scoped by the `h` tag and must publish to explicit relays — use `
 `RoomPinsReader`/`RoomUpdatePinsReader`: `pins()`, `ids()`, `addresses()` (`RoomPinsReader` adds `isPinned`); writer `setPins`. Both set `requiresRelays`.
 
 `PinboardReader` (30067): `title`, `description`, `image`, `topics()`, `collaborative()`; writer `setTitle`/`setDescription`/`setImage`/`setTopics`/`setCollaborative`. `PinReader` (39067): `boards()`, `isProfilePin()`, `reference()` (a `PinReference` discriminated union), `title`, `topics()`; writer `addBoard`/`removeBoard`, `setEvent`/`setAddress`/`setExternal`, `setTitle`/`setTopics`.
+
+### Badges (NIP-58)
+
+| Kind | NIP | Reader / Writer |
+|---|---|---|
+| 8 | NIP-58 | `BadgeAwardReader` / `BadgeAwardWriter` |
+| 30008 | NIP-58 | `ProfileBadgesReader` / `ProfileBadgesWriter` |
+| 30009 | NIP-58 | `BadgeDefinitionReader` / `BadgeDefinitionWriter` |
+
+`BadgeDefinitionReader` (30009): `name`, `description`, `image()`, `thumbs()` (both `BadgeImage`, `{url, dim?}`); writer `setName`/`setDescription`/`setImage`/`setThumbs`, and `setIdentifier()` for the badge's slug. `BadgeAwardReader` (8): `badge()` (the definition's address), `awardees()`; writer `setBadge`/`addAwardee`/`removeAwardee`, and `validate()` requires both a badge and an awardee. `ProfileBadgesReader` (30008): `badges()` (a `ProfileBadge[]` of `{address, awardId, relay?}` read from consecutive `a`/`e` pairs, in display order), `includes(address)`; writer `setBadges`/`addBadge`/`removeBadge`. Its `d` tag is fixed at `profile_badges` by the writer, so it never needs `setIdentifier()`. Exported types: `BadgeImage`, `ProfileBadge`.
 
 ## Using it from @welshman/app
 

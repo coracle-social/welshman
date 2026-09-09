@@ -58,6 +58,7 @@ export default defineConfig({
             {text: "Handlers", link: "/domain/handlers"},
             {text: "Zaps", link: "/domain/zaps"},
             {text: "Content", link: "/domain/content"},
+            {text: "Badges", link: "/domain/badges"},
           ],
         },
         {
