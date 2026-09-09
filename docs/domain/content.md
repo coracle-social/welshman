@@ -1,6 +1,6 @@
 # Content
 
-A grab-bag of content kinds: NIP-01 notes, NIP-68 pictures, NIP-17 direct messages, NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-84 highlights, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `DateEvent`, `TimeEvent`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
+A grab-bag of content kinds: NIP-01 notes, NIP-68 pictures, NIP-17 direct messages, NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-84 highlights, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `DateEvent`, `TimeEvent`, `CalendarRsvp`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
 
 Every example below assumes a bound `KindContext` — you get a reader/writer by calling `SomeKind.configure(context)`. A reader is built and then parsed (`…reader(event).parse()`); none of the kinds on this page decrypt, so nothing here needs awaiting. A writer is a chainable builder whose terminal `renderTemplate()` returns an unsigned `EventTemplate`. To turn that into a signed event, hand it to a signer:
 
@@ -322,6 +322,41 @@ await TimeEvent.configure(context)
 
 When both `start` and `end` are set, `buildTags` auto-generates one `["D", dayIndex]` tag per day in `[start, end)` (day-bucket index tags), so the event is discoverable by day.
 
+## CalendarRsvp (kind 31925)
+
+A NIP-52 rsvp to a calendar event. It names the event by address rather than by id, since a `TimeEvent` may be edited after the rsvp is written, and carries a `status` — `accepted`, `declined`, or `tentative` — plus an optional `fb` saying whether the author is otherwise free or busy.
+
+```typescript
+import {CalendarRsvp} from "@welshman/domain"
+import type {RsvpStatus, RsvpFreebusy} from "@welshman/domain"
+
+const rsvp = CalendarRsvp.configure(context).reader(event).parse()
+rsvp.calendarEvent()     // the event's address
+rsvp.calendarEventId()   // e-tag value, when the author pinned one revision
+rsvp.status()            // RsvpStatus | undefined
+rsvp.freebusy()          // RsvpFreebusy | undefined
+
+await CalendarRsvp.configure(context)
+  .writer()
+  .setIdentifier()                            // required d tag for kind 31925
+  .setCalendarEventFromEvent(calendarEvent)   // or setCalendarEvent(address)
+  .setStatus("accepted")
+  .setFreebusy("busy")
+  .renderTemplate()
+```
+
+`setCalendarEventFromEvent` also pins the rsvp to that revision with an `e` tag and p-tags the organizer, which under the default routing is what delivers the rsvp to their inbox. `setCalendarEvent` takes an address alone, for answering an event you haven't fetched.
+
+Free/busy is only meaningful when you are coming, so `setStatus("declined")` clears it, and `validate()` rejects one set after declining. An rsvp with no calendar event or no status is refused the same way.
+
+To read an event's rsvps, `forCalendarEvent(address)` filters on the `a` tag and asks the organizer's inbox, where rsvps addressed to them arrive:
+
+```typescript
+const {filters, relays} = await CalendarRsvp.configure(context)
+  .query()
+  .forCalendarEvent(address)
+  .render()
+```
 ## Poll (kind 1068) and PollResponse (kind 1018)
 
 NIP-88 polls. A `Poll` has a title (content), options, a type, and an optional close time. Types are exported as `PollType` (`"singlechoice" | "multiplechoice"`), options as `PollOption`, and tallies as `PollResult`.
@@ -400,4 +435,4 @@ A report's reason lives on both the `p` and `e` tags; the writer normalizes it s
 
 ## See also
 
-- [Readers & Writers](./readers-and-writers) — the base `EventReader`/`EventWriter` pattern, the `configure` entry point, default routing, and `d`-tag validation for `Classified`, `DateEvent` and `TimeEvent`.
+- [Readers & Writers](./readers-and-writers) — the base `EventReader`/`EventWriter` pattern, the `configure` entry point, default routing, and `d`-tag validation for `Classified`, `DateEvent`, `TimeEvent` and `CalendarRsvp`.
