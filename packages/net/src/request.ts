@@ -87,6 +87,7 @@ export const requestOne = (options: RequestOneOptions) => {
   const resubscribeAttempts = options.resubscribeAttempts || 0
 
   let closed = false
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
 
   const closeId = (id: string) => {
     if (open.delete(id)) {
@@ -126,6 +127,8 @@ export const requestOne = (options: RequestOneOptions) => {
     if (closed) return
 
     closed = true
+
+    if (timeoutId) clearTimeout(timeoutId)
 
     for (const id of Array.from(open)) {
       closeId(id)
@@ -228,7 +231,7 @@ export const requestOne = (options: RequestOneOptions) => {
   // If we're auto-closing, make sure it happens even if the relay doesn't send an eose
   // and the caller doesn't provide a signal, in order to avoid memory leaks
   if (options.autoClose && !options.signal) {
-    setTimeout(close, 30_000)
+    timeoutId = setTimeout(close, 30_000)
   }
 
   for (const filter of options.filters) {

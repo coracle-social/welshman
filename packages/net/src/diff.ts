@@ -1,5 +1,5 @@
 import {EventEmitter} from "events"
-import {on, sleep, randomId, groupBy, pushToMapKey, inc, flatten, chunk} from "@welshman/lib"
+import {on, randomId, groupBy, pushToMapKey, inc, flatten, chunk} from "@welshman/lib"
 import {SignedEvent, TrustedEvent, Filter} from "@welshman/util"
 import {
   RelayMessage,
@@ -148,17 +148,15 @@ export const diff = async ({relays, filters, ...options}: DiffOptions) => {
             async filter =>
               new Promise<DiffItem>((resolve, reject) => {
                 const diff = new Difference({relay, filter, ...options})
+                const timeoutId = setTimeout(() => diff.close(), 30_000)
 
                 diff.on(DifferenceEvent.Close, () => {
+                  clearTimeout(timeoutId)
                   resolve({relay, have: diff.have, need: diff.need})
                 })
 
                 diff.on(DifferenceEvent.Error, (message, url) => {
                   // Pass, to suppress event emitter's default error propagation
-                })
-
-                sleep(30_000).then(() => {
-                  diff.close()
                 })
               }),
           ),

@@ -117,6 +117,33 @@ describe("requestOne", () => {
     expect(sendSpy.mock.calls.filter(([m]) => m[0] === ClientMessageType.Close)).toHaveLength(2)
   })
 
+  it("clears the auto-close fallback once the request is closed", async () => {
+    const ids: string[] = []
+    const sendSpy = vi.fn(m => {
+      if (m[0] === "REQ") {
+        ids.push(m[1])
+      }
+    })
+    const adapter = new MockAdapter("1", sendSpy)
+
+    requestOne({
+      relay: "whatever",
+      filters: [{kinds: [1]}],
+      context: {getAdapter: () => adapter},
+      autoClose: true,
+    })
+
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(vi.getTimerCount()).toBe(1)
+
+    adapter.receive(["EOSE", ids[0]])
+
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
   it("keeps subscriptions open past eose when not auto-closing", async () => {
     const ids: string[] = []
     const sendSpy = vi.fn(m => {
