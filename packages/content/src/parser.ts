@@ -40,6 +40,7 @@ export enum ParsedType {
   Address = "address",
   Cashu = "cashu",
   Code = "code",
+  Command = "command",
   Ellipsis = "ellipsis",
   Email = "email",
   Emoji = "emoji",
@@ -66,6 +67,16 @@ export type ParsedCashu = ParsedBase & {
 export type ParsedCode = ParsedBase & {
   type: ParsedType.Code
   value: string
+}
+
+export type ParsedCommandValue = {
+  command: string
+  pubkey?: string
+}
+
+export type ParsedCommand = ParsedBase & {
+  type: ParsedType.Command
+  value: ParsedCommandValue
 }
 
 export type ParsedEllipsis = ParsedBase & {
@@ -156,6 +167,7 @@ export type Parsed =
   | ParsedAddress
   | ParsedCashu
   | ParsedCode
+  | ParsedCommand
   | ParsedEllipsis
   | ParsedEmail
   | ParsedEmoji
@@ -175,6 +187,8 @@ export const isAddress = (parsed: Parsed): parsed is ParsedAddress =>
   parsed.type === ParsedType.Address
 export const isCashu = (parsed: Parsed): parsed is ParsedCashu => parsed.type === ParsedType.Cashu
 export const isCode = (parsed: Parsed): parsed is ParsedCode => parsed.type === ParsedType.Code
+export const isCommand = (parsed: Parsed): parsed is ParsedCommand =>
+  parsed.type === ParsedType.Command
 export const isEllipsis = (parsed: Parsed): parsed is ParsedEllipsis =>
   parsed.type === ParsedType.Ellipsis
 export const isEmail = (parsed: Parsed): parsed is ParsedEmail => parsed.type === ParsedType.Email
@@ -232,6 +246,50 @@ export const parseCodeInline = (text: string, context: ParseContext): ParsedCode
 
   if (raw) {
     return {type: ParsedType.Code, value, raw}
+  }
+}
+
+// A NIP-CD trigger runs to the first whitespace or qualifier, and must be non-empty
+const COMMAND_TRIGGER = /^\/([^\s@]+)/
+
+// bech32 is lowercase alphanumeric, so a qualifier ends at punctuation without a delimiter
+const COMMAND_QUALIFIER = /^@(?:nostr:)?([a-z0-9]+)/
+
+const parseCommandPubkey = (entity: string) => {
+  if (entity.match(/^[0-9a-f]{64}$/)) {
+    return entity
+  }
+
+  try {
+    const {type, data} = decode(entity)
+
+    if (type === "npub") return data as string
+    if (type === "nprofile") return (data as ProfilePointer).pubkey
+  } catch (e) {
+    // Pass
+  }
+}
+
+export const parseCommand = (text: string, context: ParseContext): ParsedCommand | void => {
+  // An invocation is addressed to whoever is listening rather than written for a reader, so it
+  // only counts as one at the very start of the content — a slash later on is punctuation or
+  // part of a path. Whether anyone answers to the trigger is the renderer's business.
+  const isStart = text.length === context.content.length
+  const [trigger, command] = (isStart ? text.match(COMMAND_TRIGGER) : null) || []
+
+  if (trigger) {
+    const [qualifier, entity] = text.slice(trigger.length).match(COMMAND_QUALIFIER) || []
+    const pubkey = qualifier ? parseCommandPubkey(entity) : undefined
+
+    // A qualifier naming nobody leaves the whole thing as text, rather than an invocation
+    // aimed at everyone, which is what dropping it would mean
+    if (!qualifier || pubkey) {
+      return {
+        type: ParsedType.Command,
+        value: {command, pubkey},
+        raw: trigger + (qualifier || ""),
+      }
+    }
   }
 }
 
@@ -408,6 +466,7 @@ export const parseLegacyMention = (
 }
 
 export const parsers = [
+  parseCommand,
   parseNewline,
   parseLegacyMention,
   parseTopic,
@@ -437,10 +496,13 @@ export const parseNext = (raw: string, context: ParseContext): Parsed | void => 
 // Main exports
 
 export const parse = ({content = "", tags = []}: {content?: string; tags?: string[][]}) => {
-  const context: ParseContext = {content, tags, results: []}
+  // Whatever we end up parsing is what `content` means to a parser, alt tag included, so that
+  // one asking whether it's at the start of the content gets a straight answer
+  const text = content.trim() || tags.find(t => t[0] === "alt")?.[1] || ""
+  const context: ParseContext = {content: text, tags, results: []}
 
   let buffer = ""
-  let remaining = content.trim() || tags.find(t => t[0] === "alt")?.[1] || ""
+  let remaining = text
 
   while (remaining) {
     const parsed = parseNext(remaining, context)
@@ -495,6 +557,8 @@ export const truncate = (
       case ParsedType.Profile:
       case ParsedType.Room:
         return entityLength
+      case ParsedType.Command:
+        return parsed.raw.length
       case ParsedType.Emoji:
         return parsed.value.name.length
       default:

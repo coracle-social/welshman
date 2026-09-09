@@ -36,6 +36,7 @@ yarn add @welshman/content
 | `Text` | `string` | Plain text |
 | `Newline` | `string` | One or more `\n` characters |
 | `Topic` | `string` | Hashtag text without the `#`; numeric-only tags are skipped |
+| `Command` | `{ command: string, pubkey?: string }` | A NIP-CD invocation (`/kick`, `/kick@npub1…`), only ever at the start of the content; `pubkey` is the executor the qualifier names |
 | `Link` | `{ url: URL, meta: Record<string, string> }` | URLs with any scheme (http, https, ftp, ws, wss, etc.) and bare domains without a protocol; `meta` is populated from `imeta` tags or URL hash params |
 | `LinkGrid` | `{ links: ParsedLinkValue[] }` | Produced by `reduceLinks`; a collection of adjacent block links |
 | `Profile` | `ProfilePointer` (`{ pubkey, relays? }`) | nostr:npub / nostr:nprofile / @nostr:npub / @nostr:nprofile references (the `nostr:` prefix is required) |
@@ -55,9 +56,10 @@ Every `Parsed` element also has a `raw: string` field holding the original match
 All guards narrow the union type:
 
 ```
-isAddress  isCashu    isCode    isEllipsis  isEmail
-isEmoji    isEvent    isImage   isInvoice   isLink
-isLinkGrid isNewline  isProfile isText      isTopic
+isAddress  isCashu    isCode    isCommand   isEllipsis
+isEmail    isEmoji    isEvent   isImage     isInvoice
+isLink     isLinkGrid isNewline isProfile   isText
+isTopic
 ```
 
 `isImage(parsed)` — special guard: true only for `ParsedLink` elements whose URL ends in `.jpg/.jpeg/.png/.gif/.webp`.
@@ -83,7 +85,7 @@ isLinkGrid isNewline  isProfile isText      isTopic
 | `renderEntity(entity)` | `entity.slice(0, 16) + "…"` | Display text for entity links |
 | `createElement(tag)` | `document.createElement(tag)` | DOM element factory; override for SSR/non-browser |
 
-Individual per-type render helpers are also exported (`renderText`, `renderLink`, `renderProfile`, `renderEvent`, `renderAddress`, `renderTopic`, `renderEmoji`, `renderCode`, `renderCashu`, `renderInvoice`, `renderEmail`, `renderNewline`, `renderEllipsis`, `renderOne`, `renderMany`).
+Individual per-type render helpers are also exported (`renderText`, `renderLink`, `renderProfile`, `renderEvent`, `renderAddress`, `renderTopic`, `renderEmoji`, `renderCode`, `renderCommand`, `renderCashu`, `renderInvoice`, `renderEmail`, `renderNewline`, `renderEllipsis`, `renderOne`, `renderMany`).
 
 ## Common Patterns
 
@@ -206,4 +208,6 @@ const emojiElements = parsed.filter(isEmoji)
 - **`LinkGrid` is not rendered by default renderers**: `renderOne` has no case for `ParsedType.LinkGrid`. You must handle it yourself when building a custom UI (e.g. render each `value.links` entry as an image or card grid).
 - **Legacy mentions** (`#[0]`, `#[1]`) are parsed automatically from the `tags` array and emitted as `ParsedProfile` or `ParsedEvent` elements.
 - **Numeric hashtags are skipped**: `#42` will not produce a `Topic` element.
+- **A `Command` is syntax, not a promise that anyone answers to it**: the parser has no idea which NIP-CD definitions exist, so `/nonsense` parses as a `Command` too. Match `value.command` (and `value.pubkey`, when the invocation names an executor) against the definitions you have, and render the element's `raw` as text when nothing matches.
+- **Only the start of the content is an invocation**: a slash later in the text is punctuation or part of a path, so `look in /etc/passwd` produces no `Command`.
 - **Email matching** strips a leading `mailto:` — the resulting `ParsedEmail.value` is always the bare address string.

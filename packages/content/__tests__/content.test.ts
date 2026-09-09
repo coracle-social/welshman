@@ -1,5 +1,13 @@
 import {describe, it, expect} from "vitest"
-import {ParsedLink, ParsedType, parse, reduceLinks, renderAsHtml, renderAsText} from "../src"
+import {
+  ParsedLink,
+  ParsedType,
+  isCommand,
+  parse,
+  reduceLinks,
+  renderAsHtml,
+  renderAsText,
+} from "../src"
 import {npubEncode, noteEncode} from "nostr-tools/nip19"
 
 describe("Content Parsing", () => {
@@ -185,6 +193,54 @@ describe("Content Parsing", () => {
       const result = parse({content: "lnbcsomethinglonger.example"})
 
       expect(result[0]).toMatchObject({type: ParsedType.Link})
+    })
+  })
+
+  describe("Command Parsing", () => {
+    it("should parse a leading command", () => {
+      const result = parse({content: "/kick spammer"})
+
+      expect(result[0]).toMatchObject({
+        type: ParsedType.Command,
+        value: {command: "kick"},
+        raw: "/kick",
+      })
+      expect(result[1]).toMatchObject({type: ParsedType.Text, value: " spammer"})
+    })
+
+    it("should parse a command's qualifier as a pubkey", () => {
+      const result = parse({content: `/kick@${npub} spammer`})
+
+      expect(result[0]).toMatchObject({
+        type: ParsedType.Command,
+        value: {command: "kick", pubkey: "ee".repeat(32)},
+        raw: `/kick@${npub}`,
+      })
+    })
+
+    it("should parse arguments as content", () => {
+      const result = parse({content: `/mute ${npub}`})
+
+      expect(result[0]).toMatchObject({type: ParsedType.Command})
+      expect(result[2]).toMatchObject({type: ParsedType.Profile})
+    })
+
+    it("should not parse a command anywhere but the start", () => {
+      const result = parse({content: "look in /etc/passwd"})
+
+      expect(result.some(isCommand)).toBe(false)
+    })
+
+    it("should not parse a command whose qualifier names nobody", () => {
+      const result = parse({content: "/kick@spammer"})
+
+      expect(result.some(isCommand)).toBe(false)
+    })
+
+    it("should render a command as the text it was written as", () => {
+      const parsed = parse({content: `/kick@${npub} spammer`})
+
+      expect(renderAsText(parsed).toString()).toBe(`/kick@${npub} spammer`)
     })
   })
 

@@ -10,6 +10,7 @@ Defines all supported content types:
 - `Address` - naddr references to parameterized replaceable events
 - `Cashu` - Cashu token strings
 - `Code` - Code blocks and inline code
+- `Command` - NIP-CD command invocations at the start of the content
 - `Ellipsis` - Truncation indicators
 - `Email` - Email addresses
 - `Emoji` - Custom emoji references
