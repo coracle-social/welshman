@@ -298,6 +298,8 @@ export class Thunk extends BaseThunk {
       this.options.app.repository.removeEvent(unsignedId)
       this.options.app.repository.publish(signedEvent)
 
+      this.event = signedEvent
+
       return this._publish(signedEvent)
     } catch (e: any) {
       console.error("Failed to sign event", e)
@@ -408,10 +410,13 @@ export class Thunks {
     return thunk
   }
 
-  retry = (thunk: BaseThunk) =>
-    thunk instanceof MergedThunk
-      ? new MergedThunk(thunk.thunks.map(t => this.publish(t.options)))
-      : this.publish((thunk as Thunk).options)
+  retry = (thunk: BaseThunk) => {
+    const republish = (t: Thunk) => this.publish({...t.options, event: t.event})
+
+    return thunk instanceof MergedThunk
+      ? new MergedThunk(thunk.thunks.map(republish))
+      : republish(thunk as Thunk)
+  }
 
   merge(thunks: BaseThunk[]) {
     return new MergedThunk(Array.from(this.flatten(thunks)))
