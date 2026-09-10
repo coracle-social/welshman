@@ -1,6 +1,5 @@
 import {verifiedSymbol, verifyEvent as verifyEventPure} from "nostr-tools/pure"
 import {setNostrWasm, verifyEvent as verifyEventWasm} from "nostr-tools/wasm"
-import {initNostrWasm} from "nostr-wasm"
 import {lte, pick, now} from "@welshman/lib"
 import {getAddress} from "./Address.js"
 import {
@@ -61,16 +60,21 @@ export const makeEvent = (
 export const verifyEvent = (() => {
   let verify = verifyEventPure
 
+  // nostr-wasm inlines its binary as base64, which is a third of a typical app bundle. Importing
+  // it dynamically keeps it out of the main chunk, at the cost of verifying with the pure js
+  // implementation until it arrives.
   if (typeof WebAssembly === "object") {
-    initNostrWasm().then(
-      nostrWasm => {
-        setNostrWasm(nostrWasm)
-        verify = verifyEventWasm
-      },
-      e => {
-        console.warn(e)
-      },
-    )
+    import("nostr-wasm")
+      .then(({initNostrWasm}) => initNostrWasm())
+      .then(
+        nostrWasm => {
+          setNostrWasm(nostrWasm)
+          verify = verifyEventWasm
+        },
+        e => {
+          console.warn(e)
+        },
+      )
   }
 
   return (event: TrustedEvent) => {

@@ -92,6 +92,8 @@ These are registered automatically when the package loads:
 | `nip55` | `"nip55"` | `{pubkey, signer}` | `Nip55Signer` (Android signer app) |
 | `pomade` | `"pomade"` | `{clientOptions, email}` | `PomadeSigner` |
 
+`pomade` imports `@pomade/core` lazily, the first time a pomade session builds a signer, so apps that never use it don't carry it (and its zod, hash-wasm and frostr dependencies) in their main bundle. `getSigner` returns `MaybeAsync`, so this is invisible to callers.
+
 `nip55` needs the Capacitor plugin handed to `@welshman/signer` before use — the handler is registered either way, but building a signer from it throws `"Nip55 is not enabled"` until you do. Call this once at startup in a Capacitor app:
 
 ```typescript

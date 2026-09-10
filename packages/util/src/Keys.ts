@@ -1,5 +1,5 @@
-import {schnorr} from "@noble/curves/secp256k1"
-import {bytesToHex, hexToBytes} from "@noble/curves/abstract/utils"
+import {schnorr} from "@noble/curves/secp256k1.js"
+import {bytesToHex, hexToBytes} from "@noble/curves/utils.js"
 import {generateSecretKey, getPublicKey, getEventHash} from "nostr-tools/pure"
 import {now} from "@welshman/lib"
 import {
@@ -18,8 +18,9 @@ export const getPubkey = (secret: string) => getPublicKey(hexToBytes(secret))
 
 export const getHash = (event: OwnedEvent) => getEventHash(event)
 
+// @noble/curves v2 takes bytes only — hex strings are no longer accepted.
 export const getSig = (event: HashedEvent, secret: string) =>
-  bytesToHex(schnorr.sign(event.id, secret))
+  bytesToHex(schnorr.sign(hexToBytes(event.id), hexToBytes(secret)))
 
 export const stamp = (event: EventTemplate, created_at = now()) => ({...event, created_at})
 

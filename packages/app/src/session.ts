@@ -1,4 +1,3 @@
-import {Client as PomadeClient, PomadeSigner} from "@pomade/core"
 import type {ClientOptions as PomadeClientOptions} from "@pomade/core"
 import type {MaybeAsync} from "@welshman/lib"
 import {Nip46Broker, Nip46Signer, Nip07Signer, Nip01Signer, Nip55Signer} from "@welshman/signer"
@@ -54,10 +53,16 @@ export const nip55 = defineSessionHandler({
   getSigner: (data: {pubkey: string; signer: string}) => new Nip55Signer(data.signer, data.pubkey),
 })
 
+// @pomade/core pulls in two zod majors, hash-wasm and the frostr stack, so it's loaded only once
+// a pomade session is actually used. getSigner already returns MaybeAsync, so awaiting the import
+// costs nothing at the type level.
 export const pomade = defineSessionHandler({
   method: "pomade",
-  getSigner: (data: {clientOptions: PomadeClientOptions; email: string}) =>
-    new PomadeSigner(new PomadeClient(data.clientOptions)),
+  getSigner: async (data: {clientOptions: PomadeClientOptions; email: string}) => {
+    const {Client, PomadeSigner} = await import("@pomade/core")
+
+    return new PomadeSigner(new Client(data.clientOptions))
+  },
 })
 
 // ── Registry: deserialize a stored session back into a signer ──

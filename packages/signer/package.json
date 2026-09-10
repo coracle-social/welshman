@@ -8,6 +8,7 @@
     "access": "public"
   },
   "type": "module",
+  "sideEffects": false,
   "main": "dist/signer/src/index.js",
   "types": "dist/signer/src/index.d.ts",
   "files": [
@@ -20,22 +21,20 @@
     "prepublishOnly": "pnpm run build"
   },
   "peerDependencies": {
-    "@noble/curves": "^1.9.7",
-    "@noble/hashes": "^2.0.1",
+    "@noble/hashes": "~2.0.1",
     "@welshman/lib": "workspace:*",
     "@welshman/net": "workspace:*",
     "@welshman/util": "workspace:*",
-    "nostr-tools": "^2.19.4"
+    "nostr-tools": "^2.22.0"
   },
   "devDependencies": {
     "@capacitor/core": "^8.5.0",
-    "@noble/curves": "^1.9.7",
-    "@noble/hashes": "^2.0.1",
+    "@noble/hashes": "~2.0.1",
     "@welshman/lib": "workspace:*",
     "@welshman/net": "workspace:*",
     "@welshman/util": "workspace:*",
     "nostr-signer-capacitor-plugin": "github:coracle-social/nostr-signer-capacitor-plugin#main",
-    "nostr-tools": "^2.19.4",
+    "nostr-tools": "^2.22.0",
     "rimraf": "~6.0.0",
     "typescript": "~5.8.0"
   }
