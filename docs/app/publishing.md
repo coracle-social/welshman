@@ -77,8 +77,10 @@ The `Thunks` manager keeps a log of all thunks and supports retrying:
 const thunks = app.use(Thunks)
 
 thunks.history                    // writable<Thunk[]> — the optimistic publish log
-thunks.retry(thunk)               // re-publish a (possibly merged) thunk
+thunks.retry(thunk)               // re-send a (possibly merged) thunk
 ```
+
+A retry re-sends the event the thunk already published, so it keeps its id — a relay that took the first attempt sees the same event again rather than a second one.
 
 Each thunk is queued (batched) and its event is written to the repository and tracker the moment it is enqueued, so derived stores reflect it before any relay has responded. If a thunk is aborted before sending, its event and wrap are removed from the repository and its history entry is dropped.
 
