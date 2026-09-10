@@ -48,7 +48,7 @@
     "@welshman/lib": "workspace:*",
     "@welshman/util": "workspace:*",
     "nostr-tools": "^2.22.0",
-    "nostr-editor": "^1.1.1"
+    "nostr-editor": "^1.1.2"
   },
   "devDependencies": {
     "@tiptap/core": "^2.27.2",

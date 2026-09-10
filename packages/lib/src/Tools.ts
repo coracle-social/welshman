@@ -1227,9 +1227,9 @@ export const yieldThread = () => {
  * @param f - Function to throttle
  * @returns Throttled function
  */
-export const throttle = <F extends (...args: any[]) => any>(ms: number, f: F) => {
+export const throttle = <A extends any[]>(ms: number, f: (...args: A) => unknown) => {
   let timeoutId: ReturnType<typeof setTimeout> | undefined
-  let lastArgs: Parameters<F> | undefined
+  let lastArgs: A | undefined
 
   const flush = () => {
     if (lastArgs !== undefined) {
@@ -1249,7 +1249,7 @@ export const throttle = <F extends (...args: any[]) => any>(ms: number, f: F) =>
     }
   }
 
-  const throttled = (...args: Parameters<F>) => {
+  const throttled = (...args: A) => {
     if (timeoutId === undefined) {
       f(...args)
 
