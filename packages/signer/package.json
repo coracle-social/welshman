@@ -33,7 +33,7 @@
     "@welshman/lib": "workspace:*",
     "@welshman/net": "workspace:*",
     "@welshman/util": "workspace:*",
-    "nostr-signer-capacitor-plugin": "github:coracle-social/nostr-signer-capacitor-plugin#main",
+    "nostr-signer-capacitor-plugin": "github:coracle-social/nostr-signer-capacitor-plugin#436adec9ed1e71569748cd56aa697f361e7a8d47",
     "nostr-tools": "^2.22.0",
     "rimraf": "~6.0.0",
     "typescript": "~5.8.0"

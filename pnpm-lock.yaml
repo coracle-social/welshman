@@ -297,7 +297,7 @@ importers:
         specifier: workspace:*
         version: link:../util
       nostr-signer-capacitor-plugin:
-        specifier: github:coracle-social/nostr-signer-capacitor-plugin#main
+        specifier: github:coracle-social/nostr-signer-capacitor-plugin#436adec9ed1e71569748cd56aa697f361e7a8d47
         version: https://codeload.github.com/coracle-social/nostr-signer-capacitor-plugin/tar.gz/436adec9ed1e71569748cd56aa697f361e7a8d47(@capacitor/core@8.5.1)
       nostr-tools:
         specifier: ^2.22.0

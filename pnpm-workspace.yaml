@@ -4,6 +4,6 @@ packages:
 allowBuilds:
   cbor-extract: false
   esbuild: false
-  nostr-signer-capacitor-plugin@https://codeload.github.com/coracle-social/nostr-signer-capacitor-plugin/tar.gz/be4bb90a1a15c8eec0934f2f66ce9e82ecc72d51: true
+  nostr-signer-capacitor-plugin@https://codeload.github.com/coracle-social/nostr-signer-capacitor-plugin/tar.gz/436adec9ed1e71569748cd56aa697f361e7a8d47: true
 minimumReleaseAgeExclude:
   - '@pomade/core@0.3.3'
