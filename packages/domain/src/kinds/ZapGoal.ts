@@ -1,10 +1,20 @@
-import {spec, uniq} from "@welshman/lib"
+import {spec, sum, uniq} from "@welshman/lib"
 import {ZAP_GOAL, matchTags, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
+import type {Zap} from "../other/Zapper.js"
+
+// How far along a goal is. Amounts are in millisats, like the goal's amount tag
+// and the invoices its zaps were paid with.
+export type ZapGoalProgress = {
+  zaps: Zap[]
+  amount: number
+  target: number
+  contributors: string[]
+}
 
 // NIP-75 kind-9041 zap goal.
 export class ZapGoalReader extends EventReader {
@@ -35,6 +45,26 @@ export class ZapGoalReader extends EventReader {
     const closedAt = parseInt(tagValue(tagSpec("closed_at"), this.event.tags) ?? "")
 
     return isNaN(closedAt) ? undefined : closedAt
+  }
+
+  // The zaps that count toward the goal, which is all of them until it closes.
+  counted(zaps: Zap[]) {
+    const closedAt = this.closedAt()
+
+    return closedAt === undefined ? zaps : zaps.filter(zap => zap.response.created_at <= closedAt)
+  }
+
+  // What the goal has raised so far. The caller supplies validated zaps, since
+  // checking a receipt needs the recipient's zapper.
+  progress(zaps: Zap[]): ZapGoalProgress {
+    const counted = this.counted(zaps)
+
+    return {
+      zaps: counted,
+      amount: sum(counted.map(zap => zap.invoiceAmount)),
+      target: this.amount(),
+      contributors: uniq(counted.map(zap => zap.request.pubkey)),
+    }
   }
 }
 

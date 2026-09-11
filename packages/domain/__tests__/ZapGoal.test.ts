@@ -3,6 +3,7 @@ import {makeSecret, ZAP_GOAL, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {ZapGoal} from "../src/kinds/ZapGoal"
+import type {Zap} from "../src/other/Zapper"
 import {buildTemplate, read, write} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
@@ -19,6 +20,13 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
     sig: "00".repeat(64),
     ...overrides,
   }) as TrustedEvent
+
+const makeZap = (pubkey: string, invoiceAmount: number, created_at: number): Zap =>
+  ({
+    request: {pubkey} as TrustedEvent,
+    response: {created_at} as TrustedEvent,
+    invoiceAmount,
+  }) as Zap
 
 describe("ZapGoal", () => {
   it("parses the represented tags and plain-text title", async () => {
@@ -124,6 +132,45 @@ describe("ZapGoal", () => {
     await expect(
       buildTemplate(write(ZapGoal).setAmount(1000).setUrls(["wss://relay.one"]), signer),
     ).rejects.toThrow()
+  })
+
+  it("adds up the zaps it was sent", async () => {
+    const goal = await read(ZapGoal, makeEvent({content: "Goal", tags: [["amount", "500000"]]}))
+
+    const progress = goal.progress([
+      makeZap("aa".repeat(32), 21000, 100),
+      makeZap("bb".repeat(32), 1000, 200),
+      makeZap("aa".repeat(32), 500, 300),
+    ])
+
+    expect(progress.amount).toBe(22500)
+    expect(progress.target).toBe(500000)
+    expect(progress.contributors).toEqual(["aa".repeat(32), "bb".repeat(32)])
+    expect(progress.zaps.length).toBe(3)
+  })
+
+  it("ignores zaps that landed after it closed", async () => {
+    const goal = await read(
+      ZapGoal,
+      makeEvent({
+        content: "Goal",
+        tags: [
+          ["amount", "500000"],
+          ["closed_at", "200"],
+        ],
+      }),
+    )
+
+    const zaps = [makeZap("aa".repeat(32), 21000, 200), makeZap("bb".repeat(32), 1000, 201)]
+
+    expect(goal.counted(zaps)).toEqual([zaps[0]])
+    expect(goal.progress(zaps).amount).toBe(21000)
+  })
+
+  it("has no progress with no zaps", async () => {
+    const goal = await read(ZapGoal, makeEvent({content: "Goal"}))
+
+    expect(goal.progress([])).toEqual({zaps: [], amount: 0, target: 0, contributors: []})
   })
 
   it("throws on the wrong kind", async () => {

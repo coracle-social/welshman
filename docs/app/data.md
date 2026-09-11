@@ -186,6 +186,21 @@ await zappers.validateZapReceipt(zapReceipt, parentEvent)    // Promise<Maybe<Za
 zappers.validZapReceipts(zapReceipts, parentEvent)           // Projection<Zap[]>
 ```
 
+## Zap goals (NIP-75)
+
+How much a kind-9041 goal has raised, read from the receipts in the repository.
+
+```typescript
+const progress = app.use(ZapGoals).progress(goalEvent, [url])
+
+progress.get()
+// {zaps, amount, target, contributors} — amounts in millisats
+```
+
+Each receipt is validated against its recipient's zapper, and any that arrived
+after the goal's `closed_at` is dropped. The projection updates as receipts land
+and as the zappers they're checked against finish loading.
+
 ## Blossom servers
 
 Blossom media-server lists (kind 10063) keyed by pubkey.

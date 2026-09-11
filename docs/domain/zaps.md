@@ -169,6 +169,7 @@ goal.title()      // event.content (or "")
 goal.summary()    // "summary" tag value
 goal.amount()     // millisats as an int, default 0
 goal.urls()       // "relays" tag values
+goal.closedAt()   // "closed_at" tag as a timestamp, or undefined
 
 const template = await app.use(Domain).writer(ZapGoal)
   .setTitle("Fund the relay")               // sets event.content
@@ -179,6 +180,19 @@ const template = await app.use(Domain).writer(ZapGoal)
 ```
 
 `validate()` requires a title (throws `ZapGoal requires a title` when content is empty), and the writer's constructor always seeds an `amount` tag, defaulting to `["amount", "0"]`.
+
+### Progress
+
+`progress(zaps)` totals the [`Zap`](#zapper)s a goal was sent, in millisats, alongside the target they're measured against and the pubkeys that contributed. Per NIP-75 a zap that landed after the goal's `closed_at` doesn't count, which `counted(zaps)` applies on its own for callers that want the list rather than the totals.
+
+```typescript
+goal.progress(zaps)
+// {zaps, amount, target, contributors}
+
+goal.counted(zaps)   // Zap[], the ones that landed before it closed
+```
+
+Validating a receipt needs the recipient's zapper, so the zaps are the caller's to supply. In `@welshman/app` the [`ZapGoals`](../app/data#zap-goals-nip-75) plugin does the whole of it — receipts out of the repository, validation, and progress — as one projection.
 
 ## See also
 
