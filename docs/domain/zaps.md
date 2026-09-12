@@ -1,6 +1,6 @@
 # Zaps
 
-The lightning-zap flow (NIP-57) and zap goals (NIP-75) are modeled by three kinds: `ZapRequest` (what a sender publishes to ask for a zap), `ZapReceipt` (what the recipient's LN service publishes as proof of payment), and `ZapGoal` (a fundraising target). All three are plain `EventReader` / `EventWriter` subclasses — see [Readers & Writers](./readers-and-writers) for the base pattern. Alongside the kinds, the [`Zapper`](#zapper) class models the LNURL service and validates receipts, and [zap splits](#zap-splits) live on the base reader/writer.
+The lightning-zap flow (NIP-57) and zap goals (NIP-75) are modeled by three kinds: `ZapRequest` (what a sender hands the recipient's LNURL service to ask for a zap), `ZapReceipt` (what the recipient's LN service publishes as proof of payment), and `ZapGoal` (a fundraising target). All three are plain `EventReader` / `EventWriter` subclasses — see [Readers & Writers](./readers-and-writers) for the base pattern. Alongside the kinds, the [`Zapper`](#zapper) class models the LNURL service and validates receipts, and [zap splits](#zap-splits) live on the base reader/writer.
 
 The low-level lightning helpers (`getLnUrl`, `getInvoiceAmount`, `hrpToMillisat`, `toMsats`/`fromMsats`) remain in `@welshman/util` — see [util/Lightning](../util/lightning).
 
@@ -27,8 +27,7 @@ const writer = app.use(Domain).writer(ZapRequest)
   .setAmount(21000)                         // millisats
   .setRecipient(recipientPubkey)
   .setLnurl(lnurl)
-  .setEventId(zappedNoteId)
-  .setUrls(["wss://relay.example"])         // ["relays", ...urls]
+  .setEvent(zappedEvent)                    // ["e", id], and the goal rule below
   .setAnonymous(true)                       // add/remove the "anon" tag
   .setContent("great post")
 
@@ -55,24 +54,21 @@ if (invoice) {
 }
 ```
 
-### Routing: reaching the recipient's inbox
+### Routing: where the receipt goes
 
-`ZapRequestWriter` uses the default writer routing — author outbox plus every p-tagged pubkey's inbox (weight `0.5`):
-
-```typescript
-protected async renderRoutes(): Promise<RelaySelection[]> {
-  return [userOutbox(), ...inboxes(tagValues(hexTags("p"), await this.renderTags()), 0.5)]
-}
-```
-
-Because a zap request carries a `p` tag for the recipient, that default is exactly right: the request lands on the recipient's read (inbox) relays as well as the sender's outbox, so the recipient (and their LN service) can find it. You do not override routing for zaps.
-
-To publish through the app, wrap the writer in a `Command`:
+A zap request is never published — it goes to the LNURL callback and comes back as a receipt the zapper publishes. Its routes are therefore where that receipt has to land, and they render into the `relays` tag NIP-57 asks for. The default is the recipient's inbox:
 
 ```typescript
-const command = await app.use(Domain).command(writer)   // requires a signed-in user
-command.publish()
+const writer = app.use(Domain).writer(ZapRequest)
+  .setRecipient(recipientPubkey)   // the receipt goes to their inbox relays
+  .forceRoutes(relay(spaceUrl))    // or here instead, zapping inside a space
+
+await writer.relays()              // where to watch for the receipt
 ```
+
+Unlike other writers this takes its routes whole rather than the top-scoring few, since a relay left out is a zap nobody watching there sees.
+
+`setEvent` adds to them: zapping a kind-9041 goal appends the goal's own relays, since that is where NIP-75 totals it. Those survive `forceRoutes`, so a goal zapped inside a space is requested on both.
 
 ## Zap receipt (kind 9735)
 

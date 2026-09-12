@@ -1,10 +1,21 @@
-import {spec, tryCatch, fetchJson} from "@welshman/lib"
-import {ZAP_REQUEST, matchTag, tagSpec, tagValue, stamp} from "@welshman/util"
-import type {SignedEvent} from "@welshman/util"
+import {first, spec, tryCatch, fetchJson} from "@welshman/lib"
+import {
+  ZAP_GOAL,
+  ZAP_REQUEST,
+  inbox,
+  matchTag,
+  relays,
+  tagSpec,
+  tagValue,
+  stamp,
+} from "@welshman/util"
+import type {RelaySelection, SignedEvent, TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
-import {EventWriter} from "../core/EventWriter.js"
+import {EventWriter, TagParser} from "../core/EventWriter.js"
 import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
+import type {KindContext} from "../core/Kind.js"
+import {ZapGoalReader} from "./ZapGoal.js"
 import type {Zapper} from "../other/Zapper.js"
 
 // NIP-57 kind-9734 zap request.
@@ -39,6 +50,24 @@ export class ZapRequestReader extends EventReader {
 }
 
 export class ZapRequestWriter extends EventWriter<ZapRequestReader> {
+  // Relays the receipt has to reach on top of wherever the recipient reads.
+  extraRoutes: RelaySelection[] = []
+
+  constructor(kind: number, context: KindContext, reader?: ZapRequestReader) {
+    super(kind, context, reader)
+
+    if (reader) {
+      const parser = new TagParser(this.extraTags)
+      const tag = first(parser.consume("relays"))
+
+      this.extraTags = parser.tags
+
+      if (tag) {
+        this.forceRoutes(...relays(tag.slice(1)))
+      }
+    }
+  }
+
   setAmount(amount: number) {
     return this.dropTags(spec(["amount"])).addTags(["amount", String(amount)])
   }
@@ -51,18 +80,50 @@ export class ZapRequestWriter extends EventWriter<ZapRequestReader> {
     return this.dropTags(spec(["p"])).addTags(["p", recipient])
   }
 
-  setEventId(eventId: string) {
-    return this.dropTags(spec(["e"])).addTags(["e", eventId])
-  }
+  // NIP-75 totals a goal from the receipts on the goal's own relays, so a zap to
+  // one is requested there as well.
+  setEvent(event: TrustedEvent) {
+    this.extraRoutes =
+      event.kind === ZAP_GOAL
+        ? relays(new ZapGoalReader(event.kind, this.context, event).urls())
+        : []
 
-  setUrls(urls: string[]) {
-    return this.dropTags(spec(["relays"])).addTags(["relays", ...urls])
+    return this.dropTags(spec(["e"])).addTags(["e", event.id])
   }
 
   setAnonymous(anonymous: boolean) {
     return anonymous
       ? this.dropTags(spec(["anon"])).addTags(["anon"])
       : this.dropTags(spec(["anon"]))
+  }
+
+  // Where the zapper is asked to publish the receipt: the recipient's inbox
+  // relays, or whatever the caller forced instead — a space's relay, say.
+  protected async renderRoutes(): Promise<RelaySelection[]> {
+    const recipient = tagValue(tagSpec("p"), this.extraTags)
+
+    return recipient ? [inbox(recipient)] : []
+  }
+
+  // Extra routes survive forcing, since a goal is tallied on its own relays
+  // whether or not the zap was sent from somewhere with relays of its own.
+  async scenario() {
+    const routes = this.forcedRoutes?.length ? this.forcedRoutes : await this.renderRoutes()
+
+    return this.context.resolver.scenario([...routes, ...this.extraRoutes])
+  }
+
+  // Every one of these has to see the receipt, so a zap request takes its routes
+  // whole rather than the top-scoring few.
+  async relays() {
+    return (await this.scenario()).getAllUrls()
+  }
+
+  // NIP-57's relays tag, and what a caller watches for the receipt.
+  protected async renderDomainTags() {
+    const urls = await this.relays()
+
+    return urls.length > 0 ? [["relays", ...urls]] : []
   }
 
   async requestInvoice(

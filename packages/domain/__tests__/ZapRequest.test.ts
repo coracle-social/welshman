@@ -1,10 +1,10 @@
 import {describe, it, expect, vi, afterEach} from "vitest"
-import {makeSecret, ZAP_REQUEST, NOTE} from "@welshman/util"
+import {makeSecret, relay, ZAP_GOAL, ZAP_REQUEST, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {ZapRequest} from "../src/kinds/ZapRequest"
 import {Zapper} from "../src/other/Zapper"
-import {buildTemplate, read, write} from "./helpers.js"
+import {buildTemplate, markerResolver, read, write, INBOX} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -22,6 +22,11 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
     sig: "00".repeat(64),
     ...overrides,
   }) as TrustedEvent
+
+const makeZapped = (kind: number, tags: string[][] = []): TrustedEvent =>
+  makeEvent({id: eventId, kind, tags})
+
+const urlsIn = (tags: string[][]) => tags.find(t => t[0] === "relays")?.slice(1) ?? []
 
 describe("ZapRequest", () => {
   it("parses the represented tags and comment content", async () => {
@@ -60,8 +65,12 @@ describe("ZapRequest", () => {
       ],
     })
 
-    const tmpl = await buildTemplate(write(ZapRequest, await read(ZapRequest, event)), signer)
+    const tmpl = await buildTemplate(
+      write(ZapRequest, await read(ZapRequest, event), markerResolver),
+      signer,
+    )
 
+    expect(urlsIn(tmpl.tags)).toEqual(["wss://relay.one/"])
     expect(tmpl.content).toBe("thanks!")
     expect(tmpl.tags.filter(t => t[0] === "amount").length).toBe(1)
     expect(tmpl.tags.filter(t => t[0] === "lnurl").length).toBe(1)
@@ -73,12 +82,12 @@ describe("ZapRequest", () => {
 
   it("builds from a fresh builder", async () => {
     const tmpl = await buildTemplate(
-      write(ZapRequest)
+      write(ZapRequest, undefined, markerResolver)
         .setAmount(1000)
         .setLnurl("lnurl1abc")
         .setRecipient(recipient)
-        .setEventId(eventId)
-        .setUrls(["wss://relay.one"])
+        .setEvent(makeZapped(NOTE))
+        .forceRoutes(relay("wss://relay.one"))
         .setContent("hi"),
       signer,
     )
@@ -89,7 +98,49 @@ describe("ZapRequest", () => {
     expect(tmpl.tags).toContainEqual(["lnurl", "lnurl1abc"])
     expect(tmpl.tags).toContainEqual(["p", recipient])
     expect(tmpl.tags).toContainEqual(["e", eventId])
-    expect(tmpl.tags).toContainEqual(["relays", "wss://relay.one"])
+    expect(tmpl.tags).toContainEqual(["relays", "wss://relay.one/"])
+  })
+
+  describe("receipt relays", () => {
+    const goal = (...urls: string[]) => makeZapped(ZAP_GOAL, [["relays", ...urls]])
+
+    it("defaults to the recipient's inbox", async () => {
+      const writer = write(ZapRequest, undefined, markerResolver).setRecipient(recipient)
+
+      expect(urlsIn((await buildTemplate(writer, signer)).tags)).toEqual([INBOX])
+    })
+
+    it("names nothing without a recipient", async () => {
+      const tmpl = await buildTemplate(write(ZapRequest, undefined, markerResolver), signer)
+
+      expect(tmpl.tags.some(t => t[0] === "relays")).toBe(false)
+    })
+
+    it("adds the relays a goal is totalled on", async () => {
+      const writer = write(ZapRequest, undefined, markerResolver)
+        .setRecipient(recipient)
+        .setEvent(goal("wss://goal.one", "wss://goal.two"))
+
+      expect(await writer.relays()).toEqual([INBOX, "wss://goal.one/", "wss://goal.two/"])
+    })
+
+    it("keeps a goal's relays when routes are forced", async () => {
+      const writer = write(ZapRequest, undefined, markerResolver)
+        .setRecipient(recipient)
+        .setEvent(goal("wss://goal.one"))
+        .forceRoutes(relay("wss://space.example"))
+
+      expect(await writer.relays()).toEqual(["wss://space.example/", "wss://goal.one/"])
+    })
+
+    it("drops a previous goal's relays when the zapped event changes", async () => {
+      const writer = write(ZapRequest, undefined, markerResolver)
+        .setRecipient(recipient)
+        .setEvent(goal("wss://goal.one"))
+        .setEvent(makeZapped(NOTE))
+
+      expect(await writer.relays()).toEqual([INBOX])
+    })
   })
 
   it("toggles the anon tag and reads it back", async () => {
