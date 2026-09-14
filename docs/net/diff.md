@@ -22,11 +22,11 @@ Handles negentropy synchronization with a single relay for a single filter.
 
 Check what events each relay has or needs compared to local events.
 
-**Returns:** Array of `{relay, have, need}` objects - `have` are events the relay has that you don't, `need` are events you have that the relay doesn't.
+**Returns:** Array of `{relay, have, need}` objects - `have` are events you have that the relay doesn't, `need` are events the relay has that you don't.
 
 ### `pull(options)`
 
-Fetch missing events after comparing with relays.
+Fetch missing events after comparing with relays. Ids are requested in batches, newest first and a couple of batches at a time, so a caller watching events arrive sees recent ones before older ones.
 
 **Returns:** Array of retrieved events.
 

@@ -1,5 +1,5 @@
 import {EventEmitter} from "events"
-import {on, randomId, groupBy, pushToMapKey, inc, flatten, chunk} from "@welshman/lib"
+import {on, randomId, groupBy, pushToMapKey, inc, flatten, chunk, initArray} from "@welshman/lib"
 import {SignedEvent, TrustedEvent, Filter} from "@welshman/util"
 import {
   RelayMessage,
@@ -187,6 +187,10 @@ export const diff = async ({relays, filters, ...options}: DiffOptions) => {
 
 export type PullOptions = DiffOptions
 
+const PULL_CHUNK_SIZE = 100
+
+const PULL_CONCURRENCY = 2
+
 export const pull = async ({context, ...options}: PullOptions) => {
   const countById = new Map<string, number>()
   const idsByRelay = new Map<string, string[]>()
@@ -207,28 +211,32 @@ export const pull = async ({context, ...options}: PullOptions) => {
   const seen = new Set<string>()
   const result: TrustedEvent[] = []
 
+  const fetchChunk = (relay: string, ids: string[]) =>
+    requestOne({
+      relay,
+      context,
+      filters: [{ids}],
+      signal: options.signal,
+      autoClose: true,
+      onEvent: event => {
+        if (!seen.has(event.id)) {
+          seen.add(event.id)
+          result.push(event)
+        }
+      },
+    })
+
   await Promise.all(
-    Array.from(idsByRelay.entries()).map(([relay, allIds]) => {
-      return Promise.all(
-        chunk(100, allIds).map(
-          ids =>
-            new Promise<void>(resolve =>
-              requestOne({
-                relay,
-                context,
-                filters: [{ids}],
-                signal: options.signal,
-                autoClose: true,
-                onClose: resolve,
-                onEvent: event => {
-                  if (!seen.has(event.id)) {
-                    seen.add(event.id)
-                    result.push(event)
-                  }
-                },
-              }),
-            ),
-        ),
+    Array.from(idsByRelay.entries()).map(async ([relay, allIds]) => {
+      const pending = chunk(PULL_CHUNK_SIZE, allIds).reverse()
+      const workerCount = Math.min(PULL_CONCURRENCY, pending.length)
+
+      await Promise.all(
+        initArray(workerCount, async () => {
+          for (let ids = pending.shift(); ids; ids = pending.shift()) {
+            await fetchChunk(relay, ids)
+          }
+        }),
       )
     }),
   )
