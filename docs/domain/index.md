@@ -129,5 +129,5 @@ const signed = await signer.sign(stamp(template))
 - [Relay membership](./relay-membership) — Flotilla relay/space membership ops and snapshots.
 - [Handlers](./handlers) — NIP-89 handler information and recommendations.
 - [Zaps](./zaps) — NIP-57/NIP-75 zap requests, receipts, and goals.
-- [Content](./content) — comments, threads, classifieds, calendar events, polls, and reports.
+- [Content](./content) — comments, threads, chat messages, classifieds, calendar events, polls, and reports.
 - [Badges](./badges) — NIP-58 badge definitions, awards, and the badges a profile displays.

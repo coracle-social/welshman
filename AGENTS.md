@@ -13,5 +13,6 @@ Rules to follow when creating new domain kinds:
 - Drop tags with `spec([key, value])`, not `nthEq(1, value)` — matching the key avoids dropping an unrelated tag that shares the value.
 - "Set all" = drop by key then add (`dropTags(spec(["k"])).addTags(...)`); never clear every tag — preserve unmodeled passthrough tags.
 - Use `removeUndefined([...])` for optional trailing tag elements instead of emitting `""`.
+- Avoid early returns. Declare the result, refine it inside `if` blocks, and return it once at the end.
 - Parsing that doesn't need an event (a content grammar, a tag value's own syntax) belongs in `@welshman/util`, so packages that don't depend on `domain` can use it too.
 - A tag any kind can carry is parsed by a standalone `get*`/`is*` in `src/behaviors/` that the base reader's getter delegates to. Callers holding a bare event need that function, since `reader()` throws on a kind mismatch.

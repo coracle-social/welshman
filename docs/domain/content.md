@@ -1,6 +1,6 @@
 # Content
 
-A grab-bag of content kinds: NIP-01 notes, NIP-68 pictures, NIP-17 direct messages, NIP-22 comments, NIP-7D forum threads, NIP-99 classifieds, NIP-84 highlights, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `DateEvent`, `TimeEvent`, `CalendarRsvp`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
+A grab-bag of content kinds: NIP-01 notes, NIP-68 pictures, NIP-17 direct messages, NIP-22 comments, NIP-7D forum threads, NIP-C7 chat messages, NIP-99 classifieds, NIP-84 highlights, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `DateEvent`, `TimeEvent`, `CalendarRsvp`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
 
 Every example below assumes a bound `KindContext` — you get a reader/writer by calling `SomeKind.configure(context)`. A reader is built and then parsed (`…reader(event).parse()`); none of the kinds on this page decrypt, so nothing here needs awaiting. A writer is a chainable builder whose terminal `renderTemplate()` returns an unsigned `EventTemplate`. To turn that into a signed event, hand it to a signer:
 
@@ -12,7 +12,7 @@ const signed = await signer.sign(stamp(await writer.renderTemplate()))
 
 In `@welshman/app` you never call `configure` yourself — `app.use(Domain).reader(Kind)` / `.writer(Kind, reader?)` do it for you, and `app.use(Domain).command(writer)` finalizes and wraps the result in a publishable `Command`. See [Readers & Writers](./readers-and-writers#with-welshmanapp-domain--command).
 
-Unless a kind says otherwise, writers route to the **author's outbox plus every p-tagged pubkey's inbox** — the default `EventWriter.renderRoutes()`. Notes and comments use that default; `DirectMessage` and `Report` override it (see below).
+Unless a kind says otherwise, writers route to the **author's outbox plus every p-tagged pubkey's inbox** — the default `EventWriter.renderRoutes()`. Notes and comments use that default; `DirectMessage` and `Report` override it, and `Message` publishes only to the relay it is pinned to (see below).
 
 ## Note (kind 1)
 
@@ -150,6 +150,47 @@ await Thread.configure(context)
   .setContent("Read the rules first.")
   .renderTemplate()
 ```
+
+## Message (kind 9)
+
+A NIP-C7 chat message. The content is the message, and a reply is another kind 9 whose content opens with a reference to the message it answers. `getContentQuote` accepts every form [@welshman/content](../content/) renders as a quote — an `nevent1`, `note1` or `naddr1`, with a `nostr:` or `web+nostr:` prefix or none, in any case — ending at the first whitespace or at the end of the message, so a reply with no body still reads as one.
+
+```typescript
+import {Message} from "@welshman/domain"
+
+const message = Message.configure(context).reader(event).parse()
+message.parent()   // the Quote this message replies to, or undefined
+message.quotes()   // every q tag as a Quote, the parent included
+
+await Message.configure(context)
+  .writer()
+  .setContent("yes")
+  .setParent(parentEvent)   // reference + ["q", id, "", pubkey] + ["p", pubkey, hint]
+  .setRoom(relayUrl, "general")
+  .renderTemplate()
+```
+
+`setParent(event)` is how a reply is made. It holds the parent as a `Quote` (`writer.parentQuote`) and renders all three of the reference, the `q` tag naming the parent and its author, and the `addMention` p-tag that a notification feed filters on — a reference on its own carries neither the author nor the mention. Because all of it renders from that quote, call order against `setContent` and `setRoom` doesn't matter, and `clearParent()` takes it back off.
+
+A quote's `value` is the parent's id, or its address when the parent is replaceable, the way `getIdOrAddress` picks between them. An address parent tags `["q", address, "", pubkey]` and writes an `naddr1` reference, and `MessageQuery.forParent` asks for both forms, since another client may have quoted the same event by id.
+
+Neither the tag nor the reference carries a relay, since a reply and the message it answers are both on the relay hosting the chat. The `q` tag comes out `["q", id, "", pubkey]`.
+
+A writer built from a reader takes its parent from `parent()` and lifts the reference out of `content`, which then holds the message body alone. The `q` tag is left where it is. A parent that something already tags — the event being edited, a mid-content quote promoted to a reply, an `addQuote` of the same event — is not tagged a second time. A reference that names no author keeps the author its `q` tag named.
+
+NIP-18 quotes use that same tag, so `parent()` looks up the quote the content opens with rather than taking the first one — a message that shares one event and replies to another tags them in either order. Quotes elsewhere in the content are the caller's to tag with `addQuote`. A reply nothing tagged falls back to the content's own reference. `getContentQuote(content)` is exported for callers that need the `Quote` itself.
+
+Chat is scoped to the relay hosting it, so `MessageWriter` sets `requiresRelays = true` and `MessageQuery.renderRoutes()` returns nothing. A NIP-29 room pins both with `setRoom(url, roomId)`, described under [Publishing to the room relay](./rooms#publishing-to-the-room-relay); a relay hosting chat without NIP-29 pins them with `forceRoutes`/`setRoutes`.
+
+```typescript
+const {filters, relays} = await Message.configure(context)
+  .query()
+  .setRoom(relayUrl, "general")
+  .setLimit(100)
+  .render()
+```
+
+`MessageQuery.forParent(event)` adds the `#q` filter for a message's replies.
 
 ## Classified (kind 30402)
 

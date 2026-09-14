@@ -11,6 +11,8 @@ import {getExpiration} from "../behaviors/Expiration.js"
 import {getImeta} from "../behaviors/Imeta.js"
 import type {Imeta} from "../behaviors/Imeta.js"
 import {isProtected} from "../behaviors/Protected.js"
+import {getQuotes} from "../behaviors/Quote.js"
+import type {Quote} from "../behaviors/Quote.js"
 import {getZapSplits} from "../behaviors/ZapSplits.js"
 import type {ZapSplit} from "../behaviors/ZapSplits.js"
 
@@ -92,6 +94,10 @@ export abstract class BaseEventReader {
 
   imeta(): Imeta[] {
     return getImeta(this.event)
+  }
+
+  quotes(): Quote[] {
+    return getQuotes(this.event)
   }
 
   zapSplits(): ZapSplit[] {

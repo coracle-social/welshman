@@ -2,6 +2,7 @@ import {remove, complement, first, partition, randomId, removeUndefined, spec} f
 import type {MaybeAsync} from "@welshman/lib"
 import {
   Address,
+  getIdOrAddress,
   isParameterizedReplaceableKind,
   normalizeRelayUrl,
   hexTags,
@@ -14,6 +15,8 @@ import {
 import type {EventTemplate, TrustedEvent, RelaySelection, RelayScenario} from "@welshman/util"
 import {parseImeta, parseImetas, renderImeta} from "../behaviors/Imeta.js"
 import type {Imeta} from "../behaviors/Imeta.js"
+import {parseQuotes, renderQuote} from "../behaviors/Quote.js"
+import type {Quote} from "../behaviors/Quote.js"
 import type {BaseEventReader} from "./EventReader.js"
 import type {KindContext} from "./Kind.js"
 
@@ -206,8 +209,12 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
     return this
   }
 
+  quotes(): Quote[] {
+    return parseQuotes(this.extraTags)
+  }
+
   addQuote(event: TrustedEvent) {
-    const tag = ["q", event.id, "", event.pubkey]
+    const tag = renderQuote({value: getIdOrAddress(event), pubkey: event.pubkey})
 
     this.addTags(tag)
 
@@ -216,6 +223,10 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
     })
 
     return this
+  }
+
+  removeQuote(value: string) {
+    return this.dropTags(spec(["q", value]))
   }
 
   addZapSplit(pubkey: string, split = 1) {

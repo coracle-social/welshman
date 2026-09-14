@@ -110,6 +110,7 @@ All base getters are synchronous reads over the wrapped event:
 | `contentWarningReason()` | that tag's reason, or `undefined` when it was tagged bare |
 | `client()` | the NIP-89 `client` tag as a `Client`, or `undefined` |
 | `imeta()` | the NIP-92 `imeta` tags as an `Imeta[]` |
+| `quotes()` | the NIP-18 `q` tags as a `Quote[]` (`{value, relay?, pubkey?}`), in the order they appear |
 
 ```typescript
 const reader = await SomeKind.configure(context).reader(event).parse()
@@ -130,7 +131,7 @@ getContentWarning(event)  // {reason?: string} | undefined — the reason is opt
 getClient(event)          // Client | undefined
 ```
 
-`getEmojis`, `getImeta` and `getZapSplits` back `emojis()`, `imeta()` and `zapSplits()` the same way.
+`getEmojis`, `getImeta`, `getQuotes` and `getZapSplits` back `emojis()`, `imeta()`, `quotes()` and `zapSplits()` the same way.
 
 Each subclass adds its own getters on top — `profile.name()`, `followList.pubkeys()`, `zapGoal.amount()`, and so on.
 
@@ -192,7 +193,7 @@ writer
   .addImeta({url, mimeType, alt, …})                      // NIP-92 ["imeta", …] / removeImeta(url)
 ```
 
-`addImeta` replaces whatever is already attached at that url rather than listing it twice, and `writer.imeta()` reads back what the writer is carrying. `parseImeta` and `renderImeta` are exported for working with a single tag.
+`addImeta` replaces whatever is already attached at that url rather than listing it twice, and `writer.imeta()` reads back what the writer is carrying. `parseImeta` and `renderImeta` are exported for working with a single tag. `parseQuote` and `renderQuote` do the same for a `q` tag, and `writer.quotes()` reads back the ones a writer is carrying. A quote's `value` is the quoted event's id, or its address when the event is replaceable, the way `getIdOrAddress` picks between them.
 
 ### Shared tag / hint helpers
 
@@ -200,7 +201,7 @@ Several helpers emit tags carrying a **relay hint** — a deferred `Hint` occupy
 
 ```typescript
 writer.tagPubkey(pubkey, petname?)      // ["p", pubkey, <hint>, petname]
-writer.addQuote(event, relay?)          // ["q", id, relay ?? <hint>, pubkey]
+writer.addQuote(event)                  // ["q", idOrAddress, <hint>, pubkey] / removeQuote(value)
 writer.addZapSplit(pubkey, split = 1)   // ["zap", pubkey, <hint>, String(split)]
 writer.setClient(name, address?)        // ["client", name, address, <hint>]
 ```
@@ -286,7 +287,7 @@ A kind can also declare it *requires* explicit relays by overriding the readonly
 readonly requiresRelays = true
 ```
 
-`validate()` then refuses to render until `forcedRoutes` is set (via `setRoom` or `forceRoutes`). The kinds that set this are all NIP-29 room ops/state and all relay-management ops/state — `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, and `RelayMembers`. (`RoomCreate` additionally requires a `roomTag`.)
+`validate()` then refuses to render until `forcedRoutes` is set (via `setRoom` or `forceRoutes`). The kinds that set this are all NIP-29 room ops/state, all relay-management ops/state, and the NIP-C7 chat kind — `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, `RelayMembers`, and `Message`. (`RoomCreate` additionally requires a `roomTag`.)
 
 ## EventQuery
 
@@ -318,7 +319,7 @@ class NoteQuery extends EventQuery {
 }
 ```
 
-Content kinds route to their authors' outboxes plus the inboxes of the pubkeys they tag. Lists and other author-scoped kinds route to their author's outbox alone, since their p-tags are data rather than recipients. Indexed kinds (`Profile`, `FollowList`, `RelayList`, `MessagingRelayList`) add `indexers()`. NIP-29 room and relay-management kinds return `[]`, because they only exist on the relay hosting them, and `DirectMessage` routes to the user's NIP-17 messaging relays.
+Content kinds route to their authors' outboxes plus the inboxes of the pubkeys they tag. Lists and other author-scoped kinds route to their author's outbox alone, since their p-tags are data rather than recipients. Indexed kinds (`Profile`, `FollowList`, `RelayList`, `MessagingRelayList`) add `indexers()`. NIP-29 room, relay-management, and chat kinds return `[]`, because they only exist on the relay hosting them, and `DirectMessage` routes to the user's NIP-17 messaging relays.
 
 A query whose kind has nothing to route on resolves to no relays. There is no fallback to the user's own relays; supply the routes yourself when you want one:
 
