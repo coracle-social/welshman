@@ -14,7 +14,7 @@ Requests events from a single relay using the given filters. Returns a promise t
 - `signal?` - AbortSignal for cancellation
 - `tracker?` - Event tracker for deduplication
 - `context?` - Adapter context
-- `autoClose?` - Auto-close subscription after EOSE
+- `autoClose?` - Auto-close subscription after EOSE, on socket disconnect, or 30 seconds in, whichever comes first
 - `resubscribeAttempts?` - How many times to ask again for a subscription the relay dropped for a reason that might not hold next time — a rate limit, more subscriptions than it allows. Defaults to 0, so a request that wants to survive a refusal opts in. Refusals NIP-01 marks as final (`restricted:`, `blocked:`, and the rest of `RelayReasonPrefix`) are never retried, and each retry reaches back to the refusal so the time spent backing off isn't a gap. Only meaningful without `autoClose`.
 - Validation functions: `isEventValid`, `isEventDeleted`
 - Callback functions: `onEvent`, `onDeleted`, `onInvalid`, `onFiltered`, `onDuplicate`, `onDisconnect`, `onEose`, `onClosed`, `onClose`

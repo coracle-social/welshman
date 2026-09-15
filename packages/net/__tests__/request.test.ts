@@ -3,7 +3,7 @@ import {Nip01Signer} from "@welshman/signer"
 import {makeEvent} from "@welshman/util"
 import {ClientMessageType} from "../src/message"
 import {MockAdapter} from "../src/adapter"
-import {requestOne, request} from "../src/request"
+import {requestOne, request, AUTO_CLOSE_TIMEOUT} from "../src/request"
 
 describe("requestOne", () => {
   beforeEach(() => {
@@ -141,6 +141,30 @@ describe("requestOne", () => {
 
     await vi.advanceTimersByTimeAsync(0)
 
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it("auto-closes a relay that never eoses, even when the caller passed a signal", async () => {
+    const adapter = new MockAdapter("1", vi.fn())
+    const ctrl = new AbortController()
+    const closeSpy = vi.fn()
+
+    requestOne({
+      relay: "whatever",
+      filters: [{kinds: [1]}],
+      context: {getAdapter: () => adapter},
+      signal: ctrl.signal,
+      autoClose: true,
+      onClose: closeSpy,
+    })
+
+    await vi.advanceTimersByTimeAsync(AUTO_CLOSE_TIMEOUT - 1)
+
+    expect(closeSpy).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+
+    expect(closeSpy).toHaveBeenCalledTimes(1)
     expect(vi.getTimerCount()).toBe(0)
   })
 
@@ -427,5 +451,42 @@ describe("request", () => {
     ctrl.abort()
 
     expect(closeSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("resolves when a relay takes the socket and answers nothing", async () => {
+    const adapter1 = new MockAdapter("1", vi.fn())
+    let id2
+    const send2Spy = vi.fn(m => {
+      if (m[0] === "REQ") {
+        id2 = m[1]
+      }
+    })
+    const adapter2 = new MockAdapter("2", send2Spy)
+    const closeSpy = vi.fn()
+    const resolved = vi.fn()
+
+    request({
+      relays: ["1", "2"],
+      filters: [{kinds: [1]}],
+      autoClose: true,
+      context: {
+        getAdapter: (url: string) => (url === "1" ? adapter1 : adapter2),
+      },
+      onClose: closeSpy,
+    }).then(resolved)
+
+    await vi.advanceTimersByTimeAsync(0)
+
+    // The second relay answers; the first never does
+    adapter2.receive(["EOSE", id2])
+
+    await vi.advanceTimersByTimeAsync(AUTO_CLOSE_TIMEOUT - 1)
+
+    expect(closeSpy).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+    expect(resolved).toHaveBeenCalledTimes(1)
   })
 })

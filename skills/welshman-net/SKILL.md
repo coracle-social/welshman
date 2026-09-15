@@ -59,7 +59,7 @@ Every entry point (`request`, `requestOne`, `publish`, `publishOne`, `makeLoader
 `request` / `requestOne` options (`BaseRequestOptions`):
 - `relay` / `relays` — relay url(s)
 - `filters` — array of nostr `Filter` objects
-- `autoClose?: boolean` — close the subscription after EOSE or on socket disconnect
+- `autoClose?: boolean` — close the subscription after EOSE, on socket disconnect, or 30 seconds in, whichever comes first, so a relay that answers nothing can't hold the request open
 - `signal?: AbortSignal` — cancellation
 - `tracker?: Tracker` — cross-relay deduplication (shared automatically by `request`)
 - `context?: AdapterContext`

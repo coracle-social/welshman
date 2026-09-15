@@ -35,6 +35,8 @@ import {SocketEvent, SocketStatus} from "./socket.js"
 import {Tracker} from "./tracker.js"
 import {catchUpFilter} from "./util.js"
 
+export const AUTO_CLOSE_TIMEOUT = 30_000
+
 export type IsEventValid = (event: TrustedEvent, url: string) => boolean
 
 export type BaseRequestOptions = {
@@ -228,10 +230,11 @@ export const requestOne = (options: RequestOneOptions) => {
     unsubscribers.push(() => signal.removeEventListener("abort", close))
   }
 
-  // If we're auto-closing, make sure it happens even if the relay doesn't send an eose
-  // and the caller doesn't provide a signal, in order to avoid memory leaks
-  if (options.autoClose && !options.signal) {
-    timeoutId = setTimeout(close, 30_000)
+  // If we're auto-closing, make sure it happens even if the relay never sends an eose, in order
+  // to avoid memory leaks. A caller's signal is a reason to close earlier than that, not a
+  // reason to go without a ceiling.
+  if (options.autoClose) {
+    timeoutId = setTimeout(close, AUTO_CLOSE_TIMEOUT)
   }
 
   for (const filter of options.filters) {
