@@ -48,6 +48,10 @@ truncate(content: Parsed[], {
 }) => Parsed[]
 ```
 
+Text and code elements are cut inside at the last line break or space, so a message that is
+one long code block is shortened like any other. Every other element is kept or dropped
+whole. Truncated content ends with an `Ellipsis` element.
+
 ### reduceLinks(content)
 
 Combines adjacent links into `LinkGrid` elements for better presentation:

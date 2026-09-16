@@ -539,6 +539,18 @@ type TruncateOpts = {
   entityLength?: number
 }
 
+const isTruncatable = (parsed: Parsed): parsed is ParsedText | ParsedCode =>
+  parsed.type === ParsedType.Text || parsed.type === ParsedType.Code
+
+const cut = (parsed: ParsedText | ParsedCode, length: number) => {
+  const head = parsed.value.slice(0, length)
+  const newline = head.lastIndexOf("\n")
+  const boundary = newline > 0 ? newline : head.lastIndexOf(" ")
+  const value = boundary > 0 ? head.slice(0, boundary) : head
+
+  return {...parsed, value, raw: value}
+}
+
 export const truncate = (
   content: Parsed[],
   {minLength = 500, maxLength = 700, mediaLength = 200, entityLength = 30}: TruncateOpts = {},
@@ -576,12 +588,17 @@ export const truncate = (
   // Otherwise, truncate more then necessary so that when the user expands the note
   // they have more than just a tiny bit to look at. Truncating a single word is annoying.
   sizes.every((size, i) => {
+    const parsed = content[i]
+    const sizeBefore = currentSize
+
     currentSize += size
 
     if (currentSize > minLength) {
-      content = content
-        .slice(0, Math.max(1, i + 1))
-        .concat({type: ParsedType.Ellipsis, value: "…", raw: ""})
+      const head = isTruncatable(parsed)
+        ? content.slice(0, i).concat(cut(parsed, Math.max(1, minLength - sizeBefore)))
+        : content.slice(0, Math.max(1, i + 1))
+
+      content = head.concat({type: ParsedType.Ellipsis, value: "…", raw: ""})
 
       return false
     }

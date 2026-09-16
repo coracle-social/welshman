@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {truncate, ParsedType, Parsed} from "../src"
+import {truncate, ParsedType, Parsed, ParsedCode, ParsedText} from "../src"
 
 describe("Content Truncation", () => {
   it("should not truncate content shorter than minLength", () => {
@@ -8,14 +8,55 @@ describe("Content Truncation", () => {
     expect(result).toEqual(content)
   })
 
-  it("should not truncate the first item even if it's longer than maxLength", () => {
+  it("should cut inside the first item when it's longer than maxLength", () => {
     const content: Parsed[] = [
       {type: ParsedType.Text, value: "a".repeat(600), raw: "a".repeat(600)},
     ]
     const result = truncate(content, {minLength: 400, maxLength: 600})
     expect(result[0].type).toEqual(ParsedType.Text)
+    expect((result[0] as ParsedText).value).toEqual("a".repeat(400))
     expect(result[1].type).toEqual(ParsedType.Ellipsis)
     expect(result).toHaveLength(2)
+  })
+
+  it("should cut inside a code block that is the whole message", () => {
+    const value = "const x = 1\n".repeat(200)
+    const content: Parsed[] = [{type: ParsedType.Code, value, raw: "```" + value + "```"}]
+    const result = truncate(content, {minLength: 500, maxLength: 700})
+    const code = result[0] as ParsedCode
+
+    expect(code.type).toEqual(ParsedType.Code)
+    expect(code.value.length).toBeLessThanOrEqual(500)
+    expect(code.value).toEqual(value.slice(0, code.value.length))
+    expect(result[1].type).toEqual(ParsedType.Ellipsis)
+    expect(result).toHaveLength(2)
+  })
+
+  it("should cut a code block at its last whole line", () => {
+    const value = "const x = 1\n".repeat(200)
+    const result = truncate([{type: ParsedType.Code, value, raw: value}], {
+      minLength: 500,
+      maxLength: 700,
+    })
+
+    expect((result[0] as ParsedCode).value.endsWith("const x = 1")).toBe(true)
+  })
+
+  it("should keep the elements before the one it cuts", () => {
+    const content: Parsed[] = [
+      {type: ParsedType.Text, value: "a".repeat(200), raw: "a".repeat(200)},
+      {type: ParsedType.Newline, value: "\n", raw: "\n"},
+      {type: ParsedType.Code, value: "b".repeat(1000), raw: "b".repeat(1000)},
+    ]
+    const result = truncate(content, {minLength: 400, maxLength: 700})
+
+    expect(result.map(p => p.type)).toEqual([
+      ParsedType.Text,
+      ParsedType.Newline,
+      ParsedType.Code,
+      ParsedType.Ellipsis,
+    ])
+    expect((result[2] as ParsedCode).value).toEqual("b".repeat(199))
   })
 
   it("should not truncate text content between minLength and maxLength", () => {
