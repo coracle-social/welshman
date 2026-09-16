@@ -120,19 +120,19 @@ export abstract class BaseThunk {
 }
 
 export class Thunk extends BaseThunk {
-  event: HashedEvent
+  readonly options: Override<ThunkOptions, {event: HashedEvent}>
   complete = defer<void>()
   controller = new AbortController()
   wrap?: SignedEvent
 
-  constructor(readonly options: ThunkOptions) {
+  constructor(options: ThunkOptions) {
     super()
 
     if (!options.recipient && WRAPPED_KINDS.includes(options.event.kind)) {
       throw new Error(`Attempted to publish a kind ${options.event.kind} without wrapping it`)
     }
 
-    this.event = prep(options.event, this.user.pubkey)
+    this.options = {...options, event: prep(options.event, User.require(options.app).pubkey)}
 
     for (const relay of options.relays) {
       this.results[relay] = {
@@ -240,7 +240,7 @@ export class Thunk extends BaseThunk {
       const wrapper = Nip01Signer.ephemeral()
       const nip59 = new Nip59(this.user.signer, wrapper)
 
-      this.wrap = await nip59.wrap(recipient, this.event)
+      this.wrap = await nip59.wrap(recipient, this.options.event)
 
       // If we're calculating pow, update the hash and re-sign
       if (this.options.pow) {
@@ -254,30 +254,30 @@ export class Thunk extends BaseThunk {
         return
       }
 
-      this.options.app.wrapManager.add({recipient, wrap: this.wrap, rumor: this.event})
+      this.options.app.wrapManager.add({recipient, wrap: this.wrap, rumor: this.options.event})
 
       return this._publish(this.wrap)
     }
 
     // If the event has been signed, we're good to go
-    if (isSignedEvent(this.event)) {
+    if (isSignedEvent(this.options.event)) {
       if (this.options.pow) {
         console.warn("Event is already signed, skipping proof of work calculation")
       }
 
-      return this._publish(this.event)
+      return this._publish(this.options.event)
     }
 
     // Allow for lazily signing/powing events in order to decrease apparent latency in the UI
     // that results from waiting for remote signers
     try {
-      const unsignedId = this.event.id
+      const unsignedId = this.options.event.id
 
       if (this.options.pow) {
-        this.event = await makePow(this.event, this.options.pow).result
+        this.options.event = await makePow(this.options.event, this.options.pow).result
       }
 
-      const signedEvent = await this.user.sign(this.event, {
+      const signedEvent = await this.user.sign(this.options.event, {
         signal: AbortSignal.timeout(30_000),
       })
 
@@ -298,7 +298,7 @@ export class Thunk extends BaseThunk {
       this.options.app.repository.removeEvent(unsignedId)
       this.options.app.repository.publish(signedEvent)
 
-      this.event = signedEvent
+      this.options.event = signedEvent
 
       return this._publish(signedEvent)
     } catch (e: any) {
@@ -384,10 +384,10 @@ export class Thunks {
     this.queue.push(thunk)
 
     for (const url of thunk.options.relays) {
-      this.app.tracker.track(thunk.event.id, url)
+      this.app.tracker.track(thunk.options.event.id, url)
     }
 
-    this.app.repository.publish(thunk.event)
+    this.app.repository.publish(thunk.options.event)
     this.history.update($history => append(thunk, $history))
 
     thunk.controller.signal.addEventListener("abort", () => {
@@ -396,7 +396,7 @@ export class Thunks {
         this.app.wrapManager.remove(thunk.wrap.id)
       }
 
-      this.app.repository.removeEvent(thunk.event.id)
+      this.app.repository.removeEvent(thunk.options.event.id)
 
       this.history.update($history => remove(thunk, $history))
     })
@@ -411,7 +411,7 @@ export class Thunks {
   }
 
   retry = (thunk: BaseThunk) => {
-    const republish = (t: Thunk) => this.publish({...t.options, event: t.event})
+    const republish = (t: Thunk) => this.publish({...t.options})
 
     return thunk instanceof MergedThunk
       ? new MergedThunk(thunk.thunks.map(republish))

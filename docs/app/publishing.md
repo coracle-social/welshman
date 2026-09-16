@@ -36,7 +36,7 @@ const thunk = app.use(Thunks).publish({
 ```typescript
 type ThunkOptions = Override<PublishOptions, {
   app: IApp                 // injected for you by Thunks.publish
-  event: EventTemplate
+  event: EventTemplate            // stamped and hashed when the thunk is constructed
   recipient?: string              // present → NIP-59 gift-wrap to this pubkey
   delay?: number                  // ms to wait before signing/sending (soft-undo)
   pow?: number                    // NIP-13 proof-of-work difficulty
@@ -81,6 +81,8 @@ thunks.retry(thunk)               // re-send a (possibly merged) thunk
 ```
 
 A retry re-sends the event the thunk already published, so it keeps its id — a relay that took the first attempt sees the same event again rather than a second one.
+
+`thunk.options.event` is that event: stamped and hashed when the thunk is constructed, replaced by the signed event once signing finishes. A thunk rebuilt from `{...thunk.options}` re-sends it rather than minting a new one.
 
 Each thunk is queued (batched) and its event is written to the repository and tracker the moment it is enqueued, so derived stores reflect it before any relay has responded. If a thunk is aborted before sending, its event and wrap are removed from the repository and its history entry is dropped.
 

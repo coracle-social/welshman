@@ -26,7 +26,7 @@ describe("thunk retries", () => {
 
     await tick()
 
-    expect(isSignedEvent(thunk.event)).toBe(true)
+    expect(isSignedEvent(thunk.options.event)).toBe(true)
 
     // A minute later, which is the whole difference between a retry that duplicates and one
     // that doesn't.
@@ -34,8 +34,26 @@ describe("thunk retries", () => {
 
     const retried = thunks.retry(thunk) as Thunk
 
-    expect(retried.event.id).toBe(thunk.event.id)
-    expect(isSignedEvent(retried.event)).toBe(true)
+    expect(retried.options.event.id).toBe(thunk.options.event.id)
+    expect(isSignedEvent(retried.options.event)).toBe(true)
+    expect(app.repository.dump().length).toBe(1)
+
+    app.cleanup()
+  })
+
+  it("keeps its options in step, so a rebuild from them alone re-sends the same event", async () => {
+    const app = await makeApp()
+    const thunks = app.use(Thunks)
+    const thunk = thunks.publish({event: note("hi"), relays: [url]})
+
+    await tick()
+
+    vi.setSystemTime(Date.now() + 60_000)
+
+    const rebuilt = thunks.publish({...thunk.options, relays: [url]})
+
+    expect(rebuilt.options.event.id).toBe(thunk.options.event.id)
+    expect(isSignedEvent(rebuilt.options.event)).toBe(true)
     expect(app.repository.dump().length).toBe(1)
 
     app.cleanup()
@@ -50,13 +68,13 @@ describe("thunk retries", () => {
 
     await tick()
 
-    const ids = Array.from(thunks.flatten([merged])).map(thunk => thunk.event.id)
+    const ids = Array.from(thunks.flatten([merged])).map(thunk => thunk.options.event.id)
 
     vi.setSystemTime(Date.now() + 60_000)
 
     const retried = Array.from(thunks.flatten([thunks.retry(merged)]))
 
-    expect(retried.map(thunk => thunk.event.id)).toEqual(ids)
+    expect(retried.map(thunk => thunk.options.event.id)).toEqual(ids)
 
     app.cleanup()
   })
