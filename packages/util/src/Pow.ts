@@ -1,6 +1,6 @@
 import {call} from "@welshman/lib"
 import {matchTag, tagSpec} from "./Tags.js"
-import {makeSecret, own, getPubkey} from "./Keys.js"
+import {makeSecret, own, getPubkey, hash} from "./Keys.js"
 import {makeEvent, OwnedEvent, HashedEvent} from "./Events.js"
 
 export let benchmark = 0
@@ -114,16 +114,14 @@ export const makePow = (event: OwnedEvent, difficulty: number): ProofOfWork => {
   return {worker, result}
 }
 
-export const getPow = (event: HashedEvent): number => {
-  const difficulty = parseInt(matchTag(tagSpec("nonce"), event.tags)?.[2] || "")
-
-  if (isNaN(difficulty)) return 0
-
+// How many leading zero bits an event id opens with, which is NIP-13's measure
+// of the work behind it.
+export const countLeadingZeroes = (id: string): number => {
   let count = 0
 
-  // Convert hex string to array of bytes
-  for (let i = 0; i < event.id.length; i += 2) {
-    const byte = parseInt(event.id.slice(i, i + 2), 16)
+  for (let i = 0; i < id.length; i += 2) {
+    const byte = parseInt(id.slice(i, i + 2), 16)
+
     if (byte === 0) {
       count += 8
     } else {
@@ -132,7 +130,55 @@ export const getPow = (event: HashedEvent): number => {
     }
   }
 
-  return count >= difficulty ? difficulty : 0
+  return count
+}
+
+export const getPow = (event: HashedEvent): number => {
+  const difficulty = parseInt(matchTag(tagSpec("nonce"), event.tags)?.[2] || "")
+
+  if (isNaN(difficulty)) return 0
+
+  return countLeadingZeroes(event.id) >= difficulty ? difficulty : 0
+}
+
+// How many attempts to make between yields. Long enough that the yield is a
+// rounding error, short enough that a browser tab stays interactive.
+const BATCH = 4096
+
+const yieldToCaller = () => new Promise(resolve => setTimeout(resolve, 0))
+
+// The search `makePow` runs, in whatever is already running it. `makePow` needs
+// a `Worker`, which node does not have, so nothing outside a browser can mine.
+// Attempts go in batches with a yield between them, so the caller's event loop
+// keeps turning through a long search.
+//
+// A difficulty of zero is no proof of work rather than an easy one, so the
+// event comes back hashed and untagged.
+export const minePow = async (
+  event: OwnedEvent,
+  difficulty: number,
+  signal?: AbortSignal,
+): Promise<HashedEvent> => {
+  if (difficulty < 1) return hash(event)
+
+  const tag = ["nonce", "0", difficulty.toString()]
+  const candidate = {...event, tags: [...event.tags, tag]}
+
+  let count = 0
+
+  while (true) {
+    for (let i = 0; i < BATCH; i++) {
+      signal?.throwIfAborted()
+
+      tag[1] = (count++).toString()
+
+      const hashed = hash(candidate)
+
+      if (countLeadingZeroes(hashed.id) >= difficulty) return hashed
+    }
+
+    await yieldToCaller()
+  }
 }
 
 // Generate a simple pow to estimate the device capacities

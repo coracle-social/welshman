@@ -75,8 +75,10 @@ NIP-10 and NIP-22 threading lives on the `Note` and `Comment` classes in `@welsh
 
 | Export | Description |
 |--------|-------------|
-| `makePow(event, difficulty)` | Mine a `nonce` tag until the id has `difficulty` leading zero bits; returns a `ProofOfWork` |
-| `getPow(event)` | Leading zero bits on an event's id |
+| `makePow(event, difficulty)` | Mine a `nonce` tag until the id has `difficulty` leading zero bits, in a web worker; returns a `ProofOfWork` |
+| `minePow(event, difficulty, signal?)` | The same search without a worker, so it runs under node; returns `Promise<HashedEvent>` |
+| `countLeadingZeroes(id)` | Leading zero bits on an id |
+| `getPow(event)` | The difficulty an event's `nonce` tag commits to, or 0 when its id does not reach it |
 | `estimateWork(difficulty)` / `benchmarkDifficulty` | Rough cost estimate for a difficulty target |
 
 ### Event Kinds (constants)
