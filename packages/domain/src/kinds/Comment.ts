@@ -146,6 +146,21 @@ export class CommentWriter extends EventWriter<CommentReader> {
     return this
   }
 
+  // A comment answering a comment belongs to the thread that one is already in,
+  // so it inherits its root tags. Rooting on the parent instead would start a
+  // second thread beside the one the reply is part of.
+  replyTo(event: TrustedEvent) {
+    const inherited = event.kind === this.kind ? getCommentTags(event.tags).roots : []
+
+    if (inherited.length > 0) {
+      this.rootTags = inherited.map(tag => [...tag])
+    } else {
+      this.setRootFromEvent(event)
+    }
+
+    return this.setParentFromEvent(event)
+  }
+
   protected renderDomainTags() {
     return [...this.rootTags, ...this.parentTags]
   }

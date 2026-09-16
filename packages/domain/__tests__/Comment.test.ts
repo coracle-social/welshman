@@ -155,6 +155,78 @@ describe("Comment", () => {
     expect(tmpl.tags).toContainEqual(["E", rootId, HINT, rootPubkey])
   })
 
+  it("replies to a comment by inheriting the thread it is in", async () => {
+    const parent = makeEvent({
+      id: parentId,
+      pubkey: parentPubkey,
+      kind: COMMENT,
+      tags: [
+        ["E", rootId, HINT, rootPubkey],
+        ["K", "11"],
+        ["P", rootPubkey, HINT],
+        ["e", "11".repeat(32)],
+        ["k", String(COMMENT)],
+        ["p", pubkey],
+      ],
+    })
+
+    const tmpl = await buildTemplate(
+      write(Comment, undefined, hintResolver).setContent("reply").replyTo(parent),
+      signer,
+    )
+
+    // The thread root is the one the parent names, not the parent itself.
+    expect(tmpl.tags).toContainEqual(["E", rootId, HINT, rootPubkey])
+    expect(tmpl.tags).toContainEqual(["K", "11"])
+    expect(tmpl.tags).toContainEqual(["P", rootPubkey, HINT])
+    expect(tmpl.tags).toContainEqual(["e", parentId, HINT, parentPubkey])
+    expect(tmpl.tags).toContainEqual(["k", String(COMMENT)])
+    expect(tmpl.tags).toContainEqual(["p", parentPubkey, HINT])
+  })
+
+  it("replies to a thread root by rooting on it", async () => {
+    const root = makeEvent({id: rootId, pubkey: rootPubkey, kind: 11})
+
+    const tmpl = await buildTemplate(
+      write(Comment, undefined, hintResolver).setContent("reply").replyTo(root),
+      signer,
+    )
+
+    expect(tmpl.tags).toContainEqual(["E", rootId, HINT, rootPubkey])
+    expect(tmpl.tags).toContainEqual(["K", "11"])
+    expect(tmpl.tags).toContainEqual(["e", rootId, HINT, rootPubkey])
+    expect(tmpl.tags).toContainEqual(["k", "11"])
+  })
+
+  // A comment with no root tags of its own is the only thing in its thread, so
+  // it is what a reply roots on.
+  it("roots on a comment that names no thread", async () => {
+    const parent = makeEvent({id: parentId, pubkey: parentPubkey, kind: COMMENT})
+
+    const tmpl = await buildTemplate(
+      write(Comment, undefined, hintResolver).setContent("reply").replyTo(parent),
+      signer,
+    )
+
+    expect(tmpl.tags).toContainEqual(["E", parentId, HINT, parentPubkey])
+    expect(tmpl.tags).toContainEqual(["K", String(COMMENT)])
+    expect(tmpl.tags).toContainEqual(["e", parentId, HINT, parentPubkey])
+  })
+
+  it("leaves the event it inherits from untouched", async () => {
+    const rootTag = ["E", rootId, HINT, rootPubkey]
+    const parent = makeEvent({
+      id: parentId,
+      pubkey: parentPubkey,
+      kind: COMMENT,
+      tags: [rootTag, ["K", "11"], ["P", rootPubkey, HINT]],
+    })
+
+    await buildTemplate(write(Comment, undefined, hintResolver).replyTo(parent), signer)
+
+    expect(rootTag).toEqual(["E", rootId, HINT, rootPubkey])
+  })
+
   it("throws on the wrong kind", async () => {
     await expect(read(Comment, makeEvent({kind: NOTE}))).rejects.toThrow()
   })

@@ -130,7 +130,12 @@ await Comment.configure(context)
   .setRootFromEvent(rootEvent)
   .setParentFromEvent(parentEvent)
   .renderTemplate()
+
+// ...or hand `replyTo` the event being answered and let it place both
+await Comment.configure(context).writer().setContent("reply").replyTo(event).renderTemplate()
 ```
+
+`replyTo` is the one to reach for when the answered event's kind is not known in advance. A comment answering a comment inherits that comment's root tags, so the reply stays in the thread it is part of; anything else becomes the root of its own thread. Either way the answered event is the parent.
 
 `setRoot`/`setParent` take an optional trailing `identifier`; when present, the writer also emits an `A`/`a` tag whose value is the full `kind:pubkey:identifier` address (built via `Address`). `setRootFromEvent`/`setParentFromEvent` pull that identifier from the source event's `d` tag automatically.
 
