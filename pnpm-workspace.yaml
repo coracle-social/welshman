@@ -1,6 +1,5 @@
 packages:
   - 'packages/**'
-  - '../nostr-editor'
 allowBuilds:
   cbor-extract: false
   esbuild: false
