@@ -50,7 +50,7 @@ export const socketPolicyAuthBuffer = (socket: Socket) => {
       if (isClientClose(message) || isClientNegClose(message)) {
         buffer = buffer.filter(nthNe(1, message[1]))
       } else {
-        buffer = buffer.slice(-50).concat([message])
+        buffer = buffer.slice(-1000).concat([message])
       }
     }),
     on(socket, SocketEvent.Receiving, (message: RelayMessage) => {
