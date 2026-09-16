@@ -139,3 +139,26 @@ export const isClientNegOpen = (m: ClientMessage): m is ClientNegOpen =>
   m[0] === ClientMessageType.NegOpen
 
 export const isClientReq = (m: ClientMessage): m is ClientReq => m[0] === ClientMessageType.Req
+
+// priority
+
+export const MessagePriority = Symbol("MessagePriority")
+
+export const DEFAULT_PRIORITY = 0
+
+export const setPriority = <T extends ClientMessage>(
+  message: T,
+  priority = DEFAULT_PRIORITY,
+): T => {
+  if (priority !== DEFAULT_PRIORITY) {
+    ;(message as any)[MessagePriority] = priority
+  }
+
+  return message
+}
+
+export const getPriority = (message: ClientMessage): number =>
+  (message as any)[MessagePriority] ?? DEFAULT_PRIORITY
+
+export const copyPriority = <T extends ClientMessage>(message: T, source: ClientMessage): T =>
+  setPriority(message, getPriority(source))

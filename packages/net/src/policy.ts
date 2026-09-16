@@ -10,6 +10,7 @@ import {
   isClientNegClose,
   ClientMessageType,
   RelayMessage,
+  copyPriority,
   isRelayOk,
   isRelayEose,
   isRelayClosed,
@@ -85,6 +86,41 @@ export const socketPolicyAuthBuffer = (socket: Socket) => {
         }
       } else if (terminalStatuses.includes(socket.auth.status)) {
         buffer = []
+      }
+    }),
+  ]
+
+  return () => unsubscribers.forEach(call)
+}
+
+/**
+ * Drops subscriptions that are closed before they've been sent, along with the close
+ * message itself. Besides saving a round trip, this keeps a prioritized close from
+ * jumping ahead of its own req, which would leave the subscription open on the relay.
+ * @param socket - a Socket object
+ * @return a cleanup function
+ */
+export const socketPolicyCancelUnsent = (socket: Socket) => {
+  const unsubscribers = [
+    on(socket, SocketEvent.Sending, (message: ClientMessage) => {
+      let isSubscription: (message: ClientMessage) => boolean
+
+      if (isClientClose(message)) {
+        isSubscription = isClientReq
+      } else if (isClientNegClose(message)) {
+        isSubscription = isClientNegOpen
+      } else {
+        return
+      }
+
+      const subscription = socket._sendQueue.items.find(
+        other => isSubscription(other) && other[1] === message[1],
+      )
+
+      // The close is already queued at this point, so drop it along with the req
+      if (subscription) {
+        socket._sendQueue.remove(subscription)
+        socket._sendQueue.remove(message)
       }
     }),
   ]
@@ -170,7 +206,8 @@ export const socketPolicyLifecycle = (socket: Socket) => {
                 catchUpFilter(filter, since),
               )
 
-              socket.send([...message.slice(0, 2), ...filters])
+              // Rebuilding the message drops its priority symbol, so carry it over
+              socket.send(copyPriority([...message.slice(0, 2), ...filters], message))
             } else {
               socket.send(message)
             }
@@ -270,6 +307,7 @@ export const makeSocketPolicyAuth = (options: SocketPolicyAuthOptions) => (socke
 
 export const defaultSocketPolicies: SocketPolicy[] = [
   socketPolicyAuthBuffer,
+  socketPolicyCancelUnsent,
   socketPolicyConnectOnSend,
   socketPolicyLifecycle,
 ]
