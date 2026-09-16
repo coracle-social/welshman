@@ -1,7 +1,7 @@
 import WebSocket from "isomorphic-ws"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {Socket, SocketStatus, SocketEvent} from "../src/socket"
-import {ClientMessage, RelayMessage} from "../src/message"
+import {ClientMessage, RelayMessage, setPriority} from "../src/message"
 
 vi.mock("isomorphic-ws", () => {
   const WebSocket = vi.fn(function (this: any) {
@@ -110,6 +110,47 @@ describe("Socket", () => {
 
       expect(socket._ws!.send).toHaveBeenCalledWith(JSON.stringify(message))
       expect(sendSpy).toHaveBeenCalledWith(message, "wss://test.relay")
+    })
+  })
+
+  describe("priority", () => {
+    // Queue everything up front, then open so the whole batch drains at once
+    const drain = async () => {
+      socket.open()
+      await vi.runAllTimersAsync()
+
+      return vi.mocked(socket._ws!.send).mock.calls.map(([data]: any[]) => JSON.parse(data))
+    }
+
+    it("should send higher priority messages first", async () => {
+      socket.send(setPriority(["REQ", "low", {}], 0))
+      socket.send(setPriority(["REQ", "high", {}], 10))
+      socket.send(setPriority(["REQ", "medium", {}], 5))
+
+      expect((await drain()).map(m => m[1])).toEqual(["high", "medium", "low"])
+    })
+
+    it("should keep equal priority messages in fifo order", async () => {
+      socket.send(setPriority(["REQ", "a", {}], 5))
+      socket.send(setPriority(["REQ", "b", {}], 5))
+      socket.send(setPriority(["REQ", "c", {}], 5))
+
+      expect((await drain()).map(m => m[1])).toEqual(["a", "b", "c"])
+    })
+
+    it("should send auth ahead of everything else", async () => {
+      socket.send(setPriority(["REQ", "urgent", {}], 1000))
+      socket.send(["AUTH", {id: "auth", kind: 22242}])
+
+      expect((await drain()).map(m => m[0])).toEqual(["AUTH", "REQ"])
+    })
+
+    it("should not leak priority onto the wire", async () => {
+      const message: ClientMessage = setPriority(["REQ", "abc", {kinds: [1]}], 10)
+
+      socket.send(message)
+
+      expect(await drain()).toEqual([["REQ", "abc", {kinds: [1]}]])
     })
   })
 

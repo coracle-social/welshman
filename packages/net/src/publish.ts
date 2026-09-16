@@ -1,6 +1,6 @@
 import {fromPairs, once} from "@welshman/lib"
 import {SignedEvent} from "@welshman/util"
-import {RelayMessage, ClientMessageType, isRelayOk} from "./message.js"
+import {RelayMessage, ClientMessageType, setPriority, isRelayOk} from "./message.js"
 import {AdapterEvent, AdapterContext, getAdapter} from "./adapter.js"
 
 export enum PublishStatus {
@@ -22,6 +22,7 @@ export type PublishOneOptions = {
   event: SignedEvent
   relay: string
   signal?: AbortSignal
+  priority?: number
   timeout?: number
   context?: AdapterContext
   onSuccess?: (result: PublishResult) => void
@@ -118,7 +119,7 @@ export const publishOne = (options: PublishOneOptions) =>
       cleanup()
     }, options.timeout || 10_000)
 
-    adapter.send([ClientMessageType.Event, options.event])
+    adapter.send(setPriority([ClientMessageType.Event, options.event], options.priority))
   })
 
 export type PublishResultsByRelay = Record<string, PublishResult>
@@ -127,6 +128,7 @@ export type PublishOptions = {
   event: SignedEvent
   relays: string[]
   signal?: AbortSignal
+  priority?: number
   timeout?: number
   context?: AdapterContext
   onSuccess?: (result: PublishResult) => void
@@ -138,7 +140,7 @@ export type PublishOptions = {
 }
 
 export const publish = async (options: PublishOptions): Promise<PublishResultsByRelay> => {
-  const {event, timeout, signal, context} = options
+  const {event, timeout, signal, context, priority} = options
   const completed = new Set<string>()
   const relays = new Set(options.relays)
 
@@ -155,6 +157,7 @@ export const publish = async (options: PublishOptions): Promise<PublishResultsBy
           signal,
           timeout,
           context,
+          priority,
           onSuccess: options.onSuccess,
           onFailure: options.onFailure,
           onPending: options.onPending,

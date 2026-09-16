@@ -25,6 +25,7 @@ import {
 import {
   RelayMessage,
   ClientMessageType,
+  setPriority,
   isRelayEvent,
   isRelayEose,
   isRelayClosed,
@@ -39,6 +40,7 @@ export type IsEventValid = (event: TrustedEvent, url: string) => boolean
 
 export type BaseRequestOptions = {
   signal?: AbortSignal
+  priority?: number
   tracker?: Tracker
   context?: AdapterContext
   autoClose?: boolean
@@ -90,7 +92,8 @@ export const requestOne = (options: RequestOneOptions) => {
 
   const closeId = (id: string) => {
     if (open.delete(id)) {
-      adapter.send([ClientMessageType.Close, id])
+      // Match the req's priority so the close can't be sent ahead of it
+      adapter.send(setPriority([ClientMessageType.Close, id], options.priority))
     }
   }
 
@@ -117,7 +120,12 @@ export const requestOne = (options: RequestOneOptions) => {
       if (!closed) {
         open.add(id)
         pending.add(id)
-        adapter.send([ClientMessageType.Req, id, catchUpFilter(filtersById.get(id)!, retry.since)])
+        adapter.send(
+          setPriority(
+            [ClientMessageType.Req, id, catchUpFilter(filtersById.get(id)!, retry.since)],
+            options.priority,
+          ),
+        )
       }
     })
   }
@@ -238,7 +246,7 @@ export const requestOne = (options: RequestOneOptions) => {
     open.add(id)
     pending.add(id)
     filtersById.set(id, filter)
-    adapter.send([ClientMessageType.Req, id, filter])
+    adapter.send(setPriority([ClientMessageType.Req, id, filter], options.priority))
   }
 
   return deferred

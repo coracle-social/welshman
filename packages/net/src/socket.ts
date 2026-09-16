@@ -1,7 +1,7 @@
 import WebSocket from "isomorphic-ws"
 import EventEmitter from "events"
 import {TaskQueue, call} from "@welshman/lib"
-import {RelayMessage, ClientMessage} from "./message.js"
+import {RelayMessage, ClientMessage, getPriority, isClientAuth} from "./message.js"
 import {AuthState} from "./auth.js"
 import {Unsubscriber} from "./util.js"
 
@@ -62,6 +62,9 @@ export class Socket extends EventEmitter {
         this._ws?.send(JSON.stringify(message))
         this.emit(SocketEvent.Send, message, this.url)
       },
+      // Auth always jumps the queue, since everything queued behind it gets refused
+      getPriority: (message: ClientMessage) =>
+        isClientAuth(message) ? Infinity : getPriority(message),
     })
 
     this._recvQueue = new TaskQueue<RelayMessage>({

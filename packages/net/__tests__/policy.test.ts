@@ -4,6 +4,7 @@ import {Socket, SocketStatus, SocketEvent} from "../src/socket"
 import {AuthStatus, AuthStateEvent} from "../src/auth"
 import {
   socketPolicyAuthBuffer,
+  socketPolicyCancelUnsent,
   socketPolicyConnectOnSend,
   socketPolicyLifecycle,
 } from "../src/policy"
@@ -228,6 +229,59 @@ describe("policy", () => {
 
       // Should not retry
       expect(sendSpy).not.toHaveBeenCalled()
+
+      cleanup()
+    })
+  })
+
+  describe("socketPolicyCancelUnsent", () => {
+    it("should drop a queued req along with its close", () => {
+      const cleanup = socketPolicyCancelUnsent(socket)
+
+      socket.send(["REQ", "abc", {}])
+      socket.send(["REQ", "xyz", {}])
+      socket.send(["CLOSE", "abc"])
+
+      expect(socket._sendQueue.items).toEqual([["REQ", "xyz", {}]])
+
+      cleanup()
+    })
+
+    it("should pair neg-close with neg-open", () => {
+      const cleanup = socketPolicyCancelUnsent(socket)
+
+      socket.send(["NEG-OPEN", "abc", {}, ""])
+      socket.send(["NEG-CLOSE", "abc"])
+
+      expect(socket._sendQueue.items).toEqual([])
+
+      cleanup()
+    })
+
+    it("should not cancel a subscription of a different type", () => {
+      const cleanup = socketPolicyCancelUnsent(socket)
+
+      socket.send(["NEG-OPEN", "abc", {}, ""])
+      socket.send(["CLOSE", "abc"])
+
+      expect(socket._sendQueue.items).toEqual([
+        ["NEG-OPEN", "abc", {}, ""],
+        ["CLOSE", "abc"],
+      ])
+
+      cleanup()
+    })
+
+    it("should keep a close for a req that has already been sent", () => {
+      const cleanup = socketPolicyCancelUnsent(socket)
+
+      socket.send(["REQ", "abc", {}])
+
+      // Stand in for the queue having drained
+      socket._sendQueue.clear()
+      socket.send(["CLOSE", "abc"])
+
+      expect(socket._sendQueue.items).toEqual([["CLOSE", "abc"]])
 
       cleanup()
     })
