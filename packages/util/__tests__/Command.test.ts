@@ -136,10 +136,10 @@ describe("command scopes", () => {
     ] as const
     const target = {kind: 9, tags: [["h", "a"]]}
 
-    expect(matchesCommandScopes([...scopes], [], target)).toBe(true)
-    expect(matchesCommandScopes([...scopes], [], {...target, kind: 11})).toBe(true)
-    expect(matchesCommandScopes([...scopes], [], {...target, kind: 1})).toBe(false)
-    expect(matchesCommandScopes([...scopes], [], {kind: 9, tags: [["h", "b"]]})).toBe(false)
+    expect(matchesCommandScopes([...scopes], target)).toBe(true)
+    expect(matchesCommandScopes([...scopes], {...target, kind: 11})).toBe(true)
+    expect(matchesCommandScopes([...scopes], {...target, kind: 1})).toBe(false)
+    expect(matchesCommandScopes([...scopes], {kind: 9, tags: [["h", "b"]]})).toBe(false)
   })
 
   it("ors tag scopes sharing a name and ands ones that don't", () => {
@@ -150,7 +150,7 @@ describe("command scopes", () => {
     ] as const
 
     expect(
-      matchesCommandScopes([...scopes], [], {
+      matchesCommandScopes([...scopes], {
         kind: 9,
         tags: [
           ["h", "b"],
@@ -158,14 +158,7 @@ describe("command scopes", () => {
         ],
       }),
     ).toBe(true)
-    expect(matchesCommandScopes([...scopes], [], {kind: 9, tags: [["h", "b"]]})).toBe(false)
-  })
-
-  it("excludes anything ignored", () => {
-    const ignored = [{type: "author", pubkey}] as const
-
-    expect(matchesCommandScopes([], [...ignored], {kind: 9, pubkey})).toBe(false)
-    expect(matchesCommandScopes([], [...ignored], {kind: 9})).toBe(true)
+    expect(matchesCommandScopes([...scopes], {kind: 9, tags: [["h", "b"]]})).toBe(false)
   })
 })
 

@@ -273,7 +273,7 @@ Room ops are scoped by the `h` tag and must publish to explicit relays — use `
 
 `ArticleReader` (long-form, 30023): `title`, `summary`, `image`, `publishedAt`, `topics()`; writer `setTitle`/`setSummary`/`setImage`/`setPublishedAt`/`setTopics`.
 
-`CommandReader` (31992): `command`, `title`, `description`, `args()`, `scopes()`, `ignored()`, plus `matches(target: CommandScopeTarget)`; writer `setCommand`/`setTitle`/`setDescription`/`setArgs`/`setScopes`/`setIgnored`. The invocation grammar itself (parsing/rendering `/command arg…`) lives in `@welshman/util`'s `Command.ts`, so non-domain callers can use it.
+`CommandReader` (31992): `command`, `title`, `description`, `args()`, `scopes()`, plus `matches(target: CommandScopeTarget)`; writer `setCommand`/`setTitle`/`setDescription`/`setArgs`/`setScopes`. The invocation grammar itself (parsing/rendering `/command arg…`) lives in `@welshman/util`'s `Command.ts`, so non-domain callers can use it.
 
 `RoomPinsReader`/`RoomUpdatePinsReader`: `pins()`, `ids()`, `addresses()` (`RoomPinsReader` adds `isPinned`); writer `setPins`. Both set `requiresRelays`.
 

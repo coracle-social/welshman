@@ -25,8 +25,8 @@ const parseArgTags = (tags: string[][]): CommandArg[] =>
     choices,
   }))
 
-const parseScopeTags = (key: string, tags: string[][]): CommandScope[] =>
-  removeUndefined(tagValues(tagSpec(key), tags).map(parseCommandScope))
+const parseScopeTags = (tags: string[][]): CommandScope[] =>
+  removeUndefined(tagValues(tagSpec("s"), tags).map(parseCommandScope))
 
 // NIP-CD kind-31992 command definition.
 export class CommandReader extends EventReader {
@@ -49,15 +49,11 @@ export class CommandReader extends EventReader {
   }
 
   scopes(): CommandScope[] {
-    return parseScopeTags("s", this.event.tags)
-  }
-
-  ignored(): CommandScope[] {
-    return parseScopeTags("ignore", this.event.tags)
+    return parseScopeTags(this.event.tags)
   }
 
   matches(target: CommandScopeTarget) {
-    return matchesCommandScopes(this.scopes(), this.ignored(), target)
+    return matchesCommandScopes(this.scopes(), target)
   }
 }
 
@@ -93,12 +89,6 @@ export class CommandWriter extends EventWriter<CommandReader> {
     )
   }
 
-  setIgnored(scopes: CommandScope[]) {
-    return this.dropTags(spec(["ignore"])).addTags(
-      ...scopes.map(scope => ["ignore", renderCommandScope(scope)]),
-    )
-  }
-
   validate() {
     super.validate()
 
@@ -116,8 +106,8 @@ export class CommandWriter extends EventWriter<CommandReader> {
     }
 
     for (const [key, scope] of this.extraTags) {
-      if (["s", "ignore"].includes(key) && !parseCommandScope(scope ?? "")) {
-        throw new Error(`Invalid ${key} scope ${scope}`)
+      if (key === "s" && !parseCommandScope(scope ?? "")) {
+        throw new Error(`Invalid s scope ${scope}`)
       }
     }
 

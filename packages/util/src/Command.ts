@@ -122,15 +122,9 @@ const matchesCommandScope = (scope: CommandScope, target: CommandScopeTarget) =>
   return Boolean(target.tags?.some(spec([scope.name, scope.value])))
 }
 
-// Scopes of one type are ored, types are anded, a type that isn't mentioned is
-// unrestricted, and anything ignored is excluded regardless
-export const matchesCommandScopes = (
-  scopes: CommandScope[],
-  ignored: CommandScope[],
-  target: CommandScopeTarget,
-) => {
-  if (ignored.some(scope => matchesCommandScope(scope, target))) return false
-
+// Scopes of one type are ored, types are anded, and a type that isn't mentioned
+// is unrestricted
+export const matchesCommandScopes = (scopes: CommandScope[], target: CommandScopeTarget) => {
   for (const alternatives of groupBy(scopeKey, scopes).values()) {
     if (!alternatives.some(scope => matchesCommandScope(scope, target))) return false
   }
@@ -144,9 +138,9 @@ export const commandScopeRelays = (scopes: CommandScope[]) =>
   scopes.flatMap(scope => (scope.type === "relay" ? [scope.url] : []))
 
 // A subscription covering a command's scope, for an executor that wants to listen for it.
-// Relays aren't part of a filter (see `commandScopeRelays`), multi-letter tag scopes aren't
-// indexed, and `ignore` is subtractive, so this is a superset — check what comes back with
-// `matchesCommandScopes` rather than trusting the filter alone.
+// Relays aren't part of a filter (see `commandScopeRelays`) and multi-letter tag scopes aren't
+// indexed, so this is a superset — check what comes back with `matchesCommandScopes` rather
+// than trusting the filter alone.
 export const commandScopesToFilter = (scopes: CommandScope[]) => {
   const filter: Filter = {}
 

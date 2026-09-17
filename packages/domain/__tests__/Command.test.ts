@@ -5,7 +5,6 @@ import {Command} from "../src/kinds/Command"
 import {buildTemplate, read, write} from "./helpers.js"
 
 const pubkey = "ee".repeat(32)
-const author = "ab".repeat(32)
 
 const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
   ({
@@ -40,7 +39,6 @@ const definition = makeEvent({
     ["s", "kind:11"],
     ["s", "tag:h:62af9b0"],
     ["s", "relay:wss://relay.example"],
-    ["ignore", `tag:p:${author}`],
   ],
 })
 
@@ -61,7 +59,6 @@ describe("Command", () => {
       {type: "tag", name: "h", value: "62af9b0"},
       {type: "relay", url: "wss://relay.example/"},
     ])
-    expect(command.ignored()).toEqual([{type: "tag", name: "p", value: author}])
   })
 
   it("drops args and scopes it doesn't understand", async () => {
@@ -92,26 +89,11 @@ describe("Command", () => {
     expect(command.matches({kind: 9})).toBe(false)
   })
 
-  it("excludes anything ignored", async () => {
-    const command = await read(Command, definition)
-    const target = {
-      kind: 9,
-      pubkey,
-      tags: [
-        ["h", "62af9b0"],
-        ["p", author],
-      ],
-      url: "wss://relay.example/",
-    }
-
-    expect(command.matches(target)).toBe(false)
-  })
-
   it("treats an empty scope as unrestricted", async () => {
-    const command = await read(Command, makeEvent({tags: [["ignore", "kind:1"]]}))
+    const command = await read(Command, makeEvent())
 
     expect(command.matches({kind: 9})).toBe(true)
-    expect(command.matches({kind: 1})).toBe(false)
+    expect(command.matches({kind: 1})).toBe(true)
   })
 
   it("writes a definition", async () => {
@@ -129,8 +111,7 @@ describe("Command", () => {
           {type: "kind", kind: 9},
           {type: "tag", name: "h", value: "62af9b0"},
           {type: "relay", url: "wss://relay.example/"},
-        ])
-        .setIgnored([{type: "author", pubkey: author}]),
+        ]),
     )
 
     expect(template.kind).toBe(COMMAND)
@@ -140,7 +121,6 @@ describe("Command", () => {
     expect(template.tags).toContainEqual(["s", "kind:9"])
     expect(template.tags).toContainEqual(["s", "tag:h:62af9b0"])
     expect(template.tags).toContainEqual(["s", "relay:wss://relay.example/"])
-    expect(template.tags).toContainEqual(["ignore", `author:${author}`])
   })
 
   it("rejects a trigger that could never fire", async () => {
