@@ -188,6 +188,115 @@ describe("Repository", () => {
 
       expect(repo.isDeleted(event)).toBe(false)
     })
+
+    it("should restore an event when its deletion is removed", () => {
+      const pubkey = randomHex()
+      const event = createEvent(1, {pubkey})
+      const deleteEvent = createEvent(DELETE, {
+        pubkey,
+        tags: [
+          ["e", event.id],
+          ["e", event.id],
+        ],
+        created_at: now() + 1,
+      })
+      const updateHandler = vi.fn()
+
+      repo.publish(event)
+      repo.publish(deleteEvent)
+      repo.on("update", updateHandler)
+      repo.removeEvent(deleteEvent.id)
+
+      expect(repo.query([{ids: [event.id]}])).toEqual([event])
+      expect(updateHandler).toHaveBeenLastCalledWith({
+        added: [event],
+        removed: new Set([deleteEvent.id]),
+      })
+    })
+
+    it("should restore a replaceable event when its address deletion is removed", () => {
+      const pubkey = randomHex()
+      const event = createEvent(MUTES, {pubkey})
+      const deleteEvent = createEvent(DELETE, {
+        pubkey,
+        tags: [["a", getAddress(event)]],
+        created_at: now() + 1,
+      })
+      const updateHandler = vi.fn()
+
+      repo.publish(event)
+      repo.publish(deleteEvent)
+      repo.on("update", updateHandler)
+      repo.removeEvent(deleteEvent.id)
+
+      expect(repo.query([{ids: [event.id]}])).toEqual([event])
+      expect(updateHandler).toHaveBeenLastCalledWith({
+        added: [event],
+        removed: new Set([deleteEvent.id]),
+      })
+    })
+
+    it("should keep a concurrent deletion effective when another is removed", () => {
+      const pubkey = randomHex()
+      const event = createEvent(1, {pubkey})
+      const created_at = now() + 1
+      const first = createEvent(DELETE, {pubkey, tags: [["e", event.id]], created_at})
+      const second = createEvent(DELETE, {pubkey, tags: [["e", event.id]], created_at})
+
+      repo.publish(event)
+      repo.publish(first)
+      repo.publish(second)
+      repo.removeEvent(first.id)
+
+      expect(repo.query([{ids: [event.id]}])).toEqual([])
+
+      repo.removeEvent(second.id)
+
+      expect(repo.query([{ids: [event.id]}])).toEqual([event])
+    })
+
+    it("should not announce a target a removed deletion never hid", () => {
+      // A delete by another author never applied, so removing it uncovers nothing
+      const event = createEvent(1)
+      const deleteEvent = createEvent(DELETE, {tags: [["e", event.id]], created_at: now() + 1})
+      const updateHandler = vi.fn()
+
+      repo.publish(event)
+      repo.publish(deleteEvent)
+      repo.on("update", updateHandler)
+      repo.removeEvent(deleteEvent.id)
+
+      expect(updateHandler).toHaveBeenLastCalledWith({
+        added: [],
+        removed: new Set([deleteEvent.id]),
+      })
+    })
+
+    it("should not announce an occupant a stale address deletion never hid", () => {
+      // The address was republished after the delete, so the current occupant outlived it
+      const pubkey = randomHex()
+      const created_at = now()
+      const stale = createEvent(MUTES, {pubkey, created_at: created_at - 10})
+      const deleteEvent = createEvent(DELETE, {
+        pubkey,
+        tags: [["a", getAddress(stale)]],
+        created_at: created_at - 5,
+      })
+      const current = createEvent(MUTES, {pubkey, created_at})
+      const updateHandler = vi.fn()
+
+      repo.publish(stale)
+      repo.publish(deleteEvent)
+      repo.publish(current)
+      repo.on("update", updateHandler)
+      repo.removeEvent(deleteEvent.id)
+
+      expect(repo.isDeleted(current)).toBe(false)
+      expect(updateHandler).toHaveBeenLastCalledWith({
+        added: [],
+        removed: new Set([deleteEvent.id]),
+      })
+    })
   })
 
   describe("expire events", () => {
@@ -209,6 +318,15 @@ describe("Repository", () => {
       expect(repo.isExpired(event1)).toBe(true)
       expect(repo.isExpired(event2)).toBe(false)
       expect(repo.isExpired(event3)).toBe(false)
+    })
+
+    it("should drop expiration bookkeeping when the event is removed", () => {
+      const event = createEvent(1, {tags: [["expiration", String(now() + 100)]]})
+
+      repo.publish(event)
+      repo.removeEvent(event.id)
+
+      expect(repo.expired.has(event.id)).toBe(false)
     })
   })
 
@@ -443,6 +561,65 @@ describe("Repository", () => {
       repo.removeEvent(event1.id)
 
       expect(repo.getEvent(address)).toEqual(event3)
+    })
+
+    it("should not announce a version still shadowed by a newer one", () => {
+      const pubkey = randomHex()
+      const created_at = now()
+      const event1 = createEvent(MUTES, {pubkey, created_at: created_at - 200})
+      const event2 = createEvent(MUTES, {pubkey, created_at: created_at - 100})
+      const event3 = createEvent(MUTES, {pubkey, created_at})
+      const updateHandler = vi.fn()
+
+      repo.publish(event1)
+      repo.publish(event2)
+      repo.publish(event3)
+      repo.on("update", updateHandler)
+      repo.removeEvent(event2.id)
+
+      expect(repo.getEvent(getAddress(event1))).toEqual(event3)
+      expect(updateHandler).toHaveBeenLastCalledWith({
+        added: [],
+        removed: new Set([event2.id]),
+      })
+    })
+
+    it("should keep an explicit deletion when removing a replacement", () => {
+      const pubkey = randomHex()
+      const created_at = now()
+      const event = createEvent(MUTES, {pubkey, created_at: created_at - 1})
+      const deleteEvent = createEvent(DELETE, {pubkey, tags: [["e", event.id]], created_at})
+      const replacement = createEvent(MUTES, {pubkey, created_at})
+      const updateHandler = vi.fn()
+
+      repo.publish(event)
+      repo.publish(deleteEvent)
+      repo.publish(replacement)
+      repo.on("update", updateHandler)
+      repo.removeEvent(replacement.id)
+
+      expect(repo.getEvent(getAddress(event))).toEqual(event)
+      expect(repo.isDeleted(event)).toBe(true)
+      expect(repo.query([{ids: [event.id]}])).toEqual([])
+      expect(updateHandler).toHaveBeenLastCalledWith({
+        added: [],
+        removed: new Set([replacement.id]),
+      })
+    })
+
+    it("should not resurrect a version that was itself removed", () => {
+      const pubkey = randomHex()
+      const created_at = now()
+      const event1 = createEvent(MUTES, {pubkey, created_at: created_at - 100})
+      const event2 = createEvent(MUTES, {pubkey, created_at})
+
+      repo.publish(event1)
+      repo.publish(event2)
+      repo.removeEvent(event1.id)
+      repo.removeEvent(event2.id)
+
+      expect(repo.getEvent(getAddress(event1))).toBeUndefined()
+      expect(repo.query([{kinds: [MUTES]}])).toEqual([])
     })
   })
 

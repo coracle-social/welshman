@@ -60,7 +60,8 @@ export class Repository extends Emitter {
   eventsByDay = new Map<number, TrustedEvent[]>()
   eventsByAuthor = new Map<string, TrustedEvent[]>()
   eventsByKind = new Map<number, TrustedEvent[]>()
-  deletes = new Map<string, {created_at: number; pubkey: string}[]>()
+  deletes = new Map<string, Pick<TrustedEvent, "id" | "created_at" | "pubkey">[]>()
+  deletedBy = new Map<string, string[]>()
   expired = new Map<string, number>()
   replaced = new Map<string, TrustedEvent>()
 
@@ -84,6 +85,7 @@ export class Repository extends Emitter {
     this.eventsByAuthor.clear()
     this.eventsByKind.clear()
     this.deletes.clear()
+    this.deletedBy.clear()
     this.expired.clear()
     this.replaced.clear()
     this.emit("clear")
@@ -136,6 +138,7 @@ export class Repository extends Emitter {
 
     if (event) {
       this.eventsById.delete(event.id)
+      this.expired.delete(event.id)
 
       // Only touch the address index (and restore what this event superseded) if this
       // event is still the current occupant — it may have already been replaced itself.
@@ -156,13 +159,17 @@ export class Repository extends Emitter {
       this._updateIndex(this.eventsByAuthor, event.pubkey, undefined, event)
       this._updateIndex(this.eventsByKind, event.kind, undefined, event)
 
+      // Put back whatever this event superseded, unless it was itself removed in the meantime
       const replaced = mapPop(event.id, this.replaced)
-      const added: TrustedEvent[] = []
 
-      if (isCurrent && replaced) {
-        this._restore(event, replaced)
-        added.push(replaced)
+      if (isCurrent && replaced && this.eventsById.get(replaced.id) === replaced) {
+        this.eventsByAddress.set(getAddress(replaced), replaced)
+        this._reindex(replaced)
       }
+
+      // Drop every delete this event asserted — its own tags, and the implicit delete of
+      // anything it replaced — and report whatever that uncovers
+      const added = this._undelete(event.id)
 
       this.emit("update", {added, removed: new Set([event.id])})
     }
@@ -231,7 +238,7 @@ export class Repository extends Emitter {
       }
 
       // If our event is newer than what it's replacing, delete the old version
-      pushToMapKey(this.deletes, duplicate.id, pick(["pubkey", "created_at"], event))
+      this._delete(event, duplicate.id)
 
       // Notify listeners that it's been removed
       removed.add(duplicate.id)
@@ -257,7 +264,7 @@ export class Repository extends Emitter {
         // If this is a delete event, the tag value is an id or address. Track when it was
         // deleted so that replaceables can be restored.
         if (event.kind === DELETE && ["a", "e"].includes(tag[0]) && tag[1]) {
-          pushToMapKey(this.deletes, tag[1], pick(["pubkey", "created_at"], event))
+          this._delete(event, tag[1])
 
           const deletedEvent = this.getEvent(tag[1])
 
@@ -444,17 +451,40 @@ export class Repository extends Emitter {
     }
   }
 
-  _restore = ({pubkey, created_at}: TrustedEvent, replaced: TrustedEvent) => {
-    const records = this.deletes.get(replaced.id)
+  // Record that `event` deletes `key` (an id or address), keeping the reverse index that
+  // lets the assertion be withdrawn if `event` is later removed
+  _delete = (event: TrustedEvent, key: string) => {
+    pushToMapKey(this.deletes, key, pick(["id", "pubkey", "created_at"], event))
+    pushToMapKey(this.deletedBy, event.id, key)
+  }
 
-    if (records) {
-      const i = records.findIndex(spec({pubkey, created_at}))
+  // Withdraw every delete asserted by `id`, returning the events that became visible again
+  _undelete = (id: string) => {
+    const added: TrustedEvent[] = []
 
-      if (i >= 0) records.splice(i, 1)
-      if (records.length === 0) this.deletes.delete(replaced.id)
+    for (const key of mapPop(id, this.deletedBy) || []) {
+      const target = this.getEvent(key)
+      const wasVisible = Boolean(target && this._isVisible(target))
+      const records = (this.deletes.get(key) || []).filter(record => record.id !== id)
+
+      if (records.length > 0) {
+        this.deletes.set(key, records)
+      } else {
+        this.deletes.delete(key)
+      }
+
+      if (target && !wasVisible && this._isVisible(target)) {
+        added.push(target)
+      }
     }
 
-    this.eventsByAddress.set(getAddress(replaced), replaced)
-    this._reindex(replaced)
+    return added
   }
+
+  // An event is visible if it's still indexed, still the current version, and not hidden
+  _isVisible = (event: TrustedEvent) =>
+    this.eventsById.get(event.id) === event &&
+    !this.isDeleted(event) &&
+    !this.isExpired(event) &&
+    (!isReplaceable(event) || this.eventsByAddress.get(getAddress(event)) === event)
 }
