@@ -6,7 +6,7 @@ Most event-backed plugins load via the **outbox model**: they first resolve the 
 
 Under the hood, each event-backed plugin decodes raw events into [`@welshman/domain`](../domain/) **reader** objects via `app.use(Domain).reader(Kind)` — the `eventToItem` its collection is configured with. So the items you read back (`profiles.get(pubkey)`, `follows.one(pubkey).$`, …) are `Reader` instances such as `ProfileReader` or `FollowListReader`, with synchronous getter methods like `author()`, `pubkeys()`, or `urls()`.
 
-Mutation methods (`create`, `update`, `follow`, `mutePublicly`, etc.) build a domain **writer** with `app.use(Domain).writer(Kind, existingReader?)`, apply the change, and wrap it with `app.use(Domain).command(writer)`, returning a [`Command`](./publishing#commands) rather than publishing it — call `.publish()` on the result (or `.publishAsRelay(url)`) to actually send it. Since these methods are themselves `async`, the examples below use the `publish`/`publishAsRelay` free functions (`import {publish} from "@welshman/app"`) to chain onto the outer promise instead of double-awaiting.
+Mutation methods (`create`, `update`, `follow`, `mutePublicly`, etc.) build a domain **writer** with `app.use(Domain).writer(Kind, existingReader?)`, apply the change, and wrap it with `app.use(Domain).command(writer)`, returning a [`Command`](./publishing#commands) rather than publishing it — call `.publish()` on the result to actually send it. Since these methods are themselves `async`, the examples below use the `publish`/`publishToRelays` free functions (`import {publish} from "@welshman/app"`) to chain onto the outer promise instead of double-awaiting.
 
 ## Profiles
 
@@ -158,9 +158,7 @@ await relays.hasNegentropy(url)              // boolean — NIP-77 / negentropy 
 await app.use(RelayManagement).forUrl(url).allowPubkey(pubkey, reason)
 ```
 
-`forUrl(url)` returns a NIP-86 [`ManagementApi`](../util/) client whose auth events are signed by the current user. Call its methods (`allowPubkey`, `banPubkey`, `signEvent`, `deleteRole`, …) to issue management requests.
-
-This is also what backs [`Command.publishAsRelay(url)`](./publishing#commands): `signAsRelay(url)` uses `forUrl(url).signEvent(event)` to have the relay sign the event with its own key (NIP-86 `signevent`) before publishing it back to that relay.
+`forUrl(url)` returns a NIP-86 [`ManagementApi`](../util/) client whose auth events are signed by the current user. Call its methods (`allowPubkey`, `banPubkey`, `deleteRole`, …) to issue management requests.
 
 ## Handles (NIP-05)
 

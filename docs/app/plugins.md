@@ -209,7 +209,6 @@ const command = await app.use(Domain).command(writer)
 
 command.publish()                  // through the normal Thunks pipeline
 command.publishToRelays(urls)      // a specific relay set
-command.publishAsRelay(url)        // relay signs it (NIP-86 signevent), then publish back
 ```
 
 This replaces the old `Router.commandFromBuilder(builder)`.

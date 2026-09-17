@@ -1,4 +1,4 @@
-import {SignedEvent, StampedEvent, EventTemplate} from "./Events.js"
+import {SignedEvent, StampedEvent} from "./Events.js"
 import {makeHttpAuth, makeHttpAuthHeader} from "./Nip98.js"
 
 // Signs a NIP-98 auth event (typically the app user's signer). Given the
@@ -184,11 +184,6 @@ export const makeListBlockedIps = (): ManagementRequest => ({
   params: [],
 })
 
-export const makeSignEvent = (event: EventTemplate): ManagementRequest => ({
-  method: "signevent",
-  params: [event],
-})
-
 export const sendManagementRequest = async (
   url: string,
   request: ManagementRequest,
@@ -297,6 +292,4 @@ export class ManagementApi {
   unblockIp = (ip: string) => this.send(makeUnblockIp(ip))
 
   listBlockedIps = () => this.send(makeListBlockedIps())
-
-  signEvent = (event: EventTemplate) => this.send(makeSignEvent(event))
 }

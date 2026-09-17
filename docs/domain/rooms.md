@@ -139,8 +139,6 @@ const command = await app.use(Domain).command(writer)
 await command.publish()
 ```
 
-For an admin op that the relay must sign with its own key (NIP-86 `signevent`), use `command.publishAsRelay(url)` instead of `publish()`.
-
 If you need the raw pieces (e.g. in tests, without the app), call the writer's terminal methods directly: `writer.renderTemplate()` returns the unsigned `EventTemplate`, `writer.relays()` returns the resolved publish relays, and `writer.render()` returns both. There is no `toTemplate`/`toEvent`/`toRumor` — the caller signs the template from `renderTemplate()`.
 
 ## See also

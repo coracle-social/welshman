@@ -310,7 +310,7 @@ const command = await app.use(Domain).command(writer)    // render() + wrap
 command.publish()                                          // or .publishToRelays(urls)
 ```
 
-`Domain.command(writer)` requires a signed-in user, calls `writer.render()`, and returns a `Command` (`.publish()` / `.publishToRelays(urls)` / `.publishAsRelay(url)`). This replaces the old `Router.commandFromBuilder(builder)`. The `Router` plugin's `resolver` (a `Resolver`) is what dereferences every route to concrete relay urls.
+`Domain.command(writer)` requires a signed-in user, calls `writer.render()`, and returns a `Command` (`.publish()` / `.publishToRelays(urls)`). This replaces the old `Router.commandFromBuilder(builder)`. The `Router` plugin's `resolver` (a `Resolver`) is what dereferences every route to concrete relay urls.
 
 ## Gotchas
 

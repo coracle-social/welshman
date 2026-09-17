@@ -101,21 +101,16 @@ command.relays     // string[] — where publish() will send it
 
 command.publish()             // the normal path: app.use(Thunks).publish({event, relays})
 command.publishToRelays(urls)  // same, but override the relay set
-command.publishAsRelay(url)    // NIP-86: ask the relay to sign with its own key
-                               // (signevent), then publish the relay-signed event back
-command.signAsRelay(url)       // just the NIP-86 sign step, without publishing
 ```
 
-`publishAsRelay` is for cases like NIP-29 room management or NIP-86-adjacent workflows, where the relay itself must sign the event (via `app.use(RelayManagement).forUrl(url).signEvent`) rather than routing a user-signed event through the outbox model.
-
-Since mutation methods are themselves `async`, calling `.publish()` on the result normally means a double `await`. `publish`, `publishToRelays`, `publishAsRelay`, and `signAsRelay` are also exported as free functions so you can chain them onto the outer promise instead:
+Since mutation methods are themselves `async`, calling `.publish()` on the result normally means a double `await`. `publish` and `publishToRelays` are also exported as free functions so you can chain them onto the outer promise instead:
 
 ```typescript
-import {publish, publishAsRelay} from "@welshman/app"
+import {publish, publishToRelays} from "@welshman/app"
 
 await app.use(FollowLists).follow(["p", otherPubkey]).then(publish)
 await app.use(Rooms).leave(relayUrl, roomMeta).then(publish)
-await app.use(Rooms).join(relayUrl, roomMeta).then(publishAsRelay(relayUrl))
+await app.use(Rooms).join(relayUrl, roomMeta).then(publishToRelays([relayUrl]))
 ```
 
 `Wraps.publish` is the one mutation that still publishes directly rather than returning a `Command`: it fans a single rumor out into a `MergedThunk` of per-recipient wraps, each with its own relay set, which doesn't fit the one-event/one-relay-set shape a `Command` assumes.
