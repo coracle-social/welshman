@@ -31,7 +31,7 @@ export class RelayLists extends DerivedPlugin<RelayListReader> {
     // write relays, alongside caller hints and the indexers.
     const urls = uniq([...scenario.getUrls(), ...this.writeUrls(pubkey).get()])
 
-    return this.app.use(Network).load({filters, relays: urls})
+    return this.app.use(Network).loadComplete({filters, relays: urls})
   }
 
   urls = (pubkey: string): Projection<string[]> => this.project(pubkey, list => list?.urls() ?? [])

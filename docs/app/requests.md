@@ -21,7 +21,11 @@ await net.request({
 })
 ```
 
-`net.load` is a shared, batched loader (created with a 50ms delay / 3s timeout). Use `net.makeLoader(options)` if you need a loader with different batching characteristics.
+`net.load` is a shared, batched loader (created with a 50ms delay / 3s timeout). It resolves once half the relays have closed, so it returns what is in hand rather than waiting on the slowest.
+
+`net.loadComplete` is the same loader with no such shortcut: it resolves when every relay has closed or timed out. Load through it when the caller acts on emptiness, since half the relays answering nothing is not an answer.
+
+Use `net.makeLoader(options)` if you need a loader with different batching characteristics.
 
 ```typescript
 publish(options)        // publish an event (prefer the Thunks plugin for app publishing)
@@ -30,7 +34,7 @@ makeLoader(options)     // build a custom batched Loader
 
 ## The outbox model: `loadUsingOutbox`
 
-`loadUsingOutbox` is the workhorse most data plugins use. Given an author's pubkey, it builds a route list (`[...relays(hints), outbox(pubkey)]` — any passed relay hints plus the author's NIP-65 **write** relays), resolves it through `app.use(Router).resolve(...)` into a `RelayScenario`, takes that scenario's `getUrls()`, loads from them via the shared batched loader, and resolves with the most recent matching event.
+`loadUsingOutbox` is the workhorse most data plugins use. Given an author's pubkey, it builds a route list (`[...relays(hints), outbox(pubkey)]` — any passed relay hints plus the author's NIP-65 **write** relays), resolves it through `app.use(Router).resolve(...)` into a `RelayScenario`, takes that scenario's `getUrls()`, loads from them via `loadComplete`, and resolves with the most recent matching event.
 
 ```typescript
 const latestProfile = await net.loadUsingOutbox(pubkey, {kinds: [0]})

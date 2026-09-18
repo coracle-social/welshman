@@ -19,10 +19,17 @@ import type {IApp} from "../app.js"
 export class Network {
   load: Loader
 
+  // Resolves when every relay has closed rather than when half of them have. Half the relays
+  // answering nothing is not an answer, and the outbox model routes on what this returns: a
+  // relay list read as absent while it is still in flight sends every load chained behind it
+  // to no relays at all.
+  loadComplete: Loader
+
   private controller = new AbortController()
 
   constructor(readonly app: IApp) {
     this.load = this.makeLoader({delay: 50, timeout: 3000, threshold: 0.5})
+    this.loadComplete = this.makeLoader({delay: 50, timeout: 3000})
 
     app.onCleanup(() => this.controller.abort())
   }
@@ -50,7 +57,7 @@ export class Network {
     const filters: Filter[] = [{...filter, authors: [pubkey]}]
     const scenario = await this.app.use(Router).resolve([...relays(hints), outbox(pubkey)])
     const urls = scenario.getUrls()
-    const events = await this.load({filters, relays: urls})
+    const events = await this.loadComplete({filters, relays: urls})
 
     return first(sortEventsDesc(events))
   }
@@ -62,6 +69,6 @@ export class Network {
     const scenario = await this.app.use(Router).resolve([...relays(hints), outbox(pubkey)])
     const urls = scenario.getUrls()
 
-    return this.load({filters, relays: urls})
+    return this.loadComplete({filters, relays: urls})
   }
 }
