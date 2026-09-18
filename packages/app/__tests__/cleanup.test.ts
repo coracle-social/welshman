@@ -65,7 +65,7 @@ describe("app teardown", () => {
   it("stops in-flight loads from opening sockets after cleanup", async () => {
     const {app} = await makeApp()
 
-    app.use(Network).load({filters: [{kinds: [NOTE]}], relays: [url]})
+    app.use(Network).loadComplete({filters: [{kinds: [NOTE]}], relays: [url]})
 
     app.cleanup()
 

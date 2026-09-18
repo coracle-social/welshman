@@ -74,7 +74,7 @@ export class Events {
         repository: this.app.repository,
         includeDeleted: true,
         onDerive: (filters: Filter[], hints: string[]) =>
-          this.app.use(Network).load({filters, relays: hints}),
+          this.app.use(Network).loadLenient({filters, relays: hints}),
       })(idOrAddress, relays),
       () => this.app.repository.getEvent(idOrAddress),
     )

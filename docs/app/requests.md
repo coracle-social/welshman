@@ -8,7 +8,7 @@ The `Network` plugin (`app.use(Network)`) wraps the `@welshman/net` request/publ
 const net = app.use(Network)
 
 // One-shot load — resolves with matching events
-const events = await net.load({
+const events = await net.loadComplete({
   filters: [{kinds: [1], authors: [pubkey]}],
   relays: ["wss://relay.example"],
 })
@@ -21,9 +21,9 @@ await net.request({
 })
 ```
 
-`net.load` is a shared, batched loader (created with a 50ms delay / 3s timeout). It resolves once half the relays have closed, so it returns what is in hand rather than waiting on the slowest.
+`net.loadComplete` is a shared, batched loader (created with a 50ms delay / 3s timeout). It resolves once every relay has closed or timed out, so an empty result means every relay answered nothing. The outbox model routes on that answer, and half the relays answering nothing is not one.
 
-`net.loadComplete` is the same loader with no such shortcut: it resolves when every relay has closed or timed out. Load through it when the caller acts on emptiness, since half the relays answering nothing is not an answer.
+`net.loadLenient` is the same loader with a 0.5 threshold, resolving as soon as half the relays have closed. The rest are left open and their events still reach the repository, so use it where nothing routes on the returned array: a search whose matches are read reactively, or a hint-driven fetch of an event already on screen.
 
 Use `net.makeLoader(options)` if you need a loader with different batching characteristics.
 
@@ -34,7 +34,7 @@ makeLoader(options)     // build a custom batched Loader
 
 ## The outbox model: `loadUsingOutbox`
 
-`loadUsingOutbox` is the workhorse most data plugins use. Given an author's pubkey, it builds a route list (`[...relays(hints), outbox(pubkey)]` — any passed relay hints plus the author's NIP-65 **write** relays), resolves it through `app.use(Router).resolve(...)` into a `RelayScenario`, takes that scenario's `getUrls()`, loads from them via `loadComplete`, and resolves with the most recent matching event.
+`loadUsingOutbox` is the workhorse most data plugins use. Given an author's pubkey, it builds a route list (`[...relays(hints), outbox(pubkey)]` — any passed relay hints plus the author's NIP-65 **write** relays), resolves it through `app.use(Router).resolve(...)` into a `RelayScenario`, takes that scenario's `getUrls()`, loads from them, and resolves with the most recent matching event.
 
 ```typescript
 const latestProfile = await net.loadUsingOutbox(pubkey, {kinds: [0]})

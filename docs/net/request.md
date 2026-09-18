@@ -41,14 +41,18 @@ Creates a batched loader function that delays and combines requests for efficien
 - `threshold?` - Relay completion threshold
 - Validation functions and context options
 
-### load(options)
+### loadComplete(options)
 
-Pre-configured loader with 200ms delay, 3s timeout, and 0.5 threshold. Takes a `LoadOptions` object containing `relays`, `filters`, and optional callback fields (`onEvent`, `onDisconnect`, `onEose`, `onClose`) and an optional `signal`.
+Pre-configured loader with a 30ms delay and a 3s timeout, resolving once every relay has closed or timed out. Takes a `LoadOptions` object containing `relays`, `filters`, and optional callback fields (`onEvent`, `onDisconnect`, `onEose`, `onClose`) and an optional `signal`.
+
+### loadLenient(options)
+
+The same loader with a 0.5 threshold, so it resolves once half the relays have closed. The rest are left open and their events still arrive, so use it where nothing routes on the returned array.
 
 ## Example
 
 ```typescript
-import {request, load} from "@welshman/net"
+import {request, loadComplete} from "@welshman/net"
 
 // Simple request - without autoClose or a signal this will continue to stream indefinitely.
 // Default policies (see policy.ts) will also re-send the subscription when sockets reconnect
@@ -59,7 +63,7 @@ const events = await request({
 })
 
 // Batched loading (more efficient for multiple requests)
-const profileEvents = await load({
+const profileEvents = await loadComplete({
   relays: ["wss://relay1.com"],
   filters: [{kinds: [0], authors: ["pubkey1", "pubkey2"]}]
 })

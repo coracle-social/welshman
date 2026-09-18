@@ -31,7 +31,9 @@ export class RelayRoles extends RelaySignedDerivedPlugin<RelayRoleReader> {
   fetch(key: string) {
     const [url, d] = splitRelayRoleKey(key)
 
-    return this.app.use(Network).load({relays: [url], filters: [{kinds: [RELAY_ROLE], "#d": [d]}]})
+    return this.app
+      .use(Network)
+      .loadComplete({relays: [url], filters: [{kinds: [RELAY_ROLE], "#d": [d]}]})
   }
 
   forUrl = (url: string): Projection<RelayRoleReader[]> =>

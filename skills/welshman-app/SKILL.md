@@ -223,7 +223,10 @@ await app.use(Rooms).join(relayUrl, roomMeta).then(publishToRelays([relayUrl]))
 import {Network, Sync} from "@welshman/app"
 const net = app.use(Network)
 
-const events = await net.load({filters: [{kinds: [1], authors: [pk]}], relays})
+// loadComplete waits for every relay, so an empty result means every relay answered
+// nothing. loadLenient resolves once half of them have closed, for the cases where
+// nothing routes on the returned array.
+const events = await net.loadComplete({filters: [{kinds: [1], authors: [pk]}], relays})
 await net.request({filters, relays, autoClose: true})
 
 // Outbox-model author load (resolves the author's write relays automatically).
@@ -232,7 +235,7 @@ const profileEvent = await net.loadUsingOutbox(pk, {kinds: [0]})
 const allFeeds     = await net.loadAllUsingOutbox(pk, {kinds: [31890]})
 
 // A loader with different batching, still bound to this app's net context:
-const slowLoad = net.makeLoader({delay: 500, timeout: 5000, threshold: 0.5})
+const slowLoad = net.makeLoader({delay: 500, timeout: 5000})
 
 // Negentropy-aware reconciliation (falls back to request/publish when unsupported):
 await app.use(Sync).pull({relays, filters: [{authors: [pk]}]})
@@ -439,7 +442,7 @@ const app = new App({user, policies: [appPolicyIngest, appPolicyAuthNever]})
 | `deriveProfileDisplay(pk)` | `app.use(Profiles).display(pk).$` |
 | `publishThunk({...})` | `app.use(Thunks).publish({...})` (resolve outbox relays via `await app.use(Router).resolver.relays([userOutbox()])`) |
 | `follow(tag)` / `mute(tag)` | `app.use(FollowLists).follow(tag).then(publish)` / `app.use(MuteLists).mutePublicly(tag).then(publish)`, which return a [`Command`](#commands-deferred-publishing) |
-| `load({...})` / `request({...})` | `app.use(Network).load({...})` / `request({...})` |
+| `load({...})` / `request({...})` | `app.use(Network).loadComplete({...})` / `request({...})` |
 | `Router.get().FromUser()` / `router.Event(e)` | `app.use(Router).resolver` + the `RelaySelection` DSL (`resolver.relays([userOutbox()])`, `resolver.relay([seen(e)])`) |
 | `app.use(Tags).tagEventForReply(e)` | domain writer tagging (`NoteWriter.setParent(e)`, `writer.tagPubkey/addQuote/addZapSplit`) |
 | `relays` / `handles` / `zappers` stores | `app.use(Relays)` / `Handles` / `Zappers` |

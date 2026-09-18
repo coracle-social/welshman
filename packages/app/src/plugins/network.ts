@@ -14,22 +14,20 @@ import type {IApp} from "../app.js"
 
 /**
  * Net utilities bound to the app's net context (its pool + repository). Reach
- * it via `app.use(Network)`; `load` is a shared, batched loader.
+ * it via `app.use(Network)`; `loadComplete` and `loadLenient` are shared, batched loaders.
  */
 export class Network {
-  load: Loader
-
-  // Resolves when every relay has closed rather than when half of them have. Half the relays
-  // answering nothing is not an answer, and the outbox model routes on what this returns: a
-  // relay list read as absent while it is still in flight sends every load chained behind it
-  // to no relays at all.
+  // Resolves once every relay has closed or timed out.
   loadComplete: Loader
+
+  // Resolves as soon as half the relays have closed, leaving the rest open.
+  loadLenient: Loader
 
   private controller = new AbortController()
 
   constructor(readonly app: IApp) {
-    this.load = this.makeLoader({delay: 50, timeout: 3000, threshold: 0.5})
     this.loadComplete = this.makeLoader({delay: 50, timeout: 3000})
+    this.loadLenient = this.makeLoader({delay: 50, timeout: 3000, threshold: 0.5})
 
     app.onCleanup(() => this.controller.abort())
   }

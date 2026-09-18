@@ -27,7 +27,7 @@ export class RoomPinLists extends RelaySignedDerivedPlugin<RoomPinsReader> {
 
     return this.app
       .use(Network)
-      .load({relays: [url], signal, filters: [{kinds: [ROOM_PINS], "#d": [h]}]})
+      .loadComplete({relays: [url], signal, filters: [{kinds: [ROOM_PINS], "#d": [h]}]})
   }
 
   forRoom = (url: string, h: string) => this.one(makeRoomKey(url, h))

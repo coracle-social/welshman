@@ -70,7 +70,7 @@ export class Profiles extends DerivedPlugin<ProfileReader> {
 
           this.app
             .use(Network)
-            .load({
+            .loadLenient({
               filters: [{kinds: [PROFILE], search}],
               relays: scenario.getUrls(),
             })

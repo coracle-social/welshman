@@ -339,7 +339,7 @@ export class Rooms {
 
     await this.app.use(Relays).load(url)
 
-    return this.app.use(Network).load({
+    return this.app.use(Network).loadComplete({
       relays: [url],
       filters: [
         {kinds: [ROOM_META, ROOM_MEMBERS, ROOM_ADMINS], "#d": [h]},

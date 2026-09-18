@@ -1,10 +1,11 @@
 import {describe, it, expect} from "vitest"
 import {Nip01Signer} from "@welshman/signer"
-import {makeEvent, matchFilters, RELAYS, MESSAGING_RELAYS} from "@welshman/util"
+import {makeEvent, matchFilters, NOTE, RELAYS, MESSAGING_RELAYS} from "@welshman/util"
 import type {Filter, TrustedEvent} from "@welshman/util"
 import {MockAdapter, AdapterEvent, isRelayEvent} from "@welshman/net"
 import type {ClientMessage, RelayMessage} from "@welshman/net"
 import {App} from "../src/app.js"
+import {Network} from "../src/plugins/network.js"
 import {MessagingRelayLists} from "../src/plugins/messagingRelayLists.js"
 
 // Two indexers, of which only the slower to answer carries the relay list.
@@ -72,5 +73,42 @@ describe("loading over the outbox model", () => {
     const list = await app.use(MessagingRelayLists).load(pubkey)
 
     expect(list?.urls()).toEqual([MAIL])
+  })
+})
+
+describe("the app's two loaders", () => {
+  const makeNoteApp = async () => {
+    const signer = Nip01Signer.ephemeral()
+    const note = await signer.sign(makeEvent(NOTE, {content: "hi"}))
+
+    return {
+      note,
+      app: makeApp({
+        [QUIET]: {events: [], delay: 10},
+        [SLOW]: {events: [note], delay: 200},
+      }),
+    }
+  }
+
+  it("resolves loadComplete once every relay has answered", async () => {
+    const {app, note} = await makeNoteApp()
+
+    const events = await app.use(Network).loadComplete({
+      relays: [QUIET, SLOW],
+      filters: [{kinds: [NOTE]}],
+    })
+
+    expect(events.map(e => e.id)).toEqual([note.id])
+  })
+
+  it("resolves loadLenient once half of them have", async () => {
+    const {app} = await makeNoteApp()
+
+    const events = await app.use(Network).loadLenient({
+      relays: [QUIET, SLOW],
+      filters: [{kinds: [NOTE]}],
+    })
+
+    expect(events).toEqual([])
   })
 })

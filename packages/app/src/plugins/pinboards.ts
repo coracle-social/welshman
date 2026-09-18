@@ -100,7 +100,7 @@ export class Pins extends DerivedPlugin<PinReader> {
     const scenario = await this.app.use(Router).resolve([inbox(pubkey)])
     const relays = scenario.getUrls()
 
-    return this.app.use(Network).load({
+    return this.app.use(Network).loadComplete({
       filters: [{kinds: [PIN], "#A": [address]}],
       relays: uniq([...relayHints, ...relays]),
     })

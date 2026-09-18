@@ -18,7 +18,7 @@ export class RelayMemberLists extends RelaySignedDerivedPlugin<RelayMembersReade
   }
 
   fetch(url: string) {
-    return this.app.use(Network).load({relays: [url], filters: [{kinds: [RELAY_MEMBERS]}]})
+    return this.app.use(Network).loadComplete({relays: [url], filters: [{kinds: [RELAY_MEMBERS]}]})
   }
 
   forUrl = (url: string) => this.one(url)

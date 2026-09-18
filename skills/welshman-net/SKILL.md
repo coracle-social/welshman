@@ -54,7 +54,8 @@ Every entry point (`request`, `requestOne`, `publish`, `publishOne`, `makeLoader
 | `requestOne(options)` | Subscribe to a single relay; returns `Promise<TrustedEvent[]>` |
 | `request(options)` | Subscribe to multiple relays in parallel; returns `Promise<TrustedEvent[]>` |
 | `makeLoader(options)` | Creates a batching `load` function with configurable delay/timeout/threshold |
-| `load(options)` | Pre-built loader with a 30 ms batch delay, 3 s timeout and 0.5 threshold. It auto-closes after EOSE, timeout, or disconnect, and resolves when half the relays' subscriptions have closed. It carries no context, so it only works where no pool or repository is needed. |
+| `loadComplete(options)` | Pre-built loader with a 30 ms batch delay and a 3 s timeout. It auto-closes after EOSE, timeout, or disconnect, and resolves once every relay's subscription has closed, so an empty result means every relay answered nothing. It carries no context, so it only works where no pool or repository is needed. |
+| `loadLenient(options)` | The same loader with a 0.5 threshold, resolving once half the relays have closed. The rest stay open and their events still arrive, so use it where nothing routes on the returned array. |
 
 `request` / `requestOne` options (`BaseRequestOptions`):
 - `relay` / `relays` — relay url(s)
@@ -221,8 +222,10 @@ socket.send(['REQ', 'my-sub', {kinds: [1], limit: 10}])
 import {makeLoader} from '@welshman/net'
 
 // Bind a loader to the context once; concurrent calls within `delay` collapse
-// into a single REQ per relay.
-const load = makeLoader({delay: 30, timeout: 3000, threshold: 0.5, context})
+// into a single REQ per relay. Without a `threshold` it resolves when every relay has closed
+// or timed out, which is the exported `loadComplete`; `threshold: 0.5` resolves at half, which is
+// `loadLenient`.
+const load = makeLoader({delay: 30, timeout: 3000, context})
 
 const events = await load({
   relays: ['wss://relay.example.com', 'wss://relay2.example.com'],
