@@ -64,16 +64,6 @@ describe("Repository", () => {
       })
     })
 
-    it("should ignore an unsigned copy of an event it already holds signed", () => {
-      const signed = createEvent(1)
-      const unsigned = {...signed, sig: undefined} as unknown as TrustedEvent
-
-      repo.publish(signed)
-
-      expect(repo.publish(unsigned)).toBe(false)
-      expect(repo.getEvent(signed.id)).toEqual(signed)
-    })
-
     it("should ignore a second copy of an unsigned event it already holds", () => {
       const rumor = {...createEvent(1), sig: undefined} as unknown as TrustedEvent
 

@@ -20,7 +20,6 @@ import {
   EPOCH,
   matchFilter,
   isReplaceable,
-  isSignedEvent,
   getAddress,
   sortEventsDesc,
   Filter,
@@ -226,9 +225,9 @@ export class Repository extends Emitter {
 
     const existing = this.eventsById.get(event.id)
 
-    // A signed event is final, but an unsigned one can come back carrying its signature
+    // An event we hold can come back changed, most often an unsigned one carrying its signature
     if (existing) {
-      if (isSignedEvent(existing) || equals(existing, event)) {
+      if (equals(existing, event)) {
         return false
       }
 
