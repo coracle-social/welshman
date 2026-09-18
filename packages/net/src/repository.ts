@@ -1,6 +1,7 @@
 import {
   DAY,
   Emitter,
+  equals,
   flatten,
   pick,
   pushToMapKey,
@@ -19,6 +20,7 @@ import {
   EPOCH,
   matchFilter,
   isReplaceable,
+  isSignedEvent,
   getAddress,
   sortEventsDesc,
   Filter,
@@ -222,9 +224,17 @@ export class Repository extends Emitter {
       return false
     }
 
-    // If we've already seen this event we're done
-    if (this.eventsById.get(event.id)) {
-      return false
+    const existing = this.eventsById.get(event.id)
+
+    // A signed event is final, but an unsigned one can come back carrying its signature
+    if (existing) {
+      if (isSignedEvent(existing) || equals(existing, event)) {
+        return false
+      }
+
+      this._replaceEvent(existing, event, shouldNotify)
+
+      return true
     }
 
     const removed = new Set<string>()
@@ -436,6 +446,23 @@ export class Repository extends Emitter {
     }
 
     return undefined
+  }
+
+  // Swap `event` in where `existing` sat; removing and re-adding it blinks it out of derived stores
+  _replaceEvent = (existing: TrustedEvent, event: TrustedEvent, shouldNotify: boolean) => {
+    const address = getAddress(event)
+
+    this.eventsById.set(event.id, event)
+
+    if (this.eventsByAddress.get(address) === existing) {
+      this.eventsByAddress.set(address, event)
+    }
+
+    this._reindex(event, existing)
+
+    if (shouldNotify && !this.isDeleted(event)) {
+      this.emit("update", {added: [event], removed: new Set<string>()})
+    }
   }
 
   // Insert `event` into the day/author/kind/tag indexes, optionally evicting `remove` from them

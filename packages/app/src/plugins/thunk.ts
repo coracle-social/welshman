@@ -287,15 +287,16 @@ export class Thunk extends BaseThunk {
         return
       }
 
-      // Update tracker and repository with the signed event since the id will have changed
-      if (this.options.pow) {
+      // Only pow changes the id, and only then is there an optimistic copy left to remove
+      if (unsignedId !== signedEvent.id) {
         for (const url of this.options.relays) {
           this.options.app.tracker.removeRelay(unsignedId, url)
           this.options.app.tracker.track(signedEvent.id, url)
         }
+
+        this.options.app.repository.removeEvent(unsignedId)
       }
 
-      this.options.app.repository.removeEvent(unsignedId)
       this.options.app.repository.publish(signedEvent)
 
       this.options.event = signedEvent

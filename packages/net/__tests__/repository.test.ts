@@ -46,6 +46,41 @@ describe("Repository", () => {
       expect(repo.publish(event)).toBe(false)
     })
 
+    it("should take a signature for an event it holds unsigned, without removing anything", () => {
+      const signed = createEvent(1)
+      const unsigned = {...signed, sig: undefined} as unknown as TrustedEvent
+      const updateHandler = vi.fn()
+
+      expect(repo.publish(unsigned)).toBe(true)
+
+      repo.on("update", updateHandler)
+
+      expect(repo.publish(signed)).toBe(true)
+      expect(repo.getEvent(signed.id)).toEqual(signed)
+      expect(repo.query([{ids: [signed.id]}])).toEqual([signed])
+      expect(updateHandler).toHaveBeenLastCalledWith({
+        added: [signed],
+        removed: new Set(),
+      })
+    })
+
+    it("should ignore an unsigned copy of an event it already holds signed", () => {
+      const signed = createEvent(1)
+      const unsigned = {...signed, sig: undefined} as unknown as TrustedEvent
+
+      repo.publish(signed)
+
+      expect(repo.publish(unsigned)).toBe(false)
+      expect(repo.getEvent(signed.id)).toEqual(signed)
+    })
+
+    it("should ignore a second copy of an unsigned event it already holds", () => {
+      const rumor = {...createEvent(1), sig: undefined} as unknown as TrustedEvent
+
+      expect(repo.publish(rumor)).toBe(true)
+      expect(repo.publish({...rumor, tags: [...rumor.tags]})).toBe(false)
+    })
+
     it("should check if events exist", () => {
       const event = createEvent(1)
       repo.publish(event)

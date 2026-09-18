@@ -1,13 +1,27 @@
 import {describe, it, expect, beforeEach, afterEach, vi} from "vitest"
+import {batch, on, sleep} from "@welshman/lib"
 import {NOTE, isSignedEvent} from "@welshman/util"
+import {mergeRepositoryUpdates} from "@welshman/net"
+import type {RepositoryUpdate} from "@welshman/net"
 import {Nip01Signer} from "@welshman/signer"
+import type {ISigner} from "@welshman/signer"
 import {App} from "../src/app.js"
 import {User} from "../src/user.js"
 import {Thunk, Thunks} from "../src/plugins/thunk.js"
 
 const url = "wss://localhost:1/"
 
-const makeApp = async () => new App({user: await User.fromSigner(Nip01Signer.ephemeral())})
+const makeApp = async (signer: ISigner = Nip01Signer.ephemeral()) =>
+  new App({user: await User.fromSigner(signer)})
+
+const slowSigner = (ms: number): ISigner => {
+  const signer = Nip01Signer.ephemeral()
+
+  return {
+    ...signer,
+    sign: async (event, options) => sleep(ms).then(() => signer.sign(event, options)),
+  }
+}
 
 const note = (content: string) => ({kind: NOTE, content, tags: []})
 
@@ -75,6 +89,57 @@ describe("thunk retries", () => {
     const retried = Array.from(thunks.flatten([thunks.retry(merged)]))
 
     expect(retried.map(thunk => thunk.options.event.id)).toEqual(ids)
+
+    app.cleanup()
+  })
+})
+
+describe("thunk optimistic publishes", () => {
+  it("never reports the optimistic event as removed once it is signed", async () => {
+    const app = await makeApp()
+    const removed: string[] = []
+
+    on(app.repository, "update", (update: RepositoryUpdate) => {
+      for (const id of update.removed) removed.push(id)
+    })
+
+    const thunk = app.use(Thunks).publish({event: note("hi"), relays: [url]})
+
+    await tick()
+
+    expect(removed).toEqual([])
+    expect(isSignedEvent(app.repository.getEvent(thunk.options.event.id)!)).toBe(true)
+
+    app.cleanup()
+  })
+
+  it("stays visible to a listener that batches repository updates", async () => {
+    const app = await makeApp(slowSigner(300))
+    const live = new Set<string>()
+    const snapshots: Set<string>[] = []
+
+    on(
+      app.repository,
+      "update",
+      batch(150, (updates: RepositoryUpdate[]) => {
+        const {added, removed} = mergeRepositoryUpdates(updates)
+
+        for (const event of added) live.add(event.id)
+        for (const id of removed) live.delete(id)
+
+        snapshots.push(new Set(live))
+      }),
+    )
+
+    const thunk = app.use(Thunks).publish({event: note("hi"), relays: [url]})
+
+    await tick()
+
+    expect(snapshots.length).toBeGreaterThan(0)
+
+    for (const snapshot of snapshots) {
+      expect(Array.from(snapshot)).toEqual([thunk.options.event.id])
+    }
 
     app.cleanup()
   })

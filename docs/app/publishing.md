@@ -84,7 +84,7 @@ A retry re-sends the event the thunk already published, so it keeps its id — a
 
 `thunk.options.event` is that event: stamped and hashed when the thunk is constructed, replaced by the signed event once signing finishes. A thunk rebuilt from `{...thunk.options}` re-sends it rather than minting a new one.
 
-Each thunk is queued (batched) and its event is written to the repository and tracker the moment it is enqueued, so derived stores reflect it before any relay has responded. If a thunk is aborted before sending, its event and wrap are removed from the repository and its history entry is dropped.
+Each thunk is queued (batched) and its event is written to the repository and tracker the moment it is enqueued, so derived stores reflect it before any relay has responded. The repository takes the signature in place when it arrives, so it reports nothing as removed and a listener batching its updates never sees the event blink out. `pow` rewrites the id, so there the optimistic event is removed and the mined one added. If a thunk is aborted before sending, its event and wrap are removed from the repository and its history entry is dropped.
 
 ## Commands
 
