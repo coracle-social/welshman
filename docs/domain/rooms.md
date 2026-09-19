@@ -85,13 +85,14 @@ These are scoped to a room by the `h` tag. All set `requiresRelays = true`, and 
 |---|---|---|---|---|
 | `RoomCreate` | 9007 | create a room | — | requires `h` |
 | `RoomDelete` | 9008 | delete a room | — | requires `h` |
+| `RoomDeleteEvent` | 9005 | delete events from a room | `ids()` | `addId(id)`, `setIds(ids)`; requires `h` |
 | `RoomJoin` | 9021 | request to join | `claim()`, `reason()` | `setClaim(claim)`, `setReason(reason)`; requires `h` |
 | `RoomLeave` | 9022 | leave a room | — | requires `h` |
 | `RoomAddMember` | 9000 | add a member | `pubkeys()` | `addPubkey(pk)` |
 | `RoomRemoveMember` | 9001 | remove a member | `pubkeys()` | `addPubkey(pk)`, `removePubkey(pk)`, `setPubkeys(pks)` |
 | `RoomCreatePermission` | 19004 | grant room-creation rights | `pubkeys()`, `canCreate(pk)` | `addPubkey(pk, role?)`, `removePubkey(pk)`, `setPubkeys(pks)` |
 
-`RoomCreate`, `RoomLeave`, and `RoomDelete` have no extra fields beyond the base writer — they are marker events. The members ops (`RoomAddMember`, `RoomRemoveMember`) use `addPubkey` to accumulate the affected pubkeys (deduped); `RoomRemoveMember`'s p-tags list the pubkeys to remove.
+`RoomCreate`, `RoomLeave`, and `RoomDelete` have no extra fields beyond the base writer — they are marker events. The members ops (`RoomAddMember`, `RoomRemoveMember`) use `addPubkey` to accumulate the affected pubkeys (deduped); `RoomRemoveMember`'s p-tags list the pubkeys to remove. `RoomDeleteEvent` e-tags the events a moderator is deleting, which is how a room admin removes someone else's message — an author deletes their own with a kind 5.
 
 ```typescript
 import {Domain} from "@welshman/app"
@@ -117,7 +118,7 @@ await app.use(Domain).command(create).then(cmd => cmd.publish())
 ::: tip Naming quirks
 - `RoomJoin` stores the invite under the `claim` tag; the accessor is `claim()` and the setter is `setClaim`.
 - `RoomCreatePermission` also exposes `setPubkeys(pks)` (replace-all) alongside `addPubkey`/`removePubkey`; `addPubkey` accepts an optional `role`.
-- `RoomCreate`, `RoomDelete`, `RoomLeave`, `RoomEdit`, and `RoomJoin` writers throw from `validate()` if no `h` tag is set — always `setRoom(relayUrl, roomId)` first.
+- `RoomCreate`, `RoomDelete`, `RoomDeleteEvent`, `RoomLeave`, `RoomEdit`, and `RoomJoin` writers throw from `validate()` if no `h` tag is set — always `setRoom(relayUrl, roomId)` first.
 :::
 
 ## Publishing to the room relay

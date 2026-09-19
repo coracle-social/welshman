@@ -129,7 +129,7 @@ Publishing targets come from the `@welshman/util` `RelaySelection` DSL (`outbox`
 
 - **Default routing** (`EventWriter.renderRoutes`): `[userOutbox(), ...inboxes(pTaggedPubkeys, 0.5)]` — deliver to the author's write relays (weight 1) and to every p-tagged pubkey's read relays (weight 0.5). Most kinds use this (`NoteWriter`, …).
 - **`forceRoutes(...routes)`** sets `forcedRoutes`; when non-empty, `scenario()` publishes **only** there, bypassing `renderRoutes()`. It takes routes rather than urls, so `forceRoutes(userInbox())` pins an event to the user's read relays without resolving them first. `setRoom(url, room)` sets `forcedRoutes=[relay(url)]` **and** the `h` tag (NIP-29 room events); `clearForcedRoutes()`/`clearRoom()` undo it.
-- **`requiresRelays`** (a readonly `true` on a subclass) makes `validate()` demand `forcedRoutes` — throwing `A kind N event must publish to explicit relays (via setRoom or forceRoutes)`. The 20 kinds that set it are all NIP-29 room ops/state and relay-management ops/state: `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomPins`, `RoomUpdatePins`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, `RelayMembers`. (`RoomCreate` and `RoomJoin` additionally require a `roomTag` — call `setRoom`.)
+- **`requiresRelays`** (a readonly `true` on a subclass) makes `validate()` demand `forcedRoutes` — throwing `A kind N event must publish to explicit relays (via setRoom or forceRoutes)`. The 20 kinds that set it are all NIP-29 room ops/state and relay-management ops/state: `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomDeleteEvent`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomPins`, `RoomUpdatePins`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, `RelayMembers`. (`RoomCreate` and `RoomJoin` additionally require a `roomTag` — call `setRoom`.)
 - **Per-kind overrides.** Some writers replace `renderRoutes()`: `FollowListWriter`/`MuteListWriter`/`ReportWriter` publish to `[userOutbox()]` only (p-tags are data, not recipients); `RelayListWriter` adds `indexers()` and notifies every relay added to or removed from the list; `DeleteWriter` adds each deleted event's `seen` relays (and requires an `e`/`a` tag).
 
 The DSL constructors `relays(urls)` and `inboxes(pubkeys)` return **arrays** (spread with `...`); the others return a single `RelaySelection`. Note `relay(url)`/`relays(urls)` replaced the old `relayHint`/`relayHints`.
@@ -203,6 +203,7 @@ Room ops are scoped by the `h` tag and must publish to explicit relays — use `
 | 9001 | NIP-29 | `RoomRemoveMemberReader` / `RoomRemoveMemberWriter` |
 | 9002 | NIP-29 | `RoomEditReader` / `RoomEditWriter` |
 | 9007 | NIP-29 | `RoomCreateReader` / `RoomCreateWriter` |
+| 9005 | NIP-29 | `RoomDeleteEventReader` / `RoomDeleteEventWriter` |
 | 9008 | NIP-29 | `RoomDeleteReader` / `RoomDeleteWriter` |
 | 9021 | NIP-29 | `RoomJoinReader` / `RoomJoinWriter` |
 | 9022 | NIP-29 | `RoomLeaveReader` / `RoomLeaveWriter` |

@@ -287,7 +287,7 @@ A kind can also declare it *requires* explicit relays by overriding the readonly
 readonly requiresRelays = true
 ```
 
-`validate()` then refuses to render until `forcedRoutes` is set (via `setRoom` or `forceRoutes`). The kinds that set this are all NIP-29 room ops/state, all relay-management ops/state, and the NIP-C7 chat kind — `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, `RelayMembers`, and `Message`. (`RoomCreate` additionally requires a `roomTag`.)
+`validate()` then refuses to render until `forcedRoutes` is set (via `setRoom` or `forceRoutes`). The kinds that set this are all NIP-29 room ops/state, all relay-management ops/state, and the NIP-C7 chat kind — `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomDeleteEvent`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, `RelayMembers`, and `Message`. (`RoomCreate` additionally requires a `roomTag`.)
 
 ## EventQuery
 

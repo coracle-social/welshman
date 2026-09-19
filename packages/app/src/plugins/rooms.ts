@@ -30,6 +30,7 @@ import type {EventToItem, ItemsByKey} from "@welshman/store"
 import {
   RoomCreate,
   RoomDelete,
+  RoomDeleteEvent,
   RoomEdit,
   RoomJoin,
   RoomLeave,
@@ -429,4 +430,9 @@ export class Rooms {
     this.app
       .use(Domain)
       .command(this.app.use(Domain).writer(RoomRemoveMember).setRoom(url, room.h).addPubkey(pubkey))
+
+  deleteEvent = (url: string, room: RoomMeta, id: string) =>
+    this.app
+      .use(Domain)
+      .command(this.app.use(Domain).writer(RoomDeleteEvent).setRoom(url, room.h).addId(id))
 }

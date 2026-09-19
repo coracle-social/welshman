@@ -226,13 +226,14 @@ Relay-based room management. Each method builds the relevant room event and retu
 ```typescript
 const rooms = app.use(Rooms)
 
-await rooms.create(relayUrl, roomMeta).then(publish)
-await rooms.edit(relayUrl, roomMeta).then(publish)
-await rooms.delete(relayUrl, roomMeta).then(publish)
-await rooms.join(relayUrl, roomMeta).then(publish)
-await rooms.leave(relayUrl, roomMeta).then(publish)
+await rooms.createRoom(relayUrl, roomMeta).then(publish)
+await rooms.editRoom(relayUrl, roomMeta).then(publish)
+await rooms.deleteRoom(relayUrl, roomMeta).then(publish)
+await rooms.joinRoom(relayUrl, roomMeta).then(publish)
+await rooms.leaveRoom(relayUrl, roomMeta).then(publish)
 await rooms.addMember(relayUrl, roomMeta, pubkey).then(publish)
 await rooms.removeMember(relayUrl, roomMeta, pubkey).then(publish)
+await rooms.deleteEvent(relayUrl, roomMeta, eventId).then(publish)
 ```
 
 ## Plaintext
