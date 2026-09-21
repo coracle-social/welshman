@@ -100,6 +100,27 @@ describe("deriveEventsByIdByUrl", () => {
 
     unsub()
   })
+
+  it("takes a signature the repository swapped in on an event it already holds", () => {
+    const repository = new Repository()
+    const tracker = new Tracker()
+    const signed = makeEvent({id: "a".repeat(64)})
+    const unsigned = {...signed, sig: undefined} as unknown as TrustedEvent
+
+    repository.publish(unsigned)
+    tracker.track(unsigned.id, url)
+
+    const store = deriveEventsByIdByUrl({filters: [{kinds: [NOTE]}], repository, tracker})
+    const unsub = store.subscribe(() => {})
+
+    expect(get(store).get(url)?.get(unsigned.id)?.sig).toBeUndefined()
+
+    repository.publish(signed)
+
+    expect(get(store).get(url)?.get(signed.id)?.sig).toBe(signed.sig)
+
+    unsub()
+  })
 })
 
 describe("deriveEventsByIdForUrl", () => {

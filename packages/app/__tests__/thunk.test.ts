@@ -94,6 +94,30 @@ describe("thunk retries", () => {
   })
 })
 
+// makePow needs a Worker, which happy-dom lacks; this one re-hashes without mining.
+const stubPowWorker = () => {
+  const original = Reflect.get(globalThis, "Worker")
+
+  Reflect.set(
+    globalThis,
+    "Worker",
+    class {
+      onmessage: ((e: {data: unknown}) => void) | null = null
+      onerror: ((e: unknown) => void) | null = null
+
+      postMessage({event}: {event: {tags: string[][]}}) {
+        const mined = {...event, tags: [...event.tags, ["nonce", "1", "4"]], id: "b".repeat(64)}
+
+        setTimeout(() => this.onmessage?.({data: mined}), 0)
+      }
+
+      terminate() {}
+    },
+  )
+
+  return () => Reflect.set(globalThis, "Worker", original)
+}
+
 describe("thunk optimistic publishes", () => {
   it("never reports the optimistic event as removed once it is signed", async () => {
     const app = await makeApp()
@@ -142,5 +166,23 @@ describe("thunk optimistic publishes", () => {
     }
 
     app.cleanup()
+  })
+
+  it("unwinds the copy it wrote when pow re-hashed the event before an abort", async () => {
+    const restoreWorker = stubPowWorker()
+    const app = await makeApp(slowSigner(2000))
+    const thunk = app.use(Thunks).publish({event: note("hi"), relays: [url], pow: 4})
+
+    expect(app.repository.dump().length).toBe(1)
+
+    // Past the queue's handoff and pow's re-hash, but short of the signer returning.
+    await sleep(400)
+
+    thunk.abort()
+
+    expect(app.repository.dump()).toEqual([])
+
+    app.cleanup()
+    restoreWorker()
   })
 })

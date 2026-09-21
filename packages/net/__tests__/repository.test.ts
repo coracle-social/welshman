@@ -34,6 +34,21 @@ describe("Repository", () => {
       expect(repo.getEvent(event.id)).toEqual(event)
     })
 
+    it("should not reindex a superseded version that comes back changed", () => {
+      const pubkey = randomHex()
+      const superseded = createEvent(MUTES, {pubkey, created_at: now() - 100})
+      const current = createEvent(MUTES, {pubkey, created_at: now()})
+
+      repo.publish(superseded)
+      repo.publish(current)
+
+      // A relay hands the superseded version back with its signature filled in.
+      repo.publish({...superseded, sig: "real"})
+
+      expect(repo.query([{kinds: [MUTES]}], {includeDeleted: true})).toEqual([current])
+      expect(repo.getEvent(superseded.id)).toEqual({...superseded, sig: "real"})
+    })
+
     it("should not publish invalid events", () => {
       const invalidEvent = {} as TrustedEvent
       const result = repo.publish(invalidEvent)

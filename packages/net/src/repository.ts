@@ -450,14 +450,20 @@ export class Repository extends Emitter {
   // Swap `event` in where `existing` sat; removing and re-adding it blinks it out of derived stores
   _replaceEvent = (existing: TrustedEvent, event: TrustedEvent, shouldNotify: boolean) => {
     const address = getAddress(event)
+    const isCurrent = this.eventsByAddress.get(address) === existing
+
+    // A superseded replaceable was evicted from the secondary indexes and must stay out.
+    const isIndexed = isCurrent || !isReplaceable(existing)
 
     this.eventsById.set(event.id, event)
 
-    if (this.eventsByAddress.get(address) === existing) {
+    if (isCurrent) {
       this.eventsByAddress.set(address, event)
     }
 
-    this._reindex(event, existing)
+    if (isIndexed) {
+      this._reindex(event, existing)
+    }
 
     if (shouldNotify && !this.isDeleted(event)) {
       this.emit("update", {added: [event], removed: new Set<string>()})

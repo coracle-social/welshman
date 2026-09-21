@@ -213,6 +213,51 @@ describe("Comment", () => {
     expect(tmpl.tags).toContainEqual(["e", parentId, HINT, parentPubkey])
   })
 
+  it("inherits a thread rooted outside nostr", async () => {
+    const parent = makeEvent({
+      id: parentId,
+      pubkey: parentPubkey,
+      kind: COMMENT,
+      tags: [
+        ["I", "https://example.com/article"],
+        ["K", "web"],
+        ["i", "https://example.com/article"],
+        ["k", "web"],
+      ],
+    })
+
+    const tmpl = await buildTemplate(
+      write(Comment, undefined, hintResolver).setContent("reply").replyTo(parent),
+      signer,
+    )
+
+    expect(tmpl.tags).toContainEqual(["I", "https://example.com/article"])
+    expect(tmpl.tags).toContainEqual(["K", "web"])
+    expect(tmpl.tags).toContainEqual(["e", parentId, HINT, parentPubkey])
+    expect(tmpl.tags).toContainEqual(["k", String(COMMENT)])
+  })
+
+  it("roots on a comment whose root tags point at nothing", async () => {
+    const parent = makeEvent({
+      id: parentId,
+      pubkey: parentPubkey,
+      kind: COMMENT,
+      tags: [
+        ["K", "11"],
+        ["P", rootPubkey, HINT],
+      ],
+    })
+
+    const tmpl = await buildTemplate(
+      write(Comment, undefined, hintResolver).setContent("reply").replyTo(parent),
+      signer,
+    )
+
+    expect(tmpl.tags).toContainEqual(["E", parentId, HINT, parentPubkey])
+    expect(tmpl.tags).toContainEqual(["K", String(COMMENT)])
+    expect(tmpl.tags).toContainEqual(["e", parentId, HINT, parentPubkey])
+  })
+
   it("leaves the event it inherits from untouched", async () => {
     const rootTag = ["E", rootId, HINT, rootPubkey]
     const parent = makeEvent({
@@ -254,6 +299,16 @@ describe("getCommentTags", () => {
 
     expect(values.roots).toContain(eventId)
     expect(values.replies).toContain(eventId)
+  })
+
+  it("recognizes the external reference tags of a thread rooted outside nostr", () => {
+    const {roots, replies} = getCommentTags([
+      ["I", "isbn:9780316769488"],
+      ["i", "isbn:9780316769488"],
+    ])
+
+    expect(roots).toEqual([["I", "isbn:9780316769488"]])
+    expect(replies).toEqual([["i", "isbn:9780316769488"]])
   })
 })
 

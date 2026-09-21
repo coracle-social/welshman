@@ -17,14 +17,16 @@ import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 
-// NIP-22 comment reference tags: uppercase (A/E/P/K) point at the thread root,
-// lowercase (a/e/p/k) at the immediate parent.
+// NIP-22 reference tags: uppercase (A/E/I/P/K) name the thread root, lowercase the parent.
 export const getCommentTags = (tags: string[][]) => {
-  const roots = tags.filter(t => ["A", "E", "P", "K"].includes(t[0]))
-  const replies = tags.filter(t => ["a", "e", "p", "k"].includes(t[0]))
+  const roots = tags.filter(t => ["A", "E", "I", "P", "K"].includes(t[0]))
+  const replies = tags.filter(t => ["a", "e", "i", "p", "k"].includes(t[0]))
 
   return {roots, replies}
 }
+
+// K and P name a root's kind and author without pointing at the root itself.
+const hasRootPointer = (tags: string[][]) => tags.some(t => ["A", "E", "I"].includes(t[0]))
 
 export const getCommentTagValues = (tags: string[][]) =>
   mapVals(
@@ -39,7 +41,7 @@ export type CommentRef = {
   pubkey?: string
 }
 
-// NIP-22 kind-1111 comment (uppercase E/A/K/P tags = thread root, lowercase = immediate parent).
+// NIP-22 kind-1111 comment (uppercase E/A/I/K/P tags = thread root, lowercase = immediate parent).
 export class CommentReader extends EventReader {
   root(): CommentRef {
     return {
@@ -70,8 +72,8 @@ export class CommentWriter extends EventWriter<CommentReader> {
     if (reader) {
       const parser = new TagParser(this.extraTags)
 
-      this.rootTags = this.consumeRefTags(parser, "E", "A", "K", "P")
-      this.parentTags = this.consumeRefTags(parser, "e", "a", "k", "p")
+      this.rootTags = this.consumeRefTags(parser, "E", "A", "I", "K", "P")
+      this.parentTags = this.consumeRefTags(parser, "e", "a", "i", "k", "p")
       this.extraTags = parser.tags
     }
   }
@@ -152,7 +154,7 @@ export class CommentWriter extends EventWriter<CommentReader> {
   replyTo(event: TrustedEvent) {
     const inherited = event.kind === this.kind ? getCommentTags(event.tags).roots : []
 
-    if (inherited.length > 0) {
+    if (hasRootPointer(inherited)) {
       this.rootTags = inherited.map(tag => [...tag])
     } else {
       this.setRootFromEvent(event)

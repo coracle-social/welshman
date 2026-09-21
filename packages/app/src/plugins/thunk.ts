@@ -125,6 +125,9 @@ export class Thunk extends BaseThunk {
   controller = new AbortController()
   wrap?: SignedEvent
 
+  // The id of the copy in the repository, which pow re-hashes and an abort unwinds.
+  initialId: string
+
   constructor(options: ThunkOptions) {
     super()
 
@@ -133,6 +136,7 @@ export class Thunk extends BaseThunk {
     }
 
     this.options = {...options, event: prep(options.event, User.require(options.app).pubkey)}
+    this.initialId = this.options.event.id
 
     for (const relay of options.relays) {
       this.results[relay] = {
@@ -271,8 +275,6 @@ export class Thunk extends BaseThunk {
     // Allow for lazily signing/powing events in order to decrease apparent latency in the UI
     // that results from waiting for remote signers
     try {
-      const unsignedId = this.options.event.id
-
       if (this.options.pow) {
         this.options.event = await makePow(this.options.event, this.options.pow).result
       }
@@ -288,17 +290,18 @@ export class Thunk extends BaseThunk {
       }
 
       // Only pow changes the id, and only then is there an optimistic copy left to remove
-      if (unsignedId !== signedEvent.id) {
+      if (this.initialId !== signedEvent.id) {
         for (const url of this.options.relays) {
-          this.options.app.tracker.removeRelay(unsignedId, url)
+          this.options.app.tracker.removeRelay(this.initialId, url)
           this.options.app.tracker.track(signedEvent.id, url)
         }
 
-        this.options.app.repository.removeEvent(unsignedId)
+        this.options.app.repository.removeEvent(this.initialId)
       }
 
       this.options.app.repository.publish(signedEvent)
 
+      this.initialId = signedEvent.id
       this.options.event = signedEvent
 
       return this._publish(signedEvent)
@@ -385,7 +388,7 @@ export class Thunks {
     this.queue.push(thunk)
 
     for (const url of thunk.options.relays) {
-      this.app.tracker.track(thunk.options.event.id, url)
+      this.app.tracker.track(thunk.initialId, url)
     }
 
     this.app.repository.publish(thunk.options.event)
@@ -397,7 +400,7 @@ export class Thunks {
         this.app.wrapManager.remove(thunk.wrap.id)
       }
 
-      this.app.repository.removeEvent(thunk.options.event.id)
+      this.app.repository.removeEvent(thunk.initialId)
 
       this.history.update($history => remove(thunk, $history))
     })

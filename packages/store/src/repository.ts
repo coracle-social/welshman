@@ -167,7 +167,8 @@ export const deriveEventsByIdByUrl = ({
 
       const eventsById = eventsByIdByUrl.get(url)
 
-      if (eventsById?.has(event.id)) return false
+      // The repository swaps a changed copy of a held event in under the same id.
+      if (eventsById?.get(event.id) === event) return false
 
       // Create a new map so we can detect which key changed
       const newEventsById = new Map(eventsById)
