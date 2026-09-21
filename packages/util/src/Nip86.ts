@@ -104,6 +104,11 @@ export const makeUnassignMethod = (pubkey: string, method: string): ManagementRe
   params: [pubkey, method],
 })
 
+export const makeListMethodAssignees = (): ManagementRequest => ({
+  method: "listmethodassignees",
+  params: [],
+})
+
 export const makeListClaims = (): ManagementRequest => ({
   method: "listclaims",
   params: [],
@@ -259,6 +264,8 @@ export class ManagementApi {
   assignMethod = (pubkey: string, method: string) => this.send(makeAssignMethod(pubkey, method))
 
   unassignMethod = (pubkey: string, method: string) => this.send(makeUnassignMethod(pubkey, method))
+
+  listMethodAssignees = () => this.send(makeListMethodAssignees())
 
   listClaims = () => this.send(makeListClaims())
 
