@@ -1,14 +1,51 @@
 import {readFileSync, writeFileSync, readdirSync} from "fs"
 import {join} from "path"
 
-// Read the root package.json to get the version
-const rootPackage = JSON.parse(readFileSync("package.json", "utf8"))
-const version = rootPackage.version
+const releases = ["major", "minor", "patch"] as const
 
-if (!version) {
+type Release = (typeof releases)[number]
+
+const release = process.argv[2] as Release
+
+if (!releases.includes(release)) {
+  console.error(`Usage: pnpm bump <${releases.join("|")}>`)
+  process.exit(1)
+}
+
+// Read the root package.json to get the current version
+const rootPackageJsonPath = "package.json"
+const rootPackageJson = JSON.parse(readFileSync(rootPackageJsonPath, "utf8"))
+const currentVersion = rootPackageJson.version
+
+if (!currentVersion) {
   console.error("No version found in root package.json")
   process.exit(1)
 }
+
+const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(currentVersion)
+
+if (!match) {
+  console.error(`Expected a major.minor.patch version in root package.json, got ${currentVersion}`)
+  process.exit(1)
+}
+
+const [major, minor, patch] = match.slice(1).map(Number)
+
+let version = `${major}.${minor}.${patch + 1}`
+
+if (release === "major") {
+  version = `${major + 1}.0.0`
+}
+
+if (release === "minor") {
+  version = `${major}.${minor + 1}.0`
+}
+
+// Update the root package.json first, so packages follow it
+rootPackageJson.version = version
+
+writeFileSync(rootPackageJsonPath, JSON.stringify(rootPackageJson, null, 2) + "\n")
+console.log(`Updated ${rootPackageJsonPath}`)
 
 // Get all directories in packages/
 const packagesDir = "packages"
@@ -34,4 +71,4 @@ for (const pkg of packages) {
   }
 }
 
-console.log("Version update complete!")
+console.log(`Version update complete: ${currentVersion} -> ${version}`)
