@@ -342,44 +342,16 @@ export const parseInvoice = (text: string, context: ParseContext): ParsedInvoice
 }
 
 export const parseLink = (text: string, context: ParseContext): ParsedLink | void => {
-  const prev = last(context.results)
+  const [link] = text.match(/^([a-z\+:]{2,30}:\/\/)[-\.~\w]+([^\s]*[^<>"'\.!,:\s\)\(]+)?/gi) || []
 
-  // Skip if it's just the end of a filepath
-  if (prev?.type === ParsedType.Text && prev.value.endsWith("/")) {
+  // Skip placeholders like "https://..."
+  if (!link || link.includes("..")) {
     return
   }
 
-  const regexes = [
-    // Anything with a protocol before it
-    /^([a-z\+:]{2,30}:\/\/)[-\.~\w]+([^\s]*[^<>"'\.!,:\s\)\(]+)?/gi,
-    // Stuff without a protocol, but with a dot
-    /^\w+[-\.~\w]+\.[\w]{2,6}([^\s]*[^<>"'\.!,:\s\)\(]+)?/gi,
-  ]
-
-  let link = ""
-  for (const regex of regexes) {
-    const match = text.match(regex)
-
-    if (match) {
-      link = match[0]
-      break
-    }
-  }
-
-  // Skip url if it's an ellipse
-  if (!link || link.match(/\.\./)) {
-    return
-  }
-
-  // Skip it if it looks like an IP address but doesn't have a protocol
-  if (link.match(/\d+\.\d+/) && !link.includes("://")) {
-    return
-  }
-
-  // Parse using URL, make sure there's a protocol
   let url
   try {
-    url = new URL(link.match(/^\w+:\/\//) ? link : "https://" + link)
+    url = new URL(link)
   } catch (e) {
     return
   }

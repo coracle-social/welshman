@@ -49,18 +49,10 @@ describe("Content Parsing", () => {
       expect(parsed.value.url.toString()).toBe("https://example.com/")
     })
 
-    it("should parse URLs without protocol", () => {
+    it("should not parse URLs without protocol", () => {
       const result = parse({content: "Visit example.com"})
-      const parsed = result[1] as ParsedLink
 
-      expect(parsed).toMatchObject({
-        type: ParsedType.Link,
-        value: {
-          url: expect.any(URL),
-        },
-      })
-
-      expect(parsed.value.url.toString()).toBe("https://example.com/")
+      expect(result.some(p => p.type === ParsedType.Link)).toBe(false)
     })
 
     it("should identify media links", () => {
@@ -156,7 +148,7 @@ describe("Content Parsing", () => {
     it("should not parse possessives as rooms", () => {
       const result = parse({content: "example.com's rooms"})
 
-      expect(result[0]).toMatchObject({type: ParsedType.Link})
+      expect(result.some(p => p.type === ParsedType.Room)).toBe(false)
     })
 
     it("should parse topics", () => {
@@ -192,7 +184,7 @@ describe("Content Parsing", () => {
     it("should not parse a domain starting with lnbc as an invoice", () => {
       const result = parse({content: "lnbcsomethinglonger.example"})
 
-      expect(result[0]).toMatchObject({type: ParsedType.Link})
+      expect(result.some(p => p.type === ParsedType.Invoice)).toBe(false)
     })
   })
 
