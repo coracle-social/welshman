@@ -16,15 +16,21 @@ export type SendWrappedOptions = Omit<
   recipients: string[]
 }
 
+export const MAX_UNWRAP_ATTEMPTS = 3
+
 /**
- * Per-app wrap (NIP-59) state: the unwrap queue plus failure/dedup
+ * Per-app wrap (NIP-59) state: the unwrap queue plus attempt/dedup
  * tracking. Scoped to `app.user`, so an app only ever unwraps its own user's
  * messages into its own repository — which is what keeps DM history from being
  * merged across identities. The repository subscription that feeds it lives in
  * `appPolicyWraps`.
+ *
+ * A wrap whose unwrap throws goes back on the queue until it has been tried
+ * `MAX_UNWRAP_ATTEMPTS` times, since a signer that is busy or disconnected
+ * fails the same way a wrap this user cannot read does.
  */
 export class Wraps {
-  failedUnwraps = new Set<string>()
+  unwrapAttempts = new Map<string, number>()
   queue: TaskQueue<TrustedEvent>
 
   constructor(readonly app: IApp) {
@@ -45,7 +51,13 @@ export class Wraps {
             recipient: app.user.pubkey,
           })
         } catch (e) {
-          this.failedUnwraps.add(wrap.id)
+          const attempts = (this.unwrapAttempts.get(wrap.id) ?? 0) + 1
+
+          this.unwrapAttempts.set(wrap.id, attempts)
+
+          if (attempts < MAX_UNWRAP_ATTEMPTS) {
+            this.queue.push(wrap)
+          }
         }
       },
     })
@@ -56,7 +68,7 @@ export class Wraps {
   }
 
   enqueue = (wrap: TrustedEvent) => {
-    if (this.failedUnwraps.has(wrap.id)) return
+    if ((this.unwrapAttempts.get(wrap.id) ?? 0) >= MAX_UNWRAP_ATTEMPTS) return
     if (this.app.wrapManager.getRumor(wrap.id)) return
 
     this.queue.push(wrap)

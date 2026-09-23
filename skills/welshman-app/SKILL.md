@@ -186,7 +186,7 @@ const merged = await app.use(Wraps).publish({event: rumor, recipients: [a, b]})
 app.use(Thunks).publish({event, relays, pow: 20})
 ```
 
-`ThunkOptions`: `{event, relays?, recipient?, delay?, pow?, ...PublishOptions}` (`app` is injected). Incoming wraps addressed to the user are auto-unwrapped by the default `appPolicyWraps`.
+`ThunkOptions`: `{event, relays?, recipient?, delay?, pow?, ...PublishOptions}` (`app` is injected). Incoming wraps addressed to the user are auto-unwrapped by the default `appPolicyWraps`. An unwrap that throws is tried again up to `MAX_UNWRAP_ATTEMPTS` times, so a signer that was busy or disconnected doesn't cost the message.
 
 ## Commands (deferred publishing)
 
