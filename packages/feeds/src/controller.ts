@@ -14,7 +14,7 @@ import {EPOCH, trimFilters, guessFilterDelta, TrustedEvent, Filter} from "@welsh
 import {Tracker} from "@welshman/net"
 import {Feed, FeedType, RequestItem} from "./core.js"
 import {FeedCompiler, FeedCompilerOptions} from "./compiler.js"
-import {requestPage} from "./request.js"
+import {countPage, requestPage} from "./request.js"
 
 export type FeedControllerOptions = FeedCompilerOptions & {
   feed: Feed
@@ -128,9 +128,42 @@ export class FeedController {
 
     let promise: Deferred<void> | undefined
     let delta = initialDelta
+    let widen = 1
+    let pages = 0
     let since = this.options.useWindowing ? maxUntil - delta : 0
     let until = maxUntil
     let exhausted = false
+
+    // Size the window to about a page of events by asking the relays how many are in it.
+    // Counts are lower bounds, so the window errs wide, and relays that cannot count get
+    // `widen` instead.
+    const scaleWindow = async (limit: number) => {
+      for (let attempt = 0; attempt < 3 && since > minSince; attempt++) {
+        const total = await countPage(
+          omitVals([undefined], {
+            relays,
+            router: this.options.router,
+            signal: this.options.signal,
+            context: this.options.context,
+            filters: trimFilters(filters!.map((filter: Filter) => ({since, until, ...filter}))),
+          }),
+        )
+
+        if (total === undefined) {
+          delta = delta * widen
+          since = Math.max(minSince, until - delta)
+
+          return
+        }
+
+        if (total >= limit && total <= limit * 4) {
+          return
+        }
+
+        delta = Math.max(1, Math.round((delta * limit * 2) / Math.max(total, 1)))
+        since = Math.max(minSince, until - delta)
+      }
+    }
 
     return async (limit: number) => {
       if (promise || exhausted) {
@@ -138,6 +171,13 @@ export class FeedController {
       }
 
       promise = defer()
+
+      // The first page keeps the guessed window so no events wait on a count
+      if (this.options.useWindowing && pages > 0) {
+        await scaleWindow(limit)
+      }
+
+      pages += 1
 
       const requestFilters = filters!
         // Remove filters that don't fit our window
@@ -151,7 +191,12 @@ export class FeedController {
         .map((filter: Filter) => ({since, until, limit, ...filter}))
 
       if (requestFilters.length === 0) {
-        return onExhausted?.()
+        exhausted = true
+        onExhausted?.()
+        promise.resolve()
+        promise = undefined
+
+        return
       }
 
       let count = 0
@@ -179,11 +224,13 @@ export class FeedController {
           onExhausted?.()
         }
 
-        // Relays can't be relied upon to return events in descending order, do exponential
-        // windowing to ensure we get the most recent stuff on first load, but eventually find it all
+        // Relays can't be relied upon to return events in descending order, so a window that
+        // came back short is widened before the next one is asked for
         if (count < limit) {
-          delta = delta * Math.round(100 * (2 - inc(count) / inc(limit)))
+          widen = Math.round(100 * (2 - inc(count) / inc(limit)))
           until = since
+        } else {
+          widen = 1
         }
 
         since = Math.max(minSince, until - delta)

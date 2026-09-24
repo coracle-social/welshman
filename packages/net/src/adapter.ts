@@ -10,6 +10,7 @@ import {
   ClientEvent,
   ClientReq,
   ClientClose,
+  ClientCount,
 } from "./message.js"
 import {Socket, SocketEvent} from "./socket.js"
 import {Unsubscriber} from "./util.js"
@@ -93,6 +94,8 @@ export class LocalAdapter extends AbstractAdapter {
         return this.#handleEVENT(message as ClientEvent)
       case ClientMessageType.Close:
         return this.#handleCLOSE(message as ClientClose)
+      case ClientMessageType.Count:
+        return this.#handleCOUNT(message as ClientCount)
       case ClientMessageType.Req:
         return this.#handleREQ(message as ClientReq)
     }
@@ -111,6 +114,15 @@ export class LocalAdapter extends AbstractAdapter {
 
   #handleCLOSE([_, subId]: ClientClose) {
     this.subs.delete(subId)
+  }
+
+  #handleCOUNT([_, subId, ...filters]: ClientCount) {
+    // Callers generally expect async relays
+    sleep(1).then(() => {
+      const count = this.repository.query(filters).length
+
+      this.#receive([RelayMessageType.Count, subId, {count}])
+    })
   }
 
   #handleREQ([_, subId, ...filters]: ClientReq) {

@@ -6,6 +6,7 @@ export enum RelayMessageType {
   Notice = "NOTICE",
   Auth = "AUTH",
   Closed = "CLOSED",
+  Count = "COUNT",
   Eose = "EOSE",
   Event = "EVENT",
   NegMsg = "NEG-MSG",
@@ -20,6 +21,8 @@ export type RelayNoticePayload = [string]
 export type RelayAuthPayload = [string]
 
 export type RelayClosedPayload = [string, string]
+
+export type RelayCountPayload = [string, {count: number; approximate?: boolean}]
 
 export type RelayEosePayload = [string]
 
@@ -37,6 +40,8 @@ export type RelayAuth = [RelayMessageType.Auth, ...RelayAuthPayload]
 
 export type RelayClosed = [RelayMessageType.Closed, ...RelayClosedPayload]
 
+export type RelayCount = [RelayMessageType.Count, ...RelayCountPayload]
+
 export type RelayEose = [RelayMessageType.Eose, ...RelayEosePayload]
 
 export type RelayEvent = [RelayMessageType.Event, ...RelayEventPayload]
@@ -52,6 +57,8 @@ export const isRelayNotice = (m: RelayMessage): m is RelayNotice => m[0] === Rel
 export const isRelayAuth = (m: RelayMessage): m is RelayAuth => m[0] === RelayMessageType.Auth
 
 export const isRelayClosed = (m: RelayMessage): m is RelayClosed => m[0] === RelayMessageType.Closed
+
+export const isRelayCount = (m: RelayMessage): m is RelayCount => m[0] === RelayMessageType.Count
 
 export const isRelayEose = (m: RelayMessage): m is RelayEose => m[0] === RelayMessageType.Eose
 
@@ -92,6 +99,7 @@ export const isTerminalReason = (reason = "") =>
 export enum ClientMessageType {
   Auth = "AUTH",
   Close = "CLOSE",
+  Count = "COUNT",
   Event = "EVENT",
   NegClose = "NEG-CLOSE",
   NegOpen = "NEG-OPEN",
@@ -103,6 +111,8 @@ export type ClientMessage = any[]
 export type ClientAuthPayload = [string]
 
 export type ClientClosePayload = [string]
+
+export type ClientCountPayload = [string, ...Filter[]]
 
 export type ClientEventPayload = [SignedEvent]
 
@@ -116,6 +126,8 @@ export type ClientAuth = [ClientMessageType.Auth, ...ClientAuthPayload]
 
 export type ClientClose = [ClientMessageType.Close, ...ClientClosePayload]
 
+export type ClientCount = [ClientMessageType.Count, ...ClientCountPayload]
+
 export type ClientEvent = [ClientMessageType.Event, ...ClientEventPayload]
 
 export type ClientNegClose = [ClientMessageType.NegClose, ...ClientNegClosePayload]
@@ -128,6 +140,9 @@ export const isClientAuth = (m: ClientMessage): m is ClientAuth => m[0] === Clie
 
 export const isClientClose = (m: ClientMessage): m is ClientClose =>
   m[0] === ClientMessageType.Close
+
+export const isClientCount = (m: ClientMessage): m is ClientCount =>
+  m[0] === ClientMessageType.Count
 
 export const isClientEvent = (m: ClientMessage): m is ClientEvent =>
   m[0] === ClientMessageType.Event

@@ -1,4 +1,4 @@
-import {partition, now, nthEq, race} from "@welshman/lib"
+import {partition, now, nthEq, race, max, removeUndefined} from "@welshman/lib"
 import {
   makeEvent,
   Filter,
@@ -14,7 +14,7 @@ import {
 } from "@welshman/util"
 import {Nip01Signer, ISigner} from "@welshman/signer"
 import {FeedRouter, getFilterSelections} from "./router.js"
-import {LOCAL_RELAY_URL, Tracker, AdapterContext, request, publish} from "@welshman/net"
+import {LOCAL_RELAY_URL, Tracker, AdapterContext, count, request, publish} from "@welshman/net"
 
 export type RequestPageOptions = {
   filters: Filter[]
@@ -94,6 +94,39 @@ export const requestPage = async ({
     relays: [LOCAL_RELAY_URL],
     autoClose,
   })
+}
+
+export type CountPageOptions = {
+  filters: Filter[]
+  router: FeedRouter
+  relays?: string[]
+  context?: AdapterContext
+  signal?: AbortSignal
+}
+
+/**
+ * Counts the events matching some filters on the relays a page would be requested from,
+ * without requesting the page.
+ * @param options - CountPageOptions
+ * @returns a lower bound on the count, or undefined if no relay supports NIP-45
+ */
+export const countPage = async ({
+  filters,
+  router,
+  relays = [],
+  context,
+  signal,
+}: CountPageOptions) => {
+  if (relays.length > 0) {
+    return count({filters, relays, context, signal})
+  }
+
+  const selections = await getFilterSelections(filters, router)
+  const counts = removeUndefined(
+    await Promise.all(selections.map(selection => count({...selection, context, signal}))),
+  )
+
+  return counts.length > 0 ? max(counts) : undefined
 }
 
 export type RequestDVMOptions = {

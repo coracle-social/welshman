@@ -74,6 +74,17 @@ Every entry point (`request`, `requestOne`, `publish`, `publishOne`, `makeLoader
 
 Without `autoClose` or a `signal`, `requestOne` streams indefinitely. The returned promise only resolves if the relay sends CLOSED for all active subscription ids.
 
+### Count
+
+| Export | Description |
+|--------|-------------|
+| `countOne(options)` | Asks one relay how many events match some filters (NIP-45); returns `Promise<number \| undefined>` |
+| `count(options)` | Asks several relays and takes the highest answer; returns `Promise<number \| undefined>` |
+| `supportsCount(relay)` | Whether that relay has answered a COUNT this session — `true`, `false`, or `undefined` if it has not been asked |
+| `COUNT_TIMEOUT` | 3000 ms, how long a relay has to answer before it counts as refusing |
+
+Options are `{relay | relays, filters, context?, signal?}`. `undefined` means no relay supports COUNT, which is a different answer from `0`. NIP-45 is optional and a NIP-11 document is not always honest about it, so support is read off the wire: a relay that answers with CLOSED, or says nothing at all, is remembered and not asked again. Relays hold overlapping subsets of the network, so what `count` returns is a lower bound on the total rather than the total.
+
 ### Publish
 
 | Export | Description |
@@ -170,8 +181,8 @@ Emits `"update"` with a `RepositoryUpdate` on every change.
 | Export | Description |
 |--------|-------------|
 | `RelayMessageType` / `ClientMessageType` | Enums of relay→client and client→relay message types |
-| `isRelayEvent()`, `isRelayEose()`, `isRelayOk()`, `isRelayAuth()`, `isRelayClosed()`, … | Type guards for relay messages |
-| `isClientReq()`, `isClientEvent()`, `isClientClose()`, `isClientAuth()`, … | Type guards for client messages |
+| `isRelayEvent()`, `isRelayEose()`, `isRelayOk()`, `isRelayAuth()`, `isRelayClosed()`, `isRelayCount()`, … | Type guards for relay messages |
+| `isClientReq()`, `isClientEvent()`, `isClientClose()`, `isClientAuth()`, `isClientCount()`, … | Type guards for client messages |
 | `matchReason(prefix, reason)` / `RelayReasonPrefix` | Match a relay's machine-readable `OK`/`CLOSED` reason prefix (`auth-required:`, `restricted:`, …) |
 
 ### WrapManager
