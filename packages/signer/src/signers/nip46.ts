@@ -151,6 +151,9 @@ const getDefaultContext = memoize(() => {
 export class Nip46Receiver extends Emitter {
   public abortController?: AbortController
 
+  private stopped = false
+  private retryDelay = 1000
+
   constructor(
     public signer: ISigner,
     public params: Nip46BrokerParams,
@@ -161,9 +164,12 @@ export class Nip46Receiver extends Emitter {
   // start listening to the remote signer for incoming events
   // broadcast any event returned by the remote signer
   start = async () => {
-    if (this.abortController) return
+    if (this.abortController || this.stopped) return
 
-    this.abortController = new AbortController()
+    const abortController = new AbortController()
+    const startedAt = Date.now()
+
+    this.abortController = abortController
 
     const {relays, context = getDefaultContext()} = this.params
     const userPubkey = await this.signer.getPubkey()
@@ -173,7 +179,8 @@ export class Nip46Receiver extends Emitter {
       relays,
       filters,
       context,
-      signal: this.abortController.signal,
+      signal: abortController.signal,
+      resubscribeAttempts: 3,
       onEvent: async (event: TrustedEvent, url: string) => {
         const json = await decrypt(this.signer, event.pubkey, event.content)
         const response = tryCatch(() => JSON.parse(json)) || {}
@@ -187,11 +194,20 @@ export class Nip46Receiver extends Emitter {
       },
       onClose: () => {
         this.abortController = undefined
+
+        if (!this.stopped) {
+          const delay = Date.now() - startedAt > 30_000 ? 1000 : this.retryDelay
+
+          this.retryDelay = Math.min(delay * 2, 30_000)
+
+          sleep(delay).then(this.start)
+        }
       },
     })
   }
 
   stop = () => {
+    this.stopped = true
     this.abortController?.abort()
     this.removeAllListeners()
   }
