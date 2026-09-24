@@ -10,6 +10,7 @@ import {
   isClientNegClose,
   ClientMessageType,
   RelayMessage,
+  RelayMessageType,
   copyPriority,
   isRelayOk,
   isRelayEose,
@@ -35,6 +36,17 @@ export const socketPolicyAuthBuffer = (socket: Socket) => {
 
   let buffer: ClientMessage[] = []
 
+  // The relay never answers a message we drop, so answer for it
+  const closeSubscription = (message: ClientMessage, reason: string) => {
+    if (isClientReq(message)) {
+      socket.receive([RelayMessageType.Closed, message[1], reason])
+    }
+
+    if (isClientNegOpen(message)) {
+      socket.receive([RelayMessageType.NegErr, message[1], reason])
+    }
+  }
+
   const unsubscribers = [
     on(socket, SocketEvent.Sending, (message: ClientMessage) => {
       // Always allow sending auth
@@ -51,7 +63,11 @@ export const socketPolicyAuthBuffer = (socket: Socket) => {
       if (isClientClose(message) || isClientNegClose(message)) {
         buffer = buffer.filter(nthNe(1, message[1]))
       } else {
-        buffer = buffer.slice(-1000).concat([message])
+        buffer.push(message)
+
+        while (buffer.length > 1000) {
+          closeSubscription(buffer.shift()!, "error: dropped while waiting for authentication")
+        }
       }
     }),
     on(socket, SocketEvent.Receiving, (message: RelayMessage) => {
@@ -85,7 +101,9 @@ export const socketPolicyAuthBuffer = (socket: Socket) => {
           socket.send(message)
         }
       } else if (terminalStatuses.includes(socket.auth.status)) {
-        buffer = []
+        for (const message of buffer.splice(0)) {
+          closeSubscription(message, "restricted: authentication failed")
+        }
       }
     }),
   ]

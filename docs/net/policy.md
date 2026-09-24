@@ -15,7 +15,7 @@ The contract for socket policies. Takes a Socket object and returns a cleanup fu
 
 ### `socketPolicyAuthBuffer`
 
-Buffers messages during authentication flow and replays them after successful auth.
+Buffers messages during authentication flow and replays them after successful auth. The buffer holds 1000 messages. A subscription dropped from a full buffer is closed with a `CLOSED` that stands in for the relay's, and so is one still buffered when auth fails.
 
 ### `socketPolicyConnectOnSend`
 

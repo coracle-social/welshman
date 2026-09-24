@@ -40,6 +40,7 @@ WebSocket connection to a Nostr relay with queuing and authentication.
 - `close()` - Closes the connection
 - `cleanup()` - Closes connection and removes all listeners
 - `send(message)` - Queues a message to send
+- `receive(message)` - Queues a message from the relay for processing
 
 ## Example
 

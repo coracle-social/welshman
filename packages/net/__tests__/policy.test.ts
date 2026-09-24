@@ -232,6 +232,75 @@ describe("policy", () => {
 
       cleanup()
     })
+
+    it("should close a req dropped from a full buffer", () => {
+      const cleanup = socketPolicyAuthBuffer(socket)
+
+      for (let i = 0; i < 1001; i++) {
+        socket.send(["REQ", `req-${i}`, {kinds: [1]}])
+      }
+
+      expect(socket._recvQueue.items).toEqual([
+        ["CLOSED", "req-0", "error: dropped while waiting for authentication"],
+      ])
+
+      cleanup()
+    })
+
+    it("should send a neg-err for a neg-open dropped from a full buffer", () => {
+      const cleanup = socketPolicyAuthBuffer(socket)
+
+      socket.send(["NEG-OPEN", "neg-1", {kinds: [1]}, ""])
+
+      for (let i = 0; i < 1000; i++) {
+        socket.send(["REQ", `req-${i}`, {kinds: [1]}])
+      }
+
+      expect(socket._recvQueue.items).toEqual([
+        ["NEG-ERR", "neg-1", "error: dropped while waiting for authentication"],
+      ])
+
+      cleanup()
+    })
+
+    it("should say nothing about an event dropped from a full buffer", () => {
+      const cleanup = socketPolicyAuthBuffer(socket)
+
+      socket.send(["EVENT", {id: "123", kind: 1, content: "", tags: [], pubkey: "", sig: ""}])
+
+      for (let i = 0; i < 1000; i++) {
+        socket.send(["REQ", `req-${i}`, {kinds: [1]}])
+      }
+
+      expect(socket._recvQueue.items).toEqual([])
+
+      cleanup()
+    })
+
+    it("should close buffered reqs when auth fails", () => {
+      const cleanup = socketPolicyAuthBuffer(socket)
+
+      socket.send(["REQ", "123", {kinds: [1]}])
+      socket.auth.setStatus(AuthStatus.Forbidden)
+
+      expect(socket._recvQueue.items).toEqual([
+        ["CLOSED", "123", "restricted: authentication failed"],
+      ])
+
+      cleanup()
+    })
+
+    it("should keep a req the client closed out of the drop notices", () => {
+      const cleanup = socketPolicyAuthBuffer(socket)
+
+      socket.send(["REQ", "123", {kinds: [1]}])
+      socket.send(["CLOSE", "123"])
+      socket.auth.setStatus(AuthStatus.Forbidden)
+
+      expect(socket._recvQueue.items).toEqual([])
+
+      cleanup()
+    })
   })
 
   describe("socketPolicyCancelUnsent", () => {

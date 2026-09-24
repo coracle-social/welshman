@@ -120,8 +120,7 @@ export class Socket extends EventEmitter {
           const message = JSON.parse(data)
 
           if (Array.isArray(message)) {
-            this._recvQueue.push(message as RelayMessage)
-            this.emit(SocketEvent.Receiving, message, this.url)
+            this.receive(message as RelayMessage)
           } else {
             this.emit(SocketEvent.Error, "Invalid message received", this.url)
           }
@@ -157,5 +156,10 @@ export class Socket extends EventEmitter {
   send = (message: ClientMessage) => {
     this._sendQueue.push(message)
     this.emit(SocketEvent.Sending, message, this.url)
+  }
+
+  receive = (message: RelayMessage) => {
+    this._recvQueue.push(message)
+    this.emit(SocketEvent.Receiving, message, this.url)
   }
 }
