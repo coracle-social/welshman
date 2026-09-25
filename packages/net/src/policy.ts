@@ -1,4 +1,4 @@
-import {on, ms, nthNe, always, call, randomId, sleep, ago, now} from "@welshman/lib"
+import {on, ms, always, call, randomId, sleep, ago, now} from "@welshman/lib"
 import {RELAY_JOIN, StampedEvent, SignedEvent, Filter, neverFilter} from "@welshman/util"
 import {
   ClientMessage,
@@ -6,16 +6,17 @@ import {
   isClientClose,
   isClientEvent,
   isClientReq,
+  isClientCount,
   isClientNegOpen,
   isClientNegClose,
   ClientMessageType,
   RelayMessage,
-  RelayMessageType,
   copyPriority,
   isRelayOk,
   isRelayEose,
   isRelayClosed,
   isRelayNegErr,
+  isRelayCount,
   matchReason,
   RelayReasonPrefix,
 } from "./message.js"
@@ -25,8 +26,11 @@ import {catchUpFilter} from "./util.js"
 
 /**
  * Handles auth-related message management:
- * - Defers sending messages when a challenge is pending
- * - Re-enqueues event/req messages once if rejected due to auth-required
+ * - Remembers messages sent before auth completes so they can be replayed once it succeeds
+ * - Withholds the relay's auth-required refusals of those messages from the caller, since the
+ *   replay will be answered instead
+ * - Hands a withheld answer over if the replay never happens: auth failed, or the message fell
+ *   out of the buffer
  * @param socket - a Socket object
  * @return a cleanup function
  */
@@ -34,16 +38,30 @@ export const socketPolicyAuthBuffer = (socket: Socket) => {
   const {None, Ok, DeniedSignature, Forbidden} = AuthStatus
   const terminalStatuses = [Ok, DeniedSignature, Forbidden]
 
-  let buffer: ClientMessage[] = []
+  // Messages by req/event id, oldest first. Most relays never ask for auth, so this fills
+  // with everything a socket sends; the relay answering a message is what takes it back out.
+  const buffer = new Map<string, ClientMessage>()
 
-  // The relay never answers a message we drop, so answer for it
-  const closeSubscription = (message: ClientMessage, reason: string) => {
-    if (isClientReq(message)) {
-      socket.receive([RelayMessageType.Closed, message[1], reason])
-    }
+  // Relay messages kept from the caller because a replay will answer them again
+  const withheld = new Map<string, RelayMessage[]>()
 
-    if (isClientNegOpen(message)) {
-      socket.receive([RelayMessageType.NegErr, message[1], reason])
+  const getId = (message: ClientMessage) =>
+    isClientEvent(message) ? message[1].id : (message[1] as string)
+
+  const withhold = (id: string, message: RelayMessage) => {
+    socket._recvQueue.remove(message)
+    withheld.set(id, [...(withheld.get(id) || []), message])
+  }
+
+  // Give the caller whatever the relay told us about a message we are no longer going to replay
+  const release = (id: string) => {
+    const messages = withheld.get(id) || []
+
+    buffer.delete(id)
+    withheld.delete(id)
+
+    for (const message of messages) {
+      socket.receive(message)
     }
   }
 
@@ -58,51 +76,75 @@ export const socketPolicyAuthBuffer = (socket: Socket) => {
       // If the auth flow is complete, no need to buffer anymore
       if (terminalStatuses.includes(socket.auth.status)) return
 
-      // If the client is closing a req, remove both from our buffer
-      // Otherwise, if auth isn't done, hang on to recent messages in case we need to replay them
-      if (isClientClose(message) || isClientNegClose(message)) {
-        buffer = buffer.filter(nthNe(1, message[1]))
-      } else {
-        buffer.push(message)
+      const isClose = isClientClose(message) || isClientNegClose(message)
+      const isOpen =
+        isClientReq(message) ||
+        isClientCount(message) ||
+        isClientEvent(message) ||
+        isClientNegOpen(message)
 
-        while (buffer.length > 1000) {
-          closeSubscription(buffer.shift()!, "error: dropped while waiting for authentication")
+      // A close ends the subscription, and anything else supersedes an earlier copy of itself,
+      // as when a subscription is sent again after a reconnect. Anything else (NEG-MSG) belongs
+      // to a session that replaying its NEG-OPEN starts over.
+      if (isClose || isOpen) {
+        const id = getId(message)
+
+        buffer.delete(id)
+        withheld.delete(id)
+
+        if (isOpen) {
+          buffer.set(id, message)
         }
+      }
+
+      while (buffer.size > 1000) {
+        release(buffer.keys().next().value!)
       }
     }),
     on(socket, SocketEvent.Receiving, (message: RelayMessage) => {
-      // If the relay is closing a request during auth, don't tell the caller, we'll retry it
-      if (
-        (isRelayClosed(message) || isRelayNegErr(message)) &&
-        matchReason(RelayReasonPrefix.AuthRequired, message[2])
-      ) {
-        socket._recvQueue.remove(message)
-      }
+      const id = message[1] as string
 
-      // If we get an eose but we're in the middle of authenticating, wait
-      if (isRelayEose(message) && ![None, Ok].includes(socket.auth.status)) {
-        socket._recvQueue.remove(message)
-      }
+      // Only a message we can replay or answer later may be kept from the caller
+      if (buffer.has(id)) {
+        const isRefusal =
+          ((isRelayClosed(message) || isRelayNegErr(message)) &&
+            matchReason(RelayReasonPrefix.AuthRequired, message[2])) ||
+          (isRelayOk(message) &&
+            !message[2] &&
+            matchReason(RelayReasonPrefix.AuthRequired, message[3]))
 
-      // If the client is rejecting an event during auth, don't tell the caller, we'll retry it
-      if (
-        isRelayOk(message) &&
-        !message[2] &&
-        matchReason(RelayReasonPrefix.AuthRequired, message[3])
-      ) {
-        socket._recvQueue.remove(message)
+        if (isRefusal) {
+          withhold(id, message)
+        } else if (isRelayEose(message) && ![None, Ok].includes(socket.auth.status)) {
+          // Wait for the replay's eose, since events may be withheld until we authenticate
+          withhold(id, message)
+        } else if (
+          isRelayClosed(message) ||
+          isRelayNegErr(message) ||
+          isRelayOk(message) ||
+          isRelayCount(message)
+        ) {
+          // The relay has answered for good, so there is nothing left to replay
+          buffer.delete(id)
+          withheld.delete(id)
+        }
       }
     }),
     on(socket.auth, AuthStateEvent.Status, (status: AuthStatus) => {
-      // Send buffered messages when we get successful auth. In any case, clear them out
-      // if the auth flow is complete
+      // Send buffered messages when we get successful auth. If auth failed, let the caller
+      // hear the refusals we held back.
       if (status === Ok) {
-        for (const message of buffer.splice(0)) {
+        const messages = Array.from(buffer.values())
+
+        buffer.clear()
+        withheld.clear()
+
+        for (const message of messages) {
           socket.send(message)
         }
-      } else if (terminalStatuses.includes(socket.auth.status)) {
-        for (const message of buffer.splice(0)) {
-          closeSubscription(message, "restricted: authentication failed")
+      } else if (terminalStatuses.includes(status)) {
+        for (const id of Array.from(buffer.keys())) {
+          release(id)
         }
       }
     }),

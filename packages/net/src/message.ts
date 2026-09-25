@@ -76,6 +76,7 @@ export enum RelayReasonPrefix {
   Invalid = "invalid",
   Mute = "mute",
   Pow = "pow",
+  RateLimited = "rate-limited",
   Restricted = "restricted",
   Unsupported = "unsupported",
 }

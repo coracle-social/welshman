@@ -1,6 +1,7 @@
 import {describe, expect, it, vi, beforeEach, afterEach} from "vitest"
 import {ClientMessageType} from "../src/message"
-import {MockAdapter} from "../src/adapter"
+import {MockAdapter, SocketAdapter} from "../src/adapter"
+import {Socket} from "../src/socket"
 import {countOne, count, supportsCount, COUNT_TIMEOUT} from "../src/count"
 
 describe("countOne", () => {
@@ -67,6 +68,62 @@ describe("countOne", () => {
 
     expect(await promise).toBeUndefined()
     expect(supportsCount("silent")).toBe(false)
+  })
+
+  it("keeps asking a relay that refused until it authenticates", async () => {
+    let id
+    const sendSpy = vi.fn(m => {
+      id = m[1]
+    })
+    const adapter = new MockAdapter("auth-first", sendSpy)
+
+    const promise = countOne({
+      relay: "auth-first",
+      filters: [{kinds: [1]}],
+      context: {getAdapter: () => adapter},
+    })
+
+    adapter.receive(["CLOSED", id, "auth-required: log in first"])
+
+    expect(await promise).toBeUndefined()
+    expect(supportsCount("auth-first")).toBeUndefined()
+  })
+
+  it("keeps asking a relay that rate limited it", async () => {
+    let id
+    const sendSpy = vi.fn(m => {
+      id = m[1]
+    })
+    const adapter = new MockAdapter("busy", sendSpy)
+
+    const promise = countOne({
+      relay: "busy",
+      filters: [{kinds: [1]}],
+      context: {getAdapter: () => adapter},
+    })
+
+    adapter.receive(["CLOSED", id, "rate-limited: slow down"])
+
+    expect(await promise).toBeUndefined()
+    expect(supportsCount("busy")).toBeUndefined()
+  })
+
+  it("keeps asking a relay that was still connecting when it went quiet", async () => {
+    const socket = new Socket("wss://slow.relay")
+    const adapter = new SocketAdapter(socket)
+
+    const promise = countOne({
+      relay: "wss://slow.relay",
+      filters: [{kinds: [1]}],
+      context: {getAdapter: () => adapter},
+    })
+
+    vi.advanceTimersByTime(COUNT_TIMEOUT)
+
+    expect(await promise).toBeUndefined()
+    expect(supportsCount("wss://slow.relay")).toBeUndefined()
+
+    socket.cleanup()
   })
 
   it("resolves undefined for an aborted signal without asking", async () => {

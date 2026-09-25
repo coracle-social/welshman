@@ -25,10 +25,17 @@ describe("catchUpFilter", () => {
     expect(catchUpFilter({kinds: [WRAP]}, WRAP_DRIFT)).toEqual({kinds: [WRAP], since: 0})
   })
 
-  it("should reach back for a filter with no kinds", () => {
+  it("should not reach back for a filter with no kinds", () => {
     expect(catchUpFilter({authors: ["deadbeef"]}, WRAP_DRIFT)).toEqual({
       authors: ["deadbeef"],
-      since: 0,
+      since: WRAP_DRIFT,
+    })
+  })
+
+  it("should not reach back past the filter's own since", () => {
+    expect(catchUpFilter({kinds: [WRAP], since: 100}, WRAP_DRIFT)).toEqual({
+      kinds: [WRAP],
+      since: 100,
     })
   })
 })

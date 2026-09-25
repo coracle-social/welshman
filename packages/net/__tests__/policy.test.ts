@@ -107,169 +107,123 @@ describe("policy", () => {
       cleanup()
     })
 
-    it("should retry events once when auth-required", () => {
+    const note = (id: string) => ({id, kind: 1, content: "", tags: [], pubkey: "", sig: ""})
+
+    it("should withhold an auth-required refusal of a buffered event", () => {
       const cleanup = socketPolicyAuthBuffer(socket)
-      const recvQueueRemoveSpy = vi.spyOn(socket._recvQueue, "remove")
 
-      // Send an event
-      const event: ClientMessage = [
-        "EVENT",
-        {id: "123", kind: 1, content: "", tags: [], pubkey: "", sig: ""},
-      ]
-      socket.emit(SocketEvent.Send, event)
+      socket.send(["EVENT", note("123")])
+      socket.receive(["OK", "123", false, "auth-required: need to auth first"])
 
-      // Receive auth-required rejection
-      const authReqMsg: RelayMessage = ["OK", "123", false, "auth-required: need to auth first"]
-      socket.emit(SocketEvent.Receiving, authReqMsg)
-
-      // Should remove the auth-required message
-      expect(recvQueueRemoveSpy).toHaveBeenCalledWith(authReqMsg)
-
-      // Receive another auth-required rejection
-      const authReqMsg2: RelayMessage = ["OK", "123", false, "auth-required: need to auth first"]
-      socket.emit(SocketEvent.Receiving, authReqMsg2)
-
-      // Should remove the second auth-required message too
-      expect(recvQueueRemoveSpy).toHaveBeenCalledWith(authReqMsg2)
+      expect(socket._recvQueue.items).toEqual([])
 
       cleanup()
     })
 
-    it("should retry REQ once when auth-required", () => {
+    it("should withhold an auth-required refusal of a buffered req", () => {
       const cleanup = socketPolicyAuthBuffer(socket)
-      const recvQueueRemoveSpy = vi.spyOn(socket._recvQueue, "remove")
 
-      // Send a REQ
-      const req: ClientMessage = ["REQ", "123", {kinds: [1]}]
-      socket.emit(SocketEvent.Send, req)
-
-      // Receive auth-required rejection
-      const authReqMsg: RelayMessage = ["OK", "123", false, "auth-required: need to auth first"]
-      socket.emit(SocketEvent.Receiving, authReqMsg)
-
-      // Should remove the auth-required message
-      expect(recvQueueRemoveSpy).toHaveBeenCalledWith(authReqMsg)
-
-      // Receive another auth-required rejection
-      const authReqMsg2: RelayMessage = ["OK", "123", false, "auth-required: need to auth first"]
-      socket.emit(SocketEvent.Receiving, authReqMsg2)
-
-      // Should remove the second auth-required message too
-      expect(recvQueueRemoveSpy).toHaveBeenCalledWith(authReqMsg2)
-
-      cleanup()
-    })
-
-    it("should retry CLOSED reasons that prefix auth-required with an error label", () => {
-      const cleanup = socketPolicyAuthBuffer(socket)
-      const recvQueueRemoveSpy = vi.spyOn(socket._recvQueue, "remove")
-
-      socket.emit(SocketEvent.Send, ["REQ", "123", {kinds: [1059]}])
-
-      const closed: RelayMessage = [
+      socket.send(["REQ", "123", {kinds: [1059]}])
+      socket.receive([
         "CLOSED",
         "123",
         "ERROR: auth-required: requested filter requires authentication",
-      ]
-      socket.emit(SocketEvent.Receiving, closed)
+      ])
 
-      expect(recvQueueRemoveSpy).toHaveBeenCalledWith(closed)
+      expect(socket._recvQueue.items).toEqual([])
 
       cleanup()
     })
 
     it("should not treat an unrelated reason as auth-required", () => {
       const cleanup = socketPolicyAuthBuffer(socket)
-      const recvQueueRemoveSpy = vi.spyOn(socket._recvQueue, "remove")
+      const closed: RelayMessage = ["CLOSED", "123", "error: too many concurrent REQs"]
 
-      socket.emit(SocketEvent.Send, ["REQ", "123", {kinds: [1]}])
-      socket.emit(SocketEvent.Receiving, ["CLOSED", "123", "error: too many concurrent REQs"])
+      socket.send(["REQ", "123", {kinds: [1]}])
+      socket.receive(closed)
 
-      expect(recvQueueRemoveSpy).not.toHaveBeenCalled()
+      expect(socket._recvQueue.items).toEqual([closed])
+
+      cleanup()
+    })
+
+    it("should pass through a refusal of a message it can't replay", () => {
+      const cleanup = socketPolicyAuthBuffer(socket)
+      const closed: RelayMessage = ["CLOSED", "123", "auth-required: log in"]
+
+      socket.auth.setStatus(AuthStatus.Forbidden)
+      socket.send(["REQ", "123", {kinds: [1]}])
+      socket.receive(closed)
+
+      expect(socket._recvQueue.items).toEqual([closed])
 
       cleanup()
     })
 
     it("should not retry RELAY_JOIN events", () => {
       const cleanup = socketPolicyAuthBuffer(socket)
+      const ok: RelayMessage = ["OK", "123", false, "auth-required: need to auth first"]
+
+      socket.send(["EVENT", {...note("123"), kind: RELAY_JOIN}])
+      socket.receive(ok)
+
+      expect(socket._recvQueue.items).toEqual([ok])
+
+      cleanup()
+    })
+
+    it("should not replay a message the relay has answered", () => {
+      const cleanup = socketPolicyAuthBuffer(socket)
+
+      socket.send(["EVENT", note("123")])
+      socket.receive(["OK", "123", true, ""])
+
       const sendSpy = vi.spyOn(socket, "send")
 
-      // Send an RELAY_JOIN event
-      const event: ClientMessage = [
-        "EVENT",
-        {id: "123", kind: RELAY_JOIN, content: "", tags: [], pubkey: "", sig: ""},
-      ]
-      socket.emit(SocketEvent.Send, event)
+      socket.auth.setStatus(AuthStatus.Ok)
 
-      // Receive auth-required rejection
-      socket.emit(SocketEvent.Receive, ["OK", "123", false, "auth-required: need to auth first"])
-
-      // Should not retry RELAY_JOIN events
       expect(sendSpy).not.toHaveBeenCalled()
 
       cleanup()
     })
 
-    it("should clear pending messages on successful response", () => {
+    it("should replay a subscription sent again only once", () => {
       const cleanup = socketPolicyAuthBuffer(socket)
+
+      socket.send(["REQ", "123", {kinds: [1]}])
+      socket.send(["REQ", "123", {kinds: [1], since: 10}])
+
       const sendSpy = vi.spyOn(socket, "send")
 
-      // Send an event
-      const event: ClientMessage = [
-        "EVENT",
-        {id: "123", kind: 1, content: "", tags: [], pubkey: "", sig: ""},
-      ]
-      socket.emit(SocketEvent.Send, event)
+      socket.auth.setStatus(AuthStatus.Ok)
 
-      // Receive successful response
-      socket.emit(SocketEvent.Receive, ["OK", "123", true, ""])
-
-      // Receive auth-required rejection (should not trigger retry since message was cleared)
-      socket.emit(SocketEvent.Receive, ["OK", "123", false, "auth-required: need to auth first"])
-
-      // Should not retry
-      expect(sendSpy).not.toHaveBeenCalled()
+      expect(sendSpy.mock.calls).toEqual([[["REQ", "123", {kinds: [1], since: 10}]]])
 
       cleanup()
     })
 
-    it("should close a req dropped from a full buffer", () => {
+    it("should replay a neg-open without the session's later messages", () => {
       const cleanup = socketPolicyAuthBuffer(socket)
 
-      for (let i = 0; i < 1001; i++) {
-        socket.send(["REQ", `req-${i}`, {kinds: [1]}])
-      }
+      socket.send(["NEG-OPEN", "neg-1", {kinds: [1]}, "aa"])
+      socket.send(["NEG-MSG", "neg-1", "bb"])
 
-      expect(socket._recvQueue.items).toEqual([
-        ["CLOSED", "req-0", "error: dropped while waiting for authentication"],
-      ])
+      const sendSpy = vi.spyOn(socket, "send")
+
+      socket.auth.setStatus(AuthStatus.Ok)
+
+      expect(sendSpy.mock.calls).toEqual([[["NEG-OPEN", "neg-1", {kinds: [1]}, "aa"]]])
 
       cleanup()
     })
 
-    it("should send a neg-err for a neg-open dropped from a full buffer", () => {
+    it("should drop a live subscription from a full buffer without closing it", () => {
       const cleanup = socketPolicyAuthBuffer(socket)
 
-      socket.send(["NEG-OPEN", "neg-1", {kinds: [1]}, ""])
+      socket.send(["REQ", "live", {kinds: [1]}])
 
       for (let i = 0; i < 1000; i++) {
-        socket.send(["REQ", `req-${i}`, {kinds: [1]}])
-      }
-
-      expect(socket._recvQueue.items).toEqual([
-        ["NEG-ERR", "neg-1", "error: dropped while waiting for authentication"],
-      ])
-
-      cleanup()
-    })
-
-    it("should say nothing about an event dropped from a full buffer", () => {
-      const cleanup = socketPolicyAuthBuffer(socket)
-
-      socket.send(["EVENT", {id: "123", kind: 1, content: "", tags: [], pubkey: "", sig: ""}])
-
-      for (let i = 0; i < 1000; i++) {
-        socket.send(["REQ", `req-${i}`, {kinds: [1]}])
+        socket.send(["EVENT", note(`event-${i}`)])
       }
 
       expect(socket._recvQueue.items).toEqual([])
@@ -277,23 +231,57 @@ describe("policy", () => {
       cleanup()
     })
 
-    it("should close buffered reqs when auth fails", () => {
+    it("should hand over a withheld refusal when its message leaves a full buffer", () => {
       const cleanup = socketPolicyAuthBuffer(socket)
+      const closed: RelayMessage = ["CLOSED", "req-0", "auth-required: log in"]
+      const negErr: RelayMessage = ["NEG-ERR", "neg-0", "auth-required: log in"]
 
-      socket.send(["REQ", "123", {kinds: [1]}])
-      socket.auth.setStatus(AuthStatus.Forbidden)
+      socket.send(["REQ", "req-0", {kinds: [1]}])
+      socket.send(["NEG-OPEN", "neg-0", {kinds: [1]}, ""])
+      socket.receive(closed)
+      socket.receive(negErr)
 
-      expect(socket._recvQueue.items).toEqual([
-        ["CLOSED", "123", "restricted: authentication failed"],
-      ])
+      for (let i = 0; i < 999; i++) {
+        socket.send(["REQ", `req-${i + 1}`, {kinds: [1]}])
+      }
+
+      expect(socket._recvQueue.items).toEqual([closed])
+
+      socket.send(["REQ", "one-more", {kinds: [1]}])
+
+      expect(socket._recvQueue.items).toEqual([closed, negErr])
 
       cleanup()
     })
 
-    it("should keep a req the client closed out of the drop notices", () => {
+    it("should hand over withheld answers when auth fails, and nothing else", () => {
+      const cleanup = socketPolicyAuthBuffer(socket)
+      const closed: RelayMessage = ["CLOSED", "refused", "auth-required: log in"]
+      const ok: RelayMessage = ["OK", "123", false, "auth-required: log in"]
+      const eose: RelayMessage = ["EOSE", "served"]
+
+      socket.send(["REQ", "refused", {kinds: [1]}])
+      socket.send(["REQ", "served", {kinds: [1]}])
+      socket.send(["EVENT", note("123")])
+      socket.receive(["AUTH", "challenge"])
+      socket.receive(closed)
+      socket.receive(ok)
+      socket.receive(eose)
+
+      expect(socket._recvQueue.items).toEqual([["AUTH", "challenge"]])
+
+      socket.auth.setStatus(AuthStatus.DeniedSignature)
+
+      expect(socket._recvQueue.items).toEqual([["AUTH", "challenge"], closed, eose, ok])
+
+      cleanup()
+    })
+
+    it("should forget a req the client closed", () => {
       const cleanup = socketPolicyAuthBuffer(socket)
 
       socket.send(["REQ", "123", {kinds: [1]}])
+      socket.receive(["CLOSED", "123", "auth-required: log in"])
       socket.send(["CLOSE", "123"])
       socket.auth.setStatus(AuthStatus.Forbidden)
 

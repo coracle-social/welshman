@@ -165,13 +165,7 @@ export class FeedController {
       }
     }
 
-    return async (limit: number) => {
-      if (promise || exhausted) {
-        return promise
-      }
-
-      promise = defer()
-
+    const loadPage = async (limit: number) => {
       // The first page keeps the guessed window so no events wait on a count
       if (this.options.useWindowing && pages > 0) {
         await scaleWindow(limit)
@@ -193,54 +187,67 @@ export class FeedController {
       if (requestFilters.length === 0) {
         exhausted = true
         onExhausted?.()
-        promise.resolve()
-        promise = undefined
+      } else {
+        let count = 0
 
-        return
-      }
+        await requestPage(
+          omitVals([undefined], {
+            relays,
+            router: this.options.router,
+            autoClose: true,
+            filters: trimFilters(requestFilters),
+            signal: this.options.signal,
+            tracker: this.options.tracker,
+            context: this.options.context,
+            onEvent: (event: TrustedEvent) => {
+              count += 1
+              until = Math.min(until, event.created_at - 1)
+              onEvent?.(event)
+            },
+          }),
+        )
 
-      let count = 0
+        if (this.options.useWindowing) {
+          // A full page may have been cut off by the limit, so only a short one reaching back
+          // to the start proves there's nothing left
+          if (since === minSince && count < limit) {
+            exhausted = true
+            onExhausted?.()
+          }
 
-      await requestPage(
-        omitVals([undefined], {
-          relays,
-          router: this.options.router,
-          autoClose: true,
-          filters: trimFilters(requestFilters),
-          signal: this.options.signal,
-          tracker: this.options.tracker,
-          context: this.options.context,
-          onEvent: (event: TrustedEvent) => {
-            count += 1
-            until = Math.min(until, event.created_at - 1)
-            onEvent?.(event)
-          },
-        }),
-      )
+          // Relays can't be relied upon to return events in descending order, so a window that
+          // came back short is widened before the next one is asked for
+          if (count < limit) {
+            widen = Math.round(100 * (2 - inc(count) / inc(limit)))
+            until = since
+          } else {
+            widen = 1
+          }
 
-      if (this.options.useWindowing) {
-        if (since === minSince) {
+          since = Math.max(minSince, until - delta)
+        } else if (count === 0) {
           exhausted = true
           onExhausted?.()
         }
+      }
+    }
 
-        // Relays can't be relied upon to return events in descending order, so a window that
-        // came back short is widened before the next one is asked for
-        if (count < limit) {
-          widen = Math.round(100 * (2 - inc(count) / inc(limit)))
-          until = since
-        } else {
-          widen = 1
-        }
-
-        since = Math.max(minSince, until - delta)
-      } else if (count === 0) {
-        exhausted = true
-        onExhausted?.()
+    return async (limit: number) => {
+      if (promise || exhausted) {
+        return promise
       }
 
-      promise.resolve()
-      promise = undefined
+      const current = defer<void>()
+
+      promise = current
+
+      // Settle even if the page fails, or every later load would wait on this one forever
+      try {
+        await loadPage(limit)
+      } finally {
+        promise = undefined
+        current.resolve()
+      }
     }
   }
 

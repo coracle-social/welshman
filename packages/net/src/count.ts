@@ -1,14 +1,32 @@
 import {call, defer, max, on, randomId, removeUndefined, uniq} from "@welshman/lib"
 import {Filter} from "@welshman/util"
-import {RelayMessage, ClientMessageType, isRelayClosed, isRelayCount} from "./message.js"
+import {
+  RelayMessage,
+  ClientMessageType,
+  RelayReasonPrefix,
+  isRelayClosed,
+  isRelayCount,
+  matchReason,
+} from "./message.js"
 import {getAdapter, AdapterContext, AdapterEvent} from "./adapter.js"
-import {SocketEvent, SocketStatus} from "./socket.js"
+import {Socket, SocketEvent, SocketStatus} from "./socket.js"
+import {AuthStatus} from "./auth.js"
 
 export const COUNT_TIMEOUT = 3000
 
 // Which relays answer a COUNT, read off the wire rather than from NIP-11. A relay that
 // refused once is not asked again.
 const supportByRelay = new Map<string, boolean>()
+
+// A socket that is still connecting or authenticating can be slow for reasons of its own
+const isReady = (socket: Socket) =>
+  socket.status === SocketStatus.Open &&
+  [AuthStatus.None, AuthStatus.Ok].includes(socket.auth.status)
+
+// Refusals that say nothing about whether the relay can count
+const isTransientReason = (reason: string) =>
+  matchReason(RelayReasonPrefix.AuthRequired, reason) ||
+  matchReason(RelayReasonPrefix.RateLimited, reason)
 
 export const supportsCount = (relay: string) => supportByRelay.get(relay)
 
@@ -62,7 +80,11 @@ export const countOne = (options: CountOneOptions) => {
       }
 
       if (isRelayClosed(message) && message[1] === id) {
-        remember(false)
+        if (isTransientReason(message[2])) {
+          finish(undefined)
+        } else {
+          remember(false)
+        }
       }
     }),
   ]
@@ -85,8 +107,16 @@ export const countOne = (options: CountOneOptions) => {
     unsubscribers.push(() => signal.removeEventListener("abort", abort))
   }
 
-  // A relay that does not know the verb usually says nothing, so silence is a refusal too
-  const timeoutId = setTimeout(() => remember(false), COUNT_TIMEOUT)
+  // A relay that does not know the verb usually says nothing, so silence is a refusal too, as
+  // long as the relay was ready to answer the whole time
+  const wasReady = adapter.sockets.every(isReady)
+  const timeoutId = setTimeout(() => {
+    if (wasReady && adapter.sockets.every(isReady)) {
+      remember(false)
+    } else {
+      finish(undefined)
+    }
+  }, COUNT_TIMEOUT)
 
   adapter.send([ClientMessageType.Count, id, ...options.filters])
 
