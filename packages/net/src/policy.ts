@@ -1,4 +1,4 @@
-import {on, ms, always, call, randomId, sleep, ago, now} from "@welshman/lib"
+import {on, ms, always, call, randomId, ago, now} from "@welshman/lib"
 import {RELAY_JOIN, StampedEvent, SignedEvent, Filter, neverFilter} from "@welshman/util"
 import {
   ClientMessage,
@@ -222,6 +222,9 @@ const PROBE_IDLE = 30
 // How long a socket has to answer after probing
 const PROBE_TIMEOUT = 10
 
+// The longest a socket with work outstanding waits between attempts to reach its relay
+const RECONNECT_MAX_DELAY = 300
+
 /**
  * Owns a socket's lifecycle: closes it once nothing needs it, checks the relay is still there
  * when something does, reopens it, and catches up on what it missed.
@@ -236,34 +239,29 @@ export const socketPolicyLifecycle = (socket: Socket) => {
   let lastReceive = now()
   let probeId: string | undefined
   let probedAt = 0
+  let attempts = 0
+  let reconnecting = false
+  let reconnectTimeout: ReturnType<typeof setTimeout> | undefined
 
   const unsubscribers = [
     on(socket, SocketEvent.Status, (newStatus: SocketStatus) => {
       const isClosed = [SocketStatus.Closed, SocketStatus.Error].includes(newStatus)
 
-      // Keep track of the most recent open
       if (newStatus === SocketStatus.Open) {
         lastOpen = now()
-      }
 
-      // A probe belongs to the connection that was carrying it, not to the next one
-      if (isClosed && probeId) {
-        pending.delete(probeId)
-        probeId = undefined
-      }
+        // Whatever opened the socket, a scheduled reconnect has nothing left to do
+        clearTimeout(reconnectTimeout)
+        reconnectTimeout = undefined
 
-      // If the socket closed and we have no error, reopen it but don't flap
-      if (isClosed && pending.size) {
-        const since = lastReceive
-        const delay = Math.max(0, ms(5 - (now() - lastOpen)))
-
-        sleep(delay).then(() => {
-          socket.attemptToOpen()
+        // Replay on open rather than per attempt, or each failed attempt queues another copy
+        if (reconnecting) {
+          reconnecting = false
 
           for (const message of pending.values()) {
             if (isClientReq(message)) {
               const filters = (message.slice(2) as Filter[]).map(filter =>
-                catchUpFilter(filter, since),
+                catchUpFilter(filter, lastReceive),
               )
 
               // Rebuilding the message drops its priority symbol, so carry it over
@@ -272,7 +270,26 @@ export const socketPolicyLifecycle = (socket: Socket) => {
               socket.send(message)
             }
           }
-        })
+        }
+      }
+
+      // A probe belongs to the connection that was carrying it, not to the next one
+      if (isClosed && probeId) {
+        pending.delete(probeId)
+        probeId = undefined
+      }
+
+      // Reopen with work outstanding, backing off so an unreachable relay isn't retried in a loop
+      if (isClosed && pending.size && !reconnectTimeout) {
+        const backoff = Math.min(RECONNECT_MAX_DELAY, 2 ** attempts - 1)
+        const delay = Math.max(0, 5 - (now() - lastOpen), backoff)
+
+        attempts += 1
+        reconnecting = true
+        reconnectTimeout = setTimeout(() => {
+          reconnectTimeout = undefined
+          socket.attemptToOpen()
+        }, ms(delay))
       }
     }),
     on(socket, SocketEvent.Send, (message: ClientMessage) => {
@@ -293,6 +310,9 @@ export const socketPolicyLifecycle = (socket: Socket) => {
     on(socket, SocketEvent.Receive, (message: RelayMessage) => {
       lastActivity = now()
       lastReceive = now()
+
+      // Hearing from the relay means it's reachable again, so the next outage starts over
+      attempts = 0
 
       // Any traffic at all proves the relay is there, so retire the probe
       if (probeId) {
@@ -336,6 +356,7 @@ export const socketPolicyLifecycle = (socket: Socket) => {
   return () => {
     unsubscribers.forEach(call)
     clearInterval(interval)
+    clearTimeout(reconnectTimeout)
   }
 }
 

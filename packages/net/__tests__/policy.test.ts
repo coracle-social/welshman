@@ -408,6 +408,17 @@ describe("policy", () => {
   })
 
   describe("socketPolicyLifecycle", () => {
+    // Stand in for the websocket: each reconnect attempt either reaches the relay or fails
+    const reconnectSucceeds = () =>
+      vi
+        .spyOn(socket, "attemptToOpen")
+        .mockImplementation(() => socket.emit(SocketEvent.Status, SocketStatus.Open))
+
+    const reconnectFails = () =>
+      vi
+        .spyOn(socket, "attemptToOpen")
+        .mockImplementation(() => socket.emit(SocketEvent.Status, SocketStatus.Error))
+
     it("should close socket after 30 seconds of inactivity", async () => {
       const cleanup = socketPolicyLifecycle(socket)
       const closeSpy = vi.spyOn(socket, "close")
@@ -499,6 +510,7 @@ describe("policy", () => {
 
     it("should reopen socket when closed with pending messages", async () => {
       const cleanup = socketPolicyLifecycle(socket)
+      reconnectSucceeds()
       const sendSpy = vi.spyOn(socket, "send")
 
       // Send an event that will be pending
@@ -519,6 +531,7 @@ describe("policy", () => {
 
     it("should reopen socket when closed with pending requests, bounded at the outage", async () => {
       const cleanup = socketPolicyLifecycle(socket)
+      reconnectSucceeds()
       const sendSpy = vi.spyOn(socket, "send")
 
       // Send a request that will be pending
@@ -539,6 +552,7 @@ describe("policy", () => {
 
     it("should catch a live request up over an outage it only learns about on wake", async () => {
       const cleanup = socketPolicyLifecycle(socket)
+      reconnectSucceeds()
       const sendSpy = vi.spyOn(socket, "send")
 
       socket.emit(SocketEvent.Status, SocketStatus.Open)
@@ -564,6 +578,7 @@ describe("policy", () => {
 
     it("should bound a request that names its own window at the outage", async () => {
       const cleanup = socketPolicyLifecycle(socket)
+      reconnectSucceeds()
       const sendSpy = vi.spyOn(socket, "send")
 
       socket.emit(SocketEvent.Status, SocketStatus.Open)
@@ -589,6 +604,7 @@ describe("policy", () => {
 
     it("should not reopen socket immediately after previous open", async () => {
       const cleanup = socketPolicyLifecycle(socket)
+      reconnectSucceeds()
       const sendSpy = vi.spyOn(socket, "send")
 
       // Send an event that will be pending
@@ -599,8 +615,8 @@ describe("policy", () => {
       socket.emit(SocketEvent.Status, SocketStatus.Open)
       socket.emit(SocketEvent.Status, SocketStatus.Closed)
 
-      // Advance a short time
-      vi.advanceTimersByTime(5000)
+      // Advance to just inside the flap guard
+      vi.advanceTimersByTime(4900)
 
       // Should not resend yet to prevent flapping
       expect(sendSpy).not.toHaveBeenCalled()
@@ -610,6 +626,80 @@ describe("policy", () => {
 
       // Now should resend
       expect(sendSpy).toHaveBeenCalledWith(event)
+
+      cleanup()
+    })
+
+    it("should back off while the relay is unreachable", async () => {
+      const cleanup = socketPolicyLifecycle(socket)
+      const openSpy = reconnectFails()
+      const sendSpy = vi.spyOn(socket, "send")
+
+      socket.emit(SocketEvent.Status, SocketStatus.Open)
+      socket.emit(SocketEvent.Send, ["REQ", "123", {kinds: [1], limit: 0}])
+
+      // The relay goes away after being up for a while, and every attempt to reach it fails
+      await vi.advanceTimersByTimeAsync(10000)
+      socket.emit(SocketEvent.Status, SocketStatus.Closed)
+      await vi.advanceTimersByTimeAsync(60000)
+
+      // Attempts after 0s, 1s, 3s, 7s, 15s and 31s, rather than one per failure
+      expect(openSpy).toHaveBeenCalledTimes(6)
+
+      // Nothing is replayed onto a socket that never opened
+      expect(sendSpy).not.toHaveBeenCalled()
+
+      cleanup()
+    })
+
+    it("should replay pending messages once when the relay comes back", async () => {
+      const cleanup = socketPolicyLifecycle(socket)
+      const sendSpy = vi.spyOn(socket, "send")
+      const req: ClientMessage = ["REQ", "123", {kinds: [1]}]
+
+      socket.emit(SocketEvent.Status, SocketStatus.Open)
+      socket.emit(SocketEvent.Send, req)
+
+      reconnectFails()
+      await vi.advanceTimersByTimeAsync(10000)
+      socket.emit(SocketEvent.Status, SocketStatus.Closed)
+      await vi.advanceTimersByTimeAsync(20000)
+
+      reconnectSucceeds()
+      await vi.advanceTimersByTimeAsync(60000)
+
+      // Once the socket is back, it's probed as well, but the subscription goes out a single time
+      const replays = sendSpy.mock.calls.filter(([message]) => message[1] === "123")
+
+      expect(replays).toEqual([[["REQ", "123", {kinds: [1], since: expect.any(Number)}]]])
+
+      cleanup()
+    })
+
+    it("should start backing off from scratch once the relay answers", async () => {
+      const cleanup = socketPolicyLifecycle(socket)
+
+      socket.emit(SocketEvent.Status, SocketStatus.Open)
+      socket.emit(SocketEvent.Send, ["REQ", "123", {kinds: [1], limit: 0}])
+
+      // A long outage runs the delay up
+      const failSpy = reconnectFails()
+      await vi.advanceTimersByTimeAsync(10000)
+      socket.emit(SocketEvent.Status, SocketStatus.Closed)
+      await vi.advanceTimersByTimeAsync(120000)
+      failSpy.mockRestore()
+
+      // The relay comes back and talks to us, then drops again a while later
+      reconnectSucceeds()
+      await vi.advanceTimersByTimeAsync(300000)
+      socket.emit(SocketEvent.Receive, ["EOSE", "123"])
+      await vi.advanceTimersByTimeAsync(10000)
+
+      const openSpy = reconnectSucceeds()
+      socket.emit(SocketEvent.Status, SocketStatus.Closed)
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(openSpy).toHaveBeenCalledTimes(1)
 
       cleanup()
     })

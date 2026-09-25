@@ -121,9 +121,7 @@ describe("getAdapter", () => {
   let repository: Repository
 
   beforeEach(() => {
-    pool = new Pool({
-      makeSocket: () => new Socket("wss://test.relay"),
-    })
+    pool = new Pool()
 
     repository = new Repository()
   })

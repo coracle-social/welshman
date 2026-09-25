@@ -485,10 +485,10 @@ describe("Repository", () => {
       expect(repo.getEvent(event.id)).toEqual(event)
     })
 
-    it("should handle chunked loading", () => {
+    it("should load many events", () => {
       const events = Array.from({length: 1500}, (_, i) => createEvent(1))
 
-      repo.load(events, 500)
+      repo.load(events)
       expect(repo.dump()).toHaveLength(1500)
     })
 
