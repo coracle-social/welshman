@@ -3,7 +3,7 @@ import {makeSecret, makeBolt12PayerNote, stamp, Resolver, BOLT12_ZAP, NOTE} from
 import type {SignedEvent, TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {Bolt12Offer} from "../src/kinds/Bolt12Offer"
-import {Bolt12Zap, sumBolt12Zaps} from "../src/kinds/Bolt12Zap"
+import {Bolt12Zap, getBolt12ZapPaymentHash, sumBolt12Zaps} from "../src/kinds/Bolt12Zap"
 import type {Bolt12ZapClaim} from "../src/kinds/Bolt12Zap"
 import {Bolt12ZapIntent} from "../src/kinds/Bolt12ZapIntent"
 import {
@@ -380,6 +380,46 @@ describe("Bolt12Zap", () => {
   })
 })
 
+// An offer of one description and one issuer id, and a proof of paying it for 21000 msats.
+const paidOffer = "lno1pgph5ctszcssyj7z5vfx29flqlnsuzatppeyu6u9ugtl3ntz3n4k996zg7a5jvuz"
+
+// A payer proof commits to the note, so the note is chosen before the proof rather than after.
+const paidNote = makeBolt12PayerNote("ab".repeat(32))
+
+const paidHash = "02d449a31fbb267c8f352e9968a79e3e5fc95c1bbeaa502fd6454ebde5a4bedc"
+
+const paidProof =
+  "lnp1pgph5ctszcssyj7z5vfx29flqlnsuzatppeyu6u9ugtl3ntz3n4k996zg7a5jvuztqssxfr986kyx3ygqqkvq6alklcslcvfj834l8lyxqkmafkjx57up2cut9xxummnw3er5mnfwpprzwnpvfskyctzv93xzcnpvfskyctzv93xzcnpvfskyctzv93xzcnpvfskyctzv93xzcnpvfskyctzv93xzcnpvfskyctzv93xzcnpvfsk92pqqt2yngclhvn8ere496vk3fu78e0ujhqmh649qt7kg48tmedyhmw25qjjpzczzqjtc233yeg48ur7wrst4vy8ynntsh3p07xdv2xwkc5hgfrmkjfnstcypuwnc3ly3c2r29aggjecvtdnykqf5tcjeum3u7g5l9wx5t9kpnfvr0zu5x7s3grkcuqrc0d8jl7r2z4r5l6c9a3gmg87ntmsmhzzq6llzsxzry3u4dfrjj6wezjdzmstx2j7v755x7qwl6utxwy3t2sw9rp99kfrzlunkc3vx5lv3z409m38hchcu5vckhvlt7awm4j9e6af5hzcllgrayspzyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zy0aq04jqzexkvammmqgl9k7krnea26ehrfwa8vmpy33t4evdvcgls8m08t4l5p7ecz0qz3695e9pd4j669pzykd2phm5gp6en8yghjmtnq2epry2ymr3ac586xh0gxjr9k4e20t725ddygvu6hae76causk2jv75zctkec4g0yu8gmq0h8s606au2v9m3wkw45hhrexn05l7gf0sjtzde838mfzy0e0nhxct6tnpqczvurntnm0c7e4q6zpxwpxhqklmqe9uuwcta44ff76w9hp6plaawgnzl88jctx0qj39q7u9v38k903xew5x77m7wgqcnea3xpf20v6nd7n3ua47j4xgwuglkv6p90w92eke0phpzzw3mldx6u02emt7ewhl0t9jt7mxz36y8z9ldm88079wnxdpu2mqep7g"
+
+const paidClaim = (overrides: Partial<Bolt12ZapClaim> = {}) =>
+  ({
+    proof: paidProof,
+    offers: [paidOffer],
+    payerNote: paidNote,
+    amount: 21000,
+    ...overrides,
+  }) as Bolt12ZapClaim
+
+describe("getBolt12ZapPaymentHash", () => {
+  it("takes a settled proof of the amount, note and offer the claim names", () => {
+    expect(getBolt12ZapPaymentHash(paidClaim())).toBe(paidHash)
+  })
+
+  it("refuses another amount, another intent, and an offer nobody announced", () => {
+    expect(getBolt12ZapPaymentHash(paidClaim({amount: 22000}))).toBeUndefined()
+
+    expect(
+      getBolt12ZapPaymentHash(paidClaim({payerNote: makeBolt12PayerNote("cd".repeat(32))})),
+    ).toBeUndefined()
+
+    expect(getBolt12ZapPaymentHash(paidClaim({offers: [offerString]}))).toBeUndefined()
+  })
+
+  it("refuses a proof that decodes to nothing", () => {
+    expect(getBolt12ZapPaymentHash(paidClaim({proof}))).toBeUndefined()
+  })
+})
+
 describe("sumBolt12Zaps", () => {
   const claim = (amount: number, proof: string, target?: string): Bolt12ZapClaim =>
     ({amount, proof, target}) as Bolt12ZapClaim
@@ -394,6 +434,10 @@ describe("sumBolt12Zaps", () => {
     const claims = [claim(21000, "lnp1a", "aa"), claim(21000, "lnp1a", "bb")]
 
     expect(sumBolt12Zaps(claims, c => c.proof)).toBe(42000)
+  })
+
+  it("validates the proofs itself when nobody hands it a check", () => {
+    expect(sumBolt12Zaps([paidClaim(), claim(500, "lnp1b")])).toBe(21000)
   })
 
   it("leaves out a proof it cannot validate", () => {

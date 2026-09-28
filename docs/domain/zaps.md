@@ -255,14 +255,16 @@ const claim: Bolt12ZapClaim | undefined = zap.validate()
 // {event, intent, offer, offers, target, amount, proof, payerNote}
 ```
 
-The `lnp` proof is undecoded, so counting a claim means running the BOLT12 payer-proof checks over the proof against the claim's `payerNote`, `amount` and `offers`. `sumBolt12Zaps` takes that check as a callback returning the proof's `invoice_payment_hash`, and totals the claims it validates:
+`getBolt12ZapPaymentHash` is the lightning half. It decodes the `lnp` proof with [`decodeBolt12PayerProof`](../util/lightning#payer-proofs), checks the settled payment carries the claim's `payerNote` and `amount`, checks it pays one of the offers the announcement lists, and returns the proof's `invoice_payment_hash`. `sumBolt12Zaps` runs it over every claim and totals the ones that pass:
 
 ```typescript
 import {sumBolt12Zaps} from "@welshman/domain"
 
-sumBolt12Zaps(claims, claim => paymentHashIfValid(claim))
+sumBolt12Zaps(claims)
 // millisats, one payment counted once, at the lower amount when two claims share a hash
 ```
+
+The check is a second argument, so a caller holding payment proof of its own can hand one in.
 
 A claim's `target` is the event id or address the zap names, and undefined for a zap of the recipient themselves. Deduplication is per target, and a profile total is the claims whose `target` is undefined — a `#p` query answers with zaps of that pubkey's events too.
 

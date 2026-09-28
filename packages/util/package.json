@@ -27,11 +27,13 @@
   },
   "peerDependencies": {
     "@noble/curves": "~2.0.1",
+    "@noble/hashes": "~2.0.1",
     "@welshman/lib": "workspace:*",
     "nostr-tools": "^2.22.0"
   },
   "devDependencies": {
     "@noble/curves": "~2.0.1",
+    "@noble/hashes": "~2.0.1",
     "@welshman/lib": "workspace:*",
     "nostr-tools": "^2.22.0",
     "rimraf": "~6.0.0",

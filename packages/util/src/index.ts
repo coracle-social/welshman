@@ -1,5 +1,6 @@
 export * from "./Address.js"
 export * from "./Blossom.js"
+export * from "./Bolt12.js"
 export * from "./Command.js"
 export * from "./Events.js"
 export * from "./Filters.js"

@@ -33,8 +33,8 @@ export declare const getInvoiceAmount: (bolt11: string) => number;
 NIP-B1 zaps are modeled in `@welshman/domain` — see [domain/Zaps](../domain/zaps). What lives here is the syntax of the strings they carry.
 
 ```typescript
-// Lowercase an offer and drop its BOLT12 separators and whitespace
-export declare const canonicalBolt12Offer: (offer: string) => string;
+// Lowercase a bolt12 string and drop its separators and whitespace
+export declare const canonicalBolt12: (encoded: string) => string;
 
 export declare const isBolt12Offer: (offer: string) => boolean;
 export declare const isBolt12PayerProof: (proof: string) => boolean;
@@ -49,6 +49,35 @@ export declare const makeBolt12ZapId: () => string;
 // The invreq_payer_note a payment has to carry: `nostr:nipB1:<zap intent id>`
 export declare const makeBolt12PayerNote: (zapIntentId: string) => string;
 ```
+
+### Payer proofs
+
+A BOLT12 payer proof is the lightning half of a NIP-B1 zap. It carries the invoice the
+recipient signed, the preimage of that invoice's payment, and the payer's own signature over
+both. Fields the payer withheld for privacy are merkle branches instead, so the recipient
+signature still verifies over what is left. `decodeBolt12PayerProof` runs every check the
+[BOLT12 spec](https://github.com/lightning/bolts/blob/master/12-offer-encoding.md#payer-proofs)
+asks of a reader, so what it returns is a settled payment.
+
+```typescript
+export type Bolt12PayerProof = {
+  fields: Map<number, Uint8Array>   // every tlv in the proof, by type
+  paymentHash: string               // invoice_payment_hash, which identifies the payment
+  preimage: string                  // proof_preimage, which hashes to it
+  payerId: string                   // invreq_payer_id, whose signature covers the proof
+  nodeId: string                    // invoice_node_id, whose signature covers the invoice
+  payerNote?: string                // invreq_payer_note, `nostr:nipB1:<zap intent id>`
+  amount?: number                   // invoice_amount, in millisats
+};
+
+export declare const decodeBolt12PayerProof: (proof: string) => Bolt12PayerProof | undefined;
+
+// Whether every field of a raw offer is in the proof unchanged, so the proof is of paying it
+export declare const bolt12ProofPaysOffer: (proof: Bolt12PayerProof, offer: string) => boolean;
+```
+
+The codec underneath is exported too: `decodeBolt12(encoded, prefix)` for bech32 with no
+checksum, and `parseBolt12Tlvs(bytes)` for the tlv stream.
 
 ### LNURL
 

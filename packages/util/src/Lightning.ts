@@ -1,4 +1,5 @@
 import {bytesToHex, hexToBech32} from "@welshman/lib"
+import {canonicalBolt12} from "./Bolt12.js"
 
 const DIVISORS = {
   m: BigInt(1e3),
@@ -73,10 +74,7 @@ export const getLnUrl = (address: string) => {
   }
 }
 
-// A canonical raw offer is lowercase with BOLT12 separators and whitespace removed.
-export const canonicalBolt12Offer = (offer: string) => offer.toLowerCase().replace(/[+\s]/g, "")
-
-export const isBolt12Offer = (offer: string) => /^lno1[a-z0-9]+$/.test(canonicalBolt12Offer(offer))
+export const isBolt12Offer = (offer: string) => /^lno1[a-z0-9]+$/.test(canonicalBolt12(offer))
 
 export const isBolt12PayerProof = (proof: string) => /^lnp1[a-z0-9]+$/.test(proof.toLowerCase())
 

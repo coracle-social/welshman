@@ -1,7 +1,7 @@
 import {uniq, spec} from "@welshman/lib"
 import {
   BOLT12_OFFER,
-  canonicalBolt12Offer,
+  canonicalBolt12,
   indexers,
   isBolt12Offer,
   matchTags,
@@ -14,10 +14,10 @@ import {EventWriter} from "../core/EventWriter.js"
 import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
-const offerSpec = tagSpec("offer", isBolt12Offer, canonicalBolt12Offer)
+const offerSpec = tagSpec("offer", isBolt12Offer, canonicalBolt12)
 
 const isCanonicalBolt12Offer = (offer = "") =>
-  isBolt12Offer(offer) && offer === canonicalBolt12Offer(offer)
+  isBolt12Offer(offer) && offer === canonicalBolt12(offer)
 
 // NIP-B1 kind-10058 BOLT12 offer announcement.
 export class Bolt12OfferReader extends EventReader {
@@ -35,18 +35,18 @@ export class Bolt12OfferReader extends EventReader {
 
 export class Bolt12OfferWriter extends EventWriter<Bolt12OfferReader> {
   addOffer(offer: string) {
-    const canonical = canonicalBolt12Offer(offer)
+    const canonical = canonicalBolt12(offer)
 
     return this.dropTags(tagValueMatcher(offerSpec, canonical)).addTags(["offer", canonical])
   }
 
   removeOffer(offer: string) {
-    return this.dropTags(tagValueMatcher(offerSpec, canonicalBolt12Offer(offer)))
+    return this.dropTags(tagValueMatcher(offerSpec, canonicalBolt12(offer)))
   }
 
   setOffers(offers: string[]) {
     return this.dropTags(spec(["offer"])).addTags(
-      ...offers.map(offer => ["offer", canonicalBolt12Offer(offer)]),
+      ...offers.map(offer => ["offer", canonicalBolt12(offer)]),
     )
   }
 

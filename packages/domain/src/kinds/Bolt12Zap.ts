@@ -5,6 +5,8 @@ import {
   BOLT12_ZAP_INTENT,
   addressTags,
   asSignedEvent,
+  bolt12ProofPaysOffer,
+  decodeBolt12PayerProof,
   getAddress,
   hexTags,
   inboxes,
@@ -35,8 +37,8 @@ const intentKeys = ["p", "amount", "offer_event", "e", "a", "k"]
 /**
  * What `Bolt12ZapReader.validate` returns: the three events, the amount in millisats, and
  * what the payer proof has to bind to. The `target` is the zapped event's id or address,
- * and undefined for a zap of the recipient themselves. The `proof` is undecoded, so a
- * claim is not yet a paid zap.
+ * and undefined for a zap of the recipient themselves. Only `getBolt12ZapPaymentHash` reads
+ * the `proof`, so a claim on its own is not yet a paid zap.
  */
 export type Bolt12ZapClaim = {
   event: TrustedEvent
@@ -73,15 +75,31 @@ const parseEmbedded = (json: string | undefined, kind: number) => {
 }
 
 /**
- * Sums a target's zaps in millisats, counting each lightning payment once. `paymentHash`
- * runs the BOLT12 payer-proof checks and returns the proof's `invoice_payment_hash`, or
- * undefined for a proof it cannot validate. Two claims sharing a target and a hash count
- * as the lower of their amounts. A profile total is the claims whose `target` is
- * undefined, since a `#p` query answers with zaps of that pubkey's events too.
+ * The lightning half of NIP-B1 validation, which `Bolt12ZapReader.validate` leaves alone:
+ * the payer proof settles, it pays one of the offers the recipient announced, and it carries
+ * the payer note and amount this claim says it does. Returns the proof's
+ * `invoice_payment_hash`, which is how two claims of one payment are told apart.
+ */
+export const getBolt12ZapPaymentHash = (claim: Bolt12ZapClaim) => {
+  const proof = decodeBolt12PayerProof(claim.proof)
+
+  return proof &&
+    proof.payerNote === claim.payerNote &&
+    proof.amount === claim.amount &&
+    claim.offers.some(offer => bolt12ProofPaysOffer(proof, offer))
+    ? proof.paymentHash
+    : undefined
+}
+
+/**
+ * Sums a target's zaps in millisats, counting each lightning payment once. Two claims
+ * sharing a target and a payment hash count as the lower of their amounts. A profile total
+ * is the claims whose `target` is undefined, since a `#p` query answers with zaps of that
+ * pubkey's events too.
  */
 export const sumBolt12Zaps = (
   claims: Bolt12ZapClaim[],
-  paymentHash: (claim: Bolt12ZapClaim) => string | undefined,
+  paymentHash: (claim: Bolt12ZapClaim) => string | undefined = getBolt12ZapPaymentHash,
 ) => {
   const amounts = new Map<string, number>()
 
@@ -164,8 +182,8 @@ export class Bolt12ZapReader extends EventReader {
   /**
    * Runs NIP-B1 validation as far as nostr reaches: both embedded signatures, the structure
    * of the zap and its intent, that the zap repeats what the payer signed, and that the
-   * recipient authored the announcement. Returns undefined when any of that fails. The
-   * `lnp` proof is the caller's to decode.
+   * recipient authored the announcement. Returns undefined when any of that fails.
+   * `getBolt12ZapPaymentHash` is the lightning half, and it reads the claim this returns.
    */
   validate(): Bolt12ZapClaim | undefined {
     const intent = this.intent()

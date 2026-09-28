@@ -497,11 +497,25 @@ the invocation grammar — `parseCommandInvocation`, `renderCommandInvocation`, 
 | `getInvoiceAmount(bolt11)` | Extract the millisatoshi amount from a BOLT11 invoice |
 | `hrpToMillisat(hrpString)` | Convert a human-readable BTC amount to millisats (`bigint`) |
 | `toMsats(sats)` / `fromMsats(msats)` | Unit conversion |
-| `canonicalBolt12Offer(offer)` | Lowercase a BOLT12 offer and drop its separators and whitespace |
+| `canonicalBolt12(encoded)` | Lowercase a BOLT12 string and drop its separators and whitespace |
 | `isBolt12Offer(offer)` / `isBolt12PayerProof(proof)` / `isBolt12ZapId(zapId)` | Shape checks for what a NIP-B1 zap carries |
 | `isMsats(amount)` | Whether an amount tag is a whole number of millisats, which `msatsTags` reads it as |
 | `makeBolt12ZapId()` | A fresh zap id, 128 bits of entropy as lowercase hex |
 | `makeBolt12PayerNote(zapIntentId)` | The `nostr:nipB1:<id>` note a BOLT12 payment has to carry |
+
+### BOLT12 payer proofs
+
+| Export | Description |
+|--------|-------------|
+| `decodeBolt12PayerProof(proof)` | Decode and validate an `lnp` proof; `undefined` unless the preimage, the invoice signature and the payer signature all check out |
+| `bolt12ProofPaysOffer(proof, offer)` | Whether every field of a raw offer is in the proof unchanged |
+| `decodeBolt12(encoded, prefix)` | Bech32 with no checksum, as BOLT12 encodes its strings |
+| `parseBolt12Tlvs(bytes)` | The tlv stream underneath, types ascending |
+
+A proof withholds invoice fields for privacy and carries merkle branches in their place, so
+validating one means rebuilding the invoice merkle root out of what is left.
+`packages/util/__tests__/bolt12-payer-proof-vectors.json` is the BOLT12 conformance suite,
+five valid proofs and twenty-three the spec names a reason to refuse.
 
 The `Zapper` and `Zap` types live in `@welshman/domain`, alongside the `ZapRequest`/`ZapReceipt`/`ZapGoal` kinds. Receipt validation is `app.use(Zappers).validateZapReceipt(...)`.
 

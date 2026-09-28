@@ -345,6 +345,9 @@ importers:
       '@noble/curves':
         specifier: ~2.0.1
         version: 2.0.1
+      '@noble/hashes':
+        specifier: ~2.0.1
+        version: 2.0.1
       '@welshman/lib':
         specifier: workspace:*
         version: link:../lib

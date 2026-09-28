@@ -1,6 +1,5 @@
 import {describe, it, vi, expect, beforeEach} from "vitest"
 import {
-  canonicalBolt12Offer,
   hrpToMillisat,
   getInvoiceAmount,
   getLnUrl,
@@ -82,8 +81,7 @@ describe("Lightning", () => {
   })
 
   describe("BOLT12", () => {
-    it("canonicalizes an offer by lowercasing it and dropping its separators", () => {
-      expect(canonicalBolt12Offer("LNO1QGSY+AB C")).toBe("lno1qgsyabc")
+    it("takes an offer in either case, separators and all", () => {
       expect(isBolt12Offer("LNO1QGSY+AB C")).toBe(true)
       expect(isBolt12Offer("lnbc100n1pjexample")).toBe(false)
     })
