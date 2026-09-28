@@ -68,12 +68,10 @@ export class ProfileReader extends EventReader {
     return this.values.website
   }
 
-  display(fallback = "") {
+  display() {
     const name = this.name()
 
-    if (name) return ellipsize(name, 60).trim()
-
-    return displayPubkey(this.event.pubkey).trim() || fallback.trim()
+    return name ? ellipsize(name, 60).trim() : displayPubkey(this.event.pubkey)
   }
 }
 

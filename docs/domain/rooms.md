@@ -2,7 +2,7 @@
 
 NIP-29 rooms are hosted by a relay. The spec calls them groups, but this package's readers, writers and plugins call them rooms, and only the wire-level `h` and `group` tag names keep the spec's word. `@welshman/domain` models the room metadata kinds and the moderation and membership operations. There are two kinds of event:
 
-- **Addressable metadata** (kinds 39000–39002) is parameterized-replaceable, identified by a `d` tag, and written by the relay. It is the canonical state of a room.
+- **Addressable metadata** (kinds 39000–39002 and 39005) is parameterized-replaceable, identified by a `d` tag, and written by the relay. It is the canonical state of a room.
 - **Action ops** (kinds 9000–9022, 19004) are regular events scoped to a target room by the NIP-29 **`h` tag**, which the base `setRoom` / `clearRoom` set and `room()` reads.
 
 All of these are plain `EventReader` / `EventWriter` subclasses; see [Readers & Writers](./readers-and-writers) for the base pattern. The `app.use(Rooms)` plugin in `@welshman/app` builds on them.
@@ -78,6 +78,29 @@ const writer = app.use(Domain).writer(RoomMembers)
 ```
 
 `RoomAdminsWriter` and `RoomMembersWriter` both expose `addPubkey(pk)` / `removePubkey(pk)` / `setPubkeys(pks)`, deduping by pubkey. `RoomAdminsWriter.addPubkey(pk, roles?)` replaces an admin's roles when given and keeps the existing ones otherwise, and `setPubkeys` keeps the roles of every admin it retains.
+
+## Pins
+
+`RoomUpdatePins` (kind 9010) is the op that asks the relay to change a room's pins, and `RoomPins` (kind 39005) is the addressable pin list the relay publishes in response. The op carries the full list rather than a change, since the relay replaces its pin list with it. Both hold the pinned events as `e` tags (by id) and `a` tags (by address).
+
+```typescript
+import {Domain} from "@welshman/app"
+import {RoomPins, RoomUpdatePins} from "@welshman/domain"
+
+const pins = app.use(Domain).reader(RoomPins)(event)
+pins.pins()                  // e- and a-tag values, deduped
+pins.ids()                   // e-tag values
+pins.addresses()             // a-tag values
+pins.isPinned(idOrAddress)   // boolean
+
+const writer = app.use(Domain).writer(RoomUpdatePins)
+  .setRoom(relayUrl, roomId)
+  .setPins([...pins.pins(), newId])   // an address becomes an a tag, anything else an e tag
+
+await app.use(Domain).command(writer).then(cmd => cmd.publish())
+```
+
+`RoomUpdatePinsReader` has the same `pins()`, `ids()` and `addresses()` getters, without `isPinned`. Both writers expose `setPins(idsOrAddresses)`, which replaces every `e` and `a` tag. `RoomUpdatePins` requires an `h` tag; `RoomPins` is parameterized-replaceable, so its writer needs a `d` tag instead. Both queries route to no relays, so the caller names the host relay, with `setRoom(url, room)` for the `h`-scoped op or `setRoutes([relay(url)])` for the pin list.
 
 ## Membership and lifecycle ops
 

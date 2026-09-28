@@ -27,7 +27,7 @@ profile.lnurl()           // lud06/lud16 → lnurl, via parseLnUrl
 profile.values            // the raw decoded JSON object
 ```
 
-`display(fallback = "")` is the label to use in UI. It prefers `name`, truncated to 60 characters, and otherwise falls back to a shortened npub:
+`display()` is the label to use in UI. It prefers `name`, truncated to 60 characters, and otherwise falls back to a shortened npub:
 
 ```typescript
 profile.display()             // "alice"  ·  "npub1abc…wxyz"

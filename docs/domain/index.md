@@ -93,9 +93,10 @@ await app.use(Domain).command(writer).then(cmd => cmd.publish())
 - [Readers & Writers](./readers-and-writers) — the base classes in depth: `KindFactory`/`ConfiguredKind` and the context, sync and async parsing, getters and setters, the render pipeline, routing, validation, extra-tag passthrough, relay hints, and list encryption.
 - [Profile](./profile) — kind-0 metadata (`ProfileReader` / `ProfileWriter`).
 - [Lists](./lists) — NIP-51 public/private lists: follows, mutes, pins, bookmarks, relay sets, and others.
-- [Rooms](./rooms) — NIP-29 rooms: metadata, membership, and the join/leave/create/delete ops.
+- [Rooms](./rooms) — NIP-29 rooms: metadata, pins, membership, and the join/leave/create/delete ops.
 - [Relay membership](./relay-membership) — Flotilla relay/space membership ops and snapshots.
 - [Handlers](./handlers) — NIP-89 handler information and recommendations.
 - [Zaps](./zaps) — NIP-57/NIP-75 zap requests, receipts, and goals.
-- [Content](./content) — notes, pictures, direct messages, comments, threads, chat messages, classifieds, pinboards, highlights, calendar events, polls, and reports.
+- [Content](./content) — notes, deletes, reactions, reposts, pictures, direct messages, comments, threads, articles, chat messages, classifieds, pinboards, highlights, calendar events, polls, reports, labels, saved feeds, and app data.
+- [Wiki](./wiki) — NIP-54 wiki articles, redirects, and merge requests.
 - [Badges](./badges) — NIP-58 badge definitions, awards, and the badges a profile displays.

@@ -1,6 +1,6 @@
 ---
 name: welshman-domain
-description: "Use this skill when working with @welshman/domain: reading, building, querying, and routing typed nostr events by kind — the Reader/Writer/Query trio (EventReader/EventWriter/EventQuery, ListReader/ListWriter) bound to dependencies through KindFactory.configure → ConfiguredKind, that sits between @welshman/util's raw event types and @welshman/app's data plugins. Covers Profile, NIP-51 lists (follows, mutes, pins, relays, bookmarks, topics, emoji, feeds, blossom), NIP-29 rooms, Flotilla relay/space membership, NIP-89 handlers, NIP-57/75 zaps, notes/deletes/reactions, and content kinds (comment, thread, classified, poll, calendar, report). Use it to parse an event into domain getters, build/edit an event template, build the filters and relays that fetch a kind's events, resolve publish relays via the RelaySelection routing DSL (routes/forceRoutes/requiresRelays/scenario), or handle NIP-44 private-list encryption."
+description: "Use this skill when working with @welshman/domain: reading, building, querying, and routing typed nostr events by kind — the Reader/Writer/Query trio (EventReader/EventWriter/EventQuery, ListReader/ListWriter) bound to dependencies through KindFactory.configure → ConfiguredKind, that sits between @welshman/util's raw event types and @welshman/app's data plugins. Covers Profile, NIP-51 lists (follows, mutes, pins, relays, bookmarks, topics, emoji, feeds, blossom), NIP-29 rooms, Flotilla relay/space membership, NIP-89 handlers, NIP-57/75 zaps, notes/deletes/reactions/reposts, NIP-54 wiki, and content kinds (comment, thread, article, classified, poll, calendar, report, label). Use it to parse an event into domain getters, build/edit an event template, build the filters and relays that fetch a kind's events, resolve publish relays via the RelaySelection routing DSL (routes/forceRoutes/requiresRelays/scenario), or handle NIP-44 private-list encryption."
 ---
 
 # welshman/domain — Typed Readers, Writers & Routing for Nostr Kinds
@@ -128,7 +128,7 @@ Publishing targets come from the `@welshman/util` `RelaySelection` DSL (`outbox`
 - **Default routing** (`EventWriter.renderRoutes`): `[userOutbox(), ...inboxes(pTaggedPubkeys, 0.5)]` — deliver to the author's write relays (weight 1) and to every p-tagged pubkey's read relays (weight 0.5). Most kinds use this (`NoteWriter`, …).
 - **`forceRoutes(...routes)`** sets `forcedRoutes`; when non-empty, `scenario()` publishes **only** there, bypassing `renderRoutes()`. It takes routes rather than urls, so `forceRoutes(userInbox())` pins an event to the user's read relays without resolving them first. `setRoom(url, room)` sets `forcedRoutes=[relay(url)]` **and** the `h` tag (NIP-29 room events); `clearForcedRoutes()`/`clearRoom()` undo it.
 - **`requiresRelays`** (a readonly `true` on a subclass) makes `validate()` demand `forcedRoutes`, throwing `A kind N event must publish to explicit relays (via setRoom or forceRoutes)`. The kinds that set it are the NIP-29 room ops and state, the relay-management ops and state, and NIP-C7 chat: `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomDeleteEvent`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomPins`, `RoomUpdatePins`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, `RelayMembers`, `Message`. `RoomCreate`, `RoomDelete`, `RoomDeleteEvent`, `RoomEdit`, `RoomJoin`, `RoomLeave` and `RoomUpdatePins` also require a `roomTag`, so call `setRoom`.
-- **Per-kind overrides.** Some writers replace `renderRoutes()`: `FollowListWriter`/`MuteListWriter`/`ReportWriter` publish to `[userOutbox()]` only (p-tags are data, not recipients); `RelayListWriter` publishes to `indexers()` plus every relay the list references before or after the edit; `DeleteWriter` adds each deleted event's `seen` relays (and requires an `e`/`a` tag).
+- **Per-kind overrides.** Some writers replace `renderRoutes()`: `FollowListWriter`/`MuteListWriter`/`ReportWriter`/`LabelWriter` publish to `[userOutbox()]` only (p-tags are data, not recipients); `RelayListWriter` publishes to `indexers()` plus every relay the list references before or after the edit; `DeleteWriter` adds each deleted event's `seen` relays (and requires an `e`/`a` tag).
 
 The DSL constructors `relays(urls)` and `inboxes(pubkeys)` return **arrays** (spread with `...`); the others return a single `RelaySelection`.
 
@@ -138,7 +138,7 @@ The DSL constructors `relays(urls)` and `inboxes(pubkeys)` return **arrays** (sp
 - **Reading private list tags:** a `ListReader` only surfaces `privateTags` when the context carries the **author's own** signer (it decrypts NIP-44 content only when `signer.getPubkey() === event.pubkey`). Decryption failures are swallowed — `decrypted` stays `false` and private tags stay empty.
 - **Writing private list tags:** `ListWriter.renderContent` is where encryption happens. If there are private tags it requires a signer and NIP-44-encrypts them to the author's own pubkey (`A signer is required to encrypt private tags`). If the source was never decrypted, the original ciphertext is preserved untouched (so you don't clobber tags you couldn't see).
 - **`renderTemplate()`** needs a signer only for list kinds with non-empty private tags. Signing (`signer.sign(stamp(...))`) always needs one.
-- **`d`-tag required** (base `validate` throws otherwise) for every parameterized-replaceable kind (30000–39999), such as `RelaySet`, `BadgeDefinition`, `Pinboard`, `Classified`, `Article`, `AppData`, `Feed`, `DateEvent`, `TimeEvent`, `CalendarRsvp`, `Handler`, `HandlerRecommendation`, `RelayRole`, `RoomMeta`, `RoomAdmins`, `RoomMembers` and `Pin`. Call `setIdentifier()`; `ProfileBadges` sets its own. Each `Pin` needs a unique `d` tag, or pins from the same author collide at one address, and it also requires a content reference (`e`/`a`/`i` tag).
+- **`d`-tag required** (base `validate` throws otherwise) for every parameterized-replaceable kind (30000–39999), such as `RelaySet`, `BadgeDefinition`, `Pinboard`, `Classified`, `Article`, `Wiki`, `WikiRedirect`, `AppData`, `Feed`, `DateEvent`, `TimeEvent`, `CalendarRsvp`, `Handler`, `HandlerRecommendation`, `RelayRole`, `RoomMeta`, `RoomAdmins`, `RoomMembers`, `RoomPins` and `Pin`. Call `setIdentifier()`; `ProfileBadges` sets its own. Each `Pin` needs a unique `d` tag, or pins from the same author collide at one address, and it also requires a content reference (`e`/`a`/`i` tag).
 
 ## Kind classes
 
@@ -148,7 +148,7 @@ The DSL constructors `relays(urls)` and `inboxes(pubkeys)` return **arrays** (sp
 |---|---|---|
 | 0 | NIP-01 | `ProfileReader` / `ProfileWriter` (factory `Profile`) |
 
-`ProfileReader`: `name`, `nip05`, `lnurl`, `about`, `banner`, `picture`, `website`, `display(fallback?)`. Writer: `update`, `setName`, `setNip05`, `setAbout`, `setBanner`, `setPicture`, `setWebsite`. (Also exports `parseLnUrl`, `displayPubkey`.)
+`ProfileReader`: `name`, `nip05`, `lnurl`, `about`, `banner`, `picture`, `website`, `display()`. Writer: `update`, `setName`, `setNip05`, `setAbout`, `setBanner`, `setPicture`, `setWebsite`. (Also exports `parseLnUrl`, `displayPubkey`.)
 
 ### Core notes / deletes / reactions
 
@@ -157,7 +157,9 @@ The DSL constructors `relays(urls)` and `inboxes(pubkeys)` return **arrays** (sp
 | 1 | NIP-01 / NIP-10 | `NoteReader` / `NoteWriter` (factory `Note`) |
 | 9 | NIP-C7 | `MessageReader` / `MessageWriter` (factory `Message`) |
 | 5 | NIP-09 | `DeleteReader` / `DeleteWriter` (factory `Delete`) |
+| 6 | NIP-18 | `RepostReader` / `RepostWriter` (factory `Repost`) |
 | 7 | NIP-25 | `ReactionReader` / `ReactionWriter` (factory `Reaction`) |
+| 16 | NIP-18 | `RepostReader` / `RepostWriter` (factory `GenericRepost`) |
 | 14 | NIP-17 | `DirectMessageReader` / `DirectMessageWriter` (factory `DirectMessage`) |
 | 9802 | NIP-84 | `HighlightReader` / `HighlightWriter` (factory `Highlight`) |
 
@@ -168,6 +170,8 @@ The DSL constructors `relays(urls)` and `inboxes(pubkeys)` return **arrays** (sp
 `HighlightReader`: `sources()`, `attributions()`, `mentions()`, `sourceContext()`, `comment()`, `references()`, `topics()`; writer `setSourceEvent`/`setSourceExternal`/`setSourceReference`, `addAttribution`/`removeAttribution`, `addMention`, `setSourceContext`/`clearSourceContext`, `setComment`/`clearComment`, `setTopics`.
 
 `NoteWriter.setParent(event)` does NIP-10 reply threading (p-tags the parent's participants, e/a-tags the parent and thread root with markers + relay hints). `DeleteReader`: `ids()`, `addresses()`, `kinds()`, `reason()`; `DeleteWriter`: `addEvent(event, roomUrl?)`, `setReason(reason)` (routes to the deleted events' `seen` relays; requires an `e`/`a` tag).
+
+`ReactionReader`: `eventId()`, `eventAddress()`, `pubkey()`, `eventKind()`; writer `setEvent(event)` (replaces the target: `k`, `p`, hinted `e`, plus `a` for a replaceable event; requires an `e` tag), with the reaction itself in `setContent`. `Repost` (kind 6, notes) and `GenericRepost` (kind 16, any other kind) share `RepostReader`: `eventId()`, `eventAddress()`, `pubkey()`, `eventKind()` (`1` for kind 6, the `k` tag for kind 16), `repostedEvent()` (the unverified event JSON-decoded from content); writer `setEvent(event)` JSON-encodes the event into content and tags it like a reaction, adding `k` only for kind 16.
 
 ### Lists (ListReader/ListWriter — public/private split, NIP-44 encryption)
 
@@ -193,7 +197,7 @@ The DSL constructors `relays(urls)` and `inboxes(pubkeys)` return **arrays** (sp
 
 ### Rooms (NIP-29)
 
-Room ops are scoped by the `h` tag and must publish to explicit relays — use `setRoom(url, room)`. Metadata kinds 39000–39002 are addressable per room.
+Room ops are scoped by the `h` tag and must publish to explicit relays — use `setRoom(url, room)`. Metadata kinds 39000–39002 and 39005 are addressable per room.
 
 | Kind | NIP | Reader / Writer |
 |---|---|---|
@@ -211,6 +215,8 @@ Room ops are scoped by the `h` tag and must publish to explicit relays — use `
 | 39002 | NIP-29 | `RoomMembersReader` / `RoomMembersWriter` |
 | 9010 | NIP-29 | `RoomUpdatePinsReader` / `RoomUpdatePinsWriter` — the pin op |
 | 39005 | NIP-29 | `RoomPinsReader` / `RoomPinsWriter` — the relay-signed pin snapshot |
+
+`RoomPinsReader`/`RoomUpdatePinsReader`: `pins()`, `ids()`, `addresses()` (`RoomPinsReader` adds `isPinned`); writer `setPins(idsOrAddresses)`, which replaces every `e`/`a` tag with the full list. Both set `requiresRelays`, and `RoomUpdatePins` also requires the `h` tag.
 
 `RoomMetaReader`: `name`, `about`, `picture`, `pictureMeta`, `isClosed`/`isHidden`/`isPrivate`/`isRestricted`/`hasLivekit`; writer `setName`/`setAbout`/`setPicture`/`setClosed`/`setHidden`/`setPrivate`/`setRestricted`/`setLivekit`. `RoomJoinReader`: `claim()`; writer `setClaim` (a free-text reason goes in the content). `RoomAddMemberWriter.addPubkey`. `RoomAdminsReader`: `pubkeys()`, `rolesFor(pk)`, `rolesByPubkey()` over `["p", pubkey, ...roles]` tags; writer `addPubkey(pk, roles?)` (omitting `roles` keeps the admin's existing ones), `removePubkey`, `setPubkeys` (keeps retained admins' roles).
 
@@ -257,6 +263,7 @@ Room ops are scoped by the `h` tag and must publish to explicit relays — use `
 | 1068 | NIP-88 | `PollReader` / `PollWriter` |
 | 1111 | NIP-22 | `CommentReader` / `CommentWriter` |
 | 1984 | NIP-56 | `ReportReader` / `ReportWriter` |
+| 1985 | NIP-32 | `LabelReader` / `LabelWriter` |
 | 30067 | Pinboards | `PinboardReader` / `PinboardWriter` |
 | 30402 | NIP-99 | `ClassifiedReader` / `ClassifiedWriter` |
 | 30078 | NIP-78 | `AppDataReader` / `AppDataWriter` |
@@ -270,13 +277,23 @@ Room ops are scoped by the `h` tag and must publish to explicit relays — use `
 
 `CommentReader`: `root()`/`parent()`; writer `setRoot`/`setParent`/`setRootFromEvent`/`setParentFromEvent`, plus `replyTo(event)`, which parents on `event` and roots on the thread it is in — the root tags of a comment, `event` itself for any other kind. `PollReader`: `title`, `options`, `pollType`, `endsAt`, `isClosed`, `urls`, plus `results(responses)`; writer `addOption`, `setPollType`, `setEndsAt`. `ReportWriter`: `setPubkey`/`setEventId`/`setReason` (routes to `[userOutbox()]`). `DateEventReader` (31922): the all-day sibling of `TimeEvent`, with `start`/`end` as `YYYY-MM-DD` strings and `end` exclusive; writer `setTitle`/`setLocation`/`setStart`/`setEnd`, deriving the same `D` day-bucket tags (the start day alone when there is no end). `CalendarRsvpReader` (31925): `calendarEvent()` (the event's address), `calendarEventId()`, `status()`, `freebusy()`; writer `setCalendarEvent(address, relay?)`/`setCalendarEventFromEvent(event, relay?)` (which also e-tags and p-tags the organizer; a given `relay` is the hint for `a` and `e`, otherwise the `e` hint comes from the organizer's outbox), `setStatus`/`setFreebusy`/`clearFreebusy`, where declining clears free/busy and `validate()` requires an event and a status; query `forCalendarEvent(address)`, which asks the organizer's inbox. `PictureReader` (20): `title`, `topics()`, `location`, `geohash`, plus the shared `imeta()`; writer `setTitle`/`setTopics`/`setLocation`/`setGeohash` and the shared `addImeta`/`removeImeta`. It derives the top-level `x` and `m` tags from its attached images, and `validate()` requires at least one image. Exported types: `CommentRef`, `ClassifiedPrice`, `PollType`, `PollOption`, `PollResult`, `PinReference`, `RsvpStatus`, `RsvpFreebusy`.
 
+`LabelReader` (1985): `namespaces()` (`L` values), `labels(namespace?)` (`l` values, optionally in one namespace), `eventIds()`, `pubkeys()`, `addresses()`, `topics()`, `urls()` (`r` tags read as relay urls); writer `addLabel(name, namespace)`/`removeLabel(name, namespace)` (which add the `L` declaration and drop it with its last label), `addEventId`/`addPubkey`/`addAddress`/`addTopic`/`addUrl`. `validate()` requires an `l` tag, and the writer routes to `[userOutbox()]` only.
+
 `ArticleReader` (long-form, 30023): `title`, `summary`, `image`, `publishedAt`, `topics()`; writer `setTitle`/`setSummary`/`setImage`/`setPublishedAt`/`setTopics`.
 
 `CommandReader` (31992): `command`, `title`, `description`, `args()`, `scopes()`, plus `matches(target: CommandScopeTarget)`; writer `setCommand`/`setTitle`/`setDescription`/`setArgs`/`setScopes`. The invocation grammar itself (parsing/rendering `/command arg…`) lives in `@welshman/util`'s `Command.ts`, so non-domain callers can use it.
 
-`RoomPinsReader`/`RoomUpdatePinsReader`: `pins()`, `ids()`, `addresses()` (`RoomPinsReader` adds `isPinned`); writer `setPins`. Both set `requiresRelays`.
-
 `PinboardReader` (30067): `title`, `description`, `image`, `topics()`, `collaborative()`; writer `setTitle`/`setDescription`/`setImage`/`setTopics`/`setCollaborative`. `PinReader` (39067): `boards()`, `isProfilePin()`, `reference()` (a `PinReference` discriminated union), `title`, `topics()`; writer `addBoard`/`removeBoard`, `setEvent`/`setAddress`/`setExternal`, `setTitle`/`setTopics`.
+
+### Wiki (NIP-54)
+
+| Kind | NIP | Reader / Writer |
+|---|---|---|
+| 818 | NIP-54 | `WikiMergeRequestReader` / `WikiMergeRequestWriter` (factory `WikiMergeRequest`) |
+| 30818 | NIP-54 | `WikiReader` / `WikiWriter` (factory `Wiki`) |
+| 30819 | NIP-54 | `WikiRedirectReader` / `WikiRedirectWriter` (factory `WikiRedirect`) |
+
+An article's `d` tag is its subject run through `@welshman/util`'s `normalizeWikiName`; the `Wiki` and `WikiRedirect` writers' `validate()` rejects an unnormalized one, and their queries' `forName(...names)` normalize the names given. `WikiReader`: `title()`, `summary()`, `fork()`, `deferral()` (each a `WikiVersion`, `{address?, id?, relay}`, from `e`/`a` tags marked `fork`/`defer`); writer `setName(name)` (normalized `d` plus `title`), `setTitle`/`setSummary`, `setFork(event)`/`clearFork()`, `setDeferral(event)`/`clearDeferral()`. `WikiRedirectReader`: `articleAddress()`; writer `setName(name)`, `setArticle(event)` (requires the `a` tag); query `forName`, `forArticle(...events)`. `WikiMergeRequestReader`: `articleAddress()`, `articleAuthor()`, `baseId()` (unmarked `e`), `sourceId()` (`e` marked `source`); writer `setArticle(event)` (`a`, `p`, `e`), `setSource(event)`, requiring both; query `forArticle(event)`, which filters on the article's address and adds its author's inbox.
 
 ### Badges (NIP-58)
 

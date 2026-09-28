@@ -54,8 +54,6 @@ Every entry point (`request`, `requestOne`, `publish`, `publishOne`, `makeLoader
 | `requestOne(options)` | Subscribe to a single relay; returns `Promise<TrustedEvent[]>` |
 | `request(options)` | Subscribe to multiple relays in parallel; returns `Promise<TrustedEvent[]>` |
 | `makeLoader(options)` | Creates a batching `load` function with configurable delay/timeout/threshold |
-| `loadComplete(options)` | Pre-built loader with a 30 ms batch delay and a 3 s timeout. It auto-closes after EOSE, timeout, or disconnect, and resolves once every relay's subscription has closed, so an empty result means every relay answered nothing. It carries no context, so it cannot reach a relay or `LOCAL_RELAY_URL`; `app.use(Network)` exposes versions bound to the app's context. |
-| `loadLenient(options)` | The same loader with a 0.5 threshold, resolving once half the relays have closed. The rest stay open and their events still arrive, so it suits callers that don't route on the returned array. |
 
 `request` / `requestOne` options (`BaseRequestOptions`):
 - `relay` / `relays` — relay url(s)
@@ -131,7 +129,7 @@ A `SocketPolicy` is `(socket: Socket) => Unsubscriber`, run once per socket at c
 | `repository.getEvent(idOrAddress)` | Look up by id or NIP-01 address (`kind:pubkey:d`) |
 | `repository.hasEvent(event)` | Whether the event (or a newer replacement) is already stored |
 | `repository.removeEvent(idOrAddress)` | Drops an event and unwinds its index entries |
-| `repository.isDeleted(event)` | `true` if a kind-5 delete covers this event (`isDeletedById` / `isDeletedByAddress` check one path each) |
+| `repository.isDeleted(event)` | `true` if a kind-5 delete by the same author covers this event, or a newer version at its address replaced it (`isDeletedById` / `isDeletedByAddress` check one path each) |
 | `repository.isExpired(event)` | `true` past the event's NIP-40 `expiration` |
 | `repository.dump()` | All stored events as `TrustedEvent[]` |
 | `repository.load(events)` | Bulk-inserts events alongside those already stored; emits one `"update"` diff |
@@ -195,7 +193,7 @@ Emits `"update"` with a `RepositoryUpdate` whenever events are added or removed.
 | `wrapManager.add({wrap, rumor, recipient})` | Stores the rumor in the repository and copies the wrap's relay tracking onto it |
 | `wrapManager.getRumor(wrapId)` / `getWraps(rumorId)` | Look up either direction |
 | `wrapManager.remove(id)` / `removeByRumorId(id)` / `clear()` | Teardown |
-| `wrapManager.dump()` / `load(wrapItems)` | Persist and restore (`WrapItem[]`) |
+| `wrapManager.dump()` / `load(wrapItems)` | Persist and restore (`WrapItem[]`); unlike `Repository` and `Tracker`, `load` clears existing wraps first |
 
 ---
 
@@ -236,8 +234,7 @@ import {makeLoader} from '@welshman/net'
 
 // Bind a loader to the context once; concurrent calls within `delay` collapse
 // into a single REQ per relay. Without a `threshold` it resolves when every relay has closed
-// or timed out, which is the exported `loadComplete`; `threshold: 0.5` resolves at half, which is
-// `loadLenient`.
+// or timed out; `threshold: 0.5` resolves at half. `app.use(Network)` binds both to the app.
 const load = makeLoader({delay: 30, timeout: 3000, context})
 
 const events = await load({

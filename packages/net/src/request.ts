@@ -440,9 +440,3 @@ export const makeLoader = (options: LoaderOptions) =>
 
     return allRequests.map(r => resultsByRequest.get(r) || [])
   }) as Loader
-
-// Resolves once every relay has closed or timed out.
-export const loadComplete = makeLoader({delay: 30, timeout: 3000})
-
-// Resolves as soon as half the relays have closed, leaving the rest open.
-export const loadLenient = makeLoader({delay: 30, timeout: 3000, threshold: 0.5})

@@ -1,8 +1,8 @@
 # Content
 
-Content kinds: NIP-01 notes, NIP-68 pictures, NIP-17 direct messages, NIP-22 comments, NIP-7D forum threads, NIP-C7 chat messages, NIP-99 classifieds, NIP-84 highlights, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `DateEvent`, `TimeEvent`, `CalendarRsvp`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
+Content kinds: NIP-01 notes, NIP-09 deletes, NIP-25 reactions, NIP-18 reposts, NIP-68 pictures, NIP-17 direct messages, NIP-22 comments, NIP-7D forum threads, NIP-23 articles, NIP-C7 chat messages, NIP-99 classifieds, NIP-84 highlights, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, NIP-32 labels, saved feeds, NIP-78 app data, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair, except that `AppData` has an `AsyncEventReader` — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Article`, `Classified`, `DateEvent`, `TimeEvent`, `CalendarRsvp`, `Pinboard`, `Pin`, `Feed`, `AppData`) need a `d` tag (`setIdentifier()`).
 
-Every example below assumes a bound `KindContext`. None of the kinds on this page decrypt, so `reader(event).parse()` needs no await. A writer's `renderTemplate()` returns an unsigned `EventTemplate`, which you sign yourself:
+Every example below assumes a bound `KindContext`. Only `AppData` decrypts, so `reader(event).parse()` needs no await for any other kind on this page. A writer's `renderTemplate()` returns an unsigned `EventTemplate`, which you sign yourself:
 
 ```typescript
 import {stamp} from "@welshman/util"
@@ -12,7 +12,7 @@ const signed = await signer.sign(stamp(await writer.renderTemplate()))
 
 In `@welshman/app`, `app.use(Domain).reader(Kind)` / `.writer(Kind, reader?)` configure the kind for you, and `app.use(Domain).command(writer)` wraps the rendered event in a publishable `Command`. See [Readers & Writers](./readers-and-writers#with-welshmanapp-domain--command).
 
-Unless a kind says otherwise, writers route to the **author's outbox plus every p-tagged pubkey's inbox**, the default `EventWriter.renderRoutes()`, so a note or reply reaches the people it mentions. `DirectMessage` and `Report` override it, and `Message` publishes only to the relay it is pinned to (see below).
+Unless a kind says otherwise, writers route to the **author's outbox plus every p-tagged pubkey's inbox**, the default `EventWriter.renderRoutes()`, so a note or reply reaches the people it mentions. `DirectMessage`, `Report` and `Label` override it, `Delete` adds the deleted events' relays, and `Message` publishes only to the relay it is pinned to (see below).
 
 ## Note (kind 1)
 
@@ -39,6 +39,65 @@ await Note.configure(context)
   .setParent(parentEvent)
   .renderTemplate()
 ```
+
+## Delete (kind 5)
+
+A NIP-09 deletion request. The content is the reason.
+
+```typescript
+import {Delete} from "@welshman/domain"
+
+const deletion = Delete.configure(context).reader(event).parse()
+deletion.ids()         // e-tag values
+deletion.addresses()   // a-tag values
+deletion.kinds()       // k-tag values
+deletion.reason()      // event.content
+
+await Delete.configure(context)
+  .writer()
+  .addEvent(event)
+  .setReason("posted by mistake")
+  .renderTemplate()
+```
+
+`addEvent(event, roomUrl?)` e-tags the event with a hint from its author's outbox, adds a `k` tag for its kind, and a-tags a replaceable event as well. An event carrying an `h` tag is a NIP-29 room event, so the delete takes the same `h` tag and publishes to `roomUrl`, and `addEvent` throws when `roomUrl` is missing. The writer adds a `seen` route for every deleted event id to the default routing, so the delete reaches the relays those events were found on. `validate()` requires an `e` or `a` tag.
+
+## Reaction (kind 7)
+
+A NIP-25 reaction. The content is `+`, `-`, a unicode emoji, or a `:shortcode:` naming a NIP-30 `emoji` tag, set with `setContent`.
+
+```typescript
+import {Reaction} from "@welshman/domain"
+
+const reaction = Reaction.configure(context).reader(event).parse()
+reaction.eventId()        // e-tag value
+reaction.eventAddress()   // a-tag value
+reaction.pubkey()         // p-tag value
+reaction.eventKind()      // k-tag value
+
+await Reaction.configure(context).writer().setEvent(event).setContent("+").renderTemplate()
+```
+
+`setEvent(event)` replaces any existing target. It writes a `k` tag, p-tags the author, and e-tags the event with a hint from the author's outbox, adding an `a` tag when the event is replaceable. `validate()` requires an `e` tag.
+
+## Repost (kind 6) and GenericRepost (kind 16)
+
+NIP-18 reposts. `Repost` reposts a note and `GenericRepost` reposts any other kind, naming it in a `k` tag. The two factories share `RepostReader`, `RepostWriter` and `RepostQuery`.
+
+```typescript
+import {Repost, GenericRepost} from "@welshman/domain"
+
+const repost = Repost.configure(context).reader(event).parse()
+repost.eventId()        // e-tag value
+repost.eventAddress()   // a-tag value
+repost.pubkey()         // p-tag value
+repost.eventKind()      // 1 for kind 6, the k-tag value for kind 16
+repost.repostedEvent()  // the event JSON-decoded from content, or undefined
+
+await GenericRepost.configure(context).writer().setEvent(article).renderTemplate()
+```
+
+`setEvent(event)` replaces any existing target and JSON-encodes the event into the content. Like `Reaction`, it p-tags the author and e-tags the event (and a-tags a replaceable one) with hints from the author's outbox. Only `GenericRepost` adds the `k` tag. `validate()` requires an `e` tag. `repostedEvent()` parses the content without verifying it.
 
 ## Picture (kind 20)
 
@@ -153,6 +212,33 @@ await Thread.configure(context)
   .setContent("Read the rules first.")
   .renderTemplate()
 ```
+
+## Article (kind 30023)
+
+A NIP-23 long-form article. The content is the article body.
+
+```typescript
+import {Article} from "@welshman/domain"
+
+const article = Article.configure(context).reader(event).parse()
+article.title()         // "title" tag value
+article.summary()       // "summary" tag value
+article.image()         // "image" tag value
+article.publishedAt()   // "published_at" tag as int, falling back to created_at
+article.topics()        // t-tag values
+
+await Article.configure(context)
+  .writer()
+  .setIdentifier("my-article")           // required d tag for kind 30023
+  .setTitle("My article")
+  .setSummary("A short summary")
+  .setPublishedAt(publishedAt)
+  .setTopics(["nostr"])
+  .setContent(markdown)
+  .renderTemplate()
+```
+
+`setImage` sets the `image` tag. `publishedAt()` falls back to `created_at` because an addressable event's `created_at` changes with every edit.
 
 ## Message (kind 9)
 
@@ -478,6 +564,76 @@ await Report.configure(context)
 ```
 
 A report's reason lives on both the `p` and `e` tags, and the writer keeps a reason set on either (or via `setReason`) on both. `ReportWriter` routes to `[userOutbox()]` only, because a report's `p`/`e` tags identify what is being flagged rather than recipients to notify.
+
+## Label (kind 1985)
+
+A NIP-32 label. `L` tags declare namespaces and `l` tags carry the labels within them, while the labeled subjects are ordinary `e`, `p`, `a`, `t` and `r` tags. One event may label several subjects across several namespaces.
+
+```typescript
+import {Label} from "@welshman/domain"
+
+const label = Label.configure(context).reader(event).parse()
+label.namespaces()          // L-tag values
+label.labels()              // every l-tag value
+label.labels("ISO-639-1")   // l-tag values in one namespace
+label.eventIds()            // e-tag values
+label.pubkeys()             // p-tag values
+label.addresses()           // a-tag values
+label.topics()              // t-tag values
+label.urls()                // r-tag values
+
+await Label.configure(context)
+  .writer()
+  .addLabel("en", "ISO-639-1")   // ["L", "ISO-639-1"] and ["l", "en", "ISO-639-1"]
+  .addEventId(noteId)            // also addPubkey, addAddress, addTopic, addUrl
+  .renderTemplate()
+```
+
+`addLabel(name, namespace)` adds the `L` and `l` tags unless they are already present. `removeLabel(name, namespace)` drops the `l` tag, and drops the `L` tag too once no label in that namespace is left. `urls()` reads `r` tags as relay urls, so it returns only `ws`/`wss` urls, normalized. `validate()` requires at least one `l` tag. `LabelWriter` routes to `[userOutbox()]` only, since the subject tags name what is labeled rather than who should receive it.
+
+## Feed (kind 31890)
+
+A saved feed definition. The `feed` tag holds a JSON-encoded [`@welshman/feeds`](../feeds/) `Feed`.
+
+```typescript
+import {Feed} from "@welshman/domain"
+
+const feed = Feed.configure(context).reader(event).parse()
+feed.title()         // "title" tag value, or ""
+feed.description()   // "description" tag value, or ""
+feed.definition()    // the parsed Feed, or undefined
+
+await Feed.configure(context)
+  .writer()
+  .setIdentifier()                       // required d tag for kind 31890
+  .setTitle("Friends")
+  .setDescription("Notes from people I follow")
+  .setDefinition(definition)
+  .renderTemplate()
+```
+
+`FeedQuery` routes to the queried authors' outboxes. A user's saved feeds are listed by `FeedList` (kind 10014, see [Lists](./lists)).
+
+## AppData (kind 30078)
+
+NIP-78 application data, keyed by the `d` tag. The content is JSON, optionally NIP-44 encrypted to the author, so `parse()` returns a promise.
+
+```typescript
+import {AppData} from "@welshman/domain"
+
+const data = await AppData.configure(context).reader(event).parse()
+data.values<Settings>()   // the parsed JSON, or undefined
+data.encrypted            // true when the content was not plain JSON
+data.decrypted            // true when the content is readable
+
+await AppData.configure(context)
+  .writer(data)
+  .setValues({theme: "dark"})
+  .setEncrypted(true)
+  .renderTemplate()
+```
+
+The reader decrypts only with the author's own signer in the context. A writer built from a reader that couldn't decrypt keeps the original ciphertext, and `validate()` throws if `setValues` was called on it. Encrypting on render requires a signer. `AppDataQuery` routes to the queried authors' outboxes.
 
 ## See also
 

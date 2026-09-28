@@ -13,6 +13,7 @@ import {ListReader} from "../core/ListReader.js"
 import {ListWriter} from "../core/ListWriter.js"
 import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
+import type {KindContext} from "../core/Kind.js"
 
 // Room tags (`h`, and the `group` tag NIP-51 uses for this list) carry the room
 // id at t[1] and a relay hint at t[2].
@@ -58,6 +59,16 @@ export class RoomListReader extends ListReader {
 }
 
 export class RoomListWriter extends ListWriter<RoomListReader> {
+  constructor(kind: number, context: KindContext, reader?: RoomListReader) {
+    super(kind, context, reader)
+
+    // Legacy `h` entries are listed rooms, not this event's own room scope.
+    if (reader) {
+      this.roomTag = undefined
+      this.publicTags = reader.event.tags.filter(t => t[0] === "h" || this.publicTags.includes(t))
+    }
+  }
+
   // Every relay this event routes to has to receive it, so lift the scenario's
   // default limit, which is tuned for reads and would drop most of them.
   async scenario() {

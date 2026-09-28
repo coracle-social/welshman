@@ -70,6 +70,8 @@ export abstract class ListWriter<
   }
 
   validate() {
+    super.validate()
+
     if (
       this.reader?.decrypted === false &&
       this.reader?.event.content &&

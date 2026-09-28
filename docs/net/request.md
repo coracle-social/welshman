@@ -45,13 +45,7 @@ Creates a loader that delays requests and combines those made within `delay` int
 
 The loader takes `relays`, `filters`, an optional `signal`, and the optional callbacks `onEvent`, `onDisconnect`, `onEose` and `onClose`.
 
-### loadComplete(options)
-
-A loader with a 30ms delay and a 3s timeout, resolving once every relay has closed or timed out. It carries no context, so it cannot reach a relay or `LOCAL_RELAY_URL`. `makeLoader` with a `context` builds the same loader for your own pool, and `app.use(Network)` exposes `loadComplete` and `loadLenient` bound to the app's context.
-
-### loadLenient(options)
-
-The same loader with a 0.5 threshold, so it resolves once half the relays have closed. The rest stay open and their events still arrive, so it suits callers that don't route on the returned array.
+Without a `threshold` the loader resolves once every relay has closed or timed out. With `threshold: 0.5` it resolves once half have closed; the rest stay open and their events still arrive. `app.use(Network)` exposes `loadComplete` and `loadLenient`, two loaders bound to the app's context with those settings.
 
 ## Example
 

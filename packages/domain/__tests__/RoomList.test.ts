@@ -89,6 +89,26 @@ describe("RoomList", () => {
     expect(tmpl.tags).toContainEqual(["alt", "x"])
   })
 
+  it("keeps legacy h entries as listed rooms when editing", async () => {
+    const reader = await read(
+      RoomList,
+      makeEvent({
+        tags: [
+          ["h", roomA, relayA],
+          ["h", roomB, relayB],
+        ],
+      }),
+    )
+
+    const tmpl = await buildTemplate(write(RoomList, reader).addRelay(relayA), signer)
+
+    expect(tmpl.tags).toEqual([
+      ["h", roomA, relayA],
+      ["h", roomB, relayB],
+      ["r", relayA],
+    ])
+  })
+
   it("joins and leaves rooms via a fresh builder", async () => {
     const tmpl = await buildTemplate(
       write(RoomList).addRoom(roomA, relayA).addRoom(roomB, relayA).removeRoom(roomA),

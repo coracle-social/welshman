@@ -12,5 +12,8 @@ Core networking layer for nostr applications, handling relay connections, messag
 - **Sync Utilities** - NIP-77 (negentropy) event synchronization
 - **Connection Pool** - Shared relay connection management
 - **Custom Adapters** - Flexible adapter layer to support queries against any target
-- **Event Tracking** - Monitor which relays have seen events
+- **Counting** - NIP-45 [COUNT](./count) requests
+- **Event Storage** - An indexed in-memory [Repository](./repository), reachable as a relay at `LOCAL_RELAY_URL`
+- **Event Tracking** - A [Tracker](./tracker) of which relays have seen events
+- **Gift Wraps** - A [WrapManager](./wrap-manager) linking NIP-59 wraps to their rumors
 - **Socket policies** - Default and customizable policies for NIP 42 AUTH, reconnects, etc
