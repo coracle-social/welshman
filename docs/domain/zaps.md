@@ -38,7 +38,7 @@ Each setter drops any existing tag of the same key before adding the new one, so
 
 ### Fetching an invoice
 
-`requestInvoice(zapper)` renders the request, signs it with the context's signer, and sends it to the zapper's LNURL callback to fetch a bolt11 invoice. It returns the signed `event` alongside either an `invoice` or an `error`:
+`requestInvoice(zapper)` renders the request, signs it with the context's signer, and sends it to the zapper's LNURL callback to fetch a bolt11 invoice. It returns the signed `event` alongside either an `invoice` or an `error`, and throws when the request names no whole number of millisats to ask for:
 
 ```typescript
 const writer = app.use(Domain).writer(ZapRequest)
@@ -158,7 +158,7 @@ import {Domain} from "@welshman/app"
 const goal = app.use(Domain).reader(ZapGoal)(event)
 goal.title()      // event.content (or "")
 goal.summary()    // "summary" tag value
-goal.amount()     // millisats as an int, default 0
+goal.amount()     // millisats as an int, default 0 (also when the tag is malformed)
 goal.urls()       // "relays" tag values
 goal.closedAt()   // "closed_at" tag as a timestamp, or undefined
 

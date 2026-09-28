@@ -251,7 +251,7 @@ Room ops are scoped by the `h` tag and must publish to explicit relays — use `
 | 9734 | NIP-57 | `ZapRequestReader` / `ZapRequestWriter` |
 | 9735 | NIP-57 | `ZapReceiptReader` / `ZapReceiptWriter` |
 
-`ZapRequestReader`: `amount`, `lnurl`, `recipient`, `eventId`, `urls` (the comment is the base `content()`). `ZapRequestWriter.requestInvoice(zapper)` signs the request and fetches a bolt11 invoice. `ZapReceiptReader`: `bolt11`, `invoiceAmount`, `request`, `sender`, `recipient`, `eventId`, `comment`, `preimage`; check it with `Zapper.validate(receipt)`, which returns a `Zap` or `undefined`. `ZapGoalReader`: `title`, `summary`, `image`, `amount`, `urls`, `closedAt`, plus `progress(zaps)`/`counted(zaps)`.
+`ZapRequestReader`: `amount`, `lnurl`, `recipient`, `eventId`, `urls` (the comment is the base `content()`). `ZapRequestWriter.requestInvoice(zapper)` signs the request and fetches a bolt11 invoice. `ZapReceiptReader`: `bolt11`, `invoiceAmount`, `request`, `sender`, `recipient`, `eventId`, `comment`, `preimage`; check it with `Zapper.validate(receipt)`, which returns a `Zap` or `undefined`. `ZapGoalReader`: `title`, `summary`, `image`, `amount`, `urls`, `closedAt`, plus `progress(zaps)`/`counted(zaps)`. Every `amount` tag is read through `msatsTags`, so one holding anything but a whole number of millisats is absent rather than truncated — `undefined` on a request, 0 on a goal, and a rejected receipt in `Zapper.validate`.
 
 ### BOLT12 zaps (NIP-B1)
 

@@ -1,5 +1,5 @@
 import {spec, sum, uniq} from "@welshman/lib"
-import {ZAP_GOAL, matchTags, tagSpec, tagValue} from "@welshman/util"
+import {ZAP_GOAL, matchTags, msatsTags, tagSpec, tagValue} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {EventQuery} from "../core/EventQuery.js"
@@ -30,9 +30,9 @@ export class ZapGoalReader extends EventReader {
     return tagValue(tagSpec("image"), this.event.tags)
   }
 
-  // Target amount, in millisats.
+  // Target amount in millisats, or the writer's own zero when the tag is malformed.
   amount() {
-    return parseInt(tagValue(tagSpec("amount"), this.event.tags) || "0") || 0
+    return tagValue(msatsTags("amount"), this.event.tags) ?? 0
   }
 
   // NIP-75 packs every relay into a single tag, but tolerate one-per-tag as well.

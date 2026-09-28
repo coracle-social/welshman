@@ -78,6 +78,12 @@ describe("ZapGoal", () => {
     const goal = await read(ZapGoal, makeEvent({content: "Goal"}))
 
     expect(goal.amount()).toBe(0)
+
+    for (const amount of ["21000.9", "21000abc", "-1"]) {
+      const tags = [["amount", amount]]
+
+      expect((await read(ZapGoal, makeEvent({content: "Goal", tags}))).amount()).toBe(0)
+    }
   })
 
   it("round-trips with no duplication", async () => {

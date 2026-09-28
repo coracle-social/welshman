@@ -133,10 +133,13 @@ describe("Tags", () => {
         ["amount", "21000"],
         ["amount", "21000.9"],
         ["amount", "21000abc"],
+        ["amount", "-1"],
+        ["other", "21000"],
       ]
 
       expect(matchTags(msatsTags("amount"), t)).toHaveLength(1)
       expect(tagValues(msatsTags("amount"), t)).toEqual([21000])
+      expect(tagValue(msatsTags("amount"), [["amount", "21000.9"]])).toBeUndefined()
     })
   })
 })

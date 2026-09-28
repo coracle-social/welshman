@@ -1,5 +1,5 @@
 import {now, fromPairs} from "@welshman/lib"
-import {ZAP_RECEIPT} from "@welshman/util"
+import {ZAP_RECEIPT, isMsats} from "@welshman/util"
 import type {TrustedEvent, Filter} from "@welshman/util"
 import type {ZapReceiptReader} from "../kinds/ZapReceipt.js"
 
@@ -68,8 +68,8 @@ export class Zapper {
 
     const {amount, lnurl} = fromPairs(request.tags)
 
-    // Verify that the zapper actually sent the requested amount (if it was supplied)
-    if (amount && parseInt(amount) !== invoiceAmount) {
+    // The zapper has to have sent what was requested, and an unreadable amount matches nothing
+    if (amount && (!isMsats(amount) || Number(amount) !== invoiceAmount)) {
       return undefined
     }
 

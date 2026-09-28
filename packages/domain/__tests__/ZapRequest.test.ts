@@ -156,6 +156,16 @@ describe("ZapRequest", () => {
     expect((await read(ZapRequest, makeEvent())).anonymous()).toBe(false)
   })
 
+  it("leaves amount undefined unless the tag is whole millisats", async () => {
+    for (const amount of ["21000.9", "21000abc", "-1", ""]) {
+      const req = await read(ZapRequest, makeEvent({tags: [["amount", amount]]}))
+
+      expect(req.amount()).toBeUndefined()
+    }
+
+    expect((await read(ZapRequest, makeEvent({tags: [["amount", "21000"]]}))).amount()).toBe(21000)
+  })
+
   it("throws on the wrong kind", async () => {
     await expect(read(ZapRequest, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
@@ -228,6 +238,18 @@ describe("ZapRequest", () => {
       await expect(write(ZapRequest).setAmount(1).requestInvoice(zapper)).rejects.toThrow(
         "signer is required",
       )
+    })
+
+    it("throws rather than asking for an unreadable amount", async () => {
+      const fetchMock = vi.fn()
+      vi.stubGlobal("fetch", fetchMock)
+
+      const writer = write(ZapRequest).setRecipient(recipient).addTags(["amount", "21000.9"])
+
+      writer.context.signer = signer
+
+      await expect(writer.requestInvoice(zapper)).rejects.toThrow("whole number of millisats")
+      expect(fetchMock).not.toHaveBeenCalled()
     })
   })
 })

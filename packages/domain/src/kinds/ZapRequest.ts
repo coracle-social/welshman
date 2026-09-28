@@ -4,6 +4,7 @@ import {
   ZAP_REQUEST,
   inbox,
   matchTag,
+  msatsTags,
   relays,
   tagSpec,
   tagValue,
@@ -20,10 +21,9 @@ import type {Zapper} from "../other/Zapper.js"
 
 // NIP-57 kind-9734 zap request.
 export class ZapRequestReader extends EventReader {
+  // The requested amount in millisats, undefined unless the tag holds whole millisats.
   amount() {
-    const amount = tagValue(tagSpec("amount"), this.event.tags)
-
-    return amount ? parseInt(amount) : undefined
+    return tagValue(msatsTags("amount"), this.event.tags)
   }
 
   lnurl() {
@@ -135,9 +135,15 @@ export class ZapRequestWriter extends EventWriter<ZapRequestReader> {
       throw new Error("A signer is required to request a zap invoice")
     }
 
-    const event = await signer.sign(stamp(await this.renderTemplate()))
+    const template = stamp(await this.renderTemplate())
+    const msats = tagValue(msatsTags("amount"), template.tags)
+
+    if (msats === undefined) {
+      throw new Error("A whole number of millisats is required to request a zap invoice")
+    }
+
+    const event = await signer.sign(template)
     const zapString = encodeURI(JSON.stringify(event))
-    const msats = parseInt(tagValue(tagSpec("amount"), event.tags)!)
     const qs = `?amount=${msats}&nostr=${zapString}&lnurl=${zapper.lnurl}`
     const res = await tryCatch(() => fetchJson(zapper.callback + qs))
 

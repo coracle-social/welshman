@@ -86,6 +86,13 @@ describe("Zapper", () => {
       expect(zapper.validate(await readReceipt(response))).toBeUndefined()
     })
 
+    it("rejects an amount that isn't whole millisats", async () => {
+      const request = createZapRequest()
+      request.tags = request.tags.map(tag => (tag[0] === "amount" ? ["amount", "100000.9"] : tag))
+
+      expect(zapper.validate(await readReceipt(createZapReceipt(request)))).toBeUndefined()
+    })
+
     it("rejects an incorrect zapper pubkey", async () => {
       const response = createZapReceipt(createZapRequest())
       response.pubkey = "deadbeef".repeat(8) // Not the ln server pubkey
