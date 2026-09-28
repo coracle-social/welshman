@@ -676,6 +676,27 @@ describe("policy", () => {
       cleanup()
     })
 
+    it("should not replay a request whose close was queued while the socket was down", async () => {
+      const cleanup = socketPolicyLifecycle(socket)
+      const sendSpy = vi.spyOn(socket, "send")
+      const req: ClientMessage = ["REQ", "123", {kinds: [1]}]
+
+      socket.emit(SocketEvent.Status, SocketStatus.Open)
+      socket.emit(SocketEvent.Send, req)
+      await vi.advanceTimersByTimeAsync(10000)
+      socket.emit(SocketEvent.Status, SocketStatus.Closed)
+
+      // The request's owner gives up while the socket is closed, so its CLOSE waits in the queue
+      socket.emit(SocketEvent.Sending, ["CLOSE", "123"])
+
+      reconnectSucceeds()
+      await vi.advanceTimersByTimeAsync(60000)
+
+      expect(sendSpy.mock.calls.filter(([message]) => message[0] === "REQ")).toEqual([])
+
+      cleanup()
+    })
+
     it("should start backing off from scratch once the relay answers", async () => {
       const cleanup = socketPolicyLifecycle(socket)
 

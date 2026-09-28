@@ -1,7 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {makeSecret} from "@welshman/util"
 import {Nip01Signer} from "../src/signers/nip01"
-import {Nip46Receiver} from "../src/signers/nip46"
+import {Nip46Broker, Nip46Receiver} from "../src/signers/nip46"
 
 const {request} = vi.hoisted(() => ({request: vi.fn()}))
 
@@ -82,5 +82,41 @@ describe("Nip46Receiver", () => {
     await vi.advanceTimersByTimeAsync(60_000)
 
     expect(request).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("Nip46Broker", () => {
+  const makeBroker = () =>
+    new Nip46Broker({
+      relays: ["wss://relay.test/"],
+      clientSecret: makeSecret(),
+      signerPubkey: "ee".repeat(32),
+    })
+
+  it("connects when the signer doesn't support switch_relays", async () => {
+    const broker = makeBroker()
+
+    vi.spyOn(broker, "send").mockImplementation(async method => {
+      if (method === "switch_relays") {
+        throw new Error("unsupported method: switch_relays")
+      }
+
+      return "ack"
+    })
+
+    await expect(broker.connect()).resolves.toBe("ack")
+    expect(broker.params.relays).toEqual(["wss://relay.test/"])
+  })
+
+  it("moves to the relays the signer switches to", async () => {
+    const broker = makeBroker()
+
+    vi.spyOn(broker, "send").mockImplementation(async method =>
+      method === "switch_relays" ? JSON.stringify(["wss://other.test"]) : "ack",
+    )
+
+    await broker.connect()
+
+    expect(broker.params.relays).toEqual(["wss://other.test/"])
   })
 })

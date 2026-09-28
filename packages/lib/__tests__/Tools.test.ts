@@ -27,6 +27,33 @@ describe("Tools", () => {
     })
   })
 
+  describe("tryCatch", () => {
+    it("should return undefined and report a thrown error", () => {
+      const onError = vi.fn()
+
+      expect(
+        T.tryCatch(() => {
+          throw new Error("boom")
+        }, onError),
+      ).toBeUndefined()
+      expect(onError).toHaveBeenCalledWith(new Error("boom"))
+    })
+
+    it("should resolve a rejected promise to undefined and report its error", async () => {
+      const onError = vi.fn()
+
+      await expect(
+        T.tryCatch(() => Promise.reject(new Error("boom")), onError),
+      ).resolves.toBeUndefined()
+      expect(onError).toHaveBeenCalledWith(new Error("boom"))
+    })
+
+    it("should pass results through", async () => {
+      expect(T.tryCatch(() => 1)).toBe(1)
+      await expect(T.tryCatch(() => Promise.resolve(1))).resolves.toBe(1)
+    })
+  })
+
   describe("Math Operations", () => {
     it("should handle basic math operations", () => {
       expect(T.add(2, 3)).toBe(5)

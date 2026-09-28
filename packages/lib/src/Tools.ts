@@ -1032,26 +1032,36 @@ export const complement =
   (...args: T) =>
     !f(...args)
 
+type TryCatch = {
+  <T>(f: () => Promise<T>, onError?: (e: Error) => void): Promise<T | undefined>
+  <T>(f: () => T, onError?: (e: Error) => void): T | undefined
+}
+
 /**
  * Safely executes function and handles errors
  * @param f - Function to execute
  * @param onError - Optional error handler
- * @returns Function result or undefined if error
+ * @returns Function result, or undefined if it throws or its promise rejects
  */
-export const tryCatch = <T>(f: () => T, onError?: (e: Error) => void): T | undefined => {
+export const tryCatch: TryCatch = <T>(f: () => T, onError?: (e: Error) => void) => {
+  let result: T | Promise<T | undefined> | undefined
+
   try {
     const r = f()
 
-    if (r instanceof Promise) {
-      r.catch(e => onError?.(e as Error))
-    }
+    result =
+      r instanceof Promise
+        ? r.catch(e => {
+            onError?.(e as Error)
 
-    return r
+            return undefined
+          })
+        : r
   } catch (e) {
     onError?.(e as Error)
   }
 
-  return undefined
+  return result
 }
 
 /**

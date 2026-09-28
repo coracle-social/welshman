@@ -244,7 +244,7 @@ type MaybeStr = Maybe<string> // string | undefined
 | `tap(f)` | Returns `(x) => { f(x); return x }` — runs a side effect and passes the value through |
 | `bind(f, ...args)` | Partially applies `f` with leading `args` |
 | `equals(a, b)` | Deep equality (handles arrays, Sets, plain objects) |
-| `tryCatch(f, onError?)` | Calls `f`, swallows errors, returns `undefined` on failure |
+| `tryCatch(f, onError?)` | Calls `f`, swallows errors, and returns `undefined` if it throws or its promise rejects |
 | `thrower(message)` | Returns a function that throws `new Error(message)` when called |
 | `once(f)` | Wraps `f` so it only executes once |
 | `memoize(f)` | Single-slot memoization: caches last call; re-runs when args change |

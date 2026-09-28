@@ -138,6 +138,20 @@ describe("auth", () => {
       expect(socket.auth.status).toBe(AuthStatus.DeniedSignature)
     })
 
+    it("should deny the signature when signing rejects", async () => {
+      const sign = vi.fn().mockRejectedValue(new Error("Signing timed out"))
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined)
+
+      socket.auth.challenge = "challenge123"
+      socket.auth.status = AuthStatus.Requested
+
+      await socket.auth.doAuth(sign)
+
+      expect(socket.auth.status).toBe(AuthStatus.DeniedSignature)
+
+      consoleError.mockRestore()
+    })
+
     it("should send AUTH message", async () => {
       const sendSpy = vi.spyOn(socket, "send")
       let event

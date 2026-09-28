@@ -524,8 +524,11 @@ export class Nip46Broker extends Emitter {
 
   nip44Decrypt = (pk: string, message: string) => this.send("nip44_decrypt", [pk, message])
 
+  // switch_relays is optional, so a signer that refuses it keeps the current relays
   switchRelays = async () => {
-    const relays = parseJson<string[]>(await this.send("switch_relays", []))
+    const relays = await this.send("switch_relays", []).then(parseJson<string[]>, e => {
+      nip46Log("nip46 switch_relays failed, keeping relays:", e)
+    })
 
     if (relays && relays.length > 0) {
       this.params.relays = relays.map(normalizeRelayUrl)

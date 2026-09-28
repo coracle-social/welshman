@@ -377,8 +377,11 @@ export declare const switcher: <T>(k: string, m: Record<string, T>) => T;
 // Returns a function that returns the boolean negation of the given function
 export declare const complement: <T extends unknown[]>(f: (...args: T) => any) => (...args: T) => boolean;
 
-// Safely executes function and handles errors
-export declare const tryCatch: <T>(f: () => T, onError?: (e: Error) => void) => T | undefined;
+// Safely executes function, returning undefined if it throws or its promise rejects
+export declare const tryCatch: {
+  <T>(f: () => Promise<T>, onError?: (e: Error) => void): Promise<T | undefined>;
+  <T>(f: () => T, onError?: (e: Error) => void): T | undefined;
+};
 
 // Creates function that only executes once
 export declare const once: (f: (...args: any) => void) => (...args: any) => void;

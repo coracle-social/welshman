@@ -114,7 +114,7 @@ A `SocketPolicy` is `(socket: Socket) => Unsubscriber`, run once per socket at c
 | `socketPolicyAuthBuffer` | Buffers outgoing messages during auth and replays them once it completes |
 | `socketPolicyCancelUnsent` | Drops a queued REQ or NEG-OPEN together with its close when the close is queued before the request was sent |
 | `socketPolicyConnectOnSend` | Auto-opens closed sockets when a message is queued, unless the socket errored in the last 5 s |
-| `socketPolicyLifecycle` | Owns the socket's lifetime: closes it after 30 s idle with nothing pending; while work *is* pending, probes with a throwaway REQ when nothing has been received for a while and closes if the probe goes unanswered; on an unexpected close, reopens with backoff and replays pending messages, rewriting each REQ's filters with `catchUpFilter` so nothing is missed |
+| `socketPolicyLifecycle` | Owns the socket's lifetime: closes it after 30 s idle with nothing pending; while work *is* pending, probes with a throwaway REQ when nothing has been received for a while and closes if the probe goes unanswered; on an unexpected close, reopens with backoff and replays pending messages, rewriting each REQ's filters with `catchUpFilter` so nothing is missed; forgets a request as soon as its `CLOSE` is queued, so it never replays one closed during an outage |
 | `defaultSocketPolicies` | `[socketPolicyAuthBuffer, socketPolicyCancelUnsent, socketPolicyConnectOnSend, socketPolicyLifecycle]` |
 
 `defaultSocketPolicies` is a template. `new Pool()` copies it into `pool.socketPolicies`, so mutating the array after a pool exists does nothing for that pool; assign to `pool.socketPolicies` instead.

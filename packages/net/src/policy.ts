@@ -292,6 +292,12 @@ export const socketPolicyLifecycle = (socket: Socket) => {
         }, ms(delay))
       }
     }),
+    // Forget a subscription once its close is queued, so a reopen can't replay it after the close
+    on(socket, SocketEvent.Sending, (message: ClientMessage) => {
+      if (isClientClose(message) || isClientNegClose(message)) {
+        pending.delete(message[1])
+      }
+    }),
     on(socket, SocketEvent.Send, (message: ClientMessage) => {
       lastActivity = now()
 
