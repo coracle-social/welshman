@@ -1,8 +1,8 @@
 # Content
 
-A grab-bag of content kinds: NIP-01 notes, NIP-68 pictures, NIP-17 direct messages, NIP-22 comments, NIP-7D forum threads, NIP-C7 chat messages, NIP-99 classifieds, NIP-84 highlights, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `DateEvent`, `TimeEvent`, `CalendarRsvp`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
+Content kinds: NIP-01 notes, NIP-68 pictures, NIP-17 direct messages, NIP-22 comments, NIP-7D forum threads, NIP-C7 chat messages, NIP-99 classifieds, NIP-84 highlights, NIP-52 calendar events, NIP-88 polls, NIP-56 reports, and the pinboard system. Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern. The parameterized-replaceable kinds (`Classified`, `DateEvent`, `TimeEvent`, `CalendarRsvp`, `Pinboard`, `Pin`) need a `d` tag (`setIdentifier()`).
 
-Every example below assumes a bound `KindContext` — you get a reader/writer by calling `SomeKind.configure(context)`. A reader is built and then parsed (`…reader(event).parse()`); none of the kinds on this page decrypt, so nothing here needs awaiting. A writer is a chainable builder whose terminal `renderTemplate()` returns an unsigned `EventTemplate`. To turn that into a signed event, hand it to a signer:
+Every example below assumes a bound `KindContext`. None of the kinds on this page decrypt, so `reader(event).parse()` needs no await. A writer's `renderTemplate()` returns an unsigned `EventTemplate`, which you sign yourself:
 
 ```typescript
 import {stamp} from "@welshman/util"
@@ -10,9 +10,9 @@ import {stamp} from "@welshman/util"
 const signed = await signer.sign(stamp(await writer.renderTemplate()))
 ```
 
-In `@welshman/app` you never call `configure` yourself — `app.use(Domain).reader(Kind)` / `.writer(Kind, reader?)` do it for you, and `app.use(Domain).command(writer)` finalizes and wraps the result in a publishable `Command`. See [Readers & Writers](./readers-and-writers#with-welshmanapp-domain--command).
+In `@welshman/app`, `app.use(Domain).reader(Kind)` / `.writer(Kind, reader?)` configure the kind for you, and `app.use(Domain).command(writer)` wraps the rendered event in a publishable `Command`. See [Readers & Writers](./readers-and-writers#with-welshmanapp-domain--command).
 
-Unless a kind says otherwise, writers route to the **author's outbox plus every p-tagged pubkey's inbox** — the default `EventWriter.renderRoutes()`. Notes and comments use that default; `DirectMessage` and `Report` override it, and `Message` publishes only to the relay it is pinned to (see below).
+Unless a kind says otherwise, writers route to the **author's outbox plus every p-tagged pubkey's inbox**, the default `EventWriter.renderRoutes()`, so a note or reply reaches the people it mentions. `DirectMessage` and `Report` override it, and `Message` publishes only to the relay it is pinned to (see below).
 
 ## Note (kind 1)
 
@@ -39,8 +39,6 @@ await Note.configure(context)
   .setParent(parentEvent)
   .renderTemplate()
 ```
-
-A note routes to the author's outbox plus the inboxes of everyone it p-tags (the default `renderRoutes()`), so replies reach the people they mention.
 
 ## Picture (kind 20)
 
@@ -76,11 +74,11 @@ await Picture.configure(context)
 
 An `Imeta` is `{url, mimeType?, blurhash?, dim?, alt?, hash?, fallbacks?, extra?}`. `extra` holds the `imeta` entries this type doesn't model — NIP-68's `annotate-user`, say — as raw `key value` strings, so editing a picture another client wrote doesn't silently drop them.
 
-`renderTemplate` derives the top-level `x` and `m` tags from the attached images, which is how NIP-68 makes pictures findable by hash and mime type without reading every `imeta` tag, so setting those by hand is unnecessary. `validate()` requires at least one image.
+`renderTemplate` derives the top-level `x` and `m` tags from the attached images, which NIP-68 uses to make pictures findable by hash and mime type. `validate()` requires at least one image.
 
 ## DirectMessage (kind 14)
 
-A NIP-17 direct message. It is never signed or published on its own — it stays a rumor, gift-wrapped once per recipient (see [gift-wrapped messages](../app/publishing#gift-wrapped-messages)).
+A NIP-17 direct message. It is never signed or published on its own. It stays a rumor, gift-wrapped once per recipient (see [gift-wrapped messages](../app/publishing#gift-wrapped-messages)).
 
 ```typescript
 import {DirectMessage} from "@welshman/domain"
@@ -101,7 +99,7 @@ const template = await DirectMessage.configure(context)
 
 `addRecipient`/`removeRecipient` manage the `p` tags, hinting at the recipient's NIP-17 relays rather than their outbox. `setParent` replaces any existing `e` tag, so a message replies to exactly one other. Rendering throws unless there is at least one recipient.
 
-`DirectMessageWriter` routes to the messaging relays of the author and every recipient, since a wrap goes to NIP-17 inboxes rather than through the outbox model. `Wraps` resolves those relays per recipient itself, so the writer's routing only comes into play when you publish a wrap by hand.
+`DirectMessageWriter` renders no routes, because each gift-wrapped copy goes to its own recipient's relays, and `Wraps` resolves those per recipient. `DirectMessageQuery` routes to the user's NIP-17 messaging relays.
 
 ## Comment (kind 1111)
 
@@ -135,7 +133,7 @@ await Comment.configure(context)
 await Comment.configure(context).writer().setContent("reply").replyTo(event).renderTemplate()
 ```
 
-`replyTo` is the one to reach for when the answered event's kind is not known in advance. A comment answering a comment inherits that comment's root tags, so the reply stays in the thread it is part of; anything else becomes the root of its own thread. Either way the answered event is the parent.
+`replyTo` handles an answered event whose kind is not known in advance. A comment answering a comment inherits that comment's root tags, so the reply stays in the thread it is part of; anything else becomes the root of its own thread. Either way the answered event is the parent.
 
 `setRoot`/`setParent` take an optional trailing `identifier`; when present, the writer also emits an `A`/`a` tag whose value is the full `kind:pubkey:identifier` address (built via `Address`). `setRootFromEvent`/`setParentFromEvent` pull that identifier from the source event's `d` tag automatically.
 
@@ -175,15 +173,15 @@ await Message.configure(context)
   .renderTemplate()
 ```
 
-`setParent(event)` is how a reply is made. It holds the parent as a `Quote` (`writer.parentQuote`) and renders all three of the reference, the `q` tag naming the parent and its author, and the `addMention` p-tag that a notification feed filters on — a reference on its own carries neither the author nor the mention. Because all of it renders from that quote, call order against `setContent` and `setRoom` doesn't matter, and `clearParent()` takes it back off.
+`setParent(event)` makes a reply. It holds the parent as a `Quote` (`writer.parentQuote`) and renders the reference, the `q` tag naming the parent and its author, and the `addMention` p-tag that a notification feed filters on, since a reference on its own carries neither the author nor the mention. All of it renders from that quote, so call order against `setContent` and `setRoom` doesn't matter, and `clearParent()` removes it.
 
 A quote's `value` is the parent's id, or its address when the parent is replaceable, the way `getIdOrAddress` picks between them. An address parent tags `["q", address, "", pubkey]` and writes an `naddr1` reference, and `MessageQuery.forParent` asks for both forms, since another client may have quoted the same event by id.
 
-Neither the tag nor the reference carries a relay, since a reply and the message it answers are both on the relay hosting the chat. The `q` tag comes out `["q", id, "", pubkey]`.
+Neither the `q` tag nor the reference carries a relay, since a reply and the message it answers are both on the relay hosting the chat.
 
 A writer built from a reader takes its parent from `parent()` and lifts the reference out of `content`, which then holds the message body alone. The `q` tag is left where it is. A parent that something already tags — the event being edited, a mid-content quote promoted to a reply, an `addQuote` of the same event — is not tagged a second time. A reference that names no author keeps the author its `q` tag named.
 
-NIP-18 quotes use that same tag, so `parent()` looks up the quote the content opens with rather than taking the first one — a message that shares one event and replies to another tags them in either order. Quotes elsewhere in the content are the caller's to tag with `addQuote`. A reply nothing tagged falls back to the content's own reference. `getContentQuote(content)` is exported for callers that need the `Quote` itself.
+NIP-18 quotes use the same tag, so `parent()` looks up the quote the content opens with rather than taking the first one, and a message that shares one event and replies to another may tag them in either order. Quotes elsewhere in the content are the caller's to tag with `addQuote`. A reply nothing tagged falls back to the content's own reference. `getContentQuote(content)` is exported for callers that need the `Quote` itself.
 
 Chat is scoped to the relay hosting it, so `MessageWriter` sets `requiresRelays = true` and `MessageQuery.renderRoutes()` returns nothing. A NIP-29 room pins both with `setRoom(url, roomId)`, described under [Publishing to the room relay](./rooms#publishing-to-the-room-relay); a relay hosting chat without NIP-29 pins them with `forceRoutes`/`setRoutes`.
 
@@ -250,7 +248,7 @@ await Pinboard.configure(context)
   .renderTemplate()
 ```
 
-A `Pin` references exactly one item — a nostr event (`e`), an addressable event (`a`), or an external id (`i` + optional `k` per NIP-73) — exposed as a discriminated `PinReference`. It can belong to multiple boards via `A` tags; a pin with none is a profile pin. Its `content` is an optional comment. Kind 39067 sits in the parameterized-replaceable range, so each pin needs its own unique `d` tag (`setIdentifier()`) — otherwise every pin from the same author would collide at the same address and replace one another; `validate()` enforces this the same way it does for `Classified`/`TimeEvent`/`Pinboard`.
+A `Pin` references exactly one item — a nostr event (`e`), an addressable event (`a`), or an external id (`i` + optional `k` per NIP-73) — exposed as a discriminated `PinReference`. It can belong to multiple boards via `A` tags; a pin with none is a profile pin. Its `content` is an optional comment. Kind 39067 is parameterized-replaceable, so each pin needs its own unique `d` tag (`setIdentifier()`), or every pin from the same author would collide at the same address.
 
 ```typescript
 import {Pin} from "@welshman/domain"
@@ -271,7 +269,7 @@ await Pin.configure(context)
   .renderTemplate()
 ```
 
-`setEvent`/`setAddress`/`setExternal` each replace any prior reference, keeping the "exactly one" invariant. `validate()` throws if none of `e`/`a`/`i` is present.
+`setEvent`/`setAddress`/`setExternal` each replace any prior reference. `validate()` throws if none of `e`/`a`/`i` is present.
 
 ## Highlight (kind 9802)
 
@@ -321,7 +319,7 @@ await Highlight.configure(context)
 
 ## DateEvent (kind 31922)
 
-A NIP-52 date-based calendar event — an all-day event, as against `TimeEvent` below, which starts and ends at an instant. Because such an event belongs to no timezone, its bounds are `YYYY-MM-DD` strings rather than timestamps, and `end` is the day *after* the last one covered.
+A NIP-52 date-based calendar event: an all-day event, where `TimeEvent` below starts and ends at an instant. Such an event belongs to no timezone, so its bounds are `YYYY-MM-DD` strings rather than timestamps, and `end` is the day *after* the last one covered.
 
 ```typescript
 import {DateEvent} from "@welshman/domain"
@@ -343,6 +341,7 @@ await DateEvent.configure(context)
 ```
 
 Like `TimeEvent`, the writer derives one `["D", dayIndex]` tag per day covered, so both calendar kinds are discoverable by the same day-bucket filter. An event with a start and no end covers that one day; a start that doesn't parse as a date produces no index at all.
+
 ## TimeEvent (kind 31923)
 
 A NIP-52 time-based calendar event.
@@ -366,7 +365,7 @@ await TimeEvent.configure(context)
   .renderTemplate()
 ```
 
-When both `start` and `end` are set, `buildTags` auto-generates one `["D", dayIndex]` tag per day in `[start, end)` (day-bucket index tags), so the event is discoverable by day.
+When both `start` and `end` are set, `renderDomainTags` generates one `["D", dayIndex]` tag per day in `[start, end)`, so the event is discoverable by day.
 
 ## CalendarRsvp (kind 31925)
 
@@ -403,6 +402,7 @@ const {filters, relays} = await CalendarRsvp.configure(context)
   .forCalendarEvent(address)
   .render()
 ```
+
 ## Poll (kind 1068) and PollResponse (kind 1018)
 
 NIP-88 polls. A `Poll` has a title (content), options, a type, and an optional close time. Types are exported as `PollType` (`"singlechoice" | "multiplechoice"`), options as `PollOption`, and tallies as `PollResult`.
@@ -477,7 +477,7 @@ await Report.configure(context)
   .renderTemplate()
 ```
 
-A report's reason lives on both the `p` and `e` tags; the writer normalizes it so a reason set on either (or via `setReason`) is reflected on both. Unlike most content kinds, `ReportWriter` overrides `renderRoutes()` to `[userOutbox()]` — a report's `p`/`e` tags identify what is being flagged, not recipients to notify, so it publishes only to the author's own outbox.
+A report's reason lives on both the `p` and `e` tags, and the writer keeps a reason set on either (or via `setReason`) on both. `ReportWriter` routes to `[userOutbox()]` only, because a report's `p`/`e` tags identify what is being flagged rather than recipients to notify.
 
 ## See also
 

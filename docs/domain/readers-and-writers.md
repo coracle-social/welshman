@@ -1,28 +1,27 @@
 # Readers & Writers
 
-Every kind in `@welshman/domain` is a thin subclass of five base classes:
+Every kind in `@welshman/domain` subclasses a few base classes:
 
-- `EventReader` — read-only view over one event.
-- `EventWriter` — mutable producer of an event template.
-- `EventQuery` — mutable producer of the filters that fetch the kind's events.
-- `ListReader` — `EventReader` with a public/private (encrypted) tag split.
-- `ListWriter` — `EventWriter` with the same split, and NIP-44 encryption baked into its build step.
+- `EventReader` — a read-only view over one event.
+- `AsyncEventReader` — the same, for kinds whose `parse()` has to await something.
+- `EventWriter` — a mutable producer of an event template.
+- `EventQuery` — a mutable producer of the filters that fetch the kind's events.
+- `ListReader` / `ListWriter` — a reader and writer with a public/private tag split, where the private tags are NIP-44-encrypted into the content.
 
-Understanding these five classes means you understand every kind: the per-kind files (`Profile`, `FollowList`, `ZapReceipt`, …) only add getters and setters on top of the machinery described here.
+The per-kind files (`Profile`, `FollowList`, `ZapReceipt`, …) add getters and setters on top of these.
 
 ## Configuring a kind
 
-Readers and writers need dependencies — a `Resolver` to turn abstract relay routes into urls, an optional `ISigner` for encryption/decryption, and an optional `Repository` so routers can find event parents. Those are bundled in a `KindContext`:
+Readers, writers and queries take their dependencies from a `KindContext`. The `Resolver` turns relay routes into urls, and the optional `ISigner` decrypts and encrypts private list tags:
 
 ```typescript
 export type KindContext = {
   resolver: Resolver          // from @welshman/util
   signer?: ISigner            // from @welshman/signer
-  repository?: Repository     // from @welshman/net
 }
 ```
 
-Each exported kind is a `KindFactory` — a kind number bundled with its reader, writer, and query classes, with no dependencies bound yet:
+Each exported kind is a `KindFactory`, which bundles a kind number with its reader, writer, and query classes:
 
 ```typescript
 export const Profile = new KindFactory({
@@ -33,7 +32,7 @@ export const Profile = new KindFactory({
 })
 ```
 
-You bind dependencies **once** with `configure(context)`, which returns a `ConfiguredKind`. The configured kind is your entry point for building readers, writers, and queries:
+`configure(context)` binds the dependencies and returns a `ConfiguredKind`, which builds readers, writers, and queries:
 
 ```typescript
 import {Profile} from "@welshman/domain"
@@ -42,21 +41,21 @@ const profile = Profile.configure(context)   // ConfiguredKind
 
 const reader = profile.reader(event).parse()  // reader, parsed
 const writer = profile.writer()               // fresh writer
-const writer2 = profile.writer(reader)         // writer seeded from a reader (edit)
+const writer2 = profile.writer(reader)        // writer seeded from a reader (edit)
 const query = profile.query()                 // fresh query
 ```
 
 `reader`, `writer`, and `query` are instance arrow-function properties, so they are safe to destructure or pass point-free.
 
-In `@welshman/app` you never call `configure` yourself — the `Domain` plugin does it for you, memoized per factory, wiring in the app's `Router.resolver`, `repository`, and a lazy `signer`. See [With `@welshman/app`](#with-welshmanapp-domain--command) below.
+In `@welshman/app` the `Domain` plugin calls `configure` for you. See [With `@welshman/app`](#with-welshmanapp-domain--command) below.
 
 ## EventReader
 
-A `Reader` wraps a single `TrustedEvent` and answers questions about it. It is abstract — each kind pins its `kind` — but the construction, parsing, and base getters all live here.
+A reader wraps a single `TrustedEvent` and answers questions about it.
 
 ### Construction and parse
 
-`ConfiguredKind.reader(event)` validates the event's kind (throwing `Expected a kind X event, got kind Y` on mismatch) and constructs the reader **unparsed**. Chain `parse()` to populate it — it returns the reader, so you keep reading straight off the call:
+`ConfiguredKind.reader(event)` validates the event's kind, throwing `Expected a kind X event, got kind Y` on a mismatch, and constructs the reader unparsed. `parse()` populates it and returns the reader:
 
 ```typescript
 import {Profile, MuteList} from "@welshman/domain"
@@ -68,7 +67,7 @@ const profile = Profile.configure(context).reader(event).parse()
 const mutes = await MuteList.configure(context).reader(event).parse()
 ```
 
-Whether `parse()` is async is a property of the kind, declared by the base class its reader extends:
+The base class a reader extends decides whether `parse()` is async:
 
 ```typescript
 abstract class EventReader extends BaseEventReader {
@@ -80,19 +79,17 @@ abstract class AsyncEventReader extends BaseEventReader {
 }
 ```
 
-Only the six private-tag lists (`ListReader` subclasses) and `AppDataReader` are async; the other 46 kinds parse synchronously. Code that doesn't know the kind can always write `await kind.reader(event).parse()` — awaiting a non-promise is a no-op — and the exported `Parsed<R>` type names whichever result a given reader yields.
+Only the six private-tag lists (`ListReader` subclasses) and `AppDataReader` are async. Code that doesn't know the kind can write `await kind.reader(event).parse()`, since awaiting a non-promise is a no-op, and the exported `Parsed<R>` type names whichever result a given reader yields.
 
-`parse` takes **no arguments** — a subclass that needs the signer reads it from `this.context.signer`. The base implementation is a no-op; subclasses override it to decode what they need and return `this`:
+`parse` takes no arguments. A subclass that needs the signer reads it from `this.context.signer`. Subclasses override `parse` to decode what they need and return `this`:
 
 - `ProfileReader.parse` JSON-parses `event.content` into a `values` object.
 - `ZapReceiptReader.parse` decodes the embedded zap-request JSON out of the `description` tag.
 - `ListReader.parse` decrypts the private tags (see below).
 
-Everything downstream — the getters — is synchronous either way.
+The getters are synchronous either way.
 
 ### Getters
-
-All base getters are synchronous reads over the wrapped event:
 
 | Getter | Returns |
 |---|---|
@@ -109,8 +106,10 @@ All base getters are synchronous reads over the wrapped event:
 | `contentWarning()` | `true` if a NIP-36 `content-warning` tag is present |
 | `contentWarningReason()` | that tag's reason, or `undefined` when it was tagged bare |
 | `client()` | the NIP-89 `client` tag as a `Client`, or `undefined` |
+| `emojis()` | the NIP-30 `emoji` tags as an `Emoji[]` |
 | `imeta()` | the NIP-92 `imeta` tags as an `Imeta[]` |
 | `quotes()` | the NIP-18 `q` tags as a `Quote[]` (`{value, relay?, pubkey?}`), in the order they appear |
+| `zapSplits()` | the NIP-57 `zap` tags as a `ZapSplit[]` |
 
 ```typescript
 const reader = await SomeKind.configure(context).reader(event).parse()
@@ -127,37 +126,27 @@ import {isProtected, getExpiration, getContentWarning, getClient} from "@welshma
 
 isProtected(event)        // boolean
 getExpiration(event)      // number | undefined
-getContentWarning(event)  // {reason?: string} | undefined — the reason is optional
+getContentWarning(event)  // {reason?: string} | undefined
 getClient(event)          // Client | undefined
 ```
 
 `getEmojis`, `getImeta`, `getQuotes` and `getZapSplits` back `emojis()`, `imeta()`, `quotes()` and `zapSplits()` the same way.
 
-Each subclass adds its own getters on top — `profile.name()`, `followList.pubkeys()`, `zapGoal.amount()`, and so on.
-
-Readers are getter-only — they do not compute routes. Where to publish an event is the writer's concern; where to fetch a kind's events is the query's.
-
-A room (`h`-tagged) event routes to the relays it was seen on; otherwise it routes to its author's outbox. `scenario()` resolves those routes through the configured `Resolver` into a `RelayScenario`.
+Each subclass adds its own getters, such as `profile.name()`, `followList.pubkeys()` and `zapGoal.amount()`. Readers compute no routes. Where to publish an event is the writer's concern, and where to fetch a kind's events is the query's.
 
 ## EventWriter
 
-A `Writer` is a mutable, chainable producer of an `EventTemplate`. Get an empty one with `configuredKind.writer()` to author a new event, or seed one from a reader with `configuredKind.writer(reader)` to edit an existing one. Every setter returns `this`.
+A writer is a mutable, chainable producer of an `EventTemplate`. `configuredKind.writer()` returns an empty one for a new event, and `configuredKind.writer(reader)` returns one seeded from a reader to edit an existing event. Every setter returns `this`.
 
 ### Construction and extra-tag passthrough
 
 ```typescript
-constructor(readonly def: AnyConfiguredKind, readonly reader?: Reader)
+constructor(readonly kind: number, readonly context: KindContext, readonly reader?: Reader)
 ```
 
-When you pass a reader, the writer seeds `content` from `reader.event.content` and copies **all** of `event.tags` into `extraTags`. It then *consumes* the tags it manages — `h`, `-`, `expiration`, `content-warning`, `client`, and `d` — lifting each out of `extraTags` into a dedicated field (`roomTag`, `protectTag`, `expirationTag`, `contentWarningTag`, `clientTag`, `identifierTag`).
+When given a reader, the writer seeds `content` from `reader.event.content` and splits the tags it manages (`h`, `-`, `expiration`, `content-warning`, `client`, and `d`) into dedicated fields (`roomTag`, `protectTag`, `expirationTag`, `contentWarningTag`, `clientTag`, `identifierTag`). The rest go into `extraTags`.
 
-Whatever remains in `extraTags` is **passed through verbatim** when the event is rebuilt. This is the extra-tag passthrough guarantee: tags the package does not model (or a subclass does not claim) survive an edit round-trip instead of being silently dropped.
-
-```typescript
-protected consumeTags(key: string): Tag[]
-```
-
-Subclasses call `consumeTags` in their own constructors to lift the tags they understand out of the passthrough set. For example `ListWriter` takes over everything left as `publicTags`.
+Whatever remains in `extraTags` is passed through verbatim when the event is rebuilt, so tags the package does not model survive an edit. Subclasses lift the tags they understand out of the passthrough set in their own constructors, using the exported `TagParser`. `ListWriter`, for example, takes over everything left as `publicTags`.
 
 ### Setters
 
@@ -166,7 +155,7 @@ The base behavior setters, all chainable:
 ```typescript
 someKind.writer()
   .setContent("…")
-  .setRoom(relayUrl, roomId)   // h tag + forcedRoutes / clearRoom()
+  .setRoom(relayUrl, roomId)     // h tag + forcedRoutes / clearRoom()
   .setProtected(true)            // ["-"] tag
   .setExpiration(timestamp)      //         / clearExpiration()
   .setContentWarning("nudity")   // NIP-36 tag, reason optional / clearContentWarning()
@@ -174,13 +163,13 @@ someKind.writer()
   .setIdentifier()               // d tag (defaults to a random id) / clearIdentifier()
 ```
 
-`setIdentifier(identifier = randomId())` defaults to a freshly generated id, which is what you want for new parameterized-replaceable events. Each subclass adds its own setters (`setName`, `follow`, `setAmount`, …) on top of these.
+`setIdentifier(identifier = randomId())` defaults to a freshly generated id, for new parameterized-replaceable events. Each subclass adds its own setters (`setName`, `follow`, `setAmount`, …).
 
 Free-form tags can be added and filtered directly:
 
 ```typescript
 writer
-  .addTags(["t", "nostr"])        // append to extraTags
+  .addTags(["t", "nostr"])         // append to extraTags
   .keepTags(tag => tag[0] !== "t") // keep matching
   .dropTags(tag => tag[0] === "t") // drop matching
 ```
@@ -195,46 +184,48 @@ writer
 
 `addImeta` replaces whatever is already attached at that url rather than listing it twice, and `writer.imeta()` reads back what the writer is carrying. `parseImeta` and `renderImeta` are exported for working with a single tag. `parseQuote` and `renderQuote` do the same for a `q` tag, and `writer.quotes()` reads back the ones a writer is carrying. A quote's `value` is the quoted event's id, or its address when the event is replaceable, the way `getIdOrAddress` picks between them.
 
-### Shared tag / hint helpers
+### Relay hints
 
-Several helpers emit tags carrying a **relay hint** — a deferred `Hint` occupying the relay-hint slot, which `render()` later dereferences to a single url:
+Several helpers emit tags with a relay hint, which the protected `hint(...routes)` method resolves to a single url through `context.resolver.relay(...)`, falling back to `""`:
 
 ```typescript
-writer.tagPubkey(pubkey, petname?)      // ["p", pubkey, <hint>, petname]
+writer.addMention(pubkey)               // ["p", pubkey, <hint>]
 writer.addQuote(event)                  // ["q", idOrAddress, <hint>, pubkey] / removeQuote(value)
-writer.addZapSplit(pubkey, split = 1)   // ["zap", pubkey, <hint>, String(split)]
+writer.addZapSplit(pubkey, split = 1)   // ["zap", pubkey, <hint>, String(split)] / removeZapSplit(pubkey)
 writer.setClient(name, address?)        // ["client", name, address, <hint>]
 ```
 
+Each hint resolves in the background and is written into its tag's slot. `renderTags()` waits for every pending hint before it returns.
+
 ### The build pipeline
 
-Subclasses customize the output by overriding two protected hooks (both may be async, both receive the optional signer) and `validate`:
+Subclasses customize the output by overriding two hooks and `validate`:
 
 ```typescript
-protected buildTags(signer?): MaybeAsync<Tag[]>        // default: []  — kind-specific tags
-protected buildContent(signer?): MaybeAsync<string>    // default: this.content
-protected validate(): void
+protected renderDomainTags(): MaybeAsync<string[][]>   // default: [] — kind-specific tags
+renderContent(): MaybeAsync<string>                    // default: this.content
+validate(): void
 ```
 
-`validate` by default throws:
+The base `validate` throws:
 
 - `A d tag is required for kind X` for parameterized-replaceable kinds with no identifier;
 - `A room event requires a relay url (set the room via setRoom)` when a `roomTag` is set but `forcedRoutes` is empty;
 - `A kind X event must publish to explicit relays (via setRoom or forceRoutes)` when `requiresRelays` is true but `forcedRoutes` is empty.
 
-Subclasses call `super.validate()` and add their own checks — `DeleteWriter` requires at least one `e`/`a` tag, and so on.
+Subclasses call `super.validate()` and add their own checks. `DeleteWriter`, for example, requires at least one `e`/`a` tag.
 
-Tags are assembled as:
+`renderTags()` assembles the tags as:
 
 ```
-[...buildTags(), ...behaviorTags, ...extraTags]
+[...behaviorTags, ...domainTags, ...extraTags]
 ```
 
-where `behaviorTags` are the present ones among `roomTag`, `protectTag`, `expirationTag`, `contentWarningTag`, `clientTag`, `identifierTag`. That ordering is the passthrough in action: kind-specific tags first, then the behavior tags, then the untouched leftovers.
+where `behaviorTags` are the present ones among `roomTag`, `protectTag`, `expirationTag`, `contentWarningTag`, `clientTag`, `identifierTag`.
 
 ### Output methods
 
-There is no `toTemplate`/`toEvent`/`toRumor` on the writer. Instead it produces an unsigned template, and the caller signs it. All are async and take **no** arguments — the context (signer, resolver) was injected at `configure`:
+The writer produces an unsigned template, and the caller signs it. The output methods are async and take no arguments, since the context was bound at `configure`:
 
 ```typescript
 const template = await writer.renderTemplate()   // EventTemplate {kind, content, tags}
@@ -242,9 +233,9 @@ const relays   = await writer.relays()           // string[] — where to publis
 const {event, relays} = await writer.render()    // both at once
 ```
 
-`renderTemplate()` is the heart of it: it runs `validate()`, resolves every in-tag `Hint` to a single url via `context.resolver.relay(...)` (falling back to `""`), builds the content (encrypting for list kinds), and returns `{kind, content, tags}`. `render()` calls it and pairs the template with the resolved relay list.
+`renderTemplate()` runs `validate()`, renders the tags and the content (encrypting for list kinds), and returns `{kind, content, tags}`. `render()` pairs the template with the resolved relay list.
 
-To sign, hand the template to a signer — this is what the app and the test helpers do:
+To sign, hand the template to a signer:
 
 ```typescript
 import {stamp} from "@welshman/util"
@@ -254,7 +245,7 @@ const signed = await signer.sign(stamp(await writer.renderTemplate()))
 
 ### Routing a writer
 
-A writer computes where the event should be published. The default `renderRoutes()` targets the author's outbox plus every p-tagged pubkey's inbox:
+The default `renderRoutes()` targets the author's outbox plus every p-tagged pubkey's inbox:
 
 ```typescript
 protected async renderRoutes(): Promise<RelaySelection[]> {
@@ -262,13 +253,13 @@ protected async renderRoutes(): Promise<RelaySelection[]> {
 }
 ```
 
-`renderTags()` returns the fully-assembled tags with every `Hint` rendered as `""` — the view used for routing. `scenario()`/`relays()` resolve these routes through the configured `Resolver`.
+`scenario()` resolves these routes through the configured `Resolver` into a `RelayScenario`, and `relays()` returns its urls.
 
-Kinds override `renderRoutes()` when the default is wrong. For instance `FollowListWriter` and `MuteListWriter` route to `[userOutbox()]` only (their p-tags are data, not recipients), and `DeleteWriter` adds each deleted event's seen relays.
+Kinds override `renderRoutes()` when the default is wrong. `FollowListWriter` and `MuteListWriter` route to `[userOutbox()]` only, because their p-tags are data rather than recipients, and `DeleteWriter` adds each deleted event's seen relays.
 
 ### Forced routes and required relays
 
-Some events must go to specific relays regardless of outbox/inbox routing — NIP-29 room events, relay-management ops, and so on. Two mechanisms cover this:
+Some events must go to specific relays regardless of outbox/inbox routing, such as NIP-29 room events and relay-management ops. Two mechanisms cover this:
 
 ```typescript
 writer.setRoom(url, room)         // forcedRoutes = [relay(url)]  AND  h tag = ["h", room]
@@ -277,25 +268,23 @@ writer.clearRoom()                // clears both
 writer.clearForcedRoutes()        // clears forcedRoutes
 ```
 
-`forceRoutes` takes routes rather than urls, so `forceRoutes(userInbox())` pins an event to the user's read relays without resolving them first.
+`forceRoutes` takes routes rather than urls, so `forceRoutes(userInbox())` pins an event to the user's read relays without resolving them first. When `forcedRoutes` is non-empty, `scenario()` publishes only to those routes, bypassing `renderRoutes()`.
 
-When `forcedRoutes` is non-empty, `scenario()` publishes **only** to those routes, bypassing `renderRoutes()` entirely.
-
-A kind can also declare it *requires* explicit relays by overriding the readonly field:
+A kind can also declare that it requires explicit relays by overriding the readonly field:
 
 ```typescript
 readonly requiresRelays = true
 ```
 
-`validate()` then refuses to render until `forcedRoutes` is set (via `setRoom` or `forceRoutes`). The kinds that set this are all NIP-29 room ops/state, all relay-management ops/state, and the NIP-C7 chat kind — `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomDeleteEvent`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, `RelayMembers`, and `Message`. (`RoomCreate` additionally requires a `roomTag`.)
+`validate()` then refuses to render until `forcedRoutes` is set. The kinds that set this are all NIP-29 room ops and state, all relay-management ops and state, and the NIP-C7 chat kind: `RoomCreate`, `RoomEdit`, `RoomDelete`, `RoomDeleteEvent`, `RoomJoin`, `RoomLeave`, `RoomAddMember`, `RoomRemoveMember`, `RoomMembers`, `RoomAdmins`, `RoomMeta`, `RoomPins`, `RoomUpdatePins`, `RoomCreatePermission`, `RelayJoin`, `RelayLeave`, `RelayInvite`, `RelayAddMember`, `RelayRemoveMember`, `RelayRole`, `RelayMembers`, and `Message`.
 
 ## EventQuery
 
-A `Query` is the read-side counterpart to a `Writer`, a mutable, chainable producer of the `Filter`s that fetch a kind's events and the relays to request them from. Get one with `configuredKind.query()`. The kind comes from the factory, so a query always filters on it.
+A query is a mutable, chainable producer of the `Filter`s that fetch a kind's events and the relays to request them from. Get one with `configuredKind.query()`. The kind comes from the factory, so a query always filters on it.
 
 ### Setters
 
-Every field of a filter has a set/add/remove/clear group (or set/clear, for the scalars). All chainable:
+Every field of a filter has a set/add/remove/clear group, or set/clear for the scalars. All chainable:
 
 ```typescript
 query
@@ -305,11 +294,11 @@ query
   .setSince(timestamp)             // also clearSince; same for setUntil / setLimit / setSearch
 ```
 
-Tag keys may be written with or without the `#`. A field left alone is unconstrained; one set to an explicitly empty array matches nothing. Adding no values is a no-op, so `addIds([])` leaves the field as it was.
+Tag keys may be written with or without the `#`. A field left alone is unconstrained, and one set to an explicitly empty array matches nothing. Adding no values is a no-op, so `addIds([])` leaves the field as it was.
 
 ### Routing
 
-`renderRoutes()` is **abstract**, so every kind states where its events live. Two protected helpers cover the common shapes: `authorRoutes()` (the queried authors' outboxes) and `mentionRoutes()` (the inboxes of the pubkeys a `#p` filter names).
+`renderRoutes()` is abstract, so every kind states where its events live. Two protected helpers cover the common shapes: `authorRoutes()` (the queried authors' outboxes) and `mentionRoutes()` (the inboxes of the pubkeys a `#p` filter names).
 
 ```typescript
 class NoteQuery extends EventQuery {
@@ -319,9 +308,9 @@ class NoteQuery extends EventQuery {
 }
 ```
 
-Content kinds route to their authors' outboxes plus the inboxes of the pubkeys they tag. Lists and other author-scoped kinds route to their author's outbox alone, since their p-tags are data rather than recipients. Indexed kinds (`Profile`, `FollowList`, `RelayList`, `MessagingRelayList`) add `indexers()`. NIP-29 room, relay-management, and chat kinds return `[]`, because they only exist on the relay hosting them, and `DirectMessage` routes to the user's NIP-17 messaging relays.
+Content kinds route to their authors' outboxes plus the inboxes of the pubkeys they tag. Lists and other author-scoped kinds route to their author's outbox alone. Indexed kinds (`Profile`, `FollowList`, `RelayList`, `MessagingRelayList`) add `indexers()`. NIP-29 room, relay-management, and chat kinds return `[]`, because they only exist on the relay hosting them, and `DirectMessage` routes to the user's NIP-17 messaging relays.
 
-A query whose kind has nothing to route on resolves to no relays. There is no fallback to the user's own relays; supply the routes yourself when you want one:
+A query with nothing to route on resolves to no relays. There is no fallback to the user's own relays, so supply the routes yourself when you want one:
 
 ```typescript
 query.setRoutes(routes)   // replace the rendered routes (e.g. [relay(url)], [userInbox()])
@@ -333,25 +322,25 @@ query.setRoom(url, room)  // #h filter + that one relay (NIP-29) / clearRoom()
 ### Output methods
 
 ```typescript
-const filters = await query.renderFilters()   // Filter[]
-const relays  = await query.relays()          // string[] — where to request them
+const filters = await query.renderFilters()     // Filter[]
+const relays  = await query.relays()            // string[] — where to request them
 const {filters, relays} = await query.render()  // both at once
 ```
 
 ### Kind-specific queries
 
-Past `renderRoutes`, most query subclasses are empty. A kind adds methods for relationships it models, backing them with `renderDomainFilters()` — merged onto the base filter, one filter per variant:
+Past `renderRoutes`, most query subclasses are empty. A kind adds methods for relationships it models, backing them with `renderDomainFilters()`, whose filters are each merged onto the base filter:
 
 ```typescript
 // Comments anywhere in a thread, or direct replies to one event
 const {filters, relays} = await Comment.configure(context).query().forRoot(event).render()
 ```
 
-`CommentQuery.forRoot(event)` / `.forParent(event)` emit a filter per reference form, since a comment points at its target with either an `E`/`e` id tag or an `A`/`a` address tag. Their `renderRoutes` adds each target author's inbox, where comments p-tagged to that author are delivered.
+`CommentQuery.forRoot(event)` / `.forParent(event)` emit a filter per reference form, since a comment points at its target with either an `E`/`e` id tag or an `A`/`a` address tag, and a relay ANDs a filter's fields. Their `renderRoutes` adds each target author's inbox, where comments p-tagged to that author are delivered.
 
 ## ListReader
 
-NIP-51-style lists split their tags into a public set and a private (encrypted) set. `ListReader` extends `AsyncEventReader` — decryption is exactly what makes these kinds' `parse()` a promise — and handles the decryption.
+NIP-51-style lists split their tags into a public set and a private (encrypted) set. `ListReader` extends `AsyncEventReader`, because decryption is IO.
 
 ```typescript
 decrypted = false
@@ -362,10 +351,10 @@ privateTags: string[][] = []
 Its `parse` override:
 
 1. Sets `publicTags = event.tags`.
-2. If `event.content` is empty, there is nothing to decrypt → `decrypted = true`.
-3. Otherwise, if a signer is configured **and it belongs to the event's author** (`signer.getPubkey() === event.pubkey`), it decrypts the content, marks `decrypted = true`, parses the JSON array, and keeps only well-formed string-tuple tags into `privateTags`. A decryption failure is swallowed — `decrypted` simply stays `false`.
+2. If `event.content` is empty, there is nothing to decrypt, so `decrypted = true`.
+3. Otherwise, if the context has a signer belonging to the event's author (`signer.getPubkey() === event.pubkey`), it decrypts the content, marks `decrypted = true`, parses the JSON array, and keeps the well-formed string-tuple tags as `privateTags`. A decryption failure is swallowed and `decrypted` stays `false`.
 
-The practical consequence: **private tags only appear when the configured signer is the list author's**. Reading someone else's list, or your own list without a signer, gives you the public tags only.
+Private tags therefore only appear when the configured signer is the list author's. Reading someone else's list, or your own list without a signer, gives you the public tags only.
 
 ```typescript
 // context.signer must be the list author's for private tags to decrypt
@@ -373,15 +362,15 @@ const list = await MuteList.configure(context).reader(event).parse()
 list.pubkeys()    // includes both public and private mutes, when decrypted
 ```
 
-`tags()` is overridden to return `[...publicTags, ...privateTags]`, so every inherited getter that reads `this.tags()` transparently sees the merged view.
+`tags()` returns `[...publicTags, ...privateTags]`, so every inherited getter that reads `this.tags()` sees the merged view.
 
 ## ListWriter
 
-`ListWriter` extends `EventWriter` with the same public/private split and a chainable set of tag mutators. Its constructor takes over the leftover `extraTags` as `publicTags` (`this.publicTags = this.extraTags.splice(0)`) and copies `privateTags` from the reader.
+`ListWriter` extends `EventWriter` with the same public/private split and a chainable set of tag mutators. Its constructor takes over the leftover `extraTags` as `publicTags` and copies `privateTags` from the reader.
 
 ### Tag mutators
 
-All chainable (return `this`):
+All chainable:
 
 ```typescript
 writer
@@ -391,27 +380,25 @@ writer
   .dropPublic(pred)          // filter out matches; also dropPrivate, dropTags (both)
 ```
 
-Subclasses build their domain methods on these. For instance `MuteListWriter` exposes `mutePublicly` (public) vs `mutePrivately` (private), and `RoomListWriter` exposes `addRoom`/`removeRoom`/`addRelay`/`removeRelay`.
+Subclasses build their domain methods on these. `MuteListWriter` exposes `mutePublicly` and `mutePrivately`, and `RoomListWriter` exposes `addRoom`/`removeRoom`/`addRelay`/`removeRelay`.
 
 ### validate
 
-```typescript
-protected validate()
-```
+`ListWriter.validate` throws `Unable to modify list when decryption was not performed` when the source event had encrypted content that was never decrypted and the writer holds private tags. This guards against clobbering private data the writer could not read.
 
-`ListWriter.validate` throws `Unable to modify list when decryption was not performed` if the source event had encrypted content that was never decrypted (because the configured signer was not the author's) yet you are trying to write private tags. This guards against clobbering private data you could not read.
+### renderContent: where encryption lives
 
-### buildContent: where encryption lives
-
-This is the important part. In the old `@welshman/util` design, encryption was a separate `Encryptable` wrapper you composed around an event. In `@welshman/domain` it is folded directly into the list writer's `buildContent`:
+The list writer encrypts its private tags in `renderContent`:
 
 ```typescript
-protected async buildContent(signer?: ISigner): Promise<string> {
+async renderContent(): Promise<string> {
   // Preserve the original ciphertext when we never decrypted it.
   if (this.reader?.decrypted === false) return this.reader.event.content
 
-  // No need to encrypt an empty array
+  // No need to encrypt an empty array.
   if (this.privateTags.length === 0) return ""
+
+  const {signer} = this.context
 
   if (!signer) {
     throw new Error("A signer is required to encrypt private tags")
@@ -423,13 +410,13 @@ protected async buildContent(signer?: ISigner): Promise<string> {
 }
 ```
 
-Three branches:
+There are three branches:
 
-1. **Never decrypted** — return the original ciphertext untouched. You can edit public tags on a list you could not decrypt without destroying its private contents.
-2. **No private tags** — return `""`. Nothing to encrypt.
-3. **Has private tags** — require a signer (else throw `A signer is required to encrypt private tags`), then `signer.nip44.encrypt(pubkey, JSON.stringify(privateTags))`. The encryption is **NIP-44, self-encrypted to the author's own pubkey**.
+1. **Never decrypted.** It returns the original ciphertext untouched, so you can edit the public tags of a list you could not decrypt without destroying its private contents.
+2. **No private tags.** It returns `""`.
+3. **Has private tags.** It requires a signer, then NIP-44-encrypts the tags to the author's own pubkey.
 
-`buildTags` simply returns `publicTags`. The signer used here comes from `def.context.signer`, injected at `configure`:
+`renderDomainTags` returns `publicTags`. The signer comes from `context.signer`, bound at `configure`:
 
 ```typescript
 import {MuteList} from "@welshman/domain"
@@ -443,7 +430,7 @@ const template = await MuteList.configure(context)
 
 ## With `@welshman/app`: Domain & Command
 
-The `Domain` plugin owns the `KindContext`, so app code never touches `configure`. It exposes three helpers:
+The `Domain` plugin owns the `KindContext`, so app code never calls `configure`:
 
 ```typescript
 const domain = app.use(Domain)
@@ -457,24 +444,8 @@ const command = await domain.command(writer)   // requires a signed-in user
 command.publish()
 ```
 
-- `domain.reader(factory)` returns an `(event) => Parsed<Reader>` function — it builds *and* parses, so the result is the reader for sync kinds and a promise of it for kinds that decrypt. That is exactly the `EventToItem` shape a collection wants, and it keeps the sync path for kinds that have one.
-- `domain.writer(factory, reader?)` returns a fresh writer, optionally seeded for editing.
+- `domain.reader(factory)` returns an `(event) => Parsed<Reader>` function that builds and parses, so the result is the reader for sync kinds and a promise of it for kinds that decrypt.
+- `domain.writer(factory, reader?)` returns a fresh writer, optionally seeded for editing, and `domain.query(factory)` returns a fresh query.
 - `domain.command(writer)` requires the signed-in user, calls `writer.render()`, and wraps the `{event, relays}` in a `Command` you can `.publish()`.
 
-The context `Domain` builds wires in `app.use(Router).resolver`, `app.repository`, and a **lazy** `signer` getter (so auth policies can swap the signer after configuration).
-
-## Old API → new API
-
-| Old (`@welshman/domain`) | New (`@welshman/domain`) |
-|---|---|
-| `new Kind({reader, builder, router})` | `new KindFactory({reader, writer, router?})` |
-| `EventBuilder` / `ListBuilder` / `XBuilder` | `EventWriter` / `ListWriter` / `XWriter` |
-| `X.fromEvent(event)` / `Kind.read(event)` / `Kind.factory(signer)` | `factory.configure(ctx).reader(event).parse()` (async only for lists / app data) |
-| `Kind.builder(reader?)` / `new XBuilder(reader?)` | `factory.configure(ctx).writer(reader?)` |
-| `parse(signer)` | `parse()` (reads `def.context.signer`) |
-| `builder.toTemplate(signer?)` | `writer.renderTemplate()` (context injected at `configure`) |
-| `builder.toEvent(signer)` | `signer.sign(stamp(await writer.renderTemplate()))` |
-| `builder.toRumor(signer)` | `prep(await writer.renderTemplate(), await signer.getPubkey())` |
-| `builder.finalize(context)` | `writer.render()` (no arg) |
-| `Router.commandFromBuilder(builder)` | `app.use(Domain).command(writer)` |
-| `Encryptable` wrapper around an event | `ListWriter.buildContent` (NIP-44, self-encrypted) — no separate wrapper |
+The context wires in `app.use(Router).resolver` and a lazy `signer` getter, so auth policies can swap the signer after configuration. See [the `Domain` plugin](../app/plugins#the-domain-plugin).

@@ -4,15 +4,15 @@ Agent skills for working with the welshman nostr library in AI coding tools.
 
 ## What are these skills?
 
-Agent skills are Markdown instruction sets that are auto-loaded by AI coding tools (Claude Code, Cursor, Cline, etc.) when relevant to your current task. Each skill contains focused documentation about a specific part of the welshman nostr library. When you ask a question that matches a skill's domain, the tool loads the full skill content automatically, giving the agent accurate, up-to-date knowledge about welshman's APIs and patterns.
+Agent skills are Markdown instruction sets that AI coding tools (Claude Code, Cursor, Cline, etc.) load when they are relevant to the current task. Each skill documents one part of the welshman library: its APIs and the patterns for using them.
 
 ## Installation
-
-### Via npx (recommended)
 
 ```bash
 npx skills add coracle-social/welshman
 ```
+
+The command prompts for which skills to install and which agent tool to install them for. `-g` installs them globally across all your projects instead of just the current one.
 
 ## Available skills
 
@@ -28,18 +28,16 @@ npx skills add coracle-social/welshman
 | welshman-feeds | Dynamic feed construction |
 | welshman-app | Instance-based client: plugins, sessions, publishing, requests |
 | welshman-content | Note content parsing and rendering |
-| welshman-editor | Svelte rich-text editor component |
+| welshman-editor | Tiptap-based rich-text editor |
 
 ## How skills activate
 
-At startup, the AI reads each skill's description to understand what it covers. When you ask a question that matches a skill's domain — for example, asking about relay connections or feed construction — the full skill content is loaded automatically to inform the response.
+At startup, the AI reads each skill's description. When a question matches a skill's domain, such as relay connections or feed construction, the tool loads the full skill content.
 
-You can also invoke a skill manually using its slash command:
+You can also invoke a skill manually using its slash command, to prime the agent before starting a task:
 
 ```
 /welshman
 /welshman-net
 /welshman-store
 ```
-
-This is useful when you want to prime the agent with a specific skill before starting a task.

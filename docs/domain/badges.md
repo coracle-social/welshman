@@ -1,8 +1,8 @@
 # Badges
 
-NIP-58 badges are three kinds that only mean anything together: an issuer defines a badge (kind 30009), awards it to people (kind 8), and each recipient decides which of their awards to display (kind 30008). Each is a plain `EventReader` / `EventWriter` pair — see [Readers & Writers](./readers-and-writers) for the base pattern.
+NIP-58 badges span three kinds: an issuer defines a badge (kind 30009), awards it to people (kind 8), and each recipient decides which of their awards to display (kind 30008). Each is a plain `EventReader` / `EventWriter` pair; see [Readers & Writers](./readers-and-writers) for the base pattern.
 
-Every example below assumes a bound `KindContext`. None of these kinds decrypt, so nothing here needs awaiting on the read side.
+Every example below assumes a bound `KindContext`. None of these kinds decrypt, so `parse()` needs no await.
 
 ## BadgeDefinition (kind 30009)
 
@@ -31,7 +31,7 @@ await BadgeDefinition.configure(context)
 
 ## BadgeAward (kind 8)
 
-One badge granted to one or more pubkeys. `validate()` requires both — an award with no badge or nobody to award it to is meaningless.
+One badge granted to one or more pubkeys. `validate()` requires both a badge and at least one awardee.
 
 ```typescript
 import {BadgeAward} from "@welshman/domain"
@@ -54,7 +54,7 @@ await BadgeAward.configure(context)
 
 The badges a pubkey has accepted, in the order they should be displayed. NIP-58 fixes the `d` tag at `profile_badges`, so there is only one of these per pubkey and the writer sets the identifier itself.
 
-A displayed badge is a pair — an `a` tag naming the definition, immediately followed by an `e` tag naming the award — so the tags are read positionally rather than by key, and an `a` tag with no award after it is skipped.
+A displayed badge is a pair: an `a` tag naming the definition, immediately followed by an `e` tag naming the award. The tags are therefore read positionally rather than by key, and an `a` tag with no award after it is skipped.
 
 ```typescript
 import {ProfileBadges} from "@welshman/domain"
@@ -71,7 +71,7 @@ await ProfileBadges.configure(context)
   .renderTemplate()
 ```
 
-`addBadge` appends, moving a badge that is already displayed to the end rather than listing it twice. `removeBadge` takes the definition's address and drops the award with it, keeping the pairs intact. `setBadges` replaces the lot, which is what a reordering UI wants.
+`addBadge` appends, moving a badge that is already displayed to the end rather than listing it twice. `removeBadge` takes the definition's address and drops the award with it, keeping the pairs intact. `setBadges` replaces the whole list, for reordering.
 
 ## See also
 

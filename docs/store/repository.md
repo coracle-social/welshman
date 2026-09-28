@@ -49,11 +49,11 @@ makeDeriveItem<T>(
   onDerive?: (key: string, ...args: any[]) => void
 ): (key: string, ...args: any[]) => Readable<T | undefined>
 
-// Create cached loader with staleness checking and exponential backoff
+// Create cached loader with a staleness window in seconds and exponential backoff
 makeLoadItem<T>(
   loadItem: (key: string, ...args: any[]) => Promise<unknown>,
   getItem: (key: string, ...args: any[]) => T | undefined,
-  options?: {getFetched?, setFetched?, timeout?}
+  options?: {getFetched?, setFetched?, getSource?, maxSize?, timeout?}
 ): (key: string, ...args: any[]) => Promise<T | undefined>
 
 // Create loader that always fetches fresh data
@@ -61,9 +61,6 @@ makeForceLoadItem<T>(
   loadItem: (key: string, ...args: any[]) => Promise<unknown>,
   getItem: (key: string, ...args: any[]) => T | undefined
 ): (key: string, ...args: any[]) => Promise<T | undefined>
-
-// Optimized getter that switches to subscription when hot
-getter<T>(store: Readable<T>, options?: {threshold?: number}): () => T
 ```
 
 ## Example
@@ -82,9 +79,7 @@ type Profile = {event: TrustedEvent; name?: string; about?: string}
 // Reactive store of text notes
 const notes = deriveEvents({ repository, filters: [{kinds: [1], limit: 100}] })
 
-// Reactive store of profiles indexed by pubkey. `eventToItem` decodes each
-// event — here by parsing the profile's JSON content. In a full @welshman/app
-// setup you'd use `app.use(Domain).reader(Profile)` instead.
+// Reactive store of profiles indexed by pubkey
 const profilesByPubkey = deriveItemsByKey<Profile>({
   repository,
   filters: [{kinds: [PROFILE]}],

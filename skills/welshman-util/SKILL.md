@@ -1,11 +1,11 @@
 ---
 name: welshman-util
-description: "Use this skill when working with @welshman/util: nostr event types, kinds, tags, filters, addresses, keys, NIPs (13/42/86/98), relay urls, lightning, wallets, slash commands, or any core nostr data structure. Also covers relay selection — the RelaySelection routing DSL, Resolver, RelayScenario and fallback policies all live here (there is no @welshman/router package). (Profiles, lists, handlers, and rooms now live in @welshman/domain as Reader/Writer classes.)"
+description: "Use this skill when working with @welshman/util: nostr event types, kinds, tags, filters, addresses, keys, NIPs (13/42/86/98), relay urls, lightning, wallets, slash commands, or any core nostr data structure. Also covers relay selection: the RelaySelection routing DSL, Resolver, RelayScenario and fallback policies. Profiles, lists, handlers, and rooms are Reader/Writer classes in @welshman/domain."
 ---
 
 # welshman/util — Core Nostr Utilities
 
-`@welshman/util` is the foundational layer of the welshman nostr stack, providing types, constants, and helpers for every nostr primitive: events, kinds, tags, filters, addresses, zaps, relays, and Lightning wallet integration. Higher level welshman packages (`@welshman/net`, `@welshman/app`, `@welshman/store`, etc.) depend on the types and utilities defined here.
+`@welshman/util` is the bottom layer of the welshman nostr stack. It provides types, constants, and helpers for events, kinds, tags, filters, addresses, relays, relay selection, and Lightning. The higher-level welshman packages depend on it.
 
 ## Installation
 
@@ -50,10 +50,9 @@ yarn add @welshman/util
 | `isReplaceable(event)` | True for plain or parameterized replaceable |
 | `isPlainReplaceable(event)` | True for kinds 10000–19999 and metadata/contacts |
 | `isParameterizedReplaceable(event)` | True for kinds 30000–39999 |
-| `sortEventsAsc(events)` / `sortEventsDesc(events)` | Sort by `created_at` |
 | `asEventTemplate`, `asStampedEvent`, `asOwnedEvent`, `asHashedEvent`, `asSignedEvent` | Narrow an event down to the fields of a given level |
 
-NIP-10 and NIP-22 threading lives on the `Note` and `Comment` classes in `@welshman/domain`, not here. The free helpers `getAncestors`, `getParentIdOrAddr`, `isChildOf`, `getReplyTags` and `getCommentTags` do not exist in this package.
+NIP-10 and NIP-22 threading lives on the `Note` and `Comment` classes in `@welshman/domain`.
 
 ### Type Guards
 
@@ -93,7 +92,7 @@ DELETE = 5             REPOST = 6            REACTION = 7
 BADGE_AWARD = 8        MESSAGE = 9           THREAD = 11
 SEAL = 13              DIRECT_MESSAGE = 14   DIRECT_MESSAGE_FILE = 15
 GENERIC_REPOST = 16    PICTURE_NOTE = 20     VANISH = 62
-COMMENT = 1111         GENERIC_REPOST = 16
+COMMENT = 1111
 ```
 
 **Channels (NIP-28)**
@@ -113,7 +112,7 @@ WRAPPED_KINDS = [DIRECT_MESSAGE, DIRECT_MESSAGE_FILE]   // convenience array
 **Media / files**
 
 ```
-FILE_METADATA = 1063   PICTURE_NOTE = 20     AUDIO = 31337
+FILE_METADATA = 1063   AUDIO = 31337
 ```
 
 **Polls**
@@ -325,8 +324,6 @@ isDVMKind(kind)                    // 5000–7000
 | `tagMatcher(spec)` / `tagValueExtractor(spec)` | The raw `(tag)=>boolean` / `(tag)=>T` for a spec |
 | `tagValueMatcher(spec, value)` | Predicate for one value, compared after normalization — matches however the tag spelled it |
 
-The old `getTagValue`/`getPubkeyTagValues`/`getEventTags`/… accessors were removed — use the spec selectors above (e.g. `tagValues(hexTags("p"), tags)`, `tagValue(tagSpec("title"), tags)`).
-
 ### Filters
 
 | Export | Description |
@@ -370,17 +367,16 @@ The old `getTagValue`/`getPubkeyTagValues`/`getEventTags`/… accessors were rem
 | `normalizeRelayUrl(url)` | Normalize to standard wss:// format (passes `LOCAL_RELAY_URL` through unchanged) |
 | `displayRelayUrl(url)` | Strip protocol and trailing slash |
 
-`RelayMode`, `RelayProfile` and `displayRelayProfile` are gone. Read/write intent is expressed by the NIP-65 `RelayList` reader/writer in `@welshman/domain` (`readUrls()`/`writeUrls()`, `addReadUrl`/`addWriteUrl`), and NIP-11 relay info by the `Relay` type in `@welshman/domain` plus `app.use(Relays)`.
+Read/write intent belongs to the NIP-65 `RelayList` reader/writer in `@welshman/domain` (`readUrls()`/`writeUrls()`, `addReadUrl`/`addWriteUrl`). NIP-11 relay info is the `Relay` type in `@welshman/domain`, loaded through `app.use(Relays)`.
 
 ### Relay Selection (routing DSL)
 
-`RelaySelection.ts` holds the relay-routing DSL. A *relay selection* names a source, such as
-"the author's outbox" or "the relays this event was seen on", rather than a list of urls. Turning
-one into urls needs relay lists, a tracker and a repository, so producing and resolving selections
-are separate steps: this package defines and scores them, and `@welshman/app`'s `Router` plugin
-supplies the one `ResolveRoute` implementation that dereferences them (see the `welshman-app`
-skill). `@welshman/domain` readers/writers/queries emit selections, and `@welshman/feeds` asks for
-the capability as its `FeedRouter` interface.
+A *relay selection* names a source of relays, such as "the author's outbox" or "the relays this
+event was seen on". Turning one into urls needs relay lists, a tracker and a repository, so this
+package only defines and scores selections. `@welshman/app`'s `Router` plugin supplies the
+`ResolveRoute` implementation that dereferences them (see the `welshman-app` skill).
+`@welshman/domain` readers, writers and queries emit selections, and `@welshman/feeds` consumes the
+resolver through its `FeedRouter` interface.
 
 **Route + selection types**
 
@@ -400,14 +396,14 @@ the capability as its `FeedRouter` interface.
 | `userInbox(weight?)` / `userOutbox(weight?)` / `userMessaging(weight?)` | `RelaySelection` | the current user's relays |
 | `eventInbox(ref, weight?)` / `eventOutbox(ref, weight?)` | `RelaySelection` | the referenced event's author's relays |
 | `seen(ref, weight?)` | `RelaySelection` | relays the event was found on (tracker + ref hints) |
-| `relay(url, weight?)` | `RelaySelection` | a literal relay url (formerly `relayHint`) |
-| `relays(urls, weight?)` | `RelaySelection[]` | one selection per url (formerly `relayHints`) |
+| `relay(url, weight?)` | `RelaySelection` | a literal relay url |
+| `relays(urls, weight?)` | `RelaySelection[]` | one selection per url |
 | `inboxes(pubkeys, weight?)` | `RelaySelection[]` | `uniq(pubkeys).map(inbox)` — inbox per referenced pubkey |
 | `indexers(weight?)` | `RelaySelection` | profile/relay-list index relays |
 | `searchRelays(weight?)` | `RelaySelection` | full-text search relays |
 
-Note `relays` and `inboxes` return **arrays** — spread them with `...` into a route list; every
-other constructor returns a single `RelaySelection`.
+`relays` and `inboxes` return **arrays**, so spread them with `...` into a route list. Every other
+constructor returns a single `RelaySelection`.
 
 **Resolved selections + fallback policies**
 
@@ -437,8 +433,7 @@ scenario.getUrl()          // first of getUrls()
 `getUrls()` drops onion, local and plain-`ws://` urls unless explicitly allowed, sums each url's
 weight across selections, scores as `quality * (1 + log(weight))` times a random factor, takes the
 best `limit` (default 3), then adds shuffled `getDefaultRelays()` urls per the fallback policy. The
-log keeps a relay that many selections name from dominating, and the random factor lets lower-ranked
-relays get picked occasionally.
+random factor means lower-ranked relays are occasionally picked.
 
 **`Resolver`** — bundles a single route-resolution function with the scenario options to apply to
 everything it produces:
@@ -500,7 +495,7 @@ the invocation grammar — `parseCommandInvocation`, `renderCommandInvocation`, 
 | `hrpToMillisat(hrpString)` | Convert a human-readable BTC amount to millisats (`bigint`) |
 | `toMsats(sats)` / `fromMsats(msats)` | Unit conversion |
 
-The `Zapper` and `Zap` types moved to `@welshman/domain` (`other/Zapper.ts`), alongside the `ZapRequest`/`ZapReceipt`/`ZapGoal` kinds. Receipt validation is `app.use(Zappers).validateZapReceipt(...)`.
+The `Zapper` and `Zap` types live in `@welshman/domain`, alongside the `ZapRequest`/`ZapReceipt`/`ZapGoal` kinds. Receipt validation is `app.use(Zappers).validateZapReceipt(...)`.
 
 ### NIP-05 handles
 
@@ -546,7 +541,7 @@ sendManagementRequest(url: string, request: ManagementRequest, authEvent: Signed
 
 Requests are built by `make*` factories rather than an enum: `makeBanPubkey`, `makeAllowPubkey`, `makeBanEvent`, `makeAllowEvent`, `makeCreateRole`/`makeEditRole`/`makeDeleteRole`, `makeAssignRole`/`makeUnassignRole`, `makeAssignMethod`/`makeUnassignMethod`/`makeListMethodAssignees`, `makeCreateClaim`/`makeDeleteClaim`/`makeListClaims`, `makeChangeRelayName`/`Description`/`Icon`, `makeAllowKind`/`makeDisallowKind`, `makeBlockIp`/`makeUnblockIp`, `makeSupportedMethods`, and the matching `makeList*` readers.
 
-`ManagementApi` is a client class that pairs a relay url with a `ManagementSign` function so you don't have to build the NIP-98 auth event per call. `app.use(RelayManagement).forUrl(url)` returns one bound to the app's user.
+`ManagementApi` pairs a relay url with a `ManagementSign` function and builds the NIP-98 auth event for each call. `app.use(RelayManagement).forUrl(url)` returns one bound to the app's user.
 
 ### Links
 
@@ -736,7 +731,7 @@ import { makeHttpAuth, makeHttpAuthHeader } from '@welshman/util'
 
 const body = JSON.stringify({ data: 'example' })
 const authEvent = await makeHttpAuth('https://api.example.com/upload', 'POST', body)
-const signed = await signer.signEvent(authEvent)
+const signed = await signer.sign(authEvent)
 
 await fetch('https://api.example.com/upload', {
   method: 'POST',
@@ -754,7 +749,7 @@ await fetch('https://api.example.com/upload', {
 
 - **`@welshman/net`** — uses `TrustedEvent`, `Filter`, `SignedEvent` from this package as the wire types for relay connections and subscriptions.
 - **`@welshman/store`** — provides Svelte stores over repositories built on `TrustedEvent`; relies on `isReplaceable`, `getAddress`, etc. for deduplication.
-- **`@welshman/app`** — high-level application layer; composes net/store/domain and uses the lightning helpers from this package (profile/list/handler/room helpers now live in `@welshman/domain`).
+- **`@welshman/app`** — high-level application layer; composes net/store/domain and uses the lightning helpers from this package.
 - **`@welshman/app`'s `Router` plugin** — dereferences the `RelaySelection` DSL defined here, and injects its `Resolver` into every `@welshman/domain` kind.
 - **`@welshman/signer`** — produces `SignedEvent` objects that satisfy types defined here; signers also provide the `nip44` encrypt/decrypt functions used by `@welshman/domain` list writers to encrypt private (NIP-44) tags.
 
@@ -766,7 +761,7 @@ await fetch('https://api.example.com/upload', {
 
 - **Replaceable event identity**: Use `getIdOrAddress` rather than `event.id` when referencing events that may be addressable — the address string is stable across updates, the id is not.
 
-- **`app.use(Zappers).validateZapReceipt` returns `undefined` on any validation failure** including amount mismatch, wrong zapper pubkey, malformed invoice, or self-zap. Always check the result. For a reactive list of a parent's valid zaps use `validZapReceipts(receipts, parent)`, which re-validates as each recipient's zapper loads.
+- **`app.use(Zappers).validateZapReceipt` returns `undefined` on any validation failure** including amount mismatch, wrong zapper pubkey, malformed invoice, or self-zap. Always check the result. For a reactive list of a parent's valid zaps use `app.use(Zappers).validZapReceipts(receipts, parent)`, which re-validates as each recipient's zapper loads.
 
 - **`getLnUrl` handles three input forms**: bare lightning address (`user@domain`), full HTTPS URL, or already-encoded `lnurl1...`. Returns `undefined` for anything else.
 
@@ -785,4 +780,4 @@ await fetch('https://api.example.com/upload', {
 ## Related skills
 
 - **`welshman-app`** (welshman-app skill) — the `Router` plugin that dereferences the routing DSL above, plus `RelayStats.getQuality` for the scoring input.
-- **`@welshman/domain`** (welshman-domain skill) — Profiles, lists, handlers, rooms, and event routing moved out of `@welshman/util` and now live here. The old free functions (`readProfile`/`makeProfile`, `readList`/`makeList`, `PublishedProfile`/`PublishedList`, `Encryptable`, the handler/room helpers, …) were replaced by configurable `KindFactory` bundles: `Kind.configure(context).reader(event)` returns an async Reader that decodes the event, and `.writer(reader?)` builds/edits one. Private (NIP-44) list tags are handled inside the list Reader/Writer, so `Encryptable`/`DecryptedEvent` no longer exist.
+- **`@welshman/domain`** (welshman-domain skill) — profiles, lists, handlers, rooms, and per-kind event routing, as `KindFactory` bundles: `Kind.configure(context).reader(event)` returns a Reader (`await reader.parse()` decodes it), and `.writer(reader?)` builds or edits an event. The list Reader/Writer handles private (NIP-44) list tags.

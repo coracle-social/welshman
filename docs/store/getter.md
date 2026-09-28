@@ -1,17 +1,16 @@
 # Getter
 
-Utility for creating optimized getter functions that adapt based on access patterns.
+Getter functions that read a store synchronously and adapt to how often they are called.
 
 ```typescript
-// Create optimized getter that switches to subscription when hot
 getter<T>(store: Readable<T>, options?: {
-  threshold?: number // Calls per second before switching to subscription (default: 10)
+  threshold?: number // Calls per second before switching to a subscription (default: 10)
+  read?: () => T // Reads the value without subscribing (default: get(store))
 }): () => T
 
-// Add .get() method to a store, keeping the store's own type
 withGetter<S extends Readable<any>>(store: S): S & {get: () => StoreValue<S>}
 ```
 
-Whatever else the store carries survives in the type, so `withGetter(synced(...)).ready` and `withGetter(writable(0)).set` both type-check.
+`getter` reads the store with `get()` while calls are infrequent. Once calls exceed `threshold` per second it holds a subscription and returns the cached value, and it unsubscribes again when the rate drops.
 
-The `getter` function automatically switches between `get()` and subscription based on call frequency, optimizing performance for hot code paths.
+`withGetter` adds a `get()` method built with `getter`. The rest of the store survives in the type, so `withGetter(synced(...)).ready` and `withGetter(writable(0)).set` both type-check.

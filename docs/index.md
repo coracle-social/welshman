@@ -25,7 +25,7 @@ features:
     details: Core Nostr utilities for events, filters, and data structures.
     link: "/util"
   - title: "@welshman/domain"
-    details: Nostr event kinds modeled as Reader/Builder classes for profiles, lists, rooms, handlers, and zaps.
+    details: A typed reader/writer pair per event kind, so you never hand-parse tags.
     link: "/domain"
   - title: "@welshman/net"
     details: Networking layer for Nostr with relay connection management and message status handling.
@@ -33,9 +33,6 @@ features:
   - title: "@welshman/signer"
     details: Implementations of various nostr signing methods (NIP-01, NIP-07, NIP-46, NIP-55).
     link: "/signer"
-  - title: "@welshman/domain"
-    details: A typed reader/writer pair per event kind, so you never hand-parse tags.
-    link: "/domain"
   - title: "@welshman/content"
     details: Parser and renderer for nostr notes with customizable formatting options.
     link: "/content"

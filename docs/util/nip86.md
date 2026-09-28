@@ -1,36 +1,13 @@
 # NIP-86 Relay Management
 
-Implementation of NIP-86 for managing Nostr relays through authenticated RPC requests.
+NIP-86 manages Nostr relays through RPC requests authenticated with NIP-98.
 
 ## Types
 
 ```typescript
-export enum ManagementMethod {
-  SupportedMethods = "supportedmethods",
-  BanPubkey = "banpubkey",
-  UnbanPubkey = "unbanpubkey",
-  AllowPubkey = "allowpubkey",
-  UnallowPubkey = "unallowpubkey",
-  ListBannedPubkeys = "listbannedpubkeys",
-  ListAllowedPubkeys = "listallowedpubkeys",
-  ListEventsNeedingModeration = "listeventsneedingmoderation",
-  AllowEvent = "allowevent",
-  BanEvent = "banevent",
-  ListBannedEvents = "listbannedevents",
-  ChangeRelayName = "changerelayname",
-  ChangeRelayDescription = "changerelaydescription",
-  ChangeRelayIcon = "changerelayicon",
-  AllowKind = "allowkind",
-  DisallowKind = "disallowkind",
-  ListAllowedKinds = "listallowedkinds",
-  BlockIp = "blockip",
-  UnblockIp = "unblockip",
-  ListBlockedIps = "listblockedips",
-}
-
 export type ManagementRequest = {
-  method: ManagementMethod
-  params: string[]
+  method: string
+  params: any[]
 }
 
 export type ManagementResponse = {
@@ -40,6 +17,8 @@ export type ManagementResponse = {
 ```
 
 ## Functions
+
+Each NIP-86 method has a request builder that returns a `ManagementRequest`, such as `makeSupportedMethods()`, `makeBanPubkey(pubkey, reason?)`, `makeAllowEvent(id, reason?)`, `makeChangeRelayName(name)`, and `makeBlockIp(ip, reason?)`. The `make*` builders also cover roles, method assignments, and claims.
 
 ```typescript
 // Sends a management request to a relay
@@ -57,7 +36,7 @@ const payload = makeSupportedMethods()
 
 // Create auth event for the management endpoint
 const authEvent = await makeHttpAuth(url, "POST", JSON.stringify(payload))
-const signedAuthEvent = await signer.signEvent(authEvent)
+const signedAuthEvent = await signer.sign(authEvent)
 
 // Get a list of supported methods
 const response = await sendManagementRequest(url, payload, signedAuthEvent)

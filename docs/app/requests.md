@@ -1,6 +1,6 @@
 # Making Requests
 
-The `Network` plugin (`app.use(Network)`) wraps the `@welshman/net` request/publish/negentropy functions, injecting the app's net context (its pool and repository) so you don't have to pass it every time. The `Sync` plugin (`app.use(Sync)`) builds on top for negentropy-aware reconciliation.
+The `Network` plugin (`app.use(Network)`) wraps the `@welshman/net` request, publish and loader functions and binds them to the app's net context (its pool and repository). Cleaning up the app aborts its in-flight requests. The `Sync` plugin (`app.use(Sync)`) adds negentropy-aware reconciliation.
 
 ## Loading and requesting
 
@@ -21,20 +21,15 @@ await net.request({
 })
 ```
 
-`net.loadComplete` is a shared, batched loader (created with a 50ms delay / 3s timeout). It resolves once every relay has closed or timed out, so an empty result means every relay answered nothing. The outbox model routes on that answer, and half the relays answering nothing is not one.
+`net.loadComplete` is a shared, batched loader with a 50ms delay and a 3s timeout. It resolves once every relay has closed or timed out, so an empty result means every relay answered nothing. The outbox model routes on that answer.
 
-`net.loadLenient` is the same loader with a 0.5 threshold, resolving as soon as half the relays have closed. The rest are left open and their events still reach the repository, so use it where nothing routes on the returned array: a search whose matches are read reactively, or a hint-driven fetch of an event already on screen.
+`net.loadLenient` is the same loader with a 0.5 threshold, resolving as soon as half the relays have closed. The rest stay open and their events still reach the repository. It suits calls where nothing routes on the returned array, such as a search whose matches are read reactively.
 
-Use `net.makeLoader(options)` if you need a loader with different batching characteristics.
-
-```typescript
-publish(options)        // publish an event (prefer the Publisher plugin for app publishing)
-makeLoader(options)     // build a custom batched Loader
-```
+`net.makeLoader(options)` builds a loader with different batching, bound to the same context. `net.publish(options)` sends a signed event directly. App publishing goes through the [`Publisher`](./publishing), which adds the optimistic write and status tracking.
 
 ## The outbox model: `loadUsingOutbox`
 
-`loadUsingOutbox` is the workhorse most data plugins use. Given an author's pubkey, it builds a route list (`[...relays(hints), outbox(pubkey)]` — any passed relay hints plus the author's NIP-65 **write** relays), resolves it through `app.use(Router).resolve(...)` into a `RelayScenario`, takes that scenario's `getUrls()`, loads from them, and resolves with the most recent matching event.
+Most data plugins load through `loadUsingOutbox`. Given an author's pubkey, it resolves `[...relays(hints), outbox(pubkey)]` (the relay hints plus the author's NIP-65 **write** relays) through the [Router](./routing), loads from the resulting urls with `loadComplete`, and returns the most recent matching event.
 
 ```typescript
 const latestProfile = await net.loadUsingOutbox(pubkey, {kinds: [0]})
@@ -43,13 +38,13 @@ const latestProfile = await net.loadUsingOutbox(pubkey, {kinds: [0]})
 const note = await net.loadUsingOutbox(pubkey, {kinds: [1], limit: 1}, ["wss://hint.example"])
 ```
 
-The filter is always constrained to `authors: [pubkey]`. This is the mechanism behind the lazy loading you get from `app.use(Profiles).one(pubkey)`, `FollowLists`, `MuteLists`, and friends.
+The filter is always constrained to `authors: [pubkey]`. Lazy loading in `Profiles`, `FollowLists`, `MuteLists` and the other outbox-backed plugins goes through it.
 
-`loadAllUsingOutbox(pubkey, filter?, hints?)` is the collection variant: same routing, but it returns every matching event instead of just the newest one.
+`loadAllUsingOutbox(pubkey, filter?, hints?)` routes the same way and returns every matching event instead of the newest one.
 
 ## Negentropy sync
 
-`Sync` reconciles the local repository with relays using NIP-77 (negentropy) where available, and falls back to plain request/publish where it isn't (detected via `app.use(Relays).hasNegentropy(url)`).
+`Sync` reconciles the local repository with relays one relay at a time. A relay whose NIP-11 document advertises negentropy (`app.use(Relays).hasNegentropy(url)`) gets NIP-77 set reconciliation through `@welshman/net`'s `pull` and `push`. Any other relay gets a plain request (pull) or one publish per event (push).
 
 ```typescript
 type AppSyncOpts = {relays: string[]; filters: Filter[]}
@@ -66,19 +61,10 @@ await sync.push({relays, filters: [{authors: [pubkey]}]})
 const local = sync.query([{kinds: [1]}])
 ```
 
-`pull` and `push` operate per relay: if the relay supports negentropy they use efficient set-reconciliation (`net.pull`/`net.push`); otherwise they fall back to a normal request (pull) or publishing each event individually (push). Low-level negentropy primitives are also exposed directly on `Network`:
-
-```typescript
-net.diff(options)       // compute a NIP-77 set difference
-net.pull(options)       // negentropy pull
-net.push(options)       // negentropy push
-```
-
 ## Querying the repository: `Events`
 
-`app.use(Network)` fetches events; `app.use(Events)` reads the ones you already have. Every method
-binds this app's repository and tracker and returns a `Projection` — snapshot with `.get()`,
-subscribe with `.$` — so there's no separate get/derive pair to keep in sync.
+`app.use(Network)` fetches events, and `app.use(Events)` reads the ones already in the repository. Every
+method binds this app's repository and tracker and returns a [`Projection`](./plugins#projection-t).
 
 ```typescript
 import {Events} from "@welshman/app"
@@ -102,6 +88,6 @@ events.byIdByUrl(filters).$             // Map<url, Map<id, TrustedEvent>>
 events.relaySignedForUrl(url, filters).$ // only events the relay itself signed
 ```
 
-`relaySignedForUrl` is the loose counterpart to `RelaySignedDerivedPlugin`: relay-generated kinds
-(NIP-29 room state, relay membership) mean nothing from another author, so anything whose pubkey
-isn't the relay's NIP-11 `self` is dropped.
+`relaySignedForUrl` drops any event whose pubkey isn't the relay's NIP-11 `self`, as
+[`RelaySignedDerivedPlugin`](./plugins#relayscopedderivedplugin-t) does. Relay-generated kinds (NIP-29 room state, relay
+membership) mean nothing from another author.

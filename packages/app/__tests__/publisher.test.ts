@@ -9,6 +9,7 @@ import type {ISigner} from "@welshman/signer"
 import {App} from "../src/app.js"
 import {User} from "../src/user.js"
 import {Publication, PublicationGroup, Publisher} from "../src/plugins/publisher.js"
+import type {Publishable} from "../src/plugins/publisher.js"
 
 const url = "wss://localhost:1/"
 
@@ -93,6 +94,20 @@ describe("publisher retries", () => {
     const retried = publisher.retry(merged).publications
 
     expect(retried.map(publication => publication.event.id)).toEqual(ids)
+
+    app.cleanup()
+  })
+
+  it("retries whichever it is given when the caller only knows it is publishable", async () => {
+    const app = await makeApp()
+    const publisher = app.use(Publisher)
+    const target: Publishable = publisher.publish({event: note("hi"), relays: [url]})
+
+    await tick()
+
+    const retried = publisher.retry(target)
+
+    expect(retried).toBeInstanceOf(Publication)
 
     app.cleanup()
   })

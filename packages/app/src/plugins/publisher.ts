@@ -438,6 +438,8 @@ export class Publisher {
   // attempts it replaces leave `history`, so a view of the event only sees the current ones.
   retry(target: Publication, relays?: string[]): Publication
   retry(target: PublicationGroup, relays?: string[]): PublicationGroup
+  // Callers can't see the implementation signature below, so the union needs its own overload.
+  retry(target: Publishable, relays?: string[]): Publishable
   retry(target: Publishable, relays?: string[]): Publishable {
     const targets = (p: Publication) =>
       relays ? p.relays.filter(r => relays.includes(r)) : p.relays

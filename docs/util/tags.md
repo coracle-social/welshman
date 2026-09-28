@@ -1,6 +1,6 @@
 # Tags
 
-The Tags module provides utilities for selecting and reading values out of a Nostr event's `tags` array. It is built around a small `TagSpec` descriptor: you build a spec (optionally typed), then pass it together with a `tags` array to a selector.
+The Tags module selects tags and reads their values out of a Nostr event's `tags` array. A selector takes a `TagSpec`, which names the tags to match, followed by the `tags` array.
 
 ## TagSpec
 
@@ -45,14 +45,14 @@ tagValues(spec, tags): T[]
 tagValue(spec, tags): T | undefined
 ```
 
-`tagMatcher(spec)` and `tagValueExtractor(spec)` return the underlying `(tag) => boolean` predicate and `(tag) => T` reader if you need them directly.
+`tagMatcher(spec)` and `tagValueExtractor(spec)` return the underlying `(tag) => boolean` predicate and `(tag) => T` reader.
 
-`tagValueMatcher(spec, value)` narrows that predicate to one value, compared after normalization. Use it to find or drop a tag by value — a relay tagged `wss://nos.lol` matches `wss://nos.lol/`, where a raw comparison would not.
+`tagValueMatcher(spec, value)` narrows that predicate to one value, compared after normalization, so a relay tagged `wss://nos.lol` matches `wss://nos.lol/`.
 
 ## Example
 
 ```typescript
-import {tagSpec, hexTags, topicTags, relayTags, tagValue, tagValues} from "@welshman/util"
+import {tagSpec, hexTags, topicTags, relayTags, matchTags, tagValue, tagValues} from "@welshman/util"
 
 // Values of specific tag types
 const pubkeys = tagValues(hexTags("p"), event.tags)     // string[]
@@ -68,4 +68,4 @@ const title = tagValue(tagSpec("title"), event.tags)    // string | undefined
 
 ## See also
 
-Thread-reference helpers are kind-specific and live in [`@welshman/domain`](../domain/content), not here: `getReplyTags`/`getReplyTagValues` (NIP-10, on kind 1) and `getCommentTags`/`getCommentTagValues` (NIP-22, on kind 1111).
+Thread-reference helpers are kind-specific and live in [`@welshman/domain`](../domain/content): `getReplyTags`/`getReplyTagValues` (NIP-10, on kind 1) and `getCommentTags`/`getCommentTagValues` (NIP-22, on kind 1111).

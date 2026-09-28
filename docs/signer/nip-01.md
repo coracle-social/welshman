@@ -1,40 +1,30 @@
 # NIP-01 Signer
 
-The `Nip01Signer` class implements the `ISigner` interface and extends it with additional static utility methods:
+`Nip01Signer` implements `ISigner` with a private key held in memory.
 
 ```typescript
 class Nip01Signer implements ISigner {
-  // Constructor
   constructor(private secret: string)
 
-  // ISigner implementation
   sign: SignWithOptions
   getPubkey: () => Promise<string>
   nip04: { encrypt, decrypt }
   nip44: { encrypt, decrypt }
 
-  // Additional static utility methods
   static fromSecret(secret: string): Nip01Signer
   static ephemeral(): Nip01Signer
 }
 ```
 
-### Additional Methods
-
-The NIP-01 implementation extends the base interface with two static utility methods:
-
-- `static fromSecret(secret: string)`: Alternative constructor for creating a signer from an existing private key
-- `static ephemeral()`: Creates a new signer with a randomly generated private key
+`fromSecret` is an alias for the constructor, and `ephemeral` creates a signer with a random private key.
 
 ### Usage Example
 
 ```typescript
 import { ISigner, Nip01Signer } from '@welshman/signer'
 
-// Using the standard interface
 const signer: ISigner = new Nip01Signer(mySecret)
 
-// Using NIP-01 specific utilities
 const ephemeralSigner = Nip01Signer.ephemeral()
 const fromExistingKey = Nip01Signer.fromSecret(mySecret)
 ```

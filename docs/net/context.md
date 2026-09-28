@@ -1,10 +1,6 @@
 # Context
 
-Provides the configuration and dependencies each net call operates against.
-
-## NetContext
-
-Configuration object that defines how the net package operates:
+A `NetContext` holds the instances a net call operates against:
 
 - `pool?: Pool` - Socket connection pool
 - `repository?: Repository` - Event storage and retrieval
@@ -12,11 +8,9 @@ Configuration object that defines how the net package operates:
 
 ## Supplying a context
 
-Pass `context` to each `request`, `publish`, or `load` call. An `App` from `@welshman/app` owns one
-per instance as `app.netContext`, and `app.use(Network)` supplies it automatically — so each
-identity gets its own pool and repository, and data never bleeds between sessions.
-- Checks deletions via repository
-- No custom adapter factory
+Pass `context` to each `request`, `publish`, or `load` call. There is no default: a relay url throws without `context.pool`, and `LOCAL_RELAY_URL` throws without `context.repository`.
+
+An `App` from `@welshman/app` owns one context per instance as `app.netContext`, so each identity gets its own pool and repository. `app.use(Network)` passes it for you.
 
 ## Example
 
@@ -30,7 +24,7 @@ await request({relays, filters, context})
 await publish({event, relays, context})
 ```
 
-With `@welshman/app`, `app.use(Network)` passes `app.netContext` for you:
+With `@welshman/app`:
 
 ```typescript
 await app.use(Network).request({relays, filters})

@@ -1,11 +1,13 @@
 # Getting Started
 
-Welshman is modular - install only what you need:
-
+Welshman is modular, so you install only the packages you need:
 
 ```bash
 # Core nostr utilities (events, filters, tags)
 npm i @welshman/util
+
+# General-purpose utilities
+npm i @welshman/lib
 
 # Networking and relay management
 npm i @welshman/net
@@ -13,13 +15,16 @@ npm i @welshman/net
 # Event signing and encryption
 npm i @welshman/signer
 
+# Typed readers and writers per event kind
+npm i @welshman/domain
+
 # Dynamic feed compilation
 npm i @welshman/feeds
 
 # Content parsing and rendering
 npm i @welshman/content
 
-# Rich text editor component
+# Rich text editor
 npm i @welshman/editor
 
 # Svelte stores and state management
@@ -29,21 +34,18 @@ npm i @welshman/store
 npm i @welshman/app
 ```
 
-Choose packages based on your needs:
+A conventional client starts from the framework:
 
-- Building a conventional client? Use the framework:
-  ```bash
-  npm i @welshman/app
-  ```
+```bash
+npm i @welshman/app
+```
 
-- Prefer to put things together yourself? Start with:
-  ```bash
-  npm i @welshman/util @welshman/net @welshman/signer
-  ```
+A client assembled by hand starts from the lower-level packages:
 
-- Just parsing and rendering content? Include:
-  ```bash
-  npm i @welshman/content
-  ```
+```bash
+npm i @welshman/util @welshman/net @welshman/signer
+```
 
-Each package is independent but integrates seamlessly. All packages are framework-agnostic, but work best with Svelte due to svelte stores being a common pattern for state management.
+Parsing and rendering note content needs only `@welshman/content`.
+
+The packages are framework-agnostic, but they expose state as Svelte stores, so they fit Svelte applications best.

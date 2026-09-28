@@ -1,12 +1,10 @@
 # Handlers
 
-NIP-89 lets clients advertise which event kinds they can handle, and lets users recommend handlers to each other. `@welshman/domain` models both sides: `Handler` (the handler's own information) and `HandlerRecommendation` (a user pointing at a handler). Both are parameterized-replaceable, so their writers need a `d` tag (`setIdentifier()`). See [Readers & Writers](./readers-and-writers) for the base pattern.
-
-Both kinds are `KindFactory` instances — you `configure(context)` a factory once to get a `ConfiguredKind`, then call `.reader(event).parse()` (synchronous for both of these kinds) or `.writer(reader?)` on it. In `@welshman/app`, the `Domain` plugin owns the context for you.
+NIP-89 lets clients advertise which event kinds they can handle, and lets users recommend handlers to each other. `@welshman/domain` models both: `Handler` (the handler's own information) and `HandlerRecommendation` (a user pointing at a handler). Both are parameterized-replaceable, so their writers need a `d` tag (`setIdentifier()`), and both parse synchronously. See [Readers & Writers](./readers-and-writers) for the base pattern.
 
 ## Handler information (kind 31990)
 
-`Handler` carries a JSON metadata blob (name, about, picture, …) in its content plus the list of kinds it handles as `k` tags. The metadata shape is exported as `HandlerMeta`.
+`Handler` carries a JSON metadata object (name, about, picture, …) in its content, plus the kinds it handles as `k` tags. The metadata shape is exported as `HandlerMeta`.
 
 ```typescript
 import {Handler} from "@welshman/domain"
@@ -23,23 +21,23 @@ handler.kinds()      // number[] — the k tags, as numbers
 handler.values       // the raw decoded HandlerMeta object
 ```
 
-The writer seeds metadata from the reader and lifts the `k` tags into its own field. Setters mirror the getters; `setKinds` takes an array of kind numbers.
+The writer seeds `values` from the reader and lifts the `k` tags into its own field. Its setters mirror the getters, and `setKinds` takes an array of kind numbers.
 
 ```typescript
-const template = await Handler.configure(context)
+const {event, relays} = await Handler.configure(context)
   .writer()
   .setIdentifier()                     // required d tag for kind 31990
   .setName("My Client")
   .setAbout("a great nostr app")
   .setKinds([1, 30023])                // writes ["k", "1"], ["k", "30023"]
-  .render()                            // -> EventTemplate; sign it yourself
+  .render()                            // sign `event` yourself
 ```
 
-Available setters: `setName`, `setAbout`, `setPicture`, `setWebsite`, `setLud16`, `setNip05`, `setKinds(kinds)`. `buildContent` re-serializes `values` to JSON; `buildTags` emits the kind tags.
+The setters are `setName`, `setAbout`, `setPicture`, `setWebsite`, `setLud16`, `setNip05`, and `setKinds(kinds)`. `renderContent` re-serializes `values` to JSON, and `renderDomainTags` emits the `k` tags.
 
 ## Handler recommendation (kind 31989)
 
-`HandlerRecommendation` is a list of `a` tags pointing at handler events, optionally annotated with a relay hint and a platform marker (e.g. `"web"`).
+`HandlerRecommendation` is a list of `a` tags pointing at handler events, optionally annotated with a relay hint and a platform marker such as `"web"`.
 
 ```typescript
 import {HandlerRecommendation} from "@welshman/domain"
@@ -49,18 +47,18 @@ rec.addressTags()     // raw a-tags, e.g. [["a", "31990:pk:d", "wss://…", "web
 rec.addresses()       // just the address values
 rec.handlerAddress()  // prefers the a-tag whose last element is "web", else the first → tag[1]
 
-const template = await HandlerRecommendation.configure(context)
+const {event} = await HandlerRecommendation.configure(context)
   .writer()
   .setIdentifier()                                  // required d tag for kind 31989
   .addRecommendation("31990:pubkey:d", "wss://relay.example", "web")
   .render()
 ```
 
-`addRecommendation(address, relay?, platform?)` writes `["a", address, relay || "", platform || ""]` and is deduped by address. `removeRecommendation(address)` drops the matching address tags.
+`addRecommendation(address, relay?, platform?)` writes `["a", address, relay || "", platform || ""]`, replacing any tag for the same address. `removeRecommendation(address)` drops the matching address tags.
 
 ## Client attribution (the `client` tag)
 
-NIP-89's `client` tag names the app that published an event, optionally pointing at that app's kind-31990 handler event so a reader can look up its name, icon, and website. The tag is kind-agnostic, so every reader exposes it and every writer can set it.
+NIP-89's `client` tag names the app that published an event, optionally pointing at that app's kind-31990 handler event so a reader can look up its name, icon, and website. Any kind can carry it, so every reader exposes it and every writer can set it.
 
 ```typescript
 import {getClient} from "@welshman/domain"
@@ -82,13 +80,13 @@ const {event} = await Note.configure(context)
 event.tags   // [["client", "Coracle", "31990:pubkey:coracle", "wss://…"]]
 ```
 
-The address is optional: `setClient("Coracle")` writes a bare `["client", "Coracle"]`. When you pass one, the handler author's outbox fills the relay hint slot. `clearClient()` drops the tag, and leaving it alone preserves whatever the event being edited already had.
+The address is optional, so `setClient("Coracle")` writes a bare `["client", "Coracle"]`. When an address is given, the handler author's outbox fills the relay hint slot. `clearClient()` drops the tag, and a writer seeded from a reader keeps whatever `client` tag the event already had.
 
 The tag tells relays and readers which app a pubkey uses, so let users turn it off, and leave it off direct messages.
 
 ## With `@welshman/app`
 
-In app code you don't call `configure` yourself — the `Domain` plugin bundles the context and memoizes the configured kind:
+The `Domain` plugin configures the kind for you:
 
 ```typescript
 const domain = app.use(Domain)

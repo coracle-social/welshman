@@ -1,6 +1,6 @@
 # Socket
 
-WebSocket wrapper for Nostr relay connections with status tracking, queuing, and authentication support. Not intended to be used directly, instead access sockets through the `Pool` interface.
+`Socket` wraps a websocket connection to a relay with status tracking, send and receive queues, and NIP-42 auth state. Sockets are obtained from a `Pool` rather than constructed directly.
 
 ## Enums
 
@@ -27,8 +27,6 @@ Event types emitted by the socket:
 
 ### Socket
 
-WebSocket connection to a Nostr relay with queuing and authentication.
-
 **Properties:**
 - `url` - Relay URL
 - `status` - Current socket status
@@ -45,9 +43,9 @@ WebSocket connection to a Nostr relay with queuing and authentication.
 ## Example
 
 ```typescript
-import {Socket, SocketEvent, SocketStatus} from "@welshman/net"
+import {Pool, SocketEvent} from "@welshman/net"
 
-const socket = new Socket("wss://relay.example.com")
+const socket = new Pool().get("wss://relay.example.com")
 
 socket.on(SocketEvent.Status, (status, url) => {
   console.log(`Socket ${url} status: ${status}`)

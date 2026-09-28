@@ -1,8 +1,8 @@
 # Diff
 
-Efficient event synchronization using NIP-77 Negentropy protocol.
+Event synchronization using the NIP-77 negentropy protocol.
 
-## Core Classes
+## Classes
 
 ### `Difference`
 
@@ -26,7 +26,7 @@ Check what events each relay has or needs compared to local events.
 
 ### `pull(options)`
 
-Fetch missing events after comparing with relays. Ids are requested in batches, newest first and a couple of batches at a time, so a caller watching events arrive sees recent ones before older ones.
+Fetch the events relays have that you don't. Ids are requested in batches of 100, two batches at a time per relay, newest batch first.
 
 **Returns:** Array of retrieved events.
 
@@ -34,20 +34,24 @@ Fetch missing events after comparing with relays. Ids are requested in batches, 
 
 Publish local events that relays are missing.
 
+All three take `{relays, filters, events, signal?, context?}`.
+
 ## Example
 
 ```typescript
-// Check what events each relay has/needs
+import {diff, pull} from '@welshman/net'
+
 const results = await diff({
   relays: ['wss://relay1.com', 'wss://relay2.com'],
   filters: [{kinds: [1], authors: ['pubkey...']}],
-  events: localEvents
+  events: localEvents,
+  context,
 })
 
-// Pull events that relays have but we don't
 const newEvents = await pull({
   relays: ['wss://relay1.com'],
   filters: [{kinds: [1]}],
-  events: localEvents
+  events: localEvents,
+  context,
 })
 ```

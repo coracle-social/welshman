@@ -10,11 +10,7 @@ import {
 } from "@welshman/util"
 import type {Filter, RelaySelection, RelayScenario} from "@welshman/util"
 
-// The routing capability the feeds engine needs. The app's Router plugin
-// implements this — feeds expresses what it wants as the declarative
-// RelaySelections from @welshman/util and lets the router resolve them into a
-// scored scenario (loading relay lists etc. on demand). This replaces the old
-// dependency on @welshman/router's synchronous Router.
+// Resolves RelaySelections into a scored scenario; the app's Router plugin implements it.
 export interface FeedRouter {
   resolve(selections: RelaySelection[]): Promise<RelayScenario>
 }
@@ -23,9 +19,7 @@ export type RelaysAndFilters = {relays: string[]; filters: Filter[]}
 
 type FilterSelections = {filter: Filter; selections: RelaySelection[]}
 
-// One rule per outbox-model source. Each maps a filter to a (possibly narrowed)
-// filter plus the selections that should serve it. Ported from @welshman/router's
-// getFilterSelectionsFor* — but producing declarative selections, not scenarios.
+// One rule per outbox-model source, mapping a filter to a narrowed filter and the selections that serve it.
 const rules: ((filter: Filter) => FilterSelections[])[] = [
   // Full-text search goes to the configured search relays.
   filter => (filter.search ? [{filter, selections: [searchRelays(10)]}] : []),

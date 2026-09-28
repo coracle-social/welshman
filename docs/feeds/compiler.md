@@ -1,11 +1,12 @@
 # Feed Compiler
 
-The `FeedCompiler` class transforms feed definitions into optimized `RequestItem[]` arrays containing filters and relay selections for efficient event fetching.
+`FeedCompiler` turns a feed into `RequestItem[]`, each holding filters, relays, or both.
 
 ## Types
 
 ```typescript
 export type FeedCompilerOptions = {
+  router: FeedRouter
   signer?: ISigner
   signal?: AbortSignal
   context?: AdapterContext
@@ -14,16 +15,17 @@ export type FeedCompilerOptions = {
 }
 ```
 
+`router` resolves relay selections for list, label and DVM requests; `app.use(Router)` implements it. `signer` signs DVM requests and defaults to an ephemeral key.
+
 ## FeedCompiler Class
 
 ```typescript
 export class FeedCompiler {
   constructor(readonly options: FeedCompilerOptions)
 
-  // Check if a feed can be compiled
+  // False for difference feeds, and for unions and intersections that contain one
   canCompile(feed: Feed): boolean
 
-  // Compile a feed into request items
   async compile(feed: Feed): Promise<RequestItem[]>
 }
 ```
@@ -39,24 +41,29 @@ export class FeedCompiler {
 - **Address feeds** → Converts to ID filters using `getIdFilters()`
 - **Relay feeds** → `{relays: [...urls]}`
 - **Global feeds** → `{filters: [{}]}`
+- **Search feeds** → `{filters: [{search: "term"}]}`
 
 ### Time-based Feeds
 
-- **CreatedAt feeds** → Processes `since`/`until` with optional relative timestamps
-- **Scope feeds** → Resolves to author filters using `getPubkeysForScope()`
-- **WOT feeds** → Resolves to author filters using `getPubkeysForWOTRange()`
-- **Search feeds** → `{filters: [{search: "term"}]}`
+- **CreatedAt feeds** → `{filters: [{since, until}]}`. A value listed in `relative` is an offset in seconds before now.
+
+### Pubkey Feeds
+
+- **Scope feeds** → Author filters from `getPubkeysForScope()`
+- **WOT feeds** → Author filters from `getPubkeysForWOTRange(min, max)`, with `min` defaulting to 0 and `max` to 1
 
 ### Complex Feed Types
 
-- **DVM feeds** → Requests DVM responses and converts result tags to feeds
+- **DVM feeds** → Publishes a DVM request and converts the tags in each result's content to feeds
 - **List feeds** → Fetches list events and converts their tags to feeds
-- **Label feeds** → Fetches label events (kind 1985) and converts tags to feeds
+- **Label feeds** → Fetches label events (kind 1985) and converts their tags to feeds
+
+Each converts tags with the item's `mappings`, or `defaultTagFeedMappings`, and compiles the resulting feeds as a union.
 
 ### Set Operations
 
-- **Union feeds** → Merges all sub-feed results, optimizing by relay
-- **Intersection feeds** → Finds overlapping filters and relays across sub-feeds
+- **Union feeds** → Groups sub-feed filters by relay and merges them
+- **Intersection feeds** → Intersects the filters and relays of the sub-feeds
 
 ## Usage
 
@@ -64,19 +71,17 @@ export class FeedCompiler {
 import { FeedCompiler, makeAuthorFeed, makeKindFeed } from '@welshman/feeds'
 
 const compiler = new FeedCompiler({
-  getPubkeysForScope: (scope) => [...], // Your scope resolution logic
-  getPubkeysForWOTRange: (min, max) => [...], // Your WOT logic
+  router,
+  getPubkeysForScope: (scope) => [...],
+  getPubkeysForWOTRange: (min, max) => [...],
   context: adapterContext,
   signal: abortSignal
 })
 
-// Compile a simple feed
 const feed = makeAuthorFeed("pubkey1", "pubkey2")
-const requests = await compiler.compile(feed)
-// => [{filters: [{authors: ["pubkey1", "pubkey2"]}]}]
 
-// Check if feed can be compiled
 if (compiler.canCompile(feed)) {
   const requests = await compiler.compile(feed)
+  // => [{filters: [{authors: ["pubkey1", "pubkey2"]}]}]
 }
 ```

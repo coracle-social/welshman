@@ -30,7 +30,7 @@ describe("Nip59 unwrap cache", () => {
 describe("mining a wrap", () => {
   // A relay holding gift wraps may want work on one. The wrap is signed by a
   // one-time key, so the caller who owns that key mines what comes back and
-  // signs it again, which is what `Thunk` does with `options.pow`.
+  // signs it again, which is what the `Publisher`'s pow stage does with a request's `pow`.
   it("keeps the wrap attributed to the wrapper and readable by its recipient", async () => {
     const bob = Nip01Signer.ephemeral()
     const wrapper = Nip01Signer.ephemeral()

@@ -93,7 +93,6 @@ export default defineConfig({
             {text: "Making Requests", link: "/net/request"},
             {text: "Publishing Events", link: "/net/publish"},
             {text: "Negentropy", link: "/net/diff"},
-            {text: "Tracker", link: "/net/tracker"},
           ],
         },
         {
@@ -113,7 +112,7 @@ export default defineConfig({
           link: "/content/",
           items: [
             {text: "Parser", link: "/content/parser"},
-            {text: "Renderer", link: "/content/renderer"},
+            {text: "Renderer", link: "/content/render"},
           ],
         },
         {
@@ -138,9 +137,7 @@ export default defineConfig({
             {text: "Throttled", link: "/store/throttle"},
             {text: "Synced", link: "/store/synced"},
             {text: "Getter", link: "/store/getter"},
-            {text: "Custom", link: "/store/custom"},
             {text: "Repository", link: "/store/repository"},
-            {text: "Collections", link: "/store/collection"},
           ],
         },
         {

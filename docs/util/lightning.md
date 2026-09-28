@@ -1,12 +1,12 @@
 # Lightning
 
-`@welshman/util` keeps the low-level Lightning Network primitives used by the zap flow ([NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md)): LNURL encoding and BOLT11 amount parsing.
+`@welshman/util` holds the low-level Lightning primitives used by the [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) zap flow: LNURL encoding and BOLT11 amount parsing.
 
-The higher-level modeling — the `Zapper` service class (LNURL info, receipt validation, response filters), the `Zap` result type, the `ZapRequest` / `ZapReceipt` / `ZapGoal` event kinds, and zap-split resolution — lives in `@welshman/domain`. See [domain/Zaps](../domain/zaps).
+The `Zapper` class, the `Zap` result type, the `ZapRequest` / `ZapReceipt` / `ZapGoal` event kinds, and zap-split resolution live in `@welshman/domain`. See [domain/Zaps](../domain/zaps).
 
 ## Protocol Overview
 
-Zaps associate Lightning Network payments with Nostr events through a standardized flow:
+A zap ties a Lightning payment to a Nostr event:
 
 1. **Zap Request** (kind 9734): Client creates a request specifying the amount and target
 2. **Lightning Invoice**: LNURL service generates an invoice with the request embedded
@@ -61,22 +61,23 @@ getLnUrl('not-a-valid-address');            // undefined
 import {getInvoiceAmount, hrpToMillisat} from '@welshman/util';
 
 // Extract amount from a BOLT11 invoice
-getInvoiceAmount('lnbc1500n1...');          // 1500 (millisatoshis)
+getInvoiceAmount('lnbc1500n1...');          // 150000 (1500 nBTC = 150 sats)
 
-// Convert human-readable amounts
-hrpToMillisat('1000');                      // 100000000000n (1000 BTC in millisats)
-hrpToMillisat('1000m');                     // 100000000n   (1000 mBTC = 1 BTC)
-hrpToMillisat('1000u');                     // 100000n      (1000 µBTC = 1 mBTC)
-hrpToMillisat('1000n');                     // 100n         (1000 nBTC = 1000 sats)
-hrpToMillisat('1000p');                     // 0.1n         (1000 pBTC = 1 msat)
+// Convert human-readable amounts to millisats
+hrpToMillisat('1000');                      // 100000000000000n (1000 BTC)
+hrpToMillisat('1000m');                     // 100000000000n    (1000 mBTC = 1 BTC)
+hrpToMillisat('1000u');                     // 100000000n       (1000 µBTC = 1 mBTC)
+hrpToMillisat('1000n');                     // 100000n          (1000 nBTC = 100 sats)
+hrpToMillisat('1000p');                     // 100n             (1000 pBTC = 100 msats)
 ```
 
 ### Validating and requesting zaps
 
-Zap-receipt validation, invoice requests, and zap-split resolution moved to `@welshman/domain`:
+Zap-receipt validation, invoice requests, and zap-split resolution live in `@welshman/domain`:
 
 ```typescript
-import {Zapper, ZapRequest} from '@welshman/domain';
+import {Domain} from '@welshman/app';
+import {Zapper, ZapReceipt, ZapRequest} from '@welshman/domain';
 
 const zapper = new Zapper({lnurl, pubkey, nostrPubkey, callback, allowsNostr: true});
 

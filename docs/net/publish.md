@@ -1,6 +1,6 @@
 # Publish
 
-Utilities for publishing events to Nostr relays with status tracking and callback handling.
+Functions for publishing events to relays, with per-relay status and callbacks.
 
 ## Enums
 
@@ -25,7 +25,7 @@ Result object for publish operations:
 
 ### PublishResultsByRelay
 
-Type alias for `Record<string, PublishResult>` - maps relay URLs to their publish results.
+`Record<string, PublishResult>`, mapping relay URLs to their publish results.
 
 ## Functions
 
@@ -38,26 +38,24 @@ Publishes an event to a single relay and returns a promise that resolves with a 
 - `relay` - Relay URL
 - `signal?` - AbortSignal for cancellation
 - `timeout?` - Timeout in milliseconds (default: 10000)
+- `priority?` - Send priority on the socket's queue
 - `context?` - Adapter context
 - Callback functions (all receive `PublishResult`): `onSuccess`, `onFailure`, `onPending`, `onTimeout`, `onAborted`, `onComplete`
 
 ### publish(options)
 
-Publishes an event to multiple relays in parallel and returns a `PublishResultsByRelay` object mapping relay URLs to their publish results.
+Publishes an event to multiple relays in parallel and resolves to a `PublishResultsByRelay`. It takes `relays` in place of `relay`, and calls `onComplete` once, after every relay has finished.
 
 ## Example
 
 ```typescript
 import {publish, PublishStatus} from "@welshman/net"
 
-const event = {
-  // ... signed event
-}
-
 const resultsByRelay = await publish({
-  event,
+  event: signedEvent,
   relays: ["wss://relay1.com", "wss://relay2.com"],
   timeout: 5000,
+  context,
   onSuccess: (result) => console.log(`Published to ${result.relay}: ${result.detail}`),
   onFailure: (result) => console.log(`Failed on ${result.relay}: ${result.detail}`)
 })

@@ -1,8 +1,8 @@
 # Relay membership
 
-These kinds model **relay-level** membership — Flotilla's notion of joining a relay/space, distinct from NIP-29 room membership (which is scoped to a room by an `h` tag). Where [Rooms](./rooms) deal with rooms hosted *on* a relay, these events deal with belonging to the relay itself. They are all plain `EventReader` / `EventWriter` subclasses; see [Readers & Writers](./readers-and-writers) for the base pattern.
+These kinds model **relay-level** membership, Flotilla's notion of joining a relay or space. [Rooms](./rooms) are hosted on a relay and scoped by an `h` tag, while these events deal with belonging to the relay itself. They are all plain `EventReader` / `EventWriter` subclasses; see [Readers & Writers](./readers-and-writers) for the base pattern.
 
-Every one of them sets `requiresRelays = true`, so it **must publish to explicit relays** — you set them with `forceRoutes(...routes)` (or `setRoom(url, room)` for the room-scoped kinds) before rendering, and `render()` throws otherwise. See [Forced routes and required relays](./readers-and-writers#forced-routes-and-required-relays).
+Every one of them sets `requiresRelays = true`, so `render()` throws unless the writer's relays were set with `forceRoutes(...routes)` (or `setRoom(url, room)`). See [Forced routes and required relays](./readers-and-writers#forced-routes-and-required-relays).
 
 ## Ops and snapshots
 
@@ -15,14 +15,15 @@ Every one of them sets `requiresRelays = true`, so it **must publish to explicit
 | `RelayRemoveMember` | 8001 | remove a member | `pubkeys()` | `addPubkey(pk)` |
 | `RelayMembers` | 13534 | member-list snapshot | `pubkeys()`, `isMember(pk)`, `rolesFor(pk)`, `rolesByPubkey()` | `addPubkey(pk, roles?)`, `removePubkey(pk)`, `setPubkeys(pks)` |
 
-Each exported constant is a `KindFactory` pairing a reader class with a writer class (`RelayJoinReader`/`RelayJoinWriter`, `RelayMembersReader`/`RelayMembersWriter`, …). You reach the reader/writer through a `ConfiguredKind` — either `RelayJoin.configure(context).reader(event).parse()` directly, or, in `@welshman/app`, via the `Domain` plugin, which is what the examples below use.
+Each exported constant is a `KindFactory` bundling a reader and writer class (`RelayJoinReader`/`RelayJoinWriter`, `RelayMembersReader`/`RelayMembersWriter`, …). The examples below reach them through the `@welshman/app` `Domain` plugin.
 
 ## Joining and leaving
 
-A `RelayJoin` carries an optional claim code (the `claim` tag) and a free-text reason (the event content):
+A `RelayJoin` carries an optional claim code (the `claim` tag) and a free-text reason (the event content). The `RelayJoin` and `RelayLeave` writers mark their events NIP-70 protected (`-`).
 
 ```typescript
-import {RelayJoin} from "@welshman/domain"
+import {relay} from "@welshman/util"
+import {RelayJoin, RelayLeave} from "@welshman/domain"
 import {Domain} from "@welshman/app"
 
 const domain = app.use(Domain)
@@ -31,21 +32,21 @@ const join = domain.reader(RelayJoin)(event)
 join.claim()      // string | undefined — the "claim" tag value
 join.reason()     // event.content, or undefined when empty
 
-// A join must be published to the relay/space being joined:
+// A join is published to the relay being joined:
 const writer = domain.writer(RelayJoin)
   .forceRoutes(relay(relayUrl))  // required — RelayJoin sets requiresRelays
-  .setClaim(inviteCode)        // ["claim", inviteCode]
-  .setReason("hello")          // becomes the content
+  .setClaim(inviteCode)          // ["claim", inviteCode]
+  .setReason("hello")            // becomes the content
 
 const command = await domain.command(writer)
 await command.publish()
 
-// Leaving is a bare marker — no fields, but still publishes to the relay.
+// Leaving has no fields, but still publishes to the relay.
 const leave = domain.writer(RelayLeave).forceRoutes(relay(relayUrl))
 await (await domain.command(leave)).publish()
 ```
 
-`RelayInvite` (kind 28935) is the invite counterpart, carrying just a `claim`:
+`RelayInvite` (kind 28935) carries just a `claim`:
 
 ```typescript
 import {RelayInvite} from "@welshman/domain"
@@ -59,7 +60,7 @@ await (await domain.command(invite)).publish()
 
 ## Member management
 
-`RelayAddMember` (8000) and `RelayRemoveMember` (8001) are admin ops that list affected pubkeys via `addPubkey` (deduped by pubkey):
+`RelayAddMember` (8000) and `RelayRemoveMember` (8001) are admin ops that list the affected pubkeys via `addPubkey` (deduped):
 
 ```typescript
 import {RelayAddMember, RelayRemoveMember} from "@welshman/domain"
@@ -78,7 +79,7 @@ const remove = domain.writer(RelayRemoveMember)
 await (await domain.command(remove)).publish()
 ```
 
-`RelayMembers` (13534) is the resulting member-list snapshot. Members are carried in NIP-43 `member` tags, `["member", pubkey, ...roleIds]`, and the writer marks the event NIP-70 protected (`-`) in its constructor. Its reader answers membership questions; its writer supports add, remove, and a full replace:
+`RelayMembers` (13534) is the member-list snapshot. Members are carried in NIP-43 `member` tags, `["member", pubkey, ...roleIds]`, and the writer marks the event NIP-70 protected (`-`), as NIP-43 requires.
 
 ```typescript
 import {RelayMembers} from "@welshman/domain"
@@ -98,5 +99,5 @@ await (await domain.command(writer)).publish()
 
 ## See also
 
-- [Readers & Writers](./readers-and-writers) — the base `EventReader`/`EventWriter` pattern, plus [forced routes and required relays](./readers-and-writers#forced-routes-and-required-relays).
-- [Rooms](./rooms) — NIP-29 room-level (not relay-level) membership and metadata ops.
+- [Readers & Writers](./readers-and-writers) — the base `EventReader`/`EventWriter` pattern.
+- [Rooms](./rooms) — NIP-29 room-level membership and metadata ops.

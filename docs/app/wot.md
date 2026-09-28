@@ -2,13 +2,13 @@
 
 `app.use(Wot)` maintains a graph of who follows and mutes whom, built from the public tags on follow (kind 3) and mute (kind 10000) lists as they land in the repository.
 
-A list arriving rewrites its author's edges on the spot, so an update costs the one list that changed — not a walk of the whole graph — and every read is a lookup. `.get()` is current the moment an event lands; subscribers are notified on a debounce, so a burst of lists wakes them once.
+A list arriving rewrites only its author's edges, and every read is a lookup. `.get()` is current as soon as an event lands. Subscribers are notified on a 300ms throttle, so a burst of lists wakes them once per interval.
 
-A mute list's private entries are encrypted to their author, so they're no part of the graph.
+A mute list's private entries are encrypted to their author, so they are not part of the graph.
 
 ## Scope
 
-Every read that asks about a pubkey from the outside — who follows it, who mutes it, what it scores — takes a `WotScope`, and takes it explicitly:
+Every read about a pubkey from the outside (who follows it, who mutes it, what it scores) takes an explicit `WotScope`:
 
 ```typescript
 enum WotScope {
@@ -17,9 +17,9 @@ enum WotScope {
 }
 ```
 
-`Follows` is the usual web-of-trust question: the pubkey as the user sees it. `Global` is reach — how the whole network treats them.
+`Follows` asks how the user sees the pubkey. `Global` measures reach across the whole repository.
 
-The user's follow list is part of the same graph, so a `Follows` read tracks it changing like it tracks anything else: follow someone new and the reads pick their edges up on the next notification, with nothing to re-pass or re-subscribe. With no signed-in user there's nothing to narrow by, so a `Follows` read answers globally.
+The user's follow list is part of the same graph, so a `Follows` read picks up a new follow on the next notification without re-subscribing. With no signed-in user, a `Follows` read counts globally.
 
 ## Reads
 
@@ -37,9 +37,9 @@ wot.network(target)                  // Projection<string[]> — follows-of-foll
 wot.scores(scope)                    // Projection<Map<string, number>> — every score at once
 ```
 
-`follows` and `mutes` read a pubkey's own list, so they take no scope — the list is the pubkey's own claim either way.
+`follows` and `mutes` read a pubkey's own list, so they take no scope.
 
-`scores` is for the callers that need the whole picture (ranking a page of results, resolving a score range) rather than a projection per pubkey.
+`scores` suits callers that need every score at once, such as ranking a page of results, rather than a projection per pubkey.
 
 ## Examples
 

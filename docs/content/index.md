@@ -2,12 +2,12 @@
 
 [![version](https://badgen.net/npm/v/@welshman/content)](https://npmjs.com/package/@welshman/content)
 
-A content processing library designed specifically for Nostr applications. It provides a simple system for parsing, processing, and rendering Nostr content.
+Parses nostr event content into typed elements and renders them to text or HTML.
 
 ## What's Included
 
-- **Parsing**: Utilities for parsing nostr event content, as well as truncating and building image grids.
-- **Rendering**: Basic rendering support for parsed nostr event content.
+- **[Parsing](./parser.md)**: Parsing event content, truncating it, and grouping adjacent links into grids.
+- **[Rendering](./render.md)**: Rendering parsed content to text or HTML, and summarizing it as prose.
 
 ## Installation
 

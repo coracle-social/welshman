@@ -1,6 +1,6 @@
 # NIP-42
 
-Utilities for NIP-42 relay authentication, allowing clients to authenticate with relays that require it.
+Builds the NIP-42 auth event a client signs to authenticate with a relay.
 
 ## Functions
 
@@ -12,7 +12,7 @@ Creates a CLIENT_AUTH event (kind 22242) for relay authentication as specified i
 - `url` - The relay URL to authenticate with
 - `challenge` - The challenge string provided by the relay
 
-**Returns:** Unsigned event object with relay and challenge tags
+**Returns:** An unsigned `StampedEvent` with `relay` and `challenge` tags
 
 ## Example
 

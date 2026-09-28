@@ -1,6 +1,6 @@
 # Filters
 
-The Filters module provides utilities for creating, manipulating, and matching Nostr event filters. It includes support for filter operations, optimization, and time-based filtering.
+The Filters module creates, combines, and matches Nostr event filters.
 
 ## API
 
@@ -99,8 +99,8 @@ const references = [
 
 const filters = getIdFilters(references);
 // Returns: [
-//   { ids: ['abc123...', 'ghi789...'] },
-//   { kinds: [30023], authors: ['def456...'], '#d': ['my-article'] }
+//   { kinds: [30023], authors: ['def456...'], '#d': ['my-article'] },
+//   { ids: ['abc123...', 'ghi789...'] }
 // ]
 ```
 
@@ -137,7 +137,6 @@ const filters = [
 ];
 
 const combined = unionFilters(filters);
-// Results in more efficient filter set
 
 // Intersect filter groups
 const group1 = [{ kinds: [1, 6] }];
@@ -162,9 +161,7 @@ const baseFilters = [
 ];
 
 const withReposts = addRepostFilters(baseFilters);
-// Automatically adds:
-// - kind 6 filters for note reposts
-// - kind 16 filters with #k tags for other reposts
+// Adds a kind 6 filter for note reposts and a kind 16 filter with #k tags for other kinds
 ```
 
 ### Filter Analysis
@@ -180,7 +177,7 @@ console.log(getFilterGenerality(generalFilter)); // 1 (very general)
 
 // Estimate appropriate time window
 const filters = [{ authors: ['abc...', 'def...'] }];
-const deltaSeconds = guessFilterDelta(filters); // ~21600 (6 hours)
+const deltaSeconds = guessFilterDelta(filters); // 85824 (just under the one-day max)
 
 // Check expected result count
 const idFilter = { ids: ['abc...', 'def...', 'ghi...'] };

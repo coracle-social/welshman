@@ -1,14 +1,12 @@
 # Profile
 
-`ProfileReader` / `ProfileWriter` model NIP-01 kind-0 metadata — the JSON blob that carries a user's name, picture, NIP-05, lightning address, and so on. Like every kind in `@welshman/domain`, `Profile` is a `KindFactory` pairing a read-only view (`ProfileReader`) with a chainable producer of an event template (`ProfileWriter`) — see the [base Reader/Writer machinery](./readers-and-writers).
+`ProfileReader` / `ProfileWriter` model NIP-01 kind-0 metadata, the JSON object that carries a user's name, picture, NIP-05, lightning address, and so on. `Profile` is the `KindFactory` that bundles them; see [Readers & Writers](./readers-and-writers) for how a factory is configured.
 
-You never construct the reader/writer directly. A `KindFactory` is `configure`d **once** with a `KindContext` (resolver, optional signer, optional repository) to yield a `ConfiguredKind`, whose `reader(event)` / `writer(reader?)` build the instances. In an app you get this through the `Domain` plugin; standalone you can configure the factory yourself.
-
-The content of a kind-0 event is a JSON object, so `ProfileReader.parse` decodes it into a `values` record and the getters read fields off that.
+`ProfileReader.parse` decodes the event content into a `values` record, and the getters read fields off that.
 
 ## Reading
 
-`ConfiguredKind.reader(event)` validates the event kind and builds the reader; `parse()` populates it. Kind 0 parses synchronously, so there is nothing to await.
+Kind 0 parses synchronously, so there is nothing to await.
 
 ```typescript
 import {Profile} from "@welshman/domain"
@@ -25,20 +23,19 @@ profile.picture()         // string | undefined
 profile.banner()          // string | undefined
 profile.website()         // string | undefined
 profile.nip05()           // string | undefined
-profile.lnurl()           // lud16/lud06 → lnurl, via parseLnUrl
+profile.lnurl()           // lud06/lud16 → lnurl, via parseLnUrl
 profile.values            // the raw decoded JSON object
 ```
 
-`display(fallback = "")` is the best-effort label you usually want in UI. It prefers `name` (truncated to 60 chars via `ellipsize`), and otherwise falls back to a shortened npub:
+`display(fallback = "")` is the label to use in UI. It prefers `name`, truncated to 60 characters, and otherwise falls back to a shortened npub:
 
 ```typescript
-profile.display()             // "alice"  ·  "npub1abc…wxyz"  ·  fallback
-profile.display("anonymous")  // fallback used only when there is nothing else
+profile.display()             // "alice"  ·  "npub1abc…wxyz"
 ```
 
 ## Writing
 
-Get a fresh writer to author a new profile, or seed one from a reader to edit. Setters are chainable; finish with `renderTemplate()` to produce the unsigned `EventTemplate`.
+Setters are chainable, and `renderTemplate()` produces the unsigned `EventTemplate`:
 
 ```typescript
 import {Profile} from "@welshman/domain"
@@ -53,9 +50,7 @@ const template = await configured.writer()
   .renderTemplate()       // EventTemplate {kind: 0, content, tags: []}
 ```
 
-`renderTemplate()` replaces the old `toTemplate()` and takes no arguments. It validates, resolves any in-tag relay hints, and calls `buildContent` — which for profiles re-serializes `values` to JSON, so unknown profile fields you never touched are preserved. The caller signs the template.
-
-Editing round-trips through the reader — pass it to `writer(reader)` to seed `values` from the existing event:
+`renderContent` re-serializes `values` to JSON, so profile fields the writer never touched are preserved. Pass a reader to `writer(reader)` to seed `values` from an existing event:
 
 ```typescript
 const writer = configured.writer(profile).setAbout("updated bio")
@@ -63,12 +58,12 @@ const writer = configured.writer(profile).setAbout("updated bio")
 // Sign the rendered template yourself...
 const signed = await signer.sign(stamp(await writer.renderTemplate()))
 
-// ...or, in an app, hand the writer to Domain.command to finalize + publish:
-const command = await app.use(Domain).command(configured.writer(profile).setAbout("updated bio"))
+// ...or, in an app, hand the writer to Domain.command to publish it:
+const command = await app.use(Domain).command(writer)
 await command.publish()
 ```
 
-Available setters: `setName`, `setNip05`, `setAbout`, `setBanner`, `setPicture`, `setWebsite`, plus `update(values)` to merge an arbitrary object into `values`.
+The setters are `setName`, `setNip05`, `setAbout`, `setBanner`, `setPicture`, `setWebsite`, plus `update(values)` to merge an arbitrary object into `values`.
 
 ```typescript
 configured.writer().update({name: "alice", lud16: "alice@walletofsatoshi.com"})
@@ -76,7 +71,7 @@ configured.writer().update({name: "alice", lud16: "alice@walletofsatoshi.com"})
 
 ## Free functions
 
-`Profile.ts` also exports two standalone helpers, used internally by the getters above but available on their own:
+`Profile.ts` also exports two standalone helpers:
 
 ```typescript
 import {parseLnUrl, displayPubkey} from "@welshman/domain"

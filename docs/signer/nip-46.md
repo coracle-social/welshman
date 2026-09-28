@@ -1,10 +1,10 @@
 # NIP-46 (Nostr Connect) Signer
 
-The `Nip46Signer` implements remote signing capabilities through the Nostr Connect protocol (NIP-46). It allows applications to delegate signing operations to a remote signer (like a Nostr Bunker), providing enhanced security by keeping private keys separate from the application.
+`Nip46Signer` delegates signing to a remote signer, such as a bunker, over the Nostr Connect protocol (NIP-46), so the private key never reaches the application.
 
 ## Architecture
 
-The implementation consists of two main classes:
+The implementation has two main classes:
 - `Nip46Broker`: Handles the communication with the remote signer
 - `Nip46Signer`: Implements the `ISigner` interface using the broker
 
@@ -15,34 +15,30 @@ import {Nip46Broker, Nip46Signer} from '@welshman/signer'
 import {makeEvent, makeSecret, NOTE} from '@welshman/util'
 
 async function connectToRemoteSigner() {
-  // Initial setup
   const clientSecret = makeSecret()
   const relays = ['wss://relay.example.com']
   const broker = new Nip46Broker({ relays, clientSecret })
   const signer = new Nip46Signer(broker)
 
-  // Generate connection URL
   const ncUrl = await broker.makeNostrconnectUrl({
     name: "My App",
     description: "Testing remote signing"
   })
 
-  // Show URL to user (e.g., as QR code)
+  // Show the URL to the user, e.g. as a QR code
   displayQRCode(ncUrl)
 
   try {
-    // Wait for connection
     const abortController = new AbortController()
-    const response = await broker.waitForNostrconnect(
+    await broker.waitForNostrconnect(
       ncUrl,
       abortController.signal
     )
 
-    // Store signer info for later
+    // Save the session for reconnecting later
     const bunkerUrl = broker.getBunkerUrl()
     localStorage.setItem('bunkerUrl', bunkerUrl)
 
-    // Use the signer
     const event = makeEvent(NOTE, {
       content: "Signed with remote signer!",
       tags: [["t", "test"]]
@@ -58,10 +54,9 @@ async function connectToRemoteSigner() {
   }
 }
 
-// Reconnecting with saved bunker URL
 async function reconnect() {
   const bunkerUrl = localStorage.getItem('bunkerUrl')
-  if (!bunkerUrl) return null
+  if (!bunkerUrl) return
 
   const {
     signerPubkey,
@@ -85,13 +80,13 @@ async function reconnect() {
 ### Constructor and Factory
 
 ```typescript
-// Direct instantiation
 new Nip46Broker({
   relays: string[],
   clientSecret: string,
   connectSecret?: string,
   signerPubkey?: string,
-  algorithm?: "nip04" | "nip44"
+  algorithm?: "nip04" | "nip44",
+  context?: AdapterContext
 })
 
 // Static factory: create a broker from a bunker:// URL
@@ -104,7 +99,7 @@ Nip46Broker.fromBunkerUrl(url: string): Nip46Broker
 // Generate a nostrconnect:// URL for the remote signer
 broker.makeNostrconnectUrl(metadata: Record<string, string>): Promise<string>
 
-// Wait for connection approval
+// Wait for the remote signer to approve the connection
 broker.waitForNostrconnect(
   url: string,
   signal: AbortSignal
@@ -126,7 +121,6 @@ Nip46Broker.parseBunkerUrl(url: string): {
 ```typescript
 const signer = new Nip46Signer(broker)
 
-// All ISigner operations are available
 const pubkey = await signer.getPubkey()
 const signed = await signer.sign(event)
 const encrypted = await signer.nip44.encrypt(pubkey, "message")

@@ -7,7 +7,7 @@ description: "Use this skill when working with @welshman/app: the instance-based
 
 ## Overview
 
-`@welshman/app` is the high-level app layer of welshman. It ties `util`, `net`, `store`, `domain`, `signer`, and `feeds` together behind a single **`App`** instance. Everything — the event repository, connection pool, the signed-in user, and all features — hangs off that instance. There are **no module-level globals**: you create an app and reach everything through `app.use(...)`.
+`@welshman/app` is the high-level app layer of welshman. It ties `util`, `net`, `store`, `domain`, `signer`, and `feeds` together behind an **`App`** instance. The event repository, connection pool, signed-in user, and every feature hang off that instance, and features are reached through `app.use(...)`.
 
 ## Installation
 
@@ -33,8 +33,7 @@ Peer deps: `svelte` (4 or 5), all `@welshman/*` workspace packages, and `@pomade
 ```typescript
 import {createApp} from "@welshman/app"
 
-// Batteries-included: installs default policies (event ingestion, relay stats,
-// gift-wrap unwrapping, NIP-42 auth-unless-blocked).
+// Installs defaultAppPolicies (see Policies & logging below).
 const app = createApp({
   user,                                    // optional User
   config: {
@@ -101,7 +100,7 @@ Every mutation method (`create`/`update`/`follow`/`addRelay`/`setRelays`/etc.) i
 | Plugin | Data | Notable accessors |
 |---|---|---|
 | `Profiles` | kind-0 profiles | `display(pk)`, `update(fn)` → `Command`; `profileSearch` |
-| `FollowLists` | kind-3 follows | `follow(pk, hint?, petname?)`, `unfollow(pk)`, `update(fn)` → `Command` |
+| `FollowLists` | kind-3 follows | `follow(tag)`, `unfollow(value)`, `update(fn)` → `Command` |
 | `MuteLists` | kind-10000 mutes (private = encrypted) | `mutePublicly(tag)`, `mutePrivately(tag)`, `unmute(v)`, `setMutes(...)` → `Command` |
 | `PinLists` | kind-10001 pins | `pin(tag)`, `unpin(value)` → `Command` |
 | `RelayLists` | NIP-65 (kind 10002) | `urls(pk)`, `readUrls(pk)`, `writeUrls(pk)`, `addReadUrl`/`addWriteUrl`, `removeReadUrl`/`removeWriteUrl`, `setReadUrls`/`setWriteUrls` → `Command` |
@@ -109,7 +108,7 @@ Every mutation method (`create`/`update`/`follow`/`addRelay`/`setRelays`/etc.) i
 | `MessagingRelayLists` | kind-10050 (NIP-17 DM relays) | `urls(pk)`, `addUrl`, `removeUrl`, `setUrls` → `Command` |
 | `SearchRelayLists` | kind-10007 | `urls(pk)`, `addUrl`, `removeUrl`, `setUrls` → `Command` |
 | `BlossomServerLists` | kind-10063 media servers | `urls(pk)`, `addUrl`, `removeUrl`, `setUrls` → `Command` |
-| `FeedLists` | kind-10014 saved-feed lists | list accessors + `update(fn)` → `Command` |
+| `FeedLists` | kind-10014 saved-feed lists | `addresses(pk)`, `addFeed`/`addFeedPrivately`/`removeFeed`, `update(fn)` → `Command` |
 | `RoomLists` | kind-10009 room lists | `addRoom`/`removeRoom`/`addRelay`/`removeRelay`/`setRelays` → `Command` |
 | `Feeds` | kind-31890 saved feeds (keyed by address) | `forAuthor(pk)`, `loadForAuthor(pk)`, `create(fields)`, `update(addr, fn)` → `Command`; `makeFeedController(...)` |
 | `Pinboards` | kind-30067 pinboards (many per author, keyed by address) | `forAuthor(pk)`, `loadForAuthor(pk)`, `create(fields)`, `update(addr, fn)` → `Command` |
@@ -121,7 +120,7 @@ Every mutation method (`create`/`update`/`follow`/`addRelay`/`setRelays`/etc.) i
 | `Handles` | NIP-05 (HTTP, batched) | `forPubkey(pk)`, `display(nip05)`, `loadForPubkey(pk)` |
 | `Zappers` | LNURL zapper info (HTTP) | `forPubkey(pk)`, `validateZapReceipt(...)`, `validateZapReceipts(...)`, `validZapReceipts(...)` |
 | `Topics` | hashtags w/ counts | `all`, `byName` (`Projection`s); `topicSearch` |
-| `Reactions` / `Deletes` | kind-7 reactions and kind-5 deletes over the repository | reactive lookups |
+| `Reactions` / `Deletes` | kind-7 reactions and kind-5 deletes (no collection; read them with `Events`) | `react(event, content, fn?)` / `deleteEvent(event, fn?)` → `Command` |
 | `Rooms` | NIP-29 rooms, keyed `${url}'${h}` | `forRoom(url, h)`, `forUrl(url)`, `members(url, h)`, `membershipStatus(...)`, `pendingJoins(url, h?)`, `createRoom`/`editRoom`/`deleteRoom`/`joinRoom`/`leaveRoom`/`addMember`/`removeMember`/`deleteEvent(url, room, …)` → `Command` |
 | `Plaintext` | decrypted-content cache, keyed by ciphertext | `ensure(ciphertext, decrypt)`, `get(ciphertext)` |
 
@@ -130,7 +129,7 @@ import {createApp, Profiles, RelayLists} from "@welshman/app"
 const app = createApp({user})
 
 // Reactive (Svelte): subscribe or use $ in a component
-const profile$ = app.use(Profiles).one(pubkey)        // Readable<Maybe<Profile>>, lazy-loads
+const profile$ = app.use(Profiles).one(pubkey)        // Readable<Maybe<ProfileReader>>, lazy-loads
 const name$    = app.use(Profiles).display(pubkey).$   // Readable<string>
 
 // Synchronous snapshot (no load)
@@ -158,8 +157,7 @@ await app.use(RelayLists).addWriteUrl("wss://relay.example").then(publish)
 import {Publisher, Router} from "@welshman/app"
 import {makeEvent, NOTE, userOutbox} from "@welshman/util"
 
-// Publisher has no outbox helper. Resolve write relays with the Router's Resolver and the
-// RelaySelection DSL, as Command.publish() does for every data-plugin mutation:
+// Publisher takes explicit relays. Resolve the user's write relays with the Router:
 const publication = app.use(Publisher).publish({
   event: makeEvent(NOTE, {content: "hi"}),
   relays: await app.use(Router).resolver.relays([userOutbox()]),   // Promise<string[]>
@@ -210,16 +208,16 @@ command.publish()               // normal path: app.use(Publisher).publish({even
 command.publishToRelays(urls)   // publish to a specific relay set instead of command.relays
 ```
 
-This lets a caller preview/log a command, choose a different transport, or drop it entirely, instead of every plugin method publishing unconditionally. `Wraps.publish` is the one exception — it fans a single rumor out to a `PublicationGroup` of per-recipient wraps (each with its own relays), which doesn't fit the one-event/one-relay-set `Command` shape, so it still publishes directly.
+`Wraps.publish` publishes directly instead: it fans one rumor out to a `PublicationGroup` of per-recipient wraps, each with its own relays.
 
-`publish`/`publishToRelays` are also exported as free functions (e.g. `(command) => command.publish()`, `(urls) => (command) => command.publishToRelays(urls)`) so you can chain straight off the mutation method's promise instead of double-awaiting:
+`publish` and `publishToRelays` are also exported as free functions that chain off the mutation method's promise:
 
 ```typescript
 import {publish, publishToRelays} from "@welshman/app"
 
 await app.use(FollowLists).follow(["p", otherPubkey]).then(publish)
-await app.use(Rooms).leave(relayUrl, roomMeta).then(publish)
-await app.use(Rooms).join(relayUrl, roomMeta).then(publishToRelays([relayUrl]))
+await app.use(Rooms).leaveRoom(relayUrl, roomMeta).then(publish)
+await app.use(Rooms).joinRoom(relayUrl, roomMeta).then(publishToRelays([relayUrl]))
 ```
 
 ## Requests & sync
@@ -249,9 +247,8 @@ await app.use(Sync).push({relays, filters: [{authors: [pk]}]})
 
 ## Querying the repository (`Events`)
 
-`Network` fetches; `Events` reads what's already local. Every method binds this app's repository
-and tracker and returns a `Projection` — `.get()` for a snapshot, `.$` to subscribe — so there's no
-get/derive pair to keep in sync.
+`Network` fetches, and `Events` reads what's already local. Every method binds this app's repository
+and tracker and returns a `Projection`.
 
 ```typescript
 import {Events} from "@welshman/app"
@@ -271,8 +268,7 @@ events.byIdByUrl(filters).$              // Map<url, Map<id, TrustedEvent>>
 events.relaySignedForUrl(url, filters).$ // only what the relay itself signed
 ```
 
-`relaySignedForUrl` is the loose counterpart to `RelaySignedDerivedPlugin` — relay-generated kinds
-mean nothing from another author, so anything not signed by the relay's NIP-11 `self` is dropped.
+`relaySignedForUrl` drops anything not signed by the relay's NIP-11 `self`, as `RelaySignedDerivedPlugin` does.
 
 ## Routing & tags
 
@@ -282,7 +278,7 @@ mean nothing from another author, so anything not signed by the relay's NIP-11 `
 import {Router} from "@welshman/app"
 import {userOutbox, outbox, seen, relay, addMinimalFallbacks} from "@welshman/util"
 
-const router = app.use(Router)                // per-app; NOT Router.get()
+const router = app.use(Router)
 
 // resolver.relays(...) -> Promise<string[]>; resolver.relay(...) -> Promise<string | undefined>
 const writeRelays = await router.resolver.relays([userOutbox()])
@@ -296,7 +292,7 @@ const relays = (await router.resolve([userOutbox()])).policy(addMinimalFallbacks
 // indexers(), searchRelays() — each returns a RelaySelection (relays/inboxes return arrays).
 ```
 
-Event tagging (reply/quote/reaction threading, p-tags, zap splits) now lives on the domain **writers** — `writer.tagPubkey(pk)`, `writer.addQuote(event)`, `writer.addZapSplit(pk)`, and kind-specific setters like `NoteWriter.setParent(parentEvent)` — not on a separate `Tags` plugin. See the `welshman-domain` skill.
+Event tagging (reply, quote and reaction threading, p-tags, zap splits) lives on the domain **writers**: `writer.addMention(pk)`, `writer.addQuote(event)`, `writer.addZapSplit(pk)`, and kind-specific setters like `NoteWriter.setParent(parentEvent)`. See the `welshman-domain` skill.
 
 `Router` is the one `ResolveRoute` implementation in the stack. It resolves each route against the app:
 
@@ -361,7 +357,7 @@ const controller = app.use(Feeds).makeFeedController({
 })
 await controller.load(50)              // scopes (Self/Follows/Network/Followers) resolved via Wot
 
-// Search lives on the collection that owns the data. There is no Searches plugin.
+// Search lives on the collection that owns the data.
 const search = get(app.use(Profiles).profileSearch)
 const pubkeys = search.searchValues("alice")   // also fires a NIP-50 network search; ranked by WoT
 // also: app.use(Topics).topicSearch, app.use(Relays).relaySearch
@@ -388,7 +384,7 @@ export class Somethings extends DerivedPlugin<SomeKindReader> {
   constructor(app: IApp) {
     super(app, {
       filters: [{kinds: [SOME_KIND]}],
-      eventToItem: app.use(Domain).reader(SomeKind),   // async: validates kind + parses
+      eventToItem: app.use(Domain).reader(SomeKind),   // the reader, or a promise of it for kinds that decrypt
       getKey: item => item.author(),
     })
   }
@@ -437,23 +433,6 @@ const app = new App({user, policies: [appPolicyIngest, appPolicyAuthNever]})
 - **`createApp` vs `new App`.** `createApp` installs default policies; `new App` installs none. In tests prefer `new App` (no background subscriptions) unless you need ingestion.
 - **Pass the `user` to `createApp`/`new App`, don't assign `app.user` afterwards.** Policies run once, at construction. `appPolicyCacheDecrypt` and `appPolicyLogSignerMethods` bail out immediately when there is no user, so a user attached later gets no decrypt caching and no signer log. To switch identities, build a new app and `cleanup()` the old one.
 - **Call `cleanup()`** when discarding an app to close sockets and free the repository/tracker/wrap state.
-
-## Old API → new API
-
-| Old (global) | New (instance-based) |
-|---|---|
-| `addSession(...)` / `pubkey.get()` | `User.fromSession(...)` + `createApp({user})`; `app.user?.pubkey` |
-| `deriveProfile(pk)` | `app.use(Profiles).one(pk)` |
-| `deriveProfileDisplay(pk)` | `app.use(Profiles).display(pk).$` |
-| `publishThunk({...})` | `app.use(Publisher).publish({...})` (resolve outbox relays via `await app.use(Router).resolver.relays([userOutbox()])`) |
-| `follow(tag)` / `mute(tag)` | `app.use(FollowLists).follow(tag).then(publish)` / `app.use(MuteLists).mutePublicly(tag).then(publish)`, which return a [`Command`](#commands-deferred-publishing) |
-| `load({...})` / `request({...})` | `app.use(Network).loadComplete({...})` / `request({...})` |
-| `Router.get().FromUser()` / `router.Event(e)` | `app.use(Router).resolver` + the `RelaySelection` DSL (`resolver.relays([userOutbox()])`, `resolver.relay([seen(e)])`) |
-| `app.use(Tags).tagEventForReply(e)` | domain writer tagging (`NoteWriter.setParent(e)`, `writer.tagPubkey/addQuote/addZapSplit`) |
-| `relays` / `handles` / `zappers` stores | `app.use(Relays)` / `Handles` / `Zappers` |
-| `app.use(Searches).profileSearch` | `app.use(Profiles).profileSearch` (likewise `Topics.topicSearch`, `Relays.relaySearch`) |
-| `wot.graph` / `wot.wotScore(a, b)` | `app.use(Wot).scores(WotScope.Follows)` / `.score(pk, scope)` |
-| `RelayLists.addRelay(url, mode)` | `RelayLists.addReadUrl(url)` / `addWriteUrl(url)` |
 
 ## Related skills
 

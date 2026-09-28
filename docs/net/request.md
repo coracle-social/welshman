@@ -1,29 +1,30 @@
 # Request
 
-Utilities for requesting events from Nostr relays with filtering, deduplication, and batching capabilities.
+Functions for requesting events from relays, with validation, deduplication, and batching.
 
 ## Functions
 
 ### requestOne(options)
 
-Requests events from a single relay using the given filters. Returns a promise that resolves with deduplicated events.
+Requests events from a single relay using the given filters. Returns a promise that resolves with deduplicated events once every subscription has closed.
 
 **Options:**
 - `relay` - Relay URL
-- `filters` - Array of Nostr filters
+- `filters` - Array of Nostr filters. Each filter is sent as its own subscription
 - `signal?` - AbortSignal for cancellation
+- `priority?` - Send priority on the socket's queue
 - `tracker?` - Event tracker for deduplication
 - `context?` - Adapter context
-- `autoClose?` - Auto-close subscription after EOSE, on socket disconnect, or 30 seconds in, whichever comes first
-- `resubscribeAttempts?` - How many times to ask again for a subscription the relay dropped for a reason that might not hold next time — a rate limit, more subscriptions than it allows. Defaults to 0, so a request that wants to survive a refusal opts in. Refusals NIP-01 marks as final (`restricted:`, `blocked:`, and the rest of `RelayReasonPrefix`) are never retried, and each retry reaches back to the refusal so the time spent backing off isn't a gap. Only meaningful without `autoClose`.
-- Validation functions: `isEventValid`, `isEventDeleted`
+- `autoClose?` - Close the subscription after EOSE, on socket disconnect, or 30 seconds in, whichever comes first
+- `resubscribeAttempts?` - How many times to ask again for a subscription the relay dropped for a reason that might not hold next time, such as a rate limit. Defaults to 0. Refusals NIP-01 marks as final (`restricted:`, `blocked:`, and the rest of `RelayReasonPrefix`) are never retried, and each retry reaches back to the time of the refusal. Only meaningful without `autoClose`.
+- `isEventValid?` - Signature check, defaulting to `verifyEvent`
 - Callback functions: `onEvent`, `onDeleted`, `onInvalid`, `onFiltered`, `onDuplicate`, `onDisconnect`, `onEose`, `onClosed`, `onClose`
   - `onClosed?: (message: string, url: string) => void` - Called when the relay sends a CLOSED message, receiving the close reason and relay URL
   - `onClose?: () => void` - Called when the subscription is fully closed
 
 ### request(options)
 
-Requests events from multiple relays in parallel. Returns a promise that resolves with all events from all relays.
+Requests events from multiple relays in parallel, sharing one tracker across them. Returns a promise that resolves with all events from all relays.
 
 **Options:**
 - `relays` - Array of relay URLs
@@ -33,37 +34,42 @@ Requests events from multiple relays in parallel. Returns a promise that resolve
 
 ### makeLoader(options)
 
-Creates a batched loader function that delays and combines requests for efficiency.
+Creates a loader that delays requests and combines those made within `delay` into a single request per relay.
 
 **Options:**
 - `delay` - Batch delay in milliseconds
 - `timeout?` - Request timeout
 - `threshold?` - Relay completion threshold
-- Validation functions and context options
+- `context?` - Adapter context
+- `isEventValid?` - Signature check
+
+The loader takes `relays`, `filters`, an optional `signal`, and the optional callbacks `onEvent`, `onDisconnect`, `onEose` and `onClose`.
 
 ### loadComplete(options)
 
-Pre-configured loader with a 30ms delay and a 3s timeout, resolving once every relay has closed or timed out. Takes a `LoadOptions` object containing `relays`, `filters`, and optional callback fields (`onEvent`, `onDisconnect`, `onEose`, `onClose`) and an optional `signal`.
+A loader with a 30ms delay and a 3s timeout, resolving once every relay has closed or timed out. It carries no context, so it cannot reach a relay or `LOCAL_RELAY_URL`. `makeLoader` with a `context` builds the same loader for your own pool, and `app.use(Network)` exposes `loadComplete` and `loadLenient` bound to the app's context.
 
 ### loadLenient(options)
 
-The same loader with a 0.5 threshold, so it resolves once half the relays have closed. The rest are left open and their events still arrive, so use it where nothing routes on the returned array.
+The same loader with a 0.5 threshold, so it resolves once half the relays have closed. The rest stay open and their events still arrive, so it suits callers that don't route on the returned array.
 
 ## Example
 
 ```typescript
-import {request, loadComplete} from "@welshman/net"
+import {request, makeLoader} from "@welshman/net"
 
-// Simple request - without autoClose or a signal this will continue to stream indefinitely.
-// Default policies (see policy.ts) will also re-send the subscription when sockets reconnect
+// Without autoClose or a signal this streams indefinitely, and the default socket
+// policies re-send the subscription when the socket reconnects
 const events = await request({
   relays: ["wss://relay1.com", "wss://relay2.com"],
   filters: [{kinds: [1], limit: 10}],
+  context,
   onEvent: (event, url) => console.log(`Event from ${url}:`, event.id)
 })
 
-// Batched loading (more efficient for multiple requests)
-const profileEvents = await loadComplete({
+const load = makeLoader({delay: 30, timeout: 3000, context})
+
+const profileEvents = await load({
   relays: ["wss://relay1.com"],
   filters: [{kinds: [0], authors: ["pubkey1", "pubkey2"]}]
 })

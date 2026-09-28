@@ -1,6 +1,6 @@
 # Blossom
 
-Client library for interacting with Blossom media servers. Provides utilities for authentication, blob operations, and file encryption.
+Client functions for Blossom media servers: auth events, blob operations, and file encryption.
 
 ## Types
 
@@ -37,7 +37,7 @@ export interface EncryptedFile {
 
 ```typescript
 // Creates a Blossom auth event for server operations
-export declare const makeBlossomAuthEvent: (opts: BlossomAuthEventOpts) => Event
+export declare const makeBlossomAuthEvent: (opts: BlossomAuthEventOpts) => StampedEvent
 ```
 
 ## Blob Operations

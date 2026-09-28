@@ -1,8 +1,8 @@
 # Adapter
 
-Adapters provide a unified interface for communicating with relays. Adapters aren't meant to be used directly, but as an injection point for custom logic.
+Adapters give requests and publishes one interface to whatever answers them. They are an injection point for custom transports rather than something to use directly.
 
-## Core Classes
+## Classes
 
 ### `AbstractAdapter`
 
@@ -15,15 +15,15 @@ Base class for all adapters. Handles events and cleanup.
 ### Built-in Adapters
 
 - `SocketAdapter(socket)` - WebSocket relay connections
-- `LocalAdapter(relay)` - Local in-memory relays
+- `LocalAdapter(repository)` - A `Repository` answering as a relay at `LOCAL_RELAY_URL`
 - `MockAdapter(url, sendHandler)` - Testing with manual control
 
 ### Factory
 
-`getAdapter(url, context?)` creates the appropriate adapter:
+`getAdapter(url, context?)` tries `context.getAdapter` first, then returns a `LocalAdapter` for `LOCAL_RELAY_URL` and a `SocketAdapter` from `context.pool` for relay urls:
 
 ```typescript
-const adapter = getAdapter('wss://relay.example.com')
+const adapter = getAdapter('wss://relay.example.com', {pool})
 adapter.on(AdapterEvent.Receive, (message, url) => {
   console.log('Received:', message)
 })
@@ -37,7 +37,7 @@ Custom adapters can be created against any target:
 
 ```typescript
 class IPFSAdapter extends AbstractAdapter {
-  constructor(private url string) {
+  constructor(private url: string) {
     super()
 
     // Set up an IPFS connection here
@@ -47,12 +47,13 @@ class IPFSAdapter extends AbstractAdapter {
   get sockets() { return [] }
 
   send(message: ClientMessage) {
-    // Handle messages as if the ipfs backend was a relay
+    // Handle messages as if the ipfs backend was a relay, calling
+    // this.emit(AdapterEvent.Receive, reply, this.url) with each answer
   }
 }
 ```
 
-Custom adapters can also be provided to several net utilities, including `publish` and `request`:
+Any function that takes a `context`, including `publish` and `request`, accepts a custom adapter factory. When it returns `undefined`, the built-in adapters are used:
 
 ```typescript
 request({
@@ -60,7 +61,6 @@ request({
   filters: [{kinds: [1]}],
   context: {
     getAdapter: (url: string) => {
-      // getAdapter optionally returns an adapter. If none is returned, the stock adapters will be used.
       if (url.startsWith('ipfs://')) {
         return new IPFSAdapter(url)
       }

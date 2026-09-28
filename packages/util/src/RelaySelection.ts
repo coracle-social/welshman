@@ -108,11 +108,7 @@ export const addMinimalFallbacks = (count: number, limit: number) => (count > 0 
 
 export const addMaximalFallbacks = (count: number, limit: number) => limit - count
 
-// Scenario: score & pick concrete relays from weighted selections -----------
-//
-// Ported from the old `@welshman/router` RouterScenario, but decoupled from the
-// Router class: relay quality and default relays are injected via options rather
-// than pulled off a Router instance, so this is pure and reusable.
+// Scenario: score & pick concrete relays from weighted selections; relay quality and defaults come in as options.
 
 export type RelayScenarioOptions = {
   policy?: FallbackPolicy

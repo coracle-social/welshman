@@ -1,6 +1,6 @@
 # Task Queue
 
-The `TaskQueue` class provides a simple queue processing system with batched operations and throttling. It's designed to handle asynchronous operations efficiently while maintaining control over processing rates and resource usage.
+`TaskQueue` processes queued items in batches of `batchSize`, waiting `batchDelay` milliseconds before each batch. Items in a batch are processed one at a time, and an optional `getPriority` keeps higher-priority items at the front of the queue.
 
 ## API
 
@@ -10,6 +10,7 @@ export type TaskQueueOptions<Item> = {
   batchSize: number;
   batchDelay: number;
   processItem: (item: Item) => unknown;
+  getPriority?: (item: Item) => number;
 };
 
 // Task queue implementation

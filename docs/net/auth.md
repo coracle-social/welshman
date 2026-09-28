@@ -1,12 +1,8 @@
 # Auth
 
-Handles NIP-42 relay authentication flow.
+`AuthState` tracks the NIP-42 authentication flow for one socket. Every socket carries one as `socket.auth`.
 
-## Core Classes
-
-### `AuthState`
-
-Manages authentication state for a socket connection.
+## AuthState
 
 **Status Values:**
 - `AuthStatus.None` - No authentication required/attempted
@@ -18,10 +14,10 @@ Manages authentication state for a socket connection.
 - `AuthStatus.Ok` - Authentication successful
 
 **Methods:**
-- `doAuth(sign)` - Authenticate with the relay using provided signing function
-- `attemptAuth(sign)` - Attempt authentication with timeout handling
-- `retryAuth(sign)` - Retry authentication by resetting state and attempting auth again
-- `cleanup()` - Clean up event listeners
+- `doAuth(sign)` - Signs and sends a response to the current challenge
+- `attemptAuth(sign)` - Opens the socket, waits up to a second for a challenge, answers it, and waits up to three seconds for the relay's response
+- `retryAuth(sign)` - Resets the current challenge to `Requested` and calls `attemptAuth` again
+- `cleanup()` - Removes event listeners
 
 **Events:**
 - `AuthStateEvent.Status` - Emitted when authentication status changes
@@ -29,20 +25,13 @@ Manages authentication state for a socket connection.
 ## Example
 
 ```typescript
-const authState = new AuthState(socket)
+import {AuthStateEvent} from '@welshman/net'
 
-// Listen for auth status changes
-authState.on(AuthStateEvent.Status, (status) => {
+socket.auth.on(AuthStateEvent.Status, (status) => {
   console.log('Auth status:', status)
 })
 
-// Attempt authentication when relay requests it
-await authState.attemptAuth(async (template) => {
-  return await signer.signEvent(template)
-})
+await socket.auth.attemptAuth(template => signer.sign(template))
 
-// Retry authentication if needed
-await authState.retryAuth(async (template) => {
-  return await signer.signEvent(template)
-})
+await socket.auth.retryAuth(template => signer.sign(template))
 ```

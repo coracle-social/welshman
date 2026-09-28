@@ -1,12 +1,12 @@
 # Data Plugins
 
-These plugins expose reactive collections of nostr data. They all follow the [plugin patterns](./plugins): read synchronously with `get(key)`, reactively with `one(key)` (which lazily loads), and use the convenience accessors that return a [`Projection`](./plugins#projection-t). Resolve each with `app.use(...)`.
+These plugins expose reactive collections of nostr data. They follow the [plugin patterns](./plugins): `get(key)` reads synchronously, `one(key)` reads reactively and loads lazily, and convenience accessors return a [`Projection`](./plugins#projection-t).
 
-Most event-backed plugins load via the **outbox model**: they first resolve the author's NIP-65 write relays (from [`RelayLists`](#relay-lists)), then query those relays. This is why nearly every data plugin depends on relay lists.
+Most event-backed plugins load over the **outbox model**: they resolve the author's NIP-65 write relays from [`RelayLists`](#relay-lists), then query those relays.
 
-Under the hood, each event-backed plugin decodes raw events into [`@welshman/domain`](../domain/) **reader** objects via `app.use(Domain).reader(Kind)` — the `eventToItem` its collection is configured with. So the items you read back (`profiles.get(pubkey)`, `follows.one(pubkey).$`, …) are `Reader` instances such as `ProfileReader` or `FollowListReader`, with synchronous getter methods like `author()`, `pubkeys()`, or `urls()`.
+Each event-backed plugin decodes events with `app.use(Domain).reader(Kind)`, so its items are [`@welshman/domain`](../domain/) readers such as `ProfileReader` or `FollowListReader`, with synchronous getters like `author()`, `pubkeys()`, or `urls()`.
 
-Mutation methods (`create`, `update`, `follow`, `mutePublicly`, etc.) build a domain **writer** with `app.use(Domain).writer(Kind, existingReader?)`, apply the change, and wrap it with `app.use(Domain).command(writer)`, returning a [`Command`](./publishing#commands) rather than publishing it — call `.publish()` on the result to actually send it. Since these methods are themselves `async`, the examples below use the `publish`/`publishToRelays` free functions (`import {publish} from "@welshman/app"`) to chain onto the outer promise instead of double-awaiting.
+Mutation methods (`create`, `update`, `follow`, `mutePublicly`, …) return a [`Command`](./publishing#commands) rather than publishing. The examples below chain the `publish` free function from `@welshman/app` onto them.
 
 ## Profiles
 
@@ -25,8 +25,6 @@ const command = await profiles.update(writer => writer.update(values))
 await command.publish()
 ```
 
-`profiles.display(pubkey).$` is the right thing to bind in a component for a user's name.
-
 ## Follows
 
 Kind-3 follow lists keyed by pubkey.
@@ -35,8 +33,8 @@ Kind-3 follow lists keyed by pubkey.
 const follows = app.use(FollowLists)
 
 follows.one(pubkey)                                    // Readable<Maybe<FollowListReader>>
-await follows.follow(["p", otherPubkey]).then(publish)   // add a tag, then publish to outbox
-await follows.unfollow(otherPubkey).then(publish)        // remove, then publish
+await follows.follow(["p", otherPubkey]).then(publish)   // add a tag
+await follows.unfollow(otherPubkey).then(publish)
 ```
 
 ## Mutes
@@ -56,7 +54,7 @@ await mutes.setMutes({publicTags, privateTags}).then(publish)
 
 ## Pins (NIP-51)
 
-Kind-10001 pin lists keyed by pubkey. Not to be confused with the [Pinboards NIP's `Pins`](#pinboards-pinboards-nip) plugin below, a different, unrelated kind.
+Kind-10001 pin lists keyed by pubkey. The [Pinboards NIP's `Pins`](#pinboards-pinboards-nip) plugin below is a different kind.
 
 ```typescript
 const pinLists = app.use(PinLists)
@@ -68,7 +66,7 @@ await pinLists.unpin(eventId).then(publish)
 
 ## Pinboards (Pinboards NIP)
 
-`Pinboard` (kind 30067) is board metadata — many per author, keyed by address. `Pin` (kind 39067) is a single pinned item — a nostr event, addressable event, or external id, plus zero or more boards it belongs to via `A` tags (none means it's a profile pin). Each pin has its own unique `d` tag, so multiple pins from the same author don't collide (see [`welshman-domain`](../domain/content#pinboard-kind-30067-and-pin-kind-39067)).
+`Pinboard` (kind 30067) is board metadata, many per author, keyed by address. `Pin` (kind 39067) is a single pinned item (a nostr event, addressable event, or external id) with zero or more boards it belongs to via `A` tags. A pin with no boards is a profile pin. The kinds are described in [Content](../domain/content#pinboard-kind-30067-and-pin-kind-39067).
 
 ```typescript
 import {Pinboards, Pins, Domain} from "@welshman/app"
@@ -91,7 +89,7 @@ pins.forProfile(pubkey)                          // Projection<PinReader[]> — 
 await pins.loadForBoard(address)                  // fetch from the board owner's read relays
 await pins.loadForProfile(pubkey)                 // fetch from the author's outbox
 
-// Pins.create takes an already-built PinWriter (unlike Pinboards.create's fields object)
+// Pins.create takes a PinWriter, where Pinboards.create takes fields
 const pinCommand = await pins.create(
   app.use(Domain).writer(Pin).setEvent(eventId).addBoard(address),
 )
@@ -103,7 +101,7 @@ await pins.removeFromBoard(address, otherBoardAddress).then(publish)
 
 ## Relay lists
 
-The NIP-65 relay list (kind 10002) is the routing substrate the whole outbox model depends on.
+The NIP-65 relay list (kind 10002), which the outbox model routes on.
 
 ```typescript
 const relayLists = app.use(RelayLists)
@@ -112,24 +110,23 @@ relayLists.urls(pubkey)          // Projection<string[]> — all relays
 relayLists.readUrls(pubkey)      // Projection<string[]> — read relays
 relayLists.writeUrls(pubkey)     // Projection<string[]> — write relays
 
-// Mutations for the current user go through update(fn), which builds a
-// RelayListWriter, applies fn, and returns a Command — call .publish() to send it.
-await relayLists.update(writer => writer.addWriteUrl(url)).then(publish)
-await relayLists.update(writer => writer.removeReadUrl(url)).then(publish)   // also notifies the removed relay
-await relayLists.update(writer => writer.setReadUrls(urls)).then(publish)
-await relayLists.update(writer => writer.setWriteUrls(urls)).then(publish)
+// addReadUrl/addWriteUrl, removeReadUrl/removeWriteUrl and setReadUrls/setWriteUrls
+// are shorthands for update(fn)
+await relayLists.addWriteUrl(url).then(publish)
+await relayLists.removeReadUrl(url).then(publish)   // also sent to the removed relay
 await relayLists.update(writer => writer.setTags(tags)).then(publish)
 ```
 
 ### Specialized relay lists
 
-Each of these is a separate kind keyed by pubkey. All expose `urls(pubkey)` (a `Projection<string[]>`) and `update(fn)` (which builds the kind's writer and returns a [`Command`](./publishing#commands)). `MessagingRelayLists` and `SearchRelayLists` additionally expose `addUrl`/`removeUrl`/`setUrls` convenience mutators.
+Each of these is a separate kind keyed by pubkey. All expose `urls(pubkey)` (a `Projection<string[]>`), `update(fn)`, and the `addUrl`/`removeUrl`/`setUrls` shorthands, each returning a [`Command`](./publishing#commands).
 
 | Plugin | Kind | Purpose |
 |---|---|---|
-| `BlockedRelayLists` | 10006 | Relays the user refuses to connect to (also gates [auth](./apppolicies) and [relay quality](./routing#relay-quality)) |
+| `BlockedRelayLists` | 10006 | Relays the user blocks, which [auth](./app#auth-policy-builders) skips and [relay quality](./routing#relay-quality) scores `0` |
 | `MessagingRelayLists` | 10050 | NIP-17 DM inbox relays (used by [gift-wrapped publishing](./publishing#gift-wrapped-messages)) |
 | `SearchRelayLists` | 10007 | NIP-50 search relays |
+| `BlossomServerLists` | 10063 | Blossom media servers |
 
 ```typescript
 app.use(BlockedRelayLists).urls(pubkey)      // Projection<string[]>
@@ -158,11 +155,11 @@ await relays.hasNegentropy(url)              // boolean — NIP-77 / negentropy 
 await app.use(RelayManagement).forUrl(url).allowPubkey(pubkey, reason)
 ```
 
-`forUrl(url)` returns a NIP-86 [`ManagementApi`](../util/) client whose auth events are signed by the current user. Call its methods (`allowPubkey`, `banPubkey`, `deleteRole`, …) to issue management requests.
+`forUrl(url)` returns a NIP-86 [`ManagementApi`](../util/) client whose auth events the current user signs. Its methods (`allowPubkey`, `banPubkey`, `deleteRole`, …) issue management requests.
 
 ## Handles (NIP-05)
 
-NIP-05 identifiers verified over HTTP, keyed by `name@domain`. Lookups are batched (and use `dufflepudUrl` if configured).
+NIP-05 identifiers verified over HTTP, keyed by `name@domain`. Lookups are batched, and go through `dufflepudUrl` when it is configured.
 
 ```typescript
 const handles = app.use(Handles)
@@ -195,18 +192,9 @@ progress.get()
 // {zaps, amount, target, contributors} — amounts in millisats
 ```
 
-Each receipt is validated against its recipient's zapper, and any that arrived
-after the goal's `closed_at` is dropped. The projection updates as receipts land
+Each receipt is validated against its recipient's zapper, and receipts that arrived
+after the goal's `closed_at` are dropped. The projection updates as receipts land
 and as the zappers they're checked against finish loading.
-
-## Blossom servers
-
-Blossom media-server lists (kind 10063) keyed by pubkey.
-
-```typescript
-const list = await app.use(BlossomServerLists).load(pubkey)
-app.use(BlossomServerLists).one(pubkey)      // Readable<Maybe<List>>
-```
 
 ## Topics
 
@@ -215,13 +203,13 @@ Hashtags with usage counts, derived from the repository's tag index.
 ```typescript
 const topics = app.use(Topics)
 
-topics.all                                   // Readable<Topic[]>  ({name, count})
-topics.byName                                // Readable<Map<string, Topic>>
+topics.all                                   // Projection<Topic[]>  ({name, count})
+topics.byName                                // Projection<Map<string, Topic>>
 ```
 
 ## Rooms (NIP-29)
 
-Relay-based room management. Each method builds the relevant room event and returns a [`Command`](./publishing#commands) targeting the given relay. Routing is the domain's job: `setRoom(url, id)` records the room’s relay and the writer sends the event there (only).
+Relay-based room management. Each method builds the room event with `setRoom(url, h)` and returns a [`Command`](./publishing#commands) that targets only that relay.
 
 ```typescript
 const rooms = app.use(Rooms)
@@ -238,7 +226,7 @@ await rooms.deleteEvent(relayUrl, roomMeta, eventId).then(publish)
 
 ## Plaintext
 
-A cache of decrypted content, keyed by the ciphertext. Decryption itself is supplied by the caller (typically the current user's signer), so the cache stays independent of which signer produced the plaintext.
+A cache of decrypted content, keyed by the ciphertext. The caller supplies the decryption, so the cache is independent of the signer.
 
 ```typescript
 const text = await app.use(Plaintext).ensure(ciphertext, () => signer.nip44.decrypt(pubkey, ciphertext))

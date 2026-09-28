@@ -1,6 +1,6 @@
 # Message
 
-Type definitions and utilities for Nostr protocol messages.
+Types and type guards for nostr protocol messages.
 
 ## Relay Message Types
 
@@ -8,6 +8,7 @@ Type definitions and utilities for Nostr protocol messages.
 - `RelayMessageType.Notice` - Human-readable notice from relay
 - `RelayMessageType.Auth` - Authentication challenge
 - `RelayMessageType.Closed` - Subscription closed
+- `RelayMessageType.Count` - Count result
 - `RelayMessageType.Eose` - End of stored events
 - `RelayMessageType.Event` - Event data
 - `RelayMessageType.NegErr` - Negentropy error
@@ -16,17 +17,18 @@ Type definitions and utilities for Nostr protocol messages.
 
 **Type Definitions:**
 - `RelayMessage` - Base relay message type
-- `RelayNotice`, `RelayAuth`, `RelayClosed`, `RelayEose`, `RelayEvent`, `RelayNegErr`, `RelayNegMsg`, `RelayOk` - Specific message types
+- `RelayNotice`, `RelayAuth`, `RelayClosed`, `RelayCount`, `RelayEose`, `RelayEvent`, `RelayNegErr`, `RelayNegMsg`, `RelayOk` - Specific message types
 - `RelayNoticePayload`, `RelayAuthPayload`, `RelayClosedPayload`, etc. - Payload types for each message
 
 **Type Guards:**
-- `isRelayNotice()`, `isRelayAuth()`, `isRelayClosed()`, `isRelayEose()`, `isRelayEvent()`, `isRelayNegErr()`, `isRelayNegMsg()`, `isRelayOk()`
+- `isRelayNotice()`, `isRelayAuth()`, `isRelayClosed()`, `isRelayCount()`, `isRelayEose()`, `isRelayEvent()`, `isRelayNegErr()`, `isRelayNegMsg()`, `isRelayOk()`
 
 ## Client Message Types
 
 **Enums:**
 - `ClientMessageType.Auth` - Authentication response
 - `ClientMessageType.Close` - Close subscription
+- `ClientMessageType.Count` - Request a count
 - `ClientMessageType.Event` - Publish event
 - `ClientMessageType.NegClose` - Close negentropy
 - `ClientMessageType.NegOpen` - Open negentropy
@@ -34,16 +36,18 @@ Type definitions and utilities for Nostr protocol messages.
 
 **Type Definitions:**
 - `ClientMessage` - Base client message type
-- `ClientAuth`, `ClientClose`, `ClientEvent`, `ClientNegClose`, `ClientNegOpen`, `ClientReq` - Specific message types
+- `ClientAuth`, `ClientClose`, `ClientCount`, `ClientEvent`, `ClientNegClose`, `ClientNegOpen`, `ClientReq` - Specific message types
 - `ClientAuthPayload`, `ClientClosePayload`, etc. - Payload types for each message
 
 **Type Guards:**
-- `isClientAuth()`, `isClientClose()`, `isClientEvent()`, `isClientNegClose()`, `isClientNegOpen()`, `isClientReq()`
+- `isClientAuth()`, `isClientClose()`, `isClientCount()`, `isClientEvent()`, `isClientNegClose()`, `isClientNegOpen()`, `isClientReq()`
 
 ## Example
 
 ```typescript
-// Handle incoming relay message
+import {isRelayEvent} from '@welshman/net'
+import type {RelayMessage} from '@welshman/net'
+
 const handleMessage = (message: RelayMessage) => {
   if (isRelayEvent(message)) {
     const [type, subId, event] = message

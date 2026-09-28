@@ -99,9 +99,7 @@ export class Zappers extends LoadableMapPlugin<Zapper> {
    * Resolve the zapper a zap receipt should be validated against. A receipt's
    * `p` tag is the recipient (copied from the zap request), so we honor only
    * receipts addressed to one of the parent's designated split recipients and
-   * load *that* recipient's zapper. The old lookup always used the first
-   * recipient's lnurl, which silently dropped legitimate zaps to any of the
-   * other split recipients.
+   * load *that* recipient's zapper, so zaps to any split recipient validate.
    */
   loadZapperForZap = async (
     zapReceipt: TrustedEvent,

@@ -1,6 +1,6 @@
 # Feed Controller
 
-The `FeedController` class manages feed execution with advanced loading strategies including pagination, windowing, and set operations. It compiles feeds into requests and handles event streaming with deduplication.
+`FeedController` loads a feed page by page and listens for new events, delivering each event once through `onEvent`.
 
 ## Types
 
@@ -14,6 +14,8 @@ export type FeedControllerOptions = FeedCompilerOptions & {
 }
 ```
 
+`tracker` records the relays each event was seen on. A tracker shared between controllers suppresses events it has already seen.
+
 ## FeedController Class
 
 ```typescript
@@ -22,19 +24,19 @@ export class FeedController {
 
   constructor(readonly options: FeedControllerOptions)
 
-  // Get compiled request items (memoized)
+  // Memoized; undefined when the feed cannot be compiled
   getRequestItems(): Promise<RequestItem[] | undefined>
 
-  // Get loader function (memoized)
+  // Memoized
   getLoader(): Promise<(limit: number) => Promise<void>>
 
-  // Load events with specified limit
+  // Loads the next page, continuing from the previous call
   load(limit: number): Promise<void>
 
-  // Get listener function (memoized)
+  // Memoized
   getListener(): Promise<() => () => void>
 
-  // Listen for new events in the feed; returns an unsubscribe function
+  // Listens for new events and returns an unsubscribe function
   listen(): () => Promise<void>
 }
 ```
@@ -43,39 +45,30 @@ export class FeedController {
 
 ### Request-based Loading
 
-For feeds that can be compiled to `RequestItem[]`:
-- **Pagination**: Automatically handles `since`/`until` windowing
-- **Deduplication**: Prevents duplicate events across multiple requests
-- **Exhaustion tracking**: Detects when all requests are exhausted
+For feeds that compile to `RequestItem[]`, the controller requests each item page by page, moving `until` back past the oldest event received. It deduplicates events across items and calls `onExhausted` when every item is exhausted. Without windowing, an item is exhausted when a page returns no events.
 
 ### Set Operation Loading
 
-For feeds requiring special handling:
+A union, intersection or difference that cannot be compiled, because it contains a difference feed, runs a controller per sub-feed:
 
 #### Union Feeds
-- Loads events from all sub-feeds in parallel
+- Loads all sub-feeds in parallel
 - Deduplicates events by ID across sub-feeds
-- Signals exhaustion when all sub-feeds are exhausted
+- Calls `onExhausted` when all sub-feeds are exhausted
 
 #### Intersection Feeds
-- Loads events from all sub-feeds in parallel
-- Only emits events that appear in ALL sub-feeds
-- Uses count tracking to determine intersection
+- Loads all sub-feeds in parallel
+- Emits only events that every sub-feed has returned
 
 #### Difference Feeds
-- Loads events from first feed (included) and remaining feeds (excluded)
-- Emits events from first feed that don't appear in other feeds
-- Maintains skip set for excluded events
+- Loads the first feed (included) and the remaining feeds (excluded)
+- Emits events from the first feed that the other feeds have not returned
 
 ## Windowing Strategy
 
-When `useWindowing: true`:
-- **Initial window**: Starts from recent events with estimated delta
-- **Exponential backoff**: Increases window size when few events found
-- **Timeline traversal**: Moves backward through time systematically
-- **Performance optimization**: Gets recent events first
+With `useWindowing: true`, each request covers a `since`/`until` window that moves backward through time. The first window is sized by `guessFilterDelta`. Later windows are sized to about a page of events by asking the relays for a NIP-45 count, with up to three probes. Relays that cannot count get a window widened after each short page instead. An item is exhausted when a short page reaches back to the oldest `since` its filters allow.
 
-Windowing is best used when you don't trust relays to give you results ordered by `created_at` descending. Windowing should not be used when treating relays as algorithm feeds.
+Windowing suits relays that may not return events ordered by `created_at` descending. It does not suit relays used as algorithmic feeds, where the order is part of the result.
 
 ## Usage
 
@@ -84,6 +77,7 @@ import { FeedController, makeAuthorFeed } from '@welshman/feeds'
 
 const controller = new FeedController({
   feed: makeAuthorFeed("pubkey1", "pubkey2"),
+  router,
   useWindowing: true,
   onEvent: (event) => console.log('New event:', event.id),
   onExhausted: () => console.log('No more events'),
@@ -91,15 +85,12 @@ const controller = new FeedController({
   getPubkeysForWOTRange: (min, max) => [...]
 })
 
-// Load first batch of events
 await controller.load(50)
 
-// Load more events
+// Continues from where the first page ended
 await controller.load(50)
 
-// Listen for new events
 const unlisten = controller.listen()
 
-// Unsubscribe from listener
 unlisten()
 ```

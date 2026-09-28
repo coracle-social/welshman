@@ -7,7 +7,7 @@ description: "Use this skill when working with @welshman/net: relay connections,
 
 `@welshman/net` is the core networking layer for welshman-based nostr apps. It manages WebSocket relay connections, subscriptions, event publishing, NIP-42 auth, and NIP-77 negentropy sync. It sits below `@welshman/app` (which owns instances of these primitives and wires them together) and depends on `@welshman/util` for event types and `@welshman/lib` for utilities.
 
-**There are no module-level singletons.** `Pool`, `Repository`, `Tracker` and `WrapManager` are plain classes you instantiate; the pool and repository a call should use are passed per call as a `context`. `Pool.get()`, `Repository.get()` and a mutable global `netContext` do not exist.
+`Pool`, `Repository`, `Tracker` and `WrapManager` are plain classes you instantiate, and the pool and repository a call should use are passed per call as a `context`.
 
 ## Installation
 
@@ -54,17 +54,18 @@ Every entry point (`request`, `requestOne`, `publish`, `publishOne`, `makeLoader
 | `requestOne(options)` | Subscribe to a single relay; returns `Promise<TrustedEvent[]>` |
 | `request(options)` | Subscribe to multiple relays in parallel; returns `Promise<TrustedEvent[]>` |
 | `makeLoader(options)` | Creates a batching `load` function with configurable delay/timeout/threshold |
-| `loadComplete(options)` | Pre-built loader with a 30 ms batch delay and a 3 s timeout. It auto-closes after EOSE, timeout, or disconnect, and resolves once every relay's subscription has closed, so an empty result means every relay answered nothing. It carries no context, so it only works where no pool or repository is needed. |
-| `loadLenient(options)` | The same loader with a 0.5 threshold, resolving once half the relays have closed. The rest stay open and their events still arrive, so use it where nothing routes on the returned array. |
+| `loadComplete(options)` | Pre-built loader with a 30 ms batch delay and a 3 s timeout. It auto-closes after EOSE, timeout, or disconnect, and resolves once every relay's subscription has closed, so an empty result means every relay answered nothing. It carries no context, so it cannot reach a relay or `LOCAL_RELAY_URL`; `app.use(Network)` exposes versions bound to the app's context. |
+| `loadLenient(options)` | The same loader with a 0.5 threshold, resolving once half the relays have closed. The rest stay open and their events still arrive, so it suits callers that don't route on the returned array. |
 
 `request` / `requestOne` options (`BaseRequestOptions`):
 - `relay` / `relays` — relay url(s)
 - `filters` — array of nostr `Filter` objects
-- `autoClose?: boolean` — close the subscription after EOSE, on socket disconnect, or 30 seconds in, whichever comes first, so a relay that answers nothing can't hold the request open
+- `autoClose?: boolean` — close the subscription after EOSE, on socket disconnect, or 30 seconds in, whichever comes first
 - `signal?: AbortSignal` — cancellation
+- `priority?: number` — send priority on the socket's queue
 - `tracker?: Tracker` — cross-relay deduplication (shared automatically by `request`)
 - `context?: AdapterContext`
-- `resubscribeAttempts?: number` — how many times to retry a subscription the relay CLOSEs (default `0`; each retry backs off `2 ** attempt` seconds)
+- `resubscribeAttempts?: number` — how many times to retry a subscription the relay CLOSEs for a non-final reason (default `0`; each retry backs off `2 ** attempt` seconds)
 - `isEventValid?: (event, url) => boolean` — signature check override; defaults to `verifyEvent`
 - Callbacks: `onEvent(event, url)`, `onEose(url)`, `onClose()`, `onDisconnect(url)`, `onFiltered`, `onDuplicate`, `onDeleted`, `onInvalid`, `onClosed(reason, url)`
 
@@ -72,7 +73,7 @@ Every entry point (`request`, `requestOne`, `publish`, `publishOne`, `makeLoader
 
 `makeLoader` options: `{delay, timeout?, threshold?, context?, isEventValid?}`. The returned `Loader` takes `{relays, filters, signal?, onEvent?, onDisconnect?, onEose?, onClose?}`.
 
-Without `autoClose` or a `signal`, `requestOne` streams indefinitely. The returned promise only resolves if the relay sends CLOSED for all active subscription ids.
+Without `autoClose` or a `signal`, `requestOne` streams indefinitely, and its promise resolves only if the relay closes every subscription. Pass one for a one-shot fetch, or use a loader.
 
 ### Count
 
@@ -83,7 +84,7 @@ Without `autoClose` or a `signal`, `requestOne` streams indefinitely. The return
 | `supportsCount(relay)` | Whether that relay has answered a COUNT this session — `true`, `false`, or `undefined` if it has not been asked |
 | `COUNT_TIMEOUT` | 3000 ms, how long a relay has to answer before it counts as refusing |
 
-Options are `{relay | relays, filters, context?, signal?}`. `undefined` means no relay supports COUNT, which is a different answer from `0`. NIP-45 is optional and a NIP-11 document is not always honest about it, so support is read off the wire: a relay that answers with CLOSED, or says nothing at all, is remembered and not asked again. Relays hold overlapping subsets of the network, so what `count` returns is a lower bound on the total rather than the total.
+Options are `{relay | relays, filters, context?, signal?}`. `undefined` means no relay supports COUNT, which is a different answer from `0`. Support is read off the wire rather than from NIP-11: a relay that refuses with CLOSED (other than `auth-required:` or `rate-limited:`), or stays silent while connected, is remembered and not asked again. Relays hold overlapping subsets of the network, so what `count` returns is a lower bound on the total.
 
 ### Publish
 
@@ -95,7 +96,7 @@ Options are `{relay | relays, filters, context?, signal?}`. `undefined` means no
 | `PublishResult` | `{status: PublishStatus, detail: string, relay: string}` |
 | `PublishResultsByRelay` | `Record<string, PublishResult>` |
 
-`publish` options: `event`, `relays`, `timeout?` (default 10 s), `signal?`, `context?`, plus callbacks `onSuccess`, `onFailure`, `onPending`, `onTimeout`, `onAborted`, `onComplete`.
+`publish` options: `event`, `relays`, `timeout?` (default 10 s), `signal?`, `priority?`, `context?`, plus callbacks `onSuccess`, `onFailure`, `onPending`, `onTimeout`, `onAborted`, `onComplete`.
 
 ### Auth (NIP-42)
 
@@ -113,9 +114,10 @@ A `SocketPolicy` is `(socket: Socket) => Unsubscriber`, run once per socket at c
 | Export | Description |
 |--------|-------------|
 | `socketPolicyAuthBuffer` | Buffers outgoing messages during auth and replays them once it completes |
-| `socketPolicyConnectOnSend` | Auto-opens closed sockets when a message is queued |
-| `socketPolicyLifecycle` | Owns the socket's lifetime: closes it after 30 s idle with nothing pending; while work *is* pending, probes with a throwaway REQ when nothing has been received for a while and closes if the probe goes unanswered; on an unexpected close, reopens after a flap delay and replays pending messages, rewriting each REQ's filters with `catchUpFilter` so nothing is missed |
-| `defaultSocketPolicies` | `[socketPolicyAuthBuffer, socketPolicyConnectOnSend, socketPolicyLifecycle]` |
+| `socketPolicyCancelUnsent` | Drops a queued REQ or NEG-OPEN together with its close when the close is queued before the request was sent |
+| `socketPolicyConnectOnSend` | Auto-opens closed sockets when a message is queued, unless the socket errored in the last 5 s |
+| `socketPolicyLifecycle` | Owns the socket's lifetime: closes it after 30 s idle with nothing pending; while work *is* pending, probes with a throwaway REQ when nothing has been received for a while and closes if the probe goes unanswered; on an unexpected close, reopens with backoff and replays pending messages, rewriting each REQ's filters with `catchUpFilter` so nothing is missed |
+| `defaultSocketPolicies` | `[socketPolicyAuthBuffer, socketPolicyCancelUnsent, socketPolicyConnectOnSend, socketPolicyLifecycle]` |
 
 `defaultSocketPolicies` is a template. `new Pool()` copies it into `pool.socketPolicies`, so mutating the array after a pool exists does nothing for that pool; assign to `pool.socketPolicies` instead.
 
@@ -124,23 +126,23 @@ A `SocketPolicy` is `(socket: Socket) => Unsubscriber`, run once per socket at c
 | Export | Description |
 |--------|-------------|
 | `Repository` | In-memory indexed event store with delete/expiry support. Construct with `new Repository()` |
-| `repository.publish(event, {shouldNotify?})` | Stores an event; returns `false` if duplicate/stale |
-| `repository.query(filters, {shouldSort?})` | Returns matching `TrustedEvent[]`, sorted by `created_at` desc unless disabled |
+| `repository.publish(event, {shouldNotify?})` | Stores an event; returns `false` if it is a duplicate or older than the stored replaceable |
+| `repository.query(filters, {shouldSort?, includeDeleted?, includeExpired?})` | Returns matching `TrustedEvent[]`, sorted by `created_at` desc unless disabled |
 | `repository.getEvent(idOrAddress)` | Look up by id or NIP-01 address (`kind:pubkey:d`) |
 | `repository.hasEvent(event)` | Whether the event (or a newer replacement) is already stored |
 | `repository.removeEvent(idOrAddress)` | Drops an event and unwinds its index entries |
 | `repository.isDeleted(event)` | `true` if a kind-5 delete covers this event (`isDeletedById` / `isDeletedByAddress` check one path each) |
 | `repository.isExpired(event)` | `true` past the event's NIP-40 `expiration` |
 | `repository.dump()` | All stored events as `TrustedEvent[]` |
-| `repository.load(events)` | Bulk-**replaces** all stored events; emits one `"update"` diff. Events with `event[verifiedSymbol] = true` skip signature re-verification |
-| `repository.clear()` | Empties every index |
+| `repository.load(events)` | Bulk-inserts events alongside those already stored; emits one `"update"` diff |
+| `repository.clear()` | Empties every index; emits `"clear"` |
 | `LOCAL_RELAY_URL` | `"local://welshman.relay/"` — conventional url for the local repository (also exported by `@welshman/util`) |
 | `RepositoryUpdate` | `{added: TrustedEvent[], removed: Set<string>}` — payload of `"update"` events |
 | `mergeRepositoryUpdates(updates)` | Merges an array of `RepositoryUpdate` objects into one |
 
-Emits `"update"` with a `RepositoryUpdate` on every change.
+Emits `"update"` with a `RepositoryUpdate` whenever events are added or removed.
 
-> **Prefer `LOCAL_RELAY_URL` over direct repository access.** Rather than calling `repository.query()` or `repository.publish()` directly, pass `LOCAL_RELAY_URL` as a relay url to `load()`, `request()` and `publish()` (with the repository in `context`). Local reads and writes then go through the same policy, deduplication and tracking pipeline as remote ones. Reserve the direct API for bulk startup (`repository.load()`) and low-level introspection (`getEvent`, `isDeleted`, `dump`).
+> **Prefer `LOCAL_RELAY_URL` over direct repository access.** Pass `LOCAL_RELAY_URL` as a relay url to `load()`, `request()` and `publish()` (with the repository in `context`), so local reads and writes go through the same validation, deduplication and tracking as remote ones. Reserve the direct API for bulk startup (`repository.load()`) and low-level introspection (`getEvent`, `isDeleted`, `dump`).
 
 ### Tracker
 
@@ -153,14 +155,14 @@ Emits `"update"` with a `RepositoryUpdate` on every change.
 | `tracker.getRelays(eventId)` | Set of relay urls that have sent this event |
 | `tracker.getIds(relay)` | Set of event ids seen from a relay |
 | `tracker.copy(id1, id2)` | Copies relay associations from one id to another (used for gift wraps) |
-| `tracker.load(relaysById)` | Bulk-replaces all mappings from a `Map<string, Set<string>>`; emits `"load"` |
+| `tracker.load(relaysById)` | Bulk-adds mappings from a `Map<string, Set<string>>`; emits `"load"` |
 | `tracker.clear()` | Removes all mappings; emits `"clear"` |
 
 ### Adapters
 
 | Export | Description |
 |--------|-------------|
-| `getAdapter(url, context?)` | Factory: `context.getAdapter` first, then `LocalAdapter` for `LOCAL_RELAY_URL`, then `SocketAdapter` for relay urls |
+| `getAdapter(url, context?)` | Factory: `context.getAdapter` first, then `LocalAdapter` for `LOCAL_RELAY_URL`, then `SocketAdapter` from `context.pool` for relay urls |
 | `SocketAdapter` | WebSocket relay adapter |
 | `LocalAdapter` | In-memory adapter over a `Repository` |
 | `MockAdapter` | Test adapter with manual send control |
@@ -374,7 +376,7 @@ A `getAdapter` that returns `undefined` falls through to the built-in resolution
 import {publish, request, LOCAL_RELAY_URL} from '@welshman/net'
 import {now} from '@welshman/lib'
 
-// Read from the local repository the same way you'd read from a remote relay
+// `load` is the context-bound loader from "Load events" above
 const events = await load({
   relays: [LOCAL_RELAY_URL],
   filters: [{kinds: [1], authors: ['<pubkey>'], limit: 20}],
@@ -396,34 +398,34 @@ request({
 })
 ```
 
-### Startup: bulk-load persisted events (skip re-verification)
+### Startup: bulk-load persisted events
 
 ```typescript
 import {verifiedSymbol} from '@welshman/util'
 import type {TrustedEvent} from '@welshman/util'
 
-// Mark events as already-verified so welshman skips signature checks
+// The repository never verifies signatures, but requests against LOCAL_RELAY_URL do,
+// and verifyEvent skips events marked as already verified
 const storedEvents: TrustedEvent[] = await loadFromStorage()
 for (const event of storedEvents) {
   event[verifiedSymbol] = true
 }
 
-// Replaces all in-memory events in one pass; emits a single "update"
+// Inserts every event in one pass and emits a single "update"
 repository.load(storedEvents)
 ```
 
 ### Startup: bulk-load Tracker state
 
 ```typescript
-// Build the map from your stored relay <-> event mappings
+// Load after repository.load() so orphaned event ids can be dropped
 const relaysById = new Map<string, Set<string>>()
 for (const {id, relays} of storedTrackerItems) {
-  if (repository.getEvent(id)) {  // skip orphaned entries
+  if (repository.getEvent(id)) {
     relaysById.set(id, new Set(relays))
   }
 }
 
-// Takes Map<string, Set<string>> — the same shape as tracker.relaysById
 tracker.load(relaysById)
 ```
 
@@ -463,25 +465,23 @@ on(
 
 - **`@welshman/util`** — provides `TrustedEvent`, `SignedEvent`, `Filter`, `verifyEvent`, `matchFilters`, `getAddress`, `normalizeRelayUrl`, etc. All event objects flowing through `@welshman/net` are `TrustedEvent`.
 - **`@welshman/lib`** — utility helpers (`Emitter`, `batcher`, `defer`, `on`, …). `Emitter` is the base class for `Tracker`, `Repository` and `WrapManager`; `Socket`, `AuthState`, `AbstractAdapter` and `Difference` extend node's `EventEmitter` directly.
-- **`@welshman/app`** — an `App` owns one `Pool`, `Repository`, `Tracker` and `WrapManager`, exposes them as `app.netContext`, and wraps the request/publish entry points as `app.use(Network)`. Most app-level code should go through that; drop to `@welshman/net` for raw relay I/O or non-Svelte clients.
+- **`@welshman/app`** — an `App` owns one `Pool`, `Repository`, `Tracker` and `WrapManager`, exposes the pool and repository as `app.netContext`, and wraps the request/publish entry points as `app.use(Network)`. App-level code goes through that; `@welshman/net` directly is for raw relay I/O or clients without an `App`.
 
 ---
 
 ## Gotchas & Tips
 
 - **Build one `{pool, repository}` per identity and thread it through.** Two contexts never share sockets or events.
-- **`request()` without `autoClose` or `signal` never resolves.** Pass one when you want a one-shot fetch; use a loader for the common case.
 - **Relay url normalization happens inside `pool.get(url)`** via `normalizeRelayUrl`. Pass raw urls everywhere.
 - **`pool.get(url)` creates a fresh socket after `pool.remove(url)`.** `remove` forgets the url and cleans up the socket, policies included; call it only when you want the pool to forget the relay, not merely to disconnect.
 - **`socketPolicyLifecycle` reopens a closed socket only when work is pending.** Opening a socket because something was queued is `socketPolicyConnectOnSend`'s job.
 - **Subscriptions the relay CLOSEs are not retried by default.** Set `resubscribeAttempts` when a caller should survive a transient refusal (e.g. auth in flight).
 - **`Tracker` is shared across relays in `request()`**, so `onDuplicate` fires for events received from more than one relay. That is cross-relay deduplication, not an error.
 - **`Repository.publish()` returns `false` for stale replaceable events.** If a newer version is already stored, the older one is silently dropped.
-- **`makeSocketPolicyAuth` requires a `sign` function** returning `Promise<SignedEvent>`. If the user cancels, throw or reject: `doAuth` catches it and transitions to `AuthStatus.DeniedSignature`, preventing a retry loop.
+- **`makeSocketPolicyAuth` requires a `sign` function** returning `Promise<SignedEvent>`. If the user cancels, throw or reject: `doAuth` catches it and moves to `AuthStatus.DeniedSignature`.
 - **Each filter in `filters` generates a separate REQ** inside `requestOne`. For large filter arrays merge them with `unionFilters` from `@welshman/util` first.
-- **`repository.load()` replaces, it does not append.** It clears the indexes then re-inserts, emitting a single batched `"update"`. Use `repository.publish(event)` for incremental updates.
+- **`repository.load()` adds to what is stored.** It inserts every event without per-event notification, then emits a single `"update"`. Call `repository.clear()` first to replace the contents.
 - **`RepositoryUpdate.removed` is a `Set<string>`.** Iterate with `for...of` or `Array.from`. `batch()` from `@welshman/lib` hands your callback a `RepositoryUpdate[]` — merge them yourself or use `mergeRepositoryUpdates`.
-- **`tracker.load()` takes `Map<string, Set<string>>`.** Load it after `repository.load()` so you can drop orphaned event ids.
 
 ## Related skills
 

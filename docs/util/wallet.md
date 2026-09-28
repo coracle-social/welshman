@@ -1,6 +1,6 @@
 # Wallet
 
-Types and utilities for working with Lightning wallet integrations in Nostr applications.
+Types for WebLN and Nostr Wallet Connect (NWC) wallets.
 
 ## Types
 

@@ -1,13 +1,13 @@
 # Feed Core Types
 
-Core type definitions for the feed system, providing structured ways to query and filter Nostr events.
+A feed is a tuple whose first element is a `FeedType` and whose remaining elements are that type's arguments.
 
 ## Feed Types
 
 ```typescript
 export enum FeedType {
   Address = "address",
-  Author = "author", 
+  Author = "author",
   CreatedAt = "created_at",
   DVM = "dvm",
   Difference = "difference",
@@ -36,6 +36,8 @@ export enum Scope {
 ## Item Types
 
 ```typescript
+export type TagFeedMapping = [string, Feed]
+
 export type DVMItem = {
   kind: number
   tags?: string[][]

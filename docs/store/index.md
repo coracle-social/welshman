@@ -2,15 +2,15 @@
 
 [![version](https://badgen.net/npm/v/@welshman/store)](https://npmjs.com/package/@welshman/store)
 
-A utility package providing welshman-specific svelte store functionality and utilities for managing state. While it's primarily built for use with Svelte's store system, the concepts could be valuable for developers familiar with reactive programming patterns like RxJS.
+Svelte store utilities for nostr clients. The package derives live-updating stores from a `Repository`, and provides persisted, throttled and getter-enhanced stores.
 
 ## What's Included
 
-- **Basic Utilities** - Enhanced stores with persistence, throttling, and getter methods
-- **Event-Based Stores** - Specialized stores for working with nostr events and repositories
-- **Custom Adapters** - Two-way data transformation with maintained reactivity
-- **Persistence Layer** - Automatic localStorage synchronization
-- **Performance Optimizations** - Throttled updates and efficient subscription management
+- **Repository stores** - Live maps and arrays of events, or of items decoded from events, that update as the repository changes
+- **Relay-scoped stores** - The same collections keyed per relay through a `Tracker`
+- **Loaders** - Cached, deduplicated item loaders with exponential backoff
+- **Synced stores** - Writable stores persisted to a `StorageProvider`
+- **Throttled stores and getters** - Throttled notifications, and synchronous `get()` access that subscribes when called often
 
 ## Quick Example
 
@@ -24,17 +24,17 @@ const repository = new Repository()
 
 type PeopleList = {event: TrustedEvent; pubkeys: string[]}
 
-// Create a reactive map of lists indexed by pubkey. `eventToItem` maps each
-// event to a stored item (or `null` to skip it) — decode it however you like.
-// In a full @welshman/app setup you'd use `app.use(Domain).reader(FollowList)`.
+// `eventToItem` returns undefined to skip an event
 const listsByPubkey = deriveItemsByKey<PeopleList>({
   repository,
   filters: [{kinds: [NAMED_PEOPLE]}],
   eventToItem: (event: TrustedEvent) =>
-    event.tags.length > 1 ? {event, pubkeys: tagValues(hexTags("p"), event.tags)} : null,
+    event.tags.length > 1 ? {event, pubkeys: tagValues(hexTags("p"), event.tags)} : undefined,
   getKey: list => list.event.pubkey,
 })
 ```
+
+With `@welshman/app`, `app.use(Domain).reader(Kind)` is a ready-made `eventToItem` for any domain kind.
 
 ## Installation
 

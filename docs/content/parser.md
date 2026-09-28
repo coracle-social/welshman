@@ -1,13 +1,12 @@
 # Content Parser
 
-The content parser system in `@welshman/content` provides utilities for parsing Nostr content into structured elements.
+The parser turns nostr content into an array of typed elements.
 
 ## Core Types
 
 ### ParsedType Enum
 
-Defines all supported content types:
-- `Address` - naddr references to parameterized replaceable events
+- `Address` - naddr references to addressable events
 - `Cashu` - Cashu token strings
 - `Code` - Code blocks and inline code
 - `Command` - NIP-CD command invocations at the start of the content
@@ -20,6 +19,7 @@ Defines all supported content types:
 - `LinkGrid` - Collections of adjacent links
 - `Newline` - Line breaks
 - `Profile` - Profile references (npub/nprofile)
+- `Room` - NIP-29 room references written as `relay.example.com'roomid`
 - `Text` - Plain text content
 - `Topic` - Hashtags
 
@@ -27,17 +27,13 @@ Defines all supported content types:
 
 ### parse(options)
 
-Main parsing function that processes content into structured elements:
-
 ```typescript
 parse({content?: string, tags?: string[][]}) => Parsed[]
 ```
 
-Takes content string and optional tags array, returns array of parsed elements. Uses tags for emoji lookup and imeta information.
+`parse` trims the content and falls back to the `alt` tag when it is empty. Tags supply custom emoji URLs, `imeta` metadata for links, and the targets of legacy `#[0]` mentions.
 
 ### truncate(content, options)
-
-Truncates parsed content to specified length limits:
 
 ```typescript
 truncate(content: Parsed[], {
@@ -48,13 +44,11 @@ truncate(content: Parsed[], {
 }) => Parsed[]
 ```
 
-Text and code elements are cut inside at the last line break or space, so a message that is
-one long code block is shortened like any other. Every other element is kept or dropped
-whole. Truncated content ends with an `Ellipsis` element.
+Content shorter than `maxLength` is returned unchanged. Otherwise `truncate` cuts at `minLength`. Text and code elements are cut inside at the last line break or space, so a message that is one long code block is shortened like any other. Every other element is kept or dropped whole. Truncated content ends with an `Ellipsis` element.
 
 ### reduceLinks(content)
 
-Combines adjacent links into `LinkGrid` elements for better presentation:
+Combines links that each start a line into `LinkGrid` elements. Links inside a sentence stay `Link` elements.
 
 ```typescript
 reduceLinks(content: Parsed[]) => Parsed[]
@@ -62,13 +56,11 @@ reduceLinks(content: Parsed[]) => Parsed[]
 
 ## Type Guards
 
-Utility functions to check parsed element types:
-- `isAddress(parsed)`, `isCashu(parsed)`, `isCode(parsed)`, `isEmail(parsed)`, etc.
-- `isImage(parsed)` - special check for image links
+Each `ParsedType` has a guard that narrows the element type: `isAddress(parsed)`, `isCashu(parsed)`, `isCode(parsed)`, `isEmail(parsed)`, and so on. `isImage(parsed)` matches links ending in `.jpg`, `.jpeg`, `.png`, `.gif` or `.webp`.
 
 ## Utilities
 
-- `urlIsMedia(url)` - Checks if URL points to media file
+- `urlIsMedia(url)` - Checks whether a URL string ends in an image, audio or video extension
 
 ## Example Usage
 
@@ -80,24 +72,22 @@ https://github.com/coracle-social/welshman
 https://welshman.coracle.social
 Visit npub1jlrs53pkdfjnts29kveljul2sm0actt6n8dxrrzqcersttvcuv3qdjynqn for more info`
 
-// Parse the content into structured elements
 const parsed = parse({ content })
-
-// Combine adjacent links into grids
 const withLinkGrids = reduceLinks(parsed)
 
-// Truncate to reasonable length for preview
+// withLinkGrids:
+// - Text: "Check out this cool "
+// - Topic: "nostr"
+// - Text: " client!"
+// - Newline: "\n"
+// - LinkGrid: [github.com/..., welshman.coracle.social]
+// - Text: "Visit "
+// - Profile: {pubkey, relays: []}
+// - Text: " for more info"
+
+// A link grid counts as mediaLength (200), so this ends after the grid with an Ellipsis
 const truncated = truncate(withLinkGrids, {
   minLength: 100,
   maxLength: 200
 })
-
-// Result contains structured elements:
-// - Text: "Check out this cool "
-// - Topic: "nostr"
-// - Text: " client!\n"
-// - LinkGrid: [github.com/..., welshman.coracle.social]
-// - Text: "Visit "
-// - Profile: npub1jlrs53pkdfjnts29kveljul2sm0actt6n8dxrrzqcersttvcuv3qdjynqn
-// - Text: " for more info"
 ```

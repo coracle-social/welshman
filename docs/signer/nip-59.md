@@ -1,14 +1,6 @@
 # NIP-59 (Gift Wrap) Implementation
 
-The `Nip59` class provides utilities for implementing the Gift Wrap protocol (NIP-59), allowing secure event wrapping and unwrapping. This implementation works with any signer that supports encryption, making it versatile for different authentication methods.
-
-## Key Features
-
-- Event wrapping (encryption) for specific recipients
-- Event unwrapping (decryption) of received wrapped events
-- Automatic ephemeral wrapper generation
-- Caching of previously unwrapped events, scoped to the instance
-- Compatible with all signer implementations
+`Nip59` wraps and unwraps events under the Gift Wrap protocol (NIP-59). It works with any `ISigner`, and signs each wrap with a fresh ephemeral key unless given a wrapper signer. Each instance caches what it has unwrapped.
 
 ## Basic Usage
 
@@ -16,10 +8,9 @@ The `Nip59` class provides utilities for implementing the Gift Wrap protocol (NI
 import { Nip59 } from '@welshman/signer'
 import { makeEvent, DIRECT_MESSAGE } from '@welshman/util'
 
-// Create a NIP-59 instance from any signer
 const nip59 = Nip59.fromSigner(mySigner)
 
-// Wrap an event — returns the gift-wrap SignedEvent to publish
+// Returns the gift-wrap SignedEvent to publish
 const wrappedEvent = await nip59.wrap(
   recipientPubkey,
   makeEvent(DIRECT_MESSAGE, {
@@ -28,67 +19,31 @@ const wrappedEvent = await nip59.wrap(
   })
 )
 
-// Unwrap a received event
 const unwrapped = await nip59.unwrap(receivedWrappedEvent)
 ```
 
 ### Wrapping Process
 
-The wrapping process involves multiple steps:
+The free function `wrap(signer, wrapper, pubkey, template, tags?)` builds three layers:
 
-1. Create the rumor (original event)
-2. Create the seal (encrypted rumor)
-3. Create the wrap (encrypted seal)
+1. The rumor: the template, stamped with the author's pubkey and hashed but not signed
+2. The seal: the rumor, NIP-44 encrypted to the recipient and signed by `signer`
+3. The wrap: the seal, NIP-44 encrypted to the recipient and signed by `wrapper`, with a `p` tag for the recipient after any extra `tags`
 
-```typescript
-export const wrap = async (
-  signer: ISigner,
-  wrapper: ISigner,
-  pubkey: string,
-  template: StampedEvent,
-  tags: string[][] = []
-) => {
-  const author = await signer.getPubkey()
-  const rumor = await prep(template, author)
-  const seal = await getSeal(signer, pubkey, rumor)
-  const wrap = await getWrap(wrapper, pubkey, seal, tags)
-
-  return wrap
-}
-```
+`getSeal` and `getWrap` build the last two layers on their own.
 
 ### Unwrapping Process
 
-`unwrap` reverses it: decrypt the wrap to get the seal, decrypt the seal to get the rumor, then check that the seal and rumor share an author.
-
-```typescript
-export const unwrap = async (signer: ISigner, wrap: SignedEvent): Promise<HashedEvent> => {
-  const seal = JSON.parse(await decrypt(signer, wrap.pubkey, wrap.content))
-  const rumor = JSON.parse(await decrypt(signer, seal.pubkey, seal.content))
-
-  if (seal.pubkey !== rumor.pubkey) throw new Error("Seal pubkey does not match rumor pubkey")
-  if (!isHashedEvent(rumor)) throw new Error("Unwrapped object was not a hashed event")
-
-  return rumor
-}
-```
-
-This free function does no caching — reach for `Nip59.unwrap` if you want that.
+`unwrap(signer, wrap)` decrypts the wrap to get the seal, decrypts the seal to get the rumor, and checks that the seal and rumor share an author. It throws if they don't, or if the result is not a hashed event. The free function does no caching; `Nip59.unwrap` does.
 
 ## API Reference
 
-### Constructor & Factory Methods
-
 ```typescript
 class Nip59 {
-  // Constructor
   constructor(signer: ISigner, wrapper?: ISigner)
 
-  // Factory Methods
   static fromSigner(signer: ISigner): Nip59
   static fromSecret(secret: string): Nip59
-
-  // Instance Methods
 
   /**
    * Wraps an event for a specific recipient
@@ -120,45 +75,13 @@ class Nip59 {
 }
 ```
 
-## Detailed Examples
-
-### Basic Wrapping & Unwrapping
-
-```typescript
-import { Nip59, Nip01Signer } from '@welshman/signer'
-import { makeEvent, DIRECT_MESSAGE } from '@welshman/util'
-
-async function example() {
-  // Create NIP-59 instance
-  const signer = new Nip01Signer(mySecret)
-  const nip59 = Nip59.fromSigner(signer)
-
-  // Create and wrap an event — returns the gift-wrap SignedEvent to publish
-  const event = makeEvent(DIRECT_MESSAGE, {
-    content: "Secret message",
-    tags: [["p", recipientPubkey]]
-  })
-
-  const wrappedEvent = await nip59.wrap(recipientPubkey, event)
-
-  // Later, unwrap a received event
-  const unwrapped = await nip59.unwrap(receivedEvent)
-}
-```
-
-### Custom Wrapper Signer
+## Custom Wrapper Signer
 
 ```typescript
 import { Nip59, Nip01Signer } from '@welshman/signer'
 
-// Create with specific wrapper
-const nip59 = new Nip59(
-  mainSigner,
-  Nip01Signer.ephemeral() // Custom wrapper
-)
+const nip59 = new Nip59(mainSigner, Nip01Signer.ephemeral())
 
-// Or add wrapper to existing instance
-const nip59WithWrapper = nip59.withWrapper(
-  Nip01Signer.ephemeral()
-)
+// Or derive an instance with a wrapper from an existing one
+const nip59WithWrapper = nip59.withWrapper(Nip01Signer.ephemeral())
 ```

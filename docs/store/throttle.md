@@ -1,20 +1,16 @@
 # Throttled Store
 
-Utility for wrapping Svelte stores to throttle subscriber notifications, reducing update frequency for performance.
+Wraps a Svelte store to throttle subscriber notifications.
 
 ## Functions
 
 ### throttled(delay, store)
 
-Creates a throttled version of a store that limits how often subscribers are notified.
-
 **Parameters:**
-- `delay` - Throttle delay in milliseconds (0 disables throttling)
+- `delay` - Throttle delay in milliseconds
 - `store` - Any readable Svelte store
 
-**Returns:** Store with throttled subscription behavior
-
-When `delay` is 0, returns the original store unchanged. Otherwise, wraps the store so that subscribers receive updates at most once per delay period.
+When `delay` is 0, `throttled` returns the original store. Otherwise subscribers receive updates at most once per `delay`.
 
 ## Example
 
@@ -42,7 +38,6 @@ const interval = setInterval(() => {
   }
 }, 10) // Update every 10ms
 
-// Output:
-// Fast: 1, Fast: 2, Fast: 3, ... (every update)
-// Slow: 1, Slow: 5, Slow: 10 (throttled to ~100ms intervals)
+// Fast logs every value from 0 to 10
+// Slow logs 0, then the latest value at most once per 100ms
 ```

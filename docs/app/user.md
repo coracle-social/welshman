@@ -1,6 +1,6 @@
 # User & Sessions
 
-An `App` is centered on at most one identity, represented by a `User`. Login state that needs to be persisted is represented separately as a serializable `Session`. The two are connected by session handlers, which know how to turn a serialized session back into a live signer.
+An `App` is centered on at most one identity, a `User`. Persisted login state is a separate, serializable `Session`, and session handlers turn a session back into a live signer.
 
 ## `User`
 
@@ -8,32 +8,33 @@ A `User` is a single identity: a `pubkey` plus the `signer` that proves ownershi
 
 ```typescript
 class User {
-  constructor(readonly pubkey: string, readonly signer: ISigner)
+  constructor(readonly pubkey: string, public signer: ISigner)
 
   static fromSigner(signer: ISigner): Promise<User>
   static fromSession(session: Session): Promise<User | undefined>
   static require(app: IApp): User
 
-  sign(event: StampedEvent): Promise<SignedEvent>
+  sign(event: StampedEvent, options?: SignOptions): Promise<SignedEvent>
   nip44EncryptToSelf(payload: string): Promise<string>
+  wrapSigner(wrap: SignerMethodWrapper): () => void
 }
 ```
 
 ### Constructing a user
 
-- **`User.fromSigner(signer)`** — wraps `signer` in a [`LoggingSigner`](./applogging) (unless it already is one), derives the pubkey via `signer.getPubkey()`, and returns the `User`.
-- **`User.fromSession(session)`** — resolves a signer from a serialized session (via the [handler registry](#session-handlers)) and returns the `User`, or `undefined` if no handler is registered for the session's method.
+- **`User.fromSigner(signer)`** reads the pubkey from `signer.getPubkey()` and returns the `User`.
+- **`User.fromSession(session)`** builds a signer through the [handler registry](#session-handlers) and returns the `User`, or `undefined` if no handler is registered for the session's method.
 
 ```typescript
 import {User} from "@welshman/app"
-import {getNip07} from "@welshman/signer"
+import {Nip07Signer} from "@welshman/signer"
 
-const user = await User.fromSigner(getNip07())
+const user = await User.fromSigner(new Nip07Signer())
 ```
 
 ### Gating user-only actions
 
-`User.require(app)` returns `app.user`, throwing `"This action requires a signed-in user"` if there is none. Plugins use this internally before signing or encrypting; you can use it the same way.
+`User.require(app)` returns `app.user`, and throws `"This action requires a signed-in user"` if there is none. Plugins call it before signing or encrypting.
 
 ```typescript
 const user = User.require(app)
@@ -43,11 +44,12 @@ const signed = await user.sign(stampedEvent)
 ### Signing & self-encryption
 
 - **`sign(event)`** delegates to the signer.
-- **`nip44EncryptToSelf(payload)`** encrypts a payload to your own pubkey via NIP-44 — used for private list entries (mutes, follows) that only you should read.
+- **`nip44EncryptToSelf(payload)`** encrypts a payload to the user's own pubkey with NIP-44.
+- **`wrapSigner(wrap)`** replaces `signer` with a `WrappedSigner` around it and returns a function that restores the original. The [default policies](./app#default-policies) use it for decrypt caching and signer logging.
 
 ## `Session`
 
-A `Session` is a serializable login descriptor. It contains only data — never a live signer object — so it can be stored in `localStorage`, IndexedDB, or anywhere else, and rehydrated later.
+A `Session` is a serializable login descriptor. It holds only data, never a live signer, so it can be stored anywhere and rehydrated later.
 
 ```typescript
 type Session<M extends string = string, D = unknown> = {method: M; data: D}
@@ -55,7 +57,7 @@ type Session<M extends string = string, D = unknown> = {method: M; data: D}
 
 ### Building sessions
 
-Build a typed session from a handler with `toSession`:
+`toSession` builds a typed session from a handler:
 
 ```typescript
 toSession<M, D>(handler: SessionHandler<M, D>, data: D): Session<M, D>
@@ -92,9 +94,9 @@ These are registered automatically when the package loads:
 | `nip55` | `"nip55"` | `{pubkey, signer}` | `Nip55Signer` (Android signer app) |
 | `pomade` | `"pomade"` | `{clientOptions, email}` | `PomadeSigner` |
 
-`pomade` imports `@pomade/core` lazily, the first time a pomade session builds a signer, so apps that never use it don't carry it (and its zod, hash-wasm and frostr dependencies) in their main bundle. `getSigner` returns `MaybeAsync`, so this is invisible to callers.
+`pomade` imports `@pomade/core` the first time a pomade session builds a signer, so apps that never use it don't carry it in their main bundle.
 
-`nip55` needs the Capacitor plugin handed to `@welshman/signer` before use — the handler is registered either way, but building a signer from it throws `"Nip55 is not enabled"` until you do. Call this once at startup in a Capacitor app:
+`nip55` needs the Capacitor plugin handed to `@welshman/signer` once at startup. Until then, building a signer from a `nip55` session throws `"Nip55 is not enabled"`:
 
 ```typescript
 import {NostrSignerPlugin} from "nostr-signer-capacitor-plugin"
@@ -105,7 +107,7 @@ setNip55Plugin(NostrSignerPlugin)
 
 ### Registering custom handlers
 
-Define a handler with `defineSessionHandler` (it infers `M`/`D` so `getSigner` is type-checked against the data shape), then register it:
+`defineSessionHandler` infers `M` and `D`, so `getSigner` is type-checked against the data shape:
 
 ```typescript
 import {defineSessionHandler, registerSessionHandler, unregisterSessionHandler} from "@welshman/app"
@@ -125,20 +127,19 @@ registerSessionHandler(myHandler)
 getSignerFromSession(session: Session): MaybeAsync<ISigner> | undefined
 ```
 
-Returns the signer for a session, or `undefined` if no handler is registered for its method. `User.fromSession` is a thin wrapper over this.
+Returns the signer for a session, or `undefined` if no handler is registered for its method. `User.fromSession` wraps it.
 
 ## A complete login flow
 
 ```typescript
 import {createApp, User, toSession, nip07} from "@welshman/app"
-import {getNip07} from "@welshman/signer"
 
 // On login: build a serializable session and persist it
 const session = toSession(nip07, {})
 localStorage.setItem("session", JSON.stringify(session))
 
 // On startup: rehydrate the user and create the app
-const stored = JSON.parse(localStorage.getItem("session"))
+const stored = JSON.parse(localStorage.getItem("session")!)
 const user = await User.fromSession(stored)        // User | undefined
 const app = createApp({user})
 ```

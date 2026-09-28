@@ -1,6 +1,6 @@
 # NIP-98 HTTP Auth
 
-Implementation of NIP-98 HTTP Authentication for authenticating HTTP requests with Nostr events.
+NIP-98 authenticates HTTP requests with signed Nostr events.
 
 ## Functions
 
@@ -19,13 +19,13 @@ import { makeHttpAuth, makeHttpAuthHeader } from '@welshman/util'
 
 const url = "https://api.example.com/upload"
 const method = "POST"
-const body = {data: "example"}
+const body = JSON.stringify({data: "example"})
 
 // Create HTTP auth event
-const authEvent = await makeHttpAuth(url, method, JSON.stringify(body))
+const authEvent = await makeHttpAuth(url, method, body)
 
 // Sign the auth event
-const signedEvent = await signer.signEvent(authEvent)
+const signedEvent = await signer.sign(authEvent)
 
 // Create Authorization header
 const authHeader = makeHttpAuthHeader(signedEvent)

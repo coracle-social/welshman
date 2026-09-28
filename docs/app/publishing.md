@@ -2,7 +2,7 @@
 
 Publishing in `@welshman/app` is **optimistic**. The event goes into the local repository immediately, so the UI updates before any relay answers. It then passes through an optional soft-undo delay, NIP-59 gift-wrapping, NIP-13 proof-of-work, signing, and sending. Each call to `publish` returns a `Publication`, whose state names its current stage and, once it is sending, each relay's answer.
 
-Publishing is managed by the `Publisher` plugin: `app.use(Publisher)`.
+The `Publisher` plugin, `app.use(Publisher)`, runs the pipeline.
 
 ## Publishing to specific relays
 
@@ -17,7 +17,7 @@ const publication = app.use(Publisher).publish({
 
 ## Publishing to the outbox
 
-`Publisher` has no outbox helper. Resolve the current user's write relays with the [Router](./routing) and pass them to `publish`, as [`Command.publish()`](#commands) does for every data-plugin mutation.
+`Publisher` takes explicit relays. The current user's write relays come from the [Router](./routing):
 
 ```typescript
 import {userOutbox} from "@welshman/util"
@@ -61,11 +61,11 @@ A publication moves through `PublicationState`, a union keyed by `stage`:
 | `failed` | A stage threw (e.g. the signer refused); `error` says why |
 | `aborted` | `abort()` was called before the publication settled |
 
-Stages that don't apply are skipped. `sent`, `failed` and `aborted` are terminal. A publication in a terminal state never changes again, so `abort()` does nothing after it settles. Every terminal state has a result for each relay, because `failed` and `aborted` fill in the missing ones, so the URL helpers below work the same however a publication ended.
+Stages that don't apply are skipped. `sent`, `failed` and `aborted` are terminal, and a publication in a terminal state never changes again, so `abort()` does nothing after it settles. `failed` and `aborted` fill in a result for every relay that lacks one, so the URL helpers below work the same however a publication ended.
 
 ## Working with a publication
 
-A publication is a Svelte store that notifies subscribers on every state change. Once it settles it never changes again, so a later subscriber is called once and not kept.
+A publication is a Svelte store that notifies subscribers on every state change. A subscriber added after it settles is called once and not kept.
 
 ```typescript
 const publication = app.use(Publisher).publish({event, relays})
@@ -114,7 +114,7 @@ A `PublicationGroup` has the same status helpers as a publication, plus `publica
 
 ## Commands
 
-The [data plugins](./data)' mutation methods (`follow`, `update`, `addRelay`, `setRelays`, `Rooms.create`/`edit`/etc.) don't publish directly — they build the event and the relays it belongs on, and return a `Command` for the caller to decide how (or whether) to publish it.
+The [data plugins](./data)' mutation methods (`follow`, `update`, `addWriteUrl`, `Rooms.createRoom`, …) don't publish. They build the event and the relays it belongs on, and return a `Command` for the caller to publish or drop.
 
 ```typescript
 import type {Command} from "@welshman/app"
@@ -122,84 +122,56 @@ import type {Command} from "@welshman/app"
 const command: Command = await app.use(FollowLists).follow(["p", otherPubkey])
 
 command.app       // the IApp it was built for
-command.event      // EventTemplate — unsigned, inspectable before publishing
-command.relays     // string[] — where publish() will send it
+command.event     // EventTemplate, unsigned
+command.relays    // string[], where publish() sends it
 
-command.publish()             // the normal path: app.use(Publisher).publish({event, relays})
-command.publishToRelays(urls)  // same, but override the relay set
+command.publish()              // app.use(Publisher).publish({event, relays})
+command.publishToRelays(urls)  // the same, to a different relay set
 ```
 
-Since mutation methods are themselves `async`, calling `.publish()` on the result normally means a double `await`. `publish` and `publishToRelays` are also exported as free functions so you can chain them onto the outer promise instead:
+Mutation methods are `async`, so `publish` and `publishToRelays` are also exported as free functions that chain onto the outer promise:
 
 ```typescript
 import {publish, publishToRelays} from "@welshman/app"
 
 await app.use(FollowLists).follow(["p", otherPubkey]).then(publish)
-await app.use(Rooms).leave(relayUrl, roomMeta).then(publish)
-await app.use(Rooms).join(relayUrl, roomMeta).then(publishToRelays([relayUrl]))
+await app.use(Rooms).leaveRoom(relayUrl, roomMeta).then(publish)
+await app.use(Rooms).joinRoom(relayUrl, roomMeta).then(publishToRelays([relayUrl]))
 ```
 
-`Wraps.publish` is the one mutation that still publishes directly rather than returning a `Command`: it fans a single rumor out into a `PublicationGroup` of per-recipient wraps, each with its own relay set, which doesn't fit the one-event/one-relay-set shape a `Command` assumes.
+`Wraps.publish` publishes directly instead of returning a `Command`, because it fans one rumor out into per-recipient wraps, each with its own relay set.
 
 ### Building a command from a domain writer
 
-Under the hood, every mutation method builds its event with a [`@welshman/domain`](../domain) *writer* and hands it to `app.use(Domain).command(writer)`. You can drive that flow directly. `app.use(Domain).writer(Kind, reader?)` returns a fresh writer — optionally seeded from an existing reader for an edit — and its setters are chainable (each returns the writer):
+Every mutation method builds its event with a [`@welshman/domain`](../domain/) writer and passes it to [`app.use(Domain).command(writer)`](./plugins#the-domain-plugin), which is also available directly:
 
 ```typescript
 import {FollowList} from "@welshman/domain"
-import {Domain} from "@welshman/app"
+import {Domain, User} from "@welshman/app"
 
-// Seed from the current follow list, then mutate.
-const reader = await app.use(FollowLists).forceLoad(user.pubkey)
+const reader = await app.use(FollowLists).forceLoad(User.require(app).pubkey)
+const writer = app.use(Domain).writer(FollowList, reader).follow(otherPubkey)
 
-const writer = app.use(Domain)
-  .writer(FollowList, reader)
-  .follow(otherPubkey)
-
-const command = await app.use(Domain).command(writer)   // -> Command
+const command = await app.use(Domain).command(writer)
 ```
 
-`app.use(Domain).command(writer)` requires a signed-in user, calls `writer.render()` to produce the unsigned template and its relay set, and wraps them in a `Command`. The signer, resolver, and repository are injected once when the kind is configured, so the writer's terminal methods take no arguments:
-
-```typescript
-await writer.renderTemplate()  // Promise<EventTemplate> — the unsigned event (validated, hints resolved)
-await writer.scenario()    // Promise<RelayScenario> — chainable: .limit(n) / .policy(fn) / allow*
-await writer.relays()      // Promise<string[]> — scenario().getUrls()
-await writer.render()      // Promise<{event, relays}> — renderTemplate() + relays() together
-```
-
-When you need finer control than `Domain.command` gives — for example to raise the relay limit — resolve the pieces yourself and build the `Command` by hand. This is how `Deletes` fans a deletion out to every relay its target lives on:
+For finer control, such as a higher relay limit, render the pieces and build the `Command` by hand. `Deletes` does this to reach every relay its target lives on:
 
 ```typescript
 import {Delete} from "@welshman/domain"
 import {Command} from "@welshman/app"
 
 const writer = app.use(Domain).writer(Delete).addEvent(event, seenRelay)
-
 const [template, scenario] = await Promise.all([writer.renderTemplate(), writer.scenario()])
 
-// A delete should reach every relay its target lives on, so raise the limit
-// above the scenario default before taking the urls.
-return new Command(app, template, scenario.limit(30).getUrls())
+const command = new Command(app, template, scenario.limit(30).getUrls())
 ```
 
-### Forced routes
-
-Some events must go to specific relays regardless of the outbox model — NIP-29 room ops, relay-management ops, and anything else that lives on one server. Writers express this with `forcedRoutes`: when it's set, `scenario()` publishes **only** there, bypassing the usual author-outbox / p-tag-inbox routing.
-
-```typescript
-// setRoom records the room’s relay AND writes the "h" tag (NIP-29):
-app.use(Domain).writer(RoomJoin).setRoom(relayUrl, roomId)
-
-// forceRoutes pins the target without an "h" tag — a literal relay, or any route:
-app.use(Domain).writer(Note).forceRoutes(relay("wss://relay.example")).setContent("hi")
-```
-
-Kinds that require explicit relays (the NIP-29 room ops/state and relay-management ops/state) fail validation in `render()` unless `setRoom`/`forceRoutes` has been called.
+Events that belong on one relay, such as NIP-29 room ops, set [forced routes](./routing#forced-routes) on the writer.
 
 ## Gift-wrapped messages
 
-There are two ways to publish encrypted, NIP-59 gift-wrapped events. Both take a rumor template — for a NIP-17 message, build it with the [`DirectMessage`](../domain/content#directmessage-kind-14) kind:
+There are two ways to publish NIP-59 gift-wrapped events. Both take a rumor template, which for a NIP-17 message comes from the [`DirectMessage`](../domain/content#directmessage-kind-14) kind:
 
 ```typescript
 const rumorTemplate = await app
@@ -212,7 +184,7 @@ const rumorTemplate = await app
 
 ### A single publication with a `recipient`
 
-Set `recipient` on a normal publication. The publisher wraps the rumor with an ephemeral key, registers it with the app's `WrapManager`, and publishes the wrap:
+With `recipient` set, the publisher wraps the rumor with an ephemeral key, registers it with the app's `WrapManager`, and publishes the wrap:
 
 ```typescript
 app.use(Publisher).publish({
@@ -235,11 +207,11 @@ const group = await app.use(Wraps).publish({
 await group.settled()
 ```
 
-`Wraps.publish` returns a `PublicationGroup` of the per-recipient publications. Incoming wraps addressed to the current user are unwrapped automatically by the [`appPolicyWraps`](./apppolicies) default policy; wraps that fail to unwrap (or are duplicates) are skipped.
+`Wraps.publish` returns a `PublicationGroup` of the per-recipient publications. The [`appPolicyWraps`](./app#default-policies) default policy unwraps incoming wraps addressed to the current user and skips duplicates. A wrap that fails to unwrap is retried with backoff up to `MAX_UNWRAP_ATTEMPTS` times.
 
 ## Proof of work
 
-Set `pow` to a target difficulty (number of leading zero bits). The publication mines the PoW before signing; for wrapped events the wrap itself is mined. An event that arrives already signed is sent as it is.
+`pow` is a target difficulty in leading zero bits. The publication mines before signing, and mines the wrap for a wrapped event. An event that arrives already signed is sent as it is.
 
 ```typescript
 app.use(Publisher).publish({event, relays, pow: 20})

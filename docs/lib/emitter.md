@@ -1,6 +1,6 @@
 # Event Emitter
 
-The `Emitter` class extends Node.js EventEmitter to automatically emit all events to `'*'` listeners in addition to specific event listeners.
+The `Emitter` class extends Node.js `EventEmitter` so that every event is also emitted to `'*'` listeners, with the event name as the first argument.
 
 ## API
 

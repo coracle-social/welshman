@@ -1,6 +1,6 @@
 # LRU Cache
 
-A LRU (Least Recently Used) Cache implementation provides efficient caching with automatic eviction of least recently used items when the cache reaches its maximum size.
+`LRUCache` evicts the least recently used entry once it holds more than its maximum size. Both `get` and `set` count as a use.
 
 ## API
 
@@ -40,9 +40,9 @@ cache.set('c', 3);
 
 console.log(cache.get('a')); // 1
 
-// Adding 'd' will evict 'a' (its stale key entry is at the front of the tracking queue)
+// Reading 'a' made 'b' the least recently used, so adding 'd' evicts 'b'
 cache.set('d', 4);
 
-console.log(cache.has('b')); // true
-console.log(cache.has('a')); // false
+console.log(cache.has('a')); // true
+console.log(cache.has('b')); // false
 ```

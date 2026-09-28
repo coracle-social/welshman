@@ -1,12 +1,10 @@
 # Synced Store
 
-Utility for creating Svelte stores that automatically persist to and restore from storage providers.
+Svelte stores that persist to and restore from a storage provider.
 
 ## Functions
 
 ### synced(config)
-
-Creates a writable store that synchronizes with a storage provider using JSON serialization.
 
 **Parameters:**
 - `config` - Configuration object containing:
@@ -14,13 +12,13 @@ Creates a writable store that synchronizes with a storage provider using JSON se
   - `storage` - Storage provider implementing the StorageProvider interface
   - `defaultValue` - Default value if nothing exists in storage
 
-**Returns:** `Synced<T>` - A writable Svelte store with a `ready` promise that resolves when initial storage loading completes
+**Returns:** `Synced<T>` - A writable Svelte store with a `ready` promise
 
-The store automatically:
-- Loads initial value from storage asynchronously on creation
-- Saves any changes back to storage
-- Falls back to defaultValue if storage is empty or invalid
-- Provides a `ready` promise that resolves when initial loading is complete
+The store starts at `defaultValue` and loads the stored value asynchronously, replacing the default unless storage returns `undefined`. `ready` resolves once that load completes. From then on, every value is written back to storage.
+
+### sync(config)
+
+Binds an existing writable `store` to `storage` under `key`, with the same load-then-save behavior. It returns the promise that `synced` exposes as `ready`.
 
 ## Storage Provider Interface
 
@@ -31,12 +29,13 @@ interface StorageProvider {
 }
 ```
 
+`localStorageProvider` is the built-in provider. It stores values as JSON in `localStorage`.
+
 ## Example
 
 ```typescript
 import {synced, localStorageProvider} from "@welshman/store"
 
-// Create a store that persists user preferences using localStorage
 const userPreferences = synced({
   key: "user-prefs",
   storage: localStorageProvider,
@@ -47,15 +46,13 @@ const userPreferences = synced({
   }
 })
 
-// Wait for initial loading to complete if needed
 await userPreferences.ready
 
-// Use like any writable store
 userPreferences.subscribe(prefs => {
   console.log("Preferences:", prefs)
 })
 
-// Update the store - automatically saves to storage
+// Saves to storage
 userPreferences.update(prefs => ({
   ...prefs,
   theme: "light"

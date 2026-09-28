@@ -1,10 +1,8 @@
 # Feed Utilities
 
-The utils module provides helper functions for creating, type-checking, and manipulating feed definitions. It includes factory functions, type guards, feed transformation utilities, and feed traversal tools.
+Helpers for creating, type-checking, converting and traversing feed definitions.
 
 ## Feed Factory Functions
-
-Create strongly-typed feed definitions:
 
 ```typescript
 // Basic Feeds
@@ -13,9 +11,9 @@ const kinds = makeKindFeed(1, 6)
 const search = makeSearchFeed("bitcoin", "nostr")
 const global = makeGlobalFeed()
 
-// Time-based Feeds
+// Time-based Feeds: with `relative`, since is seconds before now
 const recent = makeCreatedAtFeed({
-  since: Date.now() - 86400000,
+  since: DAY,
   relative: ["since"]
 })
 
@@ -38,19 +36,17 @@ const difference = makeDifferenceFeed(global, authors)
 
 ## Type Guards
 
-Check feed types safely:
-
 ```typescript
 const feed: Feed = makeDVMFeed({ kind: 5300 })
 
 if (isDVMFeed(feed)) {
-  // feed is now typed as DVMFeed
+  // feed is typed as DVMFeed
   const [item] = getFeedArgs(feed)
   const kind = item.kind
 }
 
 if (hasSubFeeds(feed)) {
-  // feed is now typed as UnionFeed | IntersectionFeed | DifferenceFeed
+  // feed is typed as UnionFeed | IntersectionFeed | DifferenceFeed
   const subFeeds = getFeedArgs(feed)
 }
 ```
@@ -60,7 +56,7 @@ if (hasSubFeeds(feed)) {
 ### Tag to Feed Conversion
 
 ```typescript
-// Default tag mappings
+// Used when no mappings are passed
 const defaultTagFeedMappings: TagFeedMapping[] = [
   ["a", [FeedType.Address]],   // address tags
   ["e", [FeedType.ID]],        // event references
@@ -69,12 +65,10 @@ const defaultTagFeedMappings: TagFeedMapping[] = [
   ["t", [FeedType.Tag, "#t"]], // hashtags
 ]
 
-// Convert event tags to feeds
 const tags = [["p", "pubkey1"], ["t", "bitcoin"]]
 const feeds = feedsFromTags(tags)
 // => [[FeedType.Author, "pubkey1"], [FeedType.Tag, "#t", "bitcoin"]]
 
-// Convert tags to a single intersection feed
 const feed = feedFromTags(tags)
 // => [FeedType.Intersection, [FeedType.Author, "pubkey1"], [FeedType.Tag, "#t", "bitcoin"]]
 ```
@@ -82,7 +76,6 @@ const feed = feedFromTags(tags)
 ### Filter to Feed Conversion
 
 ```typescript
-// Convert a single filter to feeds
 const filter = {
   kinds: [1],
   authors: ["pubkey1"],
@@ -98,16 +91,16 @@ const feeds = feedsFromFilter(filter)
 //   [FeedType.Tag, "#t", "bitcoin"]
 // ]
 
-// Convert a filter to an intersection feed
+// An intersection feed, or the single feed when there is only one
 const feed = feedFromFilter(filter)
 
-// Convert multiple filters to a union feed
+// A union feed, or the single feed when there is only one
 const feeds = feedFromFilters([filter1, filter2])
 ```
 
 ## Feed Traversal
 
-Walk through a feed tree and visit each node:
+`walkFeed` visits every node of a feed tree:
 
 ```typescript
 const feed = makeIntersectionFeed(
@@ -123,7 +116,7 @@ walkFeed(feed, (node) => {
 })
 ```
 
-Find a specific feed in a feed tree:
+`findFeed` returns the first node that matches:
 
 ```typescript
 const feed = makeIntersectionFeed(
@@ -134,7 +127,6 @@ const feed = makeIntersectionFeed(
   )
 )
 
-// Find a feed matching a specific condition
 const bitcoinTagFeed = findFeed(feed, (f) =>
   isTagFeed(f) && getFeedArgs(f)[1] === "bitcoin"
 )
@@ -142,13 +134,9 @@ const bitcoinTagFeed = findFeed(feed, (f) =>
 
 ## Feed Simplification
 
-Flatten nested feeds of the same type:
+`simplifyFeed` flattens set operations nested inside one of the same type, and replaces a set operation with a single sub-feed by that sub-feed.
 
 ```typescript
-// Simplifies nested feeds of the same type
-export declare const simplifyFeed: (feed: Feed) => Feed
-
-// Example: flatten nested union feeds
 const nested = makeUnionFeed(
   makeAuthorFeed("pubkey1"),
   makeUnionFeed(makeKindFeed(1), makeKindFeed(6))
@@ -160,10 +148,8 @@ const simplified = simplifyFeed(nested)
 
 ## Type Extraction
 
-Get typed arguments from feeds:
-
 ```typescript
-function getFeedArgs(feed: IntersectionFeed): Feed[]
+function getFeedArgs(feed: IntersectionFeed | UnionFeed | DifferenceFeed): Feed[]
 function getFeedArgs(feed: AuthorFeed): string[]
 function getFeedArgs(feed: CreatedAtFeed): CreatedAtItem[]
 function getFeedArgs(feed: WOTFeed): WOTItem[]
@@ -175,37 +161,12 @@ const pubkeys = getFeedArgs(feed) // => ["pubkey1", "pubkey2"]
 
 ## Best Practices
 
-1. Use factory functions instead of raw arrays:
-   ```typescript
-   // Good
-   const feed = makeAuthorFeed("pubkey1")
+Build feeds with the factory functions rather than raw arrays, so that each tuple is typed:
 
-   // Avoid
-   const feed = [FeedType.Author, "pubkey1"]
-   ```
+```typescript
+// Good
+const feed = makeAuthorFeed("pubkey1")
 
-2. Use type guards for safe type narrowing:
-   ```typescript
-   if (isAuthorFeed(feed)) {
-     const pubkeys = getFeedArgs(feed) // Properly typed
-   }
-   ```
-
-3. Use feed transformations for dynamic feed creation:
-   ```typescript
-   // Convert event tags to feeds
-   const feeds = feedsFromTags(event.tags)
-
-   // Convert filters to feeds
-   const feed = feedFromFilter(filter)
-   ```
-
-4. Use feed traversal for analysis or transformation:
-   ```typescript
-   const kinds = new Set<number>()
-   walkFeed(feed, (node) => {
-     if (isKindFeed(node)) {
-       getFeedArgs(node).forEach(k => kinds.add(k))
-     }
-   })
-   ```
+// Avoid
+const feed = [FeedType.Author, "pubkey1"]
+```

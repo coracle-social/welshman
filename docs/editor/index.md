@@ -2,7 +2,7 @@
 
 [![version](https://badgen.net/npm/v/@welshman/editor)](https://npmjs.com/package/@welshman/editor)
 
-`@welshman/editor` provides a comprehensive Nostr-ready text editor, built on top of [nostr-editor](https://github.com/cesardeazevedo/nostr-editor).
+`@welshman/editor` is a nostr text editor built on [Tiptap](https://tiptap.dev) and [nostr-editor](https://github.com/cesardeazevedo/nostr-editor). `WelshmanExtension` registers mentions, event and address embeds, file upload, lightning invoices, history, a placeholder, inline code and a word count, and each can be configured or disabled under `extensions`.
 
 This package powers the editors of [Coracle](https://coracle.social) and [Flotilla](https://flotilla.social).
 
@@ -20,8 +20,8 @@ import type {Writable} from "svelte/store"
 import type {NodeViewProps} from "@tiptap/core"
 import type {FileAttributes} from "@welshman/editor"
 import {Editor, MentionSuggestion, WelshmanExtension} from "@welshman/editor"
-import {Profiles, Router} from "@welshman/app"
-import {outbox} from "@welshman/util"
+import {Profiles, Publisher, RelayLists} from "@welshman/app"
+import {NOTE, makeEvent} from "@welshman/util"
 
 export const MentionNodeView = ({node}: NodeViewProps) => {
   const dom = document.createElement("span")
@@ -90,7 +90,6 @@ export const makeEditor = async ({
                     return {error: "Server refused to process the file"}
                   }
 
-                  // Always append file extension if missing
                   if (new URL(url).pathname.split(".").length === 1) {
                     url += "." + attrs.file.type.split("/")[1]
                   }
@@ -124,8 +123,8 @@ export const makeEditor = async ({
                     editor: (this as any).editor,
                     search: (term: string) =>
                       get(app.use(Profiles).profileSearch).searchValues(term),
-                    getRelays: async (pubkey: string) =>
-                      (await app.use(Router).resolve([outbox(pubkey)])).getUrls(),
+                    getRelays: (pubkey: string) =>
+                      app.use(RelayLists).get(pubkey)?.writeUrls() ?? [],
                     createSuggestion: (value: string) => {
                       const target = document.createElement("div")
 
@@ -148,7 +147,6 @@ export const makeEditor = async ({
   })
 }
 
-// Create an editor
 const editor = makeEditor({
   submit: async () => {
     const ed = await editor
@@ -156,12 +154,12 @@ const editor = makeEditor({
     const tags = ed.storage.nostr.getEditorTags()
     const event = makeEvent(NOTE, {content, tags})
 
-    await publish({event, relays: [/* ... */]})
+    app.use(Publisher).publish({event, relays: [/* ... */]})
 
     ed.chain().clearContent().run()
   },
 })
 
-// This is how you trigger file uploading
+// Opens the file picker
 const uploadFiles = () => editor.then(ed => ed.chain().selectFiles().run())
 ```

@@ -1,8 +1,6 @@
 # Event Kinds
 
-This module provides a comprehensive collection of Nostr event kind definitions and utilities.
-It includes standard NIP event kinds as well as commonly used application-specific kinds.
-
+This module exports constants for standard NIP event kinds and common application-specific kinds, plus functions that classify a kind.
 
 ## Kind Type Checkers
 

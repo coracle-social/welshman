@@ -1,10 +1,8 @@
 # Utility Functions
 
-The `Tools` module provides a comprehensive collection of utility functions for common programming tasks. It includes functions for array manipulation, object handling, type checking, math operations, and more.
+The `Tools` module holds the general-purpose helpers: types, functional utilities, numbers, timestamps, sequences, objects, async control, URLs, strings, and encoding.
 
 ## Working with types
-
-Utility types for TypeScript development:
 
 ```typescript
 // Override properties of type T with properties from type R
@@ -251,7 +249,7 @@ export declare function range(a: number, b: number, step?: number): Generator<nu
 // Yields indexed items
 export declare function enumerate<T>(items: T[]): Generator<[number, T], void, unknown>;
 
-// Returns a function that gets property value from object
+// Maps each object to its value at key k
 export declare const pluck: <T>(k: string, xs: Record<string, unknown>[]) => T[];
 
 // Creates object from array of key-value pairs
@@ -411,7 +409,7 @@ export declare const randomId: () => string;
 // Creates a promise that resolves after specified time
 export declare const sleep: (t: number) => Promise<unknown>;
 
-// Creates a microtask that yields to other tasks in the event loop
+// Yields to other tasks in the event loop (scheduler.yield() where available, else setTimeout 0)
 export declare const yieldThread: () => any;
 
 // Poll options for condition checking
@@ -421,7 +419,7 @@ type PollOptions = {
   interval?: number;
 };
 
-// Creates a promise that resolves after condition completes or timeout
+// Resolves once condition() returns truthy or the signal aborts
 export declare const poll: (options: PollOptions) => Promise<void>;
 
 // Creates throttled version of function
@@ -584,4 +582,3 @@ export declare const textEncoder: TextEncoder;
 // TextDecoder instance for decoding bytes to strings
 export declare const textDecoder: TextDecoder;
 ```
-

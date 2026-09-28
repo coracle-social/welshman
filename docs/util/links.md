@@ -1,6 +1,6 @@
 # Links
 
-A small module for handling Nostr URI manipulation.
+Adds and removes the `nostr:` URI prefix.
 
 ## Core Functions
 

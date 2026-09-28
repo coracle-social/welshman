@@ -1,11 +1,13 @@
 # URL Normalization
 
-A `normalizeUrl` function borrowed from [sindresorhus/normalize-url](https://github.com/sindresorhus/normalize-url) is included for convenience.
+`normalizeUrl` is copied from [sindresorhus/normalize-url](https://github.com/sindresorhus/normalize-url).
 
 ## API
 
 ```typescript
-export type Options = {
+export default function normalizeUrl(urlString: string, opts?: Options): string
+
+type Options = {
   // Default protocol to prepend
 	readonly defaultProtocol?: 'https' | 'http'
 

@@ -1,23 +1,10 @@
 # Relay
 
-The `Relay` module provides utilities for working with Nostr relay URLs — normalization, validation, and classification.
+The `Relay` module validates, normalizes, and classifies Nostr relay URLs.
 
-NIP-11 relay information documents are modeled by the `Relay` class in `@welshman/domain`, which owns the profile display (`relay.display`) and capability checks (`relay.hasNegentropy`, `relay.hasNip`). `relay.displayUrl()` delegates to `displayRelayUrl` below.
+NIP-11 relay information documents are modeled by the `Relay` class in `@welshman/domain`, which owns the profile display (`relay.display()`) and capability checks (`relay.hasNegentropy()`, `relay.hasNip()`). `relay.displayUrl()` delegates to `displayRelayUrl` below.
 
 ## API
-
-### Types and Enums
-
-```typescript
-// Relay operation modes
-export enum RelayMode {
-  Read = "read",
-  Write = "write",
-  Search = "search",
-  Blocked = "blocked",
-  Messaging = "messaging"
-}
-```
 
 ### URL Validation
 
@@ -50,12 +37,11 @@ export declare const displayRelayUrl: (url: string) => string;
 
 ## Relay Selection DSL
 
-A `RelaySelection` is a *declarative* description of which relays an operation
-wants — not a list of urls. It names sources ("the author's outbox", "this
-pubkey's inbox", "the relays this event was seen on") that can only be turned
-into concrete urls in a context where the necessary data is available (relay
-lists, the tracker, the network to load a referenced event). Domain code
-produces selections from an event; a `Resolver` turns them into urls.
+A `RelaySelection` describes which relays an operation wants by naming a
+source, such as "the author's outbox", "this pubkey's inbox", or "the relays
+this event was seen on". Turning a source into urls needs relay lists, the
+tracker, or the network. Domain code produces selections from an event, and a
+`Resolver` turns them into urls.
 
 ### Route types
 
@@ -120,10 +106,10 @@ export declare const eventOutbox: (ref: EventRef, weight?: number) => RelaySelec
 // Relays the given event was found on (its tracker relays plus any ref hints).
 export declare const seen: (ref: EventRef, weight?: number) => RelaySelection;
 
-// A literal relay url (renamed from the old `relayHint`).
+// A literal relay url.
 export declare const relay: (url: string, weight?: number) => RelaySelection;
 
-// One `relay` selection per url (renamed from the old `relayHints`).
+// One `relay` selection per url.
 export declare const relays: (urls: string[], weight?: number) => RelaySelection[];
 
 // Inbox selections for a set of pubkeys (mentions/recipients); dedupes pubkeys.
@@ -197,7 +183,7 @@ export declare class RelayScenario {
 
 A `Resolver` combines a single route-resolver function with bound scenario
 options. It dereferences each route to urls and builds scenarios from
-selections. This replaces the old standalone `resolve()` function.
+selections.
 
 ```typescript
 export type ResolveRoute = (route: RelayRoute) => MaybeAsync<string[]>;
@@ -231,5 +217,5 @@ const url = await resolver.relay([relay(hintUrl), outbox(pubkey)]);
 ```
 
 In `@welshman/app`, the `Router` plugin exposes a `Resolver` (`app.use(Router).resolver`)
-built with `getRelayQuality`/`getDefaultRelays` from app config, and this is the
-resolver injected into every domain kind via `Domain.configure`.
+built with `getRelayQuality`/`getDefaultRelays` from app config. `Domain.configure`
+injects it into every domain kind.

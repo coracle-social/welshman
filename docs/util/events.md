@@ -1,6 +1,6 @@
 # Nostr Events
 
-The Events module provides type definitions and utilities for working with Nostr events, including creation, validation, and manipulation functions.
+The Events module defines the Nostr event types and the helpers that create, validate, and classify events.
 
 ## API
 
@@ -87,15 +87,11 @@ export declare const isEphemeral: (e: EventTemplate) => boolean;
 export declare const isReplaceable: (e: EventTemplate) => boolean;
 export declare const isPlainReplaceable: (e: EventTemplate) => boolean;
 export declare const isParameterizedReplaceable: (e: EventTemplate) => boolean;
-
-// Threading lives in @welshman/domain, alongside the kinds it applies to:
-//   getReplyTagValues(tags)    from the Note kind    (NIP-10)
-//   getCommentTagValues(tags)  from the Comment kind (NIP-22)
 ```
 
 ## Threading Protocols
 
-`@welshman/domain` handles two different threading protocols:
+Threading helpers live in `@welshman/domain`, beside the kind each applies to: `getReplyTagValues(tags)` with `Note`, and `getCommentTagValues(tags)` with `Comment`.
 
 ### Regular Notes (NIP-10)
 For regular notes and most event kinds, threading follows [NIP-10](https://github.com/nostr-protocol/nips/blob/master/10.md):
@@ -109,9 +105,7 @@ For regular notes and most event kinds, threading follows [NIP-10](https://githu
 For comments (kind 1111), threading follows [NIP-22](https://github.com/nostr-protocol/nips/blob/master/22.md):
 - Uses uppercase tags (`E`, `A`, `P`, `K`) for root references
 - Uses lowercase tags (`e`, `a`, `p`, `k`) for reply references
-- No positional rules - explicit tag types determine relationship
-
-`getReplyTagValues` covers NIP-10 threading and `getCommentTagValues` covers NIP-22, each living with the kind it applies to.
+- No positional rules; the tag name alone determines the relationship
 
 ## Examples
 
@@ -137,7 +131,7 @@ const article = makeEvent(LONG_FORM, {
 ### Event Properties
 
 ```typescript
-import { getIdentifier, getIdOrAddress, LONG_FORM } from '@welshman/util';
+import { makeEvent, getIdentifier, getIdOrAddress, LONG_FORM } from '@welshman/util';
 
 const article = makeEvent(LONG_FORM, {
   content: "Article content...",
@@ -155,7 +149,7 @@ const reference = getIdOrAddress(hashedArticle);
 ### Working with Threads
 
 ```typescript
-import { NOTE, COMMENT } from '@welshman/util';
+import { makeEvent, NOTE, COMMENT } from '@welshman/util';
 import { getCommentTagValues, getReplyTagValues } from '@welshman/domain';
 
 // Regular note reply (NIP-10)
@@ -176,21 +170,12 @@ const commentReply = makeEvent(COMMENT, {
   ]
 });
 
-// Both work the same way
 const noteAncestors = getReplyTagValues(noteReply.tags);
 const commentAncestors = getCommentTagValues(commentReply.tags);
 
 console.log('Note roots:', noteAncestors.roots);     // ["root-event-id"]
 console.log('Note replies:', noteAncestors.replies); // ["parent-event-id"]
 
-console.log('Comment roots:', commentAncestors.roots);     // ["root-event-id"] 
+console.log('Comment roots:', commentAncestors.roots);     // ["root-event-id"]
 console.log('Comment replies:', commentAncestors.replies); // ["parent-event-id"]
-
-// Parent checking works for both protocols
-if (getReplyTagValues(noteReply.tags).replies.includes(parentEvent.id)) {
-  console.log('Note is a reply');
-}
-if (getReplyTagValues(commentReply.tags).replies.includes(parentEvent.id)) {
-  console.log('Comment is a reply');
-}
 ```

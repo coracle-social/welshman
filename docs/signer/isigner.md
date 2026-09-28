@@ -1,8 +1,6 @@
 # ISigner Interface
 
-A basic interface that each signer must implement.
-It includes methods for signing messages, verifying signatures, and encrypting/decrypting data.
-
+Every signer implements `ISigner`, which covers signing events, reporting the pubkey, and NIP-04 and NIP-44 encryption.
 
 ```typescript
 export type SignOptions = {
@@ -12,12 +10,10 @@ export type SignOptions = {
 export type SignWithOptions = (event: StampedEvent, options?: SignOptions) => Promise<SignedEvent>
 
 interface ISigner {
-  // Core signing functionality
   sign: SignWithOptions
   getPubkey: () => Promise<string>
   cleanup?: () => Promise<void>
 
-  // Encryption capabilities
   nip04: {
     encrypt: (pubkey: string, message: string) => Promise<string>
     decrypt: (pubkey: string, message: string) => Promise<string>

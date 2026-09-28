@@ -1,6 +1,6 @@
 # Nostr Address
 
-The Address module provides utilities for working with Nostr Addresses (NIP-19 naddr format) and handles the conversion between different address formats. Addresses are used to reference addressable events (kinds 10000-39999) in a format that includes kind, pubkey, and identifier.
+The Address module parses and serializes Nostr addresses, which reference replaceable events by kind, pubkey, and identifier. It converts between the `kind:pubkey:identifier` string and the NIP-19 `naddr` encoding.
 
 ## API
 
