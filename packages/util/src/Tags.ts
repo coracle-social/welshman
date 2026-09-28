@@ -28,15 +28,18 @@ export const addressTags = (keys: string | string[]) =>
 
 export const relayTags = (keys: string | string[]) => tagSpec(keys, isRelayUrl, normalizeRelayUrl)
 
+const URL_PROTOCOLS = ["http:", "https:", "ws:", "wss:"]
+
+// Other schemes (`javascript:`, `data:`, `file:`) are unsafe to render as links, so they don't match.
 const isUrl = (value: string) => {
   try {
-    return Boolean(new URL(value))
+    return URL_PROTOCOLS.includes(new URL(value).protocol)
   } catch (e) {
     return false
   }
 }
 
-// Any absolute url, where `relayTags` accepts only websocket relays.
+// Any absolute http(s) or ws(s) url, where `relayTags` accepts only websocket relays.
 export const urlTags = (keys: string | string[]) => tagSpec(keys, isUrl)
 
 export const tagMatcher = (spec: TagSpec<any>) => (tag: string[]) => {

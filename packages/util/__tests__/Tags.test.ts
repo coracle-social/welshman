@@ -99,11 +99,14 @@ describe("Tags", () => {
       ])
     })
 
-    it("urlTags matches any absolute url without normalizing it", () => {
+    it("urlTags matches absolute http(s)/ws(s) urls without normalizing them", () => {
       const t = [
         ["r", "https://example.com/Page"],
         ["r", "wss://relay.example.com"],
         ["r", "example.com"],
+        ["r", "javascript:alert(1)"],
+        ["r", "data:text/html,<script>alert(1)</script>"],
+        ["r", "file:///etc/passwd"],
         ["other", "https://example.com/"],
       ]
 

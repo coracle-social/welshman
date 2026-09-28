@@ -25,7 +25,7 @@ Shortcuts for the common value types. Each pins `keys` and an appropriate `match
 hexTags(keys)      // matchValue = isHex32           — 32-byte hex (e/p tags, ids, pubkeys)
 addressTags(keys)  // matchValue = Address.isAddress — replaceable addresses (a tags)
 relayTags(keys)    // matchValue = isRelayUrl        — relay urls (r/relay tags)
-urlTags(keys)      // matches any absolute url, unnormalized (e.g. NIP-32 r tags)
+urlTags(keys)      // matches any absolute http(s)/ws(s) url, unnormalized (e.g. NIP-32 r tags)
 topicTags(keys)    // normalizeValue strips a leading "#" (t tags)
 kindTags(keys)     // values are parsed to `number` (k tags)
 ```

@@ -577,6 +577,23 @@ describe("Repository", () => {
       })
     })
 
+    it("should report the same removals from publish as from load", () => {
+      const older = createEvent(MUTES, {created_at: now() - 100})
+      const newer = createEvent(MUTES, {created_at: now(), pubkey: older.pubkey})
+      const deletion = createEvent(DELETE, {pubkey: older.pubkey, tags: [["e", newer.id]]})
+      const updateHandler = vi.fn()
+
+      repo.publish(older)
+      repo.publish(deletion)
+      repo.on("update", updateHandler)
+      repo.publish(newer)
+
+      expect(updateHandler).toHaveBeenCalledWith({
+        added: [],
+        removed: new Set([older.id, newer.id]),
+      })
+    })
+
     it("should replace an older version already present", () => {
       const older = createEvent(MUTES, {created_at: now() - 100})
       const newer = createEvent(MUTES, {created_at: now(), pubkey: older.pubkey})

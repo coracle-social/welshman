@@ -97,7 +97,7 @@ repost.repostedEvent()  // the event JSON-decoded from content, or undefined whe
 await GenericRepost.configure(context).writer().setEvent(article).renderTemplate()
 ```
 
-`setEvent(event)` replaces any existing target and JSON-encodes the event into the content. Like `Reaction`, it p-tags the author and e-tags the event (and a-tags a replaceable one) with hints from the author's outbox. Only `GenericRepost` adds the `k` tag. `validate()` requires an `e` tag, and on `Repost` rejects an embedded event that isn't a kind-1 note, so other kinds go through `GenericRepost`. An empty content passes, since NIP-18 allows one. `repostedEvent()` returns the content's event only when it has an event's shape and matches the `e` tag's id; it does not check the signature.
+`setEvent(event)` replaces any existing target and JSON-encodes the event into the content. Like `Reaction`, it p-tags the author and e-tags the event (and a-tags a replaceable one) with hints from the author's outbox. Only `GenericRepost` adds the `k` tag. `validate()` requires an `e` tag. An empty content passes, since NIP-18 allows one; otherwise the content must be the event the `e` tag names, with a valid id and signature, matching the `k` tag if there is one. `Repost` also rejects an embedded event that isn't a kind-1 note, so other kinds go through `GenericRepost`. `repostedEvent()` returns the content's event only when it has an event's shape and matches the `e` tag's id; it does not check the signature.
 
 ## Picture (kind 20)
 

@@ -124,7 +124,7 @@ A `SocketPolicy` is `(socket: Socket) => Unsubscriber`, run once per socket at c
 | Export | Description |
 |--------|-------------|
 | `Repository` | In-memory indexed event store with delete/expiry support. Construct with `new Repository()` |
-| `repository.publish(event, {shouldNotify?})` | Stores an event; returns `false` if it is a duplicate or older than the stored replaceable |
+| `repository.publish(event, {shouldNotify?})` | Stores an event; returns `false` if it is a duplicate or older than the stored replaceable. Its `"update"` reports removals like `load` |
 | `repository.query(filters, {shouldSort?, includeDeleted?, includeExpired?})` | Returns matching `TrustedEvent[]`, sorted by `created_at` desc unless disabled |
 | `repository.getEvent(idOrAddress)` | Look up by id or NIP-01 address (`kind:pubkey:d`) |
 | `repository.hasEvent(event)` | Whether the event (or a newer replacement) is already stored |

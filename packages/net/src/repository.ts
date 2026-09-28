@@ -103,19 +103,7 @@ export class Repository extends Emitter {
       }
     }
 
-    const merged = mergeRepositoryUpdates(updates)
-    const added: TrustedEvent[] = []
-
-    // Anything stored already deleted, expired or superseded is reported as removed
-    for (const event of merged.added) {
-      if (this._isVisible(event)) {
-        added.push(event)
-      } else {
-        merged.removed.add(event.id)
-      }
-    }
-
-    this.emit("update", {added, removed: merged.removed})
+    this._emitUpdates(updates)
   }
 
   // API
@@ -217,9 +205,8 @@ export class Repository extends Emitter {
   publish = (event: TrustedEvent, {shouldNotify = true} = {}): boolean => {
     const update = this._publish(event)
 
-    // Notify, but only if the event hasn't been deleted
-    if (update && shouldNotify && !this.isDeleted(event)) {
-      this.emit("update", update)
+    if (update && shouldNotify) {
+      this._emitUpdates([update])
     }
 
     return Boolean(update)
@@ -450,6 +437,22 @@ export class Repository extends Emitter {
     }
 
     return {added: [event], removed}
+  }
+
+  // Emit `updates` as one, reporting anything stored already deleted, expired or superseded as removed
+  _emitUpdates = (updates: RepositoryUpdate[]) => {
+    const merged = mergeRepositoryUpdates(updates)
+    const added: TrustedEvent[] = []
+
+    for (const event of merged.added) {
+      if (this._isVisible(event)) {
+        added.push(event)
+      } else {
+        merged.removed.add(event.id)
+      }
+    }
+
+    this.emit("update", {added, removed: merged.removed})
   }
 
   // Swap `event` in where `existing` sat; removing and re-adding it blinks it out of derived stores

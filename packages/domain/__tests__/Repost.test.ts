@@ -1,5 +1,13 @@
 import {describe, it, expect} from "vitest"
-import {makeSecret, REPOST, GENERIC_REPOST, NOTE, FOLLOWS, LONG_FORM} from "@welshman/util"
+import {
+  makeEvent as makeTemplate,
+  makeSecret,
+  REPOST,
+  GENERIC_REPOST,
+  NOTE,
+  FOLLOWS,
+  LONG_FORM,
+} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {Repost, GenericRepost} from "../src/kinds/Repost"
@@ -14,9 +22,8 @@ import {
 } from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
+const targetSigner = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
-const targetId = "aa".repeat(32)
-const targetPubkey = "bb".repeat(32)
 
 const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
   ({
@@ -30,7 +37,13 @@ const makeEvent = (overrides: Partial<TrustedEvent> = {}): TrustedEvent =>
     ...overrides,
   }) as TrustedEvent
 
-const target = makeEvent({id: targetId, pubkey: targetPubkey, kind: NOTE, content: "hi"})
+// Embedded events are signed, since the writer verifies them.
+const signTarget = (kind: number, content = "") =>
+  targetSigner.sign(makeTemplate(kind, {content, created_at: 0}))
+
+const target = await signTarget(NOTE, "hi")
+const targetId = target.id
+const targetPubkey = target.pubkey
 
 describe("Repost", () => {
   it("reads target references", async () => {
@@ -96,11 +109,37 @@ describe("Repost", () => {
   })
 
   it("rejects a kind 6 repost of anything but a note", async () => {
-    const article = makeEvent({id: targetId, pubkey: targetPubkey, kind: LONG_FORM, content: ""})
+    const article = await signTarget(LONG_FORM)
 
     await expect(buildTemplate(write(Repost).setEvent(article), signer)).rejects.toThrow(
       "use GenericRepost",
     )
+  })
+
+  it("rejects content that isn't the event the e tag names", async () => {
+    const other = await signTarget(NOTE, "other")
+    const cases = [
+      ["not json", "must be the reposted event"],
+      [JSON.stringify(other), "the one its e tag names"],
+      [JSON.stringify({...target, content: "forged"}), "invalid id"],
+      [JSON.stringify({...target, sig: "00".repeat(64)}), "invalid signature"],
+    ]
+
+    for (const [content, message] of cases) {
+      const writer = write(Repost).setEvent(target).setContent(content)
+
+      await expect(buildTemplate(writer, signer)).rejects.toThrow(message)
+    }
+  })
+
+  it("rejects a generic repost whose k tag contradicts the embedded event", async () => {
+    const article = await signTarget(LONG_FORM)
+    const writer = write(GenericRepost)
+      .setEvent(article)
+      .dropTags(t => t[0] === "k")
+      .addTags(["k", String(FOLLOWS)])
+
+    await expect(buildTemplate(writer, signer)).rejects.toThrow("k tag")
   })
 
   it("accepts a kind 6 repost with empty content", async () => {
@@ -121,7 +160,7 @@ describe("Repost", () => {
   })
 
   it("adds a k tag for generic reposts", async () => {
-    const article = makeEvent({id: targetId, pubkey: targetPubkey, kind: LONG_FORM, content: ""})
+    const article = await signTarget(LONG_FORM)
     const tmpl = await buildTemplate(write(GenericRepost).setEvent(article), signer)
 
     expect(tmpl.kind).toBe(GENERIC_REPOST)
@@ -129,7 +168,7 @@ describe("Repost", () => {
   })
 
   it("adds an a tag for replaceable targets", async () => {
-    const list = makeEvent({id: targetId, pubkey: targetPubkey, kind: FOLLOWS, content: ""})
+    const list = await signTarget(FOLLOWS)
     const tmpl = await buildTemplate(write(GenericRepost).setEvent(list), signer)
 
     expect(tmpl.tags).toContainEqual(["a", `${FOLLOWS}:${targetPubkey}:`, ""])

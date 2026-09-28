@@ -4,6 +4,7 @@ import {
   NOTE,
   REPOST,
   getAddress,
+  getHash,
   isHashedEvent,
   isReplaceable,
   kindTags,
@@ -11,6 +12,7 @@ import {
   tagSpec,
   tagValue,
   tagValues,
+  verifyEvent,
 } from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
@@ -94,15 +96,42 @@ export class RepostWriter extends EventWriter<RepostReader> {
   validate() {
     super.validate()
 
-    if (!this.extraTags.some(spec(["e"]))) {
+    const eventId = this.extraTags.find(spec(["e"]))?.[1]
+    const kind = this.extraTags.find(spec(["k"]))?.[1]
+
+    if (!eventId) {
       throw new Error("A repost must reference an event via an e tag")
     }
 
-    // Content may be left empty (e.g. for a protected event), so only an embedded event is checked.
-    const event = parseEvent(this.content)
+    // Content may be left empty (e.g. for a protected event), but anything else must be the event.
+    if (this.content) {
+      const event = parseEvent(this.content)
 
-    if (this.kind === REPOST && event && event.kind !== NOTE) {
-      throw new Error("A kind 6 repost must embed a kind 1 note; use GenericRepost for other kinds")
+      if (!event) {
+        throw new Error("A repost's content must be the reposted event")
+      }
+
+      if (event.id !== eventId) {
+        throw new Error("A repost's embedded event must be the one its e tag names")
+      }
+
+      if (getHash(event) !== event.id) {
+        throw new Error("A repost's embedded event has an invalid id")
+      }
+
+      if (!verifyEvent(event)) {
+        throw new Error("A repost's embedded event has an invalid signature")
+      }
+
+      if (this.kind === REPOST && event.kind !== NOTE) {
+        throw new Error(
+          "A kind 6 repost must embed a kind 1 note; use GenericRepost for other kinds",
+        )
+      }
+
+      if (kind !== undefined && kind !== String(event.kind)) {
+        throw new Error("A repost's embedded event must match its k tag")
+      }
     }
   }
 }
