@@ -56,7 +56,7 @@ await app.use(Domain).command(writer).then(cmd => cmd.publish())
 
 ## Admins and members (addressable)
 
-`RoomAdmins` (39001) and `RoomMembers` (39002) are addressable p-tag lists.
+`RoomAdmins` (39001) and `RoomMembers` (39002) are addressable p-tag lists. Each admin tag also carries the admin's NIP-29 roles, `["p", pubkey, ...roles]`.
 
 ```typescript
 import {Domain} from "@welshman/app"
@@ -64,6 +64,8 @@ import {RoomAdmins, RoomMembers} from "@welshman/domain"
 
 const admins = app.use(Domain).reader(RoomAdmins)(event)
 admins.pubkeys()                 // string[]
+admins.rolesFor(pubkey)          // string[]
+admins.rolesByPubkey()           // Map<pubkey, roles>
 
 const members = app.use(Domain).reader(RoomMembers)(event)
 members.members()                // string[]
@@ -75,7 +77,7 @@ const writer = app.use(Domain).writer(RoomMembers)
   .addPubkey(pubkeyA)            // also removePubkey(pk) / setPubkeys(pks)
 ```
 
-Both `RoomAdminsWriter` and `RoomMembersWriter` expose the same `addPubkey(pk)` / `removePubkey(pk)` / `setPubkeys(pks)` methods, deduping by pubkey.
+Both `RoomAdminsWriter` and `RoomMembersWriter` expose the same `addPubkey(pk)` / `removePubkey(pk)` / `setPubkeys(pks)` methods, deduping by pubkey. `RoomAdminsWriter.addPubkey(pk, roles?)` replaces an admin's roles when given and keeps the existing ones otherwise, and `setPubkeys` keeps the roles of every admin it retains.
 
 ## Membership and lifecycle ops
 

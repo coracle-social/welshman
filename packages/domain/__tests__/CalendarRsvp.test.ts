@@ -3,7 +3,16 @@ import {makeSecret, EVENT_RSVP, EVENT_TIME, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Nip01Signer} from "@welshman/signer"
 import {CalendarRsvp} from "../src/kinds/CalendarRsvp"
-import {buildTemplate, markerResolver, query, queryRelays, read, write, INBOX} from "./helpers.js"
+import {
+  buildTemplate,
+  markerResolver,
+  query,
+  queryRelays,
+  read,
+  write,
+  INBOX,
+  PUBKEY_OUTBOX,
+} from "./helpers.js"
 
 const signer = new Nip01Signer(makeSecret())
 const pubkey = "ee".repeat(32)
@@ -72,6 +81,34 @@ describe("CalendarRsvp", () => {
     expect(tmpl.tags).toContainEqual(["p", organizer, ""])
     expect(tmpl.tags).toContainEqual(["status", "accepted"])
     expect(tmpl.tags).toContainEqual(["fb", "busy"])
+  })
+
+  it("hints the organizer's outbox for the pinned revision", async () => {
+    const tmpl = await buildTemplate(
+      write(CalendarRsvp, undefined, markerResolver)
+        .setIdentifier("abc")
+        .setCalendarEventFromEvent(calendarEvent)
+        .setStatus("accepted"),
+      signer,
+    )
+
+    expect(tmpl.tags).toContainEqual(["a", address])
+    expect(tmpl.tags).toContainEqual(["e", calendarEvent.id, PUBKEY_OUTBOX])
+  })
+
+  it("uses a given relay as the hint for both the address and the revision", async () => {
+    const url = "wss://space.example.com/"
+    const tmpl = await buildTemplate(
+      write(CalendarRsvp, undefined, markerResolver)
+        .setIdentifier("abc")
+        .setCalendarEventFromEvent(calendarEvent, url)
+        .setStatus("accepted"),
+      signer,
+    )
+
+    expect(tmpl.tags).toContainEqual(["a", address, url])
+    expect(tmpl.tags).toContainEqual(["e", calendarEvent.id, url])
+    expect(tmpl.tags).toContainEqual(["p", organizer, PUBKEY_OUTBOX])
   })
 
   it("answers one calendar event at a time", async () => {

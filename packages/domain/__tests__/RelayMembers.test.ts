@@ -80,6 +80,52 @@ describe("RelayMembers", () => {
     expect(tmpl.tags).toContainEqual(["member", a])
   })
 
+  it("reads each member's roles", async () => {
+    const members = await read(
+      RelayMembers,
+      makeEvent({
+        tags: [
+          ["member", a, "role1", "role2"],
+          ["member", b],
+          ["member", a, "role2", "role3"],
+          ["member"],
+        ],
+      }),
+    )
+
+    expect(members.rolesFor(a)).toEqual(["role1", "role2", "role3"])
+    expect(members.rolesFor(b)).toEqual([])
+    expect(members.rolesFor(c)).toEqual([])
+    expect([...members.rolesByPubkey().keys()]).toEqual([a, b])
+  })
+
+  it("keeps existing roles unless new ones are given", async () => {
+    const members = await read(
+      RelayMembers,
+      makeEvent({
+        tags: [
+          ["member", a, "role1"],
+          ["member", b, "role2"],
+        ],
+      }),
+    )
+
+    const tmpl = await buildTemplate(
+      write(RelayMembers, members)
+        .setPubkeys([a, b, c])
+        .addPubkey(a)
+        .addPubkey(b, ["role3"])
+        .forceRoutes(relay("wss://relay.example.com/")),
+      signer,
+    )
+
+    expect(tmpl.tags.filter(t => t[0] === "member")).toEqual([
+      ["member", c],
+      ["member", a, "role1"],
+      ["member", b, "role3"],
+    ])
+  })
+
   it("throws on the wrong kind", async () => {
     await expect(read(RelayMembers, makeEvent({kind: NOTE}))).rejects.toThrow()
   })

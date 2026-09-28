@@ -20,6 +20,10 @@ const mutes = await MuteList.configure({resolver, signer}).reader(event).parse()
 
 mutes.pubkeys()          // both public and private mutes, when decrypted
 mutes.includes(somePk)   // boolean
+mutes.words()            // muted `word` tags
+mutes.topics()           // muted `t` tags
+mutes.ids()              // muted event ids (`e` tags)
+mutes.addresses()        // muted addresses (`a` tags)
 
 // Build. Public vs private goes to different setters; encryption happens
 // in buildContent when there are private tags.
@@ -54,7 +58,7 @@ Lists marked **private-capable** subclass `ListReader` / `ListWriter` and expose
 | Class | Kind | NIP | Private? | Reader getters | Writer methods |
 |---|---|---|---|---|---|
 | `FollowList` | 3 | NIP-02 | no | `pubkeys()`, `includes(pk)` | `follow(pk, relayHint?, petname?)`, `unfollow(pk)` |
-| `MuteList` | 10000 | NIP-51 | yes | `pubkeys()`, `includes(pk)` | `mutePublicly(pk)`, `mutePrivately(pk)`, `unmute(pk)` |
+| `MuteList` | 10000 | NIP-51 | yes | `pubkeys()`, `words()`, `topics()`, `ids()`, `addresses()`, `includes(pk)` | `mutePublicly(pk)`, `mutePrivately(pk)`, `unmute(pk)` |
 | `PinList` | 10001 | NIP-51 | yes | `ids()`, `addresses()` | `pinPublicly(tag)`, `pinPrivately(tag)`, `unpin(value)` |
 | `RelayList` | 10002 | NIP-65 | no | `urls()`, `readUrls()`, `writeUrls()` | `addReadUrl(url)`, `addWriteUrl(url)`, `removeReadUrl(url)`, `removeWriteUrl(url)`, `setReadUrls(urls)`, `setWriteUrls(urls)`, `setTags(tags)` |
 | `BookmarkList` | 10003 | NIP-51 | yes | `ids()`, `addresses()`, `topics()`, `urls()` | `bookmarkPublicly(tag)`, `bookmarkPrivately(tag)`, `removeBookmark(value)` |

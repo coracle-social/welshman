@@ -100,6 +100,20 @@ describe("Store utilities", () => {
       store.set("updated")
       expect(store.get()).toBe("updated")
     })
+
+    it("should keep the store's extra properties", async () => {
+      const store = withGetter(
+        synced({
+          key: "test",
+          storage: localStorageProvider,
+          defaultValue: "initial",
+        }),
+      )
+
+      await store.ready
+
+      expect(store.get()).toBe("initial")
+    })
   })
 
   describe("throttled", () => {

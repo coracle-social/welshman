@@ -85,6 +85,80 @@ describe("RoomAdmins", () => {
     expect(tmpl.tags).toContainEqual(["p", b])
   })
 
+  it("reads each admin's roles", async () => {
+    const room = await read(
+      RoomAdmins,
+      makeEvent({
+        tags: [
+          ["d", "room1"],
+          ["p", a, "moderator", "editor"],
+          ["p", b],
+          ["p", a, "moderator", ""],
+          ["p", "not-a-pubkey", "moderator"],
+        ],
+      }),
+    )
+
+    expect(room.rolesFor(a)).toEqual(["moderator", "editor"])
+    expect(room.rolesFor(b)).toEqual([])
+    expect(room.rolesFor("cc".repeat(32))).toEqual([])
+    expect([...room.rolesByPubkey().entries()]).toEqual([
+      [a, ["moderator", "editor"]],
+      [b, []],
+    ])
+  })
+
+  it("keeps existing roles when rewriting admins", async () => {
+    const room = await read(
+      RoomAdmins,
+      makeEvent({
+        tags: [
+          ["d", "room1"],
+          ["p", a, "moderator"],
+          ["p", b, "editor"],
+        ],
+      }),
+    )
+
+    const tmpl = await buildTemplate(
+      write(RoomAdmins, room)
+        .addPubkey(a)
+        .setPubkeys([a, b])
+        .forceRoutes(relay("wss://relay.example.com/")),
+      signer,
+    )
+
+    expect(tmpl.tags.filter(t => t[0] === "p")).toEqual([
+      ["p", a, "moderator"],
+      ["p", b, "editor"],
+    ])
+  })
+
+  it("replaces roles when given", async () => {
+    const room = await read(
+      RoomAdmins,
+      makeEvent({
+        tags: [
+          ["d", "room1"],
+          ["p", a, "moderator"],
+        ],
+      }),
+    )
+
+    const tmpl = await buildTemplate(
+      write(RoomAdmins, room)
+        .addPubkey(a, ["editor", "moderator"])
+        .addPubkey(b, ["editor"])
+        .forceRoutes(relay("wss://relay.example.com/")),
+      signer,
+    )
+
+    expect(tmpl.tags.filter(t => t[0] === "p")).toEqual([
+      ["p", a, "editor", "moderator"],
+      ["p", b, "editor"],
+    ])
+  })
+
   it("throws on the wrong kind", async () => {
     await expect(read(RoomAdmins, makeEvent({kind: NOTE}))).rejects.toThrow()
   })

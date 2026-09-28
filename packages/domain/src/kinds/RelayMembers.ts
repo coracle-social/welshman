@@ -1,5 +1,5 @@
-import {uniq, spec, removeUndefined} from "@welshman/lib"
-import {RELAY_MEMBERS, tagSpec, tagValues} from "@welshman/util"
+import {uniq, spec} from "@welshman/lib"
+import {RELAY_MEMBERS, matchTags, tagSpec, tagValues} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {EventQuery} from "../core/EventQuery.js"
@@ -7,7 +7,8 @@ import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 
 // Flotilla kind-13534 relay/space member-list snapshot. Members are carried in
-// NIP-43 `member` tags, and the event is NIP-70 protected (`-`).
+// NIP-43 `member` tags, `["member", pubkey, ...roleIds]`, and the event is NIP-70
+// protected (`-`).
 export class RelayMembersReader extends EventReader {
   pubkeys() {
     return uniq(tagValues(tagSpec("member"), this.event.tags))
@@ -15,6 +16,25 @@ export class RelayMembersReader extends EventReader {
 
   isMember(pubkey: string) {
     return this.pubkeys().includes(pubkey)
+  }
+
+  rolesByPubkey() {
+    const rolesByPubkey = new Map<string, string[]>()
+
+    for (const [, pubkey, ...roles] of matchTags(tagSpec("member"), this.event.tags)) {
+      if (pubkey) {
+        rolesByPubkey.set(
+          pubkey,
+          uniq([...(rolesByPubkey.get(pubkey) ?? []), ...roles.filter(Boolean)]),
+        )
+      }
+    }
+
+    return rolesByPubkey
+  }
+
+  rolesFor(pubkey: string) {
+    return this.rolesByPubkey().get(pubkey) ?? []
   }
 }
 
@@ -28,10 +48,9 @@ export class RelayMembersWriter extends EventWriter<RelayMembersReader> {
     this.setProtected(true)
   }
 
-  addPubkey(pubkey: string, role?: string) {
-    return this.dropTags(spec(["member", pubkey])).addTags(
-      removeUndefined(["member", pubkey, role]),
-    )
+  // Omitting `roles` keeps whatever roles the member already has.
+  addPubkey(pubkey: string, roles = this.rolesFor(pubkey)) {
+    return this.dropTags(spec(["member", pubkey])).addTags(["member", pubkey, ...roles])
   }
 
   removePubkey(pubkey: string) {
@@ -39,7 +58,13 @@ export class RelayMembersWriter extends EventWriter<RelayMembersReader> {
   }
 
   setPubkeys(pubkeys: string[]) {
-    return this.dropTags(spec(["member"])).addTags(...uniq(pubkeys).map(pk => ["member", pk]))
+    const tags = uniq(pubkeys).map(pk => ["member", pk, ...this.rolesFor(pk)])
+
+    return this.dropTags(spec(["member"])).addTags(...tags)
+  }
+
+  private rolesFor(pubkey: string) {
+    return this.extraTags.find(spec(["member", pubkey]))?.slice(2) ?? []
   }
 }
 

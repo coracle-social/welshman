@@ -37,6 +37,34 @@ describe("MuteList", () => {
     expect(publicOnly.pubkeys()).toEqual([a])
   })
 
+  it("reads words, topics, ids and addresses across public and private entries", async () => {
+    const id = "11".repeat(32)
+    const address = `30023:${a}:post`
+    const event = await buildEvent(
+      write(MuteList)
+        .addPublic(["word", "spam"])
+        .addPrivate(["word", "scam"])
+        .addPublic(["t", "#nsfw"])
+        .addPrivate(["e", id])
+        .addPublic(["e", "not-an-id"])
+        .addPrivate(["a", address]),
+      signer,
+    )
+
+    const parsed = await read(MuteList, event, signer)
+
+    expect(parsed.words().sort()).toEqual(["scam", "spam"])
+    expect(parsed.topics()).toEqual(["nsfw"])
+    expect(parsed.ids()).toEqual([id])
+    expect(parsed.addresses()).toEqual([address])
+
+    const publicOnly = await read(MuteList, event)
+
+    expect(publicOnly.words()).toEqual(["spam"])
+    expect(publicOnly.ids()).toEqual([])
+    expect(publicOnly.addresses()).toEqual([])
+  })
+
   it("removes from both public and private entries", async () => {
     const event = await buildEvent(
       write(MuteList).mutePublicly(a).mutePrivately(b).unmute(a).unmute(b),

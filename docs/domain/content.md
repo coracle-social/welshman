@@ -391,7 +391,7 @@ await CalendarRsvp.configure(context)
   .renderTemplate()
 ```
 
-`setCalendarEventFromEvent` also pins the rsvp to that revision with an `e` tag and p-tags the organizer, which under the default routing is what delivers the rsvp to their inbox. `setCalendarEvent` takes an address alone, for answering an event you haven't fetched.
+`setCalendarEventFromEvent` also pins the rsvp to that revision with an `e` tag and p-tags the organizer, which under the default routing is what delivers the rsvp to their inbox. The `e` hint comes from the organizer's outbox; pass a relay (`setCalendarEventFromEvent(event, url)`, or `setCalendarEvent(address, url)`) when the event lives on a known relay such as a NIP-29 space, and it becomes the hint for both the `a` and `e` tags. `setCalendarEvent` takes an address alone, for answering an event you haven't fetched.
 
 Free/busy is only meaningful when you are coming, so `setStatus("declined")` clears it, and `validate()` rejects one set after declining. An rsvp with no calendar event or no status is refused the same way.
 

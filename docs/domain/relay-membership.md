@@ -13,7 +13,7 @@ Every one of them sets `requiresRelays = true`, so it **must publish to explicit
 | `RelayLeave` | 28936 | leave marker (ephemeral) | — | — |
 | `RelayAddMember` | 8000 | add a member | `pubkeys()` | `addPubkey(pk)` |
 | `RelayRemoveMember` | 8001 | remove a member | `pubkeys()` | `addPubkey(pk)` |
-| `RelayMembers` | 13534 | member-list snapshot | `pubkeys()`, `isMember(pk)` | `addPubkey(pk, role?)`, `removePubkey(pk)`, `setPubkeys(pks)` |
+| `RelayMembers` | 13534 | member-list snapshot | `pubkeys()`, `isMember(pk)`, `rolesFor(pk)`, `rolesByPubkey()` | `addPubkey(pk, roles?)`, `removePubkey(pk)`, `setPubkeys(pks)` |
 
 Each exported constant is a `KindFactory` pairing a reader class with a writer class (`RelayJoinReader`/`RelayJoinWriter`, `RelayMembersReader`/`RelayMembersWriter`, …). You reach the reader/writer through a `ConfiguredKind` — either `RelayJoin.configure(context).reader(event).parse()` directly, or, in `@welshman/app`, via the `Domain` plugin, which is what the examples below use.
 
@@ -78,7 +78,7 @@ const remove = domain.writer(RelayRemoveMember)
 await (await domain.command(remove)).publish()
 ```
 
-`RelayMembers` (13534) is the resulting member-list snapshot. Members are carried in NIP-43 `member` tags, and the writer marks the event NIP-70 protected (`-`) in its constructor. Its reader answers membership questions; its writer supports add, remove, and a full replace:
+`RelayMembers` (13534) is the resulting member-list snapshot. Members are carried in NIP-43 `member` tags, `["member", pubkey, ...roleIds]`, and the writer marks the event NIP-70 protected (`-`) in its constructor. Its reader answers membership questions; its writer supports add, remove, and a full replace:
 
 ```typescript
 import {RelayMembers} from "@welshman/domain"
@@ -86,10 +86,12 @@ import {RelayMembers} from "@welshman/domain"
 const members = domain.reader(RelayMembers)(event)
 members.pubkeys()          // string[]
 members.isMember(pubkey)   // boolean
+members.rolesFor(pubkey)   // string[] of role ids
+members.rolesByPubkey()    // Map<pubkey, role ids>
 
 const writer = domain.writer(RelayMembers)
   .forceRoutes(relay(relayUrl))
-  .addPubkey(pubkeyA, "admin")   // optional role; also removePubkey(pk) / setPubkeys(pks)
+  .addPubkey(pubkeyA, ["admin"]) // replaces roles; omit to keep existing ones. Also removePubkey(pk) / setPubkeys(pks)
 
 await (await domain.command(writer)).publish()
 ```

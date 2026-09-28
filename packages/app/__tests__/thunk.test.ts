@@ -92,6 +92,39 @@ describe("thunk retries", () => {
 
     app.cleanup()
   })
+
+  it("re-sends only to the given relays", async () => {
+    const other = "wss://localhost:2/"
+    const app = await makeApp()
+    const thunks = app.use(Thunks)
+    const thunk = thunks.publish({event: note("hi"), relays: [url, other]})
+
+    await tick()
+
+    const retried = thunks.retry(thunk, [other]) as Thunk
+
+    expect(retried.options.relays).toEqual([other])
+    expect(retried.options.event.id).toBe(thunk.options.event.id)
+
+    app.cleanup()
+  })
+
+  it("re-sends only the parts of a merged thunk that published to the given relays", async () => {
+    const other = "wss://localhost:2/"
+    const app = await makeApp()
+    const thunks = app.use(Thunks)
+    const one = thunks.publish({event: note("one"), relays: [url]})
+    const two = thunks.publish({event: note("two"), relays: [url, other]})
+
+    await tick()
+
+    const retried = Array.from(thunks.flatten([thunks.retry(thunks.merge([one, two]), [other])]))
+
+    expect(retried.map(thunk => thunk.options.event.id)).toEqual([two.options.event.id])
+    expect(retried.map(thunk => thunk.options.relays)).toEqual([[other]])
+
+    app.cleanup()
+  })
 })
 
 // makePow needs a Worker, which happy-dom lacks; this one re-hashes without mining.

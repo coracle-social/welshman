@@ -1,5 +1,13 @@
 import {uniq, spec} from "@welshman/lib"
-import {MUTES, hexTags, tagValues, userOutbox} from "@welshman/util"
+import {
+  MUTES,
+  addressTags,
+  hexTags,
+  tagSpec,
+  tagValues,
+  topicTags,
+  userOutbox,
+} from "@welshman/util"
 import {ListReader} from "../core/ListReader.js"
 import {ListWriter} from "../core/ListWriter.js"
 import {EventQuery} from "../core/EventQuery.js"
@@ -9,6 +17,22 @@ import {KindFactory} from "../core/Kind.js"
 export class MuteListReader extends ListReader {
   pubkeys() {
     return uniq(tagValues(hexTags("p"), this.tags()))
+  }
+
+  words() {
+    return uniq(tagValues(tagSpec("word"), this.tags()))
+  }
+
+  topics() {
+    return uniq(tagValues(topicTags("t"), this.tags()))
+  }
+
+  ids() {
+    return uniq(tagValues(hexTags("e"), this.tags()))
+  }
+
+  addresses() {
+    return uniq(tagValues(addressTags("a"), this.tags()))
   }
 
   includes(pubkey: string) {

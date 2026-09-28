@@ -78,9 +78,10 @@ const thunks = app.use(Thunks)
 
 thunks.history                    // writable<Thunk[]> — the optimistic publish log
 thunks.retry(thunk)               // re-send a (possibly merged) thunk
+thunks.retry(thunk, [url])        // re-send only to these of its relays, e.g. one that failed
 ```
 
-A retry re-sends the event the thunk already published, so it keeps its id — a relay that took the first attempt sees the same event again rather than a second one.
+With a relay subset, a merged thunk retries only the children that published to one of those relays, each to the relays it shares with the subset. A retry re-sends the event the thunk already published, so it keeps its id — a relay that took the first attempt sees the same event again rather than a second one.
 
 `thunk.options.event` is that event: stamped and hashed when the thunk is constructed, replaced by the signed event once signing finishes. A thunk rebuilt from `{...thunk.options}` re-sends it rather than minting a new one.
 

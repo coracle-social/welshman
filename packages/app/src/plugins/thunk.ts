@@ -414,11 +414,15 @@ export class Thunks {
     return thunk
   }
 
-  retry = (thunk: BaseThunk) => {
-    const republish = (t: Thunk) => this.publish({...t.options})
+  // Pass `relays` to republish only to those of the thunk's relays, e.g. the ones that failed.
+  // A merged thunk then retries only the children that published to them.
+  retry = (thunk: BaseThunk, relays?: string[]) => {
+    const targets = (t: Thunk) =>
+      relays ? t.options.relays.filter(url => relays.includes(url)) : t.options.relays
+    const republish = (t: Thunk) => this.publish({...t.options, relays: targets(t)})
 
     return thunk instanceof MergedThunk
-      ? new MergedThunk(thunk.thunks.map(republish))
+      ? new MergedThunk(thunk.thunks.filter(t => targets(t).length > 0).map(republish))
       : republish(thunk as Thunk)
   }
 

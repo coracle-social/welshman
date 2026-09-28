@@ -1,4 +1,4 @@
-import {spec} from "@welshman/lib"
+import {removeUndefined, spec} from "@welshman/lib"
 import {
   Address,
   EVENT_RSVP,
@@ -45,23 +45,26 @@ export class CalendarRsvpReader extends EventReader {
 
 export class CalendarRsvpWriter extends EventWriter<CalendarRsvpReader> {
   // An rsvp answers exactly one calendar event, so replace any existing one.
-  setCalendarEvent(address: string) {
-    return this.dropTags(spec(["a"])).addTags(["a", address])
+  setCalendarEvent(address: string, relay?: string) {
+    return this.dropTags(spec(["a"])).addTags(removeUndefined(["a", address, relay]))
   }
 
   // Pins the rsvp to this revision of the event and credits its organizer, so the
-  // rsvp reaches their inbox.
-  setCalendarEventFromEvent(event: TrustedEvent) {
-    this.setCalendarEvent(getAddress(event))
+  // rsvp reaches their inbox. Pass `relay` when the event lives on a known relay
+  // (e.g. a NIP-29 space); otherwise the organizer's outbox fills in the `e` hint.
+  setCalendarEventFromEvent(event: TrustedEvent, relay?: string) {
+    this.setCalendarEvent(getAddress(event), relay)
     this.addMention(event.pubkey)
 
-    const tag = ["e", event.id, ""]
+    const tag = ["e", event.id, relay ?? ""]
 
     this.dropTags(spec(["e"])).addTags(tag)
 
-    this.hint(outbox(event.pubkey)).then(url => {
-      tag[2] = url
-    })
+    if (!relay) {
+      this.hint(outbox(event.pubkey)).then(url => {
+        tag[2] = url
+      })
+    }
 
     return this
   }
