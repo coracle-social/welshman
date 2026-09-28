@@ -239,6 +239,8 @@ const template = await app.use(Domain).writer(Bolt12Zap)
 
 `setIntent` copies the content and the `p`, `amount`, `offer_event`, `e`, `a` and `k` tags off the intent, so the two events agree about what was paid for.
 
+A writer runs `getBolt12ZapPaymentHash` over what it is about to render, so it refuses a proof of paying another amount, another offer or another intent rather than publishing a zap nobody will count.
+
 A reader exposes `recipient`, `payer`, `amount`, `proof`, `eventId`, `targetAddress`, `targetKind`, `target`, `offers`, and `targetsProfile` for a zap of the recipient rather than of anything they wrote. `intent()` and `offer()` return the embedded events, having verified their signatures — they arrive as JSON rather than from a relay, so nothing else does. Neither is parse state, so a reader costs nothing until something asks for one.
 
 An anonymous zap omits `P` and is signed with an ephemeral key, so a writer holding no `P` tag publishes to the recipient's inboxes alone rather than adding the user's own outbox relays.

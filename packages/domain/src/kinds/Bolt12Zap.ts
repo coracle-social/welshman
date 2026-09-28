@@ -11,7 +11,6 @@ import {
   hexTags,
   inboxes,
   isBolt12PayerProof,
-  isMsats,
   isReplaceable,
   kindTags,
   makeBolt12PayerNote,
@@ -28,6 +27,7 @@ import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
+import type {KindContext} from "../core/Kind.js"
 import {Bolt12OfferReader} from "./Bolt12Offer.js"
 import {Bolt12ZapIntentReader} from "./Bolt12ZapIntent.js"
 
@@ -74,13 +74,19 @@ const parseEmbedded = (json: string | undefined, kind: number) => {
   return result
 }
 
+const readOffer = (context: KindContext, offer: TrustedEvent) =>
+  new Bolt12OfferReader(BOLT12_OFFER, context, offer)
+
 /**
- * The lightning half of NIP-B1 validation, which `Bolt12ZapReader.validate` leaves alone:
+ * The lightning half of NIP-B1 validation, which `Bolt12ZapReader.validate` leaves alone and
+ * `Bolt12ZapWriter.validate` runs before publishing:
  * the payer proof settles, it pays one of the offers the recipient announced, and it carries
  * the payer note and amount this claim says it does. Returns the proof's
  * `invoice_payment_hash`, which is how two claims of one payment are told apart.
  */
-export const getBolt12ZapPaymentHash = (claim: Bolt12ZapClaim) => {
+export const getBolt12ZapPaymentHash = (
+  claim: Pick<Bolt12ZapClaim, "proof" | "payerNote" | "amount" | "offers">,
+) => {
   const proof = decodeBolt12PayerProof(claim.proof)
 
   return proof &&
@@ -172,11 +178,7 @@ export class Bolt12ZapReader extends EventReader {
   offers() {
     const offer = this.offer()
 
-    return offer ? this.readOffer(offer).offers() : []
-  }
-
-  private readOffer(offer: TrustedEvent) {
-    return new Bolt12OfferReader(BOLT12_OFFER, this.context, offer)
+    return offer ? readOffer(this.context, offer).offers() : []
   }
 
   /**
@@ -193,7 +195,7 @@ export class Bolt12ZapReader extends EventReader {
     let claim: Bolt12ZapClaim | undefined
 
     if (intent && offer && proof && amount !== undefined) {
-      const offerReader = this.readOffer(offer)
+      const offerReader = readOffer(this.context, offer)
       const offers = offerReader.offers()
 
       const valid =
@@ -309,10 +311,15 @@ export class Bolt12ZapWriter extends EventWriter<Bolt12ZapReader> {
   validate() {
     super.validate()
 
-    const amount = tagValue(tagSpec("amount"), this.extraTags)
+    const intent = parseEmbedded(
+      tagValue(tagSpec("description"), this.extraTags),
+      BOLT12_ZAP_INTENT,
+    )
+    const offer = parseEmbedded(tagValue(tagSpec("offer_event"), this.extraTags), BOLT12_OFFER)
+    const amount = tagValue(msatsTags("amount"), this.extraTags)
     const proof = tagValue(tagSpec("proof"), this.extraTags)
 
-    if (!this.extraTags.some(spec(["description"]))) {
+    if (!intent) {
       throw new Error("Bolt12Zap requires the zap intent it was paid for")
     }
 
@@ -320,15 +327,24 @@ export class Bolt12ZapWriter extends EventWriter<Bolt12ZapReader> {
       throw new Error("Bolt12Zap requires a recipient")
     }
 
-    if (!this.extraTags.some(spec(["offer_event"]))) {
+    if (!offer) {
       throw new Error("Bolt12Zap requires the recipient's offer announcement")
     }
 
-    if (!amount || !isMsats(amount) || Number(amount) <= 0) {
+    if (amount === undefined || amount <= 0) {
       throw new Error("Bolt12Zap requires a positive whole number of millisats")
     }
 
-    if (!proof || !isBolt12PayerProof(proof)) {
+    const settles =
+      proof &&
+      getBolt12ZapPaymentHash({
+        proof,
+        amount,
+        payerNote: makeBolt12PayerNote(intent.id),
+        offers: readOffer(this.context, offer).offers(),
+      })
+
+    if (!settles) {
       throw new Error("Bolt12Zap requires a settled lnp payer proof")
     }
   }
