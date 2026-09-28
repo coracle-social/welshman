@@ -100,7 +100,7 @@ const writer = app.use(Domain).writer(RoomUpdatePins)
 await app.use(Domain).command(writer).then(cmd => cmd.publish())
 ```
 
-`RoomUpdatePinsReader` has the same `pins()`, `ids()` and `addresses()` getters, without `isPinned`. Both writers expose `setPins(idsOrAddresses)`, which replaces every `e` and `a` tag. `RoomUpdatePins` requires an `h` tag; `RoomPins` is parameterized-replaceable, so its writer needs a `d` tag instead. Both queries route to no relays, so the caller names the host relay, with `setRoom(url, room)` for the `h`-scoped op or `setRoutes([relay(url)])` for the pin list.
+`RoomUpdatePinsReader` and `RoomUpdatePinsWriter` extend `RoomPinsReader` and `RoomPinsWriter`, so both readers have `pins()`, `ids()`, `addresses()` and `isPinned()`, and both writers have `setPins(idsOrAddresses)`, which replaces every `e` and `a` tag. `RoomUpdatePins` requires an `h` tag from `setRoom(url, room)`. `RoomPins` is addressed by the room id in its `d` tag, set with `setIdentifier(roomId)` like `RoomMeta`, and publishes with `forceRoutes(relay(url))`. Both queries route to no relays, so the caller names the host relay with `setRoutes([relay(url)])`.
 
 ## Membership and lifecycle ops
 

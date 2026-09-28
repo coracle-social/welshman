@@ -15,8 +15,8 @@
 - `"clear"` - Emitted by `clear()`
 
 **Methods:**
-- `track(eventId, relay)` - Records the pair and returns whether the event had been seen from any relay before
-- `addRelay(eventId, relay)` / `removeRelay(eventId, relay)` - Records or removes one pair
+- `track(eventId, relay)` - Records the pair and returns whether the event was already recorded for any relay
+- `addRelay(eventId, relay)` / `removeRelay(eventId, relay)` - Records or removes one pair. Removing an event's last relay forgets the event, so a later `track` returns `false`
 - `hasRelay(eventId, relay)` - Whether the pair is recorded
 - `getRelays(eventId)` - The relays recorded for an event
 - `getIds(relay)` - The events recorded for a relay

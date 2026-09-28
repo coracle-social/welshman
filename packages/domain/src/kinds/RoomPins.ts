@@ -6,6 +6,7 @@ import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 // NIP-29 kind-39005 room pin list (see https://github.com/nostr-protocol/nips/pull/2379).
+// The kind-9010 op carries the same tags, so `RoomUpdatePins` extends these classes.
 export class RoomPinsReader extends EventReader {
   pins() {
     return uniq(
@@ -28,7 +29,9 @@ export class RoomPinsReader extends EventReader {
   }
 }
 
-export class RoomPinsWriter extends EventWriter<RoomPinsReader> {
+export class RoomPinsWriter<
+  Reader extends RoomPinsReader = RoomPinsReader,
+> extends EventWriter<Reader> {
   readonly requiresRelays = true
 
   setPins(idsOrAddresses: string[]) {

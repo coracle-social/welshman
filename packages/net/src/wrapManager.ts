@@ -18,7 +18,6 @@ export type WrapManagerOptions = {
 export class WrapManager extends Emitter {
   _wrapIndex = new Map<string, WrapItem>()
   _rumorIndex = new Map<string, WrapReference>()
-  _recipientIndex = new Map<string, WrapReference>()
 
   constructor(readonly options: WrapManagerOptions) {
     super()
@@ -44,12 +43,12 @@ export class WrapManager extends Emitter {
   clear = () => {
     this._wrapIndex.clear()
     this._rumorIndex.clear()
-    this._recipientIndex.clear()
-    this.emit("load")
+    this.emit("clear")
   }
 
   load = (wrapItems: WrapItem[]) => {
-    this.clear()
+    this._wrapIndex.clear()
+    this._rumorIndex.clear()
 
     for (const wrapItem of wrapItems) {
       this._add(wrapItem)
@@ -83,7 +82,12 @@ export class WrapManager extends Emitter {
 
     if (wrapItem) {
       this._remove(wrapItem)
-      this.options.repository.removeEvent(wrapItem.rumorId)
+
+      // Another wrap may carry the same rumor
+      if (!this._rumorIndex.has(wrapItem.rumorId)) {
+        this.options.repository.removeEvent(wrapItem.rumorId)
+      }
+
       this.emit("remove", wrapItem)
     }
   }
@@ -99,7 +103,6 @@ export class WrapManager extends Emitter {
   _add = (wrapItem: WrapItem) => {
     this._wrapIndex.set(wrapItem.id, wrapItem)
     this._addReference(this._rumorIndex, wrapItem.rumorId, wrapItem.id)
-    this._addReference(this._recipientIndex, wrapItem.recipient, wrapItem.id)
   }
 
   _addReference = (index: Map<string, WrapReference>, key: string, wrapId: string) => {
@@ -115,7 +118,6 @@ export class WrapManager extends Emitter {
   _remove = (wrapItem: WrapItem) => {
     this._wrapIndex.delete(wrapItem.id)
     this._removeReference(this._rumorIndex, wrapItem.rumorId, wrapItem.id)
-    this._removeReference(this._recipientIndex, wrapItem.recipient, wrapItem.id)
   }
 
   _removeReference = (index: Map<string, WrapReference>, key: string, wrapId: string) => {

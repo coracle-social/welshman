@@ -41,6 +41,9 @@ describe("RoomUpdatePins", () => {
     expect(op.pins()).toEqual([a, address, b])
     expect(op.ids()).toEqual([a, b])
     expect(op.addresses()).toEqual([address])
+    expect(op.isPinned(a)).toBe(true)
+    expect(op.isPinned(address)).toBe(true)
+    expect(op.isPinned("cc".repeat(32))).toBe(false)
   })
 
   it("builds an op carrying the full list", async () => {

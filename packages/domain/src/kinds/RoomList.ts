@@ -2,6 +2,7 @@ import {nth, uniq, spec, partition, indexBy} from "@welshman/lib"
 import {
   ROOMS,
   matchTags,
+  tagMatcher,
   tagSpec,
   tagValues,
   isRelayUrl,
@@ -18,6 +19,8 @@ import type {KindContext} from "../core/Kind.js"
 // Room tags (`h`, and the `group` tag NIP-51 uses for this list) carry the room
 // id at t[1] and a relay hint at t[2].
 const roomSpec = tagSpec(["h", "group"])
+
+const isRoomTag = tagMatcher(roomSpec)
 
 const matchesUrl = (normalized: string, value = "") =>
   isRelayUrl(value) && normalizeRelayUrl(value) === normalized
@@ -93,10 +96,7 @@ export class RoomListWriter extends ListWriter<RoomListReader> {
     const normalized = url ? normalizeRelayUrl(url) : undefined
 
     return this.dropTags(
-      t =>
-        t[0] === "group" &&
-        t[1] === roomId &&
-        (!normalized || matchesUrl(normalized, t[2] as string)),
+      t => isRoomTag(t) && t[1] === roomId && (!normalized || matchesUrl(normalized, t[2])),
     )
   }
 
@@ -104,7 +104,7 @@ export class RoomListWriter extends ListWriter<RoomListReader> {
     const normalized = normalizeRelayUrl(url)
     const tags = [...this.publicTags, ...this.privateTags]
 
-    if (!tags.some(t => t[0] === "r" && matchesUrl(normalized, t[1] as string))) {
+    if (!tags.some(t => t[0] === "r" && matchesUrl(normalized, t[1]))) {
       this.addPublic(["r", normalized])
     }
 
@@ -116,8 +116,8 @@ export class RoomListWriter extends ListWriter<RoomListReader> {
 
     return this.dropTags(
       t =>
-        (t[0] === "r" && matchesUrl(normalized, t[1] as string)) ||
-        (t[0] === "group" && matchesUrl(normalized, t[2] as string)),
+        (t[0] === "r" && matchesUrl(normalized, t[1])) ||
+        (isRoomTag(t) && matchesUrl(normalized, t[2])),
     )
   }
 
@@ -143,10 +143,17 @@ export class RoomListWriter extends ListWriter<RoomListReader> {
 
     const rewrite = (tags: string[][]) =>
       tags.map(t => {
-        if (t[0] === "r" && matchesUrl(from, t[1])) return ["r", to]
-        if (t[0] === "group" && matchesUrl(from, t[2])) return ["group", t[1], to]
+        let tag = t
 
-        return t
+        if (t[0] === "r" && matchesUrl(from, t[1])) {
+          tag = ["r", to, ...t.slice(2)]
+        }
+
+        if (isRoomTag(t) && matchesUrl(from, t[2])) {
+          tag = [t[0], t[1], to, ...t.slice(3)]
+        }
+
+        return tag
       })
 
     this.publicTags = rewrite(this.publicTags)

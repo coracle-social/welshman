@@ -91,6 +91,10 @@ describe("Repository", () => {
       repo.publish(event)
       expect(repo.hasEvent(event)).toBe(true)
     })
+
+    it("should return false for events it doesn't hold", () => {
+      expect(repo.hasEvent(createEvent(1))).toBe(false)
+    })
   })
 
   describe("replaceable events", () => {
@@ -527,6 +531,49 @@ describe("Repository", () => {
       expect(updateHandler).toHaveBeenCalledWith({
         added: [],
         removed: new Set(),
+      })
+    })
+
+    it("should not report pending expirations or earlier deletes as removed", () => {
+      const target = createEvent(1)
+      const deletion = createEvent(DELETE, {pubkey: target.pubkey, tags: [["e", target.id]]})
+      const pending = createEvent(1, {tags: [["expiration", String(now() + 100)]]})
+      const updateHandler = vi.fn()
+
+      repo.load([target, deletion])
+      repo.on("update", updateHandler)
+      repo.load([pending])
+
+      expect(updateHandler).toHaveBeenCalledWith({added: [pending], removed: new Set()})
+    })
+
+    it("should report batch events that are already hidden as removed", () => {
+      const expired = createEvent(1, {tags: [["expiration", String(now() - 100)]]})
+      const deleted = createEvent(1)
+      const deletion = createEvent(DELETE, {pubkey: deleted.pubkey, tags: [["e", deleted.id]]})
+      const updateHandler = vi.fn()
+
+      repo.on("update", updateHandler)
+      repo.load([expired, deleted, deletion])
+
+      expect(updateHandler).toHaveBeenCalledWith({
+        added: [deletion],
+        removed: new Set([expired.id, deleted.id]),
+      })
+    })
+
+    it("should report existing events a delete in the batch hides as removed", () => {
+      const existing = createEvent(1)
+      const deletion = createEvent(DELETE, {pubkey: existing.pubkey, tags: [["e", existing.id]]})
+      const updateHandler = vi.fn()
+
+      repo.publish(existing)
+      repo.on("update", updateHandler)
+      repo.load([deletion])
+
+      expect(updateHandler).toHaveBeenCalledWith({
+        added: [deletion],
+        removed: new Set([existing.id]),
       })
     })
 

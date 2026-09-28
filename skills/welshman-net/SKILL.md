@@ -132,7 +132,7 @@ A `SocketPolicy` is `(socket: Socket) => Unsubscriber`, run once per socket at c
 | `repository.isDeleted(event)` | `true` if a kind-5 delete by the same author covers this event, or a newer version at its address replaced it (`isDeletedById` / `isDeletedByAddress` check one path each) |
 | `repository.isExpired(event)` | `true` past the event's NIP-40 `expiration` |
 | `repository.dump()` | All stored events as `TrustedEvent[]` |
-| `repository.load(events)` | Bulk-inserts events alongside those already stored; emits one `"update"` diff |
+| `repository.load(events)` | Bulk-inserts events alongside those already stored; emits one `"update"` diff whose `removed` holds only what the batch hides |
 | `repository.clear()` | Empties every index; emits `"clear"` |
 | `LOCAL_RELAY_URL` | `"local://welshman.relay/"` — conventional url for the local repository (also exported by `@welshman/util`) |
 | `RepositoryUpdate` | `{added: TrustedEvent[], removed: Set<string>}` — payload of `"update"` events |
@@ -147,8 +147,8 @@ Emits `"update"` with a `RepositoryUpdate` whenever events are added or removed.
 | Export | Description |
 |--------|-------------|
 | `Tracker` | Bidirectional map of `eventId ↔ Set<relayUrl>` (`relaysById` / `idsByRelay`) |
-| `tracker.track(eventId, relay)` | Records the relay; returns `true` if the event was already seen |
-| `tracker.addRelay(id, relay)` / `removeRelay(id, relay)` | Explicit edge management |
+| `tracker.track(eventId, relay)` | Records the relay; returns `true` if the event was already recorded for any relay |
+| `tracker.addRelay(id, relay)` / `removeRelay(id, relay)` | Explicit edge management; removing an event's last relay forgets the event |
 | `tracker.hasRelay(id, relay)` | Membership check |
 | `tracker.getRelays(eventId)` | Set of relay urls that have sent this event |
 | `tracker.getIds(relay)` | Set of event ids seen from a relay |
@@ -192,7 +192,7 @@ Emits `"update"` with a `RepositoryUpdate` whenever events are added or removed.
 | `WrapManager` | Tracks NIP-59 gift wrap ↔ rumor relationships. `new WrapManager({tracker, repository})` |
 | `wrapManager.add({wrap, rumor, recipient})` | Stores the rumor in the repository and copies the wrap's relay tracking onto it |
 | `wrapManager.getRumor(wrapId)` / `getWraps(rumorId)` | Look up either direction |
-| `wrapManager.remove(id)` / `removeByRumorId(id)` / `clear()` | Teardown |
+| `wrapManager.remove(id)` / `removeByRumorId(id)` / `clear()` | Teardown; `remove` keeps a rumor another wrap still carries, and `clear` emits `"clear"` |
 | `wrapManager.dump()` / `load(wrapItems)` | Persist and restore (`WrapItem[]`); unlike `Repository` and `Tracker`, `load` clears existing wraps first |
 
 ---

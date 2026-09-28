@@ -44,6 +44,8 @@ describe("Label", () => {
         ["a", `${NOTE}:${targetPubkey}:slug`],
         ["t", "#nostr"],
         ["r", "wss://relay.example.com/"],
+        ["r", "https://example.com/article"],
+        ["r", "not a url"],
       ],
     })
 
@@ -58,7 +60,7 @@ describe("Label", () => {
     expect(label.addresses()).toEqual([`${NOTE}:${targetPubkey}:slug`])
     // topicTags strips the leading hash.
     expect(label.topics()).toEqual(["nostr"])
-    expect(label.urls()).toEqual(["wss://relay.example.com/"])
+    expect(label.urls()).toEqual(["wss://relay.example.com/", "https://example.com/article"])
   })
 
   it("declares a namespace once per label", async () => {
@@ -123,6 +125,34 @@ describe("Label", () => {
     expect(tmpl.tags).toContainEqual(["a", `${NOTE}:${targetPubkey}:slug`])
     expect(tmpl.tags).toContainEqual(["t", "nostr"])
     expect(tmpl.tags).toContainEqual(["r", "wss://relay.example.com/"])
+  })
+
+  it("removes each subject type by value", async () => {
+    const otherId = "cc".repeat(32)
+    const address = `${NOTE}:${targetPubkey}:slug`
+
+    const tmpl = await buildTemplate(
+      write(Label)
+        .addLabel("good", "quality")
+        .addEventId(targetId)
+        .addEventId(otherId)
+        .addPubkey(targetPubkey)
+        .addAddress(address)
+        .addTopic("nostr")
+        .addUrl("https://example.com/article")
+        .removeEventId(targetId)
+        .removePubkey(targetPubkey)
+        .removeAddress(address)
+        .removeTopic("nostr")
+        .removeUrl("https://example.com/article"),
+      signer,
+    )
+
+    expect(tmpl.tags).toEqual([
+      ["L", "quality"],
+      ["l", "good", "quality"],
+      ["e", otherId],
+    ])
   })
 
   it("round-trips unknown tags", async () => {

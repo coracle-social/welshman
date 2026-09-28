@@ -1,10 +1,10 @@
 import {first, parseJson, spec} from "@welshman/lib"
-import type {Maybe} from "@welshman/lib"
 import {
   GENERIC_REPOST,
   NOTE,
   REPOST,
   getAddress,
+  isHashedEvent,
   isReplaceable,
   kindTags,
   outbox,
@@ -19,6 +19,13 @@ import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 const TARGET_KEYS = ["e", "a", "p", "k"]
+
+// The content's event, when it has an event's shape. Its signature is not checked.
+const parseEvent = (content: string) => {
+  const event = parseJson<TrustedEvent>(content)
+
+  return event && isHashedEvent(event) ? event : undefined
+}
 
 // NIP-18 repost. Kind 6 reposts notes; kind 16 reposts any other kind and names
 // it in a `k` tag. The reposted event is JSON-encoded in the content so a client
@@ -41,9 +48,13 @@ export class RepostReader extends EventReader {
     return this.kind === REPOST ? NOTE : first(tagValues(kindTags("k"), this.event.tags))
   }
 
-  // The embedded event, or undefined when the content is absent or malformed.
+  // The embedded event, or undefined when the content is absent, malformed, or a
+  // different event from the one the e tag names.
   repostedEvent() {
-    return parseJson(this.event.content) as Maybe<TrustedEvent>
+    const event = parseEvent(this.event.content)
+    const eventId = this.eventId()
+
+    return event && (!eventId || event.id === eventId) ? event : undefined
   }
 }
 
@@ -85,6 +96,13 @@ export class RepostWriter extends EventWriter<RepostReader> {
 
     if (!this.extraTags.some(spec(["e"]))) {
       throw new Error("A repost must reference an event via an e tag")
+    }
+
+    // Content may be left empty (e.g. for a protected event), so only an embedded event is checked.
+    const event = parseEvent(this.content)
+
+    if (this.kind === REPOST && event && event.kind !== NOTE) {
+      throw new Error("A kind 6 repost must embed a kind 1 note; use GenericRepost for other kinds")
     }
   }
 }

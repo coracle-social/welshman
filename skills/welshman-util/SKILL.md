@@ -315,6 +315,7 @@ isDVMKind(kind)                    // 5000–7000
 | `hexTags(keys)` | Spec matching 32-byte hex values (`isHex32`) — e/p tags |
 | `addressTags(keys)` | Spec matching replaceable addresses (`Address.isAddress`) — a tags |
 | `relayTags(keys)` | Spec matching relay urls (`isRelayUrl`) — r/relay tags |
+| `urlTags(keys)` | Spec matching any absolute url, unnormalized — e.g. NIP-32 `r` label subjects |
 | `topicTags(keys)` | Spec that strips a leading `#` from values — t tags |
 | `kindTags(keys)` | Spec whose values parse to `number` — k tags |
 | `matchTags(spec, tags)` | All tags matching the spec — spec first, then the tags array |

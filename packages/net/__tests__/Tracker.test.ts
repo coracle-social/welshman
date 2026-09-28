@@ -66,6 +66,23 @@ describe("Tracker", () => {
       expect(updateSpy).toHaveBeenCalled()
     })
 
+    it("should drop empty entries so the event is no longer tracked", () => {
+      tracker.removeRelay("event1", "relay1")
+
+      expect(tracker.relaysById.has("event1")).toBe(false)
+      expect(tracker.idsByRelay.has("relay1")).toBe(false)
+      expect(tracker.track("event1", "relay2")).toBe(false)
+    })
+
+    it("should keep entries that still have members", () => {
+      tracker.addRelay("event1", "relay2")
+      tracker.addRelay("event2", "relay1")
+      tracker.removeRelay("event1", "relay1")
+
+      expect(tracker.getRelays("event1")).toEqual(new Set(["relay2"]))
+      expect(tracker.getIds("relay1")).toEqual(new Set(["event2"]))
+    })
+
     it("should not emit update event if nothing was removed", () => {
       const updateSpy = vi.fn()
       tracker.on("remove", updateSpy)

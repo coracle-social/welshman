@@ -93,31 +93,29 @@ export class Repository extends Emitter {
   }
 
   load = (events: TrustedEvent[]) => {
-    const added = []
+    const updates: RepositoryUpdate[] = []
 
     for (const event of events) {
-      if (this.publish(event, {shouldNotify: false}) && !this.isDeleted(event)) {
+      const update = this._publish(event)
+
+      if (update) {
+        updates.push(update)
+      }
+    }
+
+    const merged = mergeRepositoryUpdates(updates)
+    const added: TrustedEvent[] = []
+
+    // Anything stored already deleted, expired or superseded is reported as removed
+    for (const event of merged.added) {
+      if (this._isVisible(event)) {
         added.push(event)
+      } else {
+        merged.removed.add(event.id)
       }
     }
 
-    const removed = new Set<string>()
-
-    // Anything removed via delete or replace has been removed
-    for (const idOrAddress of this.deletes.keys()) {
-      const event = this.getEvent(idOrAddress)
-
-      if (event && this.isDeleted(event)) {
-        removed.add(event.id)
-      }
-    }
-
-    // Anything expired has been removed
-    for (const id of this.expired.keys()) {
-      removed.add(id)
-    }
-
-    this.emit("update", {added, removed})
+    this.emit("update", {added, removed: merged.removed})
   }
 
   // API
@@ -131,7 +129,7 @@ export class Repository extends Emitter {
   hasEvent = (event: TrustedEvent) => {
     const duplicate = this.eventsById.get(event.id) || this.eventsByAddress.get(getAddress(event))
 
-    return duplicate && duplicate.created_at >= event.created_at
+    return Boolean(duplicate && duplicate.created_at >= event.created_at)
   }
 
   removeEvent = (idOrAddress: string) => {
@@ -217,88 +215,14 @@ export class Repository extends Emitter {
   }
 
   publish = (event: TrustedEvent, {shouldNotify = true} = {}): boolean => {
-    if (!event?.id) {
-      console.warn("Attempted to publish invalid event to repository", event)
-
-      return false
-    }
-
-    const existing = this.eventsById.get(event.id)
-
-    // An event we hold can come back changed, most often an unsigned one carrying its signature
-    if (existing) {
-      if (equals(existing, event)) {
-        return false
-      }
-
-      this._replaceEvent(existing, event, shouldNotify)
-
-      return true
-    }
-
-    const removed = new Set<string>()
-    const address = getAddress(event)
-    const duplicate = this.eventsByAddress.get(address)
-
-    if (duplicate) {
-      // If our event is younger than the duplicate, we're done
-      if (event.created_at < duplicate.created_at) {
-        return false
-      }
-
-      // If our event is newer than what it's replacing, delete the old version
-      this._delete(event, duplicate.id)
-
-      // Notify listeners that it's been removed
-      removed.add(duplicate.id)
-
-      // Remember what this event replaced so it can be restored if this event is later removed
-      this.replaced.set(event.id, duplicate)
-    }
-
-    // Add our new event by id
-    this.eventsById.set(event.id, event)
-
-    // Add our new event by address
-    if (isReplaceable(event)) {
-      this.eventsByAddress.set(address, event)
-    }
-
-    // Update our timestamp, author, kind, and tag indexes
-    this._reindex(event, duplicate)
-
-    // Handle delete/expiration bookkeeping, which only applies when newly publishing
-    for (const tag of event.tags) {
-      if (tag[0]?.length === 1) {
-        // If this is a delete event, the tag value is an id or address. Track when it was
-        // deleted so that replaceables can be restored.
-        if (event.kind === DELETE && ["a", "e"].includes(tag[0]) && tag[1]) {
-          this._delete(event, tag[1])
-
-          const deletedEvent = this.getEvent(tag[1])
-
-          if (deletedEvent && this.isDeleted(deletedEvent)) {
-            removed.add(deletedEvent.id)
-          }
-        }
-      }
-
-      // Keep track of whether this event is expired
-      if (tag[0] === "expiration") {
-        const expiration = parseInt(tag[1] || "")
-
-        if (!isNaN(expiration)) {
-          this.expired.set(event.id, expiration)
-        }
-      }
-    }
+    const update = this._publish(event)
 
     // Notify, but only if the event hasn't been deleted
-    if (shouldNotify && !this.isDeleted(event)) {
-      this.emit("update", {added: [event], removed})
+    if (update && shouldNotify && !this.isDeleted(event)) {
+      this.emit("update", update)
     }
 
-    return true
+    return Boolean(update)
   }
 
   // No created_at comparison: an id names one immutable event, so there is no newer version for it
@@ -447,8 +371,89 @@ export class Repository extends Emitter {
     return undefined
   }
 
+  // Store `event`, returning the update it causes, or undefined if nothing changed
+  _publish = (event: TrustedEvent): RepositoryUpdate | undefined => {
+    if (!event?.id) {
+      console.warn("Attempted to publish invalid event to repository", event)
+
+      return undefined
+    }
+
+    const existing = this.eventsById.get(event.id)
+
+    // An event we hold can come back changed, most often an unsigned one carrying its signature
+    if (existing) {
+      if (equals(existing, event)) {
+        return undefined
+      }
+
+      this._replaceEvent(existing, event)
+
+      return {added: [event], removed: new Set<string>()}
+    }
+
+    const removed = new Set<string>()
+    const address = getAddress(event)
+    const duplicate = this.eventsByAddress.get(address)
+
+    if (duplicate) {
+      // If our event is younger than the duplicate, we're done
+      if (event.created_at < duplicate.created_at) {
+        return undefined
+      }
+
+      // If our event is newer than what it's replacing, delete the old version
+      this._delete(event, duplicate.id)
+
+      // Notify listeners that it's been removed
+      removed.add(duplicate.id)
+
+      // Remember what this event replaced so it can be restored if this event is later removed
+      this.replaced.set(event.id, duplicate)
+    }
+
+    // Add our new event by id
+    this.eventsById.set(event.id, event)
+
+    // Add our new event by address
+    if (isReplaceable(event)) {
+      this.eventsByAddress.set(address, event)
+    }
+
+    // Update our timestamp, author, kind, and tag indexes
+    this._reindex(event, duplicate)
+
+    // Handle delete/expiration bookkeeping, which only applies when newly publishing
+    for (const tag of event.tags) {
+      if (tag[0]?.length === 1) {
+        // If this is a delete event, the tag value is an id or address. Track when it was
+        // deleted so that replaceables can be restored.
+        if (event.kind === DELETE && ["a", "e"].includes(tag[0]) && tag[1]) {
+          this._delete(event, tag[1])
+
+          const deletedEvent = this.getEvent(tag[1])
+
+          if (deletedEvent && this.isDeleted(deletedEvent)) {
+            removed.add(deletedEvent.id)
+          }
+        }
+      }
+
+      // Keep track of whether this event is expired
+      if (tag[0] === "expiration") {
+        const expiration = parseInt(tag[1] || "")
+
+        if (!isNaN(expiration)) {
+          this.expired.set(event.id, expiration)
+        }
+      }
+    }
+
+    return {added: [event], removed}
+  }
+
   // Swap `event` in where `existing` sat; removing and re-adding it blinks it out of derived stores
-  _replaceEvent = (existing: TrustedEvent, event: TrustedEvent, shouldNotify: boolean) => {
+  _replaceEvent = (existing: TrustedEvent, event: TrustedEvent) => {
     const address = getAddress(event)
     const isCurrent = this.eventsByAddress.get(address) === existing
 
@@ -463,10 +468,6 @@ export class Repository extends Emitter {
 
     if (isIndexed) {
       this._reindex(event, existing)
-    }
-
-    if (shouldNotify && !this.isDeleted(event)) {
-      this.emit("update", {added: [event], removed: new Set<string>()})
     }
   }
 

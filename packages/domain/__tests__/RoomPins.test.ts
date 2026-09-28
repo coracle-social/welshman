@@ -123,4 +123,11 @@ describe("RoomPins", () => {
     expect(tmpl.tags.filter(t => t[0] === "e")).toEqual([["e", b]])
     expect(tmpl.tags.filter(t => t[0] === "a")).toEqual([["a", otherAddress]])
   })
+
+  // Like the other room-state kinds, the list is addressed by the room id in its d tag.
+  it("requires the room id as its d tag", async () => {
+    await expect(
+      buildTemplate(write(RoomPins).setPins([a]).forceRoutes(relay("wss://relay.example.com/"))),
+    ).rejects.toThrow("A d tag is required")
+  })
 })

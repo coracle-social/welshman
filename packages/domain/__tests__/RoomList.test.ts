@@ -109,6 +109,43 @@ describe("RoomList", () => {
     ])
   })
 
+  it("removes and migrates legacy h entries like group entries", async () => {
+    const reader = await read(
+      RoomList,
+      makeEvent({
+        tags: [
+          ["r", relayA, "read"],
+          ["h", roomA, relayA, "Room A"],
+          ["h", roomB, relayB],
+          ["group", roomB, relayA],
+        ],
+      }),
+    )
+
+    const removedRoom = await buildTemplate(write(RoomList, reader).removeRoom(roomB), signer)
+
+    expect(removedRoom.tags).toEqual([
+      ["r", relayA, "read"],
+      ["h", roomA, relayA, "Room A"],
+    ])
+
+    const removedRelay = await buildTemplate(write(RoomList, reader).removeRelay(relayB), signer)
+
+    expect(removedRelay.tags).not.toContainEqual(["h", roomB, relayB])
+
+    const migrated = await buildTemplate(
+      write(RoomList, reader).migrateRelay(relayA, "wss://new.example.com/"),
+      signer,
+    )
+
+    expect(migrated.tags).toEqual([
+      ["r", "wss://new.example.com/", "read"],
+      ["h", roomA, "wss://new.example.com/", "Room A"],
+      ["h", roomB, relayB],
+      ["group", roomB, "wss://new.example.com/"],
+    ])
+  })
+
   it("joins and leaves rooms via a fresh builder", async () => {
     const tmpl = await buildTemplate(
       write(RoomList).addRoom(roomA, relayA).addRoom(roomB, relayA).removeRoom(roomA),

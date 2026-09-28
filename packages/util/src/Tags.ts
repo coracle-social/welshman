@@ -28,6 +28,17 @@ export const addressTags = (keys: string | string[]) =>
 
 export const relayTags = (keys: string | string[]) => tagSpec(keys, isRelayUrl, normalizeRelayUrl)
 
+const isUrl = (value: string) => {
+  try {
+    return Boolean(new URL(value))
+  } catch (e) {
+    return false
+  }
+}
+
+// Any absolute url, where `relayTags` accepts only websocket relays.
+export const urlTags = (keys: string | string[]) => tagSpec(keys, isUrl)
+
 export const tagMatcher = (spec: TagSpec<any>) => (tag: string[]) => {
   if (!spec.keys.includes(tag[0])) return false
   if (spec.matchValue && (!tag[1] || !spec.matchValue(tag[1]))) return false

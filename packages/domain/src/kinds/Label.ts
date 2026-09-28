@@ -4,10 +4,10 @@ import {
   addressTags,
   hexTags,
   matchTags,
-  relayTags,
   tagSpec,
   tagValues,
   topicTags,
+  urlTags,
   userOutbox,
 } from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
@@ -17,7 +17,8 @@ import {KindFactory} from "../core/Kind.js"
 
 // NIP-32 label. `L` declares a namespace and `l` carries the labels within it,
 // while the labeled subjects are referenced with ordinary `e`/`p`/`a`/`r`/`t`
-// tags. One event may label several subjects across several namespaces.
+// tags. One event may label several subjects across several namespaces. An `r`
+// subject is any url, not only a relay.
 export class LabelReader extends EventReader {
   namespaces() {
     return tagValues(tagSpec("L"), this.event.tags)
@@ -47,7 +48,7 @@ export class LabelReader extends EventReader {
   }
 
   urls() {
-    return tagValues(relayTags("r"), this.event.tags)
+    return tagValues(urlTags("r"), this.event.tags)
   }
 }
 
@@ -101,6 +102,26 @@ export class LabelWriter extends EventWriter<LabelReader> {
 
   addUrl(url: string) {
     return this.addTags(["r", url])
+  }
+
+  removeEventId(id: string) {
+    return this.dropTags(spec(["e", id]))
+  }
+
+  removePubkey(pubkey: string) {
+    return this.dropTags(spec(["p", pubkey]))
+  }
+
+  removeAddress(address: string) {
+    return this.dropTags(spec(["a", address]))
+  }
+
+  removeTopic(topic: string) {
+    return this.dropTags(spec(["t", topic]))
+  }
+
+  removeUrl(url: string) {
+    return this.dropTags(spec(["r", url]))
   }
 
   validate() {

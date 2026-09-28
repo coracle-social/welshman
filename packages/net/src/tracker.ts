@@ -14,7 +14,7 @@ export class Tracker extends Emitter {
 
   getRelays = (eventId: string) => this.relaysById.get(eventId) || new Set<string>()
 
-  hasRelay = (eventId: string, relay: string) => this.relaysById.get(eventId)?.has(relay)
+  hasRelay = (eventId: string, relay: string) => this.getRelays(eventId).has(relay)
 
   addRelay = (eventId: string, relay: string) => {
     let relays = this.relaysById.get(eventId)
@@ -40,12 +40,22 @@ export class Tracker extends Emitter {
   }
 
   removeRelay = (eventId: string, relay: string) => {
-    const didDeleteRelay = this.relaysById.get(eventId)?.delete(relay) ?? false
-    const didDeleteId = this.idsByRelay.get(relay)?.delete(eventId) ?? false
+    const relays = this.relaysById.get(eventId)
+    const ids = this.idsByRelay.get(relay)
+    const didDeleteRelay = relays?.delete(relay) ?? false
+    const didDeleteId = ids?.delete(eventId) ?? false
 
-    if (!didDeleteRelay || !didDeleteId) return
+    if (relays?.size === 0) {
+      this.relaysById.delete(eventId)
+    }
 
-    this.emit("remove", eventId, relay)
+    if (ids?.size === 0) {
+      this.idsByRelay.delete(relay)
+    }
+
+    if (didDeleteRelay && didDeleteId) {
+      this.emit("remove", eventId, relay)
+    }
   }
 
   track = (eventId: string, relay: string) => {

@@ -17,7 +17,7 @@
 - `isDeleted(event)` - Whether a delete hides the event; `isDeletedById` and `isDeletedByAddress` check one path each
 - `isExpired(event)` - Whether the event's `expiration` tag is in the past
 - `dump()` - Every stored event
-- `load(events)` - Adds events to those already stored and emits a single `"update"`. Call `clear()` first to replace the contents
+- `load(events)` - Adds events to those already stored and emits a single `"update"`. Its `removed` holds only what this batch hides: events in the batch that arrive already deleted, expired or superseded, and stored events that a delete or newer version in the batch hides. Call `clear()` first to replace the contents
 - `clear()` - Empties every index
 
 ## Indexes

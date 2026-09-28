@@ -92,12 +92,12 @@ repost.eventId()        // e-tag value
 repost.eventAddress()   // a-tag value
 repost.pubkey()         // p-tag value
 repost.eventKind()      // 1 for kind 6, the k-tag value for kind 16
-repost.repostedEvent()  // the event JSON-decoded from content, or undefined
+repost.repostedEvent()  // the event JSON-decoded from content, or undefined when malformed
 
 await GenericRepost.configure(context).writer().setEvent(article).renderTemplate()
 ```
 
-`setEvent(event)` replaces any existing target and JSON-encodes the event into the content. Like `Reaction`, it p-tags the author and e-tags the event (and a-tags a replaceable one) with hints from the author's outbox. Only `GenericRepost` adds the `k` tag. `validate()` requires an `e` tag. `repostedEvent()` parses the content without verifying it.
+`setEvent(event)` replaces any existing target and JSON-encodes the event into the content. Like `Reaction`, it p-tags the author and e-tags the event (and a-tags a replaceable one) with hints from the author's outbox. Only `GenericRepost` adds the `k` tag. `validate()` requires an `e` tag, and on `Repost` rejects an embedded event that isn't a kind-1 note, so other kinds go through `GenericRepost`. An empty content passes, since NIP-18 allows one. `repostedEvent()` returns the content's event only when it has an event's shape and matches the `e` tag's id; it does not check the signature.
 
 ## Picture (kind 20)
 
@@ -580,7 +580,7 @@ label.eventIds()            // e-tag values
 label.pubkeys()             // p-tag values
 label.addresses()           // a-tag values
 label.topics()              // t-tag values
-label.urls()                // r-tag values
+label.urls()                // r-tag values (any url)
 
 await Label.configure(context)
   .writer()
@@ -589,7 +589,7 @@ await Label.configure(context)
   .renderTemplate()
 ```
 
-`addLabel(name, namespace)` adds the `L` and `l` tags unless they are already present. `removeLabel(name, namespace)` drops the `l` tag, and drops the `L` tag too once no label in that namespace is left. `urls()` reads `r` tags as relay urls, so it returns only `ws`/`wss` urls, normalized. `validate()` requires at least one `l` tag. `LabelWriter` routes to `[userOutbox()]` only, since the subject tags name what is labeled rather than who should receive it.
+`addLabel(name, namespace)` adds the `L` and `l` tags unless they are already present. `removeLabel(name, namespace)` drops the `l` tag, and drops the `L` tag too once no label in that namespace is left. Each subject type has an `add*` and a matching `remove*` (`removeEventId`, `removePubkey`, `removeAddress`, `removeTopic`, `removeUrl`), and subject tags carry no relay hints. `urls()` returns every `r` value that parses as a url, as written, since a labeled url is usually a web page rather than a relay. `validate()` requires at least one `l` tag. `LabelWriter` routes to `[userOutbox()]` only, since the subject tags name what is labeled rather than who should receive it.
 
 ## Feed (kind 31890)
 

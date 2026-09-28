@@ -6,6 +6,7 @@ import {
   topicTags,
   addressTags,
   relayTags,
+  urlTags,
   matchTag,
   matchTags,
   tagValue,
@@ -95,6 +96,20 @@ describe("Tags", () => {
       expect(tagValues(relayTags(["r", "relay"]), t)).toEqual([
         "wss://relay.example.com/",
         "wss://relay2.example.com/",
+      ])
+    })
+
+    it("urlTags matches any absolute url without normalizing it", () => {
+      const t = [
+        ["r", "https://example.com/Page"],
+        ["r", "wss://relay.example.com"],
+        ["r", "example.com"],
+        ["other", "https://example.com/"],
+      ]
+
+      expect(tagValues(urlTags("r"), t)).toEqual([
+        "https://example.com/Page",
+        "wss://relay.example.com",
       ])
     })
 

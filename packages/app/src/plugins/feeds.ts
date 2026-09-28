@@ -22,7 +22,7 @@ export type FeedFields = {
 }
 
 /**
- * NIP-51 kind-31890 saved feeds, keyed by address (many feeds per author).
+ * Kind-31890 saved feeds, keyed by address (many feeds per author).
  * Also builds `FeedController`s wired to this app. Scope/WOT pubkey resolution
  * is delegated to `Wot`, and feeds fetch through THIS app's net context (pool +
  * repository) rather than the global one.

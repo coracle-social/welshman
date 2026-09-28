@@ -7,7 +7,7 @@ import {EventWriter} from "../core/EventWriter.js"
 import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
-// NIP-51 kind-31890 saved-feed definition.
+// Kind-31890 saved-feed definition: a `@welshman/feeds` feed, JSON-encoded in a `feed` tag.
 export class FeedReader extends EventReader {
   title() {
     return tagValue(tagSpec("title"), this.event.tags) || ""

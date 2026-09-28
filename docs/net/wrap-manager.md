@@ -16,13 +16,14 @@ type WrapItem = Omit<HashedEvent, "content"> & {
 **Events:**
 - `"add"` - Emitted with the `WrapItem` by `add()`
 - `"remove"` - Emitted with the `WrapItem` by `remove()`
-- `"load"` - Emitted by `load()` and by `clear()`
+- `"load"` - Emitted by `load()`
+- `"clear"` - Emitted by `clear()`
 
 **Methods:**
 - `add({wrap, rumor, recipient})` - Records the wrap, publishes the rumor to the repository, and copies the wrap's relays in the tracker onto the rumor
 - `getRumor(wrapId)` - The rumor a wrap carries, read from the repository
 - `getWraps(rumorId)` - The `WrapItem`s carrying a rumor
-- `remove(wrapId)` - Forgets the wrap and removes its rumor from the repository
+- `remove(wrapId)` - Forgets the wrap, and removes its rumor from the repository unless another wrap still carries it
 - `removeByRumorId(rumorId)` - Removes every wrap carrying a rumor
 - `dump()` - Every `WrapItem`, for persistence
 - `load(wrapItems)` - Replaces the recorded wraps. Unlike `Repository` and `Tracker`, it clears existing state first, and it does not touch the repository

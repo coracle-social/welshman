@@ -76,6 +76,39 @@ describe("Repost", () => {
     expect(repost.repostedEvent()).toBeUndefined()
   })
 
+  it("returns undefined for content that isn't an event", async () => {
+    const {id: _, ...unhashed} = target
+
+    for (const content of ['{"hello":"world"}', "42", JSON.stringify(unhashed)]) {
+      const repost = await read(Repost, makeEvent({content, tags: [["e", targetId]]}))
+
+      expect(repost.repostedEvent()).toBeUndefined()
+    }
+  })
+
+  it("returns undefined when the embedded event isn't the one the e tag names", async () => {
+    const repost = await read(
+      Repost,
+      makeEvent({content: JSON.stringify(target), tags: [["e", "cc".repeat(32)]]}),
+    )
+
+    expect(repost.repostedEvent()).toBeUndefined()
+  })
+
+  it("rejects a kind 6 repost of anything but a note", async () => {
+    const article = makeEvent({id: targetId, pubkey: targetPubkey, kind: LONG_FORM, content: ""})
+
+    await expect(buildTemplate(write(Repost).setEvent(article), signer)).rejects.toThrow(
+      "use GenericRepost",
+    )
+  })
+
+  it("accepts a kind 6 repost with empty content", async () => {
+    const tmpl = await buildTemplate(write(Repost).addTags(["e", targetId]), signer)
+
+    expect(tmpl.content).toBe("")
+  })
+
   it("embeds the event and tags its author", async () => {
     const tmpl = await buildTemplate(write(Repost).setEvent(target), signer)
 

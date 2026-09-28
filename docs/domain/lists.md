@@ -118,7 +118,7 @@ const template = await RelaySet.configure({resolver})
   .renderTemplate()
 ```
 
-**`RoomList` (kind 10009).** A NIP-51 simple-groups membership list. `addRoom(roomId, url)` writes `["group", roomId, url]` and adds an `r` tag for the relay if there isn't one; `removeRoom(roomId, url?)` drops the matching group tag. `addRelay`/`removeRelay`/`setRelays` manage the `r` relay tags, `migrateRelay(oldUrl, newUrl)` points every reference to a relay at its new url, and the reader's `urls()`/`roomsForUrl(url)` resolve where each room lives. The writer publishes to the author's outbox plus every relay the list references, before and after the edit, so each relay learns of membership changes. NIP-29 room operations are covered in [Rooms](./rooms).
+**`RoomList` (kind 10009).** A NIP-51 simple-groups membership list. `addRoom(roomId, url)` writes `["group", roomId, url]` and adds an `r` tag for the relay if there isn't one; `removeRoom(roomId, url?)` drops the matching room tag. `addRelay`/`removeRelay`/`setRelays` manage the `r` relay tags, `removeRelay` also drops the rooms listed under that relay, and `migrateRelay(oldUrl, newUrl)` points every reference to a relay at its new url, keeping any trailing tag values. The reader's `urls()`/`roomsForUrl(url)` resolve where each room lives. The reader and the writer's room methods treat a legacy `["h", roomId, url]` entry like a `group` entry, and the writer keeps it in the `h` form. The writer publishes to the author's outbox plus every relay the list references, before and after the edit, so each relay learns of membership changes. NIP-29 room operations are covered in [Rooms](./rooms).
 
 ## See also
 
