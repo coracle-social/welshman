@@ -19,7 +19,7 @@ const app = createApp()
 Features are exposed as **plugins** — lazily-constructed singletons resolved through `app.use(...)`:
 
 ```typescript
-import {createApp, Profiles, RelayLists, Thunks} from "@welshman/app"
+import {createApp, Profiles, RelayLists, Publisher} from "@welshman/app"
 
 const app = createApp()
 
@@ -39,7 +39,7 @@ This replaces the previous global-singleton design (`pubkey`, `deriveProfile`, `
 | **Policies** | Side effects installed at construction (ingest, auth, stats, wraps) | [App](./apppolicies) |
 | **Plugins** | Lazily-resolved feature modules built on a small set of base classes | [Plugin architecture](./plugins) |
 | **Data plugins** | Reactive collections of profiles, lists, relays, handles, zappers… | [Data](./data) |
-| **Publishing** | Optimistic publishing via thunks | [Publishing](./publishing) |
+| **Publishing** | Optimistic publishing through a staged pipeline | [Publishing](./publishing) |
 | **Requests** | Loading & negentropy sync | [Requests](./requests) |
 | **Routing** | Outbox-model relay selection and tag builders | [Routing](./routing) |
 | **Web of Trust** | Follow/mute graph scoring | [Web of Trust](./wot) |
@@ -48,7 +48,7 @@ This replaces the previous global-singleton design (`pubkey`, `deriveProfile`, `
 ## Quick example
 
 ```typescript
-import {createApp, User, toSession, nip07, Profiles, Thunks, Router} from "@welshman/app"
+import {createApp, User, toSession, nip07, Profiles, Publisher, Router} from "@welshman/app"
 import {getNip07} from "@welshman/signer"
 import {makeEvent, NOTE, userOutbox} from "@welshman/util"
 
@@ -71,15 +71,15 @@ profile.subscribe($profile => console.log($profile?.name))
 //    are chosen with the declarative routing DSL: `resolve` turns a list of
 //    `RelaySelection`s into a scored `RelayScenario`.
 const scenario = await app.use(Router).resolve([userOutbox()])
-const thunk = app.use(Thunks).publish({
+const publication = app.use(Publisher).publish({
   event: makeEvent(NOTE, {content: "hi"}),
   relays: scenario.getUrls(),
   delay: 3000,                                   // soft-undo window
 })
 
 // Abort before `delay` elapses to undo
-// thunk.abort()
-await thunk.waitForCompletion()
+// publication.abort()
+await publication.settled()
 
 // 5. Tear it all down
 app.cleanup()

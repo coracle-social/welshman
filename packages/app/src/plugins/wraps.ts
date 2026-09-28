@@ -2,16 +2,13 @@ import {TaskQueue, uniq, now} from "@welshman/lib"
 import {hexTags, tagValues, prep} from "@welshman/util"
 import type {TrustedEvent, SignedEvent, EventTemplate} from "@welshman/util"
 import {Nip59} from "@welshman/signer"
-import {MergedThunk, Thunks} from "./thunk.js"
-import type {ThunkOptions} from "./thunk.js"
+import {PublicationGroup, Publisher} from "./publisher.js"
+import type {PublishRequest} from "./publisher.js"
 import {User} from "../user.js"
 import {MessagingRelayLists} from "./messagingRelayLists.js"
 import type {IApp} from "../app.js"
 
-export type SendWrappedOptions = Omit<
-  ThunkOptions,
-  "event" | "relays" | "recipient" | "app" | "user"
-> & {
+export type SendWrappedOptions = Omit<PublishRequest, "event" | "relays" | "recipient"> & {
   event: EventTemplate
   recipients: string[]
 }
@@ -112,12 +109,14 @@ export class Wraps {
     // Stabilize the event id across the different wraps
     const stableEvent = prep(event, user.pubkey, now())
 
-    return new MergedThunk(
+    return new PublicationGroup(
       await Promise.all(
         uniq(recipients).map(async recipient => {
           const relays = (await this.app.use(MessagingRelayLists).load(recipient))?.urls() ?? []
 
-          return this.app.use(Thunks).publish({event: stableEvent, relays, recipient, ...options})
+          return this.app
+            .use(Publisher)
+            .publish({event: stableEvent, relays, recipient, ...options})
         }),
       ),
     )

@@ -5,7 +5,7 @@ import {Nip01Signer, Nip59} from "@welshman/signer"
 import {App} from "../src/app.js"
 import {User} from "../src/user.js"
 import {defaultAppPolicies} from "../src/policy.js"
-import {Thunks} from "../src/plugins/thunk.js"
+import {Publisher} from "../src/plugins/publisher.js"
 import {Wraps} from "../src/plugins/wraps.js"
 import {Network} from "../src/plugins/network.js"
 
@@ -43,11 +43,11 @@ describe("app teardown", () => {
     expect(calls).toEqual(["second", "first"])
   })
 
-  it("stops pending thunks from publishing after cleanup", async () => {
+  it("stops pending publications from publishing after cleanup", async () => {
     const {app} = await makeApp()
 
-    app.use(Thunks).publish({
-      event: {kind: NOTE, content: "hi", tags: [], created_at: 0},
+    app.use(Publisher).publish({
+      event: {kind: NOTE, content: "hi", tags: []},
       relays: [url],
     })
 
@@ -55,11 +55,11 @@ describe("app teardown", () => {
 
     await tick()
 
-    // A thunk that kept publishing would pull a fresh socket out of the cleared
+    // A publication that kept publishing would pull a fresh socket out of the cleared
     // pool and write its event back into the cleared repository
     expect(app.pool.has(url)).toBe(false)
     expect(app.repository.dump().length).toBe(0)
-    expect(get(app.use(Thunks).history)).toEqual([])
+    expect(get(app.use(Publisher).history)).toEqual([])
   })
 
   it("stops in-flight loads from opening sockets after cleanup", async () => {

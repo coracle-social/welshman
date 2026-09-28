@@ -1,12 +1,12 @@
 import type {EventTemplate} from "@welshman/util"
 import type {IApp} from "./app.js"
-import {Thunks} from "./plugins/thunk.js"
+import {Publisher} from "./plugins/publisher.js"
 
 /**
  * An event paired with the relays it's meant for, without committing to how
  * it gets published. Plugin mutation methods (`create`/`update`/etc.) build
  * the event and return a `Command` instead of publishing it directly, so the
- * caller decides: `publish()` sends it through the normal `Thunks` pipeline,
+ * caller decides: `publish()` sends it through the normal `Publisher` pipeline,
  * and `publishToRelays(urls)` targets a specific set of relays.
  */
 export class Command {
@@ -19,7 +19,7 @@ export class Command {
   publish = () => this.publishToRelays(this.relays)
 
   publishToRelays = (urls: string[]) =>
-    this.app.use(Thunks).publish({event: this.event, relays: urls})
+    this.app.use(Publisher).publish({event: this.event, relays: urls})
 }
 
 export const publish = (command: Command) => command.publish()

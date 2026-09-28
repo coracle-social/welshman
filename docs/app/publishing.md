@@ -1,15 +1,15 @@
 # Publishing Events
 
-Publishing in `@welshman/app` is **optimistic** and built around *thunks*. A thunk writes the event to the local repository immediately (so the UI updates instantly), signs lazily, optionally gift-wraps (NIP-59) and computes proof-of-work (NIP-13), and reports acceptance/rejection per relay. The signing/publishing can be delayed, giving you a soft-undo window.
+Publishing in `@welshman/app` is **optimistic**. The event goes into the local repository immediately, so the UI updates before any relay answers. It then passes through an optional soft-undo delay, NIP-59 gift-wrapping, NIP-13 proof-of-work, signing, and sending. Each call to `publish` returns a `Publication`, whose state names its current stage and, once it is sending, each relay's answer.
 
-Publishing is managed by the `Thunks` plugin: `app.use(Thunks)`.
+Publishing is managed by the `Publisher` plugin: `app.use(Publisher)`.
 
 ## Publishing to specific relays
 
 ```typescript
 import {makeEvent, NOTE} from "@welshman/util"
 
-const thunk = app.use(Thunks).publish({
+const publication = app.use(Publisher).publish({
   event: makeEvent(NOTE, {content: "hi"}),
   relays: ["wss://relay.example"],
 })
@@ -17,75 +17,100 @@ const thunk = app.use(Thunks).publish({
 
 ## Publishing to the outbox
 
-There's no dedicated outbox helper on `Thunks` — resolve the current user's write relays yourself (via the [Router](./routing)) and pass them to `publish`. This is what [`Command.publish()`](#commands) does under the hood for every data-plugin mutation.
+`Publisher` has no outbox helper. Resolve the current user's write relays with the [Router](./routing) and pass them to `publish`, as [`Command.publish()`](#commands) does for every data-plugin mutation.
 
 ```typescript
 import {userOutbox} from "@welshman/util"
 
 const scenario = await app.use(Router).resolve([userOutbox()])
 
-const thunk = app.use(Thunks).publish({
+const publication = app.use(Publisher).publish({
   event: makeEvent(NOTE, {content: "hi"}),
   relays: scenario.getUrls(),
-  delay: 3000,            // wait 3s before signing/sending — abortable until then
+  delay: 3000,            // wait 3s before signing and sending; abort to undo
 })
 ```
 
-## `ThunkOptions`
+## `PublishRequest`
 
 ```typescript
-type ThunkOptions = Override<PublishOptions, {
-  app: IApp                 // injected for you by Thunks.publish
-  event: EventTemplate            // stamped and hashed when the thunk is constructed
-  recipient?: string              // present → NIP-59 gift-wrap to this pubkey
-  delay?: number                  // ms to wait before signing/sending (soft-undo)
-  pow?: number                    // NIP-13 proof-of-work difficulty
-}>
+type PublishRequest = {
+  event: EventTemplate    // stamped and hashed when publish is called
+  relays: string[]
+  recipient?: string      // present → NIP-59 gift-wrap to this pubkey
+  delay?: number          // ms to wait before signing/sending (soft-undo)
+  pow?: number            // NIP-13 proof-of-work difficulty
+  priority?: number
+  timeout?: number        // ms to wait for each relay's OK
+}
 ```
 
-`publish` accepts these options minus `app`.
+## The pipeline
 
-## Working with a thunk
+A publication moves through `PublicationState`, a union keyed by `stage`:
 
-A thunk is a Svelte store; subscribe to watch per-relay progress.
+| Stage | When |
+| --- | --- |
+| `queued` | Waiting for the publisher's queue, which paces how fast publications start |
+| `delayed` | Inside the `delay` window; `until` is when it ends (seconds) |
+| `wrapping` | Sealing and wrapping for `recipient`; the user's signer signs the seal here |
+| `pow` | Mining to `difficulty`, on the wrap if there is one |
+| `signing` | Waiting on the user's signer |
+| `sending` | Waiting on relays; `results` fills in as each one answers |
+| `sent` | Every relay has answered or timed out |
+| `failed` | A stage threw (e.g. the signer refused); `error` says why |
+| `aborted` | `abort()` was called before the publication settled |
+
+Stages that don't apply are skipped. `sent`, `failed` and `aborted` are terminal. A publication in a terminal state never changes again, so `abort()` does nothing after it settles. Every terminal state has a result for each relay, because `failed` and `aborted` fill in the missing ones, so the URL helpers below work the same however a publication ended.
+
+## Working with a publication
+
+A publication is a Svelte store that notifies subscribers on every state change. Once it settles it never changes again, so a later subscriber is called once and not kept.
 
 ```typescript
-const thunk = app.use(Thunks).publish({event, relays})
+const publication = app.use(Publisher).publish({event, relays})
 
-thunk.subscribe(t => console.log(t.results))   // PublishResultsByRelay
+publication.subscribe(p => console.log(p.state.stage, p.results))
 
-// Soft-undo: only effective before `delay` elapses
-thunk.abort()
+publication.abort()                 // soft-undo; unwinds the optimistic write
+publication.canAbort()              // nothing has reached a relay yet, so an abort still undoes it
 
-// Inspect status
-thunk.getCompleteUrls()
-thunk.getIncompleteUrls()
-thunk.getFailedUrls()
-thunk.isComplete()
-thunk.getError()                  // string | undefined
+publication.getCompleteUrls()
+publication.getIncompleteUrls()     // relays still pending, or not sent to yet
+publication.getFailedUrls()         // rejected or timed out
+publication.isComplete()            // reached a terminal stage
+publication.getError()              // first relay's rejection or the pipeline's error, or undefined
 
-// Await outcomes
-await thunk.waitForCompletion()   // resolves when no relay is still pending
-await thunk.waitForError()        // resolves with the first error string
+await publication.settled()         // resolves once it reaches a terminal stage
 ```
 
-## Optimistic-publish history
+`publication.event` starts as the stamped and hashed event, and the mined and signed versions replace it as they arrive. For a gift wrap, `publication.event` is the rumor and `publication.wrap` is what relays receive. `publication.request` holds the arguments passed to `publish`.
 
-The `Thunks` manager keeps a log of all thunks and supports retrying:
+## History and retries
 
 ```typescript
-const thunks = app.use(Thunks)
+const publisher = app.use(Publisher)
 
-thunks.history                    // writable<Thunk[]> — the optimistic publish log
-thunks.retry(thunk)               // re-send a (possibly merged) thunk
-thunks.retry(thunk, [url])        // re-send only to these of its relays, e.g. one that failed
+publisher.history                   // writable<Publication[]> — the optimistic publish log
+publisher.retry(publication)        // re-send a publication or group
+publisher.retry(publication, [url]) // re-send only to these of its relays, e.g. one that failed
+publisher.merge([a, b])             // watch several as one PublicationGroup
 ```
 
-With a relay subset, a merged thunk retries only the children that published to one of those relays, each to the relays it shares with the subset. A retry re-sends the event the thunk already published, so it keeps its id — a relay that took the first attempt sees the same event again rather than a second one.
+With a relay subset, a group retries only the publications that sent to one of those relays, and each only to the relays it shares with the subset. A retry re-sends `publication.event` with the same id, so a relay that accepted the first attempt receives the same event rather than a new one. The publications a retry replaces leave `history`, so a view that merges an event's publications sees the retry's outcome rather than the failure it replaced.
 
-`thunk.options.event` is that event: stamped and hashed when the thunk is constructed, replaced by the signed event once signing finishes. A thunk rebuilt from `{...thunk.options}` re-sends it rather than minting a new one.
+## Groups
 
-Each thunk is queued (batched) and its event is written to the repository and tracker the moment it is enqueued, so derived stores reflect it before any relay has responded. The repository takes the signature in place when it arrives, so it reports nothing as removed and a listener batching its updates never sees the event blink out. `pow` rewrites the id, so there the optimistic event is removed and the mined one added. If a thunk is aborted before sending, its event and wrap are removed from the repository and its history entry is dropped.
+A `PublicationGroup` has the same status helpers as a publication, plus `publications`. When several publications go to the same relay, the group reports that relay as pending while any of them is pending, and otherwise as the worst outcome among them.
+
+## Repository bookkeeping
+
+`publish` writes the event to the repository and tracker, so derived stores reflect it before any relay responds. The publisher keeps both in step with the publication:
+
+- A signature on the same id replaces the unsigned copy in place, so the repository reports no removal. Proof of work changes the id, so the publisher removes the optimistic event and adds the mined one.
+- The publisher removes a relay from the tracker when the relay rejects the event, times out, or is aborted.
+- The publisher registers a gift wrap with the app's `WrapManager` when the wrap is sent.
+- The publisher removes an aborted publication's event and wrap from the repository and drops its history entry. A failed publication keeps its event so it can be retried.
 
 ## Commands
 
@@ -100,7 +125,7 @@ command.app       // the IApp it was built for
 command.event      // EventTemplate — unsigned, inspectable before publishing
 command.relays     // string[] — where publish() will send it
 
-command.publish()             // the normal path: app.use(Thunks).publish({event, relays})
+command.publish()             // the normal path: app.use(Publisher).publish({event, relays})
 command.publishToRelays(urls)  // same, but override the relay set
 ```
 
@@ -114,7 +139,7 @@ await app.use(Rooms).leave(relayUrl, roomMeta).then(publish)
 await app.use(Rooms).join(relayUrl, roomMeta).then(publishToRelays([relayUrl]))
 ```
 
-`Wraps.publish` is the one mutation that still publishes directly rather than returning a `Command`: it fans a single rumor out into a `MergedThunk` of per-recipient wraps, each with its own relay set, which doesn't fit the one-event/one-relay-set shape a `Command` assumes.
+`Wraps.publish` is the one mutation that still publishes directly rather than returning a `Command`: it fans a single rumor out into a `PublicationGroup` of per-recipient wraps, each with its own relay set, which doesn't fit the one-event/one-relay-set shape a `Command` assumes.
 
 ### Building a command from a domain writer
 
@@ -185,12 +210,12 @@ const rumorTemplate = await app
   .renderTemplate()
 ```
 
-### A single thunk with a `recipient`
+### A single publication with a `recipient`
 
-Set `recipient` on a normal thunk. The thunk wraps the rumor with an ephemeral key, registers it with the app's `WrapManager`, and publishes the wrap:
+Set `recipient` on a normal publication. The publisher wraps the rumor with an ephemeral key, registers it with the app's `WrapManager`, and publishes the wrap:
 
 ```typescript
-app.use(Thunks).publish({
+app.use(Publisher).publish({
   event: rumorTemplate,
   relays: theirMessagingRelays,
   recipient: theirPubkey,
@@ -202,20 +227,20 @@ app.use(Thunks).publish({
 The `Wraps` plugin publishes one wrap per recipient, resolving each recipient's NIP-17 messaging relays automatically:
 
 ```typescript
-const merged = await app.use(Wraps).publish({
+const group = await app.use(Wraps).publish({
   event: rumorTemplate,
   recipients: [pubkeyA, pubkeyB],
 })
 
-await merged.waitForCompletion()
+await group.settled()
 ```
 
-`Wraps.publish` returns a `MergedThunk` aggregating the per-recipient thunks. Incoming wraps addressed to the current user are unwrapped automatically by the [`appPolicyWraps`](./apppolicies) default policy; wraps that fail to unwrap (or are duplicates) are skipped.
+`Wraps.publish` returns a `PublicationGroup` of the per-recipient publications. Incoming wraps addressed to the current user are unwrapped automatically by the [`appPolicyWraps`](./apppolicies) default policy; wraps that fail to unwrap (or are duplicates) are skipped.
 
 ## Proof of work
 
-Set `pow` to a target difficulty (number of leading zero bits). The thunk mines the PoW before signing; for wrapped events the wrap itself is mined.
+Set `pow` to a target difficulty (number of leading zero bits). The publication mines the PoW before signing; for wrapped events the wrap itself is mined. An event that arrives already signed is sent as it is.
 
 ```typescript
-app.use(Thunks).publish({event, relays, pow: 20})
+app.use(Publisher).publish({event, relays, pow: 20})
 ```

@@ -207,7 +207,7 @@ A writer resolves to a template via `renderTemplate(): Promise<EventTemplate>` a
 ```typescript
 const command = await app.use(Domain).command(writer)
 
-command.publish()                  // through the normal Thunks pipeline
+command.publish()                  // through the normal Publisher pipeline
 command.publishToRelays(urls)      // a specific relay set
 ```
 

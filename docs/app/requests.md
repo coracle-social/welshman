@@ -28,7 +28,7 @@ await net.request({
 Use `net.makeLoader(options)` if you need a loader with different batching characteristics.
 
 ```typescript
-publish(options)        // publish an event (prefer the Thunks plugin for app publishing)
+publish(options)        // publish an event (prefer the Publisher plugin for app publishing)
 makeLoader(options)     // build a custom batched Loader
 ```
 
