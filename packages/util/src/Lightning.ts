@@ -1,4 +1,4 @@
-import {hexToBech32} from "@welshman/lib"
+import {bytesToHex, hexToBech32} from "@welshman/lib"
 
 const DIVISORS = {
   m: BigInt(1e3),
@@ -72,3 +72,21 @@ export const getLnUrl = (address: string) => {
     }
   }
 }
+
+// A canonical raw offer is lowercase with BOLT12 separators and whitespace removed.
+export const canonicalBolt12Offer = (offer: string) => offer.toLowerCase().replace(/[+\s]/g, "")
+
+export const isBolt12Offer = (offer: string) => /^lno1[a-z0-9]+$/.test(canonicalBolt12Offer(offer))
+
+export const isBolt12PayerProof = (proof: string) => /^lnp1[a-z0-9]+$/.test(proof.toLowerCase())
+
+// NIP-B1 asks for at least 128 bits of entropy, lowercase hex.
+export const isBolt12ZapId = (zapId: string) => /^([0-9a-f]{2}){16,}$/.test(zapId)
+
+// parseInt on its own reads "21000.9" as 21000, which is not what the payer signed for.
+export const isMsats = (amount: string) => /^\d+$/.test(amount)
+
+export const makeBolt12ZapId = () => bytesToHex(crypto.getRandomValues(new Uint8Array(16)))
+
+// NIP-B1 asks the payer proof's invreq_payer_note to carry the zap intent's id.
+export const makeBolt12PayerNote = (zapIntentId: string) => `nostr:nipB1:${zapIntentId}`

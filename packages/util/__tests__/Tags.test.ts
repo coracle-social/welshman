@@ -3,6 +3,7 @@ import {
   tagSpec,
   hexTags,
   kindTags,
+  msatsTags,
   topicTags,
   addressTags,
   relayTags,
@@ -125,6 +126,17 @@ describe("Tags", () => {
 
       expect(matchTags(kindTags("k"), t)).toHaveLength(1)
       expect(tagValues(kindTags("k"), t)).toEqual([1])
+    })
+
+    it("msatsTags matches whole millisats and reads them as numbers", () => {
+      const t = [
+        ["amount", "21000"],
+        ["amount", "21000.9"],
+        ["amount", "21000abc"],
+      ]
+
+      expect(matchTags(msatsTags("amount"), t)).toHaveLength(1)
+      expect(tagValues(msatsTags("amount"), t)).toEqual([21000])
     })
   })
 })

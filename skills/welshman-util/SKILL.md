@@ -232,6 +232,7 @@ ALERT_ANDROID = 32833  ALERT_IOS = 32834
 
 ```
 ZAP_GOAL = 9041        ZAP_REQUEST = 9734    ZAP_RECEIPT = 9735
+BOLT12_ZAP = 9736      BOLT12_ZAP_INTENT = 9737  BOLT12_OFFER = 10058
 WALLET_INFO = 13194    WALLET_REQUEST = 23194 WALLET_RESPONSE = 23195
 LIGHTNING_PUB_RPC = 21000
 OTS = 1040
@@ -318,6 +319,7 @@ isDVMKind(kind)                    // 5000–7000
 | `urlTags(keys)` | Spec matching any absolute http(s) or ws(s) url, unnormalized — e.g. NIP-32 `r` label subjects |
 | `topicTags(keys)` | Spec that strips a leading `#` from values — t tags |
 | `kindTags(keys)` | Spec whose values parse to `number` — k tags |
+| `msatsTags(keys)` | Spec matching a whole number of millisats, parsed to `number` — amount tags |
 | `matchTags(spec, tags)` | All tags matching the spec — spec first, then the tags array |
 | `matchTag(spec, tags)` | First tag matching the spec, or `undefined` |
 | `tagValues(spec, tags)` | Values (index 1, normalized) of all matching tags; undefined dropped |
@@ -487,7 +489,7 @@ the invocation grammar — `parseCommandInvocation`, `renderCommandInvocation`, 
 `parseCommandArgs`, `getActiveCommandArgIndex`. Kind `COMMAND` is 31992. `@welshman/editor`'s
 `CommandExtension`/`CommandSuggestion` render and autocomplete these in the composer.
 
-### Lightning (NIP-57 support)
+### Lightning (NIP-57 and NIP-B1 support)
 
 | Export | Description |
 |--------|-------------|
@@ -495,6 +497,11 @@ the invocation grammar — `parseCommandInvocation`, `renderCommandInvocation`, 
 | `getInvoiceAmount(bolt11)` | Extract the millisatoshi amount from a BOLT11 invoice |
 | `hrpToMillisat(hrpString)` | Convert a human-readable BTC amount to millisats (`bigint`) |
 | `toMsats(sats)` / `fromMsats(msats)` | Unit conversion |
+| `canonicalBolt12Offer(offer)` | Lowercase a BOLT12 offer and drop its separators and whitespace |
+| `isBolt12Offer(offer)` / `isBolt12PayerProof(proof)` / `isBolt12ZapId(zapId)` | Shape checks for what a NIP-B1 zap carries |
+| `isMsats(amount)` | Whether an amount tag is a whole number of millisats, which `msatsTags` reads it as |
+| `makeBolt12ZapId()` | A fresh zap id, 128 bits of entropy as lowercase hex |
+| `makeBolt12PayerNote(zapIntentId)` | The `nostr:nipB1:<id>` note a BOLT12 payment has to carry |
 
 The `Zapper` and `Zap` types live in `@welshman/domain`, alongside the `ZapRequest`/`ZapReceipt`/`ZapGoal` kinds. Receipt validation is `app.use(Zappers).validateZapReceipt(...)`.
 

@@ -1,5 +1,15 @@
 import {describe, it, vi, expect, beforeEach} from "vitest"
-import {hrpToMillisat, getInvoiceAmount, getLnUrl} from "../src/Lightning"
+import {
+  canonicalBolt12Offer,
+  hrpToMillisat,
+  getInvoiceAmount,
+  getLnUrl,
+  isBolt12Offer,
+  isBolt12PayerProof,
+  isBolt12ZapId,
+  isMsats,
+  makeBolt12ZapId,
+} from "../src/Lightning"
 
 describe("Lightning", () => {
   beforeEach(() => {
@@ -68,6 +78,35 @@ describe("Lightning", () => {
 
     it("should return null for invalid input", () => {
       expect(getLnUrl("invalid")).toBeUndefined()
+    })
+  })
+
+  describe("BOLT12", () => {
+    it("canonicalizes an offer by lowercasing it and dropping its separators", () => {
+      expect(canonicalBolt12Offer("LNO1QGSY+AB C")).toBe("lno1qgsyabc")
+      expect(isBolt12Offer("LNO1QGSY+AB C")).toBe(true)
+      expect(isBolt12Offer("lnbc100n1pjexample")).toBe(false)
+    })
+
+    it("takes an lnp payer proof in either case", () => {
+      expect(isBolt12PayerProof("lnp1qqsexampleproof")).toBe(true)
+      expect(isBolt12PayerProof("LNP1QQSEXAMPLEPROOF")).toBe(true)
+      expect(isBolt12PayerProof("lnbc100n1pjexample")).toBe(false)
+    })
+
+    it("requires a zap id of whole bytes, at least sixteen of them", () => {
+      expect(isBolt12ZapId(makeBolt12ZapId())).toBe(true)
+      expect(isBolt12ZapId("a".repeat(32))).toBe(true)
+      expect(isBolt12ZapId("a".repeat(33))).toBe(false)
+      expect(isBolt12ZapId("a".repeat(31))).toBe(false)
+      expect(isBolt12ZapId("A".repeat(32))).toBe(false)
+    })
+
+    it("reads an amount as millisats only when it is a whole number", () => {
+      expect(isMsats("21000")).toBe(true)
+      expect(isMsats("21000.9")).toBe(false)
+      expect(isMsats("21000abc")).toBe(false)
+      expect(isMsats("")).toBe(false)
     })
   })
 })

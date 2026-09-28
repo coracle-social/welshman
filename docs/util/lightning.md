@@ -28,6 +28,28 @@ export declare const hrpToMillisat: (hrpString: string) => bigint;
 export declare const getInvoiceAmount: (bolt11: string) => number;
 ```
 
+### BOLT12
+
+NIP-B1 zaps are modeled in `@welshman/domain` — see [domain/Zaps](../domain/zaps). What lives here is the syntax of the strings they carry.
+
+```typescript
+// Lowercase an offer and drop its BOLT12 separators and whitespace
+export declare const canonicalBolt12Offer: (offer: string) => string;
+
+export declare const isBolt12Offer: (offer: string) => boolean;
+export declare const isBolt12PayerProof: (proof: string) => boolean;
+export declare const isBolt12ZapId: (zapId: string) => boolean;
+
+// Whether an amount tag is whole millisats, so `msatsTags` reads "21000.9" as absent
+export declare const isMsats: (amount: string) => boolean;
+
+// A fresh zap id, 128 bits of entropy as lowercase hex
+export declare const makeBolt12ZapId: () => string;
+
+// The invreq_payer_note a payment has to carry: `nostr:nipB1:<zap intent id>`
+export declare const makeBolt12PayerNote: (zapIntentId: string) => string;
+```
+
 ### LNURL
 
 ```typescript

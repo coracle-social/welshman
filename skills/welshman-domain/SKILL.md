@@ -253,6 +253,16 @@ Room ops are scoped by the `h` tag and must publish to explicit relays — use `
 
 `ZapRequestReader`: `amount`, `lnurl`, `recipient`, `eventId`, `urls` (the comment is the base `content()`). `ZapRequestWriter.requestInvoice(zapper)` signs the request and fetches a bolt11 invoice. `ZapReceiptReader`: `bolt11`, `invoiceAmount`, `request`, `sender`, `recipient`, `eventId`, `comment`, `preimage`; check it with `Zapper.validate(receipt)`, which returns a `Zap` or `undefined`. `ZapGoalReader`: `title`, `summary`, `image`, `amount`, `urls`, `closedAt`, plus `progress(zaps)`/`counted(zaps)`.
 
+### BOLT12 zaps (NIP-B1)
+
+| Kind | NIP | Reader / Writer |
+|---|---|---|
+| 9736 | NIP-B1 | `Bolt12ZapReader` / `Bolt12ZapWriter` |
+| 9737 | NIP-B1 | `Bolt12ZapIntentReader` / `Bolt12ZapIntentWriter` |
+| 10058 | NIP-B1 | `Bolt12OfferReader` / `Bolt12OfferWriter` |
+
+The payer signs the zap itself, so there is no zapper to validate it against. `Bolt12ZapReader.intent()` and `.offer()` return the kind-9737 intent in the `description` tag and the kind-10058 announcement in the `offer_event` tag, verifying the signatures they arrive with — both come as JSON rather than from a relay. Neither is parse state, so reading a zap's other tags costs no verification. `validate()` returns a `Bolt12ZapClaim` (`{event, intent, offer, offers, target, amount, proof, payerNote}`) or undefined, having checked everything but the `lnp` payer proof, which is the caller's to decode. `sumBolt12Zaps(claims, paymentHash)` takes that check as a callback, deduplicates per target, and totals what it validates; a profile total is the claims whose `target` is undefined.
+
 ### Content
 
 | Kind | NIP | Reader / Writer |

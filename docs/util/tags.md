@@ -28,6 +28,7 @@ relayTags(keys)    // matchValue = isRelayUrl        — relay urls (r/relay tag
 urlTags(keys)      // matches any absolute http(s)/ws(s) url, unnormalized (e.g. NIP-32 r tags)
 topicTags(keys)    // normalizeValue strips a leading "#" (t tags)
 kindTags(keys)     // values are parsed to `number` (k tags)
+msatsTags(keys)    // matchValue = isMsats          — whole millisats, parsed to `number` (amount tags)
 ```
 
 ## Selecting and reading

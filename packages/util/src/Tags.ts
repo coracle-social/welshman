@@ -1,7 +1,8 @@
-import {ensurePlural, isHex32, removeUndefined} from "@welshman/lib"
+import {ensurePlural, isHex32, removeUndefined, toInt} from "@welshman/lib"
 import {isRelayUrl, normalizeRelayUrl} from "./Relay.js"
 import {Address} from "./Address.js"
 import {isKind, normalizeKind} from "./Kinds.js"
+import {isMsats} from "./Lightning.js"
 import {normalizeTopic} from "./Topics.js"
 
 export type TagSpec<T = string> = {
@@ -20,6 +21,8 @@ export const tagSpec = <T=string>(
 export const hexTags = (keys: string | string[]) => tagSpec(keys, isHex32)
 
 export const kindTags = (keys: string | string[]) => tagSpec(keys, isKind, normalizeKind)
+
+export const msatsTags = (keys: string | string[]) => tagSpec(keys, isMsats, toInt)
 
 export const topicTags = (keys: string | string[]) => tagSpec(keys, undefined, normalizeTopic)
 
