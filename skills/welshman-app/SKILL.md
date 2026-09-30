@@ -122,7 +122,7 @@ Every mutation method (`create`/`update`/`follow`/`addRelay`/`setRelays`/etc.) i
 | `Topics` | hashtags w/ counts | `all`, `byName` (`Projection`s); `topicSearch` |
 | `Reactions` / `Deletes` | kind-7 reactions and kind-5 deletes (no collection; read them with `Events`) | `react(event, content, fn?)` / `deleteEvent(event, fn?)` → `Command` |
 | `Rooms` | NIP-29 rooms, keyed `${url}'${h}` | `forRoom(url, h)`, `forUrl(url)`, `members(url, h)`, `membershipStatus(...)`, `pendingJoins(url, h?)`, `createRoom`/`editRoom`/`deleteRoom`/`joinRoom`/`leaveRoom`/`addMember`/`removeMember`/`deleteEvent(url, room, …)` → `Command` |
-| `Plaintext` | decrypted-content cache, keyed by ciphertext | `ensure(ciphertext, decrypt)`, `get(ciphertext)` |
+| `Plaintext` | decrypted-content cache, keyed by ciphertext; concurrent callers share one decrypt | `ensure(ciphertext, decrypt)`, `get(ciphertext)` |
 
 ```typescript
 import {createApp, Profiles, RelayLists} from "@welshman/app"

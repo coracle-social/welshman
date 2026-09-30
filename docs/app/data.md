@@ -226,7 +226,7 @@ await rooms.deleteEvent(relayUrl, roomMeta, eventId).then(publish)
 
 ## Plaintext
 
-A cache of decrypted content, keyed by the ciphertext. The caller supplies the decryption, so the cache is independent of the signer.
+A cache of decrypted content, keyed by the ciphertext. The caller supplies the decryption, so the cache is independent of the signer. Concurrent callers for one ciphertext share a single decrypt, so a signer is prompted once rather than once per caller.
 
 ```typescript
 const text = await app.use(Plaintext).ensure(ciphertext, () => signer.nip44.decrypt(pubkey, ciphertext))
