@@ -55,7 +55,7 @@ Lists marked **private** subclass `ListReader` / `ListWriter` and expose the pub
 
 | Class | Kind | NIP | Private? | Reader getters | Writer methods |
 |---|---|---|---|---|---|
-| `FollowList` | 3 | NIP-02 | no | `pubkeys()`, `includes(pk)` | `follow(pk, relayHint?, petname?)`, `unfollow(pk)` |
+| `FollowList` | 3 | NIP-02 | no | `pubkeys()`, `includes(pk)`, `petnames()`, `petname(pk)` | `follow(pk, relayHint?, petname?)` (replaces any entry for `pk`), `unfollow(pk)` |
 | `MuteList` | 10000 | NIP-51 | yes | `pubkeys()`, `words()`, `topics()`, `ids()`, `addresses()`, `includes(pk)` | `mutePublicly(pk)`, `mutePrivately(pk)`, `unmute(pk)` |
 | `PinList` | 10001 | NIP-51 | yes | `ids()`, `addresses()` | `pinPublicly(tag)`, `pinPrivately(tag)`, `unpin(value)` |
 | `RelayList` | 10002 | NIP-65 | no | `urls()`, `readUrls()`, `writeUrls()` | `addReadUrl(url)`, `addWriteUrl(url)`, `removeReadUrl(url)`, `removeWriteUrl(url)`, `setReadUrls(urls)`, `setWriteUrls(urls)`, `setTags(tags)` |

@@ -1,5 +1,5 @@
-import {uniq, spec, removeUndefined} from "@welshman/lib"
-import {FOLLOWS, hexTags, tagValues, indexers, userOutbox} from "@welshman/util"
+import {uniq, last, spec} from "@welshman/lib"
+import {FOLLOWS, hexTags, matchTags, tagValues, indexers, userOutbox} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {EventQuery} from "../core/EventQuery.js"
@@ -14,6 +14,22 @@ export class FollowListReader extends EventReader {
   includes(pubkey: string) {
     return this.pubkeys().includes(pubkey)
   }
+
+  petnames() {
+    const petnames: Record<string, string> = {}
+
+    for (const tag of matchTags(hexTags("p"), this.tags())) {
+      if (tag[3]) {
+        petnames[tag[1]] = tag[3]
+      }
+    }
+
+    return petnames
+  }
+
+  petname(pubkey: string) {
+    return this.petnames()[pubkey]
+  }
 }
 
 export class FollowListWriter extends EventWriter<FollowListReader> {
@@ -22,7 +38,13 @@ export class FollowListWriter extends EventWriter<FollowListReader> {
   }
 
   follow(pubkey: string, relayHint?: string, petname?: string) {
-    return this.addTags(removeUndefined(["p", pubkey, relayHint, petname]))
+    const slots = [pubkey, relayHint || "", petname || ""]
+
+    while (last(slots) === "") {
+      slots.pop()
+    }
+
+    return this.dropTags(spec(["p", pubkey])).addTags(["p", ...slots])
   }
 
   unfollow(pubkey: string) {

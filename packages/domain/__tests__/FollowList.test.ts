@@ -83,6 +83,41 @@ describe("FollowList", () => {
     expect(tagValues(hexTags("p"), tmpl.tags)).toEqual([b])
   })
 
+  it("pads the relay hint slot when a petname is given without one", async () => {
+    const tmpl = await buildTemplate(
+      write(FollowList).follow(a).follow(b, undefined, "alice"),
+      signer,
+    )
+
+    expect(tmpl.tags).toContainEqual(["p", a])
+    expect(tmpl.tags).toContainEqual(["p", b, "", "alice"])
+  })
+
+  it("reads petnames", async () => {
+    const event = makeEvent({
+      tags: [
+        ["p", a, "", "alice"],
+        ["p", b, "wss://relay.example/", "bob"],
+        ["p", c],
+      ],
+    })
+
+    const list = await read(FollowList, event)
+
+    expect(list.petnames()).toEqual({[a]: "alice", [b]: "bob"})
+    expect(list.petname(a)).toBe("alice")
+    expect(list.petname(c)).toBe(undefined)
+  })
+
+  it("follow replaces an existing entry instead of appending one", async () => {
+    const event = makeEvent({tags: [["p", a, "", "alice"]]})
+    const list = await read(FollowList, event)
+
+    const tmpl = await buildTemplate(write(FollowList, list).follow(a, undefined, "alicia"), signer)
+
+    expect(tmpl.tags.filter(t => t[0] === "p")).toEqual([["p", a, "", "alicia"]])
+  })
+
   it("throws on the wrong kind", async () => {
     await expect(read(FollowList, makeEvent({kind: NOTE}))).rejects.toThrow()
   })
