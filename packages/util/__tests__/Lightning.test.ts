@@ -8,11 +8,19 @@ import {
   isBolt12ZapId,
   isMsats,
   makeBolt12ZapId,
+  toMsats,
 } from "../src/Lightning"
 
 describe("Lightning", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  describe("toMsats", () => {
+    it("returns whole millisats for fractional sats", () => {
+      expect(toMsats(2.3)).toBe(2300)
+      expect(toMsats(21)).toBe(21000)
+    })
   })
 
   describe("hrpToMillisat", () => {

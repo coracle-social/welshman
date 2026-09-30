@@ -78,6 +78,18 @@ export class PinWriter extends EventWriter<PinReader> {
     return kind ? this.addTags(["k", kind]) : this
   }
 
+  setReference(reference: PinReference) {
+    if (reference.type === "event") {
+      this.setEvent(reference.id, reference.relay)
+    } else if (reference.type === "address") {
+      this.setAddress(reference.address, reference.relay)
+    } else {
+      this.setExternal(reference.id, reference.kind)
+    }
+
+    return this
+  }
+
   setTopics(topics: string[]) {
     return this.dropTags(spec(["t"])).addTags(...topics.map(topic => ["t", topic]))
   }

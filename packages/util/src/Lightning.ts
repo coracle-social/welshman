@@ -12,7 +12,7 @@ const MAX_MILLISATS = BigInt("2100000000000000000")
 
 const MILLISATS_PER_BTC = BigInt(1e11)
 
-export const toMsats = (sats: number) => sats * 1000
+export const toMsats = (sats: number) => Math.round(sats * 1000)
 
 export const fromMsats = (msats: number) => Math.floor(msats / 1000)
 

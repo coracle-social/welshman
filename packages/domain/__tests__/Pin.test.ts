@@ -119,6 +119,26 @@ describe("Pin", () => {
     expect(tmpl.tags).toContainEqual(["k", "isbn"])
   })
 
+  it("setReference writes whichever reference it's given", async () => {
+    const address = `30023:${eventId}:article`
+    const byEvent = await buildTemplate(
+      write(Pin).setIdentifier("id1").setReference({type: "event", id: eventId, relay}),
+    )
+    const byAddress = await buildTemplate(
+      write(Pin).setIdentifier("id1").setReference({type: "address", address}),
+    )
+    const byExternal = await buildTemplate(
+      write(Pin)
+        .setIdentifier("id1")
+        .setReference({type: "external", id: "isbn:9784805311981", kind: "isbn"}),
+    )
+
+    expect(byEvent.tags).toContainEqual(["e", eventId, relay])
+    expect(byAddress.tags).toContainEqual(["a", address])
+    expect(byExternal.tags).toContainEqual(["i", "isbn:9784805311981"])
+    expect(byExternal.tags).toContainEqual(["k", "isbn"])
+  })
+
   it("removeBoard drops only the matching board", async () => {
     const tmpl = await buildTemplate(
       write(Pin)
