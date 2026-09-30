@@ -577,6 +577,7 @@ toNostrURI(s: string): string    // ensures "nostr:" prefix
 ```typescript
 makeBlossomAuthEvent(opts: BlossomAuthEventOpts): StampedEvent
 uploadBlob(server, blob, opts?): Promise<Response>
+mirrorBlob(server, blobUrl, opts?): Promise<Response>  // BUD-04; auth: upload + x=sha256
 getBlob(server, sha256, opts?): Promise<Response>
 deleteBlob(server, sha256, opts?): Promise<Response>
 listBlobs(server, pubkey, opts?): Promise<Response>

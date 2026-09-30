@@ -56,14 +56,19 @@ export declare const getBlob: (server: string, sha256: string, options?: { heade
 export declare const canUploadBlob: (server: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent }) => Promise<Response>
 
 // Uploads blob to server
-export declare const uploadBlob: (server: string, blob: Blob | ArrayBuffer, options?: { headers?: Record<string, string>; authEvent?: SignedEvent }) => Promise<Response>
+export declare const uploadBlob: (server: string, blob: Blob | ArrayBuffer, options?: { headers?: Record<string, string>; authEvent?: SignedEvent; signal?: AbortSignal }) => Promise<Response>
+
+// Asks the server to copy a blob from another url (BUD-04 PUT /mirror)
+export declare const mirrorBlob: (server: string, blobUrl: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent; signal?: AbortSignal }) => Promise<Response>
 
 // Deletes blob from server
-export declare const deleteBlob: (server: string, sha256: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent }) => Promise<Response>
+export declare const deleteBlob: (server: string, sha256: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent; signal?: AbortSignal }) => Promise<Response>
 
 // Lists blobs for a pubkey
-export declare const listBlobs: (server: string, pubkey: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent; since?: number; until?: number }) => Promise<Response>
+export declare const listBlobs: (server: string, pubkey: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent; since?: number; until?: number; signal?: AbortSignal }) => Promise<Response>
 ```
+
+A `signal` aborts the request, so a caller can give up on a server that stalls. A mirror is authorized by an `upload` auth event whose `hashes` hold the blob's sha256, and the server answers with the same blob descriptor an upload returns.
 
 ## File Encryption
 
@@ -94,4 +99,17 @@ const file = new File(["Hello world"], "hello.txt", { type: "text/plain" })
 const response = await uploadBlob("https://blossom.example.com", file, {
   authEvent: signedAuthEvent
 })
+```
+
+```typescript
+import { mirrorBlob, makeBlossomAuthEvent } from '@welshman/util'
+
+// Copy a blob another server already holds, giving up after ten seconds
+const server = "https://blossom.example.com"
+const authEvent = await signer.sign(makeBlossomAuthEvent({action: "upload", server, hashes: [sha256]}))
+const response = await mirrorBlob(server, `https://other.example.com/${sha256}`, {
+  authEvent,
+  signal: AbortSignal.timeout(10_000),
+})
+const descriptor = await response.json()
 ```

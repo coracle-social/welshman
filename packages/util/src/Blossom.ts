@@ -142,9 +142,11 @@ export const uploadBlob = async (
   {
     headers = {},
     authEvent,
+    signal,
   }: {
     headers?: Record<string, string>
     authEvent?: SignedEvent
+    signal?: AbortSignal
   } = {},
 ) => {
   const url = new URL(server)
@@ -155,7 +157,35 @@ export const uploadBlob = async (
     headers.Authorization = makeHttpAuthHeader(authEvent)
   }
 
-  return fetch(uploadUrl, {method: "PUT", headers, body})
+  return fetch(uploadUrl, {method: "PUT", headers, body, signal})
+}
+
+// BUD-04: the server fetches the blob at `blobUrl` itself. It expects an `upload` auth event
+// carrying the blob's sha256 in an `x` tag.
+export const mirrorBlob = async (
+  server: string,
+  blobUrl: string,
+  {
+    headers = {},
+    authEvent,
+    signal,
+  }: {
+    headers?: Record<string, string>
+    authEvent?: SignedEvent
+    signal?: AbortSignal
+  } = {},
+) => {
+  const url = new URL(server)
+  const mirrorUrl = `${url.origin}/mirror`
+  const body = JSON.stringify({url: blobUrl})
+
+  headers["Content-Type"] = "application/json"
+
+  if (authEvent) {
+    headers.Authorization = makeHttpAuthHeader(authEvent)
+  }
+
+  return fetch(mirrorUrl, {method: "PUT", headers, body, signal})
 }
 
 export const deleteBlob = async (
@@ -164,9 +194,11 @@ export const deleteBlob = async (
   {
     headers = {},
     authEvent,
+    signal,
   }: {
     headers?: Record<string, string>
     authEvent?: SignedEvent
+    signal?: AbortSignal
   } = {},
 ) => {
   const url = buildBlobUrl(server, sha256)
@@ -175,7 +207,7 @@ export const deleteBlob = async (
     headers.Authorization = makeHttpAuthHeader(authEvent)
   }
 
-  return fetch(url, {method: "DELETE", headers})
+  return fetch(url, {method: "DELETE", headers, signal})
 }
 
 export const listBlobs = async (
@@ -186,11 +218,13 @@ export const listBlobs = async (
     authEvent,
     since,
     until,
+    signal,
   }: {
     headers?: Record<string, string>
     authEvent?: SignedEvent
     since?: number
     until?: number
+    signal?: AbortSignal
   } = {},
 ) => {
   const url = new URL(server)
@@ -212,7 +246,7 @@ export const listBlobs = async (
     headers.Authorization = makeHttpAuthHeader(authEvent)
   }
 
-  return fetch(fullUrl, {headers})
+  return fetch(fullUrl, {headers, signal})
 }
 
 export interface EncryptedFile {
