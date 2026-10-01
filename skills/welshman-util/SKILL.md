@@ -581,11 +581,14 @@ mirrorBlob(server, blobUrl, opts?): Promise<Response>  // BUD-04; auth: upload +
 getBlob(server, sha256, opts?): Promise<Response>
 deleteBlob(server, sha256, opts?): Promise<Response>
 listBlobs(server, pubkey, opts?): Promise<Response>
+canUploadBlob(server, opts?): Promise<Response>  // BUD-06 preflight, HEAD /upload
 checkBlobExists(server, sha256, opts?): Promise<{exists, size?}>
 buildBlobUrl(server, sha256, extension?): string
 encryptFile(file: Blob): Promise<EncryptedFile>
 decryptFile(encryptedFile: EncryptedFile): Promise<Uint8Array>
 ```
+
+Every call taking `opts` takes a `signal` in it, so `AbortSignal.timeout(ms)` is how a caller puts a deadline on a server that accepts the connection and never answers.
 
 ---
 

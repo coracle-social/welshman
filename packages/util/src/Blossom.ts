@@ -60,9 +60,11 @@ export const checkBlobExists = async (
   {
     headers = {},
     authEvent,
+    signal,
   }: {
     headers?: Record<string, string>
     authEvent?: SignedEvent
+    signal?: AbortSignal
   } = {},
 ): Promise<{exists: boolean; size?: number}> => {
   const url = buildBlobUrl(server, sha256)
@@ -72,7 +74,7 @@ export const checkBlobExists = async (
   }
 
   try {
-    const response = await fetch(url, {method: "HEAD", headers})
+    const response = await fetch(url, {method: "HEAD", headers, signal})
 
     if (response.status === 200) {
       const contentLength = response.headers.get("content-length")
@@ -95,10 +97,12 @@ export const getBlob = async (
     headers = {},
     authEvent,
     range,
+    signal,
   }: {
     headers?: Record<string, string>
     authEvent?: SignedEvent
     range?: {start: number; end?: number}
+    signal?: AbortSignal
   } = {},
 ) => {
   const url = buildBlobUrl(server, sha256)
@@ -113,7 +117,7 @@ export const getBlob = async (
     headers.Range = end !== undefined ? `bytes=${start}-${end}` : `bytes=${start}-`
   }
 
-  return fetch(url, {headers})
+  return fetch(url, {headers, signal})
 }
 
 export const canUploadBlob = async (
@@ -121,9 +125,11 @@ export const canUploadBlob = async (
   {
     headers = {},
     authEvent,
+    signal,
   }: {
     headers?: Record<string, string>
     authEvent?: SignedEvent
+    signal?: AbortSignal
   } = {},
 ) => {
   const url = new URL(server)
@@ -133,7 +139,7 @@ export const canUploadBlob = async (
     headers.Authorization = makeHttpAuthHeader(authEvent)
   }
 
-  return fetch(uploadUrl, {method: "HEAD", headers})
+  return fetch(uploadUrl, {method: "HEAD", headers, signal})
 }
 
 export const uploadBlob = async (

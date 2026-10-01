@@ -1,7 +1,16 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {getPubkey, hash, makeSecret, own, sign} from "../src/Keys"
 import {BLOSSOM_AUTH} from "../src/Kinds"
-import {deleteBlob, listBlobs, makeBlossomAuthEvent, mirrorBlob, uploadBlob} from "../src/Blossom"
+import {
+  canUploadBlob,
+  checkBlobExists,
+  deleteBlob,
+  getBlob,
+  listBlobs,
+  makeBlossomAuthEvent,
+  mirrorBlob,
+  uploadBlob,
+} from "../src/Blossom"
 
 const server = "https://blossom.example.com/some/path"
 const sha256 = "b1674191a88ec5cdd733e4240a81803105dc412d6c6708d53ab94fc248f4f553"
@@ -75,8 +84,11 @@ describe("Blossom", () => {
       await mirrorBlob(server, blobUrl, {signal})
       await deleteBlob(server, sha256, {signal})
       await listBlobs(server, "pubkey", {signal})
+      await canUploadBlob(server, {signal})
+      await checkBlobExists(server, sha256, {signal})
+      await getBlob(server, sha256, {signal})
 
-      expect(fetchMock).toHaveBeenCalledTimes(4)
+      expect(fetchMock).toHaveBeenCalledTimes(7)
 
       for (const [, init] of fetchMock.mock.calls) {
         expect(init?.signal).toBe(signal)
@@ -96,6 +108,25 @@ describe("Blossom", () => {
 
       const controller = new AbortController()
       const request = mirrorBlob(server, blobUrl, {signal: controller.signal})
+
+      controller.abort(new Error("stalled"))
+
+      await expect(request).rejects.toThrow("stalled")
+    })
+
+    it("gives up on an upload preflight the server never answers", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          (_url: string, init?: RequestInit) =>
+            new Promise((_resolve, reject) => {
+              init?.signal?.addEventListener("abort", () => reject(init.signal!.reason))
+            }),
+        ),
+      )
+
+      const controller = new AbortController()
+      const request = canUploadBlob(server, {signal: controller.signal})
 
       controller.abort(new Error("stalled"))
 

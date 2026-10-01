@@ -47,13 +47,13 @@ export declare const makeBlossomAuthEvent: (opts: BlossomAuthEventOpts) => Stamp
 export declare const buildBlobUrl: (server: string, sha256: string, extension?: string) => string
 
 // Checks if a blob exists on server
-export declare const checkBlobExists: (server: string, sha256: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent }) => Promise<{exists: boolean; size?: number}>
+export declare const checkBlobExists: (server: string, sha256: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent; signal?: AbortSignal }) => Promise<{exists: boolean; size?: number}>
 
 // Downloads blob from server
-export declare const getBlob: (server: string, sha256: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent; range?: {start: number; end?: number} }) => Promise<Response>
+export declare const getBlob: (server: string, sha256: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent; range?: {start: number; end?: number}; signal?: AbortSignal }) => Promise<Response>
 
 // Checks if uploads are allowed (HEAD request to /upload)
-export declare const canUploadBlob: (server: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent }) => Promise<Response>
+export declare const canUploadBlob: (server: string, options?: { headers?: Record<string, string>; authEvent?: SignedEvent; signal?: AbortSignal }) => Promise<Response>
 
 // Uploads blob to server
 export declare const uploadBlob: (server: string, blob: Blob | ArrayBuffer, options?: { headers?: Record<string, string>; authEvent?: SignedEvent; signal?: AbortSignal }) => Promise<Response>
