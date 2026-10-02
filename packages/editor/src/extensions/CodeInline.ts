@@ -28,23 +28,19 @@ export const CodeInline = Node.create<CodeOptions>({
   },
   addKeyboardShortcuts() {
     return {
-      // remove code block when at start of document or code block is empty
+      // remove code block when it's empty, otherwise let the browser delete a character
       Backspace: () => {
         const {empty, $anchor, $from} = this.editor.state.selection
 
-        const isAtEnd = $from.parentOffset === $from.parent.nodeSize - 2
-
-        if (!empty || $anchor.parent.type.name !== this.name) {
+        if (!empty || $anchor.parent.type.name !== this.name || $from.parent.content.size > 0) {
           return false
         }
 
-        if (isAtEnd) {
-          const {tr} = this.editor.state
-          tr.delete($from.start(), $from.end() + 1)
-          this.editor.view.dispatch(tr)
-        }
+        const {tr} = this.editor.state
+        tr.delete($from.before(), $from.after())
+        this.editor.view.dispatch(tr)
 
-        return false
+        return true
       },
     }
   },
