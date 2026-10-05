@@ -1,8 +1,7 @@
 import type {TrustedEvent} from "@welshman/util"
 import {Delete, DeleteWriter} from "@welshman/domain"
 import {Domain} from "./domain.js"
-import {Command} from "../command.js"
-import {User} from "../user.js"
+import type {Command} from "../command.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -21,12 +20,6 @@ export class Deletes {
 
     fn?.(writer)
 
-    // A delete should reach every relay its target lives on, so build the
-    // scenario ourselves and raise the limit above the default.
-    User.require(this.app)
-
-    const [template, scenario] = await Promise.all([writer.renderTemplate(), writer.scenario()])
-
-    return new Command(this.app, template, scenario.limit(30).getUrls())
+    return this.app.use(Domain).command(writer)
   }
 }

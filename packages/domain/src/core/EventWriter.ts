@@ -377,11 +377,16 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
   /**
    * Returns a router scenario for this event. Publishes to the forced routes (e.g. a
    * NIP-29 room's relay) when set, otherwise to the rendered routes.
+   *
+   * The resolver's default limit is tuned for reads, where an extra relay is a round
+   * trip returning mostly the same events. Publishing is the opposite: a relay that
+   * never received the event serves it to nobody. Override `scenario` for a different
+   * limit.
    */
   async scenario(): Promise<RelayScenario> {
     const routes = this.forcedRoutes?.length ? this.forcedRoutes : await this.renderRoutes()
 
-    return this.context.resolver.scenario(routes)
+    return (await this.context.resolver.scenario(routes)).limit(30)
   }
 
   /**

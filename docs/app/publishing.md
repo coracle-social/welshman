@@ -155,16 +155,17 @@ const writer = app.use(Domain).writer(FollowList, reader).follow(otherPubkey)
 const command = await app.use(Domain).command(writer)
 ```
 
-For finer control, such as a higher relay limit, render the pieces and build the `Command` by hand. `Deletes` does this to reach every relay its target lives on:
+A publish resolves up to 30 relays, where a read resolves three, so nothing has to lift the limit to reach a user's whole write set. To tune the scenario further, render the pieces and build the `Command` by hand:
 
 ```typescript
+import {addMinimalFallbacks} from "@welshman/util"
 import {Delete} from "@welshman/domain"
 import {Command} from "@welshman/app"
 
 const writer = app.use(Domain).writer(Delete).addEvent(event, seenRelay)
 const [template, scenario] = await Promise.all([writer.renderTemplate(), writer.scenario()])
 
-const command = new Command(app, template, scenario.limit(30).getUrls())
+const command = new Command(app, template, scenario.policy(addMinimalFallbacks).getUrls())
 ```
 
 Events that belong on one relay, such as NIP-29 room ops, set [forced routes](./routing#forced-routes) on the writer.

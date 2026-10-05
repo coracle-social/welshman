@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest"
-import {NOTE, relay} from "@welshman/util"
+import {NOTE, relay, Resolver} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {Note} from "../src/kinds/Note"
 import {Delete} from "../src/kinds/Delete"
@@ -60,6 +60,14 @@ describe("writer routing", () => {
     )
 
     expect(relays).toEqual([url])
+  })
+
+  it("reaches every one of the author's write relays, past the read limit of three", async () => {
+    const urls = Array.from({length: 8}, (_, i) => `wss://r${i}.example.com/`)
+    const resolver = new Resolver(route => (route.type === "userOutbox" ? urls : []))
+    const relays = await publishRelays(write(Note, undefined, resolver))
+
+    expect(relays.sort()).toEqual(urls)
   })
 
   it("forced routes are all published to, past the limit a scored scenario applies", async () => {

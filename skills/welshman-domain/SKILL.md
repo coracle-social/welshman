@@ -85,7 +85,7 @@ const {event: template2, relays} = await w.render()    // template + publish url
 - Base behavior setters (chainable): `setContent`, `setRoom(url, room)`/`clearRoom` (h-tag + forced routes), `forceRoutes(...routes)`/`clearForcedRoutes`, `setProtected(bool)`, `setExpiration`/`clearExpiration`, `setContentWarning(reason?)`/`clearContentWarning`, `setClient(name, address?)`/`clearClient`, `setIdentifier`/`clearIdentifier` (d-tag, defaults to a random id), `addTags`, `keepTags(pred)`, `dropTags(pred)`. Shared tag helpers, the first three with relay hints: `addMention(pubkey)`, `addQuote(event)`/`removeQuote`, `addZapSplit(pubkey, split?)`/`removeZapSplit`, `addEmoji`/`removeEmoji`, `addImeta`/`removeImeta`. Each kind adds its own setters.
 - Output methods (all async, no arguments):
   - `renderTemplate()` → `EventTemplate` — runs `validate()`, then renders tags and content. A tag that carries a relay hint fills its hint slot through the protected `hint(...routes)` helper, which resolves routes to a single url; `renderTags()` awaits every in-flight hint before returning. List content is encrypted here.
-  - `scenario()` → `RelayScenario` (chainable: `.limit()`, `.policy()`, `.allowLocal()`, …); `relays()` → `string[]` (the resolved publish urls).
+  - `scenario()` → `RelayScenario` (chainable: `.limit()`, `.policy()`, `.allowLocal()`, …), limited to 30 relays rather than the three a read resolves; `relays()` → `string[]` (the resolved publish urls).
   - `render()` → `{event: EventTemplate; relays: string[]}` — `renderTemplate()` and `relays()` together.
 
 The caller signs the template. In an app you hand the writer to `Domain.command(writer)`, which calls `render()` and wraps it in a `Command`. Directly, you sign the `renderTemplate()` output:

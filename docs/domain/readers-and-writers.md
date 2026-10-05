@@ -253,7 +253,7 @@ protected async renderRoutes(): Promise<RelaySelection[]> {
 }
 ```
 
-`scenario()` resolves these routes through the configured `Resolver` into a `RelayScenario`, and `relays()` returns its urls.
+`scenario()` resolves these routes through the configured `Resolver` into a `RelayScenario`, and `relays()` returns its urls. It limits the scenario to 30 relays rather than the three a read resolves: an extra relay on a read is a round trip returning mostly the same events, while a relay that never received an event serves it to nobody. Override `scenario()` to publish to a different number.
 
 Kinds override `renderRoutes()` when the default is wrong. `FollowListWriter` and `MuteListWriter` route to `[userOutbox()]` only, because their p-tags are data rather than recipients, and `DeleteWriter` adds each deleted event's seen relays.
 

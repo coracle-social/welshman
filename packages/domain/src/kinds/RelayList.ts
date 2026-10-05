@@ -39,12 +39,6 @@ export class RelayListReader extends EventReader {
 }
 
 export class RelayListWriter extends EventWriter<RelayListReader> {
-  // Every relay this event routes to has to receive it, so lift the scenario's
-  // default limit, which is tuned for reads and would drop most of them.
-  async scenario() {
-    return (await super.scenario()).limit(Infinity)
-  }
-
   // Kind 10002 is indexed, and publishes to every relay the list references — both
   // its current urls and the ones it used to have (via the seed reader) — so each
   // relay learns when it's added to or removed from the list. The user's outbox is
