@@ -70,6 +70,7 @@ Lists marked **private** subclass `ListReader` / `ListWriter` and expose the pub
 | `MessagingRelayList` | 10050 | NIP-17 | no | `urls()` | `addUrl(url)`, `removeUrl(url)`, `setUrls(urls)` |
 | `BlossomServerList` | 10063 | Blossom BUD-03 | no | `urls()`, `includes(url)` | `addUrl(url)`, `removeUrl(url)`, `setUrls(urls)` |
 | `RelaySet` | 30002 | NIP-51 | no | `title()`, `description()`, `image()`, `urls()` | `setTitle`, `setDescription`, `setImage`, `addUrl(url)`, `removeUrl(url)`, `setUrls(urls)` |
+| `BookmarkSet` | 30003 | NIP-51 | yes | `title()`, `description()`, `image()`, `ids()`, `addresses()`, `topics()`, `urls()` | `setTitle`, `setDescription`, `setImage`, `bookmarkPublicly(tag)`, `bookmarkPrivately(tag)`, `removeBookmark(value)` |
 
 Each kind exports a reader and writer class (`FollowListReader`/`FollowListWriter`, `MuteListReader`/`MuteListWriter`, …) alongside the `KindFactory` constant (`FollowList`, `MuteList`, …).
 
@@ -115,6 +116,19 @@ const template = await RelaySet.configure({resolver})
   .setIdentifier()                        // required d tag for kind 30002
   .setTitle("My relays")
   .addUrl("wss://relay.example")
+  .renderTemplate()
+```
+
+**`BookmarkSet` (kind 30003).** A named, addressable bookmark list, which is how NIP-51 expresses a bookmark folder. Its reader and writer extend `BookmarkList`'s, so entries are the same four tag keys and split public and private the same way, and it adds `title`/`description`/`image`. It is parameterized-replaceable, so the writer needs a `d` tag (`setIdentifier()`).
+
+```typescript
+import {BookmarkSet} from "@welshman/domain"
+
+const template = await BookmarkSet.configure({resolver, signer})
+  .writer()
+  .setIdentifier("reading")
+  .setTitle("Reading list")
+  .bookmarkPublicly(["e", noteId])
   .renderTemplate()
 ```
 

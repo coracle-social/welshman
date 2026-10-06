@@ -5,7 +5,7 @@ import {ListWriter} from "../core/ListWriter.js"
 import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
-// NIP-51 kind-10003 bookmark list.
+// NIP-51 kind-10003 bookmark list. `BookmarkSet` (kind 30003) extends these classes.
 export class BookmarkListReader extends ListReader {
   ids() {
     return uniq(tagValues(hexTags("e"), this.tags()))
@@ -24,7 +24,9 @@ export class BookmarkListReader extends ListReader {
   }
 }
 
-export class BookmarkListWriter extends ListWriter<BookmarkListReader> {
+export class BookmarkListWriter<
+  Reader extends BookmarkListReader = BookmarkListReader,
+> extends ListWriter<Reader> {
   bookmarkPublicly(tag: string[]) {
     return this.addPublic(tag)
   }
