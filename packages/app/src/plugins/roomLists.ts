@@ -37,14 +37,8 @@ export class RoomLists extends DerivedPlugin<RoomListReader> {
       lists.filter(list => list.urls().includes(normalizeRelayUrl(url))).map(list => list.author()),
     )
 
-  update = async (fn: (writer: RoomListWriter) => void) => {
-    const user = User.require(this.app)
-    const writer = this.app.use(Domain).writer(RoomList, await this.forceLoad(user.pubkey))
-
-    fn(writer)
-
-    return this.app.use(Domain).command(writer)
-  }
+  update = (fn: (writer: RoomListWriter) => void) =>
+    this.app.use(Domain).update(RoomList, this.forceLoad, fn)
 
   addRoom = (roomId: string, url: string) => this.update(writer => writer.addRoom(roomId, url))
 

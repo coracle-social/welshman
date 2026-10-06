@@ -5,7 +5,6 @@ import {DerivedPlugin} from "./base.js"
 import type {IApp} from "../app.js"
 import {Network} from "./network.js"
 import {Domain} from "./domain.js"
-import {User} from "../user.js"
 
 /**
  * Kind-10000 mute lists, keyed by pubkey.
@@ -23,14 +22,8 @@ export class MuteLists extends DerivedPlugin<MuteListReader> {
     return this.app.use(Network).loadUsingOutbox(pubkey, {kinds: [MUTES]}, relayHints)
   }
 
-  update = async (fn: (writer: MuteListWriter) => void) => {
-    const user = User.require(this.app)
-    const writer = this.app.use(Domain).writer(MuteList, await this.forceLoad(user.pubkey))
-
-    fn(writer)
-
-    return this.app.use(Domain).command(writer)
-  }
+  update = (fn: (writer: MuteListWriter) => void) =>
+    this.app.use(Domain).update(MuteList, this.forceLoad, fn)
 
   mutePublicly = (tag: string[]) => this.update(writer => writer.addPublic(tag))
 

@@ -376,7 +376,7 @@ Base classes in `plugins/base.ts`:
 Decode events with the app-configured `@welshman/domain` reader (`app.use(Domain).reader(Kind)`) as `eventToItem`, and mutate through `app.use(Domain).writer(Kind, reader?)` + `app.use(Domain).command(writer)`:
 
 ```typescript
-import {DerivedPlugin, Network, Domain, User, type IApp} from "@welshman/app"
+import {DerivedPlugin, Network, Domain, type IApp} from "@welshman/app"
 import {SOME_KIND} from "@welshman/util"
 import {SomeKind, SomeKindReader, SomeKindWriter} from "@welshman/domain"
 
@@ -392,22 +392,18 @@ export class Somethings extends DerivedPlugin<SomeKindReader> {
   fetch = (pk: string, hints: string[] = []) =>
     this.app.use(Network).loadUsingOutbox(pk, {kinds: [SOME_KIND]}, hints)
 
-  // Build a writer (optionally seeded from the current reader for edits), mutate it, then
-  // wrap it in a Command via Domain.command — the caller decides when/how to publish.
-  update = async (fn: (writer: SomeKindWriter) => void) => {
-    const user = User.require(this.app)
-    const writer = this.app.use(Domain).writer(SomeKind, await this.forceLoad(user.pubkey))
-
-    fn(writer)
-
-    return this.app.use(Domain).command(writer)
-  }
+  // Seeds a writer from the user's own event, hands it to the caller's edit, and wraps
+  // the result in a Command — the caller decides when and how to publish it.
+  update = (fn: (writer: SomeKindWriter) => void) =>
+    this.app.use(Domain).update(SomeKind, this.forceLoad, fn)
 }
 
 const things = app.use(Somethings)   // lazily constructed + memoized
 ```
 
 Caching/backoff for `load` come from `makeLoadItem` (`@welshman/store`); default staleness window is 1 hour; `forceLoad` bypasses it.
+
+`Domain.update` is a method rather than something a base class hands down because `Domain` reaches `RelayLists` through `Router`, so a base class holding it would be the target of an `extends` inside its own import cycle. `app.use(Domain)` is read at call time, which is late enough to be safe.
 
 ## Policies & logging
 

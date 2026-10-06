@@ -13,7 +13,6 @@ import {Router} from "./router.js"
 import {Domain} from "./domain.js"
 import {Handles} from "./handles.js"
 import {Wot, WotScope} from "./wot.js"
-import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -39,14 +38,8 @@ export class Profiles extends DerivedPlugin<ProfileReader> {
     return this.app.use(Network).loadUsingOutbox(pubkey, {kinds: [PROFILE]}, relayHints)
   }
 
-  update = async (fn: (writer: ProfileWriter) => void) => {
-    const user = User.require(this.app)
-    const writer = this.app.use(Domain).writer(Profile, await this.forceLoad(user.pubkey))
-
-    fn(writer)
-
-    return this.app.use(Domain).command(writer)
-  }
+  update = (fn: (writer: ProfileWriter) => void) =>
+    this.app.use(Domain).update(Profile, this.forceLoad, fn)
 
   display = (pubkey: string | undefined, ...args: any[]): Projection<string> => {
     const read = ($profile: Maybe<ProfileReader>) =>

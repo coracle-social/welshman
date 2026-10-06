@@ -1,3 +1,4 @@
+import type {Maybe} from "@welshman/lib"
 import type {TrustedEvent} from "@welshman/util"
 import type {
   BaseEventReader,
@@ -73,5 +74,23 @@ export class Domain {
     const {event, relays} = await writer.render()
 
     return new Command(this.app, event, relays)
+  }
+
+  /**
+   * Edit the user's own event of a replaceable kind — a profile, a relay list, a
+   * mute list. `load` supplies the event being replaced, `fn` makes the edit, and
+   * the returned command publishes it.
+   */
+  update = async <R extends BaseEventReader, W extends EventWriter<R>, Q extends EventQuery>(
+    factory: KindFactory<R, W, Q>,
+    load: (pubkey: string) => Promise<Maybe<R>>,
+    fn: (writer: W) => void,
+  ): Promise<Command> => {
+    const user = User.require(this.app)
+    const writer = this.writer(factory, await load(user.pubkey))
+
+    fn(writer)
+
+    return this.command(writer)
   }
 }

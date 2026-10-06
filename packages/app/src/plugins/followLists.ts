@@ -3,7 +3,6 @@ import {FollowList, FollowListReader, FollowListWriter} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import {Network} from "./network.js"
 import {Domain} from "./domain.js"
-import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -23,14 +22,8 @@ export class FollowLists extends DerivedPlugin<FollowListReader> {
     return this.app.use(Network).loadUsingOutbox(pubkey, {kinds: [FOLLOWS]}, relayHints)
   }
 
-  update = async (fn: (writer: FollowListWriter) => void) => {
-    const user = User.require(this.app)
-    const writer = this.app.use(Domain).writer(FollowList, await this.forceLoad(user.pubkey))
-
-    fn(writer)
-
-    return this.app.use(Domain).command(writer)
-  }
+  update = (fn: (writer: FollowListWriter) => void) =>
+    this.app.use(Domain).update(FollowList, this.forceLoad, fn)
 
   follow = (tag: string[]) => this.update(writer => writer.addTags(tag))
 

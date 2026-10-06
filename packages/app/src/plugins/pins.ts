@@ -3,7 +3,6 @@ import {PinList, PinListReader, PinListWriter} from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
 import {Network} from "./network.js"
 import {Domain} from "./domain.js"
-import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -23,14 +22,8 @@ export class PinLists extends DerivedPlugin<PinListReader> {
     return this.app.use(Network).loadUsingOutbox(pubkey, {kinds: [PINS]}, relayHints)
   }
 
-  update = async (fn: (writer: PinListWriter) => void) => {
-    const user = User.require(this.app)
-    const writer = this.app.use(Domain).writer(PinList, await this.forceLoad(user.pubkey))
-
-    fn(writer)
-
-    return this.app.use(Domain).command(writer)
-  }
+  update = (fn: (writer: PinListWriter) => void) =>
+    this.app.use(Domain).update(PinList, this.forceLoad, fn)
 
   pin = (tag: string[]) => this.update(writer => writer.pinPublicly(tag))
 

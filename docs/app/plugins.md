@@ -124,6 +124,8 @@ A `DerivedPlugin` whose `getKey(item, url)` runs once per relay the event was se
 
 `forceLoad` bypasses the cache and resolves to the freshly-read item.
 
+A collection of a replaceable kind the user owns one of delegates its `update` to `app.use(Domain).update(Kind, this.forceLoad, fn)`, which seeds a writer with the user's own event, hands it to the caller's edit and returns the `Command` that publishes it.
+
 ## Repository-derived stores
 
 A custom store derived straight from the repository uses the `@welshman/store` derivation functions with the app's `repository` (and `tracker` for relay-scoped views). The [`Events`](./requests#querying-the-repository-events) plugin wraps the common cases as projections. The derivation functions are:

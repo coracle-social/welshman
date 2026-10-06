@@ -4,7 +4,6 @@ import {DerivedPlugin} from "./base.js"
 import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Domain} from "./domain.js"
-import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -27,14 +26,8 @@ export class FeedLists extends DerivedPlugin<FeedListReader> {
   addresses = (pubkey: string): Projection<string[]> =>
     this.project(pubkey, list => list?.addresses() ?? [])
 
-  update = async (fn: (writer: FeedListWriter) => void) => {
-    const user = User.require(this.app)
-    const writer = this.app.use(Domain).writer(FeedList, await this.forceLoad(user.pubkey))
-
-    fn(writer)
-
-    return this.app.use(Domain).command(writer)
-  }
+  update = (fn: (writer: FeedListWriter) => void) =>
+    this.app.use(Domain).update(FeedList, this.forceLoad, fn)
 
   addFeed = (address: string, relayHint?: string) =>
     this.update(writer => writer.addFeed(address, relayHint))

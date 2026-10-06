@@ -6,7 +6,6 @@ import type {Projection} from "./base.js"
 import {Router} from "./router.js"
 import {Domain} from "./domain.js"
 import {Network} from "./network.js"
-import {User} from "../user.js"
 import type {IApp} from "../app.js"
 
 /**
@@ -42,14 +41,8 @@ export class RelayLists extends DerivedPlugin<RelayListReader> {
   writeUrls = (pubkey: string): Projection<string[]> =>
     this.project(pubkey, list => list?.writeUrls() ?? [])
 
-  update = async (fn: (writer: RelayListWriter) => void) => {
-    const user = User.require(this.app)
-    const writer = this.app.use(Domain).writer(RelayList, await this.forceLoad(user.pubkey))
-
-    fn(writer)
-
-    return this.app.use(Domain).command(writer)
-  }
+  update = (fn: (writer: RelayListWriter) => void) =>
+    this.app.use(Domain).update(RelayList, this.forceLoad, fn)
 
   addReadUrl = (url: string) => this.update(writer => writer.addReadUrl(url))
 
