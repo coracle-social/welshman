@@ -22,16 +22,18 @@ yarn add @welshman/store
 
 ### Event stores (from Repository)
 
+Each is a `Projection` — a store, plus a `get()` whose cheap read is the matching one-shot query — so a caller passes neither half itself.
+
 | Export | Description |
 |---|---|
-| `deriveEventsById(options)` | Returns `Readable<Map<string, TrustedEvent>>` — live map of events matching `filters` |
-| `deriveEvents(options)` | Returns `Readable<TrustedEvent[]>` — calls `deriveEventsById` internally and converts to array |
-| `deriveEventsAsc(eventsByIdStore)` | Takes a `Readable<Map<string, TrustedEvent>>` and returns events sorted ascending by `created_at` |
-| `deriveEventsDesc(eventsByIdStore)` | Takes a `Readable<Map<string, TrustedEvent>>` and returns events sorted descending by `created_at` |
-| `makeDeriveEvent(options)` | Factory returning `(idOrAddress: string, ...args) => Readable<TrustedEvent \| undefined>` for single-event lookups; calls `onDerive(filters, ...args)` first |
-| `deriveIsDeleted(repository, event)` | `Readable<boolean>` — tracks deletion status of an event |
-| `deriveArray(itemsByIdStore)` | Turns any `Readable<Map<string, T>>` into `Readable<T[]>` |
-| `getEventsById(options)` | The one-shot, non-reactive form of `deriveEventsById` |
+| `deriveEventsById(options)` | `Projection<Map<string, TrustedEvent>>` — live map of events matching `filters` |
+| `deriveEvents(options)` | `Projection<TrustedEvent[]>` — calls `deriveEventsById` internally and converts to array |
+| `deriveEventsAsc(eventsById)` | Takes a `Projection<Map<string, TrustedEvent>>` and returns events sorted ascending by `created_at` |
+| `deriveEventsDesc(eventsById)` | Takes a `Projection<Map<string, TrustedEvent>>` and returns events sorted descending by `created_at` |
+| `makeDeriveEvent(options)` | Factory returning `(idOrAddress: string, ...args) => Projection<TrustedEvent \| undefined>` for single-event lookups; calls `onDerive(filters, ...args)` first |
+| `deriveIsDeleted(repository, event)` | `Projection<boolean>` — tracks deletion status of an event |
+| `deriveArray(itemsById)` | Turns any `Projection<Map<string, T>>` into `Projection<T[]>` |
+| `getEventsById(options)` | The one-shot query `deriveEventsById` reads through |
 
 ### Relay-scoped event stores
 
@@ -39,9 +41,9 @@ These key events by the relays a `Tracker` has seen them on. They keep the same 
 
 | Export | Description |
 |---|---|
-| `deriveEventsByIdByUrl(options)` | `Readable<Map<url, Map<id, TrustedEvent>>>` — every relay at once |
-| `deriveEventsByIdForUrl(options)` | `Readable<Map<id, TrustedEvent>>` — one relay |
-| `getEventsByIdByUrl` / `getEventsByIdForUrl` | Non-reactive equivalents |
+| `deriveEventsByIdByUrl(options)` | `Projection<Map<url, Map<id, TrustedEvent>>>` — every relay at once |
+| `deriveEventsByIdForUrl(options)` | `Projection<Map<id, TrustedEvent>>` — one relay |
+| `getEventsByIdByUrl` / `getEventsByIdForUrl` | The one-shot queries they read through |
 | `deriveItemsByKeyByUrl<T>(options)` | The relay-scoped `deriveItemsByKey`: an event is keyed once per relay via `getKey(item, url)` |
 
 Both relay-scoped option types extend `EventsByIdOptions` with `tracker: Tracker` (and `url: string` for the `ForUrl` variants). `ItemsByKeyByUrlOptions` adds two things over `ItemsByKeyOptions`:
@@ -81,7 +83,7 @@ const eventStore = deriveEvent(someIdOrAddress) // Readable<TrustedEvent | undef
 
 | Export | Description |
 |---|---|
-| `deriveItemsByKey<T>(options)` | Maps events to domain objects, indexed by a string key; `Readable<Map<string, T>>` |
+| `deriveItemsByKey<T>(options)` | Maps events to domain objects, indexed by a string key; an `ItemCollection<T>`, which is a `Projection<Map<string, T>>` plus a `read(key)` that waits out the parses the index has outstanding |
 | `deriveItems<T>(itemsByKey)` | Converts the map to `Readable<T[]>` |
 | `deriveItemsSorted<T>(sortFn, itemsStore)` | Sorts a `Readable<T[]>` by a numeric sort-value function `(item: T) => number`; returns `Readable<T[]>` |
 | `makeDeriveItem<T>(itemsByKey, onDerive?)` | Returns a factory `(key?, ...args) => Readable<T \| undefined>` for per-key reactive lookups; calls `onDerive(key, ...args)` and ignores its rejection |
@@ -138,6 +140,8 @@ interface StorageProvider {
 |---|---|
 | `getter<T>(store, options?)` | Returns `() => T`; auto-switches from `get()` to a subscription when call frequency exceeds `threshold` (default 10/s) |
 | `withGetter(store)` | Adds a `.get()` method to any store, returning `S & {get(): T}` so the store's own members survive in the type (e.g. `withGetter(synced(...)).ready`) |
+| `projection($, read?)` | Pairs a store with a getter as the `Projection<T>` shape — `$`, `get` and the store's own `subscribe`; `read` is the cheap direct read `getter` prefers over `get($)` |
+| `projectFrom(src, read)` | A `Projection` derived from another one, reactively through `.$` and synchronously through `.get()` |
 
 ### Derivation helpers
 
@@ -343,9 +347,10 @@ aliceBookmark.subscribe($b => console.log($b?.title))
 - **`eventToItem` can return `undefined`** to skip an event, which filters out malformed events (e.g. `event.tags.length > 1 ? {event, pubkeys: tagValues(hexTags("p"), event.tags)} : undefined`). A thrown error or rejection is logged with `console.warn` and the event is skipped.
 - **`synced` loads asynchronously.** The store emits `defaultValue` synchronously, then the stored value once storage resolves. `await store.ready` wherever the persisted value is needed.
 - **`throttled(0, store)` returns the original store**, so a user-configurable delay may be zero.
+- **A collection reads the repository only while something is subscribed to it**, so a snapshot read through `get(collection)` subscribes, reads and unsubscribes — and that read is what queues an arrived event's parse. `collection.read(key)` reads before draining the outstanding parses as well as after, so a caller never has to order the two itself, and an item the index already holds comes back synchronously rather than behind another event's parse. A parse that never resolves holds the drain open.
 - **`makeDeriveItem` is a factory.** Call it once to create the lookup function, then call that with a key to get a per-key `Readable`. Derive `deriveItemsByKey` stores once at module level rather than inside a Svelte `$:` block, which rebuilds them on every run.
 - **`makeLoadItem` timeout is in seconds**, because it is compared against `now()` from `@welshman/lib`. Write `{ timeout: 30 }` for a 30-second staleness window, not `30_000`.
 - **`makeLoadItem` propagates errors.** A rejection from `loadItem` rejects the returned promise. `makeDeriveItem` ignores the rejection of its `onDerive` call, and any other caller that treats a failed load as "no data yet" catches it itself.
 - **`makeLoadItem` backs off exponentially per source.** Repeat calls for a key that does not resolve return the stale item until the backoff expires. `makeForceLoadItem` fetches regardless of the cache.
-- **`deriveEventsAsc`/`deriveEventsDesc` take a map store**, the output of `deriveEventsById`, rather than an array store. `deriveItemsSorted` sorts an array store.
+- **`deriveEventsAsc`/`deriveEventsDesc` take the map projection**, the output of `deriveEventsById`, rather than an array store. `deriveItemsSorted` sorts an array store.
 - **`getter` vs `withGetter`.** `getter(store)` returns only the accessor function. `withGetter(store)` keeps the full store API (`.subscribe`, `.set`, `.update`) and adds `.get()`.

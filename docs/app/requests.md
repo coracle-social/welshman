@@ -64,7 +64,7 @@ const local = sync.query([{kinds: [1]}])
 ## Querying the repository: `Events`
 
 `app.use(Network)` fetches events, and `app.use(Events)` reads the ones already in the repository. Every
-method binds this app's repository and tracker and returns a [`Projection`](./plugins#projection-t).
+method binds this app's repository and tracker and returns a [`Projection`](../store/projection#projection-t).
 
 ```typescript
 import {Events} from "@welshman/app"

@@ -142,6 +142,7 @@ export default defineConfig({
             {text: "Throttled", link: "/store/throttle"},
             {text: "Synced", link: "/store/synced"},
             {text: "Getter", link: "/store/getter"},
+            {text: "Projection", link: "/store/projection"},
             {text: "Repository", link: "/store/repository"},
           ],
         },

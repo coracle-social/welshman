@@ -2,7 +2,7 @@ import {BLOSSOM_SERVERS} from "@welshman/util"
 import {BlossomServerList, BlossomServerListReader, BlossomServerListWriter} from "@welshman/domain"
 import {Domain} from "./domain.js"
 import {DerivedPlugin} from "./base.js"
-import type {Projection} from "./base.js"
+import type {Projection} from "@welshman/store"
 import {Network} from "./network.js"
 import type {IApp} from "../app.js"
 

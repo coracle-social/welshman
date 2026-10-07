@@ -23,7 +23,7 @@ The user's follow list is part of the same graph, so a `Follows` read picks up a
 
 ## Reads
 
-Each returns a [`Projection`](./plugins#projection-t) (`.get()` / `.$`) and re-derives when the graph changes:
+Each returns a [`Projection`](../store/projection#projection-t) (`.get()` / `.$`) and re-derives when the graph changes:
 
 ```typescript
 const wot = app.use(Wot)

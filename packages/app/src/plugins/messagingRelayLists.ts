@@ -5,7 +5,7 @@ import {
   MessagingRelayListWriter,
 } from "@welshman/domain"
 import {DerivedPlugin} from "./base.js"
-import type {Projection} from "./base.js"
+import type {Projection} from "@welshman/store"
 import {Network} from "./network.js"
 import {Domain} from "./domain.js"
 import type {IApp} from "../app.js"

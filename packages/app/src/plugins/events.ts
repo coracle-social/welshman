@@ -1,25 +1,21 @@
 import {filter, spec} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
-import {sortEventsAsc, sortEventsDesc} from "@welshman/util"
 import type {Filter, TrustedEvent} from "@welshman/util"
 import {
   deriveArray,
+  deriveEvents,
   deriveEventsAsc,
   deriveEventsByIdByUrl,
   deriveEventsByIdForUrl,
   deriveEventsById,
   deriveEventsDesc,
   deriveIsDeleted,
-  getEventsByIdByUrl,
-  getEventsByIdForUrl,
-  getEventsById,
   makeDeriveEvent,
+  projection,
 } from "@welshman/store"
-import type {EventsById, EventsByIdByUrl} from "@welshman/store"
+import type {EventsById, EventsByIdByUrl, Projection} from "@welshman/store"
 import type {Relay} from "@welshman/domain"
 import {derived} from "svelte/store"
-import {projection} from "./base.js"
-import type {Projection} from "./base.js"
 import {Network} from "./network.js"
 import {Relays} from "./relays.js"
 import type {IApp} from "../app.js"
@@ -30,81 +26,56 @@ import type {IApp} from "../app.js"
  * with `.get()`, or subscribe to `.$` — so callers never build one from the
  * other, and never construct `{repository, tracker}` by hand.
  *
- * Each projection supplies its own getter that queries the repository/tracker
- * directly, rather than falling back to reading through the derived store. Those
- * queries are index-backed; standing a derived store up and tearing it down just
- * to read a value is not.
+ * Each view reads through a direct repository/tracker query rather than through
+ * its derived store. Those queries are index-backed; standing a derived store up
+ * and tearing it down just to read a value is not. `@welshman/store` pairs the
+ * two, so a view over a single store passes neither half.
  */
 export class Events {
   constructor(readonly app: IApp) {}
 
-  byId = (filters: Filter[] = [{}]): Projection<EventsById> => {
-    const options = {repository: this.app.repository, filters}
+  byId = (filters: Filter[] = [{}]): Projection<EventsById> =>
+    deriveEventsById({repository: this.app.repository, filters})
 
-    return projection(deriveEventsById(options), () => getEventsById(options))
-  }
+  all = (filters: Filter[] = [{}]): Projection<TrustedEvent[]> =>
+    deriveEvents({repository: this.app.repository, filters})
 
-  all = (filters: Filter[] = [{}]): Projection<TrustedEvent[]> => {
-    const options = {repository: this.app.repository, filters}
+  asc = (filters: Filter[] = [{}]): Projection<TrustedEvent[]> =>
+    deriveEventsAsc(this.byId(filters))
 
-    return projection(deriveArray(deriveEventsById(options)), () =>
-      Array.from(getEventsById(options).values()),
-    )
-  }
-
-  asc = (filters: Filter[] = [{}]): Projection<TrustedEvent[]> => {
-    const options = {repository: this.app.repository, filters}
-
-    return projection(deriveEventsAsc(deriveEventsById(options)), () =>
-      sortEventsAsc(getEventsById(options).values()),
-    )
-  }
-
-  desc = (filters: Filter[] = [{}]): Projection<TrustedEvent[]> => {
-    const options = {repository: this.app.repository, filters}
-
-    return projection(deriveEventsDesc(deriveEventsById(options)), () =>
-      sortEventsDesc(getEventsById(options).values()),
-    )
-  }
+  desc = (filters: Filter[] = [{}]): Projection<TrustedEvent[]> =>
+    deriveEventsDesc(this.byId(filters))
 
   one = (idOrAddress: string, relays: string[] = []): Projection<Maybe<TrustedEvent>> =>
-    projection(
-      makeDeriveEvent({
-        repository: this.app.repository,
-        includeDeleted: true,
-        onDerive: (filters: Filter[], hints: string[]) =>
-          this.app.use(Network).loadLenient({filters, relays: hints}),
-      })(idOrAddress, relays),
-      () => this.app.repository.getEvent(idOrAddress),
-    )
+    makeDeriveEvent({
+      repository: this.app.repository,
+      includeDeleted: true,
+      onDerive: (filters: Filter[], hints: string[]) =>
+        this.app.use(Network).loadLenient({filters, relays: hints}),
+    })(idOrAddress, relays)
 
   isDeleted = (event: TrustedEvent): Projection<boolean> =>
-    projection(deriveIsDeleted(this.app.repository, event), () =>
-      this.app.repository.isDeleted(event),
-    )
+    deriveIsDeleted(this.app.repository, event)
 
   // Scoped to one relay, via the tracker
 
-  byIdForUrl = (url: string, filters: Filter[] = [{}]): Projection<EventsById> => {
-    const options = {url, filters, tracker: this.app.tracker, repository: this.app.repository}
+  byIdForUrl = (url: string, filters: Filter[] = [{}]): Projection<EventsById> =>
+    deriveEventsByIdForUrl({
+      url,
+      filters,
+      tracker: this.app.tracker,
+      repository: this.app.repository,
+    })
 
-    return projection(deriveEventsByIdForUrl(options), () => getEventsByIdForUrl(options))
-  }
+  forUrl = (url: string, filters: Filter[] = [{}]): Projection<TrustedEvent[]> =>
+    deriveArray(this.byIdForUrl(url, filters))
 
-  forUrl = (url: string, filters: Filter[] = [{}]): Projection<TrustedEvent[]> => {
-    const options = {url, filters, tracker: this.app.tracker, repository: this.app.repository}
-
-    return projection(deriveArray(deriveEventsByIdForUrl(options)), () =>
-      Array.from(getEventsByIdForUrl(options).values()),
-    )
-  }
-
-  byIdByUrl = (filters: Filter[] = [{}]): Projection<EventsByIdByUrl> => {
-    const options = {filters, tracker: this.app.tracker, repository: this.app.repository}
-
-    return projection(deriveEventsByIdByUrl(options), () => getEventsByIdByUrl(options))
-  }
+  byIdByUrl = (filters: Filter[] = [{}]): Projection<EventsByIdByUrl> =>
+    deriveEventsByIdByUrl({
+      filters,
+      tracker: this.app.tracker,
+      repository: this.app.repository,
+    })
 
   relaySignedForUrl = (url: string, filters: Filter[] = [{}]): Projection<TrustedEvent[]> => {
     const forUrl = this.forUrl(url, filters)

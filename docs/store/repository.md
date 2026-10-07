@@ -4,28 +4,30 @@ Reactive Svelte stores for querying events from a Repository with automatic upda
 
 ## Event Stores
 
+Each of these is a [`Projection`](./projection#projection-t): subscribe to it or to its `.$`, and `get()` it for a snapshot. The getter runs the matching one-shot repository query rather than standing the derived store up, so a caller never pairs the two halves itself.
+
 ```typescript
 // Derive map of events by ID
 deriveEventsById(options: {
   repository: Repository
   filters: Filter[]
   includeDeleted?: boolean
-}): Readable<Map<string, TrustedEvent>>
+}): Projection<Map<string, TrustedEvent>>
 
 // Convert events by ID to array
-deriveEvents(options: { repository: Repository, filters: Filter[], includeDeleted?: boolean }): Readable<TrustedEvent[]>
+deriveEvents(options: { repository: Repository, filters: Filter[], includeDeleted?: boolean }): Projection<TrustedEvent[]>
 
 // Sort events ascending by created_at
-deriveEventsAsc(eventsByIdStore: Readable<Map<string, TrustedEvent>>): Readable<TrustedEvent[]>
+deriveEventsAsc(eventsById: Projection<Map<string, TrustedEvent>>): Projection<TrustedEvent[]>
 
 // Sort events descending by created_at
-deriveEventsDesc(eventsByIdStore: Readable<Map<string, TrustedEvent>>): Readable<TrustedEvent[]>
+deriveEventsDesc(eventsById: Projection<Map<string, TrustedEvent>>): Projection<TrustedEvent[]>
 
 // Derive single event by ID or address
-makeDeriveEvent(options: { repository: Repository, includeDeleted?: boolean, onDerive?: (filters: Filter[], ...args: any[]) => void }): (idOrAddress: string, ...args: any[]) => Readable<TrustedEvent | undefined>
+makeDeriveEvent(options: { repository: Repository, includeDeleted?: boolean, onDerive?: (filters: Filter[], ...args: any[]) => void }): (idOrAddress: string, ...args: any[]) => Projection<TrustedEvent | undefined>
 
 // Track if event is deleted
-deriveIsDeleted(repository: Repository, event: TrustedEvent): Readable<boolean>
+deriveIsDeleted(repository: Repository, event: TrustedEvent): Projection<boolean>
 ```
 
 ## Indexed Collections
@@ -38,7 +40,15 @@ deriveItemsByKey<T>(options: {
   eventToItem: (event: TrustedEvent) => MaybeAsync<Maybe<T>>
   getKey: (item: T) => string
   includeDeleted?: boolean
-}): Readable<Map<string, T>>
+}): ItemCollection<T>
+
+// A Projection over the index, plus a read that waits out the parses it has outstanding.
+// An `eventToItem` that decrypts commits a microtask or a signer round trip after the
+// event was read, so `read(key)` is how a caller gets an item the collection has seen
+// the event for but not yet parsed. An indexed item comes back synchronously.
+type ItemCollection<T> = Projection<Map<string, T>> & {
+  read: (key: string) => MaybeAsync<Maybe<T>>
+}
 
 // Convert itemsByKey map to array
 deriveItems<T>(itemsByKeyStore: Readable<Map<string, T>>): Readable<T[]>
@@ -52,14 +62,14 @@ makeDeriveItem<T>(
 // Create cached loader with a staleness window in seconds and exponential backoff
 makeLoadItem<T>(
   loadItem: (key: string, ...args: any[]) => Promise<unknown>,
-  getItem: (key: string, ...args: any[]) => T | undefined,
+  getItem: (key: string, ...args: any[]) => MaybeAsync<T | undefined>,
   options?: {getFetched?, setFetched?, getSource?, maxSize?, timeout?}
 ): (key: string, ...args: any[]) => Promise<T | undefined>
 
 // Create loader that always fetches fresh data
 makeForceLoadItem<T>(
   loadItem: (key: string, ...args: any[]) => Promise<unknown>,
-  getItem: (key: string, ...args: any[]) => T | undefined
+  getItem: (key: string, ...args: any[]) => MaybeAsync<T | undefined>
 ): (key: string, ...args: any[]) => Promise<T | undefined>
 ```
 

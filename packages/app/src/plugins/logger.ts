@@ -1,6 +1,6 @@
 import {writable} from "svelte/store"
 import {randomId} from "@welshman/lib"
-import {projection} from "./base.js"
+import {projection} from "@welshman/store"
 import type {IApp} from "../app.js"
 
 export type LogMessage = {

@@ -116,3 +116,29 @@ export const deriveDeduplicatedByValue = <S extends Stores, T>(
 }
 
 export const merged = <S extends Stores>(stores: S) => derived(stores, identity)
+
+/**
+ * Utility type which allows for using the same value both for hot gets and derived
+ * subscriptions. It is a store itself, so `derived(someProjection, ...)` works as well
+ * as `derived(someProjection.$, ...)`.
+ */
+export type Projection<T> = ReadableWithGetter<T> & {
+  $: Readable<T>
+}
+
+/**
+ * Build a `Projection` from a readable store and an optional `read` function, which falls
+ * back to `get($)`. On hot paths, the store value is cached, and read is skipped.
+ */
+export const projection = <T>($: Readable<T>, read?: () => T): Projection<T> => ({
+  $,
+  subscribe: $.subscribe,
+  get: getter($, {read}),
+})
+
+/**
+ * Build a `Projection` derived from another `Projection`: re-read `src`
+ * reactively via `.$` or synchronously via `.get()`.
+ */
+export const projectFrom = <S, U>(src: Projection<S>, read: ($: S) => U): Projection<U> =>
+  projection(derived(src.$, read), () => read(src.get()))

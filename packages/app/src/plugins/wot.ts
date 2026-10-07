@@ -4,9 +4,8 @@ import type {Maybe} from "@welshman/lib"
 import {FOLLOWS, MUTES, hexTags, tagValues} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import type {RepositoryUpdate} from "@welshman/net"
-import {deriveDeduplicated} from "@welshman/store"
-import {projection} from "./base.js"
-import type {Projection} from "./base.js"
+import {deriveDeduplicated, projection} from "@welshman/store"
+import type {Projection} from "@welshman/store"
 import type {IApp} from "../app.js"
 
 const NO_PUBKEYS: Set<string> = new Set()

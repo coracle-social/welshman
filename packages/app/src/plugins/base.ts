@@ -9,21 +9,19 @@ import {
   deriveItems,
   deriveItemsByKey,
   deriveItemsByKeyByUrl,
-  getter,
   makeDeriveItem,
   makeLoadItem,
   makeForceLoadItem,
+  projection,
 } from "@welshman/store"
-import type {EventToItem, ItemsByKey, MakeLoadItemOptions} from "@welshman/store"
+import type {
+  EventToItem,
+  ItemCollection,
+  ItemsByKey,
+  MakeLoadItemOptions,
+  Projection,
+} from "@welshman/store"
 import type {IApp} from "../app.js"
-
-/**
- * Utility type which allows for using the same value both for hot gets and derived subscriptions
- */
-export type Projection<T> = {
-  get: () => T
-  $: Readable<T>
-}
 
 export type SearchOptions<V, T> = {
   getValue: (item: T) => V
@@ -69,22 +67,6 @@ export const createSearch = <V, T>(options: T[], opts: SearchOptions<V, T>): Sea
     searchValues: (term: string) => search(term).map(opts.getValue),
   }
 }
-
-/**
- * Build a `Projection` from a readable store and an optional `read` function, which falls
- * back to `get($)`. On hot paths, the store value is cached, and read is skipped.
- */
-export const projection = <T>($: Readable<T>, read?: () => T): Projection<T> => ({
-  $,
-  get: getter($, {read}),
-})
-
-/**
- * Build a `Projection` derived from another `Projection`: re-read `src`
- * reactively via `.$` or synchronously via `.get()`.
- */
-export const projectFrom = <S, U>(src: Projection<S>, read: ($: S) => U): Projection<U> =>
-  projection(derived(src.$, read), () => read(src.get()))
 
 /**
  * Base class for a reactive, keyed collection of "local" (non-event) data —
@@ -204,7 +186,7 @@ export type DerivedPluginOptions<T> = {
  * snapshot via `.get()`. Per-key access is `one(key)`, a plain on-demand store.
  */
 export abstract class DerivedPlugin<T> {
-  index: Projection<ItemsByKey<T>>
+  index: ItemCollection<T>
   all: Projection<T[]>
   one: (key?: string, ...args: any[]) => Readable<Maybe<T>>
   load: (key: string, ...args: any[]) => Promise<Maybe<T>>
@@ -223,14 +205,13 @@ export abstract class DerivedPlugin<T> {
       repository: app.repository,
     })
 
-    this.index = projection(index)
+    this.index = index
     this.all = projection(deriveItems(index))
 
     const fetch = (key: string, ...args: any[]) => this.fetch(key, ...args)
-    const read = (key: string) => this.index.get().get(key)
 
-    this.load = makeLoadItem(fetch, read, options.loadOptions)
-    this.forceLoad = makeForceLoadItem(fetch, read)
+    this.load = makeLoadItem(fetch, index.read, options.loadOptions)
+    this.forceLoad = makeForceLoadItem(fetch, index.read)
     this.one = makeDeriveItem(index, this.load)
   }
 
@@ -260,7 +241,7 @@ export type RelayScopedDerivedPluginOptions<T> = {
  * (`${url}`). Subclasses implement `fetch` (loading from the relevant relay).
  */
 export abstract class RelayScopedDerivedPlugin<T> {
-  index: Projection<ItemsByKey<T>>
+  index: ItemCollection<T>
   all: Projection<T[]>
   one: (key?: string, ...args: any[]) => Readable<Maybe<T>>
   load: (key: string, ...args: any[]) => Promise<Maybe<T>>
@@ -281,14 +262,13 @@ export abstract class RelayScopedDerivedPlugin<T> {
       repository: app.repository,
     })
 
-    this.index = projection(index)
+    this.index = index
     this.all = projection(deriveItems(index))
 
     const fetch = (key: string, ...args: any[]) => this.fetch(key, ...args)
-    const read = (key: string) => this.index.get().get(key)
 
-    this.load = makeLoadItem(fetch, read, options.loadOptions)
-    this.forceLoad = makeForceLoadItem(fetch, read)
+    this.load = makeLoadItem(fetch, index.read, options.loadOptions)
+    this.forceLoad = makeForceLoadItem(fetch, index.read)
     this.one = makeDeriveItem(index, this.load)
   }
 

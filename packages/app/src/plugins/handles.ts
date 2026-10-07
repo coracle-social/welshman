@@ -3,9 +3,9 @@ import type {Maybe} from "@welshman/lib"
 import {queryProfile, displayNip05} from "@welshman/util"
 import type {Handle} from "@welshman/util"
 import type {ProfileReader} from "@welshman/domain"
-import {deriveDeduplicated} from "@welshman/store"
-import {LoadableMapPlugin, projection} from "./base.js"
-import type {Projection} from "./base.js"
+import {deriveDeduplicated, projection} from "@welshman/store"
+import {LoadableMapPlugin} from "./base.js"
+import type {Projection} from "@welshman/store"
 import {Profiles} from "./profiles.js"
 
 /**

@@ -3,9 +3,10 @@ import type {Readable} from "svelte/store"
 import {on} from "@welshman/lib"
 import {tagValues, topicTags} from "@welshman/util"
 import type {RepositoryUpdate} from "@welshman/net"
-import {deriveItems} from "@welshman/store"
-import {projection, createSearch} from "./base.js"
-import type {Projection, Search} from "./base.js"
+import {deriveItems, projection} from "@welshman/store"
+import {createSearch} from "./base.js"
+import type {Projection} from "@welshman/store"
+import type {Search} from "./base.js"
 import type {IApp} from "../app.js"
 
 export type Topic = {

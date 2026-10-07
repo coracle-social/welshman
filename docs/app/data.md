@@ -1,6 +1,6 @@
 # Data Plugins
 
-These plugins expose reactive collections of nostr data. They follow the [plugin patterns](./plugins): `get(key)` reads synchronously, `one(key)` reads reactively and loads lazily, and convenience accessors return a [`Projection`](./plugins#projection-t).
+These plugins expose reactive collections of nostr data. They follow the [plugin patterns](./plugins): `get(key)` reads synchronously, `one(key)` reads reactively and loads lazily, and convenience accessors return a [`Projection`](../store/projection#projection-t).
 
 Most event-backed plugins load over the **outbox model**: they resolve the author's NIP-65 write relays from [`RelayLists`](#relay-lists), then query those relays.
 

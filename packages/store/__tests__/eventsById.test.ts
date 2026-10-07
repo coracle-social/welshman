@@ -1,9 +1,16 @@
-import {get} from "svelte/store"
+import {derived, get} from "svelte/store"
 import {describe, expect, it} from "vitest"
 import {Repository, Tracker} from "@welshman/net"
 import {DELETE, NOTE} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {deriveEventsById, deriveEventsByIdByUrl, deriveEventsByIdForUrl} from "../src/repository"
+import {
+  deriveEventsById,
+  deriveEventsByIdByUrl,
+  deriveEventsByIdForUrl,
+  deriveEventsDesc,
+  deriveIsDeleted,
+  makeDeriveEvent,
+} from "../src/repository"
 
 const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
   ({
@@ -149,5 +156,71 @@ describe("deriveEventsByIdForUrl", () => {
     expect(get(store).get(note.id)?.id).toBe(note.id)
 
     unsub()
+  })
+})
+
+// Each store is a `Projection` whose getter is the matching one-shot query
+describe("an event store's own read", () => {
+  it("answers from the repository with nothing subscribed", () => {
+    const repository = new Repository()
+    const note = makeEvent({id: "a".repeat(64)})
+
+    repository.publish(note)
+
+    const events = deriveEventsById({filters: [{kinds: [NOTE]}], repository})
+
+    expect(events.get().get(note.id)).toBe(note)
+  })
+
+  it("carries the read through a sort", () => {
+    const repository = new Repository()
+    const older = makeEvent({id: "a".repeat(64), created_at: 1})
+    const newer = makeEvent({id: "b".repeat(64), created_at: 2})
+
+    repository.publish(older)
+    repository.publish(newer)
+
+    const events = deriveEventsDesc(deriveEventsById({filters: [{kinds: [NOTE]}], repository}))
+
+    expect(events.get().map(e => e.id)).toEqual([newer.id, older.id])
+  })
+
+  it("honors includeDeleted on a single event", () => {
+    const repository = new Repository()
+    const note = makeEvent({id: "a".repeat(64)})
+
+    repository.publish(note)
+    repository.publish(makeDelete(note))
+
+    expect(makeDeriveEvent({repository})(note.id).get()).toBeUndefined()
+    expect(makeDeriveEvent({repository, includeDeleted: true})(note.id).get()).toBe(note)
+  })
+
+  it("reads a deletion", () => {
+    const repository = new Repository()
+    const note = makeEvent({id: "a".repeat(64)})
+
+    repository.publish(note)
+
+    const isDeleted = deriveIsDeleted(repository, note)
+
+    expect(isDeleted.get()).toBe(false)
+
+    repository.publish(makeDelete(note))
+
+    expect(isDeleted.get()).toBe(true)
+  })
+
+  it("is a store, so a caller derives from it without reaching for `.$`", () => {
+    const repository = new Repository()
+
+    repository.publish(makeEvent({id: "a".repeat(64)}))
+
+    const size = derived(
+      deriveEventsById({filters: [{kinds: [NOTE]}], repository}),
+      $events => [...$events.keys()].length,
+    )
+
+    expect(get(size)).toBe(1)
   })
 })

@@ -24,7 +24,7 @@ Peer deps: `svelte` (4 or 5), all `@welshman/*` workspace packages, and `@pomade
 
 1. **An app is an `App` instance.** It owns per-identity state (`repository`, `pool`, `tracker`, `wrapManager`), a `config`, and at most one `User`. Two apps never share data.
 2. **Features are plugins**, resolved lazily and memoized via `app.use(SomeClass)`. Each plugin is constructed with the app and cached per app.
-3. **`Projection<T>` is the universal accessor.** It has `.get()` (sync snapshot) and `.$` (Svelte `Readable`). Bind `.$` in components; call `.get()` in callbacks/hot paths.
+3. **`Projection<T>` is the universal accessor.** It has `.get()` (sync snapshot) and `.$` (Svelte `Readable`), and is a store itself, so `derived(p, ...)` works too. Bind `.$` in components; call `.get()` in callbacks/hot paths. It comes from `@welshman/store`, along with `projection` and `projectFrom`.
 4. **Reads are reactive and lazy-loading.** `app.use(Profiles).one(pubkey)` returns a store that fetches over the network (outbox model) and updates as events arrive.
 5. **Writes are optimistic.** Publishing goes through the `Publisher` pipeline: the event hits the local repository immediately, signs lazily, and reports per-relay progress, with an abortable delay for soft-undo.
 
@@ -368,7 +368,7 @@ const pubkeys = search.searchValues("alice")   // also fires a NIP-50 network se
 
 Base classes in `plugins/base.ts`:
 
-- **`DerivedPlugin<T>`** — collection derived from repository events (the repo is the single source of truth). Pass `{filters, eventToItem, getKey, loadOptions?}`; implement `fetch`. This is the dominant pattern. Gives you `index`/`all` (`Projection`s), `get(key)`, `one(key)`, `load`/`forceLoad`, and `project(key, read)`.
+- **`DerivedPlugin<T>`** — collection derived from repository events (the repo is the single source of truth). Pass `{filters, eventToItem, getKey, loadOptions?}`; implement `fetch`. This is the dominant pattern. Gives you `all` (a `Projection`), `index` (an `ItemCollection`, a `Projection` plus a `read(key)` that waits out its outstanding parses), `get(key)`, `one(key)`, `load`/`forceLoad`, and `project(key, read)`.
 - **`RelayScopedDerivedPlugin<T>`** — the same, keyed per relay via the tracker (`getKey(item, url)`), so the same addressable coordinate on two relays stays two entries. `RelaySignedDerivedPlugin` (in `plugins/relays.ts`) narrows it further to events signed by the relay's own NIP-11 `self` key, which is what `RelayRoles`, `RelayMemberLists` and `RoomPinLists` use.
 - **`LoadableMapPlugin<T>`** — owns its own `Map`, lazily fetches over HTTP (e.g. `Relays`, `Handles`, `Zappers`). Implement `fetch`.
 - **`MapPlugin<T>`** — owns its own `Map`, no network (e.g. `RelayStats`, `Plaintext`).

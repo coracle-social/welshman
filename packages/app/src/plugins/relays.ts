@@ -4,7 +4,8 @@ import type {Maybe} from "@welshman/lib"
 import {displayRelayUrl} from "@welshman/util"
 import {Relay} from "@welshman/domain"
 import {LoadableMapPlugin, RelayScopedDerivedPlugin, createSearch} from "./base.js"
-import type {Projection, Search, RelayScopedDerivedPluginOptions} from "./base.js"
+import type {Projection} from "@welshman/store"
+import type {Search, RelayScopedDerivedPluginOptions} from "./base.js"
 import type {IApp} from "../app.js"
 
 /**

@@ -22,7 +22,8 @@ import {
   getIdOrAddress,
 } from "@welshman/util"
 import {Repository, RepositoryUpdate, Tracker} from "@welshman/net"
-import {deriveDeduplicated} from "./misc.js"
+import {deriveDeduplicated, projection, projectFrom} from "./misc.js"
+import type {Projection} from "./misc.js"
 
 // Events by id
 
@@ -44,9 +45,11 @@ export const getEventsById = ({filters, repository, includeDeleted}: EventsByIdO
   return eventsById
 }
 
-export const deriveEventsById = ({filters, repository, includeDeleted}: EventsByIdOptions) =>
-  readable<EventsById>(new Map(), set => {
-    const eventsById = getEventsById({filters, repository, includeDeleted})
+export const deriveEventsById = (options: EventsByIdOptions): Projection<EventsById> => {
+  const {filters, repository, includeDeleted} = options
+
+  const store = readable<EventsById>(new Map(), set => {
+    const eventsById = getEventsById(options)
 
     set(eventsById)
 
@@ -74,14 +77,17 @@ export const deriveEventsById = ({filters, repository, includeDeleted}: EventsBy
     })
   })
 
-export const deriveArray = <T>(itemsByIdStore: Readable<Map<string, T>>) =>
-  deriveDeduplicated(itemsByIdStore, itemsById => Array.from(itemsById.values()))
+  return projection(store, () => getEventsById(options))
+}
 
-export const deriveEventsAsc = (eventsByIdStore: Readable<EventsById>) =>
-  deriveDeduplicated(eventsByIdStore, eventsById => sortEventsAsc(eventsById.values()))
+export const deriveArray = <T>(itemsById: Projection<Map<string, T>>) =>
+  projectFrom(itemsById, $itemsById => Array.from($itemsById.values()))
 
-export const deriveEventsDesc = (eventsByIdStore: Readable<EventsById>) =>
-  deriveDeduplicated(eventsByIdStore, eventsById => sortEventsDesc(eventsById.values()))
+export const deriveEventsAsc = (eventsById: Projection<EventsById>) =>
+  projectFrom(eventsById, $eventsById => sortEventsAsc($eventsById.values()))
+
+export const deriveEventsDesc = (eventsById: Projection<EventsById>) =>
+  projectFrom(eventsById, $eventsById => sortEventsDesc($eventsById.values()))
 
 export const deriveEvents = (options: EventsByIdOptions) => deriveArray(deriveEventsById(options))
 
@@ -92,12 +98,12 @@ export type EventOptions = {
 }
 
 export const makeDeriveEvent = ({repository, includeDeleted = false, onDerive}: EventOptions) => {
-  return (idOrAddress: string, ...args: any[]) => {
+  return (idOrAddress: string, ...args: any[]): Projection<Maybe<TrustedEvent>> => {
     const filters = getIdFilters([idOrAddress])
 
     onDerive?.(filters, ...args)
 
-    return readable<Maybe<TrustedEvent>>(undefined, set => {
+    const store = readable<Maybe<TrustedEvent>>(undefined, set => {
       let event = first(repository.query(filters, {includeDeleted}))
 
       set(event)
@@ -119,6 +125,8 @@ export const makeDeriveEvent = ({repository, includeDeleted = false, onDerive}: 
         }
       })
     })
+
+    return projection(store, () => first(repository.query(filters, {includeDeleted})))
   }
 }
 
@@ -153,14 +161,13 @@ export const getEventsByIdByUrl = ({
   return eventsByIdByUrl
 }
 
-export const deriveEventsByIdByUrl = ({
-  filters,
-  tracker,
-  repository,
-  includeDeleted,
-}: EventsByIdByUrlOptions) =>
-  readable<EventsByIdByUrl>(new Map(), set => {
-    const eventsByIdByUrl = getEventsByIdByUrl({filters, tracker, repository, includeDeleted})
+export const deriveEventsByIdByUrl = (
+  options: EventsByIdByUrlOptions,
+): Projection<EventsByIdByUrl> => {
+  const {filters, tracker, repository, includeDeleted} = options
+
+  const store = readable<EventsByIdByUrl>(new Map(), set => {
+    const eventsByIdByUrl = getEventsByIdByUrl(options)
 
     const addEvent = (url: string, event: TrustedEvent) => {
       if (!matchFilters(filters, event)) return false
@@ -255,6 +262,9 @@ export const deriveEventsByIdByUrl = ({
     return () => unsubscribers.forEach(call)
   })
 
+  return projection(store, () => getEventsByIdByUrl(options))
+}
+
 export type EventsByIdForUrlOptions = EventsByIdOptions & {
   url: string
   tracker: Tracker
@@ -278,18 +288,16 @@ export const getEventsByIdForUrl = ({
   return eventsById
 }
 
-export const deriveEventsByIdForUrl = ({
-  url,
-  filters,
-  tracker,
-  repository,
-  includeDeleted,
-}: EventsByIdForUrlOptions) => {
-  let eventsById = getEventsByIdForUrl({url, filters, tracker, repository, includeDeleted})
+export const deriveEventsByIdForUrl = (
+  options: EventsByIdForUrlOptions,
+): Projection<EventsById> => {
+  const {url, filters, tracker, repository, includeDeleted} = options
 
-  return readable(eventsById, set => {
+  let eventsById = getEventsByIdForUrl(options)
+
+  const store = readable(eventsById, set => {
     const reset = () => {
-      eventsById = getEventsByIdForUrl({url, filters, tracker, repository, includeDeleted})
+      eventsById = getEventsByIdForUrl(options)
       set(eventsById)
     }
 
@@ -341,6 +349,8 @@ export const deriveEventsByIdForUrl = ({
 
     return () => unsubscribers.forEach(call)
   })
+
+  return projection(store, () => getEventsByIdForUrl(options))
 }
 
 // Items by key
@@ -349,7 +359,35 @@ export type ItemsByKey<T> = Map<string, T>
 
 export type EventToItem<T> = (event: TrustedEvent) => MaybeAsync<Maybe<T>>
 
-export type GetItem<T> = (key: string, ...args: any[]) => Maybe<T>
+export type GetItem<T> = (key: string, ...args: any[]) => MaybeAsync<Maybe<T>>
+
+/**
+ * A keyed collection of items built from events: a `Projection` over an index, plus a
+ * `read` that waits out the parses the index has outstanding.
+ *
+ * `eventToItem` returns a promise for any kind that decrypts, so the item an event
+ * builds is committed after the event was read rather than with it. `read` is how a
+ * caller gets an item the collection has seen the event for but not yet parsed.
+ */
+export type ItemCollection<T> = Projection<ItemsByKey<T>> & {
+  read: (key: string) => MaybeAsync<Maybe<T>>
+}
+
+const asCollection = <T>(
+  store: Readable<ItemsByKey<T>>,
+  pending: Map<string, Promise<void>>,
+): ItemCollection<T> => {
+  const self = projection(store)
+
+  // Subscribing queues the parses, so a key the index lacks is read, drained, and read again
+  const read = (key: string) =>
+    self.get().get(key) ?? Promise.all(pending.values()).then(() => self.get().get(key))
+
+  return {...self, read}
+}
+
+const onParseError = (error: unknown) =>
+  console.warn("Failed to build an item from an event", error)
 
 export type ItemsByKeyOptions<T> = {
   getKey: (item: T) => string
@@ -365,17 +403,15 @@ export const deriveItemsByKey = <T>({
   repository,
   eventToItem,
   includeDeleted,
-}: ItemsByKeyOptions<T>) => {
-  const deferred = new Map<string, Promise<Maybe<T>>>()
+}: ItemsByKeyOptions<T>): ItemCollection<T> => {
+  const pending = new Map<string, Promise<void>>()
   const itemsByKey = new Map<string, T>()
   const idsByKey = new Map<string, string>()
   const keysById = new Map<string, string>()
 
-  return readable(itemsByKey, set => {
-    const onError = (error: unknown) => console.warn("Failed to build an item from an event", error)
-
+  const store = readable(itemsByKey, set => {
     const addEvent = (event: TrustedEvent) => {
-      if (deferred.has(event.id)) return
+      if (pending.has(event.id)) return
       if (keysById.has(event.id)) return
 
       const commit = (item: Maybe<T>) => {
@@ -396,17 +432,15 @@ export const deriveItemsByKey = <T>({
         // Commit synchronously when `eventToItem` doesn't need IO, so items are in
         // place before the initial subscription returns rather than a microtask later
         if (itemOrPromise instanceof Promise) {
-          deferred.set(event.id, itemOrPromise)
+          // Hold the committed promise, so awaiting it means the item is in the index
+          const forget = () => pending.delete(event.id)
 
-          itemOrPromise
-            .then(commit)
-            .catch(onError)
-            .finally(() => deferred.delete(event.id))
+          pending.set(event.id, itemOrPromise.then(commit).catch(onParseError).finally(forget))
         } else {
           commit(itemOrPromise)
         }
       } catch (error) {
-        onError(error)
+        onParseError(error)
       }
     }
 
@@ -443,6 +477,8 @@ export const deriveItemsByKey = <T>({
       }
     })
   })
+
+  return asCollection(store, pending)
 }
 
 // Items by key, scoped by relay url
@@ -480,16 +516,18 @@ export const deriveItemsByKeyByUrl = <T>({
   eventToItem,
   includeDeleted,
   revalidateOn,
-}: ItemsByKeyByUrlOptions<T>) => {
-  const deferred = new Set<string>()
+}: ItemsByKeyByUrlOptions<T>): ItemCollection<T> => {
+  const pending = new Map<string, Promise<void>>()
   const itemsByKey = new Map<string, T>()
   // Which event currently owns each composite key, so a stale event's removal
   // doesn't clobber the entry a newer replaceable event has taken over.
   const ownerByKey = new Map<string, string>()
   // The composite keys contributed by each event, per relay url, for teardown.
   const keysById = new Map<string, Map<string, string>>()
+  // What each event parsed to, so a rebuild re-keys it without parsing it again.
+  const itemsById = new Map<string, T>()
 
-  return readable(itemsByKey, set => {
+  const store = readable(itemsByKey, set => {
     const setKey = (key: string, id: string, url: string, item: T) => {
       itemsByKey.set(key, item)
       ownerByKey.set(key, id)
@@ -517,17 +555,17 @@ export const deriveItemsByKeyByUrl = <T>({
       return false
     }
 
-    const onError = (error: unknown) => console.warn("Failed to build an item from an event", error)
-
     const addEvent = (event: TrustedEvent, urls: Iterable<string>) => {
-      const pending = Array.from(urls).filter(url => keysById.get(event.id)?.get(url) === undefined)
+      const unkeyed = Array.from(urls).filter(url => keysById.get(event.id)?.get(url) === undefined)
 
-      if (pending.length === 0) return
-      if (deferred.has(event.id)) return
+      if (unkeyed.length === 0) return
+      if (pending.has(event.id)) return
 
       const commit = (item: Maybe<T>) => {
         if (item) {
-          for (const url of pending) {
+          itemsById.set(event.id, item)
+
+          for (const url of unkeyed) {
             const key = getKey(item, url)
 
             if (key !== undefined) {
@@ -539,28 +577,33 @@ export const deriveItemsByKeyByUrl = <T>({
         }
       }
 
+      const parsed = itemsById.get(event.id)
+
+      // A rebuild clears the keys and keeps the items, so re-keying needs no parse
+      if (parsed) return commit(parsed)
+
       try {
         const itemOrPromise = eventToItem(event)
 
         // Commit synchronously when `eventToItem` doesn't need IO, so items are in
         // place before the initial subscription returns rather than a microtask later
         if (itemOrPromise instanceof Promise) {
-          deferred.add(event.id)
+          // Hold the committed promise, so awaiting it means the item is in the index
+          const forget = () => pending.delete(event.id)
 
-          itemOrPromise
-            .then(commit)
-            .catch(onError)
-            .finally(() => deferred.delete(event.id))
+          pending.set(event.id, itemOrPromise.then(commit).catch(onParseError).finally(forget))
         } else {
           commit(itemOrPromise)
         }
       } catch (error) {
-        onError(error)
+        onParseError(error)
       }
     }
 
     const removeEvent = (id: string) => {
       const byUrl = mapPop(id, keysById)
+
+      itemsById.delete(id)
 
       if (!byUrl) return false
 
@@ -661,6 +704,8 @@ export const deriveItemsByKeyByUrl = <T>({
 
     return () => unsubscribers.forEach(call)
   })
+
+  return asCollection(store, pending)
 }
 
 export const deriveItems = <T>(itemsByKeyStore: Readable<ItemsByKey<T>>) =>
@@ -719,7 +764,7 @@ export const makeLoadItem = <T>(
   const pending = new Map<string, Promise<Maybe<T>>>()
 
   return async (key: string, ...args: any[]): Promise<Maybe<T>> => {
-    const stale = getItem(key)
+    const stale = await getItem(key)
 
     // If we have an item, reload if it's relatively recent
     if (stale && getFetched(key) > now() - timeout) {
@@ -768,21 +813,24 @@ export const makeLoadItem = <T>(
 
 // Miscellaneous other stuff
 
-export const deriveIsDeleted = (repository: Repository, event: TrustedEvent) =>
-  readable(false, set => {
-    const idOrAddress = getIdOrAddress(event)
+export const deriveIsDeleted = (repository: Repository, event: TrustedEvent): Projection<boolean> =>
+  projection(
+    readable(false, set => {
+      const idOrAddress = getIdOrAddress(event)
 
-    set(repository.isDeleted(event))
+      set(repository.isDeleted(event))
 
-    return on(repository, "update", ({removed, added}: RepositoryUpdate) => {
-      if (removed.has(event.id)) {
-        set(true)
-      }
-
-      for (const event of added) {
-        if (getIdOrAddress(event) === idOrAddress) {
-          set(false)
+      return on(repository, "update", ({removed, added}: RepositoryUpdate) => {
+        if (removed.has(event.id)) {
+          set(true)
         }
-      }
-    })
-  })
+
+        for (const event of added) {
+          if (getIdOrAddress(event) === idOrAddress) {
+            set(false)
+          }
+        }
+      })
+    }),
+    () => repository.isDeleted(event),
+  )

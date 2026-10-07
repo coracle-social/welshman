@@ -1,40 +1,10 @@
 # Plugin Architecture
 
-Every feature in `@welshman/app` is a **plugin**, a class constructed with a single `IApp` argument and resolved lazily through `app.use(...)`. The data plugins are built on a few base classes in `plugins/base.ts`, and most of their accessors return a `Projection`.
+Every feature in `@welshman/app` is a **plugin**, a class constructed with a single `IApp` argument and resolved lazily through `app.use(...)`. The data plugins are built on a few base classes in `plugins/base.ts`, and most of their accessors return a [`Projection`](../store/projection#projection-t) from `@welshman/store`.
 
 ```typescript
 const profiles = app.use(Profiles)   // new Profiles(app), memoized per app
 ```
-
-## `Projection<T>`
-
-A `Projection<T>` is a value that can be read synchronously or reactively.
-
-```typescript
-type Projection<T> = {
-  get: () => T          // synchronous "hot" snapshot
-  $: Readable<T>        // a Svelte readable for subscriptions / $-syntax
-}
-```
-
-```typescript
-const display = app.use(Profiles).display(pubkey)
-
-display.get()           // string, right now
-display.$               // Readable<string>, for `$display` in a component
-```
-
-Helpers:
-
-```typescript
-// Wrap a Readable into a Projection (default getter is hot-path aware)
-projection<T>($: Readable<T>, get?): Projection<T>
-
-// Derive one Projection from another, preserving both access modes
-projectFrom<S, U>(src: Projection<S>, read: ($: S) => U): Projection<U>
-```
-
-The default `get` is `getter($)` from `@welshman/store`, which caches the store value on hot paths, so `.get()` is cheap to call repeatedly.
 
 ## Base classes
 
@@ -96,7 +66,7 @@ type DerivedPluginOptions<T> = {
 }
 
 abstract class DerivedPlugin<T> {
-  index: Projection<ItemsByKey<T>>
+  index: ItemCollection<T>
   all: Projection<T[]>
   one: (key?: string, ...args: any[]) => Readable<Maybe<T>>
 
@@ -109,7 +79,7 @@ abstract class DerivedPlugin<T> {
 }
 ```
 
-`index` comes from `@welshman/store`'s `deriveItemsByKey({filters, eventToItem, getKey, repository: app.repository})`. `eventToItem` may be async, for lists with encrypted entries.
+`index` comes from `@welshman/store`'s `deriveItemsByKey({filters, eventToItem, getKey, repository: app.repository})`. It is a `Projection` over the keyed map plus an [`ItemCollection`](../store/repository#indexed-collections)'s `read(key)`. `eventToItem` may be async, for lists with encrypted entries.
 
 ### `RelayScopedDerivedPlugin<T>`
 
@@ -122,7 +92,7 @@ A `DerivedPlugin` whose `getKey(item, url)` runs once per relay the event was se
 3. **Decode:** inbound events flow through `eventToItem`. Async decoders resolve and update the index when ready.
 4. **Derive:** convenience accessors (`display(...)`, `urls(...)`, …) are `project(key, read)` calls returning a `Projection<U>`.
 
-`forceLoad` bypasses the cache and resolves to the freshly-read item.
+`forceLoad` bypasses the cache and resolves to the freshly-read item. Both loaders read through [`index.read`](../store/repository#indexed-collections), which waits out the collection's outstanding parses, so an event the load delivered is in the index before they report the item absent.
 
 A collection of a replaceable kind the user owns one of delegates its `update` to `app.use(Domain).update(Kind, this.forceLoad, fn)`, which seeds a writer with the user's own event, hands it to the caller's edit and returns the `Command` that publishes it.
 
@@ -131,7 +101,7 @@ A collection of a replaceable kind the user owns one of delegates its `update` t
 A custom store derived straight from the repository uses the `@welshman/store` derivation functions with the app's `repository` (and `tracker` for relay-scoped views). The [`Events`](./requests#querying-the-repository-events) plugin wraps the common cases as projections. The derivation functions are:
 
 - `deriveItemsByKey<T>({filters, eventToItem, getKey, repository})` — the live keyed collection `DerivedPlugin` builds on
-- `deriveEvents(opts)` / `deriveEventsById(opts)` / `makeDeriveEvent(opts)` — derived event stores
+- `deriveEvents(opts)` / `deriveEventsById(opts)` / `makeDeriveEvent(opts)` — event stores, each a `Projection` whose getter is the matching one-shot query
 - `deriveEventsByIdByUrl(opts)` / `deriveEventsByIdForUrl(opts)` — relay-scoped views (also take the `tracker`)
 - `deriveIsDeleted(repository, event)` — reactive deletion status
 

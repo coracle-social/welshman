@@ -25,8 +25,10 @@ import {
   makeDeriveItem,
   makeForceLoadItem,
   makeLoadItem,
+  projection,
+  projectFrom,
 } from "@welshman/store"
-import type {EventToItem, ItemsByKey} from "@welshman/store"
+import type {EventToItem, ItemsByKey, Projection} from "@welshman/store"
 import {
   RoomCreate,
   RoomDelete,
@@ -44,8 +46,6 @@ import {
   RoomAdminsReader,
 } from "@welshman/domain"
 import type {EventReader} from "@welshman/domain"
-import {projection, projectFrom} from "./base.js"
-import type {Projection} from "./base.js"
 import {Domain} from "./domain.js"
 import {Network} from "./network.js"
 import {Relays} from "./relays.js"
