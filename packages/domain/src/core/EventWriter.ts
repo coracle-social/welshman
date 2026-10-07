@@ -1,4 +1,13 @@
-import {remove, complement, first, partition, randomId, removeUndefined, spec} from "@welshman/lib"
+import {
+  remove,
+  complement,
+  first,
+  ifLet,
+  partition,
+  randomId,
+  removeUndefined,
+  spec,
+} from "@welshman/lib"
 import type {MaybeAsync} from "@welshman/lib"
 import {
   Address,
@@ -185,13 +194,13 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
     return this
   }
 
-  keepTags(pred: (tag: string[]) => boolean) {
+  keepTags(pred: (tag: string[]) => unknown) {
     this.extraTags = this.extraTags.filter(pred)
 
     return this
   }
 
-  dropTags(pred: (tag: string[]) => boolean) {
+  dropTags(pred: (tag: string[]) => unknown) {
     this.extraTags = this.extraTags.filter(complement(pred))
 
     return this
@@ -249,16 +258,12 @@ export abstract class EventWriter<Reader extends BaseEventReader> {
     return parseImetas(this.extraTags)
   }
 
-  /**
-   * Attaches a NIP-92 `imeta` tag describing a piece of media, replacing any
-   * attachment already at that url rather than listing it twice.
-   */
   addImeta(imeta: Imeta) {
-    return this.removeImeta(imeta.url).addTags(renderImeta(imeta))
+    return this.addTags(renderImeta(imeta))
   }
 
-  removeImeta(url: string) {
-    return this.dropTags(tag => parseImeta(tag)?.url === url)
+  removeImeta(match: (imeta: Imeta) => boolean) {
+    return this.dropTags(tag => ifLet(parseImeta(tag), match))
   }
 
   addEmoji(shortcode: string, url: string, address?: string) {

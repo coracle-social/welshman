@@ -1129,7 +1129,7 @@ export const doLet = <T>(x: T, f: <R>(x: T) => R) => f(x)
  * @param f - Function to execute if x is defined
  * @returns result of f(x) if x is defined, undefined otherwise
  */
-export const ifLet = <T>(x: T | undefined, f: (x: T) => void) =>
+export const ifLet = <T, R>(x: T | undefined, f: (x: T) => R): R | undefined =>
   x === undefined ? undefined : f(x)
 
 // ----------------------------------------------------------------------------

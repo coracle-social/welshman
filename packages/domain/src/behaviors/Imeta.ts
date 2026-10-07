@@ -27,8 +27,8 @@ const parseEntry = (entry: string): [string, string] => {
 }
 
 /**
- * Parse a single `imeta` tag, or undefined for any other tag and for an `imeta`
- * tag with no url — an attachment nobody can fetch.
+ * Parse a single `imeta` tag, or undefined for any other tag. `url` is empty for
+ * an attachment that names none, which a content-addressed one need not.
  */
 export const parseImeta = (tag: string[]): Imeta | undefined => {
   if (tag[0] !== "imeta") return undefined
@@ -67,9 +67,7 @@ export const parseImeta = (tag: string[]): Imeta | undefined => {
     }
   }
 
-  if (imeta.url) {
-    return imeta
-  }
+  return imeta
 }
 
 /**

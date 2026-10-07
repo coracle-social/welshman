@@ -55,8 +55,16 @@ describe("getImeta", () => {
     ])
   })
 
-  it("skips an imeta tag with no url", () => {
-    expect(getImeta(makeEvent([["imeta", "m image/jpeg", "blurhash bh"]]))).toEqual([])
+  it("reads an imeta tag with no url", () => {
+    expect(getImeta(makeEvent([["imeta", "m image/jpeg", "blurhash bh"]]))).toEqual([
+      {url: "", mimeType: "image/jpeg", blurhash: "bh", fallbacks: [], extra: []},
+    ])
+  })
+
+  it("reads an attachment addressed only by its hash", () => {
+    expect(getImeta(makeEvent([["imeta", "x abc", "m image/jpeg"]]))).toEqual([
+      {url: "", hash: "abc", mimeType: "image/jpeg", fallbacks: [], extra: []},
+    ])
   })
 })
 
@@ -92,7 +100,7 @@ describe("a writer's attachments", () => {
     expect(tmpl.tags).toContainEqual(["imeta", "url https://example.com/a.jpg", "m image/jpeg"])
   })
 
-  it("replaces an attachment added twice at the same url", async () => {
+  it("keeps every attachment added, even at the same url", async () => {
     const tmpl = await buildTemplate(
       write(Note)
         .addImeta({url: "https://example.com/a.jpg", alt: "first"})
@@ -100,6 +108,7 @@ describe("a writer's attachments", () => {
     )
 
     expect(tmpl.tags.filter(t => t[0] === "imeta")).toEqual([
+      ["imeta", "url https://example.com/a.jpg", "alt first"],
       ["imeta", "url https://example.com/a.jpg", "alt second"],
     ])
   })
@@ -109,11 +118,24 @@ describe("a writer's attachments", () => {
       write(Note)
         .addImeta({url: "https://example.com/a.jpg"})
         .addImeta({url: "https://example.com/b.jpg"})
-        .removeImeta("https://example.com/a.jpg"),
+        .removeImeta(imeta => imeta.url === "https://example.com/a.jpg"),
     )
 
     expect(tmpl.tags.filter(t => t[0] === "imeta")).toEqual([
       ["imeta", "url https://example.com/b.jpg"],
     ])
+  })
+
+  it("drops an attachment by its hash, and leaves every other tag alone", async () => {
+    const tmpl = await buildTemplate(
+      write(Note)
+        .setContentWarning("spoilers")
+        .addImeta({url: "", hash: "abc"})
+        .addImeta({url: "", hash: "def"})
+        .removeImeta(imeta => imeta.hash === "def"),
+    )
+
+    expect(tmpl.tags.filter(t => t[0] === "imeta")).toEqual([["imeta", "x abc"]])
+    expect(tmpl.tags).toContainEqual(["content-warning", "spoilers"])
   })
 })

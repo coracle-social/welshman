@@ -18,6 +18,9 @@ describe("Tools", () => {
 
       T.ifLet(5, fn)
       expect(fn).toHaveBeenCalledWith(5)
+
+      expect(T.ifLet(5, x => x * 2)).toBe(10)
+      expect(T.ifLet(undefined as number | undefined, x => x * 2)).toBeUndefined()
     })
 
     it("should handle array operations", () => {
