@@ -8,16 +8,9 @@ describe("catchUpFilter", () => {
     expect(catchUpFilter({kinds: [1]}, 1000)).toEqual({kinds: [1], since: 1000})
   })
 
-  it("should drop a limit of zero", () => {
+  it("should drop the limit", () => {
     expect(catchUpFilter({kinds: [1], limit: 0}, 1000)).toEqual({kinds: [1], since: 1000})
-  })
-
-  it("should keep a limit it can satisfy", () => {
-    expect(catchUpFilter({kinds: [1], limit: 10}, 1000)).toEqual({
-      kinds: [1],
-      limit: 10,
-      since: 1000,
-    })
+    expect(catchUpFilter({kinds: [1], limit: 10}, 1000)).toEqual({kinds: [1], since: 1000})
   })
 
   it("should reach back past a gift wrap's backdating", () => {
