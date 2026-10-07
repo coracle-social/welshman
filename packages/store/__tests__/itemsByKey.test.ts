@@ -1,9 +1,14 @@
-import {get} from "svelte/store"
+import {get, writable} from "svelte/store"
 import {describe, expect, it} from "vitest"
 import {Repository, Tracker} from "@welshman/net"
 import {MUTES} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
-import {deriveItemsByKey, deriveItemsByKeyByUrl} from "../src/repository"
+import {
+  deriveItems,
+  deriveItemsByKey,
+  deriveItemsByKeyByUrl,
+  deriveItemsSorted,
+} from "../src/repository"
 import type {EventToItem} from "../src/repository"
 
 const makeEvent = (o: Partial<TrustedEvent> = {}): TrustedEvent =>
@@ -147,5 +152,25 @@ describe("reading a relay-scoped collection", () => {
     await collection.read(`${url}'${event.pubkey}`)
 
     expect(get(collection).get(`${url}'${event.pubkey}`)).toBe(event)
+  })
+})
+
+describe("deriving a collection's items", () => {
+  it("lists what the collection has indexed", () => {
+    const repository = new Repository()
+    const collection = makeCollection(repository, event => event)
+
+    for (const char of ["a", "b", "c"]) {
+      repository.publish(makeEvent({id: char.repeat(64), pubkey: char.repeat(64)}))
+    }
+
+    expect(get(deriveItems(collection)).length).toBe(3)
+  })
+
+  it("sorts items by their sort value", () => {
+    const items = writable([{at: 2}, {at: 1}])
+    const sorted = deriveItemsSorted((item: {at: number}) => item.at, items)
+
+    expect(get(sorted).map(item => item.at)).toEqual([1, 2])
   })
 })

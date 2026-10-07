@@ -22,7 +22,7 @@ export class RelayLists extends DerivedPlugin<RelayListReader> {
   }
 
   async fetch(pubkey: string, hints: string[] = []) {
-    const filters = [{kinds: [RELAYS], authors: [pubkey], limit: 1}]
+    const filters = [{kinds: [RELAYS], authors: [pubkey]}]
     const scenario = await this.app.use(Router).resolve([...relays(hints), indexers()])
 
     // Resolving `outbox(pubkey)` here would recurse back into this loader (it's

@@ -217,4 +217,204 @@ describe("deriveItemsByKeyByUrl", () => {
 
     unsub()
   })
+
+  it("keys an event once across a resubscribe", async () => {
+    const repository = new Repository()
+    const tracker = new Tracker()
+
+    const event = makeEvent({id: "a".repeat(64), tags: [["d", "group1"]]})
+
+    repository.publish(event)
+    tracker.track(event.id, "wss://a.example")
+
+    let keyed = 0
+
+    const store = deriveItemsByKeyByUrl<TrustedEvent>({
+      filters: [{kinds: [ROOM_META]}],
+      repository,
+      tracker,
+      eventToItem: e => e,
+      getKey: (e, url) => {
+        keyed++
+
+        return `${url}'${dTag(e)}`
+      },
+    })
+
+    store.subscribe(() => {})()
+    await tick()
+
+    const unsub = store.subscribe(() => {})
+    await tick()
+
+    expect(keyed).toBe(1)
+    expect(get(store).get("wss://a.example'group1")?.id).toBe(event.id)
+
+    unsub()
+  })
+
+  it("drops a key whose event left the repository while nothing was subscribed", async () => {
+    const repository = new Repository()
+    const tracker = new Tracker()
+
+    const event = makeEvent({id: "a".repeat(64), tags: [["d", "group1"]]})
+
+    repository.publish(event)
+    tracker.track(event.id, "wss://a.example")
+
+    const store = deriveItemsByKeyByUrl<TrustedEvent>({
+      filters: [{kinds: [ROOM_META]}],
+      repository,
+      tracker,
+      eventToItem: e => e,
+      getKey: (e, url) => `${url}'${dTag(e)}`,
+    })
+
+    store.subscribe(() => {})()
+    await tick()
+
+    repository.removeEvent(event.id)
+
+    const unsub = store.subscribe(() => {})
+    await tick()
+
+    expect(get(store).size).toBe(0)
+
+    unsub()
+  })
+
+  it("emits once for a subscribe that keys several events", async () => {
+    const repository = new Repository()
+    const tracker = new Tracker()
+
+    for (const char of ["a", "b", "c"]) {
+      const event = makeEvent({id: char.repeat(64), tags: [["d", char]]})
+
+      repository.publish(event)
+      tracker.track(event.id, "wss://a.example")
+    }
+
+    const store = deriveItemsByKeyByUrl<TrustedEvent>({
+      filters: [{kinds: [ROOM_META]}],
+      repository,
+      tracker,
+      eventToItem: e => e,
+      getKey: (e, url) => `${url}'${dTag(e)}`,
+    })
+
+    const sizes: number[] = []
+    const unsub = store.subscribe(map => sizes.push(map.size))
+    await tick()
+
+    expect(sizes).toEqual([3])
+
+    unsub()
+  })
+
+  it("stays quiet for an event no url keys", async () => {
+    const repository = new Repository()
+    const tracker = new Tracker()
+
+    const store = deriveItemsByKeyByUrl<TrustedEvent>({
+      filters: [{kinds: [ROOM_META]}],
+      repository,
+      tracker,
+      eventToItem: async e => e,
+      getKey: () => undefined,
+    })
+
+    const sizes: number[] = []
+    const unsub = store.subscribe(map => sizes.push(map.size))
+
+    const event = makeEvent({id: "a".repeat(64), tags: [["d", "g"]]})
+
+    repository.publish(event)
+    tracker.track(event.id, "wss://a.example")
+    await tick()
+
+    expect(sizes).toEqual([0])
+
+    unsub()
+  })
+
+  it("emits once for a rebuild that re-keys several events", async () => {
+    const repository = new Repository()
+    const tracker = new Tracker()
+    const provenance = new Map<string, Set<string>>()
+
+    for (const char of ["a", "b", "c"]) {
+      const event = makeEvent({id: char.repeat(64), tags: [["d", char]]})
+
+      repository.publish(event)
+      tracker.track(event.id, "wss://a.example")
+      provenance.set(event.id, new Set(["wss://a.example"]))
+    }
+
+    const store = deriveItemsByKeyByUrl<TrustedEvent>({
+      filters: [{kinds: [ROOM_META]}],
+      repository,
+      tracker,
+      eventToItem: e => e,
+      getKey: (e, url) => `${url}'${dTag(e)}`,
+    })
+
+    const sizes: number[] = []
+    const unsub = store.subscribe(map => sizes.push(map.size))
+    await tick()
+
+    const emitted = sizes.length
+
+    tracker.load(provenance)
+    await tick()
+
+    expect(sizes.slice(emitted)).toEqual([3])
+
+    unsub()
+  })
+
+  it("stays quiet for a rebuild that keys nothing", async () => {
+    const repository = new Repository()
+    const tracker = new Tracker()
+
+    const store = deriveItemsByKeyByUrl<TrustedEvent>({
+      filters: [{kinds: [ROOM_META]}],
+      repository,
+      tracker,
+      eventToItem: e => e,
+      getKey: (e, url) => `${url}'${dTag(e)}`,
+    })
+
+    const sizes: number[] = []
+    const unsub = store.subscribe(map => sizes.push(map.size))
+
+    tracker.load(new Map())
+    await tick()
+
+    expect(sizes).toEqual([0])
+
+    unsub()
+  })
+
+  it("stays quiet when the tracker clears an empty collection", async () => {
+    const repository = new Repository()
+    const tracker = new Tracker()
+
+    const store = deriveItemsByKeyByUrl<TrustedEvent>({
+      filters: [{kinds: [ROOM_META]}],
+      repository,
+      tracker,
+      eventToItem: e => e,
+      getKey: (e, url) => `${url}'${dTag(e)}`,
+    })
+
+    const sizes: number[] = []
+    const unsub = store.subscribe(map => sizes.push(map.size))
+
+    tracker.clear()
+    await tick()
+
+    expect(sizes).toEqual([0])
+
+    unsub()
+  })
 })

@@ -1,4 +1,4 @@
-import {readable, Readable} from "svelte/store"
+import {derived, readable, Readable} from "svelte/store"
 import {
   on,
   gt,
@@ -375,7 +375,7 @@ export type ItemCollection<T> = Projection<ItemsByKey<T>> & {
 
 const asCollection = <T>(
   store: Readable<ItemsByKey<T>>,
-  pending: Map<string, Promise<void>>,
+  pending: Map<string, Promise<unknown>>,
 ): ItemCollection<T> => {
   const self = projection(store)
 
@@ -517,7 +517,7 @@ export const deriveItemsByKeyByUrl = <T>({
   includeDeleted,
   revalidateOn,
 }: ItemsByKeyByUrlOptions<T>): ItemCollection<T> => {
-  const pending = new Map<string, Promise<void>>()
+  const pending = new Map<string, Promise<unknown>>()
   const itemsByKey = new Map<string, T>()
   // Which event currently owns each composite key, so a stale event's removal
   // doesn't clobber the entry a newer replaceable event has taken over.
@@ -528,6 +528,9 @@ export const deriveItemsByKeyByUrl = <T>({
   const itemsById = new Map<string, T>()
 
   const store = readable(itemsByKey, set => {
+    // Held while a catch-up keys its events, so a rebuild emits once rather than per event
+    let holding = false
+
     const setKey = (key: string, id: string, url: string, item: T) => {
       itemsByKey.set(key, item)
       ownerByKey.set(key, id)
@@ -558,10 +561,12 @@ export const deriveItemsByKeyByUrl = <T>({
     const addEvent = (event: TrustedEvent, urls: Iterable<string>) => {
       const unkeyed = Array.from(urls).filter(url => keysById.get(event.id)?.get(url) === undefined)
 
-      if (unkeyed.length === 0) return
-      if (pending.has(event.id)) return
+      if (unkeyed.length === 0) return false
+      if (pending.has(event.id)) return false
 
       const commit = (item: Maybe<T>) => {
+        let keyed = false
+
         if (item) {
           itemsById.set(event.id, item)
 
@@ -570,17 +575,23 @@ export const deriveItemsByKeyByUrl = <T>({
 
             if (key !== undefined) {
               setKey(key, event.id, url, item)
+              keyed = true
             }
           }
 
-          set(itemsByKey)
+          // An item no url keys leaves the index alone, so it owes no emission
+          if (keyed && !holding) set(itemsByKey)
         }
+
+        return keyed
       }
 
       const parsed = itemsById.get(event.id)
 
       // A rebuild clears the keys and keeps the items, so re-keying needs no parse
       if (parsed) return commit(parsed)
+
+      let changed = false
 
       try {
         const itemOrPromise = eventToItem(event)
@@ -593,11 +604,13 @@ export const deriveItemsByKeyByUrl = <T>({
 
           pending.set(event.id, itemOrPromise.then(commit).catch(onParseError).finally(forget))
         } else {
-          commit(itemOrPromise)
+          changed = commit(itemOrPromise)
         }
       } catch (error) {
         onParseError(error)
       }
+
+      return changed
     }
 
     const removeEvent = (id: string) => {
@@ -631,19 +644,41 @@ export const deriveItemsByKeyByUrl = <T>({
       return dropKey(key, id)
     }
 
-    const rebuild = () => {
+    const catchUp = (cleared = false) => {
+      const events = repository.query(filters, {includeDeleted})
+      const ids = new Set(events.map(event => event.id))
+      let dirty = cleared
+
+      for (const id of Array.from(keysById.keys())) {
+        if (!ids.has(id)) {
+          dirty = removeEvent(id) || dirty
+        }
+      }
+
+      holding = true
+
+      for (const event of events) {
+        dirty = addEvent(event, tracker.getRelays(event.id)) || dirty
+      }
+
+      holding = false
+
+      if (dirty) set(itemsByKey)
+    }
+
+    const clear = () => {
+      const dirty = itemsByKey.size > 0
+
       itemsByKey.clear()
       ownerByKey.clear()
       keysById.clear()
 
-      for (const event of repository.query(filters, {includeDeleted})) {
-        addEvent(event, tracker.getRelays(event.id))
-      }
-
-      set(itemsByKey)
+      return dirty
     }
 
-    rebuild()
+    const rebuild = () => catchUp(clear())
+
+    catchUp()
 
     const unsubscribers = [
       on(repository, "update", ({added, removed}: RepositoryUpdate) => {
@@ -677,11 +712,7 @@ export const deriveItemsByKeyByUrl = <T>({
       }),
       on(tracker, "load", rebuild),
       on(tracker, "clear", () => {
-        itemsByKey.clear()
-        ownerByKey.clear()
-        keysById.clear()
-
-        set(itemsByKey)
+        if (clear()) set(itemsByKey)
       }),
     ]
 
@@ -709,10 +740,10 @@ export const deriveItemsByKeyByUrl = <T>({
 }
 
 export const deriveItems = <T>(itemsByKeyStore: Readable<ItemsByKey<T>>) =>
-  deriveDeduplicated(itemsByKeyStore, itemsByKey => Array.from(itemsByKey.values()))
+  derived(itemsByKeyStore, itemsByKey => Array.from(itemsByKey.values()))
 
 export const deriveItemsSorted = <T>(sortFn: (item: T) => number, itemsStore: Readable<T[]>) =>
-  deriveDeduplicated(itemsStore, items => sortBy(sortFn, items))
+  derived(itemsStore, items => sortBy(sortFn, items))
 
 export const makeDeriveItem = <T>(
   itemsByKeyStore: Readable<ItemsByKey<T>>,

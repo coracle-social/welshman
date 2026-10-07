@@ -46,6 +46,8 @@ These key events by the relays a `Tracker` has seen them on. They keep the same 
 | `getEventsByIdByUrl` / `getEventsByIdForUrl` | The one-shot queries they read through |
 | `deriveItemsByKeyByUrl<T>(options)` | The relay-scoped `deriveItemsByKey`: an event is keyed once per relay via `getKey(item, url)` |
 
+The index outlives a subscription, so subscribing keys only the events the collection has not keyed. A `revalidateOn` change and a `tracker` load re-key everything. Either one emits once rather than once per event, and an event no url keys emits nothing, so a subscriber is woken only by a change.
+
 Both relay-scoped option types extend `EventsByIdOptions` with `tracker: Tracker` (and `url: string` for the `ForUrl` variants). `ItemsByKeyByUrlOptions` adds two things over `ItemsByKeyOptions`:
 
 ```typescript
