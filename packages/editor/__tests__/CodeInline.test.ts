@@ -1,4 +1,4 @@
-import {describe, it, expect} from "vitest"
+import {describe, it, expect, onTestFinished} from "vitest"
 import {Editor} from "@tiptap/core"
 import Document from "@tiptap/extension-document"
 import Paragraph from "@tiptap/extension-paragraph"
@@ -13,6 +13,8 @@ const makeEditor = (code: string) => {
     enableCoreExtensions: {keymap: false},
     extensions: [Document, Paragraph, Text, CodeInline],
   })
+
+  onTestFinished(() => editor.destroy())
 
   const {schema} = editor
 

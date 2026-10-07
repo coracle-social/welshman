@@ -346,4 +346,5 @@ const onSubmit = (editor: Editor) => {
 - **Initial content.** Pass either a plain string or a ProseMirror JSON object to `new Editor({content})`. To restore a draft, save `editor.getJSON()` and pass it back as `content`.
 - **`removeFailedUploads()` command.** Call `editor.commands.removeFailedUploads()` in `onUploadError` to remove partially inserted upload nodes.
 - **`addFile(file, pos)` command.** Inserts a file upload node at a ProseMirror position, e.g. for native clipboard paste on mobile, where the browser paste event carries no file data.
+- **Destroy the editor when its DOM goes away.** `editor.destroy()` removes the view's document-level `selectionchange` listener and makes any pending mutation flush a no-op.
 - **`editor.commands.focus('start' | 'end' | number)`.** Pass `"end"` to place the cursor after existing content (restoring a draft), `"start"` for a fresh empty editor. Call inside `requestAnimationFrame` when the editor element was just mounted.
