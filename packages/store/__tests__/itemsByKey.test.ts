@@ -1,5 +1,6 @@
 import {get, writable} from "svelte/store"
 import {describe, expect, it} from "vitest"
+import {defer, noop} from "@welshman/lib"
 import {Repository, Tracker} from "@welshman/net"
 import {MUTES} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
@@ -129,6 +130,48 @@ describe("a collection's lifetime", () => {
     repository.removeEvent(event.id)
 
     expect(collection.get().size).toBe(0)
+  })
+})
+
+describe("an event removed mid-parse", () => {
+  it("stays out of a collection", async () => {
+    const repository = new Repository()
+    const parsed = defer<TrustedEvent>()
+    const collection = makeCollection(repository, () => parsed)
+    const event = makeEvent()
+    const unsub = collection.subscribe(noop)
+
+    repository.publish(event)
+    repository.removeEvent(event.id)
+    parsed.resolve(event)
+
+    expect(await collection.read(event.pubkey)).toBeUndefined()
+
+    unsub()
+  })
+
+  it("stays out of a relay-scoped collection", async () => {
+    const repository = new Repository()
+    const tracker = new Tracker()
+    const parsed = defer<TrustedEvent>()
+    const collection = deriveItemsByKeyByUrl<TrustedEvent>({
+      filters: [{kinds: [MUTES]}],
+      repository,
+      tracker,
+      eventToItem: () => parsed,
+      getKey: (_, url) => url,
+    })
+    const event = makeEvent()
+    const unsub = collection.subscribe(noop)
+
+    tracker.track(event.id, "wss://x.example")
+    repository.publish(event)
+    repository.removeEvent(event.id)
+    parsed.resolve(event)
+
+    expect(await collection.read("wss://x.example")).toBeUndefined()
+
+    unsub()
   })
 })
 

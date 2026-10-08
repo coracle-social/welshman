@@ -398,7 +398,8 @@ const onParseError = (error: unknown) =>
  * Build the item for `event` and hand it to `commit`. A synchronous `eventToItem` commits
  * before this returns, so items are in place before an initial subscription does, and its
  * result is returned. An async one is held in `pending` until committed, so awaiting it
- * means the item is in the index.
+ * means the item is in the index. Deleting the event's entry from `pending` cancels the
+ * commit, so an event removed mid-parse stays removed.
  */
 const buildItem = <T>(
   event: TrustedEvent,
@@ -412,9 +413,18 @@ const buildItem = <T>(
     const itemOrPromise = eventToItem(event)
 
     if (itemOrPromise instanceof Promise) {
-      const forget = () => pending.delete(event.id)
+      const isPending = () => pending.get(event.id) === parse
 
-      pending.set(event.id, itemOrPromise.then(commit).catch(onParseError).finally(forget))
+      const parse: Promise<unknown> = itemOrPromise
+        .then(item => {
+          if (isPending()) commit(item)
+        })
+        .catch(onParseError)
+        .finally(() => {
+          if (isPending()) pending.delete(event.id)
+        })
+
+      pending.set(event.id, parse)
     } else {
       changed = Boolean(commit(itemOrPromise))
     }
@@ -467,6 +477,9 @@ export const deriveItemsByKey = <T>({
 
     const removeEvent = (id: string) => {
       const key = mapPop(id, keysById)
+
+      pending.delete(id)
+
       const owns = key !== undefined && idsByKey.get(key) === id
 
       // Only remove if this id still owns the key — replacing a replaceable event
@@ -639,6 +652,7 @@ export const deriveItemsByKeyByUrl = <T>({
     const removeEvent = (id: string) => {
       const byUrl = mapPop(id, keysById)
 
+      pending.delete(id)
       itemsById.delete(id)
 
       if (!byUrl) return false
