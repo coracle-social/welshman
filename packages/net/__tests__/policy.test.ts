@@ -697,6 +697,30 @@ describe("policy", () => {
       cleanup()
     })
 
+    it("should keep backing off when the relay greets us and drops us", async () => {
+      const cleanup = socketPolicyLifecycle(socket)
+
+      socket.emit(SocketEvent.Status, SocketStatus.Open)
+      socket.emit(SocketEvent.Send, ["REQ", "123", {kinds: [1], limit: 0}])
+
+      await vi.advanceTimersByTimeAsync(10000)
+
+      // Every attempt reaches the relay, is answered with a challenge and nothing else, and dies
+      const openSpy = vi.spyOn(socket, "attemptToOpen").mockImplementation(() => {
+        socket.emit(SocketEvent.Status, SocketStatus.Open)
+        socket.emit(SocketEvent.Receive, ["AUTH", "challenge"])
+        socket.emit(SocketEvent.Status, SocketStatus.Closed)
+      })
+
+      socket.emit(SocketEvent.Status, SocketStatus.Closed)
+      await vi.advanceTimersByTimeAsync(60000)
+
+      // Attempts after 0s, 5s, 5s, 7s, 15s and 31s, rather than one every 5s forever
+      expect(openSpy).toHaveBeenCalledTimes(5)
+
+      cleanup()
+    })
+
     it("should start backing off from scratch once the relay answers", async () => {
       const cleanup = socketPolicyLifecycle(socket)
 

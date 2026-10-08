@@ -14,6 +14,8 @@ import {
   copyPriority,
   isRelayOk,
   isRelayEose,
+  isRelayEvent,
+  isRelayNegMsg,
   isRelayClosed,
   isRelayNegErr,
   isRelayCount,
@@ -225,6 +227,14 @@ const PROBE_TIMEOUT = 10
 // The longest a socket with work outstanding waits between attempts to reach its relay
 const RECONNECT_MAX_DELAY = 300
 
+// The relay doing work for us, as opposed to greeting us, refusing us or complaining
+const isAnswer = (message: RelayMessage) =>
+  isRelayEvent(message) ||
+  isRelayEose(message) ||
+  isRelayOk(message) ||
+  isRelayCount(message) ||
+  isRelayNegMsg(message)
+
 /**
  * Owns a socket's lifecycle: closes it once nothing needs it, checks the relay is still there
  * when something does, reopens it, and catches up on what it missed.
@@ -317,8 +327,10 @@ export const socketPolicyLifecycle = (socket: Socket) => {
       lastActivity = now()
       lastReceive = now()
 
-      // Hearing from the relay means it's reachable again, so the next outage starts over
-      attempts = 0
+      // A relay that only greets us and drops us is not reachable, whatever it said
+      if (isAnswer(message)) {
+        attempts = 0
+      }
 
       // Any traffic at all proves the relay is there, so retire the probe
       if (probeId) {

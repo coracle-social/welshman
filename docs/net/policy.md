@@ -27,7 +27,7 @@ Opens a closed socket when a message is sent, unless the socket errored in the l
 
 ### `socketPolicyLifecycle`
 
-Owns a socket's lifecycle. It closes sockets after 30 seconds of inactivity, and reopens ones that still have pending requests or publishes, backing off between attempts. On reopening it re-sends each request bounded at the outage, so a live subscription catches up on what it missed. It forgets a request as soon as its `CLOSE` is queued, so it never replays a request closed while the socket was down. A filter that names gift wraps reaches back two days further, since NIP-59 lets a wrap's timestamp sit up to two days in the past.
+Owns a socket's lifecycle. It closes sockets after 30 seconds of inactivity, and reopens ones that still have pending requests or publishes, backing off between attempts. The backoff resets only once the relay answers a request, so a relay that greets a connection and drops it is retried less and less often. On reopening it re-sends each request bounded at the outage, so a live subscription catches up on what it missed. It forgets a request as soon as its `CLOSE` is queued, so it never replays a request closed while the socket was down. A filter that names gift wraps reaches back two days further, since NIP-59 lets a wrap's timestamp sit up to two days in the past.
 
 A socket that still has work outstanding but has heard nothing for 30 seconds is probed with a `REQ` the relay must answer. If nothing comes back within 10 seconds the socket is closed, which triggers the reconnect above. This catches a socket that reports itself open after its relay has gone, as happens when a device returns from suspend.
 
