@@ -283,7 +283,6 @@ export const getEventsByIdForUrl = ({
   includeDeleted,
 }: EventsByIdForUrlOptions) => {
   const eventsById: EventsById = new Map()
-
   const where = (event: TrustedEvent) => tracker.hasRelay(event.id, url)
 
   for (const event of repository.query(filters, {includeDeleted, where})) {
@@ -297,6 +296,9 @@ export const deriveEventsByIdForUrl = (
   options: EventsByIdForUrlOptions,
 ): Projection<EventsById> => {
   const {url, filters, tracker, repository, includeDeleted} = options
+
+  const belongs = (event: TrustedEvent) =>
+    tracker.hasRelay(event.id, url) && matchFilters(filters, event)
 
   let eventsById = getEventsByIdForUrl(options)
 
@@ -313,7 +315,7 @@ export const deriveEventsByIdForUrl = (
         let dirty = false
 
         for (const event of added) {
-          if (tracker.hasRelay(event.id, url) && matchFilters(filters, event)) {
+          if (belongs(event)) {
             eventsById.set(event.id, event)
             dirty = true
           }
@@ -336,7 +338,7 @@ export const deriveEventsByIdForUrl = (
         if (trackedUrl === url) {
           const event = repository.getEvent(id)
 
-          if (event && tracker.hasRelay(id, trackedUrl) && matchFilters(filters, event)) {
+          if (event && belongs(event)) {
             eventsById.set(id, event)
             set(eventsById)
           }
@@ -395,11 +397,8 @@ const onParseError = (error: unknown) =>
   console.warn("Failed to build an item from an event", error)
 
 /**
- * Build the item for `event` and hand it to `commit`. A synchronous `eventToItem` commits
- * before this returns, so items are in place before an initial subscription does, and its
- * result is returned. An async one is held in `pending` until committed, so awaiting it
- * means the item is in the index. Deleting the event's entry from `pending` cancels the
- * commit, so an event removed mid-parse stays removed.
+ * Build `event`'s item and pass it to `commit`, synchronously when the parse needs no IO.
+ * An async parse waits in `pending`, and deleting its entry there cancels the commit.
  */
 const buildItem = <T>(
   event: TrustedEvent,
@@ -452,41 +451,38 @@ export const deriveItemsByKey = <T>({
 }: ItemsByKeyOptions<T>): ItemCollection<T> => {
   const pending = new Map<string, Promise<unknown>>()
   const itemsByKey = new Map<string, T>()
-  const idsByKey = new Map<string, string>()
-  const keysById = new Map<string, string>()
+  // The event owning each key, so removing a superseded event leaves its successor's entry
+  const ownerByKey = new Map<string, string>()
+  // The key each event contributed, for teardown.
+  const keyById = new Map<string, string>()
 
   const store = readable(itemsByKey, set => {
-    const addEvent = (event: TrustedEvent) => {
-      if (pending.has(event.id)) return
-      if (keysById.has(event.id)) return
+    const commit = (id: string, item: Maybe<T>) => {
+      if (item) {
+        const key = getKey(item)
 
-      const commit = (item: Maybe<T>) => {
-        if (item) {
-          const key = getKey(item)
+        itemsByKey.set(key, item)
+        ownerByKey.set(key, id)
+        keyById.set(id, key)
 
-          itemsByKey.set(key, item)
-          idsByKey.set(key, event.id)
-          keysById.set(event.id, key)
-
-          set(itemsByKey)
-        }
+        set(itemsByKey)
       }
+    }
 
-      buildItem(event, eventToItem, pending, commit)
+    const addEvent = (event: TrustedEvent) => {
+      if (!pending.has(event.id) && !keyById.has(event.id)) {
+        buildItem(event, eventToItem, pending, item => commit(event.id, item))
+      }
     }
 
     const removeEvent = (id: string) => {
-      const key = mapPop(id, keysById)
+      const key = mapPop(id, keyById)
+      const owns = key !== undefined && ownerByKey.get(key) === id
 
       pending.delete(id)
 
-      const owns = key !== undefined && idsByKey.get(key) === id
-
-      // Only remove if this id still owns the key — replacing a replaceable event
-      // reports the old id as removed in the same update that adds the new one,
-      // and the newer event has already taken the key over.
       if (owns) {
-        idsByKey.delete(key)
+        ownerByKey.delete(key)
         itemsByKey.delete(key)
       }
 
@@ -494,23 +490,25 @@ export const deriveItemsByKey = <T>({
     }
 
     // The index outlives a subscription, so a subscribe drops what left the repository meanwhile
-    const events = repository.query(filters, {includeDeleted})
-    const ids = new Set(events.map(event => event.id))
-    let pruned = false
+    const catchUp = () => {
+      const events = repository.query(filters, {includeDeleted})
+      const ids = new Set(events.map(event => event.id))
+      let dirty = false
 
-    for (const id of Array.from(keysById.keys())) {
-      if (!ids.has(id)) {
-        pruned = removeEvent(id) || pruned
+      for (const id of Array.from(keyById.keys())) {
+        if (!ids.has(id)) {
+          dirty = removeEvent(id) || dirty
+        }
+      }
+
+      if (dirty) set(itemsByKey)
+
+      for (const event of events) {
+        addEvent(event)
       }
     }
 
-    if (pruned) {
-      set(itemsByKey)
-    }
-
-    for (const event of events) {
-      addEvent(event)
-    }
+    catchUp()
 
     return on(repository, "update", ({added, removed}: RepositoryUpdate) => {
       for (const event of added) {
@@ -574,10 +572,9 @@ export const deriveItemsByKeyByUrl = <T>({
 }: ItemsByKeyByUrlOptions<T>): ItemCollection<T> => {
   const pending = new Map<string, Promise<unknown>>()
   const itemsByKey = new Map<string, T>()
-  // Which event currently owns each composite key, so a stale event's removal
-  // doesn't clobber the entry a newer replaceable event has taken over.
+  // Which event currently owns each key, as in `deriveItemsByKey`.
   const ownerByKey = new Map<string, string>()
-  // The composite keys contributed by each event, per relay url, for teardown.
+  // The key each event contributed on each relay url, for teardown.
   const keysById = new Map<string, Map<string, string>>()
   // What each event parsed to, so a rebuild re-keys it without parsing it again.
   const itemsById = new Map<string, T>()
@@ -613,8 +610,7 @@ export const deriveItemsByKeyByUrl = <T>({
       return false
     }
 
-    // Key an event's item on each relay the tracker has it on now and it has no key for yet,
-    // so a relay seen while the event was parsing is keyed too.
+    // Keys the item on each tracked relay it lacks a key for, including relays seen mid-parse
     const commit = (id: string, item: Maybe<T>) => {
       let keyed = false
 
@@ -630,7 +626,7 @@ export const deriveItemsByKeyByUrl = <T>({
           }
         }
 
-        // An item no url keys leaves the index alone, so it owes no emission
+        // Emit only when some url keyed the item
         if (keyed && !holding) set(itemsByKey)
       }
 
@@ -653,15 +649,12 @@ export const deriveItemsByKeyByUrl = <T>({
 
     const removeEvent = (id: string) => {
       const byUrl = mapPop(id, keysById)
+      let dirty = false
 
       pending.delete(id)
       itemsById.delete(id)
 
-      if (!byUrl) return false
-
-      let dirty = false
-
-      for (const key of byUrl.values()) {
+      for (const key of byUrl?.values() ?? []) {
         dirty = dropKey(key, id) || dirty
       }
 

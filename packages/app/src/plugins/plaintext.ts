@@ -14,9 +14,8 @@ const priorityOf = (options: SignerOptions) => options.priority ?? 0
  * independent of which signer produced the plaintext — and `appPolicyCacheDecrypt`
  * can layer it onto `user.signer` without recursing back into the wrapped signer.
  *
- * A caller shares a decryption of its ciphertext already asked for at least as urgently,
- * so concurrent callers prompt the signer once. The decryption's outcome is the
- * ciphertext's, except an abort, which is the outcome of the caller that asked for it.
+ * A caller shares a pending decryption requested at least as urgently, so concurrent callers
+ * prompt the signer once. An abort fails only the caller that started the decryption.
  */
 export class Plaintext extends MapPlugin<string> {
   private pending = new Map<string, Decryption>()

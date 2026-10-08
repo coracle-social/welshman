@@ -79,8 +79,7 @@ export class Repository extends Emitter {
   deletes = new Map<string, Pick<TrustedEvent, "id" | "created_at" | "pubkey">[]>()
   deletedBy = new Map<string, string[]>()
   expired = new Map<string, number>()
-  // The id of the version each event replaced. An id rather than the event, since a held event
-  // can be swapped for a changed copy, such as the same event carrying its signature.
+  // The id each event replaced, by id because a held event can be swapped for its signed copy
   replaced = new Map<string, string>()
 
   constructor() {
@@ -226,57 +225,46 @@ export class Repository extends Emitter {
   _sortEvents = (shouldSort: boolean, events: TrustedEvent[]) =>
     shouldSort ? sortEventsDesc(events) : events
 
-  // A selective index (ids, authors, tags) names few candidates, so checking them is cheap
-  // whatever the window. Without one, a page with a ceiling walks the day index and stops once
-  // it is full.
+  // A selective index (ids, authors, tags) wins, then the day walk for a page with a ceiling
   _queryOne = (filter: Filter, options: QueryOptions) => {
     const selective = this._applySelectiveFilter(filter)
+    let found: TrustedEvent[]
 
-    return !selective && filter.limit && filter.until
-      ? this._queryDays(filter, options)
-      : this._queryIndex(selective ?? this._applyBroadFilter(filter), filter, options)
-  }
+    if (!selective && filter.limit && filter.until) {
+      found = this._collect(this._walkDays(filter), filter, options)
+    } else {
+      const applied = selective ?? this._applyBroadFilter(filter)
+      const events = applied ? this._getEvents(applied.ids) : this.dump()
+      const sorted = this._sortEvents(options.shouldSort || Boolean(filter.limit), events)
 
-  // Every event in a day bucket is newer than every event below it, so a full page ends the walk
-  _queryDays = (filter: Filter, options: QueryOptions) => {
-    const limit = filter.limit || Infinity
-    const sinceDay = getDay(filter.since || EPOCH)
-    const untilDay = getDay(filter.until || now())
-    const found: TrustedEvent[] = []
-
-    for (let day = untilDay; day >= sinceDay && found.length < limit; day--) {
-      for (const event of sortEventsDesc(this.eventsByDay.get(day) || [])) {
-        if (found.length >= limit) {
-          break
-        }
-
-        if (this._isIncluded(event, options) && matchFilter(filter, event)) {
-          found.push(event)
-        }
-      }
+      found = this._collect(sorted, applied?.filter ?? filter, options)
     }
 
     return found
+  };
+
+  // Every event in a day bucket is newer than every event in the buckets below it
+  *_walkDays(filter: Filter) {
+    const sinceDay = getDay(filter.since || EPOCH)
+    const untilDay = getDay(filter.until || now())
+
+    for (let day = untilDay; day >= sinceDay; day--) {
+      yield* sortEventsDesc(this.eventsByDay.get(day) || [])
+    }
   }
 
-  // Check the candidates an index named, or every event when no index applies
-  _queryIndex = (
-    applied: AppliedFilter | undefined,
-    originalFilter: Filter,
-    options: QueryOptions,
-  ) => {
-    const filter = applied?.filter || originalFilter
-    const events = applied ? this._getEvents(applied.ids) : this.dump()
-    const sorted = this._sortEvents(options.shouldSort || Boolean(filter.limit), events)
+  // Matching candidates in order, reading no further than the match that reaches the limit
+  _collect = (candidates: Iterable<TrustedEvent>, filter: Filter, options: QueryOptions) => {
+    const limit = filter.limit || Infinity
     const found: TrustedEvent[] = []
 
-    for (const event of sorted) {
-      if (filter.limit && found.length >= filter.limit) {
-        break
-      }
-
+    for (const event of candidates) {
       if (this._isIncluded(event, options) && matchFilter(filter, event)) {
         found.push(event)
+      }
+
+      if (found.length >= limit) {
+        break
       }
     }
 

@@ -16,7 +16,7 @@ import {KindFactory} from "../core/Kind.js"
 
 const offerSpec = tagSpec("offer", isBolt12Offer, canonicalBolt12)
 
-// NIP-B1 asks every offer tag to be canonical, where `offers` drops the ones that are not.
+// NIP-B1 requires every offer tag to be canonical, and `offers` drops the ones that are not
 const offersAreCanonical = (tags: string[][]) => {
   const offerTags = tags.filter(spec(["offer"]))
 

@@ -51,8 +51,7 @@ export const decodeBolt12 = (encoded: string, prefix: string) => {
       }
     }
 
-    // Whatever is left over pads the last character out, so it is shorter than a character and
-    // zero. A whole character left over is not padding, and would let two strings mean one value.
+    // Padding fills out the last character, so it is under five bits and all zero
     if (valid && bits < 5 && (acc & ((1 << bits) - 1)) === 0) {
       bytes = Uint8Array.from(decoded)
     }

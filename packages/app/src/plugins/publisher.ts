@@ -1,10 +1,19 @@
 import type {Subscriber} from "svelte/store"
-import {get, writable} from "svelte/store"
-import {append, TaskQueue, ensurePlural, remove, defer, sleep, now, uniq} from "@welshman/lib"
+import {writable} from "svelte/store"
+import {
+  addToMapKey,
+  append,
+  TaskQueue,
+  ensurePlural,
+  remove,
+  defer,
+  sleep,
+  now,
+  uniq,
+} from "@welshman/lib"
 import {
   HashedEvent,
   EventTemplate,
-  SignedEvent,
   isSignedEvent,
   WRAPPED_KINDS,
   prep,
@@ -395,9 +404,11 @@ export const STAGES: Stage[] = [delayStage, wrapStage, powStage, signStage, send
 export class Publisher {
   history = writable<Publication[]>([])
 
-  // What cleanup has to stop. Not `history`, which a retry trims while the attempts it replaces
-  // may still be running.
+  // What cleanup stops, since a retry drops attempts from `history` that may still be running
   private unsettled = new Set<Publication>()
+
+  // The publications sharing each event's repository copy, which goes when the last is aborted
+  private holders = new Map<string, Set<Publication>>()
 
   // Paces how fast publications enter the pipeline.
   queue = new TaskQueue<Publication>({
@@ -416,6 +427,8 @@ export class Publisher {
       for (const publication of this.unsettled) {
         publication.abort()
       }
+
+      this.holders.clear()
     })
   }
 
@@ -427,10 +440,18 @@ export class Publisher {
     const event = prep(request.event, User.require(this.app).pubkey)
     const publication = new Publication(request, event)
 
-    this.observe(publication)
+    this.holdCopy(publication)
+    this.trackSent(publication)
     this.unsettled.add(publication)
-    publication.settled().then(() => this.unsettled.delete(publication))
     this.history.update($history => append(publication, $history))
+
+    publication.subscribe(({state}) => {
+      if (state.stage === "aborted") {
+        this.history.update($history => remove(publication, $history))
+      }
+    })
+
+    publication.settled().then(() => this.unsettled.delete(publication))
     this.queue.push(publication)
 
     return publication
@@ -487,63 +508,77 @@ export class Publisher {
     }
   }
 
-  // An aborted publication withdraws its copy unless another publication still holds that id:
-  // a gift wrap of the same rumor to another recipient, or a retry of the same event.
-  private isHeldElsewhere(publication: Publication, id: string) {
-    return get(this.history).some(
-      p => p !== publication && p.event.id === id && p.state.stage !== "aborted",
-    )
+  private hold(publication: Publication, event: HashedEvent) {
+    addToMapKey(this.holders, event.id, publication)
+    this.app.repository.publish(event)
   }
 
-  // The tracker records where the sent event is: the event itself, or for a gift wrap the wrap,
-  // whose relays the wrap manager copies onto the rumor as it does for a wrap received.
-  private observe(publication: Publication) {
-    const {repository, tracker, wrapManager} = this.app
-    const {recipient} = publication.request
-    let current = publication.event
-    let registeredWrap: SignedEvent | undefined
+  private release(publication: Publication, id: string) {
+    const holders = this.holders.get(id)
 
-    const trackSent = (id: string) => {
+    holders?.delete(publication)
+
+    if (!holders?.size) {
+      this.holders.delete(id)
+      this.app.repository.removeEvent(id)
+    }
+  }
+
+  // The repository shows a publication's event before any relay has it, and keeps it in step.
+  private holdCopy(publication: Publication) {
+    let current = publication.event
+
+    this.hold(publication, current)
+
+    publication.subscribe(({state, event}) => {
+      // Only pow changes the id. A signature on the same id is taken in place.
+      if (event.id !== current.id) {
+        this.release(publication, current.id)
+        this.hold(publication, event)
+      } else if (event !== current) {
+        this.app.repository.publish(event)
+      }
+
+      current = event
+
+      if (state.stage === "aborted") {
+        this.release(publication, current.id)
+      }
+    })
+  }
+
+  // Tracks the event that reaches relays: the event itself, or for a gift wrap the wrap
+  private trackSent(publication: Publication) {
+    const {tracker, wrapManager} = this.app
+    const {recipient} = publication.request
+    let sentId = recipient ? undefined : publication.event.id
+
+    const track = (id: string) => {
       for (const url of publication.relays) {
         tracker.track(id, url)
       }
     }
 
-    if (!recipient) {
-      trackSent(current.id)
+    if (sentId) {
+      track(sentId)
     }
 
-    repository.publish(current)
-
     publication.subscribe(({state, event, wrap}) => {
-      // Only pow changes the id, and for a gift wrap it mines the wrap rather than the rumor.
-      if (event.id !== current.id) {
+      // Pow can re-hash the event before it is sent
+      if (!recipient && sentId && event.id !== sentId) {
         for (const url of publication.relays) {
-          tracker.removeRelay(current.id, url)
+          tracker.removeRelay(sentId, url)
         }
 
-        trackSent(event.id)
-        repository.removeEvent(current.id)
+        sentId = event.id
+        track(sentId)
       }
 
-      if (event !== current) {
-        repository.publish(event)
-        current = event
-      }
-
-      if (
-        recipient &&
-        wrap &&
-        isSignedEvent(wrap) &&
-        state.stage === "sending" &&
-        !registeredWrap
-      ) {
-        registeredWrap = wrap
-        trackSent(wrap.id)
+      if (recipient && !sentId && wrap && isSignedEvent(wrap) && state.stage === "sending") {
+        sentId = wrap.id
+        track(sentId)
         wrapManager.add({recipient, wrap, rumor: event})
       }
-
-      const sentId = recipient ? registeredWrap?.id : current.id
 
       if (sentId && "results" in state) {
         for (const {relay, status} of Object.values(state.results)) {
@@ -553,16 +588,8 @@ export class Publisher {
         }
       }
 
-      if (state.stage === "aborted") {
-        if (registeredWrap) {
-          wrapManager.remove(registeredWrap.id)
-        }
-
-        if (!this.isHeldElsewhere(publication, current.id)) {
-          repository.removeEvent(current.id)
-        }
-
-        this.history.update($history => remove(publication, $history))
+      if (recipient && sentId && state.stage === "aborted") {
+        wrapManager.remove(sentId)
       }
     })
   }

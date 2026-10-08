@@ -26,10 +26,7 @@ import type {KindContext} from "../core/Kind.js"
 
 const isTargetTag = tagMatcher(tagSpec(["e", "a", "k"]))
 
-/**
- * The first NIP-B1 rule a zap intent's tags break, or undefined when they keep them all. The
- * intent's writer refuses to render one that breaks a rule, and a zap embedding one is invalid.
- */
+/** The first NIP-B1 rule a zap intent's tags break, or undefined if they keep them all. */
 export const getBolt12ZapIntentError = (tags: string[][]) => {
   const count = (key: string) => tags.filter(spec([key])).length
   const amount = tagValue(msatsTags("amount"), tags)

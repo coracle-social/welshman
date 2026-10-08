@@ -22,7 +22,7 @@ import {
   tagValues,
   parseVerifiedEvent,
 } from "@welshman/util"
-import type {SignedEvent, TrustedEvent} from "@welshman/util"
+import type {EventContent, SignedEvent, TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
 import {EventWriter} from "../core/EventWriter.js"
 import {EventQuery} from "../core/EventQuery.js"
@@ -63,29 +63,13 @@ const agreesOn = (key: string, a: string[][], b: string[][]) => {
 const readOffer = (context: KindContext, offer: TrustedEvent) =>
   new Bolt12OfferReader(BOLT12_OFFER, context, offer)
 
-// What NIP-B1 checks a zap by before anyone signs it, so a writer can check it too.
-type Bolt12ZapDraft = {
-  content: string
-  tags: string[][]
-}
-
-type Bolt12ZapParts = {
-  intent: TrustedEvent
-  offer: TrustedEvent
-  offers: string[]
-  amount: number
-  proof: string
-}
+// The parts of a claim that exist before the zap is signed
+type Bolt12ZapParts = Pick<Bolt12ZapClaim, "intent" | "offer" | "offers" | "amount" | "proof">
 
 type Bolt12ZapCheck = {ok: true; parts: Bolt12ZapParts} | {ok: false; error: string}
 
-/**
- * The NIP-B1 rules a zap answers to whoever signs it: both embedded events, the structure of
- * the zap and its intent, that the zap repeats what the payer signed, and that the recipient
- * announced the offer before the intent named it. Returns the first rule broken, or the parts
- * a claim is made of.
- */
-const checkBolt12Zap = (context: KindContext, {content, tags}: Bolt12ZapDraft): Bolt12ZapCheck => {
+// The first NIP-B1 rule a zap breaks whoever signs it, or the parts of its claim
+const checkBolt12Zap = (context: KindContext, {content, tags}: EventContent): Bolt12ZapCheck => {
   const intent = parseVerifiedEvent(tagValue(tagSpec("description"), tags), BOLT12_ZAP_INTENT)
   const offer = parseVerifiedEvent(tagValue(tagSpec("offer_event"), tags), BOLT12_OFFER)
   const offerReader = offer && readOffer(context, offer)
@@ -234,9 +218,9 @@ export class Bolt12ZapReader extends EventReader {
   }
 
   /**
-   * Runs NIP-B1 validation as far as nostr reaches: `checkBolt12Zap`, plus that the payer
-   * signed both the zap and its intent. Returns undefined when any of that fails.
-   * `getBolt12ZapPaymentHash` is the lightning half, and it reads the claim this returns.
+   * Runs NIP-B1's nostr-side validation, including that the payer signed both the zap and
+   * its intent, and returns undefined on failure. `getBolt12ZapPaymentHash` is the lightning
+   * half, and it reads the claim this returns.
    */
   validate(): Bolt12ZapClaim | undefined {
     const check = checkBolt12Zap(this.context, {content: this.event.content, tags: this.tags()})
@@ -254,8 +238,7 @@ export class Bolt12ZapReader extends EventReader {
     return claim
   }
 
-  // An anonymous zap's key exists only once it is signed, so only a reader can check these.
-  // Reading `P` through `payer` would pass a malformed one off as an anonymous zap.
+  // Reads `P` raw, since `payer` would pass a malformed one off as an anonymous zap
   private isSignedByPayer(intent: TrustedEvent) {
     const {pubkey} = this.event
 

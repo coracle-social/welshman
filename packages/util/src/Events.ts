@@ -85,8 +85,7 @@ export const verifyEvent = (() => {
   }
 })()
 
-// An event embedded as JSON (in a tag or the content) arrives from no relay, so its signature is
-// checked here. Undefined unless it is a validly signed event of `kind`.
+// An event embedded as JSON, if it is a validly signed event of `kind`
 export const parseVerifiedEvent = (json: string | undefined, kind: number) => {
   const event = parseJson<TrustedEvent>(json)
   let result: SignedEvent | undefined

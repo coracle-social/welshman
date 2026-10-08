@@ -158,6 +158,18 @@ describe("publisher retries", () => {
     expect(retried.state.stage).toBe("aborted")
   })
 
+  it("keeps the event while an attempt it replaced is still sending and the retry is aborted", async () => {
+    const app = await makeApp(slowSigner(2000))
+    const publisher = app.use(Publisher)
+    const publication = publisher.publish({event: note("hi"), relays: [url]})
+
+    publisher.retry(publication).abort()
+
+    expect(app.repository.getEvent(publication.event.id)).toBeDefined()
+
+    app.cleanup()
+  })
+
   it("drops the attempts it replaces from history, so a view of the event sees only the retry", async () => {
     const app = await makeApp()
     const publisher = app.use(Publisher)
