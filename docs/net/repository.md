@@ -10,7 +10,7 @@
 
 **Methods:**
 - `publish(event, {shouldNotify = true})` - Stores an event and returns whether it changed anything. It returns `false` for an event it already holds unchanged, or one older than the stored version at the same address. An event under a stored id with different content, such as an unsigned event gaining its signature, replaces the stored copy in place. Its `"update"` reports removals the same way as `load`, so an event that arrives already deleted or expired is in `removed` along with anything it superseded
-- `query(filters, {includeDeleted = false, includeExpired = false, shouldSort = true})` - Returns the events matching any filter, newest first unless `shouldSort` is `false`. Each filter's `limit` applies to that filter
+- `query(filters, {includeDeleted = false, includeExpired = false, shouldSort = true, where})` - Returns the events matching any filter, newest first unless `shouldSort` is `false`. `where` is a predicate for constraints a filter can't express, such as which relay holds the event. Each filter's `limit` applies to that filter
 - `getEvent(idOrAddress)` - Looks an event up by id, or by address (`kind:pubkey:d`) for a replaceable
 - `hasEvent(event)` - Whether the repository holds this event, or a version at its address at least as new
 - `removeEvent(idOrAddress)` - Removes an event from every index, restores the version it replaced, and withdraws any deletes it asserted

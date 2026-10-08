@@ -182,6 +182,28 @@ describe("getEventsByIdForUrl", () => {
 
     expect(Array.from(eventsById.keys())).toEqual([here.id])
   })
+
+  it("counts a limit against the relay's events, not every relay's", () => {
+    const repository = new Repository()
+    const tracker = new Tracker()
+    const events = Array.from({length: 10}, (_, i) =>
+      makeEvent({id: i.toString(16).repeat(64), created_at: i}),
+    )
+
+    for (const event of events) {
+      repository.publish(event)
+      tracker.track(event.id, event.created_at < 2 ? url : "wss://b.example")
+    }
+
+    const eventsById = getEventsByIdForUrl({
+      url,
+      filters: [{kinds: [NOTE], limit: 3}],
+      repository,
+      tracker,
+    })
+
+    expect(new Set(eventsById.keys())).toEqual(new Set([events[0].id, events[1].id]))
+  })
 })
 
 // Each store is a `Projection` whose getter is the matching one-shot query

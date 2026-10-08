@@ -34,6 +34,8 @@ export type QueryOptions = {
   includeDeleted: boolean
   includeExpired: boolean
   shouldSort: boolean
+  /** A constraint the filters can't express, applied before any limit counts the event. */
+  where?: (event: TrustedEvent) => boolean
 }
 
 export type RepositoryUpdate = {
@@ -162,9 +164,14 @@ export class Repository extends Emitter {
 
   query = (
     filters: Filter[],
-    {includeDeleted = false, includeExpired = false, shouldSort = true} = {},
+    {
+      includeDeleted = false,
+      includeExpired = false,
+      shouldSort = true,
+      where,
+    }: Partial<QueryOptions> = {},
   ) => {
-    const options = {includeDeleted, includeExpired, shouldSort}
+    const options = {includeDeleted, includeExpired, shouldSort, where}
     const result = filters.map(filter => this._queryOne(filter, options))
 
     // Only re-sort if we had multiple filters, or if our single filter wasn't sorted
@@ -281,8 +288,10 @@ export class Repository extends Emitter {
     return found
   }
 
-  _isIncluded = (event: TrustedEvent, {includeDeleted, includeExpired}: QueryOptions) =>
-    (includeDeleted || !this.isDeleted(event)) && (includeExpired || !this.isExpired(event))
+  _isIncluded = (event: TrustedEvent, {includeDeleted, includeExpired, where}: QueryOptions) =>
+    (includeDeleted || !this.isDeleted(event)) &&
+    (includeExpired || !this.isExpired(event)) &&
+    (!where || where(event))
 
   _getEvents = (ids: Iterable<string>) => {
     const events: TrustedEvent[] = []
