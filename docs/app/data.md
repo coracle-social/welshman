@@ -149,6 +149,21 @@ await relays.hasNip(url, 50)                 // boolean — does the relay suppo
 await relays.hasNegentropy(url)              // boolean — NIP-77 / negentropy support
 ```
 
+A document's payment fields are read off the [`Relay`](../util/relay) itself: `relay.isPaid()`, `relay.payments_url` and `relay.fees`.
+
+## Relay notifications
+
+The latest `NOTIFY` ([message](../net/message)) per relay url, in memory.
+
+```typescript
+const notify = app.use(Notify)
+
+notify.one(url)                              // Readable<Maybe<NotifyItem>>
+notify.get(url)                              // Maybe<NotifyItem> — {url, message, receivedAt}
+```
+
+A relay sends one to tell the authenticated user something about their account, and replaces it by sending another, so only the most recent message per relay is kept. [`appPolicyNotify`](./app#default-policies) is what fills the store. A relay may resend its latest message after every AUTH, so anything that needs a message to stay dismissed persists that itself.
+
 ## Relay management (NIP-86)
 
 ```typescript

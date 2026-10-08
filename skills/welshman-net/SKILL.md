@@ -181,7 +181,7 @@ Emits `"update"` with a `RepositoryUpdate` whenever events are added or removed.
 | Export | Description |
 |--------|-------------|
 | `RelayMessageType` / `ClientMessageType` | Enums of relay→client and client→relay message types |
-| `isRelayEvent()`, `isRelayEose()`, `isRelayOk()`, `isRelayAuth()`, `isRelayClosed()`, `isRelayCount()`, … | Type guards for relay messages |
+| `isRelayEvent()`, `isRelayEose()`, `isRelayOk()`, `isRelayAuth()`, `isRelayClosed()`, `isRelayCount()`, `isRelayNotify()`, … | Type guards for relay messages |
 | `isClientReq()`, `isClientEvent()`, `isClientClose()`, `isClientAuth()`, `isClientCount()`, … | Type guards for client messages |
 | `matchReason(prefix, reason)` / `RelayReasonPrefix` | Match a relay's machine-readable `OK`/`CLOSED` reason prefix (`auth-required:`, `restricted:`, …) |
 

@@ -4,6 +4,24 @@ import {displayRelayUrl} from "@welshman/util"
 // nostr events — they're fetched over HTTP from each relay — so `Relay` is a
 // plain domain object rather than a reader/writer pair. `RelayInfo` is the raw
 // (untrusted) json a relay serves; `Relay` normalizes it.
+/**
+ * One entry in a NIP-11 `fees` category. `unit` is either `msats` or an ISO 4217
+ * currency code, in which case `amount` is in that currency's minor unit, so it
+ * stays an integer. `period` is in seconds.
+ */
+export type RelayFee = {
+  amount: number
+  unit: string
+  period?: number
+  kinds?: number[]
+}
+
+export type RelayFees = {
+  admission?: RelayFee[]
+  subscription?: RelayFee[]
+  publication?: RelayFee[]
+}
+
 export type RelayInfo = {
   icon?: string
   banner?: string
@@ -18,6 +36,8 @@ export type RelayInfo = {
   supported_nips?: string[]
   privacy_policy?: string
   terms_of_service?: string
+  payments_url?: string
+  fees?: RelayFees
   limitation?: {
     min_pow_difficulty?: number
     payment_required?: boolean
@@ -43,6 +63,8 @@ export class Relay {
   supported_nips?: string[]
   privacy_policy?: string
   terms_of_service?: string
+  payments_url?: string
+  fees?: RelayFees
   limitation?: {
     min_pow_difficulty?: number
     payment_required?: boolean
@@ -81,5 +103,10 @@ export class Relay {
   // Whether this relay advertises support for the given NIP.
   hasNip(nip: number | string) {
     return this.supported_nips?.includes(String(nip)) ?? false
+  }
+
+  // Whether this relay charges for access and says where to pay.
+  isPaid() {
+    return Boolean(this.limitation?.payment_required && this.payments_url)
   }
 }

@@ -2,7 +2,9 @@
 
 The `Relay` module validates, normalizes, and classifies Nostr relay URLs.
 
-NIP-11 relay information documents are modeled by the `Relay` class in `@welshman/domain`, which owns the profile display (`relay.display()`) and capability checks (`relay.hasNegentropy()`, `relay.hasNip()`). `relay.displayUrl()` delegates to `displayRelayUrl` below.
+NIP-11 relay information documents are modeled by the `Relay` class in `@welshman/domain`, which owns the profile display (`relay.display()`) and capability checks (`relay.hasNegentropy()`, `relay.hasNip()`, `relay.isPaid()`). `relay.displayUrl()` delegates to `displayRelayUrl` below.
+
+`relay.isPaid()` is true when the document sets `limitation.payment_required` and a `payments_url`, which together mean the relay charges and says where to pay. `relay.fees` holds the schedule as `RelayFee` entries: `amount` with a `unit` of `msats` or an ISO 4217 currency code, in which case the amount is in that currency's minor unit, plus an optional `period` in seconds. Entries in one category are alternatives rather than a sum.
 
 ## API
 

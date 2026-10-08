@@ -1,5 +1,19 @@
 import {describe, expect, it} from "vitest"
-import {RelayReasonPrefix, isTerminalReason, matchReason} from "../src/message"
+import {
+  RelayReasonPrefix,
+  isTerminalReason,
+  isRelayNotice,
+  isRelayNotify,
+  matchReason,
+} from "../src/message"
+
+describe("isRelayNotify", () => {
+  it("should match a NOTIFY and nothing else", () => {
+    expect(isRelayNotify(["NOTIFY", "your membership lapsed"])).toBe(true)
+    expect(isRelayNotify(["NOTICE", "your membership lapsed"])).toBe(false)
+    expect(isRelayNotice(["NOTIFY", "your membership lapsed"])).toBe(false)
+  })
+})
 
 describe("matchReason", () => {
   it("should match a bare nip 01 prefix", () => {

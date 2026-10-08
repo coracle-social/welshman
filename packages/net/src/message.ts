@@ -4,6 +4,7 @@ import type {SignedEvent, Filter} from "@welshman/util"
 
 export enum RelayMessageType {
   Notice = "NOTICE",
+  Notify = "NOTIFY",
   Auth = "AUTH",
   Closed = "CLOSED",
   Count = "COUNT",
@@ -17,6 +18,8 @@ export enum RelayMessageType {
 export type RelayMessage = any[]
 
 export type RelayNoticePayload = [string]
+
+export type RelayNotifyPayload = [string]
 
 export type RelayAuthPayload = [string]
 
@@ -36,6 +39,8 @@ export type RelayOkPayload = [string, boolean, string]
 
 export type RelayNotice = [RelayMessageType.Notice, ...RelayNoticePayload]
 
+export type RelayNotify = [RelayMessageType.Notify, ...RelayNotifyPayload]
+
 export type RelayAuth = [RelayMessageType.Auth, ...RelayAuthPayload]
 
 export type RelayClosed = [RelayMessageType.Closed, ...RelayClosedPayload]
@@ -53,6 +58,8 @@ export type RelayNegMsg = [RelayMessageType.NegMsg, ...RelayNegMsgPayload]
 export type RelayOk = [RelayMessageType.Ok, ...RelayOkPayload]
 
 export const isRelayNotice = (m: RelayMessage): m is RelayNotice => m[0] === RelayMessageType.Notice
+
+export const isRelayNotify = (m: RelayMessage): m is RelayNotify => m[0] === RelayMessageType.Notify
 
 export const isRelayAuth = (m: RelayMessage): m is RelayAuth => m[0] === RelayMessageType.Auth
 

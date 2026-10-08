@@ -127,6 +127,7 @@ type AppPolicy = (app: IApp) => Unsubscriber
 |---|---|
 | `appPolicyIngest` | Verifies events received on any socket (skipping DVM and ephemeral kinds) and writes them to the `repository` and `tracker`, which populates every repository-backed store. |
 | `appPolicyRelayStats` | Pipes socket activity into the [`RelayStats`](./routing#relay-quality) store. |
+| `appPolicyNotify` | Pipes `NOTIFY` messages into the [`Notify`](./data#relay-notifications) store. |
 | `appPolicyWraps` | Enqueues existing and newly-arriving gift-wrap events for unwrapping. |
 | `appPolicyCacheDecrypt` | Wraps the user's signer so NIP-04/NIP-44 decryption consults the `Plaintext` cache before doing real work. No-op when there is no user. |
 | `appPolicyLogSignerMethods` | Wraps the user's signer to log every call to the [`Logger`](#logging). No-op when there is no user. |

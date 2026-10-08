@@ -6,6 +6,7 @@ Types and type guards for nostr protocol messages.
 
 **Enums:**
 - `RelayMessageType.Notice` - Human-readable notice from relay
+- `RelayMessageType.Notify` - Notification for the authenticated user
 - `RelayMessageType.Auth` - Authentication challenge
 - `RelayMessageType.Closed` - Subscription closed
 - `RelayMessageType.Count` - Count result
@@ -17,11 +18,13 @@ Types and type guards for nostr protocol messages.
 
 **Type Definitions:**
 - `RelayMessage` - Base relay message type
-- `RelayNotice`, `RelayAuth`, `RelayClosed`, `RelayCount`, `RelayEose`, `RelayEvent`, `RelayNegErr`, `RelayNegMsg`, `RelayOk` - Specific message types
+- `RelayNotice`, `RelayNotify`, `RelayAuth`, `RelayClosed`, `RelayCount`, `RelayEose`, `RelayEvent`, `RelayNegErr`, `RelayNegMsg`, `RelayOk` - Specific message types
 - `RelayNoticePayload`, `RelayAuthPayload`, `RelayClosedPayload`, etc. - Payload types for each message
 
 **Type Guards:**
-- `isRelayNotice()`, `isRelayAuth()`, `isRelayClosed()`, `isRelayCount()`, `isRelayEose()`, `isRelayEvent()`, `isRelayNegErr()`, `isRelayNegMsg()`, `isRelayOk()`
+- `isRelayNotice()`, `isRelayNotify()`, `isRelayAuth()`, `isRelayClosed()`, `isRelayCount()`, `isRelayEose()`, `isRelayEvent()`, `isRelayNegErr()`, `isRelayNegMsg()`, `isRelayOk()`
+
+A `NOTIFY` is addressed to the authenticated user rather than to a subscription, and a relay replaces one by sending another. [`Notify`](../app/data#relay-notifications) keeps the latest one per relay.
 
 ## Client Message Types
 

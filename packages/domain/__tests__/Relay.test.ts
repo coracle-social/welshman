@@ -67,4 +67,42 @@ describe("Relay", () => {
       expect(relay.hasNip(9999)).toBe(false)
     })
   })
+
+  describe("isPaid", () => {
+    it("is true when payment is required and a payments url is given", () => {
+      const relay = new Relay("wss://r/", {
+        limitation: {payment_required: true},
+        payments_url: "https://r/pay",
+      })
+
+      expect(relay.isPaid()).toBe(true)
+    })
+
+    it("is false without a payments url, since there is nowhere to pay", () => {
+      expect(new Relay("wss://r/", {limitation: {payment_required: true}}).isPaid()).toBe(false)
+    })
+
+    it("is false for a relay that advertises a price it does not charge", () => {
+      const relay = new Relay("wss://r/", {
+        payments_url: "https://r/pay",
+        fees: {subscription: [{amount: 500, unit: "USD", period: 2592000}]},
+      })
+
+      expect(relay.isPaid()).toBe(false)
+    })
+
+    it("is false for a plain relay", () => {
+      expect(new Relay("wss://r/").isPaid()).toBe(false)
+    })
+  })
+
+  describe("fees", () => {
+    it("copies a currency fee schedule through the constructor", () => {
+      const relay = new Relay("wss://r/", {
+        fees: {subscription: [{amount: 500, unit: "USD", period: 2592000}]},
+      })
+
+      expect(relay.fees?.subscription).toEqual([{amount: 500, unit: "USD", period: 2592000}])
+    })
+  })
 })

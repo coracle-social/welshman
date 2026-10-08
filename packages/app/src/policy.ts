@@ -6,6 +6,7 @@ import {SocketEvent, isRelayEvent, makeSocketPolicyAuth} from "@welshman/net"
 import type {RelayMessage, Socket} from "@welshman/net"
 import type {IApp} from "./app.js"
 import {RelayStats} from "./plugins/relayStats.js"
+import {Notify} from "./plugins/notify.js"
 import {Wraps} from "./plugins/wraps.js"
 import {BlockedRelayLists} from "./plugins/blockedRelayLists.js"
 import {Plaintext} from "./plugins/plaintext.js"
@@ -97,6 +98,13 @@ export const appPolicyRelayStats: AppPolicy = app => {
 }
 
 /**
+ * Listens for NOTIFY messages on the app's pool into the Notify store.
+ */
+export const appPolicyNotify: AppPolicy = app => {
+  return app.pool.subscribe(app.use(Notify).monitorSocket)
+}
+
+/**
  * Watches the app's repository for gift wraps (existing and incoming) and
  * feeds them to the unwrap queue.
  */
@@ -166,6 +174,7 @@ export const appPolicyLogSignerMethods: AppPolicy = app => {
 export const defaultAppPolicies: AppPolicy[] = [
   appPolicyIngest,
   appPolicyRelayStats,
+  appPolicyNotify,
   appPolicyWraps,
   appPolicyCacheDecrypt,
   appPolicyLogSignerMethods,
