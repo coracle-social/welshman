@@ -73,7 +73,9 @@ export class Repository extends Emitter {
   deletes = new Map<string, Pick<TrustedEvent, "id" | "created_at" | "pubkey">[]>()
   deletedBy = new Map<string, string[]>()
   expired = new Map<string, number>()
-  replaced = new Map<string, TrustedEvent>()
+  // The id of the version each event replaced. An id rather than the event, since a held event
+  // can be swapped for a changed copy, such as the same event carrying its signature.
+  replaced = new Map<string, string>()
 
   constructor() {
     super()
@@ -148,9 +150,10 @@ export class Repository extends Emitter {
       this._unindex(event)
 
       // Put back whatever this event superseded, unless it was itself removed in the meantime
-      const replaced = mapPop(event.id, this.replaced)
+      const replacedId = mapPop(event.id, this.replaced)
+      const replaced = replacedId && this.eventsById.get(replacedId)
 
-      if (isCurrent && replaced && this.eventsById.get(replaced.id) === replaced) {
+      if (isCurrent && replaced) {
         this.eventsByAddress.set(getAddress(replaced), replaced)
         this._index(replaced)
       }
@@ -406,7 +409,7 @@ export class Repository extends Emitter {
       removed.add(duplicate.id)
 
       // Remember what this event replaced so it can be restored if this event is later removed
-      this.replaced.set(event.id, duplicate)
+      this.replaced.set(event.id, duplicate.id)
     }
 
     // Add our new event by id

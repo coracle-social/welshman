@@ -138,6 +138,20 @@ describe("Repository", () => {
       expect(pluck("id", page)).toEqual([older.id, other.id])
     })
 
+    it("restores a replaced version that received its signature after it was replaced", () => {
+      const pubkey = randomHex()
+      const older = createEvent(MUTES, {created_at: now() - 100, pubkey})
+      const newer = createEvent(MUTES, {created_at: now(), pubkey})
+      const {sig, ...unsigned} = older
+
+      repo.publish(unsigned as TrustedEvent)
+      repo.publish(newer)
+      repo.publish({...unsigned, sig})
+      repo.removeEvent(newer.id)
+
+      expect(repo.getEvent(getAddress(older))?.sig).toBe(sig)
+    })
+
     it("should handle replaceable events", () => {
       const pubkey = randomHex()
       const event1 = createEvent(MUTES, {created_at: now() - 100, pubkey})
