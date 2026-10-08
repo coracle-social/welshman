@@ -39,9 +39,7 @@ export class SignerQueue {
     this.queue.push({
       priority: options.priority ?? 0,
       run: () => {
-        if (!options.signal?.aborted) {
-          signerCall(thunk(), options).then(result.resolve, result.reject)
-        }
+        signerCall(thunk, options).then(result.resolve, result.reject)
 
         // The lane is given back when welshman stops waiting, not always when the signer answered
         return settled

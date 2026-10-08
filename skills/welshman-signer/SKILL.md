@@ -54,7 +54,7 @@ Every method takes the same options, since every one of them is a request to the
 | `WrappedSigner` | An `ISigner` that routes every method through a `SignerMethodWrapper`, and an `Emitter`. `@welshman/app` layers decrypt-caching and signer logging onto the user's signer this way, via `User.wrapSigner(wrap)` |
 | `SignerMethodWrapper` | `<T>(method: string, thunk: () => Promise<T>, args: unknown[]) => Promise<T>` — `method` is `"sign"`, `"getPubkey"`, `"nip44.decrypt"`, …; `args` lets a wrapper key a cache off the call's arguments |
 | `SignerQueue` | One signer's lane: `push(thunk, options)` runs requests one at a time in descending priority order. `Nip07Signer` and `Nip55Signer` each hold one |
-| `signerCall(call, options)` | Bounds one request by `SIGNER_TIMEOUT` (30 s) and the caller's `AbortSignal`. What `Nip46Signer` uses in place of a queue |
+| `signerCall(request, options)` | Starts `request` (a thunk) and bounds it by `SIGNER_TIMEOUT` (30 s) and the caller's `AbortSignal`. What `Nip46Signer` uses in place of a queue |
 
 ### Nip01Signer (local keypair)
 

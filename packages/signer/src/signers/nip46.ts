@@ -562,22 +562,22 @@ export class Nip46Signer implements ISigner {
   constructor(public broker: Nip46Broker) {
     this.nip04 = {
       encrypt: (pubkey: string, message: string, options?: SignerOptions) =>
-        signerCall(this.broker.nip04Encrypt(pubkey, message), options),
+        signerCall(() => this.broker.nip04Encrypt(pubkey, message), options),
       decrypt: (pubkey: string, message: string, options?: SignerOptions) =>
-        signerCall(this.broker.nip04Decrypt(pubkey, message), options),
+        signerCall(() => this.broker.nip04Decrypt(pubkey, message), options),
     }
 
     this.nip44 = {
       encrypt: (pubkey: string, message: string, options?: SignerOptions) =>
-        signerCall(this.broker.nip44Encrypt(pubkey, message), options),
+        signerCall(() => this.broker.nip44Encrypt(pubkey, message), options),
       decrypt: (pubkey: string, message: string, options?: SignerOptions) =>
-        signerCall(this.broker.nip44Decrypt(pubkey, message), options),
+        signerCall(() => this.broker.nip44Decrypt(pubkey, message), options),
     }
   }
 
   getPubkey = async (options?: SignerOptions) => {
     if (!this.pubkey) {
-      this.pubkey = await signerCall(this.broker.getPublicKey(), options)
+      this.pubkey = await signerCall(() => this.broker.getPublicKey(), options)
     }
 
     return this.pubkey
@@ -585,7 +585,7 @@ export class Nip46Signer implements ISigner {
 
   sign = (template: StampedEvent, options: SignerOptions = {}) =>
     signerCall(
-      this.getPubkey(options).then(pubkey => this.broker.signEvent(prep(template, pubkey))),
+      () => this.getPubkey(options).then(pubkey => this.broker.signEvent(prep(template, pubkey))),
       options,
     )
 

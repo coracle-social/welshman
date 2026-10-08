@@ -128,4 +128,15 @@ describe("SignerQueue", () => {
     await expect(queue.push(async () => "next")).resolves.toBe("next")
     expect(calls).toBe(0)
   })
+
+  it("settles a request that throws instead of rejecting", async () => {
+    const queue = new SignerQueue()
+
+    const thrown = queue.push((): Promise<string> => {
+      throw new Error("no extension")
+    })
+
+    await expect(thrown).rejects.toThrow("no extension")
+    await expect(queue.push(async () => "next")).resolves.toBe("next")
+  })
 })

@@ -49,4 +49,4 @@ class SignerQueue {
 
 The lane one signer's requests go down, in descending priority order and one at a time. A request is bounded by `SIGNER_TIMEOUT` (30 seconds) and by the caller's `signal`; either one gives the lane back to the next request, which is not the same as cancelling the one that lost it — nothing recalls a request from an extension or a native app, so it may still answer with nobody listening.
 
-`signerCall(call, options)` applies that same bound to a single request, and is what `Nip46Signer` uses in place of a queue.
+`signerCall(request, options)` applies that same bound to a single request, starting `request` itself so an aborted one is never sent, and is what `Nip46Signer` uses in place of a queue.

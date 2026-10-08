@@ -125,8 +125,11 @@ export const SIGNER_TIMEOUT = 30_000
  * runs — an extension, a native app and a bunker all answer when they answer, and offer
  * no way to recall a request. The caller's `AbortSignal` and `SIGNER_TIMEOUT` each give up
  * on it, so the signer may still answer afterwards with nobody listening.
+ *
+ * It starts `request` itself, so a request whose signal is already aborted is never sent, and
+ * one that throws rather than rejecting still settles.
  */
-export const signerCall = <T>(call: Promise<T>, {signal}: SignerOptions = {}) => {
+export const signerCall = <T>(request: () => Promise<T>, {signal}: SignerOptions = {}) => {
   const result = defer<T, Error>()
   const abort = () => result.reject(new Error("Signer request was aborted"))
   const timer = setTimeout(
@@ -134,15 +137,23 @@ export const signerCall = <T>(call: Promise<T>, {signal}: SignerOptions = {}) =>
     SIGNER_TIMEOUT,
   )
 
-  if (signal?.aborted) abort()
-
   signal?.addEventListener("abort", abort)
-  call.then(result.resolve, result.reject)
 
   result.then(noop, noop).then(() => {
     clearTimeout(timer)
     signal?.removeEventListener("abort", abort)
   })
+
+  // A signal that is already aborted never fires "abort"
+  if (signal?.aborted) {
+    abort()
+  } else {
+    try {
+      request().then(result.resolve, result.reject)
+    } catch (error) {
+      result.reject(error as Error)
+    }
+  }
 
   return result as Promise<T>
 }
