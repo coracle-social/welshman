@@ -1,4 +1,5 @@
 export * from "./util.js"
+export * from "./queue.js"
 export * from "./nip59.js"
 export * from "./signers/nip01.js"
 export * from "./signers/nip07.js"

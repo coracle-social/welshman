@@ -14,7 +14,7 @@ class User {
   static fromSession(session: Session): Promise<User | undefined>
   static require(app: IApp): User
 
-  sign(event: StampedEvent, options?: SignOptions): Promise<SignedEvent>
+  sign(event: StampedEvent, options?: SignerOptions): Promise<SignedEvent>
   nip44EncryptToSelf(payload: string): Promise<string>
   wrapSigner(wrap: SignerMethodWrapper): () => void
 }

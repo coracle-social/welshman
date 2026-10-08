@@ -1,6 +1,6 @@
-import {noop} from "@welshman/lib"
 import {SignedEvent, StampedEvent, hash, own, Pubkey} from "@welshman/util"
-import {signWithOptions, SignOptions, ISigner} from "../util.js"
+import {SignerQueue} from "../queue.js"
+import {SignerOptions, ISigner} from "../util.js"
 
 export type Nip55AppInfo = {
   name: string
@@ -67,7 +67,7 @@ const makeRequestId = () => `${Date.now()}-${Math.random().toString(36).slice(2)
 
 export class Nip55Signer implements ISigner {
   #pubkey?: string
-  #lock: Promise<unknown> = Promise.resolve()
+  #queue = new SignerQueue()
   #setup?: Promise<void>
 
   constructor(
@@ -77,8 +77,8 @@ export class Nip55Signer implements ISigner {
     this.#pubkey = pubkey
   }
 
-  #then = async <T>(f: (plugin: Nip55) => T | Promise<T>): Promise<T> => {
-    const promise = this.#lock.then(async () => {
+  #then = <T>(f: (plugin: Nip55) => T | Promise<T>, options: SignerOptions): Promise<T> =>
+    this.#queue.add(async () => {
       const nip55 = plugin
 
       if (!nip55) throw new Error("Nip55 is not enabled")
@@ -93,21 +93,16 @@ export class Nip55Signer implements ISigner {
       await this.#setup
 
       return f(nip55)
-    })
-
-    // Swallow the result either way — a failed call must not poison the lock
-    this.#lock = promise.then(noop, noop)
-
-    return promise
-  }
+    }, options)
 
   #crypt = async (
     method: "nip04Encrypt" | "nip04Decrypt" | "nip44Encrypt" | "nip44Decrypt",
     pubkey: string,
     message: string,
+    options: SignerOptions,
   ): Promise<string> => {
     if (!this.#pubkey) {
-      await this.getPubkey()
+      await this.getPubkey(options)
     }
 
     return this.#then(async plugin => {
@@ -120,11 +115,12 @@ export class Nip55Signer implements ISigner {
       )
 
       return result
-    })
+    }, options)
   }
 
-  getPubkey = async (): Promise<string> => {
-    return this.#then(async plugin => {
+  // The pubkey is a request of its own, so it inherits the options of whatever asked for it
+  getPubkey = (options: SignerOptions = {}): Promise<string> =>
+    this.#then(async plugin => {
       if (!this.#pubkey) {
         const {npub} = await plugin.getPublicKey(this.packageName)
 
@@ -132,35 +128,35 @@ export class Nip55Signer implements ISigner {
       }
 
       return this.#pubkey
+    }, options)
+
+  sign = (template: StampedEvent, options: SignerOptions = {}): Promise<SignedEvent> =>
+    this.getPubkey(options).then(pubkey => {
+      const hashedEvent = hash(own(template, pubkey))
+
+      return this.#then(async plugin => {
+        const {event: json} = await plugin.signEvent(
+          this.packageName,
+          JSON.stringify({sig: "", ...hashedEvent}),
+          hashedEvent.id,
+          this.#pubkey!,
+        )
+
+        return JSON.parse(json) as SignedEvent
+      }, options)
     })
-  }
-
-  sign = (template: StampedEvent, options: SignOptions = {}): Promise<SignedEvent> =>
-    signWithOptions(
-      this.getPubkey().then(pubkey => {
-        const hashedEvent = hash(own(template, pubkey))
-
-        return this.#then(async plugin => {
-          const {event: json} = await plugin.signEvent(
-            this.packageName,
-            JSON.stringify({sig: "", ...hashedEvent}),
-            hashedEvent.id,
-            this.#pubkey!,
-          )
-
-          return JSON.parse(json) as SignedEvent
-        })
-      }),
-      options,
-    )
 
   nip04 = {
-    encrypt: (pubkey: string, message: string) => this.#crypt("nip04Encrypt", pubkey, message),
-    decrypt: (pubkey: string, message: string) => this.#crypt("nip04Decrypt", pubkey, message),
+    encrypt: (pubkey: string, message: string, options: SignerOptions = {}) =>
+      this.#crypt("nip04Encrypt", pubkey, message, options),
+    decrypt: (pubkey: string, message: string, options: SignerOptions = {}) =>
+      this.#crypt("nip04Decrypt", pubkey, message, options),
   }
 
   nip44 = {
-    encrypt: (pubkey: string, message: string) => this.#crypt("nip44Encrypt", pubkey, message),
-    decrypt: (pubkey: string, message: string) => this.#crypt("nip44Decrypt", pubkey, message),
+    encrypt: (pubkey: string, message: string, options: SignerOptions = {}) =>
+      this.#crypt("nip44Encrypt", pubkey, message, options),
+    decrypt: (pubkey: string, message: string, options: SignerOptions = {}) =>
+      this.#crypt("nip44Decrypt", pubkey, message, options),
   }
 }

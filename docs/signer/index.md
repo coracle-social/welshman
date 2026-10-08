@@ -20,11 +20,8 @@ import { makeEvent, makeSecret } from '@welshman/util'
 import { ISigner, Nip01Signer } from '@welshman/signer'
 
 const signer: ISigner = new Nip01Signer(makeSecret())
-const options = {
-  signal: AbortSignal.timeout(10_000),
-}
 
-signer.sign(makeEvent(1), options).then(signedEvent => console.log(signedEvent))
+signer.sign(makeEvent(1)).then(signedEvent => console.log(signedEvent))
 ```
 
 ## Installation

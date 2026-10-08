@@ -15,9 +15,6 @@ export type SendWrappedOptions = Omit<PublishRequest, "event" | "relays" | "reci
 
 export const MAX_UNWRAP_ATTEMPTS = 3
 
-// A remote signer that never answers would otherwise hold up every wrap behind this one
-export const UNWRAP_TIMEOUT = 30_000
-
 // Doubled for each attempt, so a busy or disconnected signer has time to come back
 export const UNWRAP_RETRY_DELAY = 5_000
 
@@ -31,6 +28,11 @@ export const UNWRAP_RETRY_DELAY = 5_000
  * A wrap whose unwrap throws or times out goes back on the queue after a backoff until it has
  * been tried `MAX_UNWRAP_ATTEMPTS` times, since a signer that is busy or disconnected fails
  * the same way a wrap this user cannot read does.
+ *
+ * Unwrapping a stored backlog is work behind whatever the user is doing, so each decryption
+ * asks for the back of the signer's queue and the signer bounds it by `SIGNER_TIMEOUT`. The
+ * queue waits out a slow signer rather than abandoning a decryption that is still running,
+ * which is what used to leave orphaned requests in front of every later wrap.
  */
 export class Wraps {
   unwrapAttempts = new Map<string, number>()
@@ -45,14 +47,9 @@ export class Wraps {
         if (!app.user) return
         if (!tagValues(hexTags("p"), wrap.tags).includes(app.user.pubkey)) return
 
-        let timer: ReturnType<typeof setTimeout> | undefined
-
         try {
           const nip59 = Nip59.fromSigner(app.user.signer)
-          const timeout = new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(new Error("Timed out unwrapping")), UNWRAP_TIMEOUT)
-          })
-          const rumor = await Promise.race([nip59.unwrap(wrap as SignedEvent), timeout])
+          const rumor = await nip59.unwrap(wrap as SignedEvent, {priority: -1})
 
           this.app.wrapManager.add({
             wrap: wrap as SignedEvent,
@@ -67,8 +64,6 @@ export class Wraps {
           if (attempts < MAX_UNWRAP_ATTEMPTS) {
             this.retry(wrap, UNWRAP_RETRY_DELAY * 2 ** (attempts - 1))
           }
-        } finally {
-          clearTimeout(timer)
         }
       },
     })

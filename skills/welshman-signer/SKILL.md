@@ -25,23 +25,25 @@ yarn add @welshman/signer
 The common contract all signers implement.
 
 ```typescript
-import type {ISigner, SignOptions, EncryptionImplementation} from '@welshman/signer'
+import type {ISigner, SignerOptions, EncryptionImplementation} from '@welshman/signer'
 
 interface ISigner {
   sign: SignWithOptions
   nip04: EncryptionImplementation
   nip44: EncryptionImplementation
-  getPubkey: () => Promise<string>
+  getPubkey: (options?: SignerOptions) => Promise<string>
   cleanup?: () => Promise<void>
 }
 
-type SignOptions = {signal?: AbortSignal}
+type SignerOptions = {signal?: AbortSignal; priority?: number}
 type Sign = (event: StampedEvent) => Promise<SignedEvent>
-type SignWithOptions = (event: StampedEvent, options?: SignOptions) => Promise<SignedEvent>
-type Encrypt = (pubkey: string, message: string) => Promise<string>
-type Decrypt = (pubkey: string, message: string) => Promise<string>
+type SignWithOptions = (event: StampedEvent, options?: SignerOptions) => Promise<SignedEvent>
+type Encrypt = (pubkey: string, message: string, options?: SignerOptions) => Promise<string>
+type Decrypt = (pubkey: string, message: string, options?: SignerOptions) => Promise<string>
 type EncryptionImplementation = {encrypt: Encrypt; decrypt: Decrypt}
 ```
+
+Every method takes the same options, since every one of them is a request to the same signer. `priority` orders the requests that are waiting, highest first and 0 by default, so bulk work behind the user asks for a negative one. `signal` gives up waiting. Neither recalls a request the signer has already started.
 
 ### Helpers & wrappers
 
@@ -51,7 +53,8 @@ type EncryptionImplementation = {encrypt: Encrypt; decrypt: Decrypt}
 | `nip04` / `nip44` | The raw primitives (`encrypt`/`decrypt` taking an explicit secret; `nip04.detect(m)`; `nip44.getSharedSecret`, LRU-cached) |
 | `WrappedSigner` | An `ISigner` that routes every method through a `SignerMethodWrapper`, and an `Emitter`. `@welshman/app` layers decrypt-caching and signer logging onto the user's signer this way, via `User.wrapSigner(wrap)` |
 | `SignerMethodWrapper` | `<T>(method: string, thunk: () => Promise<T>, args: unknown[]) => Promise<T>` — `method` is `"sign"`, `"getPubkey"`, `"nip44.decrypt"`, …; `args` lets a wrapper key a cache off the call's arguments |
-| `signWithOptions(promise, options)` | Races a signing promise against a 30 s timeout and the caller's `AbortSignal` |
+| `SignerQueue` | One signer's lane: `add(thunk, options)` runs requests one at a time in descending priority order. `Nip07Signer` and `Nip55Signer` each hold one |
+| `signerCall(call, options)` | Bounds one request by `SIGNER_TIMEOUT` (30 s) and the caller's `AbortSignal`. What `Nip46Signer` uses in place of a queue |
 
 ### Nip01Signer (local keypair)
 
@@ -106,7 +109,7 @@ setNip55Plugin(NostrSignerPlugin)
 | `Nip59.fromSecret(secret)` | Create directly from a hex private key |
 | `new Nip59(signer, wrapper?)` | Explicit constructor; `wrapper` defaults to an ephemeral signer |
 | `nip59.wrap(pubkey, template, tags?)` | Encrypt an event for a recipient; returns `Promise<SignedEvent>` — the kind-1059 gift wrap event |
-| `nip59.unwrap(event)` | Decrypt a received wrapped event |
+| `nip59.unwrap(event, options?)` | Decrypt a received wrapped event; `options` go to each of its two decryptions |
 | `nip59.withWrapper(wrapper)` | Return a new `Nip59` instance with a different wrapper signer |
 
 ## Common Patterns
@@ -124,9 +127,7 @@ const ephemeralSigner: ISigner = Nip01Signer.ephemeral()
 // From a stored hex key
 const signer: ISigner = new Nip01Signer(localStorage.getItem('secret')!)
 
-// With a timeout
-const event = makeEvent(1, { content: 'hello' })
-const signed = await signer.sign(event, { signal: AbortSignal.timeout(5_000) })
+const signed = await signer.sign(makeEvent(1, { content: 'hello' }))
 ```
 
 ### Browser extension login
@@ -239,4 +240,5 @@ const plaintext = await signer.nip44.decrypt(theirPubkey, ciphertext)
 - **A wrap that needs proof of work is mined by its wrapper.** `Nip59` knows nothing about NIP-13; pass your own wrapper with `withWrapper`, then `wrapper.sign(await minePow(wrap, difficulty))` on what comes back. Mining changes the id, so only the key that signed the wrap can sign it again, and the ephemeral wrapper `Nip59` creates by default is not kept.
 - **`makeSecret()`** (from `@welshman/util`) generates a random hex private key. Use it for the NIP-46 `clientSecret`, and never reuse the user's own private key there.
 - **Both `nip04` and `nip44` are supported** on all signers. Prefer `nip44` for new code; `nip04` is provided for backwards compatibility with older clients.
-- **`sign()` gives up after 30 s**, and its options accept a `signal: AbortSignal` for a shorter limit or for cancelling from the UI.
+- **Every request gives up after `SIGNER_TIMEOUT`**, 30 seconds, except on `Nip01Signer`, which holds the key and cannot hang. Pass a `signal` for a shorter limit or to cancel from the UI, and a negative `priority` for work the user is not waiting on.
+- **A signer answers one request at a time**, so a priority reorders what is still waiting rather than what the signer is already working on — a signature still waits out one decryption in front of it.

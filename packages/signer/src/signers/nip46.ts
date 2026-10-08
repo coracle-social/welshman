@@ -29,7 +29,7 @@ import {
   socketPolicyConnectOnSend,
   socketPolicyLifecycle,
 } from "@welshman/net"
-import {ISigner, EncryptionImplementation, signWithOptions, SignOptions, decrypt} from "../util.js"
+import {ISigner, EncryptionImplementation, signerCall, SignerOptions, decrypt} from "../util.js"
 import {Nip01Signer} from "./nip01.js"
 
 export type Nip46Context = {
@@ -550,6 +550,10 @@ export class Nip46Broker extends Emitter {
   }
 }
 
+/**
+ * A bunker answers over relays rather than one at a time, so requests here are not queued
+ * and a priority would order nothing. Each one still carries its own deadline.
+ */
 export class Nip46Signer implements ISigner {
   pubkey?: string
   nip04: EncryptionImplementation
@@ -557,27 +561,31 @@ export class Nip46Signer implements ISigner {
 
   constructor(public broker: Nip46Broker) {
     this.nip04 = {
-      encrypt: this.broker.nip04Encrypt,
-      decrypt: this.broker.nip04Decrypt,
+      encrypt: (pubkey: string, message: string, options?: SignerOptions) =>
+        signerCall(this.broker.nip04Encrypt(pubkey, message), options),
+      decrypt: (pubkey: string, message: string, options?: SignerOptions) =>
+        signerCall(this.broker.nip04Decrypt(pubkey, message), options),
     }
 
     this.nip44 = {
-      encrypt: this.broker.nip44Encrypt,
-      decrypt: this.broker.nip44Decrypt,
+      encrypt: (pubkey: string, message: string, options?: SignerOptions) =>
+        signerCall(this.broker.nip44Encrypt(pubkey, message), options),
+      decrypt: (pubkey: string, message: string, options?: SignerOptions) =>
+        signerCall(this.broker.nip44Decrypt(pubkey, message), options),
     }
   }
 
-  getPubkey = async () => {
+  getPubkey = async (options?: SignerOptions) => {
     if (!this.pubkey) {
-      this.pubkey = await this.broker.getPublicKey()
+      this.pubkey = await signerCall(this.broker.getPublicKey(), options)
     }
 
     return this.pubkey
   }
 
-  sign = (template: StampedEvent, options: SignOptions = {}) =>
-    signWithOptions(
-      this.getPubkey().then(pubkey => this.broker.signEvent(prep(template, pubkey))),
+  sign = (template: StampedEvent, options: SignerOptions = {}) =>
+    signerCall(
+      this.getPubkey(options).then(pubkey => this.broker.signEvent(prep(template, pubkey))),
       options,
     )
 

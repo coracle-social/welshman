@@ -190,7 +190,7 @@ const group = await app.use(Wraps).publish({event: rumor, recipients: [a, b]})
 app.use(Publisher).publish({event, relays, pow: 20})
 ```
 
-`PublishRequest`: `{event, relays, recipient?, delay?, pow?, priority?, timeout?}`. The stages (`STAGES` in `plugins/publisher.ts`) only transform the event. The publisher keeps the repository, tracker and `WrapManager` in step by reacting to state changes. Incoming wraps addressed to the user are auto-unwrapped by the default `appPolicyWraps`. An unwrap that throws is tried again up to `MAX_UNWRAP_ATTEMPTS` times, so a signer that was busy or disconnected doesn't cost the message.
+`PublishRequest`: `{event, relays, recipient?, delay?, pow?, priority?, timeout?}`. The stages (`STAGES` in `plugins/publisher.ts`) only transform the event. The publisher keeps the repository, tracker and `WrapManager` in step by reacting to state changes. Incoming wraps addressed to the user are auto-unwrapped by the default `appPolicyWraps`. An unwrap that throws is tried again up to `MAX_UNWRAP_ATTEMPTS` times, so a signer that was busy or disconnected doesn't cost the message. Each of its decryptions asks the signer for `priority: -1`, which leaves the user's own requests ahead of a backlog, and the signer bounds the decryption rather than the unwrap bounding the pair of them.
 
 ## Commands (deferred publishing)
 

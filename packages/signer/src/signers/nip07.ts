@@ -1,6 +1,6 @@
-import {noop} from "@welshman/lib"
 import {StampedEvent} from "@welshman/util"
-import {signWithOptions, SignOptions, Sign, ISigner, EncryptionImplementation} from "../util.js"
+import {SignerQueue} from "../queue.js"
+import {SignerOptions, Sign, ISigner, EncryptionImplementation} from "../util.js"
 
 export type Nip07 = {
   signEvent: Sign
@@ -11,37 +11,22 @@ export type Nip07 = {
 
 export const getNip07 = () => (window as {nostr?: Nip07}).nostr
 
-const release = (promise: Promise<unknown>) =>
-  new Promise<void>(resolve => {
-    const timeout = setTimeout(resolve, 30_000)
-
-    promise.catch(noop).then(() => {
-      clearTimeout(timeout)
-      resolve()
-    })
-  })
-
 export class Nip07Signer implements ISigner {
-  #lock = Promise.resolve()
+  #queue = new SignerQueue()
   #pubkey?: Promise<string>
 
-  #then = async <T>(f: (ext: Nip07) => T | Promise<T>) => {
-    const promise = this.#lock.then(() => {
+  #then = <T>(f: (ext: Nip07) => T | Promise<T>, options: SignerOptions) =>
+    this.#queue.add(async () => {
       const ext = getNip07()
 
       if (!ext) throw new Error("Nip07 is not enabled")
 
       return f(ext)
-    })
+    }, options)
 
-    this.#lock = release(promise)
-
-    return promise
-  }
-
-  getPubkey = () => {
+  getPubkey = (options: SignerOptions = {}) => {
     if (!this.#pubkey) {
-      this.#pubkey = this.#then<string>(ext => ext.getPublicKey() as string)
+      this.#pubkey = this.#then<string>(ext => ext.getPublicKey() as string, options)
       this.#pubkey.catch(() => {
         this.#pubkey = undefined
       })
@@ -50,23 +35,20 @@ export class Nip07Signer implements ISigner {
     return this.#pubkey
   }
 
-  sign = (template: StampedEvent, options: SignOptions = {}) =>
-    signWithOptions(
-      this.#then(ext => ext.signEvent(template)),
-      options,
-    )
+  sign = (template: StampedEvent, options: SignerOptions = {}) =>
+    this.#then(ext => ext.signEvent(template), options)
 
   nip04 = {
-    encrypt: (pubkey: string, message: string) =>
-      this.#then(ext => ext.nip04.encrypt(pubkey, message)),
-    decrypt: (pubkey: string, message: string) =>
-      this.#then(ext => ext.nip04.decrypt(pubkey, message)),
+    encrypt: (pubkey: string, message: string, options: SignerOptions = {}) =>
+      this.#then(ext => ext.nip04.encrypt(pubkey, message), options),
+    decrypt: (pubkey: string, message: string, options: SignerOptions = {}) =>
+      this.#then(ext => ext.nip04.decrypt(pubkey, message), options),
   }
 
   nip44 = {
-    encrypt: (pubkey: string, message: string) =>
-      this.#then(ext => ext.nip44.encrypt(pubkey, message)),
-    decrypt: (pubkey: string, message: string) =>
-      this.#then(ext => ext.nip44.decrypt(pubkey, message)),
+    encrypt: (pubkey: string, message: string, options: SignerOptions = {}) =>
+      this.#then(ext => ext.nip44.encrypt(pubkey, message), options),
+    decrypt: (pubkey: string, message: string, options: SignerOptions = {}) =>
+      this.#then(ext => ext.nip44.decrypt(pubkey, message), options),
   }
 }

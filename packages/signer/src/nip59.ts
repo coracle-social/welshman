@@ -8,7 +8,7 @@ import {
   prep,
   hash,
 } from "@welshman/util"
-import {decrypt, ISigner} from "./util.js"
+import {decrypt, ISigner, SignerOptions} from "./util.js"
 import {Nip01Signer} from "./signers/nip01.js"
 
 export const now = (drift = 0) =>
@@ -56,9 +56,13 @@ export const wrap = async (
   return wrap
 }
 
-export const unwrap = async (signer: ISigner, wrap: SignedEvent): Promise<HashedEvent> => {
-  const seal = JSON.parse(await decrypt(signer, wrap.pubkey, wrap.content))
-  const rumor = JSON.parse(await decrypt(signer, seal.pubkey, seal.content))
+export const unwrap = async (
+  signer: ISigner,
+  wrap: SignedEvent,
+  options?: SignerOptions,
+): Promise<HashedEvent> => {
+  const seal = JSON.parse(await decrypt(signer, wrap.pubkey, wrap.content, options))
+  const rumor = JSON.parse(await decrypt(signer, seal.pubkey, seal.content, options))
 
   if (seal.pubkey !== rumor.pubkey) throw new Error("Seal pubkey does not match rumor pubkey")
   if (!isHashedEvent(rumor)) throw new Error("Unwrapped object was not a hashed event")
@@ -83,7 +87,7 @@ export class Nip59 {
   wrap = (pubkey: string, template: StampedEvent, tags: string[][] = []) =>
     wrap(this.signer, this.wrapper || Nip01Signer.ephemeral(), pubkey, template, tags)
 
-  unwrap = async (event: SignedEvent): Promise<HashedEvent> => {
+  unwrap = async (event: SignedEvent, options?: SignerOptions): Promise<HashedEvent> => {
     const cached = this.cache.get(event.id)
 
     if (cached) {
@@ -95,7 +99,7 @@ export class Nip59 {
     }
 
     try {
-      const rumor = await unwrap(this.signer, event)
+      const rumor = await unwrap(this.signer, event, options)
 
       this.cache.set(event.id, rumor)
 

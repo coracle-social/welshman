@@ -210,6 +210,8 @@ await group.settled()
 
 `Wraps.publish` returns a `PublicationGroup` of the per-recipient publications. The [`appPolicyWraps`](./app#default-policies) default policy unwraps incoming wraps addressed to the current user and skips duplicates. A wrap that fails to unwrap is retried with backoff up to `MAX_UNWRAP_ATTEMPTS` times.
 
+Unwrapping a stored backlog is work behind whatever the user is doing, so each decryption asks the signer for a negative [priority](../signer/isigner#options) and the signer is what bounds it. The queue waits out a slow signer rather than giving up on a decryption that is still running.
+
 ## Proof of work
 
 `pow` is a target difficulty in leading zero bits. The publication mines before signing, and mines the wrap for a wrapped event. An event that arrives already signed is sent as it is.

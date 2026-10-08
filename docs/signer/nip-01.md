@@ -6,7 +6,7 @@
 class Nip01Signer implements ISigner {
   constructor(private secret: string)
 
-  sign: SignWithOptions
+  sign: (event: StampedEvent) => Promise<SignedEvent>
   getPubkey: () => Promise<string>
   nip04: { encrypt, decrypt }
   nip44: { encrypt, decrypt }
@@ -17,6 +17,8 @@ class Nip01Signer implements ISigner {
 ```
 
 `fromSecret` is an alias for the constructor, and `ephemeral` creates a signer with a random private key.
+
+A local key answers synchronously, so nothing here can hang or is worth reordering and `Nip01Signer` takes no `SignerOptions`.
 
 ### Usage Example
 
