@@ -65,7 +65,7 @@ export class TaskQueue<Item> {
 
     this.isProcessing = true
 
-    setTimeout(async () => {
+    const drain = async () => {
       if (this.isPaused) {
         this.isProcessing = false
       } else {
@@ -87,7 +87,13 @@ export class TaskQueue<Item> {
           this.process()
         }
       }
-    }, this.options.batchDelay)
+    }
+
+    if (this.options.batchDelay > 0) {
+      setTimeout(drain, this.options.batchDelay)
+    } else {
+      queueMicrotask(drain)
+    }
   }
 
   stop() {

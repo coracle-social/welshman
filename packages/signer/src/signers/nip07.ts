@@ -16,7 +16,7 @@ export class Nip07Signer implements ISigner {
   #pubkey?: Promise<string>
 
   #then = <T>(f: (ext: Nip07) => T | Promise<T>, options: SignerOptions) =>
-    this.#queue.add(async () => {
+    this.#queue.push(async () => {
       const ext = getNip07()
 
       if (!ext) throw new Error("Nip07 is not enabled")

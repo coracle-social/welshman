@@ -74,6 +74,20 @@ describe("TaskQueue", () => {
     expect(processed).toEqual(expected)
   })
 
+  it("should drain a zero batchDelay without a timer", async () => {
+    const {queue, processed} = makeQueue({batchSize: 1, batchDelay: 0})
+
+    ;[1, 2, 3].forEach(item => queue.push(item))
+
+    expect(vi.getTimerCount()).toBe(0)
+
+    while (processed.length < 3) {
+      await Promise.resolve()
+    }
+
+    expect(processed).toEqual([1, 2, 3])
+  })
+
   it("should place items pushed mid-drain according to priority", async () => {
     const priorities = new Map([
       [1, 0],

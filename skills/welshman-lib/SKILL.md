@@ -79,7 +79,7 @@ getProfile.pop(pubkey) // invalidate one entry
 |--------|-------------|
 | `TaskQueue<Item>` | Processes items asynchronously in configurable batches |
 
-Options: `batchSize`, `batchDelay` (ms), `processItem`, and an optional `getPriority` that orders the queue. Methods: `.push(item)`, `.remove(item)`, `.start()`, `.stop()`, `.clear()`, `.process()`, `.subscribe(cb)`.
+Options: `batchSize`, `batchDelay` (ms), `processItem`, and an optional `getPriority` that orders the queue. A `batchDelay` of 0 runs each batch in a microtask rather than a timer, so a one-item batch never pays a browser's 4ms clamp on a nested `setTimeout(0)`. Methods: `.push(item)`, `.remove(item)`, `.start()`, `.stop()`, `.clear()`, `.process()`, `.subscribe(cb)`.
 
 ```typescript
 import { TaskQueue } from '@welshman/lib'

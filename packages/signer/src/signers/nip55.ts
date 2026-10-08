@@ -78,7 +78,7 @@ export class Nip55Signer implements ISigner {
   }
 
   #then = <T>(f: (plugin: Nip55) => T | Promise<T>, options: SignerOptions): Promise<T> =>
-    this.#queue.add(async () => {
+    this.#queue.push(async () => {
       const nip55 = plugin
 
       if (!nip55) throw new Error("Nip55 is not enabled")

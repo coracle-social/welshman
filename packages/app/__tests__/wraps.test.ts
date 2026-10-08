@@ -55,7 +55,7 @@ const slowSigner = (secret: string, delay: number, hangs = 0) => {
         decrypt: (pubkey: string, message: string, options?: SignerOptions) => {
           priorities.push(options?.priority)
 
-          return queue.add(async () => {
+          return queue.push(async () => {
             decryptions++
 
             if (decryptions <= hangs) return new Promise<string>(() => {})

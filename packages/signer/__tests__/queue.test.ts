@@ -18,7 +18,7 @@ describe("SignerQueue", () => {
     let running = 0
 
     const request = (name: string) =>
-      queue.add(async () => {
+      queue.push(async () => {
         running++
         concurrency.push(running)
 
@@ -42,7 +42,7 @@ describe("SignerQueue", () => {
     const answered: string[] = []
 
     const request = (name: string, priority: number) =>
-      queue.add(
+      queue.push(
         async () => {
           await sleep(100)
 
@@ -68,8 +68,8 @@ describe("SignerQueue", () => {
 
   it("gives the lane back when a request is never answered", async () => {
     const queue = new SignerQueue()
-    const stuck = queue.add(() => new Promise<string>(() => {}))
-    const next = queue.add(async () => "answered")
+    const stuck = queue.push(() => new Promise<string>(() => {}))
+    const next = queue.push(async () => "answered")
     const settled = Promise.allSettled([stuck, next])
 
     await vi.advanceTimersByTimeAsync(SIGNER_TIMEOUT + 100)
@@ -85,13 +85,13 @@ describe("SignerQueue", () => {
     const controller = new AbortController()
     let calls = 0
 
-    const blocking = queue.add(async () => {
+    const blocking = queue.push(async () => {
       await sleep(100)
 
       return "first"
     })
 
-    const aborted = queue.add(
+    const aborted = queue.push(
       async () => {
         calls++
 

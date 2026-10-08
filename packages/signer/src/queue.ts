@@ -13,8 +13,9 @@ export type SignerRequest = {
  * explicit is what lets a signature the user is waiting on overtake a backlog of
  * decryptions, and what keeps one request that never answers from blocking the rest.
  *
- * One request at a time is also why `batchSize` is 1 — a batch is fixed once it starts, so
- * a request arriving mid-batch would wait out the whole of it however urgent it is.
+ * `batchSize` is 1, since a batch is fixed once it starts and a request arriving mid-batch
+ * would otherwise wait out the whole of it however urgent it is. A `batchDelay` of 0 then
+ * costs no timer per request, since `TaskQueue` drains a zero delay in a microtask.
  */
 export class SignerQueue {
   queue = new TaskQueue<SignerRequest>({
@@ -24,7 +25,7 @@ export class SignerQueue {
     processItem: (request: SignerRequest) => request.run(),
   })
 
-  add = <T>(thunk: () => Promise<T>, options: SignerOptions = {}): Promise<T> => {
+  push = <T>(thunk: () => Promise<T>, options: SignerOptions = {}): Promise<T> => {
     const result = defer<T, Error>()
     const settled = result.then(noop, noop)
     const abort = () => result.reject(new Error("Signer request was aborted"))

@@ -43,7 +43,7 @@ A browser extension and a native signer app each answer one request at a time, s
 
 ```typescript
 class SignerQueue {
-  add<T>(thunk: () => Promise<T>, options?: SignerOptions): Promise<T>
+  push<T>(thunk: () => Promise<T>, options?: SignerOptions): Promise<T>
 }
 ```
 
