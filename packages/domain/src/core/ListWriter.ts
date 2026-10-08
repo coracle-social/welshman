@@ -31,38 +31,38 @@ export abstract class ListWriter<
     return this
   }
 
-  keepPublic(pred: (tag: string[]) => boolean) {
+  keepPublic(pred: (tag: string[]) => unknown) {
     this.publicTags = this.publicTags.filter(pred)
 
     return this
   }
 
-  keepPrivate(pred: (tag: string[]) => boolean) {
+  keepPrivate(pred: (tag: string[]) => unknown) {
     this.privateTags = this.privateTags.filter(pred)
 
     return this
   }
 
-  keepTags(pred: (tag: string[]) => boolean) {
+  keepTags(pred: (tag: string[]) => unknown) {
     this.publicTags = this.publicTags.filter(pred)
     this.privateTags = this.privateTags.filter(pred)
 
     return this
   }
 
-  dropPublic(pred: (tag: string[]) => boolean) {
+  dropPublic(pred: (tag: string[]) => unknown) {
     this.publicTags = this.publicTags.filter(complement(pred))
 
     return this
   }
 
-  dropPrivate(pred: (tag: string[]) => boolean) {
+  dropPrivate(pred: (tag: string[]) => unknown) {
     this.privateTags = this.privateTags.filter(complement(pred))
 
     return this
   }
 
-  dropTags(pred: (tag: string[]) => boolean) {
+  dropTags(pred: (tag: string[]) => unknown) {
     this.publicTags = this.publicTags.filter(complement(pred))
     this.privateTags = this.privateTags.filter(complement(pred))
 

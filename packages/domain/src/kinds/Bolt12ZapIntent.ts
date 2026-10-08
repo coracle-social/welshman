@@ -6,12 +6,12 @@ import {
   getAddress,
   hexTags,
   isBolt12ZapId,
-  isMsats,
   isReplaceable,
   kindTags,
   makeBolt12PayerNote,
   makeBolt12ZapId,
   msatsTags,
+  tagMatcher,
   tagSpec,
   tagValue,
 } from "@welshman/util"
@@ -22,7 +22,7 @@ import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 
-const targetKeys = ["e", "a", "k"]
+const isTargetTag = tagMatcher(tagSpec(["e", "a", "k"]))
 
 // NIP-B1 kind-9737 zap intent, signed before payment and embedded in the kind-9736 zap.
 export class Bolt12ZapIntentReader extends EventReader {
@@ -99,27 +99,24 @@ export class Bolt12ZapIntentWriter extends EventWriter<Bolt12ZapIntentReader> {
   setEvent(event: TrustedEvent) {
     const target = isReplaceable(event) ? ["a", getAddress(event)] : ["e", event.id]
 
-    return this.dropTags(tag => targetKeys.includes(tag[0])).addTags(target, [
-      "k",
-      String(event.kind),
-    ])
+    return this.dropTags(isTargetTag).addTags(target, ["k", String(event.kind)])
   }
 
   clearEvent() {
-    return this.dropTags(tag => targetKeys.includes(tag[0]))
+    return this.dropTags(isTargetTag)
   }
 
   validate() {
     super.validate()
 
-    const amount = tagValue(tagSpec("amount"), this.extraTags)
+    const amount = tagValue(msatsTags("amount"), this.extraTags)
     const zapId = tagValue(tagSpec("zap_id"), this.extraTags)
 
     if (!this.extraTags.some(spec(["p"]))) {
       throw new Error("Bolt12ZapIntent requires a recipient")
     }
 
-    if (!amount || !isMsats(amount) || Number(amount) <= 0) {
+    if (amount === undefined || amount <= 0) {
       throw new Error("Bolt12ZapIntent requires a positive whole number of millisats")
     }
 

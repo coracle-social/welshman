@@ -30,9 +30,9 @@ export const CodeInline = Node.create<CodeOptions>({
     return {
       // remove code block when it's empty, otherwise let the browser delete a character
       Backspace: () => {
-        const {empty, $anchor, $from} = this.editor.state.selection
+        const {empty, $from} = this.editor.state.selection
 
-        if (!empty || $anchor.parent.type.name !== this.name || $from.parent.content.size > 0) {
+        if (!empty || $from.parent.type.name !== this.name || $from.parent.content.size > 0) {
           return false
         }
 

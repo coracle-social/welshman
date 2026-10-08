@@ -219,19 +219,20 @@ const splitHashes = (bytes: Uint8Array | undefined) => {
 const readMarkers = (bytes: Uint8Array | undefined) => {
   const markers: number[] = []
   let offset = 0
+  let valid = true
 
-  while (bytes && offset < bytes.length) {
+  while (valid && bytes && offset < bytes.length) {
     const marker = readBigsize(bytes, offset)
 
-    if (!marker) {
-      return undefined
+    if (marker) {
+      markers.push(marker.value)
+      offset = marker.next
+    } else {
+      valid = false
     }
-
-    markers.push(marker.value)
-    offset = marker.next
   }
 
-  return markers
+  return valid ? markers : undefined
 }
 
 /**

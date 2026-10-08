@@ -1,4 +1,4 @@
-import {Emitter, remove, omit} from "@welshman/lib"
+import {Emitter, remove, omit, pushToMapKey} from "@welshman/lib"
 import {HashedEvent, SignedEvent} from "@welshman/util"
 import {Tracker} from "./tracker.js"
 import {Repository} from "./repository.js"
@@ -102,35 +102,18 @@ export class WrapManager extends Emitter {
 
   _add = (wrapItem: WrapItem) => {
     this._wrapIndex.set(wrapItem.id, wrapItem)
-    this._addReference(this._rumorIndex, wrapItem.rumorId, wrapItem.id)
-  }
-
-  _addReference = (index: Map<string, WrapReference>, key: string, wrapId: string) => {
-    const reference = index.get(key)
-
-    if (reference) {
-      reference.push(wrapId)
-    } else {
-      index.set(key, [wrapId])
-    }
+    pushToMapKey(this._rumorIndex, wrapItem.rumorId, wrapItem.id)
   }
 
   _remove = (wrapItem: WrapItem) => {
+    const wrapIds = remove(wrapItem.id, this._rumorIndex.get(wrapItem.rumorId) || [])
+
     this._wrapIndex.delete(wrapItem.id)
-    this._removeReference(this._rumorIndex, wrapItem.rumorId, wrapItem.id)
-  }
 
-  _removeReference = (index: Map<string, WrapReference>, key: string, wrapId: string) => {
-    const reference = index.get(key)
-
-    if (reference) {
-      const wraps = remove(wrapId, reference)
-
-      if (wraps.length > 0) {
-        index.set(key, wraps)
-      } else {
-        index.delete(key)
-      }
+    if (wrapIds.length > 0) {
+      this._rumorIndex.set(wrapItem.rumorId, wrapIds)
+    } else {
+      this._rumorIndex.delete(wrapItem.rumorId)
     }
   }
 }

@@ -112,4 +112,20 @@ describe("SignerQueue", () => {
     expect(second.status).toBe("rejected")
     expect(calls).toBe(0)
   })
+
+  it("refuses a request whose signal is already aborted without blocking the lane", async () => {
+    const queue = new SignerQueue()
+    let calls = 0
+
+    const refused = queue.push(
+      async () => {
+        calls++
+      },
+      {signal: AbortSignal.abort()},
+    )
+
+    await expect(refused).rejects.toThrow("Signer request was aborted")
+    await expect(queue.push(async () => "next")).resolves.toBe("next")
+    expect(calls).toBe(0)
+  })
 })

@@ -64,6 +64,31 @@ export abstract class PublishStatusView {
 
   abstract abort(): void
 
+  private _subs: Subscriber<this>[] = []
+
+  // A settled view never changes again, so its subscribers aren't kept.
+  subscribe(subscriber: Subscriber<this>) {
+    subscriber(this)
+
+    if (!this.isComplete()) {
+      this._subs.push(subscriber)
+    }
+
+    return () => {
+      this._subs = remove(subscriber, this._subs)
+    }
+  }
+
+  protected notify() {
+    for (const subscriber of this._subs) {
+      subscriber(this)
+    }
+
+    if (this.isComplete()) {
+      this._subs = []
+    }
+  }
+
   getUrlsWithStatus(statuses: PublishStatus | PublishStatus[]) {
     const matches = ensurePlural(statuses)
 
@@ -112,7 +137,6 @@ export class Publication extends PublishStatusView {
 
   readonly controller = new AbortController()
 
-  private _subs: Subscriber<this>[] = []
   private _settled = defer<this>()
 
   constructor(
@@ -149,12 +173,9 @@ export class Publication extends PublishStatusView {
         this.wrap = draft.wrap
       }
 
-      for (const subscriber of this._subs) {
-        subscriber(this)
-      }
+      this.notify()
 
       if (this.isComplete()) {
-        this._subs = []
         this._settled.resolve(this)
       }
     }
@@ -162,29 +183,18 @@ export class Publication extends PublishStatusView {
 
   // Relays that already answered keep their result.
   abort() {
-    const results = {...resultsFor(this.relays, Aborted, "aborted"), ...this.results}
+    const results = resultsFor(this.relays, Aborted, "aborted")
 
-    for (const [relay, result] of Object.entries(results)) {
-      if (result.status === Pending) {
-        results[relay] = {relay, status: Aborted, detail: "aborted"}
+    for (const relay of this.relays) {
+      const result = this.results[relay]
+
+      if (result && result.status !== Pending) {
+        results[relay] = result
       }
     }
 
     this.advance({stage: "aborted", results})
     this.controller.abort()
-  }
-
-  // A settled publication never changes again, so its subscribers aren't kept.
-  subscribe(subscriber: Subscriber<this>) {
-    subscriber(this)
-
-    if (!this.isComplete()) {
-      this._subs.push(subscriber)
-    }
-
-    return () => {
-      this._subs = remove(subscriber, this._subs)
-    }
   }
 
   settled() {
@@ -215,21 +225,11 @@ export const mergeResults = (publications: Publication[]) => {
 
 /** Several publications watched as one, e.g. a rumor gift-wrapped for each recipient. */
 export class PublicationGroup extends PublishStatusView {
-  private _subs: Subscriber<this>[] = []
-
   constructor(readonly publications: Publication[]) {
     super()
 
     for (const publication of publications) {
-      publication.subscribe(() => {
-        for (const subscriber of this._subs) {
-          subscriber(this)
-        }
-
-        if (this.isComplete()) {
-          this._subs = []
-        }
-      })
+      publication.subscribe(() => this.notify())
     }
   }
 
@@ -247,19 +247,6 @@ export class PublicationGroup extends PublishStatusView {
 
   abort() {
     this.publications.forEach(p => p.abort())
-  }
-
-  // As with a publication, a settled group never changes again, so its subscribers aren't kept.
-  subscribe(subscriber: Subscriber<this>) {
-    subscriber(this)
-
-    if (!this.isComplete()) {
-      this._subs.push(subscriber)
-    }
-
-    return () => {
-      this._subs = remove(subscriber, this._subs)
-    }
   }
 
   async settled() {
@@ -289,6 +276,11 @@ type Stage = (draft: Draft, ctx: StageContext) => Promise<Draft>
 // A remote signer can otherwise hang the publication indefinitely.
 const SIGN_TIMEOUT = 30_000
 
+// Aborting the publication also withdraws its requests from the signer's queue.
+const signerOptions = (publication: Publication) => ({
+  signal: AbortSignal.any([publication.signal, AbortSignal.timeout(SIGN_TIMEOUT)]),
+})
+
 // The soft-undo window comes before anything is signed.
 const delayStage: Stage = async (draft, {publication, enter}) => {
   const {delay} = publication.request
@@ -316,7 +308,11 @@ const wrapStage: Stage = async (draft, {app, publication, enter}) => {
     const wrapper = Nip01Signer.ephemeral()
     const nip59 = new Nip59(User.require(app).signer, wrapper)
 
-    result = {...draft, wrapper, wrap: await nip59.wrap(recipient, draft.event)}
+    result = {
+      ...draft,
+      wrapper,
+      wrap: await nip59.wrap(recipient, draft.event, [], signerOptions(publication)),
+    }
   }
 
   return result
@@ -341,8 +337,8 @@ const powStage: Stage = async (draft, {publication, enter}) => {
   return result
 }
 
-const signStage: Stage = async (draft, {app, enter}) => {
-  const options = {signal: AbortSignal.timeout(SIGN_TIMEOUT)}
+const signStage: Stage = async (draft, {app, publication, enter}) => {
+  const options = signerOptions(publication)
   let result = draft
 
   if (draft.wrap && draft.wrapper && !isSignedEvent(draft.wrap)) {

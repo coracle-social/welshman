@@ -76,6 +76,9 @@ export const getLnUrl = (address: string) => {
 
 export const isBolt12Offer = (offer: string) => /^lno1[a-z0-9]+$/.test(canonicalBolt12(offer))
 
+export const isCanonicalBolt12Offer = (offer = "") =>
+  isBolt12Offer(offer) && offer === canonicalBolt12(offer)
+
 export const isBolt12PayerProof = (proof: string) => /^lnp1[a-z0-9]+$/.test(proof.toLowerCase())
 
 // NIP-B1 asks for at least 128 bits of entropy, lowercase hex.

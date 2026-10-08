@@ -395,6 +395,37 @@ const asCollection = <T>(
 const onParseError = (error: unknown) =>
   console.warn("Failed to build an item from an event", error)
 
+/**
+ * Build the item for `event` and hand it to `commit`. A synchronous `eventToItem` commits
+ * before this returns, so items are in place before an initial subscription does, and its
+ * result is returned. An async one is held in `pending` until committed, so awaiting it
+ * means the item is in the index.
+ */
+const buildItem = <T>(
+  event: TrustedEvent,
+  eventToItem: EventToItem<T>,
+  pending: Map<string, Promise<unknown>>,
+  commit: (item: Maybe<T>) => boolean | void,
+) => {
+  let changed = false
+
+  try {
+    const itemOrPromise = eventToItem(event)
+
+    if (itemOrPromise instanceof Promise) {
+      const forget = () => pending.delete(event.id)
+
+      pending.set(event.id, itemOrPromise.then(commit).catch(onParseError).finally(forget))
+    } else {
+      changed = Boolean(commit(itemOrPromise))
+    }
+  } catch (error) {
+    onParseError(error)
+  }
+
+  return changed
+}
+
 export type ItemsByKeyOptions<T> = {
   getKey: (item: T) => string
   filters: Filter[]
@@ -410,7 +441,7 @@ export const deriveItemsByKey = <T>({
   eventToItem,
   includeDeleted,
 }: ItemsByKeyOptions<T>): ItemCollection<T> => {
-  const pending = new Map<string, Promise<void>>()
+  const pending = new Map<string, Promise<unknown>>()
   const itemsByKey = new Map<string, T>()
   const idsByKey = new Map<string, string>()
   const keysById = new Map<string, string>()
@@ -432,22 +463,7 @@ export const deriveItemsByKey = <T>({
         }
       }
 
-      try {
-        const itemOrPromise = eventToItem(event)
-
-        // Commit synchronously when `eventToItem` doesn't need IO, so items are in
-        // place before the initial subscription returns rather than a microtask later
-        if (itemOrPromise instanceof Promise) {
-          // Hold the committed promise, so awaiting it means the item is in the index
-          const forget = () => pending.delete(event.id)
-
-          pending.set(event.id, itemOrPromise.then(commit).catch(onParseError).finally(forget))
-        } else {
-          commit(itemOrPromise)
-        }
-      } catch (error) {
-        onParseError(error)
-      }
+      buildItem(event, eventToItem, pending, commit)
     }
 
     for (const event of repository.query(filters, {includeDeleted})) {
@@ -597,26 +613,7 @@ export const deriveItemsByKeyByUrl = <T>({
       // A rebuild clears the keys and keeps the items, so re-keying needs no parse
       if (parsed) return commit(parsed)
 
-      let changed = false
-
-      try {
-        const itemOrPromise = eventToItem(event)
-
-        // Commit synchronously when `eventToItem` doesn't need IO, so items are in
-        // place before the initial subscription returns rather than a microtask later
-        if (itemOrPromise instanceof Promise) {
-          // Hold the committed promise, so awaiting it means the item is in the index
-          const forget = () => pending.delete(event.id)
-
-          pending.set(event.id, itemOrPromise.then(commit).catch(onParseError).finally(forget))
-        } else {
-          changed = commit(itemOrPromise)
-        }
-      } catch (error) {
-        onParseError(error)
-      }
-
-      return changed
+      return buildItem(event, eventToItem, pending, commit)
     }
 
     const removeEvent = (id: string) => {

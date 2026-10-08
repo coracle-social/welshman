@@ -6,7 +6,7 @@ import {sortBy} from "@welshman/lib"
 import type {Maybe} from "@welshman/lib"
 import type {Filter} from "@welshman/util"
 import {
-  deriveItems,
+  deriveArray,
   deriveItemsByKey,
   deriveItemsByKeyByUrl,
   makeDeriveItem,
@@ -86,7 +86,7 @@ export class MapPlugin<T> {
 
   constructor(protected readonly app: IApp) {
     this.index = projection(this.store)
-    this.all = projection(deriveItems(this.store))
+    this.all = deriveArray(this.index)
     this.one = makeDeriveItem(this.store)
   }
 
@@ -168,25 +168,16 @@ export abstract class LoadableMapPlugin<T> extends MapPlugin<T> {
   }
 }
 
-export type DerivedPluginOptions<T> = {
-  filters: Filter[]
-  eventToItem: EventToItem<T>
-  getKey: (item: T) => string
-  loadOptions?: MakeLoadItemOptions
-}
-
 /**
  * Base class for a reactive, keyed collection of data derived from nostr events.
  * The repository is the single source of truth — the collection is a live view
- * over `app.itemsByKey`, never a duplicated map. Subclasses implement `fetch`
- * (how to load an item by key from the network) and pass the filters/decoder via
- * `super`.
+ * over it, never a duplicated map. Subclasses supply the `index` and implement
+ * `fetch` (how to load an item by key from the network).
  *
  * `index` (map) and `all` (values) are `Projection`s — subscribe via `.$`,
  * snapshot via `.get()`. Per-key access is `one(key)`, a plain on-demand store.
  */
-export abstract class DerivedPlugin<T> {
-  index: ItemCollection<T>
+export abstract class CollectionPlugin<T> {
   all: Projection<T[]>
   one: (key?: string, ...args: any[]) => Readable<Maybe<T>>
   load: (key: string, ...args: any[]) => Promise<Maybe<T>>
@@ -196,21 +187,14 @@ export abstract class DerivedPlugin<T> {
 
   constructor(
     protected readonly app: IApp,
-    options: DerivedPluginOptions<T>,
+    readonly index: ItemCollection<T>,
+    loadOptions?: MakeLoadItemOptions,
   ) {
-    const index = deriveItemsByKey<T>({
-      filters: options.filters,
-      eventToItem: options.eventToItem,
-      getKey: options.getKey,
-      repository: app.repository,
-    })
-
-    this.index = index
-    this.all = projection(deriveItems(index))
+    this.all = deriveArray(index)
 
     const fetch = (key: string, ...args: any[]) => this.fetch(key, ...args)
 
-    this.load = makeLoadItem(fetch, index.read, options.loadOptions)
+    this.load = makeLoadItem(fetch, index.read, loadOptions)
     this.forceLoad = makeForceLoadItem(fetch, index.read)
     this.one = makeDeriveItem(index, this.load)
   }
@@ -219,6 +203,29 @@ export abstract class DerivedPlugin<T> {
 
   project = <U>(key: string, read: (item: Maybe<T>) => U): Projection<U> =>
     projection(derived(this.one(key), read), () => read(this.get(key)))
+}
+
+export type DerivedPluginOptions<T> = {
+  filters: Filter[]
+  eventToItem: EventToItem<T>
+  getKey: (item: T) => string
+  loadOptions?: MakeLoadItemOptions
+}
+
+/** A `CollectionPlugin` over `deriveItemsByKey`: one item per key across all relays. */
+export abstract class DerivedPlugin<T> extends CollectionPlugin<T> {
+  constructor(app: IApp, options: DerivedPluginOptions<T>) {
+    super(
+      app,
+      deriveItemsByKey<T>({
+        filters: options.filters,
+        eventToItem: options.eventToItem,
+        getKey: options.getKey,
+        repository: app.repository,
+      }),
+      options.loadOptions,
+    )
+  }
 }
 
 export type RelayScopedDerivedPluginOptions<T> = {
@@ -233,47 +240,26 @@ export type RelayScopedDerivedPluginOptions<T> = {
 }
 
 /**
- * A `DerivedPlugin` for relay-dependent data: each item is keyed by
+ * A `CollectionPlugin` for relay-dependent data: each item is keyed by
  * `getKey(item, url)` once per relay it was seen on (via the tracker), so the
  * same addressable coordinate on two relays stays two distinct entries. Use it
  * for collections that only make sense relative to a relay — NIP-29 rooms
  * (`${url}'${room}`), relay roles (`${url}|${d}`), per-relay replaceables
  * (`${url}`). Subclasses implement `fetch` (loading from the relevant relay).
  */
-export abstract class RelayScopedDerivedPlugin<T> {
-  index: ItemCollection<T>
-  all: Projection<T[]>
-  one: (key?: string, ...args: any[]) => Readable<Maybe<T>>
-  load: (key: string, ...args: any[]) => Promise<Maybe<T>>
-  forceLoad: (key: string, ...args: any[]) => Promise<Maybe<T>>
-
-  abstract fetch(key: string, ...args: any[]): Promise<unknown>
-
-  constructor(
-    protected readonly app: IApp,
-    options: RelayScopedDerivedPluginOptions<T>,
-  ) {
-    const index = deriveItemsByKeyByUrl<T>({
-      filters: options.filters,
-      eventToItem: options.eventToItem,
-      getKey: options.getKey,
-      revalidateOn: options.revalidateOn,
-      tracker: app.tracker,
-      repository: app.repository,
-    })
-
-    this.index = index
-    this.all = projection(deriveItems(index))
-
-    const fetch = (key: string, ...args: any[]) => this.fetch(key, ...args)
-
-    this.load = makeLoadItem(fetch, index.read, options.loadOptions)
-    this.forceLoad = makeForceLoadItem(fetch, index.read)
-    this.one = makeDeriveItem(index, this.load)
+export abstract class RelayScopedDerivedPlugin<T> extends CollectionPlugin<T> {
+  constructor(app: IApp, options: RelayScopedDerivedPluginOptions<T>) {
+    super(
+      app,
+      deriveItemsByKeyByUrl<T>({
+        filters: options.filters,
+        eventToItem: options.eventToItem,
+        getKey: options.getKey,
+        revalidateOn: options.revalidateOn,
+        tracker: app.tracker,
+        repository: app.repository,
+      }),
+      options.loadOptions,
+    )
   }
-
-  get = (key: string) => this.index.get().get(key)
-
-  project = <U>(key: string, read: (item: Maybe<T>) => U): Projection<U> =>
-    projection(derived(this.one(key), read), () => read(this.get(key)))
 }

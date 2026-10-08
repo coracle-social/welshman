@@ -15,15 +15,21 @@ import {Nip01Signer} from "./signers/nip01.js"
 export const now = (drift = 0) =>
   Math.round(Date.now() / 1000 - Math.random() * Math.pow(10, drift))
 
-export const getSeal = async (signer: ISigner, pubkey: string, rumor: HashedEvent) =>
+export const getSeal = async (
+  signer: ISigner,
+  pubkey: string,
+  rumor: HashedEvent,
+  options?: SignerOptions,
+) =>
   signer.sign(
     hash({
       kind: SEAL,
-      pubkey: await signer.getPubkey(),
-      content: await signer.nip44.encrypt(pubkey, JSON.stringify(rumor)),
+      pubkey: await signer.getPubkey(options),
+      content: await signer.nip44.encrypt(pubkey, JSON.stringify(rumor), options),
       created_at: now(5),
       tags: [],
     }),
+    options,
   )
 
 export const getWrap = async (
@@ -48,10 +54,11 @@ export const wrap = async (
   pubkey: string,
   template: StampedEvent,
   tags: string[][] = [],
+  options?: SignerOptions,
 ) => {
-  const author = await signer.getPubkey()
+  const author = await signer.getPubkey(options)
   const rumor = await prep(template, author)
-  const seal = await getSeal(signer, pubkey, rumor)
+  const seal = await getSeal(signer, pubkey, rumor, options)
   const wrap = await getWrap(wrapper, pubkey, seal, tags)
 
   return wrap
@@ -105,8 +112,8 @@ export class Nip59 {
 
   withWrapper = (wrapper: ISigner) => new Nip59(this.signer, wrapper)
 
-  wrap = (pubkey: string, template: StampedEvent, tags: string[][] = []) =>
-    wrap(this.signer, this.wrapper || Nip01Signer.ephemeral(), pubkey, template, tags)
+  wrap = (pubkey: string, template: StampedEvent, tags: string[][] = [], options?: SignerOptions) =>
+    wrap(this.signer, this.wrapper || Nip01Signer.ephemeral(), pubkey, template, tags, options)
 
   unwrap = async (event: SignedEvent, options?: SignerOptions): Promise<HashedEvent> => {
     const cached = this.cache.get(event.id)

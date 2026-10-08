@@ -1,9 +1,9 @@
-import {StampedEvent} from "@welshman/util"
+import {SignedEvent, StampedEvent} from "@welshman/util"
 import {SignerQueue} from "../queue.js"
-import {SignerOptions, Sign, ISigner, EncryptionImplementation} from "../util.js"
+import {SignerOptions, ISigner, EncryptionImplementation} from "../util.js"
 
 export type Nip07 = {
-  signEvent: Sign
+  signEvent: (event: StampedEvent) => Promise<SignedEvent>
   nip04: EncryptionImplementation
   nip44: EncryptionImplementation
   getPublicKey: () => string | undefined

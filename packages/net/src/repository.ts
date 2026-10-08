@@ -142,15 +142,7 @@ export class Repository extends Emitter {
         this.eventsByAddress.delete(address)
       }
 
-      for (const [k, v] of event.tags) {
-        if (k.length === 1) {
-          this._updateIndex(this.eventsByTag, `${k}:${v}`, undefined, event)
-        }
-      }
-
-      this._updateIndex(this.eventsByDay, getDay(event.created_at), undefined, event)
-      this._updateIndex(this.eventsByAuthor, event.pubkey, undefined, event)
-      this._updateIndex(this.eventsByKind, event.kind, undefined, event)
+      this._unindex(event)
 
       // Put back whatever this event superseded, unless it was itself removed in the meantime
       const replaced = mapPop(event.id, this.replaced)
@@ -514,6 +506,19 @@ export class Repository extends Emitter {
     for (const tag of event.tags) {
       if (tag[0]?.length === 1) {
         this._updateIndex(this.eventsByTag, tag.slice(0, 2).join(":"), event, remove)
+      }
+    }
+  }
+
+  // Evict `event` from the day/author/kind/tag indexes
+  _unindex = (event: TrustedEvent) => {
+    this._updateIndex(this.eventsByDay, getDay(event.created_at), undefined, event)
+    this._updateIndex(this.eventsByAuthor, event.pubkey, undefined, event)
+    this._updateIndex(this.eventsByKind, event.kind, undefined, event)
+
+    for (const tag of event.tags) {
+      if (tag[0]?.length === 1) {
+        this._updateIndex(this.eventsByTag, tag.slice(0, 2).join(":"), undefined, event)
       }
     }
   }

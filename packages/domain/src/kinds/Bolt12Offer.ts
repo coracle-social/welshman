@@ -4,6 +4,7 @@ import {
   canonicalBolt12,
   indexers,
   isBolt12Offer,
+  isCanonicalBolt12Offer,
   matchTags,
   tagSpec,
   tagValueMatcher,
@@ -15,9 +16,6 @@ import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 
 const offerSpec = tagSpec("offer", isBolt12Offer, canonicalBolt12)
-
-const isCanonicalBolt12Offer = (offer = "") =>
-  isBolt12Offer(offer) && offer === canonicalBolt12(offer)
 
 // NIP-B1 kind-10058 BOLT12 offer announcement.
 export class Bolt12OfferReader extends EventReader {

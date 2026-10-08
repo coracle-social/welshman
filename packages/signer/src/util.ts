@@ -23,8 +23,6 @@ export const nip44 = {
     nt44.v2.decrypt(m, nip44.getSharedSecret(secret, pubkey)!),
 }
 
-export type Sign = (event: StampedEvent) => Promise<SignedEvent>
-
 export type SignerOptions = {
   signal?: AbortSignal
   /** Requests to one signer are answered highest first, 0 by default, so bulk work behind the
@@ -32,7 +30,7 @@ export type SignerOptions = {
   priority?: number
 }
 
-export type SignWithOptions = (event: StampedEvent, options?: SignerOptions) => Promise<SignedEvent>
+export type Sign = (event: StampedEvent, options?: SignerOptions) => Promise<SignedEvent>
 
 export type Encrypt = (pubkey: string, message: string, options?: SignerOptions) => Promise<string>
 
@@ -44,7 +42,7 @@ export type EncryptionImplementation = {
 }
 
 export interface ISigner {
-  sign: SignWithOptions
+  sign: Sign
   nip04: EncryptionImplementation
   nip44: EncryptionImplementation
   getPubkey: (options?: SignerOptions) => Promise<string>
@@ -135,6 +133,8 @@ export const signerCall = <T>(call: Promise<T>, {signal}: SignerOptions = {}) =>
     () => result.reject(new Error("Signer request timed out")),
     SIGNER_TIMEOUT,
   )
+
+  if (signal?.aborted) abort()
 
   signal?.addEventListener("abort", abort)
   call.then(result.resolve, result.reject)

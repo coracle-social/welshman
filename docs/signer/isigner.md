@@ -8,13 +8,13 @@ export type SignerOptions = {
   priority?: number
 }
 
-export type SignWithOptions = (
+export type Sign = (
   event: StampedEvent,
   options?: SignerOptions,
 ) => Promise<SignedEvent>
 
 interface ISigner {
-  sign: SignWithOptions
+  sign: Sign
   getPubkey: (options?: SignerOptions) => Promise<string>
   cleanup?: () => Promise<void>
 

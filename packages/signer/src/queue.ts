@@ -30,6 +30,9 @@ export class SignerQueue {
     const settled = result.then(noop, noop)
     const abort = () => result.reject(new Error("Signer request was aborted"))
 
+    // A signal that is already aborted never fires "abort", so refuse the request here.
+    if (options.signal?.aborted) abort()
+
     options.signal?.addEventListener("abort", abort)
     settled.then(() => options.signal?.removeEventListener("abort", abort))
 

@@ -1,4 +1,4 @@
-import {parseJson, spec, sum} from "@welshman/lib"
+import {equals, parseJson, spec, sum} from "@welshman/lib"
 import {
   BOLT12_OFFER,
   BOLT12_ZAP,
@@ -17,6 +17,7 @@ import {
   isBolt12ZapId,
   matchTags,
   msatsTags,
+  tagMatcher,
   tagSpec,
   tagValue,
   tagValues,
@@ -56,10 +57,8 @@ const countTags = (key: string, tags: string[][]) => tags.filter(spec([key])).le
 // The zap and its intent agree on presence and values, so every value for a key has to match.
 const agreesOn = (key: string, a: string[][], b: string[][]) => {
   const values = (tags: string[][]) => tagValues(tagSpec(key), tags).sort()
-  const mine = values(a)
-  const theirs = values(b)
 
-  return mine.length === theirs.length && mine.every((value, i) => value === theirs[i])
+  return equals(values(a), values(b))
 }
 
 // An embedded event arrives as JSON rather than from a relay, so nothing else verifies it.
@@ -276,8 +275,7 @@ export class Bolt12ZapWriter extends EventWriter<Bolt12ZapReader> {
   setIntent(intent: SignedEvent) {
     const copied = matchTags(tagSpec(intentKeys), intent.tags)
 
-    return this.dropTags(spec(["description"]))
-      .dropTags(tag => intentKeys.includes(tag[0]))
+    return this.dropTags(tagMatcher(tagSpec(["description", ...intentKeys])))
       .addTags(["description", JSON.stringify(asSignedEvent(intent))], ...copied)
       .setContent(intent.content)
   }

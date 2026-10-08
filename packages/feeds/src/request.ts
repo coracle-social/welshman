@@ -1,4 +1,4 @@
-import {partition, now, nthEq, race, max, removeUndefined} from "@welshman/lib"
+import {partition, now, nthEq, race, max, removeUndefined, pushToMapKey} from "@welshman/lib"
 import {
   makeEvent,
   Filter,
@@ -68,7 +68,9 @@ export const requestPage = async ({
     // A hub relay wins a slot in most author chunks, so what it is sent differs only in authors
     for (const selection of await getFilterSelections(filters, router)) {
       for (const relay of selection.relays) {
-        filtersByRelay.set(relay, (filtersByRelay.get(relay) ?? []).concat(selection.filters))
+        for (const filter of selection.filters) {
+          pushToMapKey(filtersByRelay, relay, filter)
+        }
       }
     }
 
