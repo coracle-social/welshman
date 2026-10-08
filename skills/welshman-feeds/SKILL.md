@@ -164,7 +164,7 @@ getFilterSelections(filters: Filter[], router: FeedRouter): Promise<RelaysAndFil
 // RelaysAndFilters = {relays: string[]; filters: Filter[]}
 ```
 
-`getFilterSelections` applies one rule per outbox source: a `search` filter goes to `searchRelays(10)`; a gift-wrap filter with no `authors` goes to `userMessaging()`; a filter with `authors` is chunked and sent to each author's `outbox()`; and everything additionally gets a low-weight `userInbox(0.2)` pass. Each group resolves with `addMinimalFallbacks`.
+`getFilterSelections` applies one rule per outbox source: a `search` filter goes to `searchRelays(10)`; a gift-wrap filter with no `authors` goes to `userMessaging()`; a filter with `authors` is chunked and sent to each author's `outbox()`; and everything additionally gets a low-weight `userInbox(0.2)` pass. Each group resolves with `addMinimalFallbacks`. The groups overlap by relay, so `requestPage` unions their filters per relay and opens one subscription each; chunking keeps one filter's `authors` array small, which is a separate concern from how many frames reach one relay.
 
 `@welshman/app`'s `Router` plugin implements `FeedRouter`. The `RelaySelection` DSL is documented in the `welshman-util` skill.
 

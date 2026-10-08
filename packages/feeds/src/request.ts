@@ -2,6 +2,7 @@ import {partition, now, nthEq, race, max, removeUndefined} from "@welshman/lib"
 import {
   makeEvent,
   Filter,
+  unionFilters,
   hexTags,
   relayTags,
   tagValues,
@@ -62,15 +63,24 @@ export const requestPage = async ({
   }
 
   if (withoutSearch.length > 0) {
+    const filtersByRelay = new Map<string, Filter[]>()
+
+    // A hub relay wins a slot in most author chunks, so what it is sent differs only in authors
+    for (const selection of await getFilterSelections(filters, router)) {
+      for (const relay of selection.relays) {
+        filtersByRelay.set(relay, (filtersByRelay.get(relay) ?? []).concat(selection.filters))
+      }
+    }
+
     promises.push(
-      ...(await getFilterSelections(filters, router)).flatMap(({relays, filters}) =>
+      ...Array.from(filtersByRelay).map(([relay, relayFilters]) =>
         request({
           tracker,
           signal,
           context,
           onEvent,
-          relays,
-          filters,
+          relays: [relay],
+          filters: unionFilters(relayFilters),
           threshold: 0.5,
           autoClose,
         }),
