@@ -1,5 +1,6 @@
 import {describe, it, expect} from "vitest"
 import {makeEvent, getPow, minePow, prep, DIRECT_MESSAGE} from "@welshman/util"
+import type {SignedEvent} from "@welshman/util"
 import {Nip01Signer} from "../src/signers/nip01.js"
 import {ISigner} from "../src/util.js"
 import {InvalidWrapError, Nip59, getSeal, getWrap} from "../src/nip59.js"
@@ -112,5 +113,15 @@ describe("Nip59 unwrap cache and signer failures", () => {
 
     await expect(nip59.unwrap(wrap)).rejects.toThrow(InvalidWrapError)
     expect(decryptions).toBe(2)
+  })
+
+  it("decides against a wrap whose seal is not an event, and remembers it", async () => {
+    const bob = Nip01Signer.ephemeral()
+    const wrapper = Nip01Signer.ephemeral()
+    const wrap = await getWrap(wrapper, await bob.getPubkey(), {} as SignedEvent, [])
+    const nip59 = Nip59.fromSigner(bob)
+
+    await expect(nip59.unwrap(wrap)).rejects.toThrow(InvalidWrapError)
+    await expect(nip59.unwrap(wrap)).rejects.toThrow(InvalidWrapError)
   })
 })

@@ -1,5 +1,6 @@
 import {
   isHashedEvent,
+  isSignedEvent,
   SignedEvent,
   HashedEvent,
   StampedEvent,
@@ -71,12 +72,15 @@ export const wrap = async (
  */
 export class InvalidWrapError extends Error {}
 
-const parseWrapped = (json: string) => {
+// Each layer must decrypt to the event that layer carries, or the wrap is malformed
+const parseLayer = <T>(json: string, isLayer: (value: T) => value is T, layer: string): T => {
   const value = tryCatch(() => JSON.parse(json))
 
-  if (!isPojo(value)) throw new InvalidWrapError("Decrypted content was not a JSON object")
+  if (!isPojo(value) || !isLayer(value as T)) {
+    throw new InvalidWrapError(`Decrypted ${layer} was not a valid event`)
+  }
 
-  return value
+  return value as T
 }
 
 export const unwrap = async (
@@ -84,15 +88,13 @@ export const unwrap = async (
   wrap: SignedEvent,
   options?: SignerOptions,
 ): Promise<HashedEvent> => {
-  const seal = parseWrapped(await decrypt(signer, wrap.pubkey, wrap.content, options))
-  const rumor = parseWrapped(await decrypt(signer, seal.pubkey, seal.content, options))
+  const sealJson = await decrypt(signer, wrap.pubkey, wrap.content, options)
+  const seal = parseLayer(sealJson, isSignedEvent, "seal")
+  const rumorJson = await decrypt(signer, seal.pubkey, seal.content, options)
+  const rumor = parseLayer(rumorJson, isHashedEvent, "rumor")
 
   if (seal.pubkey !== rumor.pubkey) {
     throw new InvalidWrapError("Seal pubkey does not match rumor pubkey")
-  }
-
-  if (!isHashedEvent(rumor)) {
-    throw new InvalidWrapError("Unwrapped object was not a hashed event")
   }
 
   return rumor
