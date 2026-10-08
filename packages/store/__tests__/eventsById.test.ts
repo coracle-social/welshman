@@ -9,6 +9,7 @@ import {
   deriveEventsByIdForUrl,
   deriveEventsDesc,
   deriveIsDeleted,
+  getEventsByIdForUrl,
   makeDeriveEvent,
 } from "../src/repository"
 
@@ -156,6 +157,30 @@ describe("deriveEventsByIdForUrl", () => {
     expect(get(store).get(note.id)?.id).toBe(note.id)
 
     unsub()
+  })
+})
+
+describe("getEventsByIdForUrl", () => {
+  // A filter naming its own ids used to replace the provenance check rather than narrow it
+  it("keeps out an event the relay was never seen to hold", () => {
+    const repository = new Repository()
+    const tracker = new Tracker()
+    const here = makeEvent({id: "a".repeat(64)})
+    const elsewhere = makeEvent({id: "b".repeat(64)})
+
+    repository.publish(here)
+    repository.publish(elsewhere)
+    tracker.track(here.id, url)
+    tracker.track(elsewhere.id, "wss://b.example")
+
+    const eventsById = getEventsByIdForUrl({
+      url,
+      filters: [{ids: [here.id, elsewhere.id]}],
+      repository,
+      tracker,
+    })
+
+    expect(Array.from(eventsById.keys())).toEqual([here.id])
   })
 })
 

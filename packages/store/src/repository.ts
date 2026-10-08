@@ -270,6 +270,12 @@ export type EventsByIdForUrlOptions = EventsByIdOptions & {
   tracker: Tracker
 }
 
+/**
+ * The events one relay has been seen to hold, narrowed by the filters. The filters choose the
+ * index and the tracker answers provenance per event, so the cost tracks what the caller asked
+ * for; asking the repository for every id the tracker holds for the url instead materializes
+ * that relay's whole cache whatever the filters say.
+ */
 export const getEventsByIdForUrl = ({
   url,
   filters,
@@ -277,12 +283,12 @@ export const getEventsByIdForUrl = ({
   repository,
   includeDeleted,
 }: EventsByIdForUrlOptions) => {
-  const initialIds = Array.from(tracker.getIds(url))
-  const initialFilters = filters.map(filter => ({ids: initialIds, ...filter}))
   const eventsById: EventsById = new Map()
 
-  for (const event of repository.query(initialFilters, {includeDeleted})) {
-    eventsById.set(event.id, event)
+  for (const event of repository.query(filters, {includeDeleted})) {
+    if (tracker.hasRelay(event.id, url)) {
+      eventsById.set(event.id, event)
+    }
   }
 
   return eventsById
