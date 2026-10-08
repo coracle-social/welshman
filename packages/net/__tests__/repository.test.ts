@@ -498,6 +498,20 @@ describe("Repository", () => {
       expect(results[0]).toEqual(events[0]) // Most recent event
     })
 
+    it("should answer a windowed page by an author from the author index", () => {
+      loadDays(repo, 30, 6)
+
+      const author = createEvent(1, {created_at: now() - 29 * DAY})
+
+      repo.publish(author)
+
+      const spy = vi.spyOn(repo.eventsByDay, "get")
+      const results = repo.query([{authors: [author.pubkey], until: now(), limit: 10}])
+
+      expect(results).toEqual([author])
+      expect(spy).not.toHaveBeenCalled()
+    })
+
     it("should read only the day buckets a windowed page needs", () => {
       loadDays(repo, 30, 6)
 

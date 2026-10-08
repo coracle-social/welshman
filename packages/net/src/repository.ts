@@ -39,6 +39,12 @@ export type QueryOptions = {
   where?: (event: TrustedEvent) => boolean
 }
 
+// The candidates an index names for a filter, and what of the filter is left to check on them
+type AppliedFilter = {
+  filter: Filter
+  ids: Set<string>
+}
+
 export type RepositoryUpdate = {
   added: TrustedEvent[]
   removed: Set<string>
@@ -220,11 +226,16 @@ export class Repository extends Emitter {
   _sortEvents = (shouldSort: boolean, events: TrustedEvent[]) =>
     shouldSort ? sortEventsDesc(events) : events
 
-  // A page with a ceiling comes from the day index, which bounds the work to the window
-  _queryOne = (filter: Filter, options: QueryOptions) =>
-    filter.limit && filter.until
+  // A selective index (ids, authors, tags) names few candidates, so checking them is cheap
+  // whatever the window. Without one, a page with a ceiling walks the day index and stops once
+  // it is full.
+  _queryOne = (filter: Filter, options: QueryOptions) => {
+    const selective = this._applySelectiveFilter(filter)
+
+    return !selective && filter.limit && filter.until
       ? this._queryDays(filter, options)
-      : this._queryIndex(filter, options)
+      : this._queryIndex(selective ?? this._applyBroadFilter(filter), filter, options)
+  }
 
   // Every event in a day bucket is newer than every event below it, so a full page ends the walk
   _queryDays = (filter: Filter, options: QueryOptions) => {
@@ -248,9 +259,12 @@ export class Repository extends Emitter {
     return found
   }
 
-  _queryIndex = (originalFilter: Filter, options: QueryOptions) => {
-    // Attempt to fulfill the query using one of our indexes. Fall back to all events.
-    const applied = this._applyAnyFilter(originalFilter)
+  // Check the candidates an index named, or every event when no index applies
+  _queryIndex = (
+    applied: AppliedFilter | undefined,
+    originalFilter: Filter,
+    options: QueryOptions,
+  ) => {
     const filter = applied?.filter || originalFilter
     const events = applied ? this._getEvents(applied.ids) : this.dump()
     const sorted = this._sortEvents(options.shouldSort || Boolean(filter.limit), events)
@@ -351,24 +365,24 @@ export class Repository extends Emitter {
     return {filter, ids}
   }
 
-  _applyAnyFilter = (filter: Filter) => {
-    const matchers = [
+  _applySelectiveFilter = (filter: Filter) =>
+    this._applyFirst(filter, [
       this._applyIdsFilter,
       this._applyAuthorsFilter,
       this._applyTagsFilter,
-      this._applyKindsFilter,
-      this._applyDaysFilter,
-    ]
+    ])
+
+  _applyBroadFilter = (filter: Filter) =>
+    this._applyFirst(filter, [this._applyKindsFilter, this._applyDaysFilter])
+
+  _applyFirst = (filter: Filter, matchers: ((filter: Filter) => AppliedFilter | undefined)[]) => {
+    let result: AppliedFilter | undefined
 
     for (const matcher of matchers) {
-      const result = matcher(filter)
-
-      if (result) {
-        return result
-      }
+      result = result ?? matcher(filter)
     }
 
-    return undefined
+    return result
   }
 
   // Store `event`, returning the update it causes, or undefined if nothing changed
