@@ -613,40 +613,42 @@ export const deriveItemsByKeyByUrl = <T>({
       return false
     }
 
-    const addEvent = (event: TrustedEvent, urls: Iterable<string>) => {
-      const unkeyed = Array.from(urls).filter(url => keysById.get(event.id)?.get(url) === undefined)
+    // Key an event's item on each relay the tracker has it on now and it has no key for yet,
+    // so a relay seen while the event was parsing is keyed too.
+    const commit = (id: string, item: Maybe<T>) => {
+      let keyed = false
 
-      if (unkeyed.length === 0) return false
-      if (pending.has(event.id)) return false
+      if (item) {
+        itemsById.set(id, item)
 
-      const commit = (item: Maybe<T>) => {
-        let keyed = false
+        for (const url of tracker.getRelays(id)) {
+          const key = keysById.get(id)?.has(url) ? undefined : getKey(item, url)
 
-        if (item) {
-          itemsById.set(event.id, item)
-
-          for (const url of unkeyed) {
-            const key = getKey(item, url)
-
-            if (key !== undefined) {
-              setKey(key, event.id, url, item)
-              keyed = true
-            }
+          if (key !== undefined) {
+            setKey(key, id, url, item)
+            keyed = true
           }
-
-          // An item no url keys leaves the index alone, so it owes no emission
-          if (keyed && !holding) set(itemsByKey)
         }
 
-        return keyed
+        // An item no url keys leaves the index alone, so it owes no emission
+        if (keyed && !holding) set(itemsByKey)
       }
 
+      return keyed
+    }
+
+    const addEvent = (event: TrustedEvent) => {
       const parsed = itemsById.get(event.id)
+      let keyed = false
 
       // A rebuild clears the keys and keeps the items, so re-keying needs no parse
-      if (parsed) return commit(parsed)
+      if (parsed) {
+        keyed = commit(event.id, parsed)
+      } else if (!pending.has(event.id)) {
+        keyed = buildItem(event, eventToItem, pending, item => commit(event.id, item))
+      }
 
-      return buildItem(event, eventToItem, pending, commit)
+      return keyed
     }
 
     const removeEvent = (id: string) => {
@@ -695,7 +697,7 @@ export const deriveItemsByKeyByUrl = <T>({
       holding = true
 
       for (const event of events) {
-        dirty = addEvent(event, tracker.getRelays(event.id)) || dirty
+        dirty = addEvent(event) || dirty
       }
 
       holding = false
@@ -721,7 +723,7 @@ export const deriveItemsByKeyByUrl = <T>({
       on(repository, "update", ({added, removed}: RepositoryUpdate) => {
         for (const event of added) {
           if (matchFilters(filters, event)) {
-            addEvent(event, tracker.getRelays(event.id))
+            addEvent(event)
           }
         }
 
@@ -739,7 +741,7 @@ export const deriveItemsByKeyByUrl = <T>({
         const event = repository.getEvent(id)
 
         if (event && matchFilters(filters, event)) {
-          addEvent(event, [url])
+          addEvent(event)
         }
       }),
       on(tracker, "remove", (id: string, url: string) => {

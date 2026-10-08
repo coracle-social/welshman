@@ -175,6 +175,32 @@ describe("an event removed mid-parse", () => {
   })
 })
 
+describe("a relay seen mid-parse", () => {
+  it("is keyed once the parse commits", async () => {
+    const repository = new Repository()
+    const tracker = new Tracker()
+    const parsed = defer<TrustedEvent>()
+    const collection = deriveItemsByKeyByUrl<TrustedEvent>({
+      filters: [{kinds: [MUTES]}],
+      repository,
+      tracker,
+      eventToItem: () => parsed,
+      getKey: (_, url) => url,
+    })
+    const event = makeEvent()
+    const unsub = collection.subscribe(noop)
+
+    tracker.track(event.id, "wss://x.example")
+    repository.publish(event)
+    tracker.track(event.id, "wss://y.example")
+    parsed.resolve(event)
+
+    expect(await collection.read("wss://y.example")).toBe(event)
+
+    unsub()
+  })
+})
+
 describe("reading a relay-scoped collection", () => {
   const url = "wss://relay.example/"
 
