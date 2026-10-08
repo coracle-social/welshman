@@ -146,6 +146,18 @@ describe("publisher retries", () => {
     app.cleanup()
   })
 
+  it("leaves an attempt it replaced mid-flight for cleanup to stop", async () => {
+    const app = await makeApp(slowSigner(2000))
+    const publisher = app.use(Publisher)
+    const publication = publisher.publish({event: note("hi"), relays: [url]})
+    const retried = publisher.retry(publication)
+
+    app.cleanup()
+
+    expect(publication.state.stage).toBe("aborted")
+    expect(retried.state.stage).toBe("aborted")
+  })
+
   it("drops the attempts it replaces from history, so a view of the event sees only the retry", async () => {
     const app = await makeApp()
     const publisher = app.use(Publisher)

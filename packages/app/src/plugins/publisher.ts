@@ -395,6 +395,10 @@ export const STAGES: Stage[] = [delayStage, wrapStage, powStage, signStage, send
 export class Publisher {
   history = writable<Publication[]>([])
 
+  // What cleanup has to stop. Not `history`, which a retry trims while the attempts it replaces
+  // may still be running.
+  private unsettled = new Set<Publication>()
+
   // Paces how fast publications enter the pipeline.
   queue = new TaskQueue<Publication>({
     batchSize: 10,
@@ -409,7 +413,7 @@ export class Publisher {
       this.queue.clear()
 
       // Stops in-flight publishes and unwinds their optimistic writes.
-      for (const publication of get(this.history)) {
+      for (const publication of this.unsettled) {
         publication.abort()
       }
     })
@@ -424,6 +428,8 @@ export class Publisher {
     const publication = new Publication(request, event)
 
     this.observe(publication)
+    this.unsettled.add(publication)
+    publication.settled().then(() => this.unsettled.delete(publication))
     this.history.update($history => append(publication, $history))
     this.queue.push(publication)
 
