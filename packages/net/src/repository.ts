@@ -11,6 +11,7 @@ import {
   omit,
   now,
   range,
+  remove,
   mapPop,
   spec,
   some,
@@ -151,7 +152,7 @@ export class Repository extends Emitter {
 
       if (isCurrent && replaced && this.eventsById.get(replaced.id) === replaced) {
         this.eventsByAddress.set(getAddress(replaced), replaced)
-        this._reindex(replaced)
+        this._index(replaced)
       }
 
       // Drop every delete this event asserted — its own tags, and the implicit delete of
@@ -215,29 +216,6 @@ export class Repository extends Emitter {
 
   _sortEvents = (shouldSort: boolean, events: TrustedEvent[]) =>
     shouldSort ? sortEventsDesc(events) : events
-
-  _updateIndex = <K>(
-    m: Map<K, TrustedEvent[]>,
-    k: K,
-    add?: TrustedEvent,
-    remove?: TrustedEvent,
-  ) => {
-    let a = m.get(k) || []
-
-    if (remove) {
-      a = a.filter((x: TrustedEvent) => x !== remove)
-    }
-
-    if (add) {
-      a.push(add)
-    }
-
-    if (a.length > 0) {
-      m.set(k, a)
-    } else {
-      m.delete(k)
-    }
-  }
 
   // A page with a ceiling comes from the day index, which bounds the work to the window
   _queryOne = (filter: Filter, options: QueryOptions) =>
@@ -439,8 +417,12 @@ export class Repository extends Emitter {
       this.eventsByAddress.set(address, event)
     }
 
-    // Update our timestamp, author, kind, and tag indexes
-    this._reindex(event, duplicate)
+    // Move the timestamp, author, kind, and tag indexes from what it replaced onto it
+    if (duplicate) {
+      this._unindex(duplicate)
+    }
+
+    this._index(event)
 
     // Handle delete/expiration bookkeeping, which only applies when newly publishing
     for (const tag of event.tags) {
@@ -502,35 +484,37 @@ export class Repository extends Emitter {
     }
 
     if (isIndexed) {
-      this._reindex(event, existing)
+      this._unindex(existing)
+      this._index(event)
     }
   }
 
-  // Insert `event` into the day/author/kind/tag indexes, optionally evicting `remove` from them
-  _reindex = (event: TrustedEvent, remove?: TrustedEvent) => {
-    this._updateIndex(this.eventsByDay, getDay(event.created_at), event, remove)
-    this._updateIndex(this.eventsByAuthor, event.pubkey, event, remove)
-    this._updateIndex(this.eventsByKind, event.kind, event, remove)
+  // Call `f` with each secondary index `event` belongs in and its key there
+  _eachIndex = (event: TrustedEvent, f: <K>(index: Map<K, TrustedEvent[]>, key: K) => void) => {
+    f(this.eventsByDay, getDay(event.created_at))
+    f(this.eventsByAuthor, event.pubkey)
+    f(this.eventsByKind, event.kind)
 
     for (const tag of event.tags) {
       if (tag[0]?.length === 1) {
-        this._updateIndex(this.eventsByTag, tag.slice(0, 2).join(":"), event, remove)
+        f(this.eventsByTag, tag.slice(0, 2).join(":"))
       }
     }
   }
 
-  // Evict `event` from the day/author/kind/tag indexes
-  _unindex = (event: TrustedEvent) => {
-    this._updateIndex(this.eventsByDay, getDay(event.created_at), undefined, event)
-    this._updateIndex(this.eventsByAuthor, event.pubkey, undefined, event)
-    this._updateIndex(this.eventsByKind, event.kind, undefined, event)
+  _index = (event: TrustedEvent) =>
+    this._eachIndex(event, (index, key) => pushToMapKey(index, key, event))
 
-    for (const tag of event.tags) {
-      if (tag[0]?.length === 1) {
-        this._updateIndex(this.eventsByTag, tag.slice(0, 2).join(":"), undefined, event)
+  _unindex = (event: TrustedEvent) =>
+    this._eachIndex(event, (index, key) => {
+      const events = remove(event, index.get(key) || [])
+
+      if (events.length > 0) {
+        index.set(key, events)
+      } else {
+        index.delete(key)
       }
-    }
-  }
+    })
 
   // Record that `event` deletes `key` (an id or address), keeping the reverse index that
   // lets the assertion be withdrawn if `event` is later removed

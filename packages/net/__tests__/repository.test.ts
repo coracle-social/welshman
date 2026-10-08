@@ -122,6 +122,22 @@ describe("Repository", () => {
       repo = new Repository()
     })
 
+    it("indexes a restored version once, so a page of it is full", () => {
+      const pubkey = randomHex()
+      const older = createEvent(MUTES, {created_at: now() - 3 * DAY, pubkey})
+      const newer = createEvent(MUTES, {created_at: now(), pubkey})
+      const other = createEvent(MUTES, {created_at: now() - 5 * DAY})
+
+      repo.publish(other)
+      repo.publish(older)
+      repo.publish(newer)
+      repo.removeEvent(newer.id)
+
+      const page = repo.query([{kinds: [MUTES], limit: 2, until: now()}])
+
+      expect(pluck("id", page)).toEqual([older.id, other.id])
+    })
+
     it("should handle replaceable events", () => {
       const pubkey = randomHex()
       const event1 = createEvent(MUTES, {created_at: now() - 100, pubkey})
