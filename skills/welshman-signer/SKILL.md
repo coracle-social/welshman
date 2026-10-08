@@ -111,6 +111,7 @@ setNip55Plugin(NostrSignerPlugin)
 | `nip59.wrap(pubkey, template, tags?)` | Encrypt an event for a recipient; returns `Promise<SignedEvent>` — the kind-1059 gift wrap event |
 | `nip59.unwrap(event, options?)` | Decrypt a received wrapped event; `options` go to each of its two decryptions |
 | `nip59.withWrapper(wrapper)` | Return a new `Nip59` instance with a different wrapper signer |
+| `InvalidWrapError` | Thrown by `unwrap` for a wrap that does not check out, as opposed to a signer that did not answer |
 
 ## Common Patterns
 
@@ -242,3 +243,4 @@ const plaintext = await signer.nip44.decrypt(theirPubkey, ciphertext)
 - **Both `nip04` and `nip44` are supported** on all signers. Prefer `nip44` for new code; `nip04` is provided for backwards compatibility with older clients.
 - **Every request gives up after `SIGNER_TIMEOUT`**, 30 seconds, except on `Nip01Signer`, which holds the key and cannot hang. Pass a `signal` for a shorter limit or to cancel from the UI, and a negative `priority` for work the user is not waiting on.
 - **A signer answers one request at a time**, so a priority reorders what is still waiting rather than what the signer is already working on — a signature still waits out one decryption in front of it.
+- **`Nip59.unwrap` remembers a verdict, not a signer failure.** An `InvalidWrapError` is cached under the wrap's id and rethrown forever; anything the signer threw reaches the signer again on the next call.

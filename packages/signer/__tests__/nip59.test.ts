@@ -1,7 +1,8 @@
 import {describe, it, expect} from "vitest"
-import {makeEvent, getPow, minePow, DIRECT_MESSAGE} from "@welshman/util"
+import {makeEvent, getPow, minePow, prep, DIRECT_MESSAGE} from "@welshman/util"
 import {Nip01Signer} from "../src/signers/nip01.js"
-import {Nip59} from "../src/nip59.js"
+import {ISigner} from "../src/util.js"
+import {InvalidWrapError, Nip59, getSeal, getWrap} from "../src/nip59.js"
 
 describe("Nip59 unwrap cache", () => {
   it("caches per instance and does not share plaintext across instances", async () => {
@@ -43,5 +44,73 @@ describe("mining a wrap", () => {
     expect(getPow(mined)).toEqual(8)
     expect(mined.pubkey).toEqual(await wrapper.getPubkey())
     expect((await Nip59.fromSigner(bob).unwrap(mined)).content).toBe("secret")
+  })
+})
+
+describe("Nip59 unwrap cache and signer failures", () => {
+  const makeWrap = async (recipient: string) =>
+    Nip59.fromSigner(Nip01Signer.ephemeral()).wrap(
+      recipient,
+      makeEvent(DIRECT_MESSAGE, {content: "secret"}),
+    )
+
+  // A busy signer fails the same way a wrap this user cannot read does; only the second is a verdict
+  it("asks the signer again after a failure that was the signer own", async () => {
+    const bob = Nip01Signer.ephemeral()
+    const wrap = await makeWrap(await bob.getPubkey())
+    let fail = true
+
+    const flaky: ISigner = {
+      ...bob,
+      nip44: {
+        encrypt: bob.nip44.encrypt,
+        decrypt: (pubkey: string, message: string) => {
+          if (fail) {
+            fail = false
+
+            throw new Error("Signer request timed out")
+          }
+
+          return bob.nip44.decrypt(pubkey, message)
+        },
+      },
+    }
+
+    const nip59 = Nip59.fromSigner(flaky)
+
+    await expect(nip59.unwrap(wrap)).rejects.toThrow("Signer request timed out")
+    expect((await nip59.unwrap(wrap)).content).toBe("secret")
+  })
+
+  it("answers a wrap it has decided against out of the cache", async () => {
+    const alice = Nip01Signer.ephemeral()
+    const bob = Nip01Signer.ephemeral()
+    const wrapper = Nip01Signer.ephemeral()
+    const bobPubkey = await bob.getPubkey()
+    const rumor = await prep(makeEvent(DIRECT_MESSAGE, {content: "secret"}), await bob.getPubkey())
+    const seal = await getSeal(alice, bobPubkey, rumor)
+    const wrap = await getWrap(wrapper, bobPubkey, seal, [])
+
+    let decryptions = 0
+
+    const counted: ISigner = {
+      ...bob,
+      nip44: {
+        encrypt: bob.nip44.encrypt,
+        decrypt: (pubkey: string, message: string) => {
+          decryptions++
+
+          return bob.nip44.decrypt(pubkey, message)
+        },
+      },
+    }
+
+    const nip59 = Nip59.fromSigner(counted)
+
+    await expect(nip59.unwrap(wrap)).rejects.toThrow(InvalidWrapError)
+    expect(decryptions).toBe(2)
+
+    await expect(nip59.unwrap(wrap)).rejects.toThrow(InvalidWrapError)
+    expect(decryptions).toBe(2)
   })
 })

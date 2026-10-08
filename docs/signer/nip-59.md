@@ -1,6 +1,6 @@
 # NIP-59 (Gift Wrap) Implementation
 
-`Nip59` wraps and unwraps events under the Gift Wrap protocol (NIP-59). It works with any `ISigner`, and signs each wrap with a fresh ephemeral key unless given a wrapper signer. Each instance caches what it has unwrapped.
+`Nip59` wraps and unwraps events under the Gift Wrap protocol (NIP-59). It works with any `ISigner`, and signs each wrap with a fresh ephemeral key unless given a wrapper signer. Each instance caches what it has unwrapped, and the verdicts it has reached against a wrap.
 
 ## Basic Usage
 
@@ -34,7 +34,9 @@ The free function `wrap(signer, wrapper, pubkey, template, tags?)` builds three 
 
 ### Unwrapping Process
 
-`unwrap(signer, wrap)` decrypts the wrap to get the seal, decrypts the seal to get the rumor, and checks that the seal and rumor share an author. It throws if they don't, or if the result is not a hashed event. The free function does no caching; `Nip59.unwrap` does.
+`unwrap(signer, wrap)` decrypts the wrap to get the seal, decrypts the seal to get the rumor, and checks that the seal and rumor share an author. It throws an `InvalidWrapError` if they don't, if either decryption is not a JSON object, or if the result is not a hashed event. The free function does no caching; `Nip59.unwrap` does.
+
+`Nip59.unwrap` caches an `InvalidWrapError` under the wrap's id and rethrows it on every later call, since a wrap that does not check out never will. A failure the signer threw is not cached, so a signer that was busy, disconnected or past its deadline is asked again.
 
 ## API Reference
 

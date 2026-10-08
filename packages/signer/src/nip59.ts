@@ -8,6 +8,7 @@ import {
   prep,
   hash,
 } from "@welshman/util"
+import {isPojo, tryCatch} from "@welshman/lib"
 import {decrypt, ISigner, SignerOptions} from "./util.js"
 import {Nip01Signer} from "./signers/nip01.js"
 
@@ -56,22 +57,42 @@ export const wrap = async (
   return wrap
 }
 
+/**
+ * A decision about the wrap itself rather than a failure to reach the signer. The wrap will
+ * read the same way every time it is tried, so a caller is free to remember the verdict;
+ * anything the signer throws is about the signer and may answer next time.
+ */
+export class InvalidWrapError extends Error {}
+
+const parseWrapped = (json: string) => {
+  const value = tryCatch(() => JSON.parse(json))
+
+  if (!isPojo(value)) throw new InvalidWrapError("Decrypted content was not a JSON object")
+
+  return value
+}
+
 export const unwrap = async (
   signer: ISigner,
   wrap: SignedEvent,
   options?: SignerOptions,
 ): Promise<HashedEvent> => {
-  const seal = JSON.parse(await decrypt(signer, wrap.pubkey, wrap.content, options))
-  const rumor = JSON.parse(await decrypt(signer, seal.pubkey, seal.content, options))
+  const seal = parseWrapped(await decrypt(signer, wrap.pubkey, wrap.content, options))
+  const rumor = parseWrapped(await decrypt(signer, seal.pubkey, seal.content, options))
 
-  if (seal.pubkey !== rumor.pubkey) throw new Error("Seal pubkey does not match rumor pubkey")
-  if (!isHashedEvent(rumor)) throw new Error("Unwrapped object was not a hashed event")
+  if (seal.pubkey !== rumor.pubkey) {
+    throw new InvalidWrapError("Seal pubkey does not match rumor pubkey")
+  }
+
+  if (!isHashedEvent(rumor)) {
+    throw new InvalidWrapError("Unwrapped object was not a hashed event")
+  }
 
   return rumor
 }
 
 export class Nip59 {
-  private cache = new Map<string, HashedEvent | Error>()
+  private cache = new Map<string, HashedEvent | InvalidWrapError>()
 
   constructor(
     private signer: ISigner,
@@ -105,7 +126,9 @@ export class Nip59 {
 
       return rumor
     } catch (error) {
-      this.cache.set(event.id, error as Error)
+      if (error instanceof InvalidWrapError) {
+        this.cache.set(event.id, error)
+      }
 
       throw error
     }
