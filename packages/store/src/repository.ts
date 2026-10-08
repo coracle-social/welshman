@@ -465,7 +465,37 @@ export const deriveItemsByKey = <T>({
       buildItem(event, eventToItem, pending, commit)
     }
 
-    for (const event of repository.query(filters, {includeDeleted})) {
+    const removeEvent = (id: string) => {
+      const key = mapPop(id, keysById)
+      const owns = key !== undefined && idsByKey.get(key) === id
+
+      // Only remove if this id still owns the key — replacing a replaceable event
+      // reports the old id as removed in the same update that adds the new one,
+      // and the newer event has already taken the key over.
+      if (owns) {
+        idsByKey.delete(key)
+        itemsByKey.delete(key)
+      }
+
+      return owns
+    }
+
+    // The index outlives a subscription, so a subscribe drops what left the repository meanwhile
+    const events = repository.query(filters, {includeDeleted})
+    const ids = new Set(events.map(event => event.id))
+    let pruned = false
+
+    for (const id of Array.from(keysById.keys())) {
+      if (!ids.has(id)) {
+        pruned = removeEvent(id) || pruned
+      }
+    }
+
+    if (pruned) {
+      set(itemsByKey)
+    }
+
+    for (const event of events) {
       addEvent(event)
     }
 
@@ -480,16 +510,7 @@ export const deriveItemsByKey = <T>({
         let dirty = false
 
         for (const id of removed) {
-          const key = mapPop(id, keysById)
-
-          // Only remove if this id still owns the key — replacing a replaceable event
-          // reports the old id as removed in the same update that adds the new one,
-          // and the newer event has already taken the key over.
-          if (key && idsByKey.get(key) === id) {
-            idsByKey.delete(key)
-            itemsByKey.delete(key)
-            dirty = true
-          }
+          dirty = removeEvent(id) || dirty
         }
 
         if (dirty) {

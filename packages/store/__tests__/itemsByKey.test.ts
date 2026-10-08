@@ -116,6 +116,22 @@ describe("reading a collection", () => {
   })
 })
 
+describe("a collection's lifetime", () => {
+  it("drops an item whose event left the repository while nothing was subscribed", () => {
+    const repository = new Repository()
+    const collection = makeCollection(repository, event => event)
+    const event = makeEvent()
+
+    repository.publish(event)
+
+    expect(collection.get().size).toBe(1)
+
+    repository.removeEvent(event.id)
+
+    expect(collection.get().size).toBe(0)
+  })
+})
+
 describe("reading a relay-scoped collection", () => {
   const url = "wss://relay.example/"
 
