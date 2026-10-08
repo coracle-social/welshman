@@ -1,6 +1,6 @@
 import {verifiedSymbol, verifyEvent as verifyEventPure} from "nostr-tools/pure"
 import {setNostrWasm, verifyEvent as verifyEventWasm} from "nostr-tools/wasm"
-import {lte, pick, now} from "@welshman/lib"
+import {lte, pick, now, parseJson} from "@welshman/lib"
 import {getAddress} from "./Address.js"
 import {
   isEphemeralKind,
@@ -84,6 +84,19 @@ export const verifyEvent = (() => {
     return verify(event)
   }
 })()
+
+// An event embedded as JSON (in a tag or the content) arrives from no relay, so its signature is
+// checked here. Undefined unless it is a validly signed event of `kind`.
+export const parseVerifiedEvent = (json: string | undefined, kind: number) => {
+  const event = parseJson<TrustedEvent>(json)
+  let result: SignedEvent | undefined
+
+  if (event?.kind === kind && verifyEvent(event)) {
+    result = event as SignedEvent
+  }
+
+  return result
+}
 
 // Type guards
 

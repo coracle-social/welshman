@@ -1,5 +1,6 @@
 import {spec} from "@welshman/lib"
 import {
+  BOLT12_OFFER,
   BOLT12_ZAP_INTENT,
   addressTags,
   asSignedEvent,
@@ -11,6 +12,7 @@ import {
   makeBolt12PayerNote,
   makeBolt12ZapId,
   msatsTags,
+  parseVerifiedEvent,
   tagMatcher,
   tagSpec,
   tagValue,
@@ -23,6 +25,32 @@ import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 
 const isTargetTag = tagMatcher(tagSpec(["e", "a", "k"]))
+
+/**
+ * The first NIP-B1 rule a zap intent's tags break, or undefined when they keep them all. The
+ * intent's writer refuses to render one that breaks a rule, and a zap embedding one is invalid.
+ */
+export const getBolt12ZapIntentError = (tags: string[][]) => {
+  const count = (key: string) => tags.filter(spec([key])).length
+  const amount = tagValue(msatsTags("amount"), tags)
+  const offer = parseVerifiedEvent(tagValue(tagSpec("offer_event"), tags), BOLT12_OFFER)
+  const zapId = tagValue(tagSpec("zap_id"), tags)
+  let error: string | undefined
+
+  if (!tagValue(hexTags("p"), tags) || count("p") !== 1) {
+    error = "Bolt12ZapIntent requires a recipient"
+  } else if (amount === undefined || amount <= 0) {
+    error = "Bolt12ZapIntent requires a positive whole number of millisats"
+  } else if (!offer || count("offer_event") !== 1) {
+    error = "Bolt12ZapIntent requires the recipient's offer announcement"
+  } else if (!zapId || !isBolt12ZapId(zapId)) {
+    error = "Bolt12ZapIntent requires a zap id of at least 128 bits of lowercase hex"
+  } else if (count("e") + count("a") > 1) {
+    error = "Bolt12ZapIntent names at most one event"
+  }
+
+  return error
+}
 
 // NIP-B1 kind-9737 zap intent, signed before payment and embedded in the kind-9736 zap.
 export class Bolt12ZapIntentReader extends EventReader {
@@ -109,23 +137,10 @@ export class Bolt12ZapIntentWriter extends EventWriter<Bolt12ZapIntentReader> {
   validate() {
     super.validate()
 
-    const amount = tagValue(msatsTags("amount"), this.extraTags)
-    const zapId = tagValue(tagSpec("zap_id"), this.extraTags)
+    const error = getBolt12ZapIntentError(this.extraTags)
 
-    if (!this.extraTags.some(spec(["p"]))) {
-      throw new Error("Bolt12ZapIntent requires a recipient")
-    }
-
-    if (amount === undefined || amount <= 0) {
-      throw new Error("Bolt12ZapIntent requires a positive whole number of millisats")
-    }
-
-    if (!this.extraTags.some(spec(["offer_event"]))) {
-      throw new Error("Bolt12ZapIntent requires the recipient's offer announcement")
-    }
-
-    if (!zapId || !isBolt12ZapId(zapId)) {
-      throw new Error("Bolt12ZapIntent requires a zap id of at least 128 bits of lowercase hex")
+    if (error) {
+      throw new Error(error)
     }
   }
 }

@@ -204,7 +204,7 @@ const template = await app.use(Domain).writer(Bolt12Offer)
   .renderTemplate()
 ```
 
-`validate()` requires at least one offer and refuses any tag that is not a BOLT12 offer. `removeOffer(offer)` and `setOffers(offers)` canonicalize what they are given, so an offer written in another form still matches. `offersAreCanonical()` on a reader is NIP-B1's stricter rule, which `validate` on a zap applies to the announcement it embeds: every tag carries a canonical offer, where `offers()` drops the ones that do not.
+`validate()` requires at least one offer and NIP-B1's rule that every tag carries a canonical offer, which `offersAreCanonical()` checks on a reader and `validate` on a zap applies to the announcement it embeds. `addOffer`, `removeOffer(offer)` and `setOffers(offers)` canonicalize what they are given, so an offer written in another form still matches. `offers()` on a reader drops the tags that are not canonical.
 
 ### Zap intent (kind 9737)
 
@@ -223,6 +223,8 @@ const writer = app.use(Domain).writer(Bolt12ZapIntent)
 const intent = await signer.sign(stamp(await writer.renderTemplate()))
 ```
 
+`getBolt12ZapIntentError(tags)` names the first NIP-B1 rule an intent's tags break: one recipient, a positive whole amount, one signed announcement, a zap id, and at most one target. The writer's `validate()` throws it, and a zap embedding such an intent is invalid.
+
 `payerNote()` on a reader is the `nostr:nipB1:<intent id>` string the lightning payment has to carry as its `invreq_payer_note`, so the settled proof binds to this zap and no other.
 
 ### Zap (kind 9736)
@@ -239,7 +241,7 @@ const template = await app.use(Domain).writer(Bolt12Zap)
 
 `setIntent` copies the content and the `p`, `amount`, `offer_event`, `e`, `a` and `k` tags off the intent, so the two events agree about what was paid for.
 
-A writer runs `getBolt12ZapPaymentHash` over what it is about to render, so it refuses a proof of paying another amount, another offer or another intent rather than publishing a zap nobody will count.
+A writer's `validate()` applies the same NIP-B1 rules a reader's does, apart from the two about who signs the zap, which an anonymous zap's key cannot answer until it exists. It then runs `getBolt12ZapPaymentHash` over what it is about to render, so it refuses a zap that disagrees with its intent or a proof of paying another amount, offer or intent rather than publishing a zap nobody will count.
 
 A reader exposes `recipient`, `payer`, `amount`, `proof`, `eventId`, `targetAddress`, `targetKind`, `target`, `offers`, and `targetsProfile` for a zap of the recipient rather than of anything they wrote. `intent()` and `offer()` return the embedded events, having verified their signatures — they arrive as JSON rather than from a relay, so nothing else does. Neither is parse state, so a reader costs nothing until something asks for one.
 

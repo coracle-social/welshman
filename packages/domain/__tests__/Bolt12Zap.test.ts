@@ -126,6 +126,14 @@ describe("Bolt12Offer", () => {
       buildTemplate(write(Bolt12Offer).setOffers([offerString, "junk"])),
     ).rejects.toThrow("Bolt12Offer refuses an offer that is not a BOLT12 offer")
   })
+
+  it("refuses an offer added in a form readers won't accept", async () => {
+    const writer = write(Bolt12Offer).addTags(["offer", offerString.toUpperCase()])
+
+    await expect(buildTemplate(writer)).rejects.toThrow(
+      "Bolt12Offer refuses an offer that is not a BOLT12 offer in canonical form",
+    )
+  })
 })
 
 describe("Bolt12ZapIntent", () => {
@@ -156,6 +164,17 @@ describe("Bolt12ZapIntent", () => {
 
     await expect(buildTemplate(writer)).rejects.toThrow(
       "Bolt12ZapIntent requires a zap id of at least 128 bits of lowercase hex",
+    )
+  })
+
+  it("refuses an announcement that is not a signed offer announcement", async () => {
+    const writer = write(Bolt12ZapIntent)
+      .setRecipient(await recipientSigner.getPubkey())
+      .setAmount(21000)
+      .addTags(["offer_event", "junk"])
+
+    await expect(buildTemplate(writer)).rejects.toThrow(
+      "Bolt12ZapIntent requires the recipient's offer announcement",
     )
   })
 
@@ -349,23 +368,15 @@ describe("Bolt12Zap", () => {
     expect(claim && getBolt12ZapPaymentHash(claim)).toBe(paidHash)
   })
 
-  it("refuses a proof of another amount, another intent, and an offer nobody announced", async () => {
+  it("refuses a zap that changes the amount or announcement its intent names", async () => {
     const {intent} = await makeZap()
-    const message = "Bolt12Zap requires a settled lnp payer proof"
+    const message = "Bolt12Zap has to repeat the content and tags of the intent it was paid for"
 
     const wrongAmount = write(Bolt12Zap).setIntent(intent).setProof(paidProof)
 
     wrongAmount.dropTags(tag => tag[0] === "amount").addTags(["amount", "22000"])
 
     await expect(buildTemplate(wrongAmount)).rejects.toThrow(message)
-
-    const otherIntent = await payerSigner.sign(
-      stamp({kind: intent.kind, content: intent.content, tags: intent.tags}, 1700000002),
-    )
-
-    await expect(
-      buildTemplate(write(Bolt12Zap).setIntent(otherIntent).setProof(paidProof)),
-    ).rejects.toThrow(message)
 
     const unannounced = await recipientSigner.sign(
       stamp({kind: Bolt12Offer.kind, content: "", tags: [["offer", offerString]]}, 1700000000),
@@ -377,6 +388,29 @@ describe("Bolt12Zap", () => {
       .addTags(["offer_event", JSON.stringify(unannounced)])
 
     await expect(buildTemplate(wrongOffer)).rejects.toThrow(message)
+
+    await expect(
+      buildTemplate(write(Bolt12Zap).setIntent(intent).setProof(paidProof).setContent("other")),
+    ).rejects.toThrow(message)
+
+    const twoTargets = write(Bolt12Zap).setIntent(intent).setProof(paidProof)
+
+    twoTargets.addTags(["e", "aa".repeat(32)])
+
+    await expect(buildTemplate(twoTargets)).rejects.toThrow()
+  })
+
+  it("refuses a proof for another intent", async () => {
+    const {intent} = await makeZap()
+    const message = "Bolt12Zap requires a settled lnp payer proof"
+
+    const otherIntent = await payerSigner.sign(
+      stamp({kind: intent.kind, content: intent.content, tags: intent.tags}, 1700000002),
+    )
+
+    await expect(
+      buildTemplate(write(Bolt12Zap).setIntent(otherIntent).setProof(paidProof)),
+    ).rejects.toThrow(message)
   })
 
   it("refuses an intent it cannot verify, since the payer note binds to its id", async () => {

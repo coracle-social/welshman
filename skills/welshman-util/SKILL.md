@@ -39,6 +39,7 @@ yarn add @welshman/util
 |--------|-------------|
 | `verifiedSymbol` | Symbol (re-exported from `nostr-tools`) used as a key on events; set `event[verifiedSymbol] = true` to skip signature re-validation |
 | `makeEvent(kind, opts?)` | Create a `StampedEvent` with optional content, tags, created_at |
+| `parseVerifiedEvent(json, kind)` | Parse an event embedded as JSON, returning it only if it is a validly signed event of `kind` |
 | `verifyEvent(event)` | Verify event signature; returns `false` for unsigned events (no `sig` field) even if `verifiedSymbol` is set, because `isSignedEvent` is checked first; returns `true` immediately for signed events where `event[verifiedSymbol]` is already set |
 | `getIdentifier(event)` | Get `d` tag value |
 | `getIdOrAddress(event)` | Returns address string for replaceable events, id otherwise |

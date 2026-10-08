@@ -73,6 +73,8 @@ export declare const isSignedEvent: (e: TrustedEvent) => e is SignedEvent;
 ```typescript
 // Event validation and signatures
 export declare const verifyEvent: (event: TrustedEvent) => boolean;
+// An event embedded as JSON, if it is a validly signed event of `kind`
+export declare const parseVerifiedEvent: (json: string | undefined, kind: number) => SignedEvent | undefined;
 
 // Event properties
 export declare const getIdentifier: (e: EventTemplate) => string | undefined;

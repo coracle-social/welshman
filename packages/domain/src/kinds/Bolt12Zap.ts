@@ -1,4 +1,4 @@
-import {equals, parseJson, spec, sum} from "@welshman/lib"
+import {equals, spec, sum} from "@welshman/lib"
 import {
   BOLT12_OFFER,
   BOLT12_ZAP,
@@ -14,14 +14,13 @@ import {
   isReplaceable,
   kindTags,
   makeBolt12PayerNote,
-  isBolt12ZapId,
   matchTags,
   msatsTags,
   tagMatcher,
   tagSpec,
   tagValue,
   tagValues,
-  verifyEvent,
+  parseVerifiedEvent,
 } from "@welshman/util"
 import type {SignedEvent, TrustedEvent} from "@welshman/util"
 import {EventReader} from "../core/EventReader.js"
@@ -30,7 +29,7 @@ import {EventQuery} from "../core/EventQuery.js"
 import {KindFactory} from "../core/Kind.js"
 import type {KindContext} from "../core/Kind.js"
 import {Bolt12OfferReader} from "./Bolt12Offer.js"
-import {Bolt12ZapIntentReader} from "./Bolt12ZapIntent.js"
+import {getBolt12ZapIntentError} from "./Bolt12ZapIntent.js"
 
 // The tags NIP-B1 requires the zap event to repeat from the intent it embeds.
 const intentKeys = ["p", "amount", "offer_event", "e", "a", "k"]
@@ -61,20 +60,74 @@ const agreesOn = (key: string, a: string[][], b: string[][]) => {
   return equals(values(a), values(b))
 }
 
-// An embedded event arrives as JSON rather than from a relay, so nothing else verifies it.
-const parseEmbedded = (json: string | undefined, kind: number) => {
-  const event = parseJson(json)
-  let result: TrustedEvent | undefined
-
-  if (event?.kind === kind && verifyEvent(event)) {
-    result = event
-  }
-
-  return result
-}
-
 const readOffer = (context: KindContext, offer: TrustedEvent) =>
   new Bolt12OfferReader(BOLT12_OFFER, context, offer)
+
+// What NIP-B1 checks a zap by before anyone signs it, so a writer can check it too.
+type Bolt12ZapDraft = {
+  content: string
+  tags: string[][]
+}
+
+type Bolt12ZapParts = {
+  intent: TrustedEvent
+  offer: TrustedEvent
+  offers: string[]
+  amount: number
+  proof: string
+}
+
+type Bolt12ZapCheck = {ok: true; parts: Bolt12ZapParts} | {ok: false; error: string}
+
+/**
+ * The NIP-B1 rules a zap answers to whoever signs it: both embedded events, the structure of
+ * the zap and its intent, that the zap repeats what the payer signed, and that the recipient
+ * announced the offer before the intent named it. Returns the first rule broken, or the parts
+ * a claim is made of.
+ */
+const checkBolt12Zap = (context: KindContext, {content, tags}: Bolt12ZapDraft): Bolt12ZapCheck => {
+  const intent = parseVerifiedEvent(tagValue(tagSpec("description"), tags), BOLT12_ZAP_INTENT)
+  const offer = parseVerifiedEvent(tagValue(tagSpec("offer_event"), tags), BOLT12_OFFER)
+  const offerReader = offer && readOffer(context, offer)
+  const amount = tagValue(msatsTags("amount"), tags)
+  const proof = tagValue(tagSpec("proof"), tags)
+  const recipient = tagValue(hexTags("p"), tags)
+  const intentError = intent && getBolt12ZapIntentError(intent.tags)
+  const fail = (error: string): Bolt12ZapCheck => ({ok: false, error})
+  let check: Bolt12ZapCheck
+
+  if (!intent || countTags("description", tags) !== 1) {
+    check = fail("Bolt12Zap requires the zap intent it was paid for")
+  } else if (!recipient || countTags("p", tags) !== 1) {
+    check = fail("Bolt12Zap requires a recipient")
+  } else if (!offerReader || countTags("offer_event", tags) !== 1) {
+    check = fail("Bolt12Zap requires the recipient's offer announcement")
+  } else if (amount === undefined || amount <= 0) {
+    check = fail("Bolt12Zap requires a positive whole number of millisats")
+  } else if (!proof || !isBolt12PayerProof(proof)) {
+    check = fail("Bolt12Zap requires a settled lnp payer proof")
+  } else if (countTags("e", tags) + countTags("a", tags) > 1) {
+    check = fail("Bolt12Zap names at most one event")
+  } else if (intentError) {
+    check = fail(`Bolt12Zap embeds an invalid intent: ${intentError}`)
+  } else if (content !== intent.content || !intentKeys.every(k => agreesOn(k, tags, intent.tags))) {
+    check = fail("Bolt12Zap has to repeat the content and tags of the intent it was paid for")
+  } else if (!offerReader.offersAreCanonical()) {
+    check = fail("Bolt12Zap requires an announcement whose offers are canonical")
+  } else if (
+    offerReader.event.pubkey !== recipient ||
+    offerReader.event.created_at > intent.created_at
+  ) {
+    check = fail("Bolt12Zap requires the recipient's announcement from before the intent")
+  } else {
+    check = {
+      ok: true,
+      parts: {intent, offer: offerReader.event, offers: offerReader.offers(), amount, proof},
+    }
+  }
+
+  return check
+}
 
 /**
  * The lightning half of NIP-B1 validation, which `Bolt12ZapReader.validate` leaves alone and
@@ -165,12 +218,12 @@ export class Bolt12ZapReader extends EventReader {
 
   // The intent the payer signed before paying. Verified here, since it arrives as JSON.
   intent() {
-    return parseEmbedded(tagValue(tagSpec("description"), this.tags()), BOLT12_ZAP_INTENT)
+    return parseVerifiedEvent(tagValue(tagSpec("description"), this.tags()), BOLT12_ZAP_INTENT)
   }
 
   // The recipient's announcement of the offer that was paid, verified.
   offer() {
-    return parseEmbedded(tagValue(tagSpec("offer_event"), this.tags()), BOLT12_OFFER)
+    return parseVerifiedEvent(tagValue(tagSpec("offer_event"), this.tags()), BOLT12_OFFER)
   }
 
   // The canonical raw offers the payer proof may have paid.
@@ -181,92 +234,34 @@ export class Bolt12ZapReader extends EventReader {
   }
 
   /**
-   * Runs NIP-B1 validation as far as nostr reaches: both embedded signatures, the structure
-   * of the zap and its intent, that the zap repeats what the payer signed, and that the
-   * recipient authored the announcement. Returns undefined when any of that fails.
+   * Runs NIP-B1 validation as far as nostr reaches: `checkBolt12Zap`, plus that the payer
+   * signed both the zap and its intent. Returns undefined when any of that fails.
    * `getBolt12ZapPaymentHash` is the lightning half, and it reads the claim this returns.
    */
   validate(): Bolt12ZapClaim | undefined {
-    const intent = this.intent()
-    const offer = this.offer()
-    const amount = this.amount()
-    const proof = this.proof()
+    const check = checkBolt12Zap(this.context, {content: this.event.content, tags: this.tags()})
     let claim: Bolt12ZapClaim | undefined
 
-    if (intent && offer && proof && amount !== undefined) {
-      const offerReader = readOffer(this.context, offer)
-      const offers = offerReader.offers()
-
-      const valid =
-        amount > 0 &&
-        isBolt12PayerProof(proof) &&
-        offerReader.offersAreCanonical() &&
-        this.isWellFormed() &&
-        this.intentIsWellFormed(intent) &&
-        this.matchesIntent(intent) &&
-        this.offerIsAuthorized(offer, intent)
-
-      if (valid) {
-        claim = {
-          event: this.event,
-          intent,
-          offer,
-          offers,
-          target: this.target(),
-          amount,
-          proof,
-          payerNote: makeBolt12PayerNote(intent.id),
-        }
+    if (check.ok && this.isSignedByPayer(check.parts.intent)) {
+      claim = {
+        ...check.parts,
+        event: this.event,
+        target: this.target(),
+        payerNote: makeBolt12PayerNote(check.parts.intent.id),
       }
     }
 
     return claim
   }
 
-  // One description, one recipient, one announcement, at most one target, author as payer.
-  private isWellFormed() {
-    const tags = this.tags()
-
-    return (
-      countTags("description", tags) === 1 &&
-      countTags("p", tags) === 1 &&
-      countTags("offer_event", tags) === 1 &&
-      countTags("e", tags) + countTags("a", tags) <= 1 &&
-      this.payerIsAuthor()
-    )
-  }
-
+  // An anonymous zap's key exists only once it is signed, so only a reader can check these.
   // Reading `P` through `payer` would pass a malformed one off as an anonymous zap.
-  private payerIsAuthor() {
-    return matchTags(tagSpec("P"), this.tags()).every(tag => tag[1] === this.event.pubkey)
-  }
-
-  private intentIsWellFormed(intent: TrustedEvent) {
-    const reader = new Bolt12ZapIntentReader(BOLT12_ZAP_INTENT, this.context, intent)
-    const amount = reader.amount()
-    const zapId = reader.zapId()
+  private isSignedByPayer(intent: TrustedEvent) {
+    const {pubkey} = this.event
 
     return (
-      intent.pubkey === this.event.pubkey &&
-      countTags("p", intent.tags) === 1 &&
-      countTags("offer_event", intent.tags) === 1 &&
-      countTags("e", intent.tags) + countTags("a", intent.tags) <= 1 &&
-      amount !== undefined &&
-      amount > 0 &&
-      zapId !== undefined &&
-      isBolt12ZapId(zapId)
+      intent.pubkey === pubkey && matchTags(tagSpec("P"), this.tags()).every(t => t[1] === pubkey)
     )
-  }
-
-  private matchesIntent(intent: TrustedEvent) {
-    const agrees = (key: string) => agreesOn(key, this.tags(), intent.tags)
-
-    return this.event.content === intent.content && intentKeys.every(agrees)
-  }
-
-  // The announcement is the recipient's own, and predates the intent that embedded it.
-  private offerIsAuthorized(offer: TrustedEvent, intent: TrustedEvent) {
-    return offer.pubkey === this.recipient() && offer.created_at <= intent.created_at
   }
 }
 
@@ -309,40 +304,15 @@ export class Bolt12ZapWriter extends EventWriter<Bolt12ZapReader> {
   validate() {
     super.validate()
 
-    const intent = parseEmbedded(
-      tagValue(tagSpec("description"), this.extraTags),
-      BOLT12_ZAP_INTENT,
-    )
-    const offer = parseEmbedded(tagValue(tagSpec("offer_event"), this.extraTags), BOLT12_OFFER)
-    const amount = tagValue(msatsTags("amount"), this.extraTags)
-    const proof = tagValue(tagSpec("proof"), this.extraTags)
+    const check = checkBolt12Zap(this.context, {content: this.content, tags: this.extraTags})
 
-    if (!intent) {
-      throw new Error("Bolt12Zap requires the zap intent it was paid for")
+    if (!check.ok) {
+      throw new Error(check.error)
     }
 
-    if (!this.extraTags.some(spec(["p"]))) {
-      throw new Error("Bolt12Zap requires a recipient")
-    }
+    const {intent, ...parts} = check.parts
 
-    if (!offer) {
-      throw new Error("Bolt12Zap requires the recipient's offer announcement")
-    }
-
-    if (amount === undefined || amount <= 0) {
-      throw new Error("Bolt12Zap requires a positive whole number of millisats")
-    }
-
-    const settles =
-      proof &&
-      getBolt12ZapPaymentHash({
-        proof,
-        amount,
-        payerNote: makeBolt12PayerNote(intent.id),
-        offers: readOffer(this.context, offer).offers(),
-      })
-
-    if (!settles) {
+    if (!getBolt12ZapPaymentHash({...parts, payerNote: makeBolt12PayerNote(intent.id)})) {
       throw new Error("Bolt12Zap requires a settled lnp payer proof")
     }
   }

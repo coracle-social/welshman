@@ -5,7 +5,6 @@ import {
   indexers,
   isBolt12Offer,
   isCanonicalBolt12Offer,
-  matchTags,
   tagSpec,
   tagValueMatcher,
   tagValues,
@@ -17,17 +16,21 @@ import {KindFactory} from "../core/Kind.js"
 
 const offerSpec = tagSpec("offer", isBolt12Offer, canonicalBolt12)
 
+// NIP-B1 asks every offer tag to be canonical, where `offers` drops the ones that are not.
+const offersAreCanonical = (tags: string[][]) => {
+  const offerTags = tags.filter(spec(["offer"]))
+
+  return offerTags.length > 0 && offerTags.every(tag => isCanonicalBolt12Offer(tag[1]))
+}
+
 // NIP-B1 kind-10058 BOLT12 offer announcement.
 export class Bolt12OfferReader extends EventReader {
   offers() {
     return uniq(tagValues(offerSpec, this.tags()))
   }
 
-  // NIP-B1 asks every offer tag to be canonical, where `offers` drops the ones that are not.
   offersAreCanonical() {
-    const tags = this.tags().filter(spec(["offer"]))
-
-    return tags.length > 0 && tags.every(tag => isCanonicalBolt12Offer(tag[1]))
+    return offersAreCanonical(this.tags())
   }
 }
 
@@ -51,14 +54,12 @@ export class Bolt12OfferWriter extends EventWriter<Bolt12OfferReader> {
   validate() {
     super.validate()
 
-    const tags = this.extraTags.filter(spec(["offer"]))
-
-    if (tags.length === 0) {
+    if (!this.extraTags.some(spec(["offer"]))) {
       throw new Error("Bolt12Offer requires at least one offer")
     }
 
-    if (tags.length > matchTags(offerSpec, this.extraTags).length) {
-      throw new Error("Bolt12Offer refuses an offer that is not a BOLT12 offer")
+    if (!offersAreCanonical(this.extraTags)) {
+      throw new Error("Bolt12Offer refuses an offer that is not a BOLT12 offer in canonical form")
     }
   }
 }
