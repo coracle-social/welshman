@@ -1,9 +1,10 @@
 import {get} from "svelte/store"
 import {describe, it, expect, beforeEach, afterEach, vi} from "vitest"
-import {batch, on, sleep} from "@welshman/lib"
-import {NOTE, isSignedEvent} from "@welshman/util"
-import {mergeRepositoryUpdates, PublishStatus} from "@welshman/net"
-import type {RepositoryUpdate} from "@welshman/net"
+import {batch, noop, on, sleep} from "@welshman/lib"
+import {NOTE, isSignedEvent, prep} from "@welshman/util"
+import type {SignedEvent} from "@welshman/util"
+import {AdapterEvent, MockAdapter, mergeRepositoryUpdates, PublishStatus} from "@welshman/net"
+import type {ClientMessage, RepositoryUpdate} from "@welshman/net"
 import {Nip01Signer} from "@welshman/signer"
 import type {ISigner} from "@welshman/signer"
 import {App} from "../src/app.js"
@@ -389,5 +390,75 @@ describe("publication groups", () => {
 
     expect(group.isComplete()).toBe(true)
     expect(group.getFailedUrls()).toEqual([url])
+  })
+})
+
+describe("gift wraps of one rumor to several recipients", () => {
+  let alice: string
+  let bob: string
+
+  beforeEach(async () => {
+    alice = await Nip01Signer.ephemeral().getPubkey()
+    bob = await Nip01Signer.ephemeral().getPubkey()
+  })
+
+  // A relay that accepts every wrap except the ones addressed to `rejected`.
+  const makeRelayApp = async (rejected: string) => {
+    const user = await User.fromSigner(Nip01Signer.ephemeral())
+
+    return new App({
+      user,
+      getAdapter: (relay: string) => {
+        const adapter: MockAdapter = new MockAdapter(relay, (message: ClientMessage) => {
+          if (message[0] === "EVENT") {
+            const wrap = message[1] as SignedEvent
+            const accepted = !wrap.tags.some(t => t[0] === "p" && t[1] === rejected)
+
+            adapter.receive(["OK", wrap.id, accepted, accepted ? "" : "blocked"])
+          }
+        })
+
+        adapter.on(AdapterEvent.Receive, noop)
+
+        return adapter
+      },
+    })
+  }
+
+  const publishToBoth = (app: App) => {
+    const rumor = prep(note("hi"), User.require(app).pubkey)
+    const publisher = app.use(Publisher)
+
+    return [alice, bob].map(recipient =>
+      publisher.publish({event: rumor, relays: [url], recipient}),
+    )
+  }
+
+  it("keeps the rumor on a relay that took one of its wraps but refused another", async () => {
+    const app = await makeRelayApp(bob)
+    const [toAlice, toBob] = publishToBoth(app)
+
+    await new PublicationGroup([toAlice, toBob]).settled()
+
+    expect(toAlice.getUrlsWithStatus(PublishStatus.Success)).toEqual([url])
+    expect(toBob.getFailedUrls()).toEqual([url])
+    expect(app.tracker.hasRelay(toAlice.event.id, url)).toBe(true)
+
+    app.cleanup()
+  })
+
+  it("keeps the rumor when one recipient's wrap is aborted and the other is still sending", async () => {
+    const app = await makeRelayApp("")
+    const [toAlice, toBob] = publishToBoth(app)
+
+    toBob.abort()
+
+    expect(app.repository.getEvent(toAlice.event.id)).toBeDefined()
+
+    await toAlice.settled()
+
+    expect(app.repository.getEvent(toAlice.event.id)).toBeDefined()
+
+    app.cleanup()
   })
 })

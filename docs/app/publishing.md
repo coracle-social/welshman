@@ -108,9 +108,9 @@ A `PublicationGroup` has the same status helpers as a publication, plus `publica
 `publish` writes the event to the repository and tracker, so derived stores reflect it before any relay responds. The publisher keeps both in step with the publication:
 
 - A signature on the same id replaces the unsigned copy in place, so the repository reports no removal. Proof of work changes the id, so the publisher removes the optimistic event and adds the mined one.
-- The publisher removes a relay from the tracker when the relay rejects the event, times out, or is aborted.
-- The publisher registers a gift wrap with the app's `WrapManager` when the wrap is sent.
-- The publisher removes an aborted publication's event and wrap from the repository and drops its history entry. A failed publication keeps its event so it can be retried.
+- The tracker records where the sent event is. For a gift wrap that is the wrap, which the publisher tracks and registers with the app's `WrapManager` when it is sent; the wrap manager copies its relays onto the rumor, as it does for a received wrap.
+- The publisher removes a relay from the sent event in the tracker when the relay rejects it, times out, or is aborted.
+- The publisher removes an aborted publication's wrap, and its event unless another publication in history still holds that id (a wrap of the same rumor to another recipient, or a retry), and drops its history entry. A failed publication keeps its event so it can be retried.
 
 ## Commands
 

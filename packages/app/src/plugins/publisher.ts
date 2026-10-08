@@ -481,26 +481,42 @@ export class Publisher {
     }
   }
 
+  // An aborted publication withdraws its copy unless another publication still holds that id:
+  // a gift wrap of the same rumor to another recipient, or a retry of the same event.
+  private isHeldElsewhere(publication: Publication, id: string) {
+    return get(this.history).some(
+      p => p !== publication && p.event.id === id && p.state.stage !== "aborted",
+    )
+  }
+
+  // The tracker records where the sent event is: the event itself, or for a gift wrap the wrap,
+  // whose relays the wrap manager copies onto the rumor as it does for a wrap received.
   private observe(publication: Publication) {
     const {repository, tracker, wrapManager} = this.app
     const {recipient} = publication.request
     let current = publication.event
     let registeredWrap: SignedEvent | undefined
 
-    for (const url of publication.relays) {
-      tracker.track(current.id, url)
+    const trackSent = (id: string) => {
+      for (const url of publication.relays) {
+        tracker.track(id, url)
+      }
+    }
+
+    if (!recipient) {
+      trackSent(current.id)
     }
 
     repository.publish(current)
 
     publication.subscribe(({state, event, wrap}) => {
-      // Only pow changes the id. A signature on the same id is taken in place.
+      // Only pow changes the id, and for a gift wrap it mines the wrap rather than the rumor.
       if (event.id !== current.id) {
         for (const url of publication.relays) {
           tracker.removeRelay(current.id, url)
-          tracker.track(event.id, url)
         }
 
+        trackSent(event.id)
         repository.removeEvent(current.id)
       }
 
@@ -517,13 +533,16 @@ export class Publisher {
         !registeredWrap
       ) {
         registeredWrap = wrap
+        trackSent(wrap.id)
         wrapManager.add({recipient, wrap, rumor: event})
       }
 
-      if ("results" in state) {
+      const sentId = recipient ? registeredWrap?.id : current.id
+
+      if (sentId && "results" in state) {
         for (const {relay, status} of Object.values(state.results)) {
           if (![Pending, Success].includes(status)) {
-            tracker.removeRelay(current.id, relay)
+            tracker.removeRelay(sentId, relay)
           }
         }
       }
@@ -533,7 +552,10 @@ export class Publisher {
           wrapManager.remove(registeredWrap.id)
         }
 
-        repository.removeEvent(current.id)
+        if (!this.isHeldElsewhere(publication, current.id)) {
+          repository.removeEvent(current.id)
+        }
+
         this.history.update($history => remove(publication, $history))
       }
     })
