@@ -213,14 +213,14 @@ export const deriveEventsByIdByUrl = (
 
         for (const event of added) {
           for (const url of tracker.getRelays(event.id)) {
-            dirty = dirty || addEvent(url, event)
+            dirty = addEvent(url, event) || dirty
           }
         }
 
         if (!includeDeleted) {
           for (const id of removed) {
             for (const url of tracker.getRelays(id)) {
-              dirty = dirty || removeEvent(url, id)
+              dirty = removeEvent(url, id) || dirty
             }
           }
         }

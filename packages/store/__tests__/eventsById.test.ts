@@ -83,6 +83,25 @@ describe("deriveEventsById", () => {
 })
 
 describe("deriveEventsByIdByUrl", () => {
+  it("takes every event a single update adds", () => {
+    const repository = new Repository()
+    const tracker = new Tracker()
+    const first = makeEvent({id: "a".repeat(64)})
+    const second = makeEvent({id: "b".repeat(64)})
+
+    tracker.track(first.id, url)
+    tracker.track(second.id, url)
+
+    const store = deriveEventsByIdByUrl({filters: [{kinds: [NOTE]}], repository, tracker})
+    const unsub = store.subscribe(() => {})
+
+    repository.load([first, second])
+
+    expect(get(store).get(url)?.size).toBe(2)
+
+    unsub()
+  })
+
   it("keeps an event deleted while subscribed when includeDeleted is set", () => {
     const repository = new Repository()
     const tracker = new Tracker()
