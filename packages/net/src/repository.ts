@@ -30,6 +30,12 @@ export const LOCAL_RELAY_URL = "local://welshman.relay/"
 
 const getDay = (ts: number) => Math.floor(ts / DAY)
 
+export type QueryOptions = {
+  includeDeleted: boolean
+  includeExpired: boolean
+  shouldSort: boolean
+}
+
 export type RepositoryUpdate = {
   added: TrustedEvent[]
   removed: Set<string>
@@ -166,35 +172,8 @@ export class Repository extends Emitter {
     filters: Filter[],
     {includeDeleted = false, includeExpired = false, shouldSort = true} = {},
   ) => {
-    const result: TrustedEvent[][] = []
-    for (const originalFilter of filters) {
-      // Attempt to fulfill the query using one of our indexes. Fall back to all events.
-      const applied = this._applyAnyFilter(originalFilter)
-      const filter = applied?.filter || originalFilter
-      const events = applied ? this._getEvents(applied!.ids) : this.dump()
-      const sorted = this._sortEvents(shouldSort || Boolean(filter.limit), events)
-
-      const chunk: TrustedEvent[] = []
-      for (const event of sorted) {
-        if (filter.limit && chunk.length >= filter.limit) {
-          break
-        }
-
-        if (!includeDeleted && this.isDeleted(event)) {
-          continue
-        }
-
-        if (!includeExpired && this.isExpired(event)) {
-          continue
-        }
-
-        if (matchFilter(filter, event)) {
-          chunk.push(event)
-        }
-      }
-
-      result.push(chunk)
-    }
+    const options = {includeDeleted, includeExpired, shouldSort}
+    const result = filters.map(filter => this._queryOne(filter, options))
 
     // Only re-sort if we had multiple filters, or if our single filter wasn't sorted
     const shouldSortAll = shouldSort && (filters.length > 1 || !filters[0]?.limit)
@@ -260,6 +239,58 @@ export class Repository extends Emitter {
       m.delete(k)
     }
   }
+
+  // A page with a ceiling comes from the day index, which bounds the work to the window
+  _queryOne = (filter: Filter, options: QueryOptions) =>
+    filter.limit && filter.until
+      ? this._queryDays(filter, options)
+      : this._queryIndex(filter, options)
+
+  // Every event in a day bucket is newer than every event below it, so a full page ends the walk
+  _queryDays = (filter: Filter, options: QueryOptions) => {
+    const limit = filter.limit || Infinity
+    const sinceDay = getDay(filter.since || EPOCH)
+    const untilDay = getDay(filter.until || now())
+    const found: TrustedEvent[] = []
+
+    for (let day = untilDay; day >= sinceDay && found.length < limit; day--) {
+      for (const event of sortEventsDesc(this.eventsByDay.get(day) || [])) {
+        if (found.length >= limit) {
+          break
+        }
+
+        if (this._isIncluded(event, options) && matchFilter(filter, event)) {
+          found.push(event)
+        }
+      }
+    }
+
+    return found
+  }
+
+  _queryIndex = (originalFilter: Filter, options: QueryOptions) => {
+    // Attempt to fulfill the query using one of our indexes. Fall back to all events.
+    const applied = this._applyAnyFilter(originalFilter)
+    const filter = applied?.filter || originalFilter
+    const events = applied ? this._getEvents(applied.ids) : this.dump()
+    const sorted = this._sortEvents(options.shouldSort || Boolean(filter.limit), events)
+    const found: TrustedEvent[] = []
+
+    for (const event of sorted) {
+      if (filter.limit && found.length >= filter.limit) {
+        break
+      }
+
+      if (this._isIncluded(event, options) && matchFilter(filter, event)) {
+        found.push(event)
+      }
+    }
+
+    return found
+  }
+
+  _isIncluded = (event: TrustedEvent, {includeDeleted, includeExpired}: QueryOptions) =>
+    (includeDeleted || !this.isDeleted(event)) && (includeExpired || !this.isExpired(event))
 
   _getEvents = (ids: Iterable<string>) => {
     const events: TrustedEvent[] = []

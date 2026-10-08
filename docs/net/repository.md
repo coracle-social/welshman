@@ -22,7 +22,7 @@
 
 ## Indexes
 
-Events are indexed by id, by address (replaceables only), by author, by kind, by day of `created_at`, and by each single-letter tag's first value. `query` narrows each filter through the first index that applies, in the order `ids`, `authors`, single-letter tag, `kinds`, `since`/`until`, and scans every event when none does.
+Events are indexed by id, by address (replaceables only), by author, by kind, by day of `created_at`, and by each single-letter tag's first value. A filter carrying both a `limit` and an `until` is answered from the day index, walked from `until` back towards `since` and stopped as soon as a day leaves the page full, so the window bounds the work rather than the size of the store. Every other filter narrows through the first index that applies, in the order `ids`, `authors`, single-letter tag, `kinds`, `since`/`until`, and scans every event when none does.
 
 ## Deletes and replaceables
 

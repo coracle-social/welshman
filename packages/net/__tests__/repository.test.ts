@@ -1,12 +1,14 @@
 import {describe, it, vi, expect, beforeEach} from "vitest"
-import {now, choice, range} from "@welshman/lib"
-import {getAddress, makeEvent, TrustedEvent, DELETE, MUTES} from "@welshman/util"
+import {now, choice, pluck, range} from "@welshman/lib"
+import {getAddress, makeEvent, sortEventsDesc, TrustedEvent, DELETE, MUTES} from "@welshman/util"
 import {Repository, mergeRepositoryUpdates} from "../src/repository"
 
 const randomHex = () =>
   Array.from(range(0, 64))
     .map(() => choice(Array.from("0123456789abcdef")))
     .join("")
+
+const DAY = 86400
 
 const createEvent = (kind: number, extra = {}) => ({
   ...makeEvent(kind),
@@ -15,6 +17,22 @@ const createEvent = (kind: number, extra = {}) => ({
   sig: "fake",
   ...extra,
 })
+
+// `perDay` events on each of the last `days` days, alternating kind 1 and kind 7
+const loadDays = (repo: Repository, days: number, perDay: number) => {
+  const today = Math.floor(now() / DAY)
+  const events: TrustedEvent[] = []
+
+  for (let day = today; day > today - days; day--) {
+    for (let i = 0; i < perDay; i++) {
+      events.push(createEvent(i % 2 === 0 ? 1 : 7, {created_at: day * DAY + i}))
+    }
+  }
+
+  repo.load(events)
+
+  return events
+}
 
 describe("Repository", () => {
   beforeEach(() => {
@@ -448,6 +466,74 @@ describe("Repository", () => {
       const results = repo.query([{limit: 1}])
       expect(results).toHaveLength(1)
       expect(results[0]).toEqual(events[0]) // Most recent event
+    })
+
+    it("should read only the day buckets a windowed page needs", () => {
+      loadDays(repo, 30, 6)
+
+      const spy = vi.spyOn(repo.eventsByDay, "get")
+      const results = repo.query([{kinds: [1], since: now() - 30 * DAY, until: now(), limit: 6}])
+
+      expect(results).toHaveLength(6)
+      expect(spy.mock.calls.length).toBe(2)
+    })
+
+    it("should return the same windowed page a full scan would have", () => {
+      const events = loadDays(repo, 30, 6)
+      const since = now() - 30 * DAY
+      const expected = sortEventsDesc(
+        events.filter(e => e.kind === 1 && e.created_at >= since && e.created_at <= now()),
+      ).slice(0, 10)
+
+      const results = repo.query([{kinds: [1], since, until: now(), limit: 10}])
+
+      expect(pluck<string>("id", results)).toEqual(pluck<string>("id", expected))
+    })
+
+    it("should not let a deleted event shorten a windowed page", () => {
+      const events = loadDays(repo, 30, 6)
+      const today = Math.floor(now() / DAY)
+      const newest = events.filter(e => e.kind === 1 && Math.floor(e.created_at / DAY) === today)
+
+      for (const event of newest) {
+        repo.publish(
+          createEvent(DELETE, {
+            pubkey: event.pubkey,
+            tags: [["e", event.id]],
+            created_at: now(),
+          }),
+        )
+      }
+
+      const results = repo.query([{kinds: [1], since: now() - 30 * DAY, until: now(), limit: 6}])
+
+      expect(results).toHaveLength(6)
+      expect(results.filter(e => newest.includes(e))).toEqual([])
+    })
+
+    it("should exclude an event in the since bucket that falls before since", () => {
+      const sinceDay = Math.floor(now() / DAY) - 1
+      const early = createEvent(1, {created_at: sinceDay * DAY})
+      const late = createEvent(1, {created_at: sinceDay * DAY + 7200})
+
+      repo.load([early, late])
+
+      const results = repo.query([
+        {kinds: [1], since: sinceDay * DAY + 3600, until: now(), limit: 10},
+      ])
+
+      expect(results).toContain(late)
+      expect(results).not.toContain(early)
+    })
+
+    it("should return an event dated ahead of now for a window with no ceiling", () => {
+      const future = createEvent(1, {created_at: now() + 3 * DAY})
+
+      repo.publish(future)
+
+      const results = repo.query([{kinds: [1], since: now() - DAY, limit: 10}])
+
+      expect(results).toContain(future)
     })
 
     it("should not return deleted events", () => {
