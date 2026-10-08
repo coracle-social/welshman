@@ -59,6 +59,33 @@ describe("Plaintext", () => {
     expect(decrypt).toHaveBeenCalledTimes(1)
   })
 
+  it("doesn't keep an urgent caller waiting on a background decrypt", async () => {
+    const plaintext = new App().use(Plaintext)
+    const background = deferred<string>()
+    const decrypt = vi.fn().mockReturnValueOnce(background.promise).mockResolvedValueOnce("hello")
+
+    plaintext.ensure("ciphertext", decrypt, {priority: -1})
+
+    expect(await plaintext.ensure("ciphertext", decrypt)).toEqual("hello")
+    expect(decrypt).toHaveBeenCalledTimes(2)
+  })
+
+  it("decrypts for a caller whose shared decrypt was aborted by the caller that asked for it", async () => {
+    const plaintext = new App().use(Plaintext)
+    const first = deferred<string>()
+    const controller = new AbortController()
+    const decrypt = vi.fn().mockReturnValueOnce(first.promise).mockResolvedValueOnce("hello")
+
+    const aborted = plaintext.ensure("ciphertext", decrypt, {signal: controller.signal})
+    const sharer = plaintext.ensure("ciphertext", decrypt)
+
+    controller.abort()
+    first.reject(new Error("Signer request was aborted"))
+
+    await expect(aborted).rejects.toThrow("aborted")
+    expect(await sharer).toEqual("hello")
+  })
+
   it("caches nothing when a decrypt fails, and decrypts again on the next call", async () => {
     const plaintext = new App().use(Plaintext)
     const {promise, reject} = deferred<string>()

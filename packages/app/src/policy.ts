@@ -4,6 +4,7 @@ import {WRAP, isDVMKind, isEphemeralKind, verifyEvent} from "@welshman/util"
 import type {TrustedEvent} from "@welshman/util"
 import {SocketEvent, isRelayEvent, makeSocketPolicyAuth} from "@welshman/net"
 import type {RelayMessage, Socket} from "@welshman/net"
+import type {SignerOptions} from "@welshman/signer"
 import type {IApp} from "./app.js"
 import {RelayStats} from "./plugins/relayStats.js"
 import {Notify} from "./plugins/notify.js"
@@ -134,10 +135,11 @@ export const appPolicyCacheDecrypt: AppPolicy = app => {
   return app.user.wrapSigner((method, thunk, args) => {
     if (method === "nip04.decrypt" || method === "nip44.decrypt") {
       const ciphertext = args[1] as string
+      const options = args[2] as SignerOptions
 
-      return app.use(Plaintext).ensure(ciphertext, thunk as () => Promise<string>) as ReturnType<
-        typeof thunk
-      >
+      return app
+        .use(Plaintext)
+        .ensure(ciphertext, thunk as () => Promise<string>, options) as ReturnType<typeof thunk>
     }
 
     return thunk()
