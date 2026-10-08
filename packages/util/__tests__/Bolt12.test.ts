@@ -39,6 +39,12 @@ describe("Bolt12", () => {
       expect(decodeBolt12("lno1qgzyb", "lno")).toBeUndefined()
       expect(decodeBolt12("lno1qgzyp", "lno")).toBeUndefined()
     })
+
+    it("refuses a whole character of padding", () => {
+      expect(decodeBolt12("lno1qq", "lno")).toEqual(Uint8Array.from([0x00]))
+      expect(decodeBolt12("lno1qqq", "lno")).toBeUndefined()
+      expect(decodeBolt12("lno1q", "lno")).toBeUndefined()
+    })
   })
 
   describe("parseBolt12Tlvs", () => {
