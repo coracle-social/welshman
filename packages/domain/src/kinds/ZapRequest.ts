@@ -75,10 +75,15 @@ export class ZapRequestWriter extends EventWriter<ZapRequestReader> {
     }
 
     const event = await signer.sign(stamp(await this.renderTemplate()))
-    const zapString = encodeURI(JSON.stringify(event))
     const msats = parseInt(tagValue(tagSpec("amount"), event.tags)!)
-    const qs = `?amount=${msats}&nostr=${zapString}&lnurl=${zapper.lnurl}`
-    const res = await tryCatch(() => fetchJson(zapper.callback + qs))
+    const res = await tryCatch(() => {
+      const url = new URL(zapper.callback!)
+      // Encode each value so reserved characters cannot change the signed event.
+      url.searchParams.set("amount", String(msats))
+      url.searchParams.set("nostr", JSON.stringify(event))
+      url.searchParams.set("lnurl", zapper.lnurl)
+      return fetchJson(url.toString())
+    })
 
     return {
       event,
