@@ -149,6 +149,37 @@ describe("ZapRequest", () => {
       expect(url).toContain("nostr=")
     })
 
+    it.each(["good devs + AI", "a&b=c#d? café ⚡ %20"])(
+      "preserves the signed request through query decoding: %s",
+      async content => {
+        const fetchMock = vi.fn(async (_url: string) => ({json: async () => ({pr: "invoice"})}))
+        vi.stubGlobal("fetch", fetchMock)
+
+        const res = await signedWriter().setContent(content).requestInvoice(zapper)
+        const url = new URL(String(fetchMock.mock.calls[0][0]))
+
+        expect(url.searchParams.get("nostr")).toBe(JSON.stringify(res.event))
+        expect(url.hash).toBe("")
+      },
+    )
+
+    it("preserves existing callback parameters and encodes lnurl", async () => {
+      const fetchMock = vi.fn(async (_url: string) => ({json: async () => ({pr: "invoice"})}))
+      vi.stubGlobal("fetch", fetchMock)
+      const destination = new Zapper({
+        ...zapper,
+        callback: "https://ln.example.com/cb?user=alice&amount=1",
+        lnurl: "https://ln.example.com/pay?user=alice&memo=a+b",
+      })
+
+      await signedWriter().requestInvoice(destination)
+      const url = new URL(String(fetchMock.mock.calls[0][0]))
+
+      expect(url.searchParams.get("user")).toBe("alice")
+      expect(url.searchParams.getAll("amount")).toEqual(["21000"])
+      expect(url.searchParams.get("lnurl")).toBe(destination.lnurl)
+    })
+
     it("returns the service error when no invoice comes back", async () => {
       vi.stubGlobal(
         "fetch",
